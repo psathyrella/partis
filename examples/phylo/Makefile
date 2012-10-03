@@ -1,7 +1,7 @@
 PHYLOC = phylomain.cc phylofunc.cc
 PHYLOH = phylofunc.hh
 
-CCFLAGS := $(CCFLAGS) -I../../include -L../../lib
+CCFLAGS := $(CCFLAGS) -I../../include -L../../lib -g
 LFLAGS := -I../../include -L../../lib $(LFLAGS)
 
 all: phylo
