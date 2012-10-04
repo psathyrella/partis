@@ -1,6 +1,6 @@
 #include "smctc.hh"
 #include "phylofunc.hh"
-#include <cstdio> 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
@@ -15,7 +15,7 @@ int main(int argc, char** argv)
 	long lIterates = node_count;
 
 try {
-	// TODO: read alignment 
+	// TODO: read alignment
 	// for now just generate some randomly named leaves
 	leaf_nodes.resize(node_count);
 	for(int i=0; i < node_count; i++){
@@ -26,7 +26,7 @@ try {
 	}
 
 	//Initialise and run the sampler
-	smc::sampler<particle> Sampler(population_size, SMC_HISTORY_NONE);  
+	smc::sampler<particle> Sampler(population_size, SMC_HISTORY_NONE);
 	smc::moveset<particle> Moveset(fInitialise, fMove, NULL);
 
 	Sampler.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
