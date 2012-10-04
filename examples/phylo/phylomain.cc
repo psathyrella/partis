@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
+#include <memory>
 
 using namespace std;
 
@@ -18,11 +19,10 @@ try {
 	// for now just generate some randomly named leaves
 	leaf_nodes.resize(node_count);
 	for(int i=0; i < node_count; i++){
-		leaf_nodes[i] = new phylo_node();
-		leaf_nodes[i]->name = (char*)malloc(100);
+		leaf_nodes[i] = make_shared< phylo_node >();
 		stringstream ss;
 		ss << "leaf_" << i;
-		strncpy(leaf_nodes[i]->name, ss.str().data(), ss.str().size());
+		leaf_nodes[i]->name = ss.str();
 	}
 
 	//Initialise and run the sampler
