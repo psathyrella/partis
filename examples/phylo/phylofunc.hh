@@ -5,6 +5,10 @@
 #include <memory>
 #include <string>
 
+// This class stores the SMC forest implicitly, by specifying the collections
+// of mergers that must be made in order to get the forest from \perp (i.e. the
+// completely un-merged state).
+
 class phylo_node
 {
 public:
@@ -18,7 +22,9 @@ public:
 class phylo_particle
 {
 public:
+	// The merge novel to this particle. If NULL then it's \perp.
 	std::shared_ptr< phylo_node > node;
+	// The predecessor particles, which specify the rest of the merges for this particle.
 	std::shared_ptr< phylo_particle > predecessor;
 };
 

@@ -47,23 +47,25 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 	shared_ptr< phylo_particle > pp = make_shared< phylo_particle >();
 	pp->predecessor = part->pp;
 	part->pp = pp;
-	// Propose to merge two nodes.
-	// Accumulate a list of all possible nodes for merging, add all
-	// possible nodes to set, then remove those which are not active.
+	// Our set of phylo nodes that can be used in proposal.
 	unordered_set< shared_ptr< phylo_node > > proposal_set;
+        // The nodes that have already been coalesced, to be removed later.
+	unordered_set< shared_ptr< phylo_node > > coalesced;
         // Insert all of the leaf nodes into the proposal set.
 	proposal_set.insert( leaf_nodes.begin(), leaf_nodes.end() );
-	// Walk back to predecessor particles, adding root nodes and removing
-	// coalesced nodes.
-	unordered_set< shared_ptr< phylo_node > > coalesced;
+	// Walk back to predecessor particles, adding root nodes to
+	// proposal_set and collecting coalesced nodes in `coalesced`.
 	for( shared_ptr< phylo_particle > cur = pp->predecessor; cur != NULL; cur = cur->predecessor ){
+		// Skip if the particle is \perp.
 		if(cur->node == NULL) continue;
-		// Skip if we've already processed this subtree.
+		// Skip if we've already processed this subtree, such that it's
+		// already found in coalesced.
 		if(coalesced.find(cur->node) != coalesced.end()) continue;
 		// Insert this active root node to the proposal set.
 		proposal_set.insert(cur->node);
+		// Recursively add all descendants of the root nodes to the
+		// coalesced set using a stack.
 		stack< shared_ptr< phylo_node > > s;
-		// Recursively add all descendants of the root nodes to the coalesced set.
 		s.push(cur->node);
 		while(s.size()>0){
 			shared_ptr< phylo_node > n = s.top();
@@ -97,5 +99,3 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 
 	pFrom.AddToLogWeight(logLikelihood(lTime, *part));
 }
-
-

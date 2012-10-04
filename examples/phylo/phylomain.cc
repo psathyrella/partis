@@ -16,7 +16,8 @@ int main(int argc, char** argv)
 
 try {
 	// TODO: read alignment
-	// for now just generate some randomly named leaves
+	// For now just generate some simply named leaves in the
+	// globally-declared leaf_nodes vector.
 	leaf_nodes.resize(node_count);
 	for(int i=0; i < node_count; i++){
 		leaf_nodes[i] = make_shared< phylo_node >();
@@ -25,7 +26,7 @@ try {
 		leaf_nodes[i]->name = ss.str();
 	}
 
-	//Initialise and run the sampler
+	// Initialise and run the sampler
 	smc::sampler<particle> Sampler(population_size, SMC_HISTORY_NONE);
 	smc::moveset<particle> Moveset(fInitialise, fMove, NULL);
 
