@@ -6,7 +6,7 @@ LFLAGS := -I../../include -L../../lib $(LFLAGS)
 
 all: phylo
 
-phylo: phylomain.cc phylofunc.cc
+phylo: phylomain.cc phylofunc.cc phylofunc.hh
 	g++ -std=c++0x -O0 -g $(CCFLAGS) $(PHYLOC) -lsmctc -lgsl -lgslcblas -o phylo
 
 clean:

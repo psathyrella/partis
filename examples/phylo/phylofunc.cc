@@ -99,3 +99,4 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 
 	pFrom.AddToLogWeight(logLikelihood(lTime, *part));
 }
+
