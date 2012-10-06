@@ -100,13 +100,19 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 
 	// The set difference of available (i.e. proposal_set) and coalesced
 	// nodes yields the final proposal set; store it in prop_vector.
+	vector< shared_ptr< phylo_node > > pvec(proposal_set.begin(), proposal_set.end());
+	vector< shared_ptr< phylo_node > > cvec(coalesced.begin(), coalesced.end());
+	sort( pvec.begin(), pvec.end() );
+	sort( cvec.begin(), cvec.end() );
 	vector< shared_ptr< phylo_node > > prop_vector(proposal_set.size()+coalesced.size());
-	vector< shared_ptr< phylo_node > >::iterator last_ins = set_difference( proposal_set.begin(), proposal_set.end(), coalesced.begin(), coalesced.end(), prop_vector.begin() );
+	// UGH: std::set_difference requires an ordered container class
+	vector< shared_ptr< phylo_node > >::iterator last_ins = set_difference( pvec.begin(), pvec.end(), cvec.begin(), cvec.end(), prop_vector.begin() );
 	prop_vector.resize( last_ins - prop_vector.begin() );
-
+	
 	// Pick two nodes from the prop_vector to join.
 	int n1 = pRng->UniformDiscrete(0, prop_vector.size()-1);
-	int n2 = pRng->UniformDiscrete(0, prop_vector.size()-1);
+	int n2 = n1;
+	while( n1 == n2 ) n2 = pRng->UniformDiscrete(0, prop_vector.size()-1);
 	pp->node = make_shared< phylo_node >();
 	pp->node->id = calc.get_id();
 	pp->node->child1 = prop_vector[n1];
@@ -115,8 +121,8 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 	double h = pRng->Uniform(0, 2);
 	double prev_h = pp->predecessor->node != NULL ? pp->predecessor->node->height : 0;
 	pp->node->height = prev_h + h;
-	pp->node->dist1 = h - pp->node->child1->height;
-	pp->node->dist2 = h - pp->node->child2->height;
+	pp->node->dist1 = pp->node->height - pp->node->child1->height;
+	pp->node->dist2 = pp->node->height - pp->node->child2->height;
 
 	pFrom.AddToLogWeight(logLikelihood(lTime, *part));
 }

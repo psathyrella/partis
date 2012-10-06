@@ -68,9 +68,10 @@ try {
 		s.push(X.pp->node);
 		while(s.size() > 0){
 			shared_ptr< phylo_node > cur = s.top();
-			s.pop();
 			if(cur->child1 == NULL){
 				cout << aln[cur->id].first;
+				visited[cur->id]=true;
+				s.pop();
 				continue;
 			}
 			if(!visited[cur->child1->id]){
@@ -83,6 +84,8 @@ try {
 				continue;
 			}
 			cout << ":" << cur->dist2 << ")" << cur->id;
+			visited[cur->id]=true;
+			s.pop();
 		}
 		cout << "\n";
 	}
