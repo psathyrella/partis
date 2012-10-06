@@ -33,8 +33,8 @@ double logLikelihood(long lTime, const particle& X)
 	vector<bool> visited;
 	double ll_sum = 0;
 	shared_ptr< phylo_particle > cur = X.pp;
-	while( cur != NULL ){
-		if( !visited[ cur->node->id ] ){
+	while( cur != NULL && cur->node != NULL ){
+		if( visited.size() < cur->node->id || !visited[ cur->node->id ] ){
 			ll_sum += calc.calculate_ll( cur->node, visited );
 		}
 		cur = cur->predecessor;
@@ -108,6 +108,7 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 	int n1 = pRng->UniformDiscrete(0, prop_vector.size()-1);
 	int n2 = pRng->UniformDiscrete(0, prop_vector.size()-1);
 	pp->node = make_shared< phylo_node >();
+	pp->node->id = calc.get_id();
 	pp->node->child1 = prop_vector[n1];
 	pp->node->child2 = prop_vector[n2];
 	// Propose a coalescence time.

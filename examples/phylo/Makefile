@@ -6,7 +6,7 @@ LFLAGS := -I../../include -L../../lib $(LFLAGS)
 
 all: phylo
 
-phylo: phylomain.cc phylofunc.cc phylofunc.hh
+phylo: phylomain.cc phylofunc.cc phylofunc.hh hmsbeagle.h
 	g++ -std=c++0x -O0 -g $(CCFLAGS) $(PHYLOC) -lsmctc -lgsl -lgslcblas -o phylo `pkg-config --libs --cflags hmsbeagle-1`
 
 clean:

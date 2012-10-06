@@ -61,7 +61,7 @@ void OnlineCalculator::initialize(const std::vector<std::string>& seqs){
     // create an instance of the BEAGLE library
 	if( reinit ){
 		nPatterns = seqs[1].size();
-		nPartBuffs = seqs.size() * 100;
+		nPartBuffs = seqs.size() * 3000;
 		if(instance >= 0) beagleFinalizeInstance(instance);
 		instance = beagleCreateInstance(
                                   0,			/**< Number of tip data elements (input) */
@@ -155,7 +155,7 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
 		s.pop();
 		if(cur->child1 == NULL)
 			continue;
-		ops.push_back( {cur->id, BEAGLE_OP_NONE, BEAGLE_OP_NONE, cur->child1->id, cur->child1->id, cur->child2->id, cur->child2->id} );
+		fops.push_back( {cur->id, BEAGLE_OP_NONE, BEAGLE_OP_NONE, cur->child1->id, cur->child1->id, cur->child2->id, cur->child2->id} );
 		nind.push_back(cur->child1->id);
 		nind.push_back(cur->child2->id);
 		lens.push_back(cur->dist1);
@@ -164,7 +164,6 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
 		visited[cur->child2->id]=true;
 	}
 	// need to reverse the order to make post-order
-	ops.resize(fops.size());
 	ops.insert(ops.begin(), fops.rbegin(),fops.rend());
 
 /*		
