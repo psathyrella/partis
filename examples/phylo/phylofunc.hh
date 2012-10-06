@@ -16,7 +16,7 @@ public:
 	std::shared_ptr< phylo_node > child2;
 	double dist1, dist2;
 	double height;	// convenience for proposals, height must always increase
-	std::string name;
+	int id;	// node id (1..n-1) for leaf nodes, corresponds to index in alignment. n..2n-1 for internal nodes.
 };
 
 class phylo_particle
@@ -42,6 +42,7 @@ long fSelect(long lTime, const smc::particle<particle>& p, smc::rng *pRng);
 void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng);
 
 extern std::vector< std::shared_ptr< phylo_node > > leaf_nodes;
+extern std::vector< std::pair< std::string, std::string > > aln;
 
 
 #endif // __PHYLOFUNC_H__

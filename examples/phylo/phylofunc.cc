@@ -8,10 +8,14 @@
 #include <memory>
 #include "smctc.hh"
 #include "phylofunc.hh"
+#include "hmsbeagle.h"
 
 using namespace std;
 
 vector< shared_ptr< phylo_node > > leaf_nodes;
+std::vector< std::pair< std::string, std::string > > aln;
+std::vector< std::string > just_the_seqs_maam;
+OnlineCalculator calc;
 
 ///The function corresponding to the log likelihood at specified time and position (up to normalisation)
 
@@ -19,8 +23,24 @@ vector< shared_ptr< phylo_node > > leaf_nodes;
 ///  \param X     The state to consider
 double logLikelihood(long lTime, const particle& X)
 {
-	// TODO: implement phylo likelihood!
-	return 1.0;
+	if(just_the_seqs_maam.size()==0){
+		for(int i=0; i<aln.size(); i++) 
+			just_the_seqs_maam.push_back( aln[i].second );
+		calc.initialize(just_the_seqs_maam);
+	}
+	
+	// walk backwards through the forest to calculate likelihoods of each tree
+	vector<bool> visited;
+	double ll_sum = 0;
+	shared_ptr< phylo_particle > cur = X.pp;
+	while( cur != NULL ){
+		if( !visited[ cur->node->id ] ){
+			ll_sum += calc.calculate_ll( cur->node, visited );
+		}
+		cur = cur->predecessor;
+	}
+
+	return ll_sum;
 }
 
 ///A function to initialise particles
