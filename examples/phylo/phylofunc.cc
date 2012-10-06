@@ -17,6 +17,12 @@ std::vector< std::pair< std::string, std::string > > aln;
 std::vector< std::string > just_the_seqs_maam;
 OnlineCalculator calc;
 
+
+phylo_node::phylo_node() : id(-1) {}
+phylo_node::~phylo_node(){ 
+	if(id>=0) calc.free_id(id); 
+}
+
 ///The function corresponding to the log likelihood at specified time and position (up to normalisation)
 
 ///  \param lTime The current time (i.e. the number of coalescence events so far)

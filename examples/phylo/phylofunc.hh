@@ -12,6 +12,9 @@
 class phylo_node
 {
 public:
+	phylo_node();
+	~phylo_node();
+
 	std::shared_ptr< phylo_node > child1;
 	std::shared_ptr< phylo_node > child2;
 	double dist1, dist2;

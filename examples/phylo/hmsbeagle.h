@@ -91,7 +91,7 @@ void OnlineCalculator::initialize(const std::vector<std::string>& seqs){
 	for(int i=treeknown; i<seqs.size(); i++){
 		double *seq_partials   = get_partials(seqs[i]);		
 		beagleSetPartials(instance, i, seq_partials);
-		std::cout << "Adding new sequence " << i << "\n" << seqs[i] << std::endl;
+//		std::cout << "Adding new sequence " << i << "\n" << seqs[i] << std::endl;
 	}
 	treeknown = seqs.size();
 	next_id = seqs.size();

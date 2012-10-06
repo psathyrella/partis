@@ -61,6 +61,8 @@ try {
 
 	for(int i=0; i < population_size; i++){
 		particle X = Sampler.GetParticleValue(i);
+		// write the log likelihood
+		cout << logLikelihood( lIterates, X ) << "\t";
 		// write out the tree under this particle
 		stack< shared_ptr< phylo_node > > s;
 		vector< bool > visited;
@@ -83,11 +85,12 @@ try {
 				s.push(cur->child2);
 				continue;
 			}
-			cout << ":" << cur->dist2 << ")" << cur->id;
+			cout << ":" << cur->dist2 << ")";
+//			cout << ":" << cur->dist2 << ")" << cur->id;
 			visited[cur->id]=true;
 			s.pop();
 		}
-		cout << "\n";
+		cout << ";\n";
 	}
 }
 
