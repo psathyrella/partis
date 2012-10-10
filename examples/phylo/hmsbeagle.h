@@ -58,49 +58,51 @@ void OnlineCalculator::free_id(int id)
     id_ll.erase(id);
 }
 
+///Initialize an instance of the BEAGLE library.
+
+///  \param seqs The sequences.
 void OnlineCalculator::initialize(const std::vector<std::string>& seqs)
 {
-    // initialize the instance
     bool reinit = false;
     if(nPatterns != seqs[1].size()) reinit = true;
     if(seqs.size()*2 + 2 >= nPartBuffs) reinit = true;
     if(instance < 0) reinit = true;
 
 
-    // create an instance of the BEAGLE library
+    // Create an instance of the BEAGLE library.
     if( reinit ) {
         nPatterns = seqs[1].size();
         nPartBuffs = seqs.size() * 3000;
         if(instance >= 0) beagleFinalizeInstance(instance);
         instance = beagleCreateInstance(
-                       0,			/**< Number of tip data elements (input) */
-                       nPartBuffs,       	/**< Number of partials buffers to create (input) */
-                       0,		        /**< Number of compact state representation buffers to create (input) */
-                       stateCount,		/**< Number of states in the continuous-time Markov chain (input) */
-                       nPatterns,		/**< Number of site patterns to be handled by the instance (input) */
-                       nPartBuffs,	        /**< Number of rate matrix eigen-decomposition buffers to allocate (input) */
-                       nPartBuffs,	        /**< Number of rate matrix buffers (input) */
-                       1,			/**< Number of rate categories (input) */
-                       nPartBuffs,		/**< Number of scaling buffers */
-                       NULL,			/**< List of potential resource on which this instance is allowed (input, NULL implies no restriction */
-                       0,			    /**< Length of resourceList list (input) */
-                       BEAGLE_FLAG_PRECISION_DOUBLE | BEAGLE_FLAG_SCALING_AUTO,	/**< Bit-flags indicating preferred implementation charactertistics, see BeagleFlags (input) */
-                       0,                /**< Bit-flags indicating required implementation characteristics, see BeagleFlags (input) */
+                       0,           /**< Number of tip data elements (input) */
+                       nPartBuffs,  /**< Number of partials buffers to create (input) */
+                       0,           /**< Number of compact state representation buffers to create (input) */
+                       stateCount,  /**< Number of states in the continuous-time Markov chain (input) */
+                       nPatterns,   /**< Number of site patterns to be handled by the instance (input) */
+                       nPartBuffs,  /**< Number of rate matrix eigen-decomposition buffers to allocate (input) */
+                       nPartBuffs,  /**< Number of rate matrix buffers (input) */
+                       1,           /**< Number of rate categories (input) */
+                       nPartBuffs,  /**< Number of scaling buffers */
+                       NULL,        /**< List of potential resource on which this instance is allowed (input, NULL implies no restriction */
+                       0,           /**< Length of resourceList list (input) */
+                       BEAGLE_FLAG_PRECISION_DOUBLE | BEAGLE_FLAG_SCALING_AUTO, /**< Bit-flags indicating preferred implementation charactertistics, see BeagleFlags (input) */
+                       0,           /**< Bit-flags indicating required implementation characteristics, see BeagleFlags (input) */
                        &instDetails);
         if (instance < 0) {
             fprintf(stderr, "Failed to obtain BEAGLE instance\n\n");
             exit(1);
         }
 
-        treeknown = 0;	// none of the tip sequences have been set
+        treeknown = 0;  // None of the tip sequences have been set.
     }
 
 
-    // add any new sequences to the beagle instance
+    // Add any new sequences to the BEAGLE instance.
     for(int i=treeknown; i<seqs.size(); i++) {
         double *seq_partials   = get_partials(seqs[i]);
         beagleSetPartials(instance, i, seq_partials);
-//		std::cout << "Adding new sequence " << i << "\n" << seqs[i] << std::endl;
+//      std::cout << "Adding new sequence " << i << "\n" << seqs[i] << std::endl;
     }
     treeknown = seqs.size();
     next_id = seqs.size();
@@ -139,6 +141,7 @@ void OnlineCalculator::initialize(const std::vector<std::string>& seqs)
         double weights[1] = { 1 };
         beagleSetCategoryWeights(instance, 0, weights);
 
+    // XXX AD: do we need to free any old pattern weights?
         double* patternWeights = (double*) malloc(sizeof(double) * nPatterns);
         for (int i = 0; i < nPatterns; i++) {
             patternWeights[i] = 1.0;
@@ -149,28 +152,38 @@ void OnlineCalculator::initialize(const std::vector<std::string>& seqs)
 
 double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::vector<bool>& visited )
 {
-    // prepare visitor vector
+    // Prepare the visited vector.
     if(visited.size() < nPartBuffs) {
         visited.resize(nPartBuffs);
     }
 
-    // accumulate a vector of operations through depth first search
-    std::vector< BeagleOperation > fops, ops;
-    std::vector< int > nind;
-    std::vector< double > lens;
+    // Accumulate `ops`, a vector of operations, via a depth first search.
+    std::vector< BeagleOperation > ops_tmp, ops;
+    std::vector< int > nind; // probability indices
+    std::vector< double > lens; // branch lengths
     std::stack< std::shared_ptr< phylo_node > > s;
     s.push(node);
     while(s.size()>0) {
         std::shared_ptr< phylo_node > cur = s.top();
         s.pop();
-        if(cur->child1 == NULL)
+        if(cur->child1 == NULL){
+            visited[cur->id]=true;
+            // assert(cur->child2 == NULL);
             continue;
+        }
         visited[cur->child1->id]=true;
         visited[cur->child2->id]=true;
         s.push(cur->child1);
         s.push(cur->child2);
-        if(!visited[node->id]){
-            fops.push_back( {cur->id, BEAGLE_OP_NONE, BEAGLE_OP_NONE, cur->child1->id, cur->child1->id, cur->child2->id, cur->child2->id} );
+        if(!visited[cur->id]){
+            ops_tmp.push_back( {
+                cur->id,           // index of destination, or parent, partials buffer
+                BEAGLE_OP_NONE,    // index of scaling buffer to write to (if set to BEAGLE_OP_NONE then calculation of new scalers is disabled)
+                BEAGLE_OP_NONE,    // index of scaling buffer to read from (if set to BEAGLE_OP_NONE then use of existing scale factors is disabled)
+                    cur->child1->id,   // index of first child partials buffer
+                cur->child1->id,   // index of transition matrix of first partials child buffer
+                cur->child2->id,   // index of second child partials buffer
+                cur->child2->id}); // index of transition matrix of second partials child buffer
             nind.push_back(cur->child1->id);
             nind.push_back(cur->child2->id);
             lens.push_back(cur->dist1);
@@ -184,20 +197,22 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
         return id_ll[ node->id ];
     }
 
-    // need to reverse the order to make post-order
-    ops.insert(ops.begin(), fops.rbegin(),fops.rend());
+    if(ops_tmp.size() > 0){
 
-    // tell BEAGLE to populate the transition matrices for the above edge lengths
+    // Need to reverse the order to make post-order.
+    ops.insert(ops.begin(), ops_tmp.rbegin(),ops_tmp.rend());
+
+    // Tell BEAGLE to populate the transition matrices for the above edge lengths.
     beagleUpdateTransitionMatrices(instance,     // instance
                                    0,             // eigenIndex
                                    nind.data(),   // probabilityIndices
                                    NULL,          // firstDerivativeIndices
                                    NULL,          // secondDerivativeIndices
                                    lens.data(),   // edgeLengths
-                                   nind.size());            // count
+                                   nind.size());  // count
 
-    // create a list of partial likelihood update operations
-    // the order is [dest, destScaling, sourceScaling, source1, matrix1, source2, matrix2]
+    // Create a list of partial likelihood update operations.
+    // The order is [dest, destScaling, sourceScaling, source1, matrix1, source2, matrix2].
     // TODO: make this peel only where the new node was added.
     BeagleOperation operations[ops.size()];
     int scaleIndices[ops.size()];
@@ -206,27 +221,34 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
         operations[i] = ops[i];
     }
 
-    // update the partials
-    beagleUpdatePartials(instance, operations, ops.size(), node->id);// cumulative scaling index
+    // Update the partials.
+    beagleUpdatePartials(instance, operations, ops.size(), node->id); // cumulative scaling index
     beagleAccumulateScaleFactors(instance, scaleIndices, ops.size(), BEAGLE_OP_NONE);
+
+    }else{
+        int i=1;
+    }
 
     double logL = 0.0;
     int returnCode = 0;
 
-    // calculate the site likelihoods at the root node
+    // Calculate the site likelihoods at the root node.
     int rootIndices[ 1 ] = { node->id };
     int categoryWeightsIndices[ 1 ] = { 0 };
     int stateFrequencyIndices[ 1 ] = { 0 };
     int cumulativeScalingIndices[ 1 ] = { BEAGLE_OP_NONE };
-    returnCode = beagleCalculateRootLogLikelihoods(instance,               // instance
-                 (const int *)rootIndices,// bufferIndices
-                 (const int *)categoryWeightsIndices,                // weights
-                 (const int *)stateFrequencyIndices,                  // stateFrequencies
-                 cumulativeScalingIndices,// cumulative scaling index
-                 1,                      // count
-                 &logL);         // outLogLikelihoods
+    returnCode = beagleCalculateRootLogLikelihoods(instance, // instance
+                     (const int *)rootIndices,               // bufferIndices
+                     (const int *)categoryWeightsIndices,    // weights
+                     (const int *)stateFrequencyIndices,     // stateFrequencies
+                     cumulativeScalingIndices,               // cumulative scaling index
+                     1,                                      // count
+                     &logL);                                 // outLogLikelihoods
 
     id_ll[ node->id ] = logL; // stash the log likelihood for later use
+    if(logL < -10000000 ){
+        int j = 1;
+    }
     return logL;
 }
 
@@ -279,5 +301,4 @@ double* get_partials(const std::string& sequence)
 
 
 #endif //  __hmsbeagle__
-
 
