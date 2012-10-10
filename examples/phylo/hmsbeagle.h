@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <stack>
+#include <unordered_map>
 
 double* get_partials(const std::string& sequence);
 
@@ -34,6 +35,7 @@ private:
 
     int next_id;
     std::stack<int> free_ids;
+    std::unordered_map< int, double > id_ll; // stores the root ll at each ID
 };
 
 int OnlineCalculator::get_id()
@@ -53,6 +55,7 @@ int OnlineCalculator::get_id()
 void OnlineCalculator::free_id(int id)
 {
     free_ids.push(id);
+    id_ll.erase(id);
 }
 
 void OnlineCalculator::initialize(const std::vector<std::string>& seqs)
@@ -157,31 +160,32 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
     std::vector< double > lens;
     std::stack< std::shared_ptr< phylo_node > > s;
     s.push(node);
-    visited[node->id]=true;
     while(s.size()>0) {
         std::shared_ptr< phylo_node > cur = s.top();
         s.pop();
         if(cur->child1 == NULL)
             continue;
-        fops.push_back( {cur->id, BEAGLE_OP_NONE, BEAGLE_OP_NONE, cur->child1->id, cur->child1->id, cur->child2->id, cur->child2->id} );
-        nind.push_back(cur->child1->id);
-        nind.push_back(cur->child2->id);
-        lens.push_back(cur->dist1);
-        lens.push_back(cur->dist2);
         visited[cur->child1->id]=true;
         visited[cur->child2->id]=true;
+        s.push(cur->child1);
+        s.push(cur->child2);
+        if(!visited[node->id]){
+            fops.push_back( {cur->id, BEAGLE_OP_NONE, BEAGLE_OP_NONE, cur->child1->id, cur->child1->id, cur->child2->id, cur->child2->id} );
+            nind.push_back(cur->child1->id);
+            nind.push_back(cur->child2->id);
+            lens.push_back(cur->dist1);
+            lens.push_back(cur->dist2);
+        }
+        visited[cur->id]=true;
     }
+
+    // if we have a cached root LL for this node just return that instead of recalculating
+    if( id_ll.find(node->id) != id_ll.end() ){
+        return id_ll[ node->id ];
+    }
+
     // need to reverse the order to make post-order
     ops.insert(ops.begin(), fops.rbegin(),fops.rend());
-
-    /*
-    	int nodeIndices[tree.size()];
-    	double edgeLengths[tree.size()];
-    	for(int i=0; i<tree.size(); i++){
-    		nodeIndices[i]=i;
-    		edgeLengths[i]=tree[i].distance;
-    	}
-    */
 
     // tell BEAGLE to populate the transition matrices for the above edge lengths
     beagleUpdateTransitionMatrices(instance,     // instance
@@ -222,7 +226,7 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
                  1,                      // count
                  &logL);         // outLogLikelihoods
 
-
+    id_ll[ node->id ] = logL; // stash the log likelihood for later use
     return logL;
 }
 
