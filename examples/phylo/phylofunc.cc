@@ -132,12 +132,48 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
     pp->node->child1 = prop_vector[n1];
     pp->node->child2 = prop_vector[n2];
     // Propose a coalescence time.
-    double h = pRng->Uniform(0, 2);
+    double h = pRng->Exponential(1.0);
+    double h_prob = exp(-h);
     double prev_h = pp->predecessor->node != NULL ? pp->predecessor->node->height : 0;
     pp->node->height = prev_h + h;
     pp->node->dist1 = pp->node->height - pp->node->child1->height;
     pp->node->dist2 = pp->node->height - pp->node->child2->height;
 
-    pFrom.AddToLogWeight(logLikelihood(lTime, *part));
+    // Note: when proposing from exponential(1.0) the below can be simplified to just adding h
+    pFrom.AddToLogWeight(logLikelihood(lTime, *part) - log(h_prob) );
 }
+
+int fMoveNodeAgeMCMC(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
+{
+    particle* part = pFrom.GetValuePointer();
+    shared_ptr< phylo_node > cur_node = part->pp->node;
+    shared_ptr< phylo_node > new_node = make_shared< phylo_node >();
+    new_node->child1 = cur_node->child1;
+    new_node->child2 = cur_node->child2;
+    new_node->id = calc.get_id();
+
+    double cur_ll = logLikelihood(lTime, *part);
+    // Choose an amount to shift the node height uniformly at random.
+    double shift = pRng->Uniform(-0.1,0.1);
+    // If the shift amount would create a negative node height we will reflect it back to a positive number.
+    // This means the proposal density for the reflection zone is double the rest of the area, but the back-proposal
+    // probability is also double in the same area so these terms cancel in the Metropolis-Hastings ratio.
+    double pred_height = part->pp->predecessor->node != NULL ? part->pp->predecessor->node->height : 0;
+    new_node->height = abs( cur_node->height - pred_height + shift ) + pred_height; 
+    // Now calculate the new node heights.
+    new_node->dist1 = new_node->height - new_node->child1->height;
+    new_node->dist2 = new_node->height - new_node->child2->height;
+    part->pp->node = new_node;
+
+    double alpha = exp(logLikelihood(lTime,*part) - cur_ll);
+    if(alpha < 1 && pRng->UniformS() > alpha)
+    {
+        // Move rejected, restore the original node.
+        part->pp->node = cur_node;
+        return false;
+    }
+    // Accept the new state.
+    return true;
+}
+
 

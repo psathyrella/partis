@@ -83,7 +83,7 @@ int main(int argc, char** argv)
         cerr << "Usage: phylo <fasta alignment>\n\n";
         return -1;
     }
-    long population_size = 1000;
+    long population_size = 3000;
 
     string file_name = argv[1];
     ifstream in(file_name.c_str());
@@ -100,9 +100,9 @@ int main(int argc, char** argv)
 
         // Initialise and run the sampler
         smc::sampler<particle> Sampler(population_size, SMC_HISTORY_NONE);
-        smc::moveset<particle> Moveset(fInitialise, fMove, NULL);
+        smc::moveset<particle> Moveset(fInitialise, fMove, fMoveNodeAgeMCMC);
 
-        Sampler.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
+        Sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 0.99);
         Sampler.SetMoveSet(Moveset);
         Sampler.Initialise();
 

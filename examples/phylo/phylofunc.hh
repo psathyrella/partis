@@ -45,6 +45,8 @@ smc::particle<particle> fInitialise(smc::rng *pRng);
 long fSelect(long lTime, const smc::particle<particle>& p, smc::rng *pRng);
 void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng);
 
+int fMoveNodeAgeMCMC(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng);
+
 extern std::vector< std::shared_ptr< phylo_node > > leaf_nodes;
 extern std::vector< std::pair< std::string, std::string > > aln;
 
