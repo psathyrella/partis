@@ -158,6 +158,7 @@ double OnlineCalculator::calculate_ll( std::shared_ptr< phylo_node > node, std::
     }
 
     // Accumulate `ops`, a vector of operations, via a depth first search.
+    // When likelihoods are cached then operations will only be added for likelihoods that are not cached.
     std::vector< BeagleOperation > ops_tmp, ops;
     std::vector< int > nind; // probability indices
     std::vector< double > lens; // branch lengths
