@@ -1,8 +1,7 @@
-.PHONY: docs clean distclean examples
+.PHONY: docs clean distclean examples all libraries docs
 
-default: libraries examples
 
-all: libraries docs examples
+all: style libraries examples
 
 clean:
 	make -Csrc clean
@@ -43,9 +42,3 @@ style:
 		--formatted \
 		--lineend=linux \
 		`find . -regextype posix-extended -regex ".*\.(cc|hh)"`
-
-.PHONY:
-
-default: all, clean, distclean, libraries, docs, examples, dist, style
-
-
