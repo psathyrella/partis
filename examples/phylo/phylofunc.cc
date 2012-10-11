@@ -67,18 +67,10 @@ smc::particle<particle> fInitialise(smc::rng *pRng)
     return smc::particle<particle>(value, logLikelihood(0, value));
 }
 
-///The proposal function.
-
-///\param lTime The sampler iteration.
-///\param pFrom The particle to move.
-///\param pRng  A random number generator.
-void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
+/// Find the uncoalesced nodes for a particle.
+/// \param pp Input particle
+vector< shared_ptr< phylo_node > > uncoalesced_nodes(const shared_ptr<phylo_particle> pp)
 {
-    particle* part = pFrom.GetValuePointer();
-
-    shared_ptr< phylo_particle > pp = make_shared< phylo_particle >();
-    pp->predecessor = part->pp;
-    part->pp = pp;
     // Our set of phylo nodes that can be used in proposal.
     unordered_set< shared_ptr< phylo_node > > proposal_set;
     // The nodes that have already been coalesced, to be removed later.
@@ -108,17 +100,35 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
         }
     }
 
-    // The set difference of available (i.e. proposal_set) and coalesced nodes yields the final proposal set; store it
-    // in prop_vector.
     vector< shared_ptr< phylo_node > > pvec(proposal_set.begin(), proposal_set.end());
     vector< shared_ptr< phylo_node > > cvec(coalesced.begin(), coalesced.end());
     sort(pvec.begin(), pvec.end());
     sort(cvec.begin(), cvec.end());
+
+    // The set difference of available (i.e. proposal_set) and coalesced nodes yields the final proposal set; store it
+    // in prop_vector.
     vector< shared_ptr< phylo_node > > prop_vector(proposal_set.size() + coalesced.size());
     // UGH: std::set_difference requires an ordered container class
     // AG: that's the only way to do a set difference efficiently, right?
-    vector< shared_ptr< phylo_node > >::iterator last_ins = set_difference(pvec.begin(), pvec.end(), cvec.begin(), cvec.end(), prop_vector.begin());
+    vector< shared_ptr< phylo_node > >::iterator last_ins = set_difference(pvec.begin(), pvec.end(), cvec.begin(),
+            cvec.end(), prop_vector.begin());
     prop_vector.resize(last_ins - prop_vector.begin());
+
+    return prop_vector;
+}
+
+///The proposal function.
+
+///\param lTime The sampler iteration.
+///\param pFrom The particle to move.
+///\param pRng  A random number generator.
+void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
+{
+    particle* part = pFrom.GetValuePointer();
+    shared_ptr< phylo_particle > pp = make_shared< phylo_particle >();
+    pp->predecessor = part->pp;
+    part->pp = pp;
+    vector< shared_ptr< phylo_node > > prop_vector = uncoalesced_nodes(pp);
 
     // Pick two nodes from the prop_vector to join.
     int n1 = pRng->UniformDiscrete(0, prop_vector.size() - 1);
