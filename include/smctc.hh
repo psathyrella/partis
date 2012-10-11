@@ -23,15 +23,15 @@
 //
 
 /// \mainpage smctc -- A Template Class Library for SMC Simulation
-///  
+///
 /// \version 1.0
 /// \author Adam M. Johansen
 ///
 /// \section intro_sec Summary
 ///
-/// The SMC template class library (SMCTC) is intended to be used to implement SMC 
+/// The SMC template class library (SMCTC) is intended to be used to implement SMC
 /// algorithms ranging from simple particle filter to complicated SMC algorithms
-/// from simple particle filters to the SMC samplers of Del Moral, Doucet and Jasra (2006) 
+/// from simple particle filters to the SMC samplers of Del Moral, Doucet and Jasra (2006)
 /// within a generic framework.
 ///
 /// \section license License
@@ -48,18 +48,18 @@
 ///
 /// You should have received a copy of the GNU General Public License
 /// along with SMCTC.  If not, see <http://www.gnu.org/licenses/>.
-/// 
+///
 /// The software is still in development but is thought to be sufficiently fully-featured and
 /// stable for use.
 ///
 /// \section using_sec Using the Template Library
 ///
-/// In order to use the template libary it is necessary to place the set of header files in 
-/// a suitable include directory and then to instantiate the various classes with the 
+/// In order to use the template libary it is necessary to place the set of header files in
+/// a suitable include directory and then to instantiate the various classes with the
 /// appropriate type for your sampler.
 ///
 /// For implementation details, please see the accompanying user guide.
-/// 
+///
 ///
 /// \section example_sec Examples
 ///
@@ -69,9 +69,9 @@
 /// nonlinear, nongaussian state space models.
 ///
 /// \subsection SMC Samplers for Rare Event Simulation
-/// 
-/// The main.cc file provides an example of a use of the template library to estimate 
-/// Gaussian tail probabilities within an SMC samplers framework by making use of a sequence 
+///
+/// The main.cc file provides an example of a use of the template library to estimate
+/// Gaussian tail probabilities within an SMC samplers framework by making use of a sequence
 /// of intermediate distributions defined by introducing a potential function which
 /// varies from flat to being very close to an indicator function on the tail event.
 ///
@@ -111,9 +111,9 @@
 
 namespace smc {}
 
-/// The standard namespace 
+/// The standard namespace
 
-///     The classes provided within the standard libraries reside within this namespace and 
+///     The classes provided within the standard libraries reside within this namespace and
 ///     the TDSMC class library adds a number of additional operator overloads to some of
 ///     the standard classes to allow them to deal with our structures.
 

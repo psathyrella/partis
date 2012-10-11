@@ -1,7 +1,7 @@
-//  SMCTC: rng.hh  
+//  SMCTC: rng.hh
 //
 //   Copyright Adam Johansen, 2008.
-// 
+//
 //   This file is part of SMCTC.
 //
 //   SMCTC is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 //   along with SMCTC.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//! \file 
+//! \file
 //! \brief Random number generation.
 //!
 //! This file contains the definitions for the smc::rng and smc::rnginfo class.
@@ -32,19 +32,21 @@ extern "C" {
 #include <gsl/gsl_rng.h>
 }
 
-namespace smc {
-  ///A gsl-rng information handling class (not templated)
-  class gslrnginfo {
-  private:
+namespace smc
+{
+///A gsl-rng information handling class (not templated)
+class gslrnginfo
+{
+private:
     ///This is a null terminated array of the available random number generators.
     const gsl_rng_type** typePtArray;
     ///The number of available random number generators.
     int nNumber;
 
-  protected:
+protected:
     gslrnginfo();
 
-  public:
+public:
     ///Returns a reference to the sole static instance of this class.
     static gslrnginfo* GetInstance();
 
@@ -56,28 +58,29 @@ namespace smc {
     const gsl_rng_type* GetPointerByIndex(int nIndex);
     ///Returns a pointer to the random number generator with name szName (or null if it doesn't exist).
     const gsl_rng_type* GetPointerByName(const char* szName);
-  };
+};
 
-  ///The global application instance of the gslrnginfo class:
-  extern gslrnginfo rngset;
+///The global application instance of the gslrnginfo class:
+extern gslrnginfo rngset;
 
-  ///A random number generator class.
+///A random number generator class.
 
-  ///    At present this serves as a wrapper for the gsl random number generation code.
-  class rng {
-  private:
+///    At present this serves as a wrapper for the gsl random number generation code.
+class rng
+{
+private:
     ///This is the type of random number generator underlying the class.
     const gsl_rng_type* type;
     ///This is a pointer to the internal workspace of the rng including its current state.
     gsl_rng* pWorkspace;
 
-  public:
+public:
     ///Initialise the random number generator using default settings
     rng();
     ///Initialise the random number generator using the default seed for the type
     rng(const gsl_rng_type* Type);
     ///Initialise the random number generator using specified type and seed
-    rng(const gsl_rng_type* Type,unsigned long int lSeed);
+    rng(const gsl_rng_type* Type, unsigned long int lSeed);
 
     ///Free the workspace allocated for random number generation
     ~rng();
@@ -112,11 +115,11 @@ namespace smc {
     ///Return a student-t random number generated with a specified number of degrees of freedom
     double StudentT(double dDF);
     ///Return a random number generated uniformly between dMin and dMax
-    double Uniform(double dMin, double dMax);    
+    double Uniform(double dMin, double dMax);
     ///Returns a random number generated from the standard uniform[0,1) distribution
     double UniformS(void);
-  };
+};
 }
- 
- 
+
+
 #endif

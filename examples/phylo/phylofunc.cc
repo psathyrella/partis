@@ -21,7 +21,7 @@ OnlineCalculator calc;
 phylo_node::phylo_node() : id(-1) {}
 phylo_node::~phylo_node()
 {
-    if(id>=0) calc.free_id(id);
+    if(id >= 0) calc.free_id(id);
 }
 
 ///The function corresponding to the log likelihood at specified time and position (up to normalisation)
@@ -30,9 +30,9 @@ phylo_node::~phylo_node()
 ///  \param X     The state to consider
 double logLikelihood(long lTime, const particle& X)
 {
-    if(just_the_seqs_maam.size()==0) {
-        for(int i=0; i<aln.size(); i++)
-            just_the_seqs_maam.push_back( aln[i].second );
+    if(just_the_seqs_maam.size() == 0) {
+        for(int i = 0; i < aln.size(); i++)
+            just_the_seqs_maam.push_back(aln[i].second);
         calc.initialize(just_the_seqs_maam);
     }
 
@@ -40,16 +40,16 @@ double logLikelihood(long lTime, const particle& X)
     vector<bool> visited;
     double ll_sum = 0;
     shared_ptr< phylo_particle > cur = X.pp;
-    while( cur != NULL && cur->node != NULL ) {
-        if( visited.size() < cur->node->id || !visited[ cur->node->id ] ) {
-            ll_sum += calc.calculate_ll( cur->node, visited );
+    while(cur != NULL && cur->node != NULL) {
+        if(visited.size() < cur->node->id || !visited[ cur->node->id ]) {
+            ll_sum += calc.calculate_ll(cur->node, visited);
         }
         cur = cur->predecessor;
     }
     // add background freqs for all uncoalesced leaves
-    for(int i=0; i<leaf_nodes.size(); i++){
+    for(int i = 0; i < leaf_nodes.size(); i++) {
         if(visited.size() > i && visited[i]) continue;
-        ll_sum += calc.calculate_ll( leaf_nodes[i], visited );
+        ll_sum += calc.calculate_ll(leaf_nodes[i], visited);
     }
 
     return ll_sum;
@@ -64,7 +64,7 @@ smc::particle<particle> fInitialise(smc::rng *pRng)
     // initial particles have all sequences uncoalesced
     value.pp = make_shared< phylo_particle >();
     // loglike should just be the background distribution on character state frequencies
-    return smc::particle<particle>(value,logLikelihood(0,value));
+    return smc::particle<particle>(value, logLikelihood(0, value));
 }
 
 ///The proposal function.
@@ -84,10 +84,10 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
     // The nodes that have already been coalesced, to be removed later.
     unordered_set< shared_ptr< phylo_node > > coalesced;
     // Insert all of the leaf nodes into the proposal set.
-    proposal_set.insert( leaf_nodes.begin(), leaf_nodes.end() );
+    proposal_set.insert(leaf_nodes.begin(), leaf_nodes.end());
     // Walk back to predecessor particles, adding root nodes to
     // proposal_set and collecting coalesced nodes in `coalesced`.
-    for( shared_ptr< phylo_particle > cur = pp->predecessor; cur != NULL; cur = cur->predecessor ) {
+    for(shared_ptr< phylo_particle > cur = pp->predecessor; cur != NULL; cur = cur->predecessor) {
         // Skip if the particle is \perp.
         if(cur->node == NULL) continue;
         // Skip if we've already processed this subtree, such that it's already found in coalesced.
@@ -97,7 +97,7 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
         // Recursively add all descendants of the root nodes to the coalesced set using a stack.
         stack< shared_ptr< phylo_node > > s;
         s.push(cur->node);
-        while(s.size()>0) {
+        while(s.size() > 0) {
             shared_ptr< phylo_node > n = s.top();
             s.pop();
             if(n->child1 == NULL) continue;	// leaf node, nothing more to do.
@@ -112,21 +112,21 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
     // in prop_vector.
     vector< shared_ptr< phylo_node > > pvec(proposal_set.begin(), proposal_set.end());
     vector< shared_ptr< phylo_node > > cvec(coalesced.begin(), coalesced.end());
-    sort( pvec.begin(), pvec.end() );
-    sort( cvec.begin(), cvec.end() );
-    vector< shared_ptr< phylo_node > > prop_vector(proposal_set.size()+coalesced.size());
+    sort(pvec.begin(), pvec.end());
+    sort(cvec.begin(), cvec.end());
+    vector< shared_ptr< phylo_node > > prop_vector(proposal_set.size() + coalesced.size());
     // UGH: std::set_difference requires an ordered container class
     // AG: that's the only way to do a set difference efficiently, right?
-    vector< shared_ptr< phylo_node > >::iterator last_ins = set_difference( pvec.begin(), pvec.end(), cvec.begin(), cvec.end(), prop_vector.begin() );
-    prop_vector.resize( last_ins - prop_vector.begin() );
+    vector< shared_ptr< phylo_node > >::iterator last_ins = set_difference(pvec.begin(), pvec.end(), cvec.begin(), cvec.end(), prop_vector.begin());
+    prop_vector.resize(last_ins - prop_vector.begin());
 
     // Pick two nodes from the prop_vector to join.
-    int n1 = pRng->UniformDiscrete(0, prop_vector.size()-1);
+    int n1 = pRng->UniformDiscrete(0, prop_vector.size() - 1);
     int n2 = n1;
     // XXX below could be replaced by
     // n2 = (n1+1+pRng->UniformDiscrete(0, prop_vector.size()-2)) mod (prop_vector.size()-1);
     // or some such
-    while( n1 == n2 ) n2 = pRng->UniformDiscrete(0, prop_vector.size()-1);
+    while(n1 == n2) n2 = pRng->UniformDiscrete(0, prop_vector.size() - 1);
     pp->node = make_shared< phylo_node >();
     pp->node->id = calc.get_id();
     pp->node->child1 = prop_vector[n1];
@@ -140,7 +140,7 @@ void fMove(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
     pp->node->dist2 = pp->node->height - pp->node->child2->height;
 
     // Note: when proposing from exponential(1.0) the below can be simplified to just adding h
-    pFrom.AddToLogWeight(logLikelihood(lTime, *part) - log(h_prob) );
+    pFrom.AddToLogWeight(logLikelihood(lTime, *part) - log(h_prob));
 }
 
 int fMoveNodeAgeMCMC(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
@@ -154,20 +154,19 @@ int fMoveNodeAgeMCMC(long lTime, smc::particle<particle>& pFrom, smc::rng *pRng)
 
     double cur_ll = logLikelihood(lTime, *part);
     // Choose an amount to shift the node height uniformly at random.
-    double shift = pRng->Uniform(-0.1,0.1);
+    double shift = pRng->Uniform(-0.1, 0.1);
     // If the shift amount would create a negative node height we will reflect it back to a positive number.
     // This means the proposal density for the reflection zone is double the rest of the area, but the back-proposal
     // probability is also double in the same area so these terms cancel in the Metropolis-Hastings ratio.
     double pred_height = part->pp->predecessor->node != NULL ? part->pp->predecessor->node->height : 0;
-    new_node->height = abs( cur_node->height - pred_height + shift ) + pred_height; 
+    new_node->height = abs(cur_node->height - pred_height + shift) + pred_height;
     // Now calculate the new node heights.
     new_node->dist1 = new_node->height - new_node->child1->height;
     new_node->dist2 = new_node->height - new_node->child2->height;
     part->pp->node = new_node;
 
-    double alpha = exp(logLikelihood(lTime,*part) - cur_ll);
-    if(alpha < 1 && pRng->UniformS() > alpha)
-    {
+    double alpha = exp(logLikelihood(lTime, *part) - cur_ll);
+    if(alpha < 1 && pRng->UniformS() > alpha) {
         // Move rejected, restore the original node.
         part->pp->node = cur_node;
         return false;
