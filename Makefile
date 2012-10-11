@@ -18,7 +18,7 @@ distclean: clean
 libraries:
 	make -Csrc all
 
-docs: 
+docs:
 	make -Csrc/doxygen all
 	make -Cdoc/latex  all
 	cp doc/latex/refman.pdf doc
@@ -30,5 +30,22 @@ examples:
 dist: distclean
 	tar -cf ../smctc.tar *
 	bzip2 ../smctc.tar
-	tar -cf ../smctc.tar *	
+	tar -cf ../smctc.tar *
 	zip -r ../smctc.zip *
+
+style:
+	astyle  --style=k&r
+		--pad-oper
+		--unpad-paren
+		--keep-one-line-blocks
+		--keep-one-line-statements
+		--suffix=none  # no backup
+		--recursive
+		--formatted  # only display files that have been formatted
+		--lineend=linux
+
+.PHONY:
+
+default: all, clean, distclean, libraries, docs, examples, dist, style
+
+
