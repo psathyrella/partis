@@ -1,6 +1,5 @@
 .PHONY: docs clean distclean examples all libraries docs
 
-
 all: style libraries examples
 
 clean:
