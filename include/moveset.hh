@@ -121,7 +121,7 @@ moveset<Space>::moveset(init_fn pfInit,
 {
     SetInitialisor(pfInit);
     SetMoveSelectionFunction(NULL);
-    SetMoveFunctions({newMoves});
+    SetMoveFunctions(std::vector<move_fn>(1, newMoves));
     assert(pfMoves.size() == 1);
     SetMCMCFunction(pfNewMCMC);
 }
