@@ -377,6 +377,9 @@ void sampler<Space>::MoveParticles(void)
     }
 }
 
+///Perform resampling.
+///Note: this procedure sets all particle weights to zero after resampling.
+///\param lMode The sampling mode for the sampler.
 template <class Space>
 void sampler<Space>::Resample(ResampleType lMode)
 {
@@ -384,12 +387,14 @@ void sampler<Space>::Resample(ResampleType lMode)
     double dWeightSum = 0;
     unsigned uMultinomialCount;
 
-    //First obtain a count of the number of children each particle has.
+    //First obtain a count of the number of children each particle has via the chosen strategy.
+    //This will be stored in uRSCount.
     switch(lMode) {
     case SMC_RESAMPLE_MULTINOMIAL:
         //Sample from a suitable multinomial vector
         for(int i = 0; i < N; ++i)
             dRSWeights[i] = pParticles[i].GetWeight();
+        //Generate a multinomial random vector with parameters (N,dRSWeights[1:N]) and store it in uRSCount
         pRng->Multinomial(N, N, dRSWeights, uRSCount);
         break;
 
@@ -409,6 +414,7 @@ void sampler<Space>::Resample(ResampleType lMode)
             dRSWeights[i] = (dRSWeights[i] - uRSIndices[i]);
             uMultinomialCount -= uRSIndices[i];
         }
+        //Generate a multinomial random vector with parameters (uMultinomialCount,dRSWeights[1:N]) and store it in uRSCount
         pRng->Multinomial(uMultinomialCount, N, dRSWeights, uRSCount);
         for(int i = 0; i < N; ++i)
             uRSCount[i] += uRSIndices[i];
@@ -418,22 +424,25 @@ void sampler<Space>::Resample(ResampleType lMode)
     case SMC_RESAMPLE_STRATIFIED:
     default: {
         // Procedure for stratified sampling
+        // See Appendix of Kitagawa 1996, http://www.jstor.org/stable/1390750
         dWeightSum = 0;
         double dWeightCumulative = 0;
         // Calculate the normalising constant of the weight vector
         for(int i = 0; i < N; i++)
             dWeightSum += exp(pParticles[i].GetLogWeight());
-        //Generate a random number between 0 and 1/N times the sum of the weights
+        //Generate a random number between 0 and 1/N.
         double dRand = pRng->Uniform(0, 1.0 / ((double)N));
 
-        int j = 0, k = 0;
         for(int i = 0; i < N; ++i)
             uRSCount[i] = 0;
 
+        // j will be the index of the current sampling step, whereas k will be the the index of the previous step.
+        int j = 0, k = 0;
+        // Advance j along until dWeightCumulative > j/N + dRand
         dWeightCumulative = exp(pParticles[0].GetLogWeight()) / dWeightSum;
         while(j < N) {
             while((dWeightCumulative - dRand) > ((double)j) / ((double)N) && j < N) {
-                uRSCount[k]++;
+                uRSCount[k]++; // Accept the particle k.
                 j++;
                 dRand = pRng->Uniform(0, 1.0 / ((double)N));
             }
@@ -472,7 +481,9 @@ void sampler<Space>::Resample(ResampleType lMode)
     }
     }
 
-    //Map count to indices to allow in-place resampling
+    //Map count to indices to allow in-place resampling.
+    //Here j represents the next particle from the previous generation that is going to be dropped in the current
+    //sample, and thus can get filled by the resampling scheme.
     for(unsigned int i = 0, j = 0; i < N; ++i) {
         if(uRSCount[i] > 0) {
             uRSIndices[i] = i;
@@ -488,6 +499,7 @@ void sampler<Space>::Resample(ResampleType lMode)
     for(int i = 0; i < N ; ++i) {
         if(uRSIndices[i] != i)
             pParticles[i].SetValue(pParticles[uRSIndices[i]].GetValue());
+        //Reset the log weight of the particles to be zero.
         pParticles[i].SetLogWeight(0);
     }
 }
