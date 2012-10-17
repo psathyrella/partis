@@ -28,6 +28,8 @@
 #define __SMC_MOVESET_HH 1.0
 
 #include "particle.hh"
+#include <functional>
+#include <assert.h>
 //#include "rng.hh"
 
 namespace smc
@@ -36,32 +38,35 @@ namespace smc
 
 template <class Space> class moveset
 {
+public:
+    /// Callbacks used
+    typedef std::function<particle<Space>(rng*)> init_fn;
+    typedef std::function<long(long, const particle<Space>&, rng*)> move_select_fn;
+    typedef std::function<int(long, particle<Space> &, rng*)> mcmc_fn;
+    typedef std::function<void(long, particle<Space>&, rng*)> move_fn;
+
 private:
-    ///The number of moves which are present in the set
-    long number;
     ///The function which initialises a particle.
-    particle<Space> (*pfInitialise)(rng*);
+    init_fn pfInitialise;
     ///The function which selects a move for a given particle at a given time.
-    long(*pfMoveSelect)(long , const particle<Space> &, rng*);
+    move_select_fn pfMoveSelect;
     ///The functions which perform actual moves.
-    void (**pfMoves)(long, particle<Space> &, rng*);
+    std::vector<move_fn> pfMoves;
     ///A Markov Chain Monte Carlo move.
-    int (*pfMCMC)(long, particle<Space> &, rng*);
+    mcmc_fn pfMCMC;
 
 public:
     ///Create a completely unspecified moveset
     moveset();
-    ///Create a reduced moveset with a single move
-    moveset(particle<Space> (*pfInit)(rng*),
-            void (*pfNewMoves)(long, particle<Space> &, rng*),
-            int (*pfNewMCMC)(long, particle<Space> &, rng*));
+    ///Create a reduced moveset with a single move moveset(init_fn pfInit,
+    moveset(init_fn pfInit,
+            move_fn newMoves,
+            mcmc_fn pfNewMCMC);
     ///Create a fully specified moveset
-    moveset(particle<Space> (*pfInit)(rng*), long(*pfMoveSelector)(long , const particle<Space> &, rng*),
-            long nMoves, void (**pfNewMoves)(long, particle<Space> &, rng*),
-            int (*pfNewMCMC)(long, particle<Space> &, rng*));
+    moveset(init_fn pfInit, move_select_fn pfMoveSelect, std::vector<move_fn> pfNewMoves, mcmc_fn pfNewMCMC);
 
     ///Initialise a particle
-    particle<Space> DoInit(rng * pRng) { return (*pfInitialise)(pRng);};
+    particle<Space> DoInit(rng * pRng) { return pfInitialise(pRng);};
     ///Perform an MCMC move on a particle
     int DoMCMC(long lTime, particle<Space> & pFrom, rng* pRng);
     ///Select an appropriate move at time lTime and apply it to pFrom
@@ -72,20 +77,21 @@ public:
 
     /// \brief Set the initialisation function.
     /// \param pfInit is a function which returns a particle generated according to the initial distribution
-    void SetInitialisor(particle<Space> (*pfInit)(rng*))
+    void SetInitialisor(init_fn pfInit)
     {pfInitialise = pfInit;}
 
     /// \brief Set the MCMC function
     /// \param pfNewMCMC  The function which performs an MCMC move
-    void SetMCMCFunction(int (*pfNewMCMC)(long, particle<Space> &, rng*)) { pfMCMC = pfNewMCMC;}
+    void SetMCMCFunction(mcmc_fn pfNewMCMC)
+    { pfMCMC = pfNewMCMC;}
 
     /// \brief Set the move selection function
     /// \param pfMoveSelectNew returns the index of move to perform at the specified time given a specified particle
-    void SetMoveSelectionFunction(long(*pfMoveSelectNew)(long , const particle<Space> &, rng*))
+    void SetMoveSelectionFunction(move_select_fn pfMoveSelectNew)
     {pfMoveSelect = pfMoveSelectNew; };
 
     ///Set the individual move functions to the supplied array of such functions
-    void SetMoveFunctions(long nMoves, void (**pfNewMoves)(long, particle<Space> &, rng*));
+    void SetMoveFunctions(std::vector<move_fn> moves);
 
     ///Moveset assignment should allocate buffers and deep copy all members.
     moveset<Space> & operator= (moveset<Space> & pFrom);
@@ -97,11 +103,9 @@ public:
 template <class Space>
 moveset<Space>::moveset()
 {
-    number = 0;
 
     pfInitialise = NULL;
     pfMoveSelect = NULL;
-    pfMoves = NULL;
     pfMCMC = NULL;
 }
 
@@ -111,14 +115,14 @@ moveset<Space>::moveset()
 /// \param pfNewMoves An functions which moves a particle at a specified time to a new location
 /// \param pfNewMCMC The function which should be called to apply an MCMC move (if any)
 template <class Space>
-moveset<Space>::moveset(particle<Space> (*pfInit)(rng*),
-                        void (*pfNewMoves)(long, particle<Space> &, rng*),
-                        int (*pfNewMCMC)(long, particle<Space> &, rng*))
+moveset<Space>::moveset(init_fn pfInit,
+                        move_fn newMoves,
+                        mcmc_fn pfNewMCMC)
 {
     SetInitialisor(pfInit);
     SetMoveSelectionFunction(NULL);
-    pfMoves = NULL; //This presents an erroneous deletion by the following call
-    SetMoveFunctions(1, &pfNewMoves);
+    SetMoveFunctions(std::vector<move_fn>(1, newMoves));
+    assert(pfMoves.size() == 1);
     SetMCMCFunction(pfNewMCMC);
 }
 
@@ -130,22 +134,17 @@ moveset<Space>::moveset(particle<Space> (*pfInit)(rng*),
 /// \param pfNewMoves An array of functions which move a particle at a specified time to a new location
 /// \param pfNewMCMC The function which should be called to apply an MCMC move (if any)
 template <class Space>
-moveset<Space>::moveset(particle<Space> (*pfInit)(rng*), long(*pfMoveSelector)(long , const particle<Space> &, rng*),
-                        long nMoves, void (**pfNewMoves)(long, particle<Space> &, rng*),
-                        int (*pfNewMCMC)(long, particle<Space> &, rng*))
+moveset<Space>::moveset(init_fn pfInit, move_select_fn pfMoveSelector, std::vector<move_fn> pfNewMoves, mcmc_fn pfNewMCMC)
 {
     SetInitialisor(pfInit);
     SetMoveSelectionFunction(pfMoveSelector);
-    pfMoves = NULL; //This presents an erroneous deletion by the following call
-    SetMoveFunctions(nMoves, pfNewMoves);
+    SetMoveFunctions(pfNewMoves);
     SetMCMCFunction(pfNewMCMC);
 }
 
 template <class Space>
 moveset<Space>::~moveset()
 {
-    if(pfMoves)
-        delete [] pfMoves;
 }
 
 template <class Space>
@@ -161,7 +160,7 @@ int moveset<Space>::DoMCMC(long lTime, particle<Space> & pFrom, rng *pRng)
 template <class Space>
 void moveset<Space>::DoMove(long lTime, particle<Space> & pFrom, rng *pRng)
 {
-    if(number > 1)
+    if(pfMoves.size() > 1)
         pfMoves[pfMoveSelect(lTime, pFrom, pRng)](lTime, pFrom, pRng);
     else
         pfMoves[0](lTime, pFrom, pRng);
@@ -174,14 +173,9 @@ void moveset<Space>::DoMove(long lTime, particle<Space> & pFrom, rng *pRng)
 /// second to an initial particle position and the second to a weighted starting position. It returns a new
 /// weighted position corresponding to the moved particle.
 template <class Space>
-void moveset<Space>::SetMoveFunctions(long nMoves, void (**pfNewMoves)(long, particle<Space> &, rng*))
+void moveset<Space>::SetMoveFunctions(std::vector<move_fn> newMoves)
 {
-    number = nMoves;
-    if(pfMoves)
-        delete [] pfMoves;
-    pfMoves = (void (**)(long int, smc::particle<Space> &, rng*)) new void* [nMoves];
-    for(int i = 0; i < nMoves; i++)
-        pfMoves[i] = pfNewMoves[i];
+    pfMoves = std::vector<move_fn>(newMoves.begin(), newMoves.end());
     return;
 }
 
@@ -191,7 +185,7 @@ moveset<Space> & moveset<Space>::operator= (moveset<Space> & pFrom)
     SetInitialisor(pFrom.pfInitialise);
     SetMCMCFunction(pFrom.pfMCMC);
     SetMoveSelectionFunction(pFrom.pfMoveSelect);
-    SetMoveFunctions(pFrom.number, pFrom.pfMoves);
+    SetMoveFunctions(pFrom.pfMoves);
 
     return *this;
 }
