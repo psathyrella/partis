@@ -424,7 +424,9 @@ void sampler<Space>::Resample(ResampleType lMode)
     case SMC_RESAMPLE_STRATIFIED:
     default: {
         // Procedure for stratified sampling
-        // See Appendix of Kitagawa 1996, http://www.jstor.org/stable/1390750
+        // See Appendix of Kitagawa 1996, http://www.jstor.org/stable/1390750,
+        // or p.290 of the Doucet et al book, an image of which is at:
+        // http://cl.ly/image/200T0y473k1d/stratified_resampling.jpg
         dWeightSum = 0;
         double dWeightCumulative = 0;
         // Calculate the normalising constant of the weight vector
@@ -432,14 +434,14 @@ void sampler<Space>::Resample(ResampleType lMode)
             dWeightSum += exp(pParticles[i].GetLogWeight());
         //Generate a random number between 0 and 1/N.
         double dRand = pRng->Uniform(0, 1.0 / ((double)N));
-
+        // Clear out uRSCount.
         for(int i = 0; i < N; ++i)
             uRSCount[i] = 0;
-
-        // j will be the index of the current sampling step, whereas k will be the the index of the previous step.
+        // 0 <= j < N will index the current sampling step, whereas k will index the previous step.
         int j = 0, k = 0;
-        // Advance j along until dWeightCumulative > j/N + dRand
+        // dWeightCumulative is \tilde{\pi}^r from the Doucet book.
         dWeightCumulative = exp(pParticles[0].GetLogWeight()) / dWeightSum;
+        // Advance j along until dWeightCumulative > j/N + dRand
         while(j < N) {
             while((dWeightCumulative - dRand) > ((double)j) / ((double)N) && j < N) {
                 uRSCount[k]++; // Accept the particle k.
