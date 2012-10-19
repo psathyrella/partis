@@ -390,7 +390,7 @@ void sampler<Space>::Resample(ResampleType lMode)
     //First set up dRSWeights to have the weights, which have been normalized so that the first one has weight 1.
     //This keeps things from underflowing when likelihoods are small.
     for(int i = 0; i < N; ++i) {
-        dRSWeights[i] = exp(pParticles[i].GetLogWeight() - pParticles[0].GetLogWeight())
+        dRSWeights[i] = exp(pParticles[i].GetLogWeight() - pParticles[0].GetLogWeight());
     }
 
     //Obtain a count of the number of children each particle has via the chosen strategy.
@@ -462,7 +462,7 @@ void sampler<Space>::Resample(ResampleType lMode)
         double dWeightCumulative = 0;
         // Calculate the normalising constant of the weight vector
         for(int i = 0; i < N; i++)
-            dWeightSum += dRSWeights[i]
+            dWeightSum += dRSWeights[i];
         //Generate a random number between 0 and 1/N times the sum of the weights
         double dRand = pRng->Uniform(0, 1.0 / ((double)N));
 
