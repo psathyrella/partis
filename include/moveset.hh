@@ -154,8 +154,7 @@ template <class Space>
 int moveset<Space>::DoMCMC(long lTime, particle<Space> & pFrom, rng *pRng)
 {
     bool any_accepted = false;
-    auto fn = pfMCMC.begin();
-    auto end = pfMCMC.end();
+    typename std::vector<mcmc_fn>::const_iterator fn = pfMCMC.begin(), end = pfMCMC.end();
     for(; fn != end; ++fn) {
         if((*fn)(lTime, pFrom, pRng)) {// move accepted
             any_accepted = true;
