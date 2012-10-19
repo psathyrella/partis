@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <vector>
 #include "simfunctions.hh"
 
 ///Length of Markov Chain
@@ -25,8 +26,10 @@ int main(int argc, char** argv)
 
     try {
         ///An array of move function pointers
-        void (*pfMoves[])(long, smc::particle<mChain<double> > &, smc::rng*) = {fMove1, fMove2};
-        smc::moveset<mChain<double> > Moveset(fInitialise, fSelect, sizeof(pfMoves) / sizeof(pfMoves[0]), pfMoves, fMCMC);
+        std::vector<smc::moveset<mChain<double>>::move_fn> moves;
+        moves.push_back(fMove1);
+        moves.push_back(fMove2);
+        smc::moveset<mChain<double> > Moveset(fInitialise, fSelect, moves, fMCMC);
         smc::sampler<mChain<double> > Sampler(lNumber, SMC_HISTORY_RAM);
 
         Sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 0.5);
