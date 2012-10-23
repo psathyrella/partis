@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 
 #include "rng.hh"
 #include "history.hh"
@@ -387,13 +388,20 @@ void sampler<Space>::Resample(ResampleType lMode)
     double dWeightSum = 0;
     unsigned uMultinomialCount;
 
-    //First obtain a count of the number of children each particle has via the chosen strategy.
+    //First set up dRSWeights to have the weights, which have been normalized so that the maximum element has weight 1.
+    //This keeps things from underflowing when likelihoods are small.
+    double dMaxLogWeight = std::numeric_limits<double>::min();
+    for(int i = 0; i < N; ++i) {
+        dMaxLogWeight = std::max(dMaxLogWeight, pParticles[i].GetLogWeight());
+    }
+    for(int i = 0; i < N; ++i) {
+        dRSWeights[i] = exp(pParticles[i].GetLogWeight() - dMaxLogWeight);
+    }
+
+    //Obtain a count of the number of children each particle has via the chosen strategy.
     //This will be stored in uRSCount.
     switch(lMode) {
     case SMC_RESAMPLE_MULTINOMIAL:
-        //Sample from a suitable multinomial vector
-        for(int i = 0; i < N; ++i)
-            dRSWeights[i] = pParticles[i].GetWeight();
         //Generate a multinomial random vector with parameters (N,dRSWeights[1:N]) and store it in uRSCount
         pRng->Multinomial(N, N, dRSWeights, uRSCount);
         break;
@@ -403,7 +411,6 @@ void sampler<Space>::Resample(ResampleType lMode)
         //counts afterwards.
         dWeightSum = 0;
         for(int i = 0; i < N; ++i) {
-            dRSWeights[i] = pParticles[i].GetWeight();
             dWeightSum += dRSWeights[i];
         }
 
@@ -431,7 +438,7 @@ void sampler<Space>::Resample(ResampleType lMode)
         double dWeightCumulative = 0;
         // Calculate the normalising constant of the weight vector
         for(int i = 0; i < N; i++)
-            dWeightSum += exp(pParticles[i].GetLogWeight());
+            dWeightSum += dRSWeights[i];
         //Generate a random number between 0 and 1/N.
         double dRand = pRng->Uniform(0, 1.0 / ((double)N));
         // Clear out uRSCount.
@@ -440,7 +447,7 @@ void sampler<Space>::Resample(ResampleType lMode)
         // 0 <= j < N will index the current sampling step, whereas k will index the previous step.
         int j = 0, k = 0;
         // dWeightCumulative is \tilde{\pi}^r from the Doucet book.
-        dWeightCumulative = exp(pParticles[0].GetLogWeight()) / dWeightSum;
+        dWeightCumulative = dRSWeights[0] / dWeightSum;
         // Advance j along until dWeightCumulative > j/N + dRand
         while(j < N) {
             while((dWeightCumulative - dRand) > ((double)j) / ((double)N) && j < N) {
@@ -449,7 +456,7 @@ void sampler<Space>::Resample(ResampleType lMode)
                 dRand = pRng->Uniform(0, 1.0 / ((double)N));
             }
             k++;
-            dWeightCumulative += exp(pParticles[k].GetLogWeight()) / dWeightSum;
+            dWeightCumulative += dRSWeights[k] / dWeightSum;
         }
         break;
     }
@@ -460,7 +467,7 @@ void sampler<Space>::Resample(ResampleType lMode)
         double dWeightCumulative = 0;
         // Calculate the normalising constant of the weight vector
         for(int i = 0; i < N; i++)
-            dWeightSum += exp(pParticles[i].GetLogWeight());
+            dWeightSum += dRSWeights[i];
         //Generate a random number between 0 and 1/N times the sum of the weights
         double dRand = pRng->Uniform(0, 1.0 / ((double)N));
 
@@ -468,7 +475,7 @@ void sampler<Space>::Resample(ResampleType lMode)
         for(int i = 0; i < N; ++i)
             uRSCount[i] = 0;
 
-        dWeightCumulative = exp(pParticles[0].GetLogWeight()) / dWeightSum;
+        dWeightCumulative = dRSWeights[0] / dWeightSum;
         while(j < N) {
             while((dWeightCumulative - dRand) > ((double)j) / ((double)N) && j < N) {
                 uRSCount[k]++;
@@ -476,7 +483,7 @@ void sampler<Space>::Resample(ResampleType lMode)
 
             }
             k++;
-            dWeightCumulative += exp(pParticles[k].GetLogWeight()) / dWeightSum;
+            dWeightCumulative += dRSWeights[k] / dWeightSum;
         }
         break;
 
