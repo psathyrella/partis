@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 
 #include "rng.hh"
 #include "history.hh"
@@ -387,10 +388,14 @@ void sampler<Space>::Resample(ResampleType lMode)
     double dWeightSum = 0;
     unsigned uMultinomialCount;
 
-    //First set up dRSWeights to have the weights, which have been normalized so that the first one has weight 1.
+    //First set up dRSWeights to have the weights, which have been normalized so that the maximum element has weight 1.
     //This keeps things from underflowing when likelihoods are small.
+    double dMaxLogWeight = std::numeric_limits<double>::min();
     for(int i = 0; i < N; ++i) {
-        dRSWeights[i] = exp(pParticles[i].GetLogWeight() - pParticles[0].GetLogWeight());
+        dMaxLogWeight = std::max(dMaxLogWeight, pParticles[i].GetLogWeight());
+    }
+    for(int i = 0; i < N; ++i) {
+        dRSWeights[i] = exp(pParticles[i].GetLogWeight() - dMaxLogWeight);
     }
 
     //Obtain a count of the number of children each particle has via the chosen strategy.
