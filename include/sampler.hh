@@ -211,6 +211,8 @@ sampler<Space>::~sampler()
 {
     delete pRng;
 
+    if(pParticles)
+        delete [] pParticles;
     if(dRSWeights)
         delete [] dRSWeights;
     if(uRSCount)
