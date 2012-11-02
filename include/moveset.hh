@@ -104,9 +104,9 @@ template <class Space>
 moveset<Space>::moveset()
 {
 
-    pfInitialise = NULL;
-    pfMoveSelect = NULL;
-    pfMCMC = NULL;
+    pfInitialise = nullptr;
+    pfMoveSelect = nullptr;
+    pfMCMC = nullptr;
 }
 
 /// The three argument moveset constructor creates a new set of moves and sets all of the relevant function
@@ -120,7 +120,7 @@ moveset<Space>::moveset(init_fn pfInit,
                         mcmc_fn pfNewMCMC)
 {
     SetInitialisor(pfInit);
-    SetMoveSelectionFunction(NULL);
+    SetMoveSelectionFunction(nullptr);
     SetMoveFunctions(std::vector<move_fn>(1, newMoves));
     assert(pfMoves.size() == 1);
     SetMCMCFunction(pfNewMCMC);
