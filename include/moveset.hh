@@ -52,8 +52,8 @@ private:
     move_select_fn pfMoveSelect;
     ///The functions which perform actual moves.
     std::vector<move_fn> pfMoves;
-    ///A Markov Chain Monte Carlo move.
-    mcmc_fn pfMCMC;
+    ///The Markov Chain Monte Carlo moves to use.
+    std::vector<mcmc_fn> pfMCMC;
 
 public:
     ///Create a completely unspecified moveset
@@ -83,6 +83,11 @@ public:
     /// \brief Set the MCMC function
     /// \param pfNewMCMC  The function which performs an MCMC move
     void SetMCMCFunction(mcmc_fn pfNewMCMC)
+    { pfMCMC = std::vector<mcmc_fn>(1, pfNewMCMC);}
+
+    /// \brief Set the MCMC function
+    /// \param pfNewMCMC  Vector of functions which supply the new move
+    void SetMCMCFunction(std::vector<mcmc_fn> pfNewMCMC)
     { pfMCMC = pfNewMCMC;}
 
     /// \brief Set the move selection function
@@ -103,10 +108,8 @@ public:
 template <class Space>
 moveset<Space>::moveset()
 {
-
     pfInitialise = nullptr;
     pfMoveSelect = nullptr;
-    pfMCMC = nullptr;
 }
 
 /// The three argument moveset constructor creates a new set of moves and sets all of the relevant function
@@ -150,11 +153,15 @@ moveset<Space>::~moveset()
 template <class Space>
 int moveset<Space>::DoMCMC(long lTime, particle<Space> & pFrom, rng *pRng)
 {
-    if(pfMCMC) {
-        return pfMCMC(lTime, pFrom, pRng);
-    } else {
-        return false;
+    bool any_accepted = false;
+    typename std::vector<mcmc_fn>::const_iterator fn = pfMCMC.begin(), end = pfMCMC.end();
+    for(; fn != end; ++fn) {
+        if((*fn)(lTime, pFrom, pRng)) {// move accepted
+            any_accepted = true;
+        }
     }
+
+    return any_accepted;
 }
 
 template <class Space>
