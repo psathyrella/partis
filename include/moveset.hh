@@ -28,8 +28,9 @@
 #define __SMC_MOVESET_HH 1.0
 
 #include "particle.hh"
+#include <cassert>
 #include <functional>
-#include <assert.h>
+#include <vector>
 //#include "rng.hh"
 
 namespace smc
@@ -80,6 +81,11 @@ public:
     void SetInitialisor(init_fn pfInit)
     {pfInitialise = pfInit;}
 
+    /// \brief Add an MCMC function
+    /// \param fn New function
+    void AddMCMCFunction(mcmc_fn pfNewMCMC)
+    { pfMCMC.push_back(pfNewMCMC); }
+ 
     /// \brief Set the MCMC function
     /// \param pfNewMCMC  The function which performs an MCMC move
     void SetMCMCFunction(mcmc_fn pfNewMCMC)
