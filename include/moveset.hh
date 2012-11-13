@@ -64,7 +64,8 @@ public:
             move_fn newMoves,
             mcmc_fn pfNewMCMC);
     ///Create a fully specified moveset
-    moveset(init_fn pfInit, move_select_fn pfMoveSelect, std::vector<move_fn> pfNewMoves, mcmc_fn pfNewMCMC);
+    moveset(init_fn pfInit, move_select_fn pfMoveSelect, std::vector<move_fn> pfNewMoves,
+            std::vector<mcmc_fn> pfNewMCMC);
 
     ///Initialise a particle
     particle<Space> DoInit(rng * pRng) { return pfInitialise(pRng);};
@@ -132,7 +133,7 @@ moveset<Space>::moveset(init_fn pfInit,
     SetMoveSelectionFunction(nullptr);
     SetMoveFunctions(std::vector<move_fn>(1, newMoves));
     assert(pfMoves.size() == 1);
-    SetMCMCFunction(pfNewMCMC);
+    if(pfNewMCMC != nullptr) SetMCMCFunction(pfNewMCMC);
 }
 
 /// The five argument moveset constructor creates a new set of moves and sets all of the relevant function
@@ -143,7 +144,8 @@ moveset<Space>::moveset(init_fn pfInit,
 /// \param pfNewMoves An array of functions which move a particle at a specified time to a new location
 /// \param pfNewMCMC The function which should be called to apply an MCMC move (if any)
 template <class Space>
-moveset<Space>::moveset(init_fn pfInit, move_select_fn pfMoveSelector, std::vector<move_fn> pfNewMoves, mcmc_fn pfNewMCMC)
+moveset<Space>::moveset(init_fn pfInit, move_select_fn pfMoveSelector, std::vector<move_fn> pfNewMoves,
+                        std::vector<mcmc_fn> pfNewMCMC)
 {
     SetInitialisor(pfInit);
     SetMoveSelectionFunction(pfMoveSelector);
