@@ -21,9 +21,11 @@ docs:
 	make -Cdoc/latex  all
 	cp doc/latex/refman.pdf doc
 
-examples:
+examples: bin
 	make -Cexamples all
 
+bin:
+	mkdir -p bin
 
 dist: distclean
 	tar -cf ../smctc.tar *
