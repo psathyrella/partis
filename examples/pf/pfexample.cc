@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 
         //Initialise and run the sampler
         smc::sampler<cv_state> Sampler(lNumber, SMC_HISTORY_NONE);
-        smc::moveset<cv_state> Moveset(fInitialise, fMove, NULL);
+        smc::moveset<cv_state> Moveset(fInitialise, fMove);
 
         Sampler.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
         Sampler.SetMoveSet(Moveset);

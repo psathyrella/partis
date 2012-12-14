@@ -500,7 +500,7 @@ void sampler<Space>::Resample(ResampleType lMode)
     }
 
     //Perform the replication of the chosen.
-    for(int i = 0; i < N ; ++i) {
+    for(unsigned int i = 0; i < N ; ++i) {
         if(uRSIndices[i] != i)
             pParticles[i].SetValue(pParticles[uRSIndices[i]].GetValue());
         //Reset the log weight of the particles to be zero.

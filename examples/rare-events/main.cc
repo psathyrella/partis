@@ -26,10 +26,13 @@ int main(int argc, char** argv)
 
     try {
         ///An array of move function pointers
+        smc::mcmc_moves<mChain<double>> selector;
+        selector.AddMove(fMCMC);
         std::vector<smc::moveset<mChain<double>>::move_fn> moves;
         moves.push_back(fMove1);
         moves.push_back(fMove2);
-        smc::moveset<mChain<double> > Moveset(fInitialise, fSelect, moves, fMCMC);
+        smc::moveset<mChain<double> > Moveset(fInitialise, fSelect, moves, selector);
+        Moveset.SetNumberOfMCMCMoves(1);
         smc::sampler<mChain<double> > Sampler(lNumber, SMC_HISTORY_RAM);
 
         Sampler.SetResampleParams(SMC_RESAMPLE_STRATIFIED, 0.5);
