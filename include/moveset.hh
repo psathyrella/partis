@@ -91,8 +91,8 @@ public:
 
     /// \brief Set the number of MCMC moves to make
     /// \param nMCMC Number of moves to make
-    void SetNumberOfMCMCMoves(const size_t nMCMC)
-    { this->nMCMC = nMCMC; };
+    void SetNumberOfMCMCMoves(const size_t n)
+    { this->nMCMC = n; };
 
     /// \brief Set the move selection function
     /// \param pfMoveSelectNew returns the index of move to perform at the specified time given a specified particle
@@ -193,6 +193,7 @@ moveset<Space> & moveset<Space>::operator= (moveset<Space> & pFrom)
 {
     SetInitialisor(pFrom.pfInitialise);
     SetMCMCSelector(pFrom.pfMCMC);
+    SetNumberOfMCMCMoves(pFrom.nMCMC);
     SetMoveSelectionFunction(pFrom.pfMoveSelect);
     SetMoveFunctions(pFrom.pfMoves);
 
