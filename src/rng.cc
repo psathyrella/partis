@@ -219,6 +219,13 @@ double rng::NormalTruncated(double dMean, double dStd, double dThreshold)
     return dMean + gsl_ran_gaussian_tail(pWorkspace, dThreshold - dMean, dStd);
 }
 
+///This function simply calls gsl_ran_poisson with the specified parameters.
+///     \param dMean The mean of the distribution.
+unsigned int rng::Poisson(double dMean)
+{
+    return gsl_ran_poisson(pWorkspace, dMean);
+}
+
 ///This function simply calls gsl_ran_tdist with the specified number of degrees of freedom.
 ///     \param dDF The number of degrees of freedom.
 double rng::StudentT(double dDF)

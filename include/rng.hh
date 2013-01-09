@@ -112,6 +112,8 @@ public:
     double NormalS(void);
     ///Returns a random number from a normal distribution, conditional upon it exceeding the specified threshold.
     double NormalTruncated(double dMean, double dStd, double dThreshold);
+    /// Returns a random number from a poisson distribution with specified mean.
+    unsigned int Poisson(double dMean);
     ///Return a student-t random number generated with a specified number of degrees of freedom
     double StudentT(double dDF);
     ///Return a random number generated uniformly between dMin and dMax
