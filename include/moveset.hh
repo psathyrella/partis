@@ -123,7 +123,8 @@ moveset<Space>::moveset() :
 /// \param pfNewMoves An functions which moves a particle at a specified time to a new location
 template <class Space>
 moveset<Space>::moveset(init_fn pfInit,
-                        move_fn newMoves)
+                        move_fn newMoves) :
+    nMCMC(0)
 {
     SetInitialisor(pfInit);
     SetMoveSelectionFunction(nullptr);
@@ -141,6 +142,7 @@ moveset<Space>::moveset(init_fn pfInit,
 template <class Space>
 moveset<Space>::moveset(init_fn pfInit, move_select_fn pfMoveSelector, std::vector<move_fn> pfNewMoves,
                         mcmc_moves<Space> selector)
+    : nMCMC(selector.Count())
 {
     SetInitialisor(pfInit);
     SetMoveSelectionFunction(pfMoveSelector);
