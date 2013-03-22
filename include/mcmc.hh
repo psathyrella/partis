@@ -62,8 +62,14 @@ public:
     /// Add an MCMC move with specied weight
     void AddMove(mcmc_fn move, double weight = 1.0);
     /// \brief Select a move randomly from a multinomial distribution using MCMC move weights as probabilities
+
     /// \returns A pointer to an MCMC move function
     mcmc_fn* SelectMove(smc::rng* rng);
+    /// \brief Select moves randomly using weights as probabilities
+
+    /// \returns A vector of functions to apply (may contain duplicates)
+    std::vector<mcmc_fn*> SelectMoves(smc::rng* r, unsigned n);
+
     inline size_t Count() const { return moves.size(); };
 private:
     bool AreWeightsUniform() const;
@@ -83,22 +89,38 @@ void mcmc_moves<Space>::AddMove(mcmc_fn move, double weight)
 }
 
 template <typename Space>
-std::function<int(long, particle<Space> &, rng*)>* mcmc_moves<Space>::SelectMove(smc::rng* rng)
+std::vector<std::function<int(long, particle<Space> &, rng*)>*> mcmc_moves<Space>::SelectMoves(smc::rng* r, unsigned n)
 {
+    std::vector<mcmc_moves<Space>::mcmc_fn*> result;
+    result.reserve(n);
+
     assert(moves.size() >= 0);
     assert(moves.size() == weights.size());
-    if(moves.size() == 1) return &(moves[0]);
+    if(moves.size() == 1) return std::vector<mcmc_moves<Space>::mcmc_fn*>(n, &(moves[0]));
 
-    // Handle equal weights - simply sample a move randomly
+    // Handle equal weights - simply sample a move randomly n times
     if(uniform_weights) {
-        long i = rng->UniformDiscrete(0, moves.size() - 1);
-        return &(moves[i]);
+        for(size_t i = 0; i < n; i++) {
+            const long j = r->UniformDiscrete(0, moves.size() - 1);
+            result.push_back(&(moves[j]));
+        }
+        return result;
     }
 
     // Unequal weights: sample from multinomial
-    unsigned i;
-    rng->Multinomial(1, moves.size(), weights.data(), &i);
-    return &(moves[i]);
+    std::vector<unsigned> counts(moves.size(), 0);
+    r->Multinomial(1, moves.size(), weights.data(), counts.data());
+    for(size_t i = 0; i < counts.size(); i++) {
+        for(size_t j = 0; j < counts[i]; j++)
+            result.push_back(&moves[i]);
+    }
+    return result;
+}
+
+template <typename Space>
+std::function<int(long, particle<Space> &, rng*)>* mcmc_moves<Space>::SelectMove(smc::rng* rng)
+{
+    return SelectMoves(rng, 1)[0];
 }
 
 template <typename Space>
