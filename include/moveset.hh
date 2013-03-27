@@ -161,6 +161,7 @@ int moveset<Space>::DoMCMC(long lTime, particle<Space> & pFrom, rng *pRng)
     assert(pfMCMC.Count() > 0 || nMCMC == 0);
     bool any_accepted = false;
     auto moves = pfMCMC.SelectMoves(pRng, nMCMC);
+    assert(moves.size() == nMCMC);
     for(auto move_fn : moves) {
         if((*move_fn)(lTime, pFrom, pRng))
             any_accepted = true;

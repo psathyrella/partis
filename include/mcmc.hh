@@ -98,22 +98,14 @@ std::vector<std::function<int(long, particle<Space> &, rng*)>*> mcmc_moves<Space
     assert(moves.size() == weights.size());
     if(moves.size() == 1) return std::vector<mcmc_moves<Space>::mcmc_fn*>(n, &(moves[0]));
 
-    // Handle equal weights - simply sample a move randomly n times
-    if(uniform_weights) {
-        for(size_t i = 0; i < n; i++) {
-            const long j = r->UniformDiscrete(0, moves.size() - 1);
-            result.push_back(&(moves[j]));
-        }
-        return result;
-    }
-
     // Unequal weights: sample from multinomial
     std::vector<unsigned> counts(moves.size(), 0);
-    r->Multinomial(1, moves.size(), weights.data(), counts.data());
+    r->Multinomial(n, moves.size(), weights.data(), counts.data());
     for(size_t i = 0; i < counts.size(); i++) {
         for(size_t j = 0; j < counts[i]; j++)
             result.push_back(&moves[i]);
     }
+    assert(result.size() == n);
     return result;
 }
 
