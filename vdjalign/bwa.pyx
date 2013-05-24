@@ -67,35 +67,53 @@ cdef list parse_cigar(uint32_t *cigar, int n_cigar):
         result.append((cigar[i]>>4, "MIDSH"[cigar[i] & 0xF]))
     return result
 
-def align_sequence(index_path, bytes seq):
-    cdef mem_opt_t *opt = mem_opt_init()
-    cdef char* s = seq
-    cdef int l_seq = len(seq)
+cdef class BwaIndex:
+    cdef bwaidx_t *idx
+    cdef bytes path
 
-    cdef bwaidx_t *idx = NULL
+    def __init__(self):
+        raise ValueError("This class cannot be instantiated from Python.")
+
+    def __dealloc__(self):
+        if self.idx != NULL:
+            bwa_idx_destroy(self.idx)
+
+    def __repr__(self):
+        return '<BwaIndex {0}>'.format(self.path)
+
+    def align(self, bytes seq):
+        cdef mem_opt_t *opt = mem_opt_init()
+        cdef char* s = seq
+        cdef int l_seq = len(seq)
+
+        cdef int BWA_IDX_ALL = 0x7
+
+        cdef mem_alnreg_v ar
+        cdef mem_aln_t a
+        try:
+            with nogil:
+                ar = mem_align1(opt, self.idx.bwt, self.idx.bns, self.idx.pac, l_seq, s)
+            result = []
+            for i in xrange(ar.n):
+                a = mem_reg2aln(opt, self.idx.bns, self.idx.pac, l_seq, s, &ar.a[i])
+                result.append({'pos': a.pos, 'rid': a.rid, 'flag': a.flag,
+                    'reference': self.idx.bns.anns[a.rid].name,
+                    'mapq': a.mapq,
+                    'strand': "+-"[a.is_rev],
+                    'NM': a.NM,
+                    'cigar': parse_cigar(a.cigar, a.n_cigar), 'score': a.score})
+                free(a.cigar)
+            return result
+        finally:
+            free(opt)
+            free(ar.a)
+
+def open_bwa_index(bytes index_path):
     cdef int BWA_IDX_ALL = 0x7
-
-    cdef mem_alnreg_v ar
-    cdef mem_aln_t a
-    try:
-        idx = bwa_idx_load(index_path, BWA_IDX_ALL)
-        if idx == NULL:
-            raise IOError("Could not open " + seq)
-        with nogil:
-            ar = mem_align1(opt, idx.bwt, idx.bns, idx.pac, l_seq, s)
-        result = []
-        for i in xrange(ar.n):
-            a = mem_reg2aln(opt, idx.bns, idx.pac, l_seq, s, &ar.a[i])
-            result.append({'pos': a.pos, 'rid': a.rid, 'flag': a.flag,
-                'reference': idx.bns.anns[a.rid].name,
-                'mapq': a.mapq,
-                'strand': "+-"[a.is_rev],
-                'NM': a.NM,
-                'cigar': parse_cigar(a.cigar, a.n_cigar), 'score': a.score})
-            free(a.cigar)
-        return result
-    finally:
-        if idx != NULL:
-            bwa_idx_destroy(idx)
-        free(opt)
-        free(ar.a)
+    cdef bwaidx_t *idx = bwa_idx_load(index_path, BWA_IDX_ALL)
+    if idx == NULL:
+        raise IOError("Could not open " + index_path)
+    cdef BwaIndex result = BwaIndex.__new__(BwaIndex)
+    result.idx = idx
+    result.path = index_path
+    return result
