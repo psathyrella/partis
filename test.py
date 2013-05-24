@@ -2,7 +2,7 @@
 
 from vdjalign import bwa
 
-index = bwa.open_bwa_index('data/ighv.fasta')
+index = bwa.load_index('data/ighv.fasta')
 print index
 
-print index.align_sequence('CCTGGACAAGGGCTTGAGTGGATGGGACGGATCAACCCTAACAGTGGTGGCACAAACTAT')
+print index.align('CCTGGACAAGGGCTTGAGTGGATGGGACGGATCAACCCTAACAGTGGTGGCACAAACTAT')
