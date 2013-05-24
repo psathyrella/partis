@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 from Cython.Build import cythonize
 
-compile_args = ['-g', '-Wall', '-O2', '-DUSE_MALLOC_WRAPPERS', '-DHAVE_PTHREAD']
+compile_args = ['-g', '-Wall', '-O0', '-DUSE_MALLOC_WRAPPERS', '-DHAVE_PTHREAD']
 
 bwa_libs = ['z', 'm']
 bwa_c_src = ['utils', 'kstring', 'ksw', 'bwt', 'bntseq', 'bwa', 'bwamem', 'bwamem_pair', 'malloc_wrap']
