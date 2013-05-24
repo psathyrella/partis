@@ -4,12 +4,17 @@
 # distutils: sources = BWA_SRC
 # distutils: libraries = BWA_LIBS
 
-from libc.stdint cimport uint64_t, uint8_t, int8_t, int64_t, uint32_t
-from libc.stdlib cimport free
+from libc.stdint cimport uint64_t, uint8_t, int8_t, int64_t, uint32_t, int32_t
+from libc.stdlib cimport free, malloc
 
 cdef extern from "bntseq.h":
+    ctypedef struct bntann1_t:
+        char *name
     ctypedef struct bntseq_t:
-        pass
+        int64_t l_pac
+        int32_t n_seqs
+        uint32_t seed
+        bntann1_t *anns
 
 cdef extern from "bwt.h":
     ctypedef uint64_t bwtint_t
@@ -46,15 +51,21 @@ cdef extern from "bwamem.h":
         int64_t pos
         int rid # Reference id (<0 = unmapped)
         int flag
+        uint32_t is_rev, mapq, NM
         int n_cigar
         uint32_t *cigar # CIGAR in the BAM encoding: opLen<<4|op; op to integer mapping: MIDSH=>01234
 
         int score
 
-    mem_alnreg_v mem_align1(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bns, const uint8_t *pac, int l_seq, const char *seq)
+    mem_alnreg_v mem_align1(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bns, const uint8_t *pac, int l_seq, const char *seq) nogil
 
     mem_aln_t mem_reg2aln(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, int l_seq, const char *seq, const mem_alnreg_t *ar)
 
+cdef list parse_cigar(uint32_t *cigar, int n_cigar):
+    cdef list result = []
+    for i in xrange(n_cigar):
+        result.append((cigar[i]>>4, "MIDSH"[cigar[i] & 0xF]))
+    return result
 
 def align_sequence(index_path, bytes seq):
     cdef mem_opt_t *opt = mem_opt_init()
@@ -64,18 +75,27 @@ def align_sequence(index_path, bytes seq):
     cdef bwaidx_t *idx = NULL
     cdef int BWA_IDX_ALL = 0x7
 
-    cdef mem_alnreg_v alignments
-    cdef mem_aln_t alignment
+    cdef mem_alnreg_v ar
+    cdef mem_aln_t a
     try:
         idx = bwa_idx_load(index_path, BWA_IDX_ALL)
         if idx == NULL:
             raise IOError("Could not open " + seq)
-        alignments = mem_align1(opt, idx.bwt, idx.bns, idx.pac, l_seq, s)
-        for i in range(alignments.n):
-            alignment = mem_reg2aln(opt, idx.bns, idx.pac, l_seq, s, &alignments.a[i])
-            print alignment.rid, alignment.pos
+        with nogil:
+            ar = mem_align1(opt, idx.bwt, idx.bns, idx.pac, l_seq, s)
+        result = []
+        for i in xrange(ar.n):
+            a = mem_reg2aln(opt, idx.bns, idx.pac, l_seq, s, &ar.a[i])
+            result.append({'pos': a.pos, 'rid': a.rid, 'flag': a.flag,
+                'reference': idx.bns.anns[a.rid].name,
+                'mapq': a.mapq,
+                'strand': "+-"[a.is_rev],
+                'NM': a.NM,
+                'cigar': parse_cigar(a.cigar, a.n_cigar), 'score': a.score})
+            free(a.cigar)
+        return result
     finally:
         if idx != NULL:
             bwa_idx_destroy(idx)
         free(opt)
-
+        free(ar.a)
