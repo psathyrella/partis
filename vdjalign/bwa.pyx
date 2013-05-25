@@ -3,6 +3,11 @@
 # distutils: extra_compile_args = BWA_FLAGS
 # distutils: sources = BWA_SRC
 # distutils: libraries = BWA_LIBS
+"""
+*Very* primitive wrappers for BWA-MEM.
+
+Currently no support for changing *any* options.
+"""
 
 from libc.stdint cimport uint64_t, uint8_t, int8_t, int64_t, uint32_t, int32_t
 from libc.stdlib cimport free, malloc
@@ -34,7 +39,7 @@ cdef extern from "bwa.h":
 
 cdef extern from "bwamem.h":
     ctypedef struct mem_opt_t:
-        pass
+        int pen_clip  # Clipping penalty
 
     mem_opt_t *mem_opt_init()
     void mem_fill_scmat(int a, int b, int8_t mat[25])
@@ -112,7 +117,7 @@ cdef class BwaIndex:
                     'mapq': a.mapq,
                     'strand': "+-"[a.is_rev],
                     'NM': a.NM,
-                    'cigar': parse_cigar(a.cigar, a.n_cigar), 
+                    'cigar': parse_cigar(a.cigar, a.n_cigar),
                     'score': a.score})
                 free(a.cigar)
             return result
@@ -130,5 +135,6 @@ def load_index(bytes index_path):
     result.idx = idx
     result.path = index_path
     result.opt = mem_opt_init()
+    result.opt.pen_clip = 0
 
     return result
