@@ -81,7 +81,7 @@ cdef list parse_cigar(uint32_t *cigar, int n_cigar):
     for i in xrange(n_cigar):
         op = ops[cigar[i] & 0xF]
         n_ops = cigar[i] >> 4
-        result.append((n_ops, op))
+        result.append((n_ops, chr(op)))
     return result
 
 cdef class BwaIndex:
@@ -146,18 +146,23 @@ cdef class BwaIndex:
             free(ar.a)
 
     def fetch_reference(self, int rid, int rbegin, int rend):
+        """
+        Fetch bases from reference ``rid``, from ``rbegin`` to ``rend``
+        """
         cdef int64_t offset = self.idx.bns.anns[rid].offset
         cdef list l
-        cdef uint8_t * result
+        cdef uint8_t *result
         cdef int64_t length
-        cdef int i
-        cdef int c
+        cdef int i, c_idx
+        cdef char c
+        cdef const char *bases = "ACGT"
         try:
             result = bns_get_seq(self.idx.bns.l_pac, self.idx.pac, rbegin + offset, rend + offset, &length)
             l = [None for i in xrange(length)]
             for i in xrange(length):
-                c = result[i]
-                l[i] = "ACGT"[c]
+                c_idx = result[i]
+                c = bases[c_idx]
+                l[i] = c
             return ''.join(l)
         finally:
             free(result)

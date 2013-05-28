@@ -1,7 +1,6 @@
 """
 Access to IMGT germline abs
 """
-import logging
 import itertools
 from pkg_resources import resource_stream
 
@@ -34,9 +33,6 @@ def cysteine_map():
 
         for name, s in sequences:
             result[name] = _position_lookup(s).get(_CYSTEINE_POSITION)
-            if result[name]:
-                r = result[name]
-                logging.info('%s: %s %s', name, r, s.translate(None, '.')[r:r+3])
     return result
 
 def tryptophan_map():
