@@ -156,7 +156,7 @@ cdef class BwaIndex:
         finally:
             free(result)
 
-def load_index(bytes index_path, int min_seed_len=10, int pen_clip=0):
+def load_index(bytes index_path, int min_seed_len=15, int pen_clip=0):
     cdef int BWA_IDX_ALL = 0x7
     cdef bwaidx_t *idx = bwa_idx_load(index_path, BWA_IDX_ALL)
     if idx == NULL:

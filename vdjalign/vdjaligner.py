@@ -47,9 +47,9 @@ def identify_v(bwa_index, cysteine_map, s):
             continue
 
         if rend < cysteine_position + 2:
-            if not idx == 0:
-                log.warn('Alignment does not cover Cysteine: (%d < %d) %s|%s', rend, cysteine_position + 2,
-                        s[:qend], s[qend:])
+            #if not idx == 0:
+                #log.warn('Alignment does not cover Cysteine: (%d < %d) %s|%s', rend, cysteine_position + 2,
+                        #s[:qend], s[qend:])
             continue
 
         cdr3_start = cysteine_position - v_alignment['pos'] + qstart
@@ -96,6 +96,7 @@ def main():
 
     indexed = bwa_index_of_package_imgt_fasta
     with indexed('ighv.fasta') as v_index, indexed('ighj.fasta') as j_index:
+        j_index.min_seed_len = 5
         with a.fastx_file as fp:
             sequences = util.readfq(fp)
 
