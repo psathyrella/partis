@@ -11,6 +11,7 @@ from pkg_resources import resource_stream
 log = logging.getLogger('vdjalign')
 
 from . import bwa, util
+from imgt import igh
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -23,11 +24,14 @@ def bwa_index_of_package_imgt_fasta(file_name):
         subprocess.check_call(cmd, cwd=td())
         yield bwa.load_index(td(file_name))
 
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('fastx_file', type=argparse.FileType('r'))
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO)
+
+    cysteine_map = igh.cysteine_map()
 
     indexed = bwa_index_of_package_imgt_fasta
     with indexed('ighv.fasta') as v_index, indexed('ighj.fasta') as j_index:
@@ -53,13 +57,15 @@ def main():
 
                 v_rend = best_v['pos'] + sum(c for c, op in best_v['cigar'] if op not in 'IS')
 
-                ## TODO: should be able to determine cyteine location from sequence
-                #try:
-                    #v_qend = max(sequence.rindex('TGT', 0, v_qend), sequence.rindex('TGC', 0, v_qend)) + 2
-                #except ValueError:
-                    #logging.warn('No Cysteine')
-                    #continue
-                #assert v_qend > 0
+                v_cysteine_position = cysteine_map[best_v['reference']]
+                if not v_cysteine_position:
+                    continue
+
+                if v_rend < v_cysteine_position + 2:
+                    logging.warn('Alignment does not cover Cysteine: %d < %d', v_rend, v_cysteine_position)
+                    continue
+
+                v_qend = v_qstart + v_cysteine_position + 3 - best_v['pos']
 
                 j_alignments = j_index.align(sequence[v_qend:])
                 if not j_alignments:
@@ -72,19 +78,19 @@ def main():
                 if best_j_cigar[0][1] == 'S':
                     j_qstart += best_j_cigar[0][0]
 
-                #try:
-                    #j_qstart = sequence.index('TGG', j_qstart)
-                #except ValueError:
-                    #logging.warn('No Tryptophan')
-                    #continue
+                j_ref = j_index.fetch_reference(best_j['rid'], best_j['pos'],
+                        best_j['pos'] + sum(c for c, op in best_j_cigar if op not in 'IS'))
+                try:
+                    j_tryp = j_ref.index('TGG')
+                    j_qstart += j_tryp
+                except ValueError:
+                    logging.warn('No Tryptophan')
+                    continue
 
                 c[best_j['reference'].split('*', 1)[0], j_qstart - v_qend] += 1
 
                 print sequence
-                print '{0}{1}{2}{3}'.format('.' * v_qstart,
-                        v_index.fetch_reference(best_v['rid'], best_v['pos'], v_rend).lower(),
-                        '.' * (j_qstart - v_qend),
-                        j_index.fetch_reference(best_j['rid'], best_j['pos'], best_j['pos'] + sum(c for c, op in best_j_cigar if op not in 'IS')).lower())
+                print '{0}{1}{2}{3}'.format('.' * v_qstart, 'v' * (v_qend - v_qstart), '.' * (j_qstart - v_qend), j_ref[j_tryp:].lower())
 
         logging.info(c)
 
