@@ -14,12 +14,15 @@ from libc.stdlib cimport free, malloc
 
 cdef extern from "bntseq.h":
     ctypedef struct bntann1_t:
+        int64_t offset
         char *name
     ctypedef struct bntseq_t:
         int64_t l_pac
         int32_t n_seqs
         uint32_t seed
         bntann1_t *anns
+
+    uint8_t *bns_get_seq(int64_t l_pac, const uint8_t *pac, int64_t beg, int64_t end, int64_t *len)
 
 cdef extern from "bwt.h":
     ctypedef uint64_t bwtint_t
@@ -83,7 +86,6 @@ cdef class BwaIndex:
     cdef bwaidx_t *idx
     cdef mem_opt_t *opt
     cdef bytes path
-
     def __init__(self):
         raise ValueError("This class cannot be instantiated from Python.")
 
@@ -95,6 +97,18 @@ cdef class BwaIndex:
 
     def __repr__(self):
         return '<BwaIndex {0}>'.format(self.path)
+
+    property pen_clip:
+        def __get__(self):
+            return self.opt.pen_clip
+        def __set__(self, int value):
+            self.opt.pen_clip = value
+
+    property min_seed_len:
+        def __get__(self):
+            return self.opt.min_seed_len
+        def __set__(self, int value):
+            self.opt.min_seed_len = value
 
     def align(self, bytes seq):
         """
@@ -125,7 +139,24 @@ cdef class BwaIndex:
         finally:
             free(ar.a)
 
-def load_index(bytes index_path):
+    def fetch_reference(self, int rid, int rbegin, int rend):
+        cdef int64_t offset = self.idx.bns.anns[rid].offset
+        cdef list l
+        cdef uint8_t * result
+        cdef int64_t length
+        cdef int i
+        cdef int c
+        try:
+            result = bns_get_seq(self.idx.bns.l_pac, self.idx.pac, rbegin + offset, rend + offset, &length)
+            l = [None for i in xrange(length)]
+            for i in xrange(length):
+                c = result[i]
+                l[i] = "ACGT"[c]
+            return ''.join(l)
+        finally:
+            free(result)
+
+def load_index(bytes index_path, int min_seed_len=10, int pen_clip=0):
     cdef int BWA_IDX_ALL = 0x7
     cdef bwaidx_t *idx = bwa_idx_load(index_path, BWA_IDX_ALL)
     if idx == NULL:
@@ -136,7 +167,7 @@ def load_index(bytes index_path):
     result.idx = idx
     result.path = index_path
     result.opt = mem_opt_init()
-    result.opt.pen_clip = 0
-    result.opt.min_seed_len = 15
+    result.opt.pen_clip = pen_clip
+    result.opt.min_seed_len = min_seed_len
 
     return result

@@ -51,13 +51,15 @@ def main():
 
                 v_qend = sum(c for c, op in best_v['cigar'] if op != 'D')
 
-                # TODO: should be able to determine cyteine location from sequence
-                try:
-                    v_qend = max(sequence.rindex('TGT', 0, v_qend), sequence.rindex('TGC', 0, v_qend)) + 2
-                except ValueError:
-                    logging.warn('No Cysteine')
-                    continue
-                assert v_qend > 0
+                v_rend = best_v['pos'] + sum(c for c, op in best_v['cigar'] if op not in 'IS')
+
+                ## TODO: should be able to determine cyteine location from sequence
+                #try:
+                    #v_qend = max(sequence.rindex('TGT', 0, v_qend), sequence.rindex('TGC', 0, v_qend)) + 2
+                #except ValueError:
+                    #logging.warn('No Cysteine')
+                    #continue
+                #assert v_qend > 0
 
                 j_alignments = j_index.align(sequence[v_qend:])
                 if not j_alignments:
@@ -70,16 +72,19 @@ def main():
                 if best_j_cigar[0][1] == 'S':
                     j_qstart += best_j_cigar[0][0]
 
-                try:
-                    j_qstart = sequence.index('TGG', j_qstart)
-                except ValueError:
-                    logging.warn('No Tryptophan')
-                    continue
+                #try:
+                    #j_qstart = sequence.index('TGG', j_qstart)
+                #except ValueError:
+                    #logging.warn('No Tryptophan')
+                    #continue
 
                 c[best_j['reference'].split('*', 1)[0], j_qstart - v_qend] += 1
 
                 print sequence
-                print '{0}{1}{2}{3}'.format('.' * v_qstart, 'v' * (v_qend - v_qstart), '.' * (j_qstart - v_qend), 'j' * (len(sequence) - j_qstart))
+                print '{0}{1}{2}{3}'.format('.' * v_qstart,
+                        v_index.fetch_reference(best_v['rid'], best_v['pos'], v_rend).lower(),
+                        '.' * (j_qstart - v_qend),
+                        j_index.fetch_reference(best_j['rid'], best_j['pos'], best_j['pos'] + sum(c for c, op in best_j_cigar if op not in 'IS')).lower())
 
         logging.info(c)
 
