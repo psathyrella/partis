@@ -16,5 +16,6 @@ ext_modules = cythonize(['vdjalign/*.pyx'],
 setup(
     name='vdjalign',
     packages=find_packages(),
+    package_data={'vdjalign': ['imgt/data/*.fasta']},
     ext_modules=ext_modules,
 )

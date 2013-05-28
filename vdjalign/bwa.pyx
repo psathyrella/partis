@@ -40,6 +40,7 @@ cdef extern from "bwa.h":
 cdef extern from "bwamem.h":
     ctypedef struct mem_opt_t:
         int pen_clip  # Clipping penalty
+        int min_seed_len # Minimum seed length
 
     mem_opt_t *mem_opt_init()
     void mem_fill_scmat(int a, int b, int8_t mat[25])
@@ -136,5 +137,6 @@ def load_index(bytes index_path):
     result.path = index_path
     result.opt = mem_opt_init()
     result.opt.pen_clip = 0
+    result.opt.min_seed_len = 15
 
     return result
