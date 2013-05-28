@@ -75,8 +75,13 @@ cdef list parse_cigar(uint32_t *cigar, int n_cigar):
     Parse a cigar array into a list of (n_ops, op) pairs.
     """
     cdef list result = []
+    cdef int i, n_ops
+    cdef char op
+    cdef const char* ops = "MIDSH"
     for i in xrange(n_cigar):
-        result.append((cigar[i]>>4, "MIDSH"[cigar[i] & 0xF]))
+        op = ops[cigar[i] & 0xF]
+        n_ops = cigar[i] >> 4
+        result.append((n_ops, op))
     return result
 
 cdef class BwaIndex:
