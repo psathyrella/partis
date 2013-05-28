@@ -116,6 +116,7 @@ cdef class BwaIndex:
         """
         cdef char* s = seq
         cdef int l_seq = len(seq)
+        cdef uint32_t i
 
         cdef int BWA_IDX_ALL = 0x7
 
