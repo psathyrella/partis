@@ -11,6 +11,7 @@ Currently no support for changing *any* options.
 
 from libc.stdint cimport uint64_t, uint8_t, int8_t, int64_t, uint32_t, int32_t
 from libc.stdlib cimport free, malloc
+from libc.string cimport memcpy
 
 cdef extern from "bntseq.h":
     ctypedef struct bntann1_t:
@@ -84,6 +85,101 @@ cdef list parse_cigar(uint32_t *cigar, int n_cigar):
         result.append((n_ops, chr(op)))
     return result
 
+cdef class AlignedRead:
+    cdef BwaIndex idx
+    cdef int pos, rid, flag
+    cdef bytes strand
+    cdef int mapq
+    cdef int nm
+    cdef uint32_t* cigar
+    cdef int score
+    cdef int n_cigar
+    cdef bytes query
+
+    def __init__(self):
+        raise ValueError("This class cannot be instantiated from Python.")
+
+    def __dealloc__(self):
+        if self.cigar != NULL:
+            free(self.cigar)
+
+    property score:
+        def __get__(self):
+            return self.score
+    property pos:
+        def __get__(self):
+            return self.pos
+    property rid:
+        def __get__(self):
+            return self.pos
+    property flag:
+        def __get__(self):
+            return self.flag
+    property mapq:
+        def __get__(self):
+            return self.mapq
+    property n_cigar:
+        def __get__(self):
+            return self.n_cigar
+    property query:
+        def __get__(self):
+            return self.query
+
+    property reference:
+        def __get__(self):
+            return self.idx.idx.bns.anns[self.rid].name
+
+    property cigar:
+        def __get__(self):
+            return parse_cigar(self.cigar, self.n_cigar)
+
+    def aligned_pairs(self):
+        """
+        Yields pairs of (qry_idx, ref_idx) for all aligned bases.
+        Soft- and hard-clipped bases are excluded.
+        """
+        cdef int n, i
+        cdef bytes op
+        cdef int qry_idx = 0
+        cdef int ref_idx = self.pos
+
+        result = []
+        for n, op in parse_cigar(self.cigar, self.n_cigar):
+            if op == 'S' or op == 'H':
+                qry_idx += n
+            else:
+                for i in xrange(n):
+                    if op == 'I':
+                        result.append((qry_idx, None))
+                        qry_idx += 1
+                    elif op == 'D':
+                        result.append((None, ref_idx))
+                        ref_idx += 1
+                    elif op == 'M':
+                        result.append((qry_idx, ref_idx))
+                        qry_idx += 1
+                        ref_idx += 1
+        return result
+
+    def identify_variations(self):
+        ap = self.aligned_pairs()
+        cdef int min_ref, max_ref
+        min_ref = min(i for _, i in ap if i is not None)
+        max_ref = max(i for _, i in ap if i is not None)
+        ref_bases = {i + min_ref: b
+                     for i, b in enumerate(self.idx.fetch_reference(self.rid, min_ref, max_ref+1))}
+
+        for qry_idx, ref_idx in ap:
+            if qry_idx is None:
+                yield 'D', self.reference, ref_idx, qry_idx, None, ref_bases[ref_idx]
+            elif ref_idx is None:
+                raise ValueError()
+            else:
+                qbase = self.query[qry_idx]
+                rbase = ref_bases[ref_idx]
+                if qbase != rbase:
+                    yield 'M', self.reference, ref_idx, qry_idx, qbase, rbase
+
 cdef class BwaIndex:
     """
     A loaded BWA index
@@ -127,19 +223,28 @@ cdef class BwaIndex:
 
         cdef mem_alnreg_v ar
         cdef mem_aln_t a
+        cdef AlignedRead read
         try:
             with nogil:
                 ar = mem_align1(self.opt, self.idx.bwt, self.idx.bns, self.idx.pac, l_seq, s)
             result = []
             for i in xrange(ar.n):
                 a = mem_reg2aln(self.opt, self.idx.bns, self.idx.pac, l_seq, s, &ar.a[i])
-                result.append({'pos': a.pos, 'rid': a.rid, 'flag': a.flag,
-                    'reference': self.idx.bns.anns[a.rid].name,
-                    'mapq': a.mapq,
-                    'strand': "+-"[a.is_rev],
-                    'NM': a.NM,
-                    'cigar': parse_cigar(a.cigar, a.n_cigar),
-                    'score': a.score})
+                read = AlignedRead.__new__(AlignedRead)
+                read.idx = self
+                read.pos = a.pos
+                read.rid = a.rid
+                read.flag = a.flag
+                read.mapq = a.mapq
+                read.strand = "+-"[a.is_rev]
+                read.nm = a.NM
+                read.query = seq
+                read.cigar = <uint32_t*>malloc(sizeof(uint32_t) * a.n_cigar)
+                memcpy(<void*>read.cigar, a.cigar, sizeof(uint32_t) * a.n_cigar)
+                read.n_cigar = a.n_cigar
+                read.score = a.score
+
+                result.append(read)
                 free(a.cigar)
             return result
         finally:
@@ -162,7 +267,7 @@ cdef class BwaIndex:
             for i in xrange(length):
                 c_idx = result[i]
                 c = bases[c_idx]
-                l[i] = c
+                l[i] = chr(c)
             return ''.join(l)
         finally:
             free(result)

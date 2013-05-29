@@ -27,7 +27,7 @@ def identify_v(bwa_index, cysteine_map, s):
     v_alignments = bwa_index.align(s)
 
     for idx, v_alignment in enumerate(v_alignments):
-        cigar = v_alignment['cigar']
+        cigar = v_alignment.cigar
         qstart = 0
         if cigar[0][1] == 'S':
             qstart = cigar[0][0]
@@ -36,12 +36,12 @@ def identify_v(bwa_index, cysteine_map, s):
 
         qend = sum(c for c, op in cigar if op != 'D')
 
-        rend = v_alignment['pos'] + sum(c for c, op in cigar if op not in 'IS')
+        rend = v_alignment.pos + sum(c for c, op in cigar if op not in 'IS')
 
-        cysteine_position = cysteine_map[v_alignment['reference']]
+        cysteine_position = cysteine_map[v_alignment.reference]
         if not cysteine_position:
             if idx == 0:
-                log.warn("No Cysteine position for %s", v_alignment['reference'])
+                log.warn("No Cysteine position for %s", v_alignment.reference)
             continue
 
         if rend < cysteine_position + 2:
@@ -50,7 +50,7 @@ def identify_v(bwa_index, cysteine_map, s):
                         #s[:qend], s[qend:])
             continue
 
-        cdr3_start = cysteine_position - v_alignment['pos'] + qstart
+        cdr3_start = cysteine_position - v_alignment.pos + qstart
 
         yield {'v_start': qstart, 'v_end': qend,
                'cdr3_start': cdr3_start,
@@ -61,7 +61,7 @@ def identify_j(bwa_index, s, seq_start=0, frame=1):
     alignments = bwa_index.align(s[seq_start:])
 
     for alignment in alignments:
-        cigar = alignment['cigar']
+        cigar = alignment.cigar
         qstart = seq_start
         if cigar[0][1] == 'S':
             qstart += cigar[0][0]
@@ -120,15 +120,14 @@ def main():
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO)
 
-
     indexed = bwa_index_of_package_imgt_fasta
     with indexed('ighv.fasta') as v_index, indexed('ighj.fasta') as j_index, \
          a.fastx_file as ifp:
         j_index.min_seed_len = 5
         sequences = ((n, s) for n, s, _ in util.readfq(ifp))
 
-        results = process_reads(sequences, v_index, j_index)
-        list(results)
+        result = next(process_reads(sequences, v_index, j_index))
+        print list(result['v_alignment'].identify_variations())
 
 if __name__ == '__main__':
     main()
