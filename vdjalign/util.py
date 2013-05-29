@@ -1,7 +1,10 @@
+import bz2
+import gzip
 import contextlib
 import functools
 import os.path
 import shutil
+import sys
 import tempfile
 
 # From https://github.com/lh3/readfq
@@ -44,3 +47,20 @@ def tempdir(**kwargs):
         yield functools.partial(os.path.join, td)
     finally:
         shutil.rmtree(td)
+
+def opener(mode, *args, **kwargs):
+    """
+    Open a file, with optional compression based on extension
+    """
+    exts = {'.bz2': bz2.BZ2File,
+            '.gz': gzip.open}
+    def open_file(path):
+        if path == '-':
+            if mode.startswith('r'):
+                return sys.stdin
+            else:
+                return sys.stdout
+
+        open_fn = exts.get(os.path.splitext(path)[1], open)
+        return open_fn(path, mode, *args, **kwargs)
+    return open_file

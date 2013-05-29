@@ -9,6 +9,8 @@
 Currently no support for changing *any* options.
 """
 
+import collections
+
 from libc.stdint cimport uint64_t, uint8_t, int8_t, int64_t, uint32_t, int32_t
 from libc.stdlib cimport free, malloc
 from libc.string cimport memcpy
@@ -84,6 +86,9 @@ cdef list parse_cigar(uint32_t *cigar, int n_cigar):
         n_ops = cigar[i] >> 4
         result.append((n_ops, chr(op)))
     return result
+
+"""A Variation"""
+Variant = collections.namedtuple('Variant', ['gene', 'type', 'ref_loc', 'query_loc', 'wt', 'mut', 'length'])
 
 cdef class AlignedRead:
     cdef BwaIndex idx
@@ -162,23 +167,42 @@ cdef class AlignedRead:
         return result
 
     def identify_variations(self):
-        ap = self.aligned_pairs()
-        cdef int min_ref, max_ref
-        min_ref = min(i for _, i in ap if i is not None)
-        max_ref = max(i for _, i in ap if i is not None)
-        ref_bases = {i + min_ref: b
-                     for i, b in enumerate(self.idx.fetch_reference(self.rid, min_ref, max_ref+1))}
+        cdef int n, i
+        cdef bytes op, ref_bases, reference = self.reference
+        cdef int qry_idx = 0
+        cdef int pos = self.pos
+        cdef int ref_idx = 0
+        cdef bytes rbase
+        cdef bytes qbase
 
-        for qry_idx, ref_idx in ap:
-            if qry_idx is None:
-                yield 'D', self.reference, ref_idx, qry_idx, None, ref_bases[ref_idx]
-            elif ref_idx is None:
-                raise ValueError()
+        cigar = parse_cigar(self.cigar, self.n_cigar)
+        ref_length = sum(n for n, op in cigar if op in 'MD')
+        assert ref_length, cigar
+        ref_bases = self.idx.fetch_reference(self.rid, self.pos, self.pos + ref_length)
+        assert len(ref_bases) == ref_length
+
+        for n, op in parse_cigar(self.cigar, self.n_cigar):
+            if op in 'HS': # Clipped
+                qry_idx += n
+            elif op == 'I':
+                yield Variant(reference, op, pos + ref_idx, qry_idx, None, self.query[qry_idx:qry_idx + n], n)
+                qry_idx += n
             else:
-                qbase = self.query[qry_idx]
-                rbase = ref_bases[ref_idx]
-                if qbase != rbase:
-                    yield 'M', self.reference, ref_idx, qry_idx, qbase, rbase
+                for i in xrange(n):
+                    if op == 'M':
+                        if ref_idx - pos >= len(ref_bases):
+                            print ref_idx, pos, len(ref_bases)
+                        rbase = ref_bases[ref_idx]
+                        qbase = self.query[qry_idx]
+                        if rbase != qbase:
+                            yield Variant(self.reference, op, pos + ref_idx, qry_idx, rbase, qbase, 1)
+                        ref_idx += 1
+                        qry_idx += 1
+                    elif op == 'D':
+                        yield Variant(self.reference, op, pos + ref_idx, qry_idx, ref_bases[ref_idx], None, 1)
+                        ref_idx += 1
+                    else:
+                        raise ValueError(op)
 
 cdef class BwaIndex:
     """

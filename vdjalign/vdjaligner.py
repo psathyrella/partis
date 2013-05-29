@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import contextlib
+import csv
 import logging
 import shutil
 import subprocess
+import sys
 
 from pkg_resources import resource_stream
 
@@ -90,6 +92,7 @@ def process_reads(sequence_iter, v_index, j_index):
             r['error'] = 'no V-gene alignments'
             yield r
             continue
+        r.update(v_alignment)
 
         j_alignment = next(identify_j(j_index, sequence, seq_start=v_alignment['v_end'], frame=v_alignment['frame']), None)
         if j_alignment is None:
@@ -97,37 +100,43 @@ def process_reads(sequence_iter, v_index, j_index):
             yield r
             continue
 
-        r.update(v_alignment)
         for k, v in j_alignment.iteritems():
             assert k not in r
             r[k] = v
         yield r
 
-        #log.info("%s\n%s\n%s",
-                #name,
-                #sequence,
-                #'{0}{1}{2}'.format('V' * alignment['v_end'],
-                    #'N' * (alignment['j_start'] - alignment['v_end']),
-                    #'J' * (len(sequence) - alignment['j_start'])))
-        #log.info('%08s %s', name, codons.translate(cdr3))
-        #log.info("CDR3: L=%d, %s", len(cdr3), cdr3)
-        #log.info(alignment)
-
-
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('fastx_file', type=argparse.FileType('r'))
+    p.add_argument('csv_file', type=util.opener('rU'))
+    p.add_argument('-t', '--tab-delimited', action='store_const',
+            dest='delimiter', const='\t', default=',')
+    p.add_argument('-s', '--sequence-column', default='nucleotide',
+            help="""Name of column with nucleotide sequence""")
+    p.add_argument('-o', '--outfile', type=util.opener('w'), default=sys.stdout)
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO)
 
     indexed = bwa_index_of_package_imgt_fasta
     with indexed('ighv.fasta') as v_index, indexed('ighj.fasta') as j_index, \
-         a.fastx_file as ifp:
+         a.csv_file as ifp, a.outfile as ofp:
         j_index.min_seed_len = 5
-        sequences = ((n, s) for n, s, _ in util.readfq(ifp))
 
-        result = next(process_reads(sequences, v_index, j_index))
-        print list(result['v_alignment'].identify_variations())
+        csv_lines = (i for i in ifp if not i.startswith('#'))
+        r = csv.DictReader(csv_lines, delimiter=a.delimiter)
+        sequences = (('{0}'.format(i), row[a.sequence_column])
+                     for i, row in enumerate(r))
+
+        result = process_reads(sequences, v_index, j_index)
+
+        w = csv.writer(ofp, lineterminator='\n', delimiter=a.delimiter)
+        w.writerow(['query_name', 'gene', 'type', 'location', 'query_location', 'wt', 'mut', 'n'])
+        for row in result:
+            if 'v_alignment' in row:
+                for v in row['v_alignment'].identify_variations():
+                    w.writerow([row['name']] + list(v))
+            if 'j_alignment' in row:
+                for v in row['j_alignment'].identify_variations():
+                    w.writerow([row['name']] + list(v))
 
 if __name__ == '__main__':
     main()
