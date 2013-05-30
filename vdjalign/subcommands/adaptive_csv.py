@@ -5,6 +5,7 @@ import contextlib
 import csv
 import logging
 import functools
+import os
 import os.path
 import shutil
 import subprocess
@@ -23,12 +24,13 @@ BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10']
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
     with util.tempdir(prefix='bwa-') as td, \
-         resource_stream('vdjalign.imgt.data', file_name) as in_fasta:
+         resource_stream('vdjalign.imgt.data', file_name) as in_fasta, \
+         tempfile.TemporaryFile(prefix='stderr', dir=td()) as dn:
         with open(td(file_name), 'w') as fp:
             shutil.copyfileobj(in_fasta, fp)
         cmd = ['bwa', 'index', file_name]
         log.info('Running "%s" in %s', ' '.join(cmd), td())
-        subprocess.check_call(cmd, cwd=td())
+        subprocess.check_call(cmd, cwd=td(), stderr=dn)
         yield td(file_name)
 
 def identify_frame_cdr3(input_bam):
@@ -178,7 +180,7 @@ def action(a):
 
         with closing(pysam.Samfile(a.v_bamfile, 'rb')) as v_bam:
             log.info('Aligning J-region')
-            align_j(j_index, v_bam, j_tf.name, threads=a.threads, rg=a.rg)
+            align_j(j_index, v_bam, j_tf.name, threads=a.threads, rg=a.read_group)
         with closing(pysam.Samfile(j_tf.name, 'rb')) as j_tmp_bam, \
              closing(pysam.Samfile(a.j_bamfile, 'wb', template=j_tmp_bam)) as j_bam:
             log.info('Identifying CDR3 end')
