@@ -1,5 +1,5 @@
 """
-Align V and J starting from an adaptive CSV file
+Align V and J starting from an adaptive XsV file
 """
 import contextlib
 import csv
@@ -20,6 +20,9 @@ from .. import util
 from ..imgt import igh
 
 BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10']
+TAG_FRAME = 'Xf'
+TAG_CDR3_START = 'Xs'
+TAG_CDR3_END = 'Xe'
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -39,7 +42,7 @@ def identify_frame_cdr3(input_bam):
     tid_cysteine_map = {tid_map[k]: v for k, v in cysteine_map.iteritems() if k in tid_map}
     for read in input_bam:
         if read.is_unmapped:
-            yield read
+            yield read, None
             continue
 
         cysteine_position = tid_cysteine_map[read.tid]
@@ -48,12 +51,13 @@ def identify_frame_cdr3(input_bam):
             #if not read.is_secondary:
                 #log.warn('Alignment does not cover Cysteine: (%d < %d)',
                         #read.aend, cysteine_position + 2)
-            yield read
+            yield read, None
             continue
 
         cdr3_start = cysteine_position - read.pos + read.qstart
-        read.tags = read.tags + [('cs', cdr3_start), ('fr', (cdr3_start % 3) + 1)]
-        yield read
+        frame = (cdr3_start % 3) + 1
+        read.tags = read.tags + [(TAG_CDR3_START, cdr3_start), (TAG_FRAME, frame)]
+        yield read, frame
 
 def identify_cdr3_end(j_bam, v_metadata):
     for read in j_bam:
@@ -66,14 +70,14 @@ def identify_cdr3_end(j_bam, v_metadata):
             orig_qend = meta['qend']
             new_start_frame = (read.qstart + orig_qend) % 3
             new_frame = ((orig_frame - 1) + 3 - new_start_frame) % 3 + 1
-            new_tags = [('fr', new_frame)]
+            new_tags = [(TAG_FRAME, str(new_frame))]
 
             # Find CDR3 end
             s = read.query
             assert s is not None
             for i in xrange(new_frame - 1, len(s), 3):
                 if s[i:i+3] == 'TGG':
-                    new_tags.append(('ce', read.qstart + orig_qend + i + 3))
+                    new_tags.append((TAG_CDR3_END, str(read.qstart + orig_qend + i + 3)))
             read.tags = read.tags + new_tags
         yield read
 
@@ -168,13 +172,8 @@ def action(a):
              closing(pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam)) as v_bam:
             log.info('Identifying frame and CDR3 start')
             reads = identify_frame_cdr3(v_tmp_bam)
-            for read in reads:
+            for read, fr in reads:
                 if not read.is_secondary and not read.is_unmapped:
-                    fr = None
-                    try:
-                        fr = read.opt('fr')
-                    except KeyError:
-                        pass
                     res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
                 v_bam.write(read)
 
@@ -187,6 +186,3 @@ def action(a):
             reads = identify_cdr3_end(j_tmp_bam, res_map)
             for read in reads:
                 j_bam.write(read)
-
-if __name__ == '__main__':
-    main()
