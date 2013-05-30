@@ -42,13 +42,12 @@ def parse_arguments(argv):
 
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument('-v', '--verbose',
-        action='count', dest='verbosity', default=1,
+        action='count', dest='verbosity', default=2,
         help='Increase verbosity of screen output (eg, -v is verbose, '
              '-vv more so)')
     base_parser.add_argument('-q', '--quiet',
         action='store_const', dest='verbosity', const=0,
         help='Suppress output')
-
 
     ##########################
     # Setup all sub-commands #

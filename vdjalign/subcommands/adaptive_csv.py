@@ -5,6 +5,7 @@ import contextlib
 import csv
 import logging
 import functools
+import os.path
 import shutil
 import subprocess
 import tempfile
@@ -17,7 +18,7 @@ log = logging.getLogger('vdjalign')
 from .. import util
 from ..imgt import igh
 
-BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-a', '-T', '10']
+BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10']
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -74,18 +75,24 @@ def identify_cdr3_end(j_bam, v_metadata):
             read.tags = read.tags + new_tags
         yield read
 
-def bwa_to_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
+def bwa_to_sorted_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
     cmd1 = ['bwa', alg, index_path, '-'] + (bwa_opts or [])
-    cmd2 = ['samtools', 'view', '-Su', '-o', bam_dest, '-'] + (sam_opts or [])
-    log.info('BWA: %s | %s', ' '.join(cmd1), ' '.join(cmd2))
+    cmd2 = ['samtools', 'view', '-Su', '-'] + (sam_opts or [])
+    cmd3 = ['samtools', 'sort', '-', os.path.splitext(bam_dest)[0]]
+    log.info('BWA: %s | %s | %s', ' '.join(cmd1), ' '.join(cmd2), ' '.join(cmd3))
     p1 = subprocess.Popen(cmd1, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    p2 = subprocess.Popen(cmd2, stdin=p1.stdout)
+    p2 = subprocess.Popen(cmd2, stdin=p1.stdout, stdout=subprocess.PIPE)
+    p3 = subprocess.Popen(cmd3, stdin=p2.stdout)
 
     with p1.stdin as fp:
         for name, seq in sequence_iter:
             fp.write('>{0}\n{1}\n'.format(name, seq))
-    exit_code2 = p2.wait()
 
+    exit_code3 = p3.wait()
+    if exit_code3:
+        raise subprocess.CalledProcessError(exit_code3, cmd3)
+
+    exit_code2 = p2.wait()
     if exit_code2:
         raise subprocess.CalledProcessError(exit_code2, cmd2)
 
@@ -97,7 +104,7 @@ def align_v(v_index_path, sequence_iter, bam_dest, threads=1):
     opts = BWA_OPTS[:]
     if threads > 1:
         opts.extend(('-t', str(threads)))
-    return bwa_to_bam(v_index_path, sequence_iter, bam_dest, bwa_opts=opts)
+    return bwa_to_sorted_bam(v_index_path, sequence_iter, bam_dest, bwa_opts=opts)
 
 def extract_unaligned_tail(bamfile):
     """
@@ -118,7 +125,7 @@ def align_j(j_index_path, v_bam, bam_dest, threads=1):
     if threads > 1:
         opts.extend(('-t', str(threads)))
     sequences = extract_unaligned_tail(v_bam)
-    return bwa_to_bam(j_index_path, sequences, bam_dest, bwa_opts=opts)
+    return bwa_to_sorted_bam(j_index_path, sequences, bam_dest, bwa_opts=opts)
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
