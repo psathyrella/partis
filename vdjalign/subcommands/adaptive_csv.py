@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-import argparse
+"""
+Align V and J starting from an adaptive CSV file
+"""
 import contextlib
 import csv
 import logging
@@ -13,8 +14,8 @@ import pysam
 
 log = logging.getLogger('vdjalign')
 
-from . import util
-from imgt import igh
+from .. import util
+from ..imgt import igh
 
 BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-a', '-T', '10']
 
@@ -119,8 +120,7 @@ def align_j(j_index_path, v_bam, bam_dest, threads=1):
     sequences = extract_unaligned_tail(v_bam)
     return bwa_to_bam(j_index_path, sequences, bam_dest, bwa_opts=opts)
 
-def main():
-    p = argparse.ArgumentParser()
+def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
     p.add_argument('-t', '--tab-delimited', action='store_const',
             dest='delimiter', const='\t', default=',')
@@ -130,9 +130,9 @@ def main():
             threads for BWA [default: %(default)d]""")
     p.add_argument('v_bamfile')
     p.add_argument('j_bamfile')
-    a = p.parse_args()
-    logging.basicConfig(level=logging.INFO)
+    p.set_defaults(func=action)
 
+def action(a):
     indexed = bwa_index_of_package_imgt_fasta
     ntf = functools.partial(tempfile.NamedTemporaryFile, suffix='.bam')
     closing = contextlib.closing
