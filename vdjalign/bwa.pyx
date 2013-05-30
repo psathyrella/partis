@@ -18,6 +18,7 @@ from libc.string cimport memcpy
 cdef extern from "bntseq.h":
     ctypedef struct bntann1_t:
         int64_t offset
+        int32_t len
         char *name
     ctypedef struct bntseq_t:
         int64_t l_pac
@@ -129,6 +130,9 @@ cdef class AlignedRead:
     property query:
         def __get__(self):
             return self.query
+    property nm:
+        def __get__(self):
+            return self.nm
 
     property reference:
         def __get__(self):
@@ -235,6 +239,10 @@ cdef class BwaIndex:
         def __set__(self, int value):
             self.opt.min_seed_len = value
 
+    property n_refs:
+        def __get__(self):
+            return self.idx.bns.n_seqs
+
     def align(self, bytes seq):
         """
         Align a sequence
@@ -295,6 +303,19 @@ cdef class BwaIndex:
             return ''.join(l)
         finally:
             free(result)
+
+    def sam_header_dict(self):
+        """
+        Generate a basic SAM header dict, suitable for use with pysam
+        """
+        cdef int i
+        cdef list sq = []
+        cdef dict result = {'SQ': sq}
+
+        for i in xrange(self.idx.bns.n_seqs):
+            sq.append({'LN': self.idx.bns.anns[i].len,
+                       'SN': self.idx.bns.anns[i].name})
+        return result
 
 def load_index(bytes index_path, int min_seed_len=15, int pen_clip=0):
     cdef int BWA_IDX_ALL = 0x7

@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from pkg_resources import resource_stream
+import pysam
 
 log = logging.getLogger('vdjalign')
 
@@ -82,6 +83,18 @@ def identify_j(bwa_index, s, seq_start=0, frame=1):
 
         yield {'j_start': qstart, 'cdr3_end': cdr3_end, 'j_alignment': alignment}
 
+def _vdj_read_to_sam(name, alignment):
+    result = pysam.AlignedRead()
+    result.pos = alignment.pos
+    result.seq = alignment.query
+    result.tid = alignment.rid
+    result.flag = alignment.flag
+    result.mapq = alignment.mapq
+    result.qname = name
+    result.tags = [('NM', alignment.nm)]
+    result.cigar = [({'M': 0, 'I': 1, 'D': 2, 'S': 4}[op], n) for n, op in alignment.cigar]
+    return result
+
 def process_reads(sequence_iter, v_index, j_index):
     cysteine_map = igh.cysteine_map()
     for name, sequence in sequence_iter:
@@ -92,6 +105,7 @@ def process_reads(sequence_iter, v_index, j_index):
             r['error'] = 'no V-gene alignments'
             yield r
             continue
+        v_alignment['v_alignment'] = _vdj_read_to_sam(name, v_alignment['v_alignment'])
         r.update(v_alignment)
 
         j_alignment = next(identify_j(j_index, sequence, seq_start=v_alignment['v_end'], frame=v_alignment['frame']), None)
@@ -99,6 +113,9 @@ def process_reads(sequence_iter, v_index, j_index):
             r['error'] = 'no J-gene alignments'
             yield r
             continue
+
+        logging.info("J alignment RID: %d: %s", j_alignment['j_alignment'].rid, j_alignment['j_alignment'].reference)
+        j_alignment['j_alignment'] = _vdj_read_to_sam(name, j_alignment['j_alignment'])
 
         for k, v in j_alignment.iteritems():
             assert k not in r
@@ -112,14 +129,21 @@ def main():
             dest='delimiter', const='\t', default=',')
     p.add_argument('-s', '--sequence-column', default='nucleotide',
             help="""Name of column with nucleotide sequence""")
-    p.add_argument('-o', '--outfile', type=util.opener('w'), default=sys.stdout)
+    p.add_argument('v_bamfile')
+    p.add_argument('j_bamfile')
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO)
 
     indexed = bwa_index_of_package_imgt_fasta
-    with indexed('ighv.fasta') as v_index, indexed('ighj.fasta') as j_index, \
-         a.csv_file as ifp, a.outfile as ofp:
+    with indexed('ighv.fasta') as v_index, \
+         indexed('ighj.fasta') as j_index, \
+         a.csv_file as ifp:
+
         j_index.min_seed_len = 5
+        v_header = v_index.sam_header_dict()
+        j_header = j_index.sam_header_dict()
+
+        logging.info("%d V sequences, %d J", v_index.n_refs, j_index.n_refs)
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
@@ -128,15 +152,13 @@ def main():
 
         result = process_reads(sequences, v_index, j_index)
 
-        w = csv.writer(ofp, lineterminator='\n', delimiter=a.delimiter)
-        w.writerow(['query_name', 'gene', 'type', 'location', 'query_location', 'wt', 'mut', 'n'])
-        for row in result:
-            if 'v_alignment' in row:
-                for v in row['v_alignment'].identify_variations():
-                    w.writerow([row['name']] + list(v))
-            if 'j_alignment' in row:
-                for v in row['j_alignment'].identify_variations():
-                    w.writerow([row['name']] + list(v))
+        with contextlib.closing(pysam.Samfile(a.v_bamfile, 'wb', header=v_header)) as v_bam, \
+             contextlib.closing(pysam.Samfile(a.j_bamfile, 'wb', header=j_header)) as j_bam:
+            for record in result:
+                if 'v_alignment' in record:
+                    v_bam.write(record['v_alignment'])
+                if 'j_alignment' in record:
+                    j_bam.write(record['j_alignment'])
 
 if __name__ == '__main__':
     main()

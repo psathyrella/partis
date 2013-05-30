@@ -18,4 +18,5 @@ setup(
     packages=find_packages(),
     package_data={'vdjalign': ['imgt/data/*.fasta']},
     ext_modules=ext_modules,
+    install_requires=['pysam'],
 )
