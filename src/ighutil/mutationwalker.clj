@@ -23,18 +23,20 @@
 (defn -reduceInit
   "Initialize to empty"
   [this]
-  nil)
+  (java.util.HashMap.))
 
 (defn -reduce
   ""
-  [this cur other]
-  (merge-with (partial merge-with +) cur other))
+  [this cur ^java.util.HashMap other]
+  (doseq [[k v] (seq cur)]
+    (.put other k v))
+  other)
 
 (defn -onTraversalDone
   ""
   [this result]
   (let [^java.io.PrintStream out (.out this)]
-    (.println out result)))
+    (println result)))
 
 (defn -main [& args]
   (let [args (into-array
