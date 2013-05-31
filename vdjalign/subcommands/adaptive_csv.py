@@ -176,7 +176,7 @@ def action(a):
             for read, fr in reads:
                 if not read.is_secondary and not read.is_unmapped:
                     res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
-                if a.default_qual:
+                if a.default_qual and not read.is_secondary:
                     read.qual = a.default_qual * read.rlen
                 v_bam.write(read)
 
