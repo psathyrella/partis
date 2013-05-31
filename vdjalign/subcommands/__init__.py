@@ -1,4 +1,4 @@
-COMMANDS = ('adaptive_csv',)
+COMMANDS = ('adaptive_csv', 'count_mutations')
 
 def itermodules(root=__name__):
     for command in sorted(COMMANDS):

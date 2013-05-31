@@ -174,9 +174,9 @@ def action(a):
             log.info('Identifying frame and CDR3 start')
             reads = identify_frame_cdr3(v_tmp_bam)
             for read, fr in reads:
-                if not read.is_secondary and not read.is_unmapped:
+                if not (read.is_unmapped or read.is_secondary):
                     res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
-                if a.default_qual and not read.is_secondary:
+                if a.default_qual and not (read.is_unmapped or read.is_secondary) and read.rlen:
                     read.qual = a.default_qual * read.rlen
                 v_bam.write(read)
 
