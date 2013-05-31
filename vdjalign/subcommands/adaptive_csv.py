@@ -20,9 +20,9 @@ from .. import util
 from ..imgt import igh
 
 BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10']
-TAG_FRAME = 'Xf'
-TAG_CDR3_START = 'Xs'
-TAG_CDR3_END = 'Xe'
+TAG_FRAME = 'XF'
+TAG_CDR3_START = 'XS'
+TAG_CDR3_END = 'XE'
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -148,6 +148,7 @@ def build_parser(p):
     p.add_argument('v_bamfile')
     p.add_argument('j_bamfile')
     p.add_argument('-r', '--read-group')
+    p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
 def action(a):
@@ -175,6 +176,8 @@ def action(a):
             for read, fr in reads:
                 if not read.is_secondary and not read.is_unmapped:
                     res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
+                if a.default_qual:
+                    read.qual = a.default_qual * read.rlen
                 v_bam.write(read)
 
         with closing(pysam.Samfile(a.v_bamfile, 'rb')) as v_bam:
@@ -185,4 +188,6 @@ def action(a):
             log.info('Identifying CDR3 end')
             reads = identify_cdr3_end(j_tmp_bam, res_map)
             for read in reads:
+                if a.default_qual:
+                    read.qual = a.default_qual * read.rlen
                 j_bam.write(read)
