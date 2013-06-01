@@ -1,7 +1,7 @@
 (ns ighutil.mutationwalker
   "Simple walker"
   (:import [org.broadinstitute.sting.gatk CommandLineGATK]
-           [org.broadinstitute.sting.gatk.contexts AlignmentContext]
+           [org.broadinstitute.sting.gatk.contexts AlignmentContext ReferenceContext]
            [org.broadinstitute.sting.utils.pileup ReadBackedPileup])
   (:gen-class
    :name io.github.cmccoy.mutationwalk.MutationWalker
@@ -9,15 +9,16 @@
 
 (defn -map
   "Count!"
-  [this tracker ref ^AlignmentContext context]
+  [this tracker ^ReferenceContext ref ^AlignmentContext context]
   (let [contig (.. context (getLocation) (getContig))
         loc (.. context (getLocation) (getStart))
+        ref-base (char (.getBase ref))
         global-pileup (.getBasePileup context)
         samples (.getSamples global-pileup)
         sample-pileups (into {} (.getPileupsForSamples global-pileup samples))
         base-count (fn [^ReadBackedPileup pileup] (vec (.getBaseCounts pileup)))]
     (into {} (map
-              (fn [[k v]] [[contig loc k] (base-count v)])
+              (fn [[k v]] [[contig loc ref-base k] (base-count v)])
               sample-pileups))))
 
 (defn -reduceInit
