@@ -17,30 +17,30 @@
         samples (.getSamples global-pileup)
         sample-pileups (into {} (.getPileupsForSamples global-pileup samples))
         base-count (fn [^ReadBackedPileup pileup] (vec (.getBaseCounts pileup)))]
-    (into {} (map
-              (fn [[k v]] [[contig loc ref-base k] (base-count v)])
-              sample-pileups))))
+    (into
+     (hash-map)
+     (map
+      (fn [[k v]] [[contig loc ref-base k] (base-count v)])
+      sample-pileups))))
 
 (defn -reduceInit
   "Initialize to empty"
-  [this]
-  (java.util.HashMap.))
+  [this])
 
 (defn -reduce
   ""
-  [this cur ^java.util.HashMap other]
-  (doseq [[k v] (seq cur)]
-    (.put other k v))
-  other)
+  [this cur other]
+  (conj other cur))
 
 (defn -onTraversalDone
   ""
   [this result]
-  (let [^java.io.PrintStream out (.out this)]
-    (println result)))
+  (let [out (.out this)
+        m (apply merge result)]
+    (.println out (str m))))
 
 (defn -main [& args]
   (let [args (into-array
               String
-              (concat ["-T" "MutationWalker" "-l" "ERROR" "-dt" "NONE"] args))]
+              (concat ["-T" "MutationWalker" "-dt" "NONE"] args))]
     (CommandLineGATK/start (CommandLineGATK.) args)))
