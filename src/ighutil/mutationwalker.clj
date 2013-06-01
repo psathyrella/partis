@@ -42,5 +42,5 @@
 (defn -main [& args]
   (let [args (into-array
               String
-              (concat ["-T" "MutationWalker"] args))]
+              (concat ["-T" "MutationWalker" "-l" "ERROR" "-dt" "NONE"] args))]
     (CommandLineGATK/start (CommandLineGATK.) args)))
