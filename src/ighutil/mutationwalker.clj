@@ -5,7 +5,8 @@
            [org.broadinstitute.sting.utils.pileup ReadBackedPileup])
   (:gen-class
    :name io.github.cmccoy.mutationwalk.MutationWalker
-   :extends io.github.cmccoy.mutationwalk.BasePositionWalker))
+   :extends io.github.cmccoy.mutationwalk.BasePositionWalker
+   :implements [org.broadinstitute.sting.gatk.walkers.TreeReducible]))
 
 (defn -map
   "Count!"
@@ -38,6 +39,9 @@
   (let [out (.out this)
         m (apply merge result)]
     (.println out (str m))))
+
+(defn -treeReduce [lhs rhs]
+  (concat lhs rhs))
 
 (defn -main [& args]
   (let [args (into-array
