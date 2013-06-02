@@ -13,8 +13,9 @@
 (defn- process-pileup [^ReadBackedPileup pileup]
   (let [[a c g t] (vec (.getBaseCounts pileup))
         del (.getNumberOfDeletions pileup)
-        ins (.getNumberOfInsertionsAfterThisElement pileup)]
-    {:A a :C c :G g :T t :ins ins :del del}))
+        ins (.getNumberOfInsertionsAfterThisElement pileup)
+        coverage (.depthOfCoverage pileup)]
+    {:A a :C c :G g :T t :ins ins :del del :coverage coverage}))
 
 (defn- split-pileup-by-sample [^ReadBackedPileup pileup]
   (let [samples (.getSamples pileup)]
@@ -36,7 +37,8 @@
 
 (defn -reduceInit
   "Initialize to empty"
-  [this])
+  [this]
+  [])
 
 (defn -reduce
   ""
@@ -44,16 +46,16 @@
   (conj other cur))
 
 (defn -onTraversalDone
-  ""
+  "Print a report"
   [this result]
   (let [out (io/writer (.out this))
-        m (apply (partial merge-with +) result)]
+        m (apply (partial merge-with (partial merge-with +)) result)]
     (csv/write-csv
      out
-     [["contig" "position" "wt" "sample" "A" "C" "G" "T" "Ins" "Del"]])
+     [["reference" "position" "wt" "sample" "A" "C" "G" "T" "Ins" "Del" "coverage"]])
     (doseq [[[contig loc ref-base sample] v] m]
-      (let [[a c g t ins del] ((juxt :A :C :G :T :ins :del) v)
-            row [contig loc ref-base sample a c g t ins del]]
+      (let [[a c g t ins del cov] ((juxt :A :C :G :T :ins :del :coverage) v)
+            row [contig loc ref-base sample a c g t ins del cov]]
         (csv/write-csv out [row])))))
 
 (defn -treeReduce [lhs rhs]
