@@ -1,6 +1,6 @@
 package io.github.cmccoy.mutationwalk;
 
-import java.io.PrintStream;
+import java.io.FileWriter;
 
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.walkers.LocusWalker;
@@ -8,7 +8,7 @@ import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 
 public abstract class BasePositionWalker extends LocusWalker {
     @Output
-    public PrintStream out;
+    public FileWriter out;
 
     //@ArgumentCollection
     //public StandardVariantContextInputArgumentCollection invrns = new StandardVariantContextInputArgumentCollection();

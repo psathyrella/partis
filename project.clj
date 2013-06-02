@@ -22,7 +22,7 @@
                  [commons-lang/commons-lang "2.5"]
                  [org.apache.servicemix.bundles/org.apache.servicemix.bundles.jets3t "0.8.1_1"]
                  ;; End GATK
-                 ]
+                 [org.clojure/data.csv "0.1.2"]]
   :java-source-paths ["src/java"]
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :omit-source false
