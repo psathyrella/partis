@@ -2,7 +2,9 @@
   "Simple walker"
   (:import [org.broadinstitute.sting.gatk CommandLineGATK]
            [org.broadinstitute.sting.gatk.contexts AlignmentContext ReferenceContext]
-           [org.broadinstitute.sting.utils.pileup ReadBackedPileup])
+           [org.broadinstitute.sting.utils.pileup
+            ReadBackedPileup
+            PileupElement])
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io])
   (:gen-class
@@ -10,12 +12,29 @@
    :extends io.github.cmccoy.mutationwalk.BasePositionWalker
    :implements [org.broadinstitute.sting.gatk.walkers.TreeReducible]))
 
+(defn- count-of-name [name]
+  "Extract count from reads labeled 'name_count'"
+  (let [[_ count] (re-matches #".*_(\d+)$" name)]
+    (Integer/parseInt (or count 1))))
+
+(defn- extract-ops-counts [^PileupElement x]
+  (let [count (count-of-name (.. x (getRead) (getReadName)))]
+    (cons (if (.isDeletion x)
+            [:del count]
+            [(-> (.getBase x) char str keyword) count])
+          (when (> (.getLengthOfImmediatelyFollowingIndel x) 0)
+            [[:ins count]])) ))
+
 (defn- process-pileup [^ReadBackedPileup pileup]
-  (let [[a c g t] (vec (.getBaseCounts pileup))
-        del (.getNumberOfDeletions pileup)
-        ins (.getNumberOfInsertionsAfterThisElement pileup)
-        coverage (.depthOfCoverage pileup)]
-    {:A a :C c :G g :T t :ins ins :del del :coverage coverage}))
+  (let [coverage (.depthOfCoverage pileup)
+        ops-counts (mapcat extract-ops-counts
+                           (iterator-seq (.iterator pileup)))]
+    (persistent!
+     (reduce
+      (fn [m [op c]]
+        (assoc! m op (+ (get m op 0) c)))
+      (transient {:A 0 :C 0 :G 0 :ins 0 :del 0})
+      ops-counts))))
 
 (defn- split-pileup-by-sample [^ReadBackedPileup pileup]
   (let [samples (.getSamples pileup)]
