@@ -19,10 +19,11 @@ log = logging.getLogger('vdjalign')
 from .. import util
 from ..imgt import igh
 
-BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10']
-TAG_FRAME = 'XF'
-TAG_CDR3_START = 'XS'
-TAG_CDR3_END = 'XE'
+BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M']
+TAG_FRAME = 'fr'
+TAG_CDR3_START = 'cdr3_start'
+TAG_CDR3_END = 'cdr3_end'
+TAG_EXTRA = 'XJ'
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -56,7 +57,9 @@ def identify_frame_cdr3(input_bam):
 
         cdr3_start = cysteine_position - read.pos + read.qstart
         frame = (cdr3_start % 3) + 1
-        read.tags = read.tags + [(TAG_CDR3_START, cdr3_start), (TAG_FRAME, frame)]
+
+        tag_content = '{0}={1},{2}={3}'.format(TAG_FRAME, frame, TAG_CDR3_START, cdr3_start)
+        read.tags = read.tags + [(TAG_EXTRA, tag_content)]
         yield read, frame
 
 def identify_cdr3_end(j_bam, v_metadata):
@@ -70,15 +73,16 @@ def identify_cdr3_end(j_bam, v_metadata):
             orig_qend = meta['qend']
             new_start_frame = (read.qstart + orig_qend) % 3
             new_frame = ((orig_frame - 1) + 3 - new_start_frame) % 3 + 1
-            new_tags = [(TAG_FRAME, str(new_frame))]
+
+            tag_content = '{0}={1}'.format(TAG_FRAME, new_frame)
 
             # Find CDR3 end
             s = read.query
             assert s is not None
             for i in xrange(new_frame - 1, len(s), 3):
                 if s[i:i+3] == 'TGG':
-                    new_tags.append((TAG_CDR3_END, str(read.qstart + orig_qend + i + 3)))
-            read.tags = read.tags + new_tags
+                    tag_content += ',{0}={1}'.format(TAG_CDR3_END, read.qstart + orig_qend + i + 3)
+            read.tags = read.tags + [(TAG_EXTRA, tag_content)]
         yield read
 
 def bwa_to_sorted_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
@@ -143,6 +147,7 @@ def build_parser(p):
             dest='delimiter', const='\t', default=',')
     p.add_argument('-s', '--sequence-column', default='nucleotide',
             help="""Name of column with nucleotide sequence""")
+    p.add_argument('-c', '--count-column', default='copy')
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
             threads for BWA [default: %(default)d]""")
     p.add_argument('v_bamfile')
@@ -160,23 +165,28 @@ def action(a):
          indexed('ighj.fasta') as j_index, \
          a.csv_file as ifp, \
          ntf(prefix='v_alignments-') as v_tf, \
-         ntf(prefix='j_alignments-') as j_tf:
+         ntf(prefix='j_alignments-') as j_tf, \
+         open(os.devnull, 'w') as dn:
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
-        sequences = (('{0}'.format(i), row[a.sequence_column])
+        sequences = (('{0}_{1}'.format(i, row.get(a.count_column, 1)), row[a.sequence_column])
                      for i, row in enumerate(r))
 
         res_map = {}
         align_v(v_index, sequences, v_tf.name, threads=a.threads, rg=a.read_group)
-        with closing(pysam.Samfile(v_tf.name, 'rb')) as v_tmp_bam, \
-             closing(pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam)) as v_bam:
+        with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
+             pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
             log.info('Identifying frame and CDR3 start')
             reads = identify_frame_cdr3(v_tmp_bam)
             for read, fr in reads:
-                if not (read.is_unmapped or read.is_secondary):
-                    res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
-                if a.default_qual and not (read.is_unmapped or read.is_secondary) and read.rlen:
+                if read.is_unmapped or read.is_secondary or read.is_reverse:
+                    continue
+                # This is insanely silly, but sometimes segfaults on the
+                # cluster unless we print (and maybe access some field?)
+                print >> dn, read
+                res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
+                if a.default_qual and read.rlen:
                     read.qual = a.default_qual * read.rlen
                 v_bam.write(read)
 

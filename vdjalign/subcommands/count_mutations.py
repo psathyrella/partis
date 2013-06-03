@@ -62,7 +62,7 @@ def action(a):
     with indexed_fasta_of_resource(FILE_MAP[a.gene]) as fasta:
         w = csv.DictWriter(a.outfile,
                 ['gene', 'read_group', 'pos', 'coverage', 'wt', 'A', 'C', 'G',
-                    'T', 'Ins', 'Del'],
+                 'T', 'N', 'Ins', 'Del'],
                 lineterminator='\n')
         w.writeheader()
         for bam_path in a.bam_files:
@@ -85,11 +85,11 @@ def action(a):
                             base = 'Del'
                         else:
                             base = r.alignment.seq[r.qpos]
-                        rows[rg][base] += 1
+                        rows[rg][base] += int(r.alignment.qname.rsplit('_')[1])
 
                     for rg, counts in rows.iteritems():
                         row = {'gene': ref, 'read_group': rg, 'pos': pos, 'wt': rbase,
-                               'A': 0, 'C': 0, 'G': 0, 'T': 0, 'Ins': 0, 'Del': 0,
+                                'A': 0, 'C': 0, 'G': 0, 'T': 0, 'N': 0, 'Ins': 0, 'Del': 0,
                                'coverage': pileup.n}
                         row.update(counts)
                         w.writerow(row)
