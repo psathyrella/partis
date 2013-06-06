@@ -85,7 +85,13 @@ def action(a):
                             base = 'Del'
                         else:
                             base = r.alignment.seq[r.qpos]
-                        rows[rg][base] += r.alignment.opt('XC')
+
+                        try:
+                            c = r.alignment.opt('XC')
+                        except:
+                            raise KeyError("{0} missing count".format(r.alignment.qname))
+
+                        rows[rg][base] += c
 
                     for rg, counts in rows.iteritems():
                         row = {'gene': ref, 'read_group': rg, 'pos': pos, 'wt': rbase,

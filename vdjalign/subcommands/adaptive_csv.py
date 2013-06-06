@@ -72,7 +72,9 @@ def identify_cdr3_end(j_bam, v_metadata):
             continue
         meta = v_metadata[read.qname]
         orig_frame = meta['frame']
-        if not read.is_secondary and orig_frame:
+        tags = read.tags
+        tags.append((TAG_COUNT, meta['count']))
+        if not read.is_secondary and orig_frame and 'qend' in meta:
             orig_qend = meta['qend']
             new_start_frame = (read.qstart + orig_qend) % 3
             new_frame = ((orig_frame - 1) + 3 - new_start_frame) % 3 + 1
@@ -80,16 +82,14 @@ def identify_cdr3_end(j_bam, v_metadata):
             # Find CDR3 end
             s = read.query
             assert s is not None
-            tags = read.tags
             tags.append((TAG_FRAME, new_frame))
-            tags.append((TAG_COUNT, meta['count']))
             for i in xrange(new_frame - 1, len(s), 3):
                 if s[i:i+3] == 'TGG':
                     tags.append((TAG_CDR3_END, read.qstart + orig_qend + i + 3))
                     break
 
-            # Set
-            read.tags = tags
+        # Set
+        read.tags = tags
         yield read
 
 def bwa_to_sorted_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
@@ -197,12 +197,12 @@ def action(a):
             log.info('Identifying frame and CDR3 start')
             reads = identify_frame_cdr3(v_tmp_bam, sequence_counts)
             for read, fr in reads:
+                m = {'count': read.opt(TAG_COUNT), 'frame': fr}
                 if not (read.is_unmapped or read.is_secondary or read.is_reverse):
-                    res_map[read.qname] = {'qend': read.qend, 'frame': fr,
-                                           'qlen': read.qlen,
-                                           'count': read.opt(TAG_COUNT)}
+                    m.update(qend=read.qend, qlen=read.qlen)
                     if a.default_qual and read.rlen:
                         read.qual = a.default_qual * read.rlen
+                res_map[read.qname] = m
                 v_bam.write(read)
 
         with closing(pysam.Samfile(a.v_bamfile, 'rb')) as v_bam:
