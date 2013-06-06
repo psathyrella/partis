@@ -20,10 +20,10 @@ from .. import util
 from ..imgt import igh
 
 BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M']
-TAG_FRAME = 'fr'
-TAG_CDR3_START = 'cdr3_start'
-TAG_CDR3_END = 'cdr3_end'
-TAG_EXTRA = 'XJ'
+TAG_FRAME = 'XF'
+TAG_CDR3_START = 'XS'
+TAG_CDR3_END = 'XE'
+TAG_COUNT = 'XC'
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -37,11 +37,15 @@ def bwa_index_of_package_imgt_fasta(file_name):
         subprocess.check_call(cmd, cwd=td(), stderr=dn)
         yield td(file_name)
 
-def identify_frame_cdr3(input_bam):
+def identify_frame_cdr3(input_bam, count_map):
     cysteine_map = igh.cysteine_map()
     tid_map = {input_bam.getrname(tid): tid for tid in xrange(input_bam.nreferences)}
     tid_cysteine_map = {tid_map[k]: v for k, v in cysteine_map.iteritems() if k in tid_map}
     for read in input_bam:
+        # Prune split alignment
+        tags = [(k, v) for k, v in read.tags if k and k != 'SA']
+        read.tags = tags + [(TAG_COUNT, count_map.get(read.qname, 1))]
+
         if read.is_unmapped:
             yield read, None
             continue
@@ -58,8 +62,7 @@ def identify_frame_cdr3(input_bam):
         cdr3_start = cysteine_position - read.pos + read.qstart
         frame = (cdr3_start % 3) + 1
 
-        tag_content = '{0}={1},{2}={3}'.format(TAG_FRAME, frame, TAG_CDR3_START, cdr3_start)
-        read.tags = read.tags + [(TAG_EXTRA, tag_content)]
+        read.tags = read.tags + [(TAG_FRAME, frame), (TAG_CDR3_START, cdr3_start)]
         yield read, frame
 
 def identify_cdr3_end(j_bam, v_metadata):
@@ -74,15 +77,19 @@ def identify_cdr3_end(j_bam, v_metadata):
             new_start_frame = (read.qstart + orig_qend) % 3
             new_frame = ((orig_frame - 1) + 3 - new_start_frame) % 3 + 1
 
-            tag_content = '{0}={1}'.format(TAG_FRAME, new_frame)
-
             # Find CDR3 end
             s = read.query
             assert s is not None
+            tags = read.tags
+            tags.append((TAG_FRAME, new_frame))
+            tags.append((TAG_COUNT, meta['count']))
             for i in xrange(new_frame - 1, len(s), 3):
                 if s[i:i+3] == 'TGG':
-                    tag_content += ',{0}={1}'.format(TAG_CDR3_END, read.qstart + orig_qend + i + 3)
-            read.tags = read.tags + [(TAG_EXTRA, tag_content)]
+                    tags.append((TAG_CDR3_END, read.qstart + orig_qend + i + 3))
+                    break
+
+            # Set
+            read.tags = tags
         yield read
 
 def bwa_to_sorted_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
@@ -170,22 +177,23 @@ def action(a):
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
-        sequences = (('{0}_{1}'.format(i, row.get(a.count_column, 1)), row[a.sequence_column])
+        sequences = ((i, row[a.sequence_column], int(row.get(a.count_column, 1)))
                      for i, row in enumerate(r))
+
+        sequences = list(sequences)
+        sequence_counts = {r: c for r, _, c in sequences}
+        sequences = ((r, s) for r, s, _ in sequences)
 
         res_map = {}
         align_v(v_index, sequences, v_tf.name, threads=a.threads, rg=a.read_group)
         with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
              pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
             log.info('Identifying frame and CDR3 start')
-            reads = identify_frame_cdr3(v_tmp_bam)
+            reads = identify_frame_cdr3(v_tmp_bam, sequence_counts)
             for read, fr in reads:
                 if read.is_unmapped or read.is_secondary or read.is_reverse:
                     continue
-                # This is insanely silly, but sometimes segfaults on the
-                # cluster unless we print (and maybe access some field?)
-                print >> dn, read
-                res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen}
+                res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen, 'count': read.opt(TAG_COUNT)}
                 if a.default_qual and read.rlen:
                     read.qual = a.default_qual * read.rlen
                 v_bam.write(read)
