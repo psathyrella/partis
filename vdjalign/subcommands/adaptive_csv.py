@@ -117,13 +117,16 @@ def bwa_to_sorted_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_op
     if exit_code1:
         raise subprocess.CalledProcessError(exit_code1, cmd1)
 
+
 def align_v(v_index_path, sequence_iter, bam_dest, threads=1, rg=None):
     opts = BWA_OPTS[:]
     if threads > 1:
         opts.extend(('-t', str(threads)))
     if rg is not None:
         opts.extend(('-R', rg))
-    return bwa_to_sorted_bam(v_index_path, sequence_iter, bam_dest, bwa_opts=opts)
+    return bwa_to_sorted_bam(v_index_path, sequence_iter, bam_dest,
+                             bwa_opts=opts)
+
 
 def extract_unaligned_tail(bamfile):
     """
@@ -139,6 +142,7 @@ def extract_unaligned_tail(bamfile):
         if unaligned_tail:
             yield read.qname, unaligned_tail
 
+
 def align_j(j_index_path, v_bam, bam_dest, threads=1, rg=None):
     opts = BWA_OPTS[:]
     if threads > 1:
@@ -147,6 +151,7 @@ def align_j(j_index_path, v_bam, bam_dest, threads=1, rg=None):
         opts.extend(('-R', rg))
     sequences = extract_unaligned_tail(v_bam)
     return bwa_to_sorted_bam(j_index_path, sequences, bam_dest, bwa_opts=opts)
+
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
@@ -163,16 +168,17 @@ def build_parser(p):
     p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
+
 def action(a):
     indexed = bwa_index_of_package_imgt_fasta
     ntf = functools.partial(tempfile.NamedTemporaryFile, suffix='.bam')
     closing = contextlib.closing
 
     with indexed('ighv.fasta') as v_index, \
-         indexed('ighj.fasta') as j_index, \
-         a.csv_file as ifp, \
-         ntf(prefix='v_alignments-') as v_tf, \
-         ntf(prefix='j_alignments-') as j_tf:
+            indexed('ighj.fasta') as j_index, \
+            a.csv_file as ifp, \
+            ntf(prefix='v_alignments-') as v_tf, \
+            ntf(prefix='j_alignments-') as j_tf:
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
@@ -184,24 +190,28 @@ def action(a):
         sequences = ((r, s) for r, s, _ in sequences)
 
         res_map = {}
-        align_v(v_index, sequences, v_tf.name, threads=a.threads, rg=a.read_group)
+        align_v(v_index, sequences, v_tf.name, threads=a.threads,
+                rg=a.read_group)
         with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
-             pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
+                pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
             log.info('Identifying frame and CDR3 start')
             reads = identify_frame_cdr3(v_tmp_bam, sequence_counts)
             for read, fr in reads:
-                if read.is_unmapped or read.is_secondary or read.is_reverse:
-                    continue
-                res_map[read.qname] = {'qend': read.qend, 'frame': fr, 'qlen': read.qlen, 'count': read.opt(TAG_COUNT)}
-                if a.default_qual and read.rlen:
-                    read.qual = a.default_qual * read.rlen
+                if not (read.is_unmapped or read.is_secondary or read.is_reverse):
+                    res_map[read.qname] = {'qend': read.qend, 'frame': fr,
+                                           'qlen': read.qlen,
+                                           'count': read.opt(TAG_COUNT)}
+                    if a.default_qual and read.rlen:
+                        read.qual = a.default_qual * read.rlen
                 v_bam.write(read)
 
         with closing(pysam.Samfile(a.v_bamfile, 'rb')) as v_bam:
             log.info('Aligning J-region')
-            align_j(j_index, v_bam, j_tf.name, threads=a.threads, rg=a.read_group)
+            align_j(j_index, v_bam, j_tf.name, threads=a.threads,
+                    rg=a.read_group)
         with closing(pysam.Samfile(j_tf.name, 'rb')) as j_tmp_bam, \
-             closing(pysam.Samfile(a.j_bamfile, 'wb', template=j_tmp_bam)) as j_bam:
+                closing(pysam.Samfile(a.j_bamfile, 'wb',
+                                      template=j_tmp_bam)) as j_bam:
             log.info('Identifying CDR3 end')
             reads = identify_cdr3_end(j_tmp_bam, res_map)
             for read in reads:
