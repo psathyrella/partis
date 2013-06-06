@@ -16,8 +16,10 @@
          sequence (indexed sequence)
          c 0]
     (if-let [[raw-idx base] (first sequence)]
-      )
-))
+      (if (#{\. \-} base)
+        (recur result (rest sequence) c)
+        (recur (conj result [raw-idx c]) (rest sequence) (inc c)))
+      result)))
 
 (defn- parse-fasta [^FastaSequenceFile f]
   (lazy-seq
@@ -28,4 +30,4 @@
   (with-open [ref-file (FastaSequenceFile. (io/file file) false)]
     (doall (parse-fasta ref-file))))
 
-(defn create-cysteine-map)
+;(defn create-cysteine-map)
