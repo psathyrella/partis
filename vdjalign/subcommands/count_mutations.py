@@ -85,7 +85,7 @@ def action(a):
                             base = 'Del'
                         else:
                             base = r.alignment.seq[r.qpos]
-                        rows[rg][base] += int(r.alignment.qname.rsplit('_')[1])
+                        rows[rg][base] += r.alignment.opt('XC')
 
                     for rg, counts in rows.iteritems():
                         row = {'gene': ref, 'read_group': rg, 'pos': pos, 'wt': rbase,

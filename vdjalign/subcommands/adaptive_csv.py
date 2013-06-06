@@ -44,7 +44,7 @@ def identify_frame_cdr3(input_bam, count_map):
     for read in input_bam:
         # Prune split alignment
         tags = [(k, v) for k, v in read.tags if k and k != 'SA']
-        read.tags = tags + [(TAG_COUNT, count_map.get(read.qname, 1))]
+        read.tags = tags + [(TAG_COUNT, count_map[read.qname])]
 
         if read.is_unmapped:
             yield read, None
@@ -172,12 +172,11 @@ def action(a):
          indexed('ighj.fasta') as j_index, \
          a.csv_file as ifp, \
          ntf(prefix='v_alignments-') as v_tf, \
-         ntf(prefix='j_alignments-') as j_tf, \
-         open(os.devnull, 'w') as dn:
+         ntf(prefix='j_alignments-') as j_tf:
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
-        sequences = ((i, row[a.sequence_column], int(row.get(a.count_column, 1)))
+        sequences = ((str(i), row[a.sequence_column], int(row[a.count_column]))
                      for i, row in enumerate(r))
 
         sequences = list(sequences)
