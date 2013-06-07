@@ -23,4 +23,5 @@ setup(
         'console_scripts': [
             'vdjalign = vdjalign.scripts.vdjalign:main',
     ]},
+    test_suite='vdjalign.test',
 )

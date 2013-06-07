@@ -37,33 +37,35 @@ def bwa_index_of_package_imgt_fasta(file_name):
         subprocess.check_call(cmd, cwd=td(), stderr=dn)
         yield td(file_name)
 
+
+def annotate_v_aligned_read(tid_cysteine_map, count_map, read):
+    tags = [(k, v) for k, v in read.tags if k and k != 'SA']
+    read.tags = tags + [(TAG_COUNT, count_map[read.qname])]
+
+    if read.is_unmapped:
+        return read, None
+
+    cysteine_position = tid_cysteine_map[read.tid]
+
+    if read.aend < cysteine_position + 2:
+        return read, None
+
+    cdr3_start = cysteine_position - read.pos + read.qstart
+
+    frame = (cdr3_start % 3) + 1
+
+    read.tags = read.tags + [(TAG_FRAME, frame), (TAG_CDR3_START, cdr3_start)]
+    return read, frame
+
+
 def identify_frame_cdr3(input_bam, count_map):
     cysteine_map = igh.cysteine_map()
-    tid_map = {input_bam.getrname(tid): tid for tid in xrange(input_bam.nreferences)}
-    tid_cysteine_map = {tid_map[k]: v for k, v in cysteine_map.iteritems() if k in tid_map}
+    tid_map = {input_bam.getrname(tid): tid
+               for tid in xrange(input_bam.nreferences)}
+    tid_cysteine_map = {tid_map[k]: v
+                        for k, v in cysteine_map.iteritems() if k in tid_map}
     for read in input_bam:
-        # Prune split alignment
-        tags = [(k, v) for k, v in read.tags if k and k != 'SA']
-        read.tags = tags + [(TAG_COUNT, count_map[read.qname])]
-
-        if read.is_unmapped:
-            yield read, None
-            continue
-
-        cysteine_position = tid_cysteine_map[read.tid]
-
-        if read.aend < cysteine_position + 2:
-            #if not read.is_secondary:
-                #log.warn('Alignment does not cover Cysteine: (%d < %d)',
-                        #read.aend, cysteine_position + 2)
-            yield read, None
-            continue
-
-        cdr3_start = cysteine_position - read.pos + read.qstart
-        frame = (cdr3_start % 3) + 1
-
-        read.tags = read.tags + [(TAG_FRAME, frame), (TAG_CDR3_START, cdr3_start)]
-        yield read, frame
+        yield annotate_v_aligned_read(tid_cysteine_map, count_map, read)
 
 def identify_cdr3_end(j_bam, v_metadata):
     for read in j_bam:
@@ -84,7 +86,8 @@ def identify_cdr3_end(j_bam, v_metadata):
             assert s is not None
             tags.append((TAG_FRAME, new_frame))
             for i in xrange(new_frame - 1, len(s), 3):
-                if s[i:i+3] == 'TGG':
+                # Tryptophan followed by Glycine (GGN)
+                if s[i:i+5] == 'TGGGG':
                     tags.append((TAG_CDR3_END, read.qstart + orig_qend + i + 3))
                     break
 
