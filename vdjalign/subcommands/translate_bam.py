@@ -8,6 +8,7 @@ import sys
 import pysam
 
 from .. import codons, util
+from .adaptive_csv import TAG_CDR3_START
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,6 @@ def action(a):
                     r = read.seq[frame - 1:]
                     ofp.write('>{0}\n{1}\n'.format(read.qname,
                                                    codons.translate(r)))
-                    cysteine_pos = (read.opt('XS') - (frame - 1)) // 3
+                    cysteine_pos = (read.opt(TAG_CDR3_BEGIN) - (frame - 1)) // 3
                     ofp.write('>{0}_ann\n{1}\n'.format(read.qname, ('-' * cysteine_pos) + '*'))
                     ofp.write('>{0}_nt\n{1}\n'.format(read.qname, r))

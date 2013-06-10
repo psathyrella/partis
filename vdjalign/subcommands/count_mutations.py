@@ -19,6 +19,7 @@ import pysam
 log = logging.getLogger(__name__)
 
 from .. import util
+from .adaptive_csv import TAG_COUNT
 
 @contextlib.contextmanager
 def indexed_bam(bam_path):
@@ -87,7 +88,7 @@ def action(a):
                             base = r.alignment.seq[r.qpos]
 
                         try:
-                            c = r.alignment.opt('XC')
+                            c = r.alignment.opt(TAG_COUNT)
                         except:
                             raise KeyError("{0} missing count".format(r.alignment.qname))
 

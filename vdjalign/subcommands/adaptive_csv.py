@@ -19,9 +19,9 @@ log = logging.getLogger('vdjalign')
 from .. import util
 from ..imgt import igh
 
-BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M']
+BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M', '-a']
 TAG_FRAME = 'XF'
-TAG_CDR3_START = 'XS'
+TAG_CDR3_START = 'XB'
 TAG_CDR3_END = 'XE'
 TAG_COUNT = 'XC'
 
@@ -65,6 +65,8 @@ def identify_frame_cdr3(input_bam, count_map):
     tid_cysteine_map = {tid_map[k]: v
                         for k, v in cysteine_map.iteritems() if k in tid_map}
     for read in input_bam:
+        if read.is_reverse:
+            continue
         yield annotate_v_aligned_read(tid_cysteine_map, count_map, read)
 
 def identify_cdr3_end(j_bam, v_metadata):
