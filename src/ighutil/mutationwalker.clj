@@ -6,7 +6,8 @@
             ReadBackedPileup
             PileupElement])
   (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [cliopatra.command :refer [defcommand]])
   (:gen-class
    :name io.github.cmccoy.mutationwalk.MutationWalker
    :extends io.github.cmccoy.mutationwalk.BasePositionWalker
@@ -80,7 +81,10 @@
 (defn -treeReduce [lhs rhs]
   (concat lhs rhs))
 
-(defn -main [& args]
+(defcommand mutations-csv
+  "Mutation rates to CSV file using GATK"
+  {:opts-spec []
+   :bind-args-to args}
   (let [args (into-array
               String
               (concat ["-T" "MutationWalker" "-dt" "NONE"] args))]
