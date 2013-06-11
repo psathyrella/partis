@@ -1,5 +1,5 @@
 (ns ighutil.ubtree
-  "UBTree implementation
+  "Unlimited Branching Tree implementation
    See:
    Hoffman and Koeler 'A New Method to Index and Query Sets'
    http://www.ijcai.org/Past%20Proceedings/IJCAI-99-VOL-1/PDF/067.pdf
@@ -13,16 +13,15 @@
   (lookup-first [this q]
     "Looks up whether *any* sets in `tree` are a subset of the ordered set `q`")
   (lookup-subs [this q]
-    "Finds all sets which are subsets of ordered set `q` in *tree*"))
+    "Finds all sets which are subsets of ordered set `q` in `tree`"))
 
 (defprotocol UBNodeProtocol
-  (node-insert [this q])
+  (node-insert [this q]
+    "See UBTreeProtocol.insert")
   (node-lookup-first [this q]
-    "See lookup-first")
+    "See UBTreeProtocol.lookup-first")
   (node-lookup-subs [this q elems]
-    "See lookup-subs"))
-
-(def ^{:private true} not-nil? (complement nil?))
+    "See UBTreeProtocol.lookup-subs"))
 
 (defn suffixes [coll]
   "Returns all suffixes of coll, including coll itself."

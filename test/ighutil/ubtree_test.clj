@@ -1,4 +1,4 @@
-(ns ighutil.test.ubtree-test
+(ns ighutil.ubtree-test
   (:require [clojure.test :refer :all]
             [ighutil.ubtree :refer :all]))
 
@@ -6,7 +6,14 @@
               (insert [:a :b :f])
               (insert [:d :e])))
 
-(deftest ubtree-construction
+(deftest test-suffixes
+  (are [x y] (= x (suffixes y))
+       [] []
+       [[:a]] [:a]
+       [[:a :b] [:b]] '(:a :b)
+       [[:a :c :e] [:c :e] [:e]] [:a :c :e]))
+
+(deftest test-ubtree-construction
   (testing "Add one item"
     (are [x] (= [:a] (-> ubtree (insert x) :forest keys))
          [:a]
@@ -22,7 +29,7 @@
                        keys
                        sort)))))
 
-(deftest ubtree-lookup-first
+(deftest test-ubtree-lookup-first
   (testing "Look up exact set"
     (are [x] (lookup-first tree x)
          [:a :b :f]
@@ -38,7 +45,7 @@
          [:zzz]
          [:d :f])))
 
-(deftest ubtree-lookup-subs
+(deftest test-ubtree-lookup-subs
   (testing "Look up exact set"
     (are [x y] (= x (lookup-subs tree y))
          [[:a :b :f]] [:a :b :c :f]
