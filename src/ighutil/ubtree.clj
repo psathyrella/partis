@@ -2,7 +2,9 @@
   "UBTree implementation
    See:
    Hoffman and Koeler 'A New Method to Index and Query Sets'
-   http://www.ijcai.org/Past%20Proceedings/IJCAI-99-VOL-1/PDF/067.pdf"
+   http://www.ijcai.org/Past%20Proceedings/IJCAI-99-VOL-1/PDF/067.pdf
+
+   **Note that everything here assumes sorted input.**"
   (:require [clojure.set :as set]))
 
 (defprotocol UBTreeProtocol
@@ -17,10 +19,16 @@
   (node-insert [this q])
   (node-lookup-first [this q]
     "See lookup-first")
-  (node-lookup-subs [this q]
+  (node-lookup-subs [this q elems]
     "See lookup-subs"))
 
 (def ^{:private true} not-nil? (complement nil?))
+
+(defn suffixes [coll]
+  "Returns all suffixes of coll, including coll itself."
+  (let [c (vec coll)]
+    (for [j (range (count c))]
+      (subvec c j))))
 
 (defrecord UBNode [element end-of-path sons]
   UBNodeProtocol
@@ -33,16 +41,20 @@
         (UBNode. element true sons)
         (UBNode. element end-of-path (assoc sons qi (node-insert c r))))))
   (node-lookup-first [_ q]
-    (let [qi (first q)
-          r (rest q)
-          c (get sons qi)]
-      (cond
-       end-of-path true
-       (empty? q) false
-       (not c) (recur r)
-       :else (node-lookup-first c r))))
-  (node-lookup-subs [_ q]
-    (assert false)))
+    (or end-of-path
+        (let [s (suffixes q)
+              f (fn [[qi & r]]
+                  (if-let [n (get sons qi)]
+                    (node-lookup-first n r)))]
+          (some f s))))
+  (node-lookup-subs [_ q elems]
+    (concat
+     (when end-of-path [elems])
+     (let [s (suffixes q)
+           f (fn [[qi & r]]
+               (if-let [n (get sons qi)]
+                 (node-lookup-subs n r (conj elems qi))))]
+       (mapcat f s)))))
 
 (defn- ensure-non-empty [s]
   (when-not (seq s)
@@ -58,15 +70,17 @@
         (UBTree. (assoc forest qi (node-insert n r))))))
   (lookup-first [_ q]
     (ensure-non-empty q)
-    (loop [[qi & r] q]
-      (let [n (get forest qi)]
-        (cond
-         (and n (node-lookup-first n r)) true
-         (empty? r) false
-         :else (recur r)))))
+    (let [s (suffixes q)
+          f (fn [[qi & r]]
+              (if-let [n (get forest qi)]
+                (node-lookup-first n r)))]
+      (some f s)))
   (lookup-subs [_ q]
     (ensure-non-empty q)
-    (let [[qi & r] q])
-    (assert false)))
+    (let [s (suffixes q)
+          f (fn [[qi & r]]
+              (if-let [n (get forest qi)]
+                (node-lookup-subs n r [qi])))]
+      (mapcat f s))))
 
 (def ubtree (UBTree. {}))

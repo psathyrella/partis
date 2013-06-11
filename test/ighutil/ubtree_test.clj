@@ -37,3 +37,10 @@
          [:a :c]
          [:zzz]
          [:d :f])))
+
+(deftest ubtree-lookup-subs
+  (testing "Look up exact set"
+    (are [x y] (= x (lookup-subs tree y))
+         [[:a :b :f]] [:a :b :c :f]
+         [[:a :b :f]] [:a :b :c :f :z]
+         [[:d :e]] [:a :c :d :e :z :y])))
