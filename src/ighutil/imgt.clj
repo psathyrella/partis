@@ -11,7 +11,7 @@
   [s]
   (map vector (iterate inc 0) s))
 
-(def GAP-CHARS # {\. \-})
+(def GAP-CHARS #{\. \-})
 
 (defn- nongap-lookup [sequence]
   (loop [result []
