@@ -35,7 +35,7 @@
     (let [qi (first q)
           r (rest q)
           more (empty? r)
-          c (get sons qi (UBNode. qi end-of-path {}))]
+          c (get sons qi (UBNode. qi more {}))]
       (if (empty? q)
         (UBNode. element true sons)
         (UBNode. element end-of-path (assoc sons qi (node-insert c r))))))
