@@ -25,7 +25,8 @@
                  [org.clojure/data.csv "0.1.2"]
                  [me.raynes/fs "1.4.4"]
                  [org.apache.commons/commons-compress "1.5"]
-                 [org.clojars.runa/cliopatra "1.1.0"]]
+                 [org.clojars.runa/cliopatra "1.1.0"]
+                 [org.clojure/core.memoize "0.5.4"]]
   :java-source-paths ["src/java"]
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :omit-source false
