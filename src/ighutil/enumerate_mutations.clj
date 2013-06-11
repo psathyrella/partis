@@ -21,16 +21,14 @@
               r (aget reference-bases ri)
               eq (= q r)]
           (recur (if (not= q r)
-                   (conj res {:ref-idx ri :qry-idx qi :ref (char r) :qry (char q)})
+                   (conj res {:ref-idx ri :ref (char r) :qry (char q)})
                    res)
                  (inc qi)
                  (inc ri)))
         res))))
 
-
-
 (defn- strip-allele [^String s]
-  (let [idx (.lastIndexOf s 42)]
+  (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
     (if (< idx 0)
       s
       (.substring s 0 idx))))
@@ -53,10 +51,12 @@
 (defn- identify-mutations-in-sam [^SAMFileReader sam ref-get]
   (let [sam-records (-> sam (.iterator) iterator-seq)]
     (for [^SAMRecord r (remove non-primary sam-records)]
-      (let [ref-bases (ref-get (.getReferenceName r))]
+      (let [ref-bases (ref-get (.getReferenceName r))
+            muts (identify-mutations-in-read r ref-bases)]
         {:name (.getReadName r)
          :reference (strip-allele (.getReferenceName r))
-         :mutations (identify-mutations-in-read r ref-bases)}))))
+         :mutations muts
+         :n-mutations (count muts)}))))
 
 (defn- reference-per-read [^SAMFileReader sam]
   (let [sam-records (-> sam (.iterator) iterator-seq)]
@@ -82,8 +82,12 @@
                   (fn [{name :name :as m}] (assoc m :j-gene (get j-map name)))
                   (identify-mutations-in-sam sam ref-get))]
         (->> muts
-             (sort-by (juxt :reference :j-gene))
-             (take 5)
+             (filter :j-gene)      ; Drop sequences without an assigned J
+             (filter :n-mutations) ;  Drop sequences without mutations from
+                                   ;  germline
+             (sort-by (juxt :reference :j-gene :n-mutations))
+             (partition-by (juxt :reference :j-gene))
+             (take 2)
              doall)))))
 
 (defn test-enumeration []
