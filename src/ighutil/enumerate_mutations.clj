@@ -3,9 +3,8 @@
             ReferenceSequenceFileFactory
             ReferenceSequenceFile]
            [net.sf.samtools SAMRecord AlignmentBlock SAMFileReader])
-  (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io]
-            [clojure.core.memoize :refer (memo-lu)]
+  (:require [clojure.java.io :as io]
+            [clojure.core.memoize :refer [memo-lu]]
             [cliopatra.command :refer [defcommand]]))
 
 ;;; TODO: Better as for?
@@ -40,10 +39,11 @@
               (partial mutations-in-block s reference-bases)
               aligned-blocks))))
 
-(defn- ref-getter [^ReferenceSequenceFile f]
-  (memo-lu
-   (fn [^String contig]
-     (.getBases (.getSequence f contig)))))
+(defn- extract-tags
+  [^SAMRecord read & tag-names]
+  (into {} (map
+            (fn [^String n] [(keyword n) (.getAttribute read n)])
+            tag-names)))
 
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
@@ -53,10 +53,12 @@
     (for [^SAMRecord r (remove non-primary sam-records)]
       (let [ref-bases (ref-get (.getReferenceName r))
             muts (identify-mutations-in-read r ref-bases)]
-        {:name (.getReadName r)
-         :reference (strip-allele (.getReferenceName r))
-         :mutations muts
-         :n-mutations (count muts)}))))
+        (merge
+         {:name (.getReadName r)
+          :reference (strip-allele (.getReferenceName r))
+          :mutations muts
+          :n-mutations (count muts)}
+         (extract-tags r "XL" "XJ" "XC"))))))
 
 (defn- reference-per-read [^SAMFileReader sam]
   (let [sam-records (-> sam (.iterator) iterator-seq)]
@@ -65,30 +67,29 @@
      (for [^SAMRecord r (remove non-primary sam-records)]
        [(.getReadName r) (strip-allele (.getReferenceName r))]))))
 
+(defn- ref-getter [^ReferenceSequenceFile f]
+  (memo-lu
+   (fn [^String contig]
+     (.getBases (.getSequence f contig)))))
+
 (defcommand enumerate-mutations
   "Enumerate mutations by V / J"
   {:opts-spec [["-j" "--jobs" "Number of processors" :default 1
                 :parse-fn #(Integer. ^String %)]]
-   :bind-args-to [reference v-sam-path j-sam-path]}
-  (let [j-map (with-open [sam (SAMFileReader. (io/file j-sam-path))]
-                (reference-per-read sam))
-        ref (-> reference
+   :bind-args-to [reference v-sam-path]}
+  (let [ref (-> reference
                 io/file
                 ReferenceSequenceFileFactory/getReferenceSequenceFile)
         ref-get (ref-getter ref)]
-    (println (count j-map) "reads")
     (with-open [sam (SAMFileReader. (io/file v-sam-path))]
-      (let [muts (map
-                  (fn [{name :name :as m}] (assoc m :j-gene (get j-map name)))
-                  (identify-mutations-in-sam sam ref-get))]
+      (let [muts (identify-mutations-in-sam sam ref-get)]
         (->> muts
-             (filter :j-gene)      ; Drop sequences without an assigned J
              (filter :n-mutations) ;  Drop sequences without mutations from
-                                   ;  germline
-             (sort-by (juxt :reference :j-gene :n-mutations))
-             (partition-by (juxt :reference :j-gene))
+                                        ;  germline
+             (sort-by (juxt :reference :XJ :XL :n-mutations))
+             (partition-by (juxt :reference :XJ :XL))
              (take 2)
              doall)))))
 
 (defn test-enumeration []
-  (enumerate-mutations ["ighv.fasta" "AJ_memory_001_v.bam" "AJ_memory_001_j.bam"]))
+  (enumerate-mutations ["ighv.fasta" "AJ_memory_001_v.bam"]))
