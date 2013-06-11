@@ -1,4 +1,4 @@
-(ns ighutil.mutation-by-read
+(ns ighutil.enumerate-mutations
   (:import [net.sf.picard.reference
             ReferenceSequenceFileFactory
             ReferenceSequenceFile]
