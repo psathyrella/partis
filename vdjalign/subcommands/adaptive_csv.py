@@ -19,11 +19,15 @@ log = logging.getLogger('vdjalign')
 from .. import util
 from ..imgt import igh
 
-BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M', '-a']
+BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M',
+            '-a']
+
 TAG_FRAME = 'XF'
 TAG_CDR3_START = 'XB'
 TAG_CDR3_END = 'XE'
 TAG_COUNT = 'XC'
+TAG_CDR3_LENGTH = 'XL'
+TAG_JGENE = 'XJ'
 
 @contextlib.contextmanager
 def bwa_index_of_package_imgt_fasta(file_name):
@@ -38,9 +42,10 @@ def bwa_index_of_package_imgt_fasta(file_name):
         yield td(file_name)
 
 
-def annotate_v_aligned_read(tid_cysteine_map, count_map, read):
+def annotate_v_aligned_read(tid_cysteine_map, meta_map, read):
     tags = [(k, v) for k, v in read.tags if k and k != 'SA']
-    read.tags = tags + [(TAG_COUNT, count_map[read.qname])]
+    meta = meta_map[read.qname]
+    read.tags = tags + [(t, meta[t]) for t in (TAG_COUNT, TAG_CDR3_LENGTH, TAG_JGENE)]
 
     if read.is_unmapped:
         return read, None
@@ -68,6 +73,13 @@ def identify_frame_cdr3(input_bam, count_map):
         if read.is_reverse:
             continue
         yield annotate_v_aligned_read(tid_cysteine_map, count_map, read)
+
+def or_none(fn):
+    @functools.wraps(fn)
+    def inner(s):
+        if s:
+            return fn(s)
+    return inner
 
 def identify_cdr3_end(j_bam, v_metadata):
     for read in j_bam:
@@ -170,6 +182,7 @@ def build_parser(p):
     p.add_argument('v_bamfile')
     p.add_argument('j_bamfile')
     p.add_argument('-r', '--read-group')
+    p.add_argument('-p', '--read-prefix', default='')
     p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
@@ -187,7 +200,12 @@ def action(a):
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
-        sequences = ((str(i), row[a.sequence_column], int(row[a.count_column]))
+        int_or_none = or_none(int)
+        sequences = (('{0}{1:06d}'.format(a.read_prefix, i),
+                      row[a.sequence_column],
+                      {TAG_COUNT: int_or_none(row[a.count_column]),
+                       TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
+                       TAG_JGENE: row['jGeneName'] if row['jGeneName'] != '-1' else row['jTies']})
                      for i, row in enumerate(r))
 
         sequences = list(sequences)
