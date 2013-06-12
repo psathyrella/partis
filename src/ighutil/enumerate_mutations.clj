@@ -30,13 +30,13 @@
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
-(defn- identify-mutations-on-ref [records ^bytes ref-bases]
+(defn- identify-mutations-for-ref [records ^bytes ref-bases ref-name]
   (for [^SAMRecord r (remove non-primary records)]
     (let [muts (SAMUtils/enumerateMutations r ref-bases)
           tag #(.getAttribute r ^String %)]
       (report!)
       {:name (.getReadName r)
-       :reference (strip-allele (.getReferenceName r))
+       :reference ref-name
        :mutations muts
        :n-mutations (count muts)
        :cdr3-length (tag "XL")
@@ -49,17 +49,19 @@
   (for [v-group (->> ref-map
                      (sort-by first)
                      (partition-by (comp strip-allele first)))]
-    (apply concat
+    (apply
+     concat
      (for [[^String ref-name ^bytes ref-bases] v-group]
        (with-open [reads (.query reader ref-name 0 0 false)]
          (let [mutations (-> reads
                              iterator-seq
-                             (identify-mutations-on-ref ref-bases))]
+                             (identify-mutations-for-ref
+                              ref-bases
+                              (strip-allele ref-name)))]
            (doall mutations)))))))
 
 (defn- extract-refs [^ReferenceSequenceFile f]
   (.reset f)
-
   (loop [sequences (transient [])]
     (if-let [^ReferenceSequence s (.nextSequence f)]
       (recur (conj! sequences [(.getName s) (.getBases s)]))
@@ -69,7 +71,6 @@
   (let [{:keys [j-gene cdr3-length reference]} (first coll)
         coll (vec coll)
         n-seqs (count coll)]
-    (println reference j-gene cdr3-length n-seqs)
     (loop [[r & rest] coll t ub/ubtree smap {} edges {}]
       (if r
         (let [{m :mutations name :name} r
