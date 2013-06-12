@@ -3,7 +3,9 @@
             ReferenceSequenceFileFactory
             ReferenceSequenceFile
             ReferenceSequence]
-           [net.sf.samtools SAMRecord AlignmentBlock SAMFileReader
+           [net.sf.samtools
+            SAMRecord
+            SAMFileReader
             SAMFileReader$ValidationStringency]
            [io.github.cmccoy.sam SAMUtils])
   (:require [clojure.java.io :as io]
@@ -28,44 +30,50 @@
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
-(defn- identify-mutations-in-sam [^SAMFileReader sam ref-map]
-  (let [sam-records (-> sam (.iterator) iterator-seq)]
-    (for [^SAMRecord r (remove non-primary sam-records)]
-      (let [^bytes ref-bases (get ref-map (.getReferenceName r))
-            muts (SAMUtils/enumerateMutations r ref-bases)
-            tag #(.getAttribute r ^String %)]
-        (report!)
-        {:name (.getReadName r)
-         :reference (strip-allele (.getReferenceName r))
-         :mutations muts
-         :n-mutations (count muts)
-         :cdr3-length (tag "XL")
-         :j-gene (tag "XJ")
-         :count (tag "XC")}))))
+(defn- identify-mutations-on-ref [records ^bytes ref-bases]
+  (for [^SAMRecord r (remove non-primary records)]
+    (let [muts (SAMUtils/enumerateMutations r ref-bases)
+          tag #(.getAttribute r ^String %)]
+      (report!)
+      {:name (.getReadName r)
+       :reference (strip-allele (.getReferenceName r))
+       :mutations muts
+       :n-mutations (count muts)
+       :cdr3-length (tag "XL")
+       :j-gene (tag "XJ")
+       :count (tag "XC")})))
 
-(defn- reference-per-read [^SAMFileReader sam]
-  (let [sam-records (-> sam (.iterator) iterator-seq)]
-    (into
-     {}
-     (for [^SAMRecord r (remove non-primary sam-records)]
-       [(.getReadName r) (strip-allele (.getReferenceName r))]))))
+(defn- identify-mutations-in-sam [^SAMFileReader reader ref-map]
+  (when-not (.hasIndex reader)
+    (throw (IllegalArgumentException. (format "SAM file lacks index!"))))
+  (for [v-group (->> ref-map
+                     (sort-by first)
+                     (partition-by (comp strip-allele first)))]
+    (apply concat
+     (for [[^String ref-name ^bytes ref-bases] v-group]
+       (with-open [reads (.query reader ref-name 0 0 false)]
+         (let [mutations (-> reads
+                             iterator-seq
+                             (identify-mutations-on-ref ref-bases))]
+           (doall mutations)))))))
 
 (defn- extract-refs [^ReferenceSequenceFile f]
   (.reset f)
-  (loop [sequences (transient {})]
+
+  (loop [sequences (transient [])]
     (if-let [^ReferenceSequence s (.nextSequence f)]
-      (recur (assoc! sequences (.getName s) (.getBases s)))
+      (recur (conj! sequences [(.getName s) (.getBases s)]))
       (persistent! sequences))))
 
 (defn summarize-mutation-partition [coll]
-  (let [{j-gene :j-gene cdr3-length :cdr3-length v-gene :reference} (first coll)
+  (let [{:keys [j-gene cdr3-length reference]} (first coll)
         coll (vec coll)
         n-seqs (count coll)]
-    (println v-gene j-gene cdr3-length n-seqs)
+    (println reference j-gene cdr3-length n-seqs)
     (loop [[r & rest] coll t ub/ubtree smap {} edges {}]
       (if r
-        (let [{m' :mutations name :name} r
-              mutations (vec (sort m'))]
+        (let [{m :mutations name :name} r
+              mutations (vec (sort m))]
           (if-let [hit (first (ub/lookup-subs t mutations))]
             (recur
              rest
@@ -77,11 +85,8 @@
              (ub/insert t mutations)
              (assoc smap mutations name)
              edges)))
-        {:v-gene v-gene :j-gene j-gene :cdr3-length cdr3-length :edges edges
+        {:v-gene reference :j-gene j-gene :cdr3-length cdr3-length :edges edges
          :n-seqs n-seqs}))))
-
-(defn- better-be-some [coll]
-  (assert (seq coll)))
 
 (defcommand enumerate-mutations
   "Enumerate mutations by V / J"
@@ -98,20 +103,25 @@
       (.setValidationStringency
        sam
        SAMFileReader$ValidationStringency/SILENT)
-      (let [muts (identify-mutations-in-sam sam ref-map)
-            summaries (->> muts
-                           ;; Drop sequences without mutations
-                           ;; from germline
-                           (remove (comp zero? :n-mutations))
-                           (sort-by (juxt :reference :j-gene :cdr3-lenth :n-mutations))
-                           (partition-by (juxt :reference :XJ :XL))
-                           (map summarize-mutation-partition))]
-        (with-open [out-file (or out-file System/out)]
+      (let [muts (identify-mutations-in-sam sam ref-map)]
+        (with-open [out-file out-file]
           (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "i"]])
-          (csv/write-csv out-file
-                         (for [{v-gene :v-gene j-gene :j-gene edges :edges n-seqs :n-seqs} summaries
-                               [from [to i]] edges]
-                           [v-gene j-gene n-seqs from to i])))))))
+          (doseq [mut muts]
+            (let [summaries (->> mut
+                                 (remove (comp zero? :n-mutations))
+                                 (sort-by (juxt :reference
+                                                :j-gene
+                                                :cdr3-lenth
+                                                :n-mutations))
+                                 (partition-by (juxt :reference
+                                                     :j-gene
+                                                     :cdr3-length))
+                                 (map summarize-mutation-partition))]
+              (csv/write-csv
+               out-file
+               (for [{:keys [reference j-gene edges n-seqs]} summaries
+                     [from [to i]] edges]
+                 [reference j-gene n-seqs from to i])))))))))
 
 (defn test-enumerate []
-  (enumerate-mutations ["-o" "test.csv" "ighv.fasta" "AJ_naive_001_v.bam"]))
+  (enumerate-mutations ["-o" "test.csv" "ighv.fasta" "AJ_memory_001_v.bam"]))
