@@ -23,7 +23,7 @@
                  [org.apache.servicemix.bundles/org.apache.servicemix.bundles.jets3t "0.8.1_1"]
                  ;; End GATK
                  [org.clojure/data.csv "0.1.2"]
-                 [me.raynes/fs "1.4.4"]
+                 [me.raynes/fs "1.4.3"]
                  [org.apache.commons/commons-compress "1.5"]
                  [org.clojars.runa/cliopatra "1.1.0"]
                  [org.clojure/core.memoize "0.5.4"]]
