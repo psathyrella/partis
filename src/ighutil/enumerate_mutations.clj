@@ -5,7 +5,8 @@
            [net.sf.samtools SAMRecord AlignmentBlock SAMFileReader])
   (:require [clojure.java.io :as io]
             [clojure.core.memoize :refer [memo-lu]]
-            [cliopatra.command :refer [defcommand]]))
+            [cliopatra.command :refer [defcommand]]
+            [ighutil.ubtree :as ub]))
 
 ;;; TODO: Better as for?
 (defn- mutations-in-block [^bytes query-bases
@@ -72,6 +73,26 @@
    (fn [^String contig]
      (.getBases (.getSequence f contig)))))
 
+(defn summarize-mutation-partition [coll]
+  (let [sort-mutations (partial sort-by (juxt :ref-idx :ref :qry))
+        {j-gene :XJ cdr3-length :XL v-gene :reference} (first coll)]
+    (loop [[r & rest] coll t ub/ubtree smap {} edges {}]
+      (if r
+        (let [{m' :mutations name :name} r
+              mutations (sort-mutations m')]
+          (if-let [hit (first (ub/lookup-subs t mutations))]
+            (recur
+             rest
+             t
+             smap
+             (assoc edges name (get smap hit)))
+            (recur
+             rest
+             (ub/insert t mutations)
+             (assoc smap mutations name)
+             edges)))
+        {:v-gene v-gene :j-gene j-gene :cdr3-length cdr3-length :edges edges}))))
+
 (defcommand enumerate-mutations
   "Enumerate mutations by V / J"
   {:opts-spec [["-j" "--jobs" "Number of processors" :default 1
@@ -84,10 +105,11 @@
     (with-open [sam (SAMFileReader. (io/file v-sam-path))]
       (let [muts (identify-mutations-in-sam sam ref-get)]
         (->> muts
-             (filter :n-mutations) ;  Drop sequences without mutations from
+             (remove (comp zero? :n-mutations)) ;  Drop sequences without mutations from
                                         ;  germline
              (sort-by (juxt :reference :XJ :XL :n-mutations))
              (partition-by (juxt :reference :XJ :XL))
+             (map summarize-mutation-partition)
              (take 2)
              doall)))))
 
