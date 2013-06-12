@@ -4,30 +4,25 @@
             ReferenceSequenceFile]
            [net.sf.samtools SAMRecord AlignmentBlock SAMFileReader])
   (:require [clojure.java.io :as io]
-            [clojure.core.memoize :refer [memo-lu]]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
             [ighutil.io :as zio]
             [ighutil.ubtree :as ub]))
 
-;;; TODO: Better as for?
 (defn- mutations-in-block [^bytes query-bases
                            ^bytes reference-bases
                            ^AlignmentBlock block]
-  (let [l (.getLength block)]
-    (loop [res []
-           qi (dec (.getReadStart block))
-           ri (dec (.getReferenceStart block))]
-      (if (< qi l)
-        (let [q (aget query-bases qi)
-              r (aget reference-bases ri)
-              eq (= q r)]
-          (recur (if (not= q r)
-                   (conj res {:ref-idx ri :ref (char r) :qry (char q)})
-                   res)
-                 (inc qi)
-                 (inc ri)))
-        res))))
+  (let [l (.getLength block)
+        ;; Note 1-based indices!
+        qs (dec (.getReadStart block))
+        rs (dec (.getReferenceStart block))]
+    (for [i (range l)]
+      (let [qi (+ qs i)
+            ri (+ rs i)
+            q (aget query-bases qi)
+            r (aget reference-bases ri)
+            eq (= q r)]
+        {:ref-idx ri :ref (char r) :qry (char q)}))))
 
 (defn- strip-allele [^String s]
   (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
@@ -38,9 +33,9 @@
 (defn- identify-mutations-in-read [^SAMRecord read reference-bases]
   (let [aligned-blocks (.getAlignmentBlocks read)
         s (.getReadBases read)]
-    (into [] (mapcat
-              (partial mutations-in-block s reference-bases)
-              aligned-blocks))))
+    (->> aligned-blocks
+         (mapcat (partial mutations-in-block s reference-bases))
+         vec)))
 
 (defn- extract-tags
   [^SAMRecord read & tag-names]
@@ -71,7 +66,7 @@
        [(.getReadName r) (strip-allele (.getReferenceName r))]))))
 
 (defn- ref-getter [^ReferenceSequenceFile f]
-  (memo-lu
+  (memoize
    (fn [^String contig]
      (.getBases (.getSequence f contig)))))
 
@@ -125,6 +120,6 @@
         (with-open [out-file out-file]
           (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "i"]])
           (csv/write-csv out-file
-           (for [{v-gene :v-gene j-gene :j-gene edges :edges n-seqs :n-seqs} summaries
-                 [from [to i]] edges]
-             [v-gene j-gene n-seqs from to i])))))))
+                         (for [{v-gene :v-gene j-gene :j-gene edges :edges n-seqs :n-seqs} summaries
+                               [from [to i]] edges]
+                           [v-gene j-gene n-seqs from to i])))))))
