@@ -7,18 +7,18 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.CigarElement;
 
 import com.google.common.base.Objects;
+import static com.google.common.base.Preconditions.*;
 import com.google.common.collect.ComparisonChain;
 
 public class SAMUtils {
   public static class Mutation implements Comparable<Mutation> {
     private final char type;
-    //  public final String reference;
-    private final int position;
+    private final long position;
     private final char wt;
     private final char mut;
-    public Mutation(char type, int position, char wt, char mut) {
+    public Mutation(char type, long position, char wt, char mut) {
+      checkArgument(position >= 0, "Negative position: %d", position);
       this.type = type;
-      //  this.reference = reference;
       this.position = position;
       this.wt = wt;
       this.mut = mut;
@@ -50,24 +50,26 @@ public class SAMUtils {
     }
     @Override
     public boolean equals(Object obj) {
-	if (obj == null) return false;
-	if (obj.getClass() != getClass()) return false;
-	final Mutation other = (Mutation) obj;
+      if (obj == null) return false;
+      if (obj.getClass() != getClass()) return false;
+      final Mutation other = (Mutation) obj;
 
-	return other.type == this.type &&
-	    other.position == this.position &&
-	    other.wt == this.wt &&
-	    other.mut == this.mut;
+      return other.type == this.type &&
+        other.position == this.position &&
+        other.wt == this.wt &&
+        other.mut == this.mut;
     }
 
     public char getType() { return type; }
-    public int getPosition() { return position; }
+    public long getPosition() { return position; }
     public char getWildType() { return wt; }
     public char getMutant() { return mut; }
   }
 
   public static List<Mutation> enumerateMutations(final SAMRecord record,
-      final byte[] referenceBases) {
+                                                  final byte[] referenceBases) {
+    checkNotNull(record, "null SAM record");
+    checkNotNull(referenceBases, "null reference bases");
     // Always be noting 1-based indexing!
     final int start = record.getAlignmentStart() - 1;
     final byte[] qBases = record.getReadBases();
