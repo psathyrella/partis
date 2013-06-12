@@ -37,12 +37,6 @@
          (mapcat (partial mutations-in-block s reference-bases))
          vec)))
 
-(defn- extract-tags
-  [^SAMRecord read & tag-names]
-  (into {} (map
-            (fn [^String n] [(keyword n) (.getAttribute read n)])
-            tag-names)))
-
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
@@ -50,13 +44,15 @@
   (let [sam-records (-> sam (.iterator) iterator-seq)]
     (for [^SAMRecord r (remove non-primary sam-records)]
       (let [ref-bases (ref-get (.getReferenceName r))
-            muts (identify-mutations-in-read r ref-bases)]
-        (merge
-         {:name (.getReadName r)
-          :reference (strip-allele (.getReferenceName r))
-          :mutations muts
-          :n-mutations (count muts)}
-         (extract-tags r "XL" "XJ" "XC"))))))
+            muts (identify-mutations-in-read r ref-bases)
+            tag #(.getAttribute r ^String %)]
+        {:name (.getReadName r)
+         :reference (strip-allele (.getReferenceName r))
+         :mutations muts
+         :n-mutations (count muts)
+         :cdr3-length (tag "XL")
+         :j-gene (tag "XJ")
+         :count (tag "XC")}))))
 
 (defn- reference-per-read [^SAMFileReader sam]
   (let [sam-records (-> sam (.iterator) iterator-seq)]
@@ -72,7 +68,7 @@
 
 (defn summarize-mutation-partition [coll]
   (let [sort-mutations (comp vec (partial sort-by (juxt :ref-idx :ref :qry)))
-        {j-gene :XJ cdr3-length :XL v-gene :reference} (first coll)
+        {j-gene :j-jene cdr3-length :cdr3-length v-gene :reference} (first coll)
         coll (vec coll)
         n-seqs (count coll)]
     (println v-gene j-gene cdr3-length n-seqs)
@@ -101,7 +97,7 @@
   "Enumerate mutations by V / J"
   {:opts-spec [["-j" "--jobs" "Number of processors" :default 1
                 :parse-fn #(Integer. ^String %)]
-               ["-o" "--out-file" "Destination path" :default System/out
+               ["-o" "--out-file" "Destination path"
                 :parse-fn zio/writer]]
    :bind-args-to [reference v-sam-path]}
   (let [ref (-> reference
@@ -114,10 +110,10 @@
                            ;; Drop sequences without mutations
                            ;; from germline
                            (remove (comp zero? :n-mutations))
-                           (sort-by (juxt :reference :XJ :XL :n-mutations))
+                           (sort-by (juxt :reference :j-gene :cdr3-lenth :n-mutations))
                            (partition-by (juxt :reference :XJ :XL))
                            (map summarize-mutation-partition))]
-        (with-open [out-file out-file]
+        (with-open [^java.io.Writer out-file (or out-file System/out)]
           (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "i"]])
           (csv/write-csv out-file
                          (for [{v-gene :v-gene j-gene :j-gene edges :edges n-seqs :n-seqs} summaries
