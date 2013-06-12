@@ -1,6 +1,10 @@
 (ns ighutil.enumerate-mutations-test
+  (:import [io.github.cmccoy.sam SAMUtils$Mutation])
   (:require [clojure.test :refer :all]
             [ighutil.enumerate-mutations :refer :all]))
+
+(defn- mut [ref-idx wt mut]
+  (SAMUtils$Mutation. \M ref-idx wt mut))
 
 (deftest test-summarize-mutation-partition
   (testing "Simple case"
@@ -10,7 +14,7 @@
             :edges {"3" ["1" 1],  "2" ["1" 0]}
             :n-seqs 3}
            (summarize-mutation-partition
-               [{:name "1" :mutations [{:ref-idx 101 :ref \A :qry \C}]}
-                {:name "2" :mutations [{:ref-idx 101 :ref \A :qry \C}]}
-                {:name "3" :mutations [{:ref-idx 101 :ref \A :qry \C}
-                                       {:ref-idx 105 :ref \G :qry \T}]}])))))
+               [{:name "1" :mutations [(mut 101 \A \C)]}
+                {:name "2" :mutations [(mut 101 \A \C)]}
+                {:name "3" :mutations [(mut 101 \A \C)
+                                       (mut 105 \G \T)]}])))))
