@@ -52,6 +52,7 @@
     (apply
      concat
      (for [[^String ref-name ^bytes ref-bases] v-group]
+
        (with-open [reads (.query reader ref-name 0 0 false)]
          (let [mutations (-> reads
                              iterator-seq
@@ -62,10 +63,10 @@
 
 (defn- extract-refs [^ReferenceSequenceFile f]
   (.reset f)
-  (loop [sequences (transient [])]
-    (if-let [^ReferenceSequence s (.nextSequence f)]
-      (recur (conj! sequences [(.getName s) (.getBases s)]))
-      (persistent! sequences))))
+  (->> (repeatedly #(.nextSequence f))
+       (take-while identity)
+       (map (fn [^ReferenceSequence s]
+              [(.getName s) (.getBases s)]))))
 
 (defn summarize-mutation-partition [coll]
   (let [{:keys [j-gene cdr3-length reference]} (first coll)
@@ -75,12 +76,17 @@
       (if r
         (let [{m :mutations name :name} r
               mutations (vec (sort m))]
-          (if-let [hit (first (ub/lookup-subs t mutations))]
+          ;; Look for the biggest hit
+          (if-let [hit (first
+                        (reverse
+                         (sort-by count #(compare %2 %1)
+                                  (ub/lookup-subs t mutations))))]
             (recur
              rest
              t
              smap
-             (assoc edges name [(get smap hit) (- (count mutations) (count hit))]))
+             (assoc edges name [(get smap hit)
+                                (- (count mutations) (count hit))]))
             (recur
              rest
              (ub/insert t mutations)
@@ -106,7 +112,7 @@
        SAMFileReader$ValidationStringency/SILENT)
       (let [muts (identify-mutations-in-sam sam ref-map)]
         (with-open [out-file out-file]
-          (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "i"]])
+          (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "dist"]])
           (doseq [mut muts]
             (let [summaries (->> mut
                                  (remove (comp zero? :n-mutations))
@@ -120,9 +126,9 @@
                                  (map summarize-mutation-partition))]
               (csv/write-csv
                out-file
-               (for [{:keys [reference j-gene edges n-seqs]} summaries
+               (for [{:keys [v-gene j-gene edges n-seqs]} summaries
                      [from [to i]] edges]
-                 [reference j-gene n-seqs from to i])))))))))
+                 [v-gene j-gene n-seqs from to i])))))))))
 
 (defn test-enumerate []
   (enumerate-mutations ["-o" "test.csv" "ighv.fasta" "AJ_memory_001_v.bam"]))
