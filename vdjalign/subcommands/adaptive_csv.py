@@ -19,8 +19,7 @@ log = logging.getLogger('vdjalign')
 from .. import util
 from ..imgt import igh
 
-BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M',
-            '-a']
+BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M']
 
 TAG_FRAME = 'XF'
 TAG_CDR3_START = 'XB'
