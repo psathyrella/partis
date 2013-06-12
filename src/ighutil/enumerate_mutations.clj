@@ -3,13 +3,21 @@
             ReferenceSequenceFileFactory
             ReferenceSequenceFile
             ReferenceSequence]
-           [net.sf.samtools SAMRecord AlignmentBlock SAMFileReader]
+           [net.sf.samtools SAMRecord AlignmentBlock SAMFileReader
+            SAMFileReader$ValidationStringency]
            [io.github.cmccoy.sam SAMUtils])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
             [ighutil.io :as zio]
             [ighutil.ubtree :as ub]))
+
+(def ^{:private true} n-records (atom 0))
+
+(defn- report! []
+  (let [n (swap! n-records inc)]
+    (when (= 0 (mod n 50000))
+      (.print System/err (format "Read record %10d\r" n)))))
 
 (defn- strip-allele [^String s]
   (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
@@ -26,6 +34,7 @@
       (let [^bytes ref-bases (get ref-map (.getReferenceName r))
             muts (SAMUtils/enumerateMutations r ref-bases)
             tag #(.getAttribute r ^String %)]
+        (report!)
         {:name (.getReadName r)
          :reference (strip-allele (.getReferenceName r))
          :mutations muts
@@ -86,6 +95,9 @@
                 ReferenceSequenceFileFactory/getReferenceSequenceFile)
         ref-map (extract-refs ref)]
     (with-open [sam (SAMFileReader. (io/file v-sam-path))]
+      (.setValidationStringency
+       sam
+       SAMFileReader$ValidationStringency/SILENT)
       (let [muts (identify-mutations-in-sam sam ref-map)
             summaries (->> muts
                            ;; Drop sequences without mutations
