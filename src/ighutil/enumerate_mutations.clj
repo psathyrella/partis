@@ -57,13 +57,14 @@
     (apply
      concat
      (for [[^String ref-name ^bytes ref-bases] v-group]
-
        (with-open [reads (.query reader ref-name 0 0 false)]
          (let [mutations (-> reads
                              iterator-seq
                              (identify-mutations-for-ref
                               ref-bases
                               (strip-allele ref-name)))]
+           ;; Have to consume the seq here:
+           ;; Only one SAM iterator may be open at a time.
            (doall mutations)))))))
 
 (defn- extract-refs [^ReferenceSequenceFile f]
@@ -83,9 +84,7 @@
       (if r
         (let [{m :mutations name :name} r
               mutations (vec (sort m))]
-          ;; Look for the biggest hit
-          (if-let [hits (seq (sort-by count #(compare %2 %1)
-                                      (ub/lookup-subs t mutations)))]
+          (if-let [hits (seq (ub/lookup-subs t mutations))]
             (let [subsets (map
                            (fn [h] [(get smap h)
                                     (- (count mutations) (count h))])
@@ -95,7 +94,7 @@
                rest
                t
                smap
-               (assoc edges name kvs)))
+               (assoc edges name subsets)))
             (recur
              rest
              (ub/insert t mutations)
@@ -120,7 +119,7 @@
        sam
        SAMFileReader$ValidationStringency/SILENT)
       (let [muts (identify-mutations-in-sam sam ref-map)]
-        (with-open [out-file out-file]
+        (with-open [^java.io.Closeable out-file out-file]
           (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "dist"]])
           (doseq [mut muts]
             (let [summaries (->> mut
