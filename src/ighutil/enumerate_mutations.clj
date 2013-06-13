@@ -78,9 +78,8 @@
               mutations (vec (sort m))]
           ;; Look for the biggest hit
           (if-let [hit (first
-                        (reverse
-                         (sort-by count #(compare %2 %1)
-                                  (ub/lookup-subs t mutations))))]
+                        (sort-by count #(compare %2 %1)
+                                 (ub/lookup-subs t mutations)))]
             (recur
              rest
              t
