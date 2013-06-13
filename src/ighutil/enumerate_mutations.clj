@@ -1,4 +1,6 @@
 (ns ighutil.enumerate-mutations
+  "Enumerate all mutations from germline.
+   Output is a graph containing edges between nodes with subsets of mutations."
   (:import [net.sf.picard.reference
             ReferenceSequenceFileFactory
             ReferenceSequenceFile
@@ -22,6 +24,7 @@
       (.print System/err (format "Read record %10d\r" n)))))
 
 (defn- strip-allele [^String s]
+  "Remove the allele from a string"
   (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
     (if (< idx 0)
       s
@@ -31,6 +34,7 @@
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
 (defn- identify-mutations-for-ref [records ^bytes ref-bases ref-name]
+  "Identify mutations for reads mapped to a single reference."
   (for [^SAMRecord r (remove non-primary records)]
     (let [muts (SAMUtils/enumerateMutations r ref-bases)
           tag #(.getAttribute r ^String %)]
@@ -44,6 +48,7 @@
        :count (tag "XC")})))
 
 (defn- identify-mutations-in-sam [^SAMFileReader reader ref-map]
+  "Identify mutations from reference sequence in a SAM file."
   (when-not (.hasIndex reader)
     (throw (IllegalArgumentException. (format "SAM file lacks index!"))))
   (for [v-group (->> ref-map
@@ -62,6 +67,8 @@
            (doall mutations)))))))
 
 (defn- extract-refs [^ReferenceSequenceFile f]
+  "Extract all references into a seq of [name, bases]
+   Bases are encoded in a byte array."
   (.reset f)
   (->> (repeatedly #(.nextSequence f))
        (take-while identity)
@@ -77,15 +84,18 @@
         (let [{m :mutations name :name} r
               mutations (vec (sort m))]
           ;; Look for the biggest hit
-          (if-let [hit (first
-                        (sort-by count #(compare %2 %1)
-                                 (ub/lookup-subs t mutations)))]
-            (recur
-             rest
-             t
-             smap
-             (assoc edges name [(get smap hit)
-                                (- (count mutations) (count hit))]))
+          (if-let [hits (seq (sort-by count #(compare %2 %1)
+                                      (ub/lookup-subs t mutations)))]
+            (let [subsets (map
+                           (fn [h] [(get smap h)
+                                    (- (count mutations) (count h))])
+                           hits)]
+              (assert (> (count hits) 0))
+              (recur
+               rest
+               t
+               smap
+               (assoc edges name kvs)))
             (recur
              rest
              (ub/insert t mutations)
@@ -126,7 +136,8 @@
               (csv/write-csv
                out-file
                (for [{:keys [v-gene j-gene edges n-seqs]} summaries
-                     [from [to i]] edges]
+                     [from kvs] edges
+                     [to i] kvs]
                  [v-gene j-gene n-seqs from to i])))))))))
 
 (defn test-enumerate []
