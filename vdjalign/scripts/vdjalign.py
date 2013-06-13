@@ -10,6 +10,7 @@ from .. import subcommands, __version__ as version
 
 DESCRIPTION = __doc__.strip()
 
+
 def main(argv=sys.argv[1:]):
     arguments = parse_arguments(argv)
 
@@ -20,15 +21,11 @@ def main(argv=sys.argv[1:]):
         3: logging.DEBUG,
     }.get(arguments.verbosity, logging.DEBUG)
 
-    if arguments.verbosity > 1:
-        logformat = '%(levelname)s %(module)s %(lineno)s %(message)s'
-    else:
-        logformat = '%(message)s'
-
     # set up logging
-    logging.basicConfig(file=sys.stdout, format=logformat, level=loglevel)
+    logging.basicConfig(file=sys.stdout, level=loglevel)
 
     return arguments.func(arguments)
+
 
 def parse_arguments(argv):
     """

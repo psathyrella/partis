@@ -181,7 +181,6 @@ def build_parser(p):
     p.add_argument('v_bamfile')
     p.add_argument('j_bamfile')
     p.add_argument('-r', '--read-group')
-    p.add_argument('-p', '--read-prefix', default='')
     p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
@@ -200,7 +199,7 @@ def action(a):
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
         int_or_none = or_none(int)
-        sequences = (('{0}{1:06d}'.format(a.read_prefix, i),
+        sequences = ((row['name'],
                       row[a.sequence_column],
                       {TAG_COUNT: int_or_none(row[a.count_column]),
                        TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
