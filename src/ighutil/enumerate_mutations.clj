@@ -14,7 +14,8 @@
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
             [ighutil.io :as zio]
-            [ighutil.ubtree :as ub]))
+            [ighutil.ubtree :as ub]
+            [clojure.core.reducers :as r]))
 
 (def ^{:private true} n-records (atom 0))
 
@@ -35,17 +36,21 @@
 
 (defn- identify-mutations-for-ref [records ^bytes ref-bases ref-name]
   "Identify mutations for reads mapped to a single reference."
-  (for [^SAMRecord r (remove non-primary records)]
-    (let [muts (SAMUtils/enumerateMutations r ref-bases)
-          tag #(.getAttribute r ^String %)]
-      (report!)
-      {:name (.getReadName r)
-       :reference ref-name
-       :mutations muts
-       :n-mutations (count muts)
-       :cdr3-length (tag "XL")
-       :j-gene (tag "XJ")
-       :count (tag "XC")})))
+  (->>
+   records
+   (remove non-primary)
+   vec
+   (r/map (fn [^SAMRecord r]
+            (let [muts (SAMUtils/enumerateMutations r ref-bases)
+                  tag #(.getAttribute r ^String %)]
+              {:name (.getReadName r)
+               :reference ref-name
+               :mutations muts
+               :n-mutations (count muts)
+               :cdr3-length (tag "XL")
+               :j-gene (tag "XJ")
+               :count (tag "XC")})))
+   r/foldcat))
 
 (defn- identify-mutations-in-sam [^SAMFileReader reader ref-map]
   "Identify mutations from reference sequence in a SAM file."
