@@ -24,27 +24,38 @@ public class SAMUtils {
         int qi = 0, ri = start;
 
         for(final CigarElement e : record.getCigar().getCigarElements()) {
+            final int length = e.getLength();
             switch (e.getOperator()) {
             case H:
             case S:
                 break;
             case I:
                 result.add(new Mutation(MutationType.INSERTION, ri, "-",
-                                        new String(qBases, qi, e.getLength())));
+                                        new String(qBases, qi, length)));
                 break;
             case D:
                 result.add(new Mutation(MutationType.DELETION, ri,
-					new String(referenceBases, ri, 1),
-					"-"));
+                                        new String(referenceBases, ri, 1),
+                                        "-"));
                 break;
             case M:
-                for(int i = 0; i < e.getLength(); ++i) {
+                for(int i = 0; i < length; ++i) {
                     if(qBases[qi+i] != referenceBases[ri+i]) {
                         result.add(new Mutation(MutationType.MUTATION, ri + i,
-						new String(referenceBases, ri + i, 1),
-						new String(qBases, qi + i, 1)));
+                                                new String(referenceBases, ri + i, 1),
+                                                new String(qBases, qi + i, 1)));
                     }
                 }
+                break;
+            case X:
+                // Bases not equal - skip check
+                for(int i = 0; i < length; ++i) {
+                    result.add(new Mutation(MutationType.MUTATION, ri + i,
+                                            new String(referenceBases, ri + i, 1),
+                                            new String(qBases, qi + i, 1)));
+                }
+            case EQ:
+                // Bases equal - no action.
                 break;
             default:
                 throw new IllegalArgumentException("unknown " + e.toString());
