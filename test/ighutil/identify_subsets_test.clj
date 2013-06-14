@@ -1,7 +1,7 @@
-(ns ighutil.enumerate-mutations-test
+(ns ighutil.identify-subsets-test
   (:import [io.github.cmccoy.sam Mutation Mutation$MutationType])
   (:require [clojure.test :refer :all]
-            [ighutil.enumerate-mutations :refer :all]))
+            [ighutil.identify-subsets :refer :all]))
 
 (defn- mut [ref-idx wt mut]
   (Mutation. Mutation$MutationType/MUTATION ref-idx wt mut))
