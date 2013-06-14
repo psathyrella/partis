@@ -9,7 +9,7 @@
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency]
-           [io.github.cmccoy.sam SAMUtils])
+           [io.github.cmccoy.sam SAMUtils Mutation])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
@@ -52,27 +52,29 @@
                :count (tag "XC")})))
    r/foldcat))
 
-(defn- identify-mutations-in-sam [^SAMFileReader reader ref-map]
+(defn identify-mutations-in-sam [^SAMFileReader reader ref-map]
   "Identify mutations from reference sequence in a SAM file."
   (when-not (.hasIndex reader)
     (throw (IllegalArgumentException. (format "SAM file lacks index!"))))
-  (for [v-group (->> ref-map
-                     (sort-by first)
-                     (partition-by (comp strip-allele first)))]
-    (apply
-     concat
-     (for [[^String ref-name ^bytes ref-bases] v-group]
-       (with-open [reads (.query reader ref-name 0 0 false)]
-         (let [mutations (-> reads
-                             iterator-seq
-                             (identify-mutations-for-ref
-                              ref-bases
-                              (strip-allele ref-name)))]
-           ;; Have to consume the seq here:
-           ;; Only one SAM iterator may be open at a time.
-           (doall mutations)))))))
+  (apply
+   concat
+   (for [v-group (->> ref-map
+                      (sort-by first)
+                      (partition-by (comp strip-allele first)))]
+     (apply
+      concat
+      (for [[^String ref-name ^bytes ref-bases] v-group]
+        (with-open [reads (.query reader ref-name 0 0 false)]
+          (let [mutations (-> reads
+                              iterator-seq
+                              (identify-mutations-for-ref
+                               ref-bases
+                               (strip-allele ref-name)))]
+            ;; Have to consume the seq here:
+            ;; Only one SAM iterator may be open at a time.
+            (doall mutations))))))))
 
-(defn- extract-refs [^ReferenceSequenceFile f]
+(defn extract-refs [^ReferenceSequenceFile f]
   "Extract all references into a seq of [name, bases]
    Bases are encoded in a byte array."
   (.reset f)
@@ -80,33 +82,6 @@
        (take-while identity)
        (map (fn [^ReferenceSequence s]
               [(.getName s) (.getBases s)]))))
-
-(defn summarize-mutation-partition [coll]
-  (let [{:keys [j-gene cdr3-length reference]} (first coll)
-        coll (vec coll)
-        n-seqs (count coll)]
-    (loop [[r & rest] coll t ub/ubtree smap {} edges {}]
-      (if r
-        (let [{m :mutations name :name} r
-              mutations (vec (sort m))]
-          (if-let [hits (seq (ub/lookup-subs t mutations))]
-            (let [subsets (map
-                           (fn [h] [(get smap h)
-                                    (- (count mutations) (count h))])
-                           hits)]
-              (assert (> (count hits) 0))
-              (recur
-               rest
-               t
-               smap
-               (assoc edges name subsets)))
-            (recur
-             rest
-             (ub/insert t mutations)
-             (assoc smap mutations name)
-             edges)))
-        {:v-gene reference :j-gene j-gene :cdr3-length cdr3-length :edges edges
-         :n-seqs n-seqs}))))
 
 (defcommand enumerate-mutations
   "Enumerate mutations by V / J"
@@ -125,24 +100,11 @@
        SAMFileReader$ValidationStringency/SILENT)
       (let [muts (identify-mutations-in-sam sam ref-map)]
         (with-open [^java.io.Closeable out-file out-file]
-          (csv/write-csv out-file [["v_gene" "j_gene" "n_seqs" "a" "b" "dist"]])
-          (doseq [mut muts]
-            (let [summaries (->> mut
-                                 (remove (comp zero? :n-mutations))
-                                 (sort-by (juxt :reference
-                                                :j-gene
-                                                :cdr3-lenth
-                                                :n-mutations))
-                                 (partition-by (juxt :reference
-                                                     :j-gene
-                                                     :cdr3-length))
-                                 (map summarize-mutation-partition))]
-              (csv/write-csv
-               out-file
-               (for [{:keys [v-gene j-gene edges n-seqs]} summaries
-                     [from kvs] edges
-                     [to i] kvs]
-                 [v-gene j-gene n-seqs from to i])))))))))
-
-(defn test-enumerate []
-  (enumerate-mutations ["-o" "test.csv" "ighv.fasta" "AJ_memory_001_v.bam"]))
+          (csv/write-csv out-file [["sequence" "reference" "location" "type" "wt" "mut"]])
+          (let [rows (for [{:keys [mutations name reference] :as read} muts
+                            ^Mutation m mutations]
+                        [name reference (.. m (getType) (getCode))
+                         (.getPosition m)
+                         (.getWildType m)
+                         (.getMutant m)])]
+            (csv/write-csv out-file rows)))))))

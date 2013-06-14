@@ -14,7 +14,7 @@ public class Mutation implements Comparable<Mutation> {
 
         private final String code;
         MutationType(final String code) { this.code = code; }
-        String getCode() { return this.code; }
+        public String getCode() { return this.code; }
     }
 
     private final MutationType type;
