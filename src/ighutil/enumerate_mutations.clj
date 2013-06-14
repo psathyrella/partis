@@ -50,7 +50,7 @@
                :cdr3-length (tag "XL")
                :j-gene (tag "XJ")
                :count (tag "XC")})))
-   r/foldcat))
+   (into [])))
 
 (defn identify-mutations-in-sam [^SAMFileReader reader ref-map]
   "Identify mutations from reference sequence in a SAM file."
