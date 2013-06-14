@@ -20,6 +20,7 @@
                                                        extract-refs]]))
 
 (defn summarize-mutation-partition [coll]
+  "Look for mutations which are supersets of the mutations in other reads."
   (let [{:keys [j-gene cdr3-length reference]} (first coll)
         coll (vec coll)
         n-seqs (count coll)]
