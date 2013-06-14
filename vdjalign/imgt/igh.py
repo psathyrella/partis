@@ -16,6 +16,8 @@ _CYSTEINE_POSITION = 3 * (104 - 1)
 
 _GAP = '.-'
 
+def _remove_allele(s):
+    return s.rpartition('*')[0]
 
 def _position_lookup(sequence):
     result = {}
@@ -28,16 +30,22 @@ def _position_lookup(sequence):
     return result
 
 
-def cysteine_map():
+def cysteine_map(fname='ighv_aligned.fasta'):
     """
     Calculate cysteine position in each sequence of the ighv alignment
     """
     result = {}
-    with resource_stream(_PKG, 'ighv_aligned.fasta') as fp:
-        sequences = ((name.split('|')[1], seq) for name, seq, _ in util.readfq(fp))
+    with resource_stream(_PKG, fname) as fp:
+        sequences = ((name.split('|')[1], seq)
+                     for name, seq, _ in util.readfq(fp))
 
         for name, s in sequences:
-            result[name] = _position_lookup(s).get(_CYSTEINE_POSITION)
+            name = _remove_allele(name)
+            p = _position_lookup(s).get(_CYSTEINE_POSITION)
+            if p is None:
+                continue
+            result[name] = max(p, result.get(name, -1))
+
     return result
 
 
@@ -55,24 +63,25 @@ def tryptophan_map():
             codon_start = int(splt[7])
 
             for i in xrange(codon_start - 1, len(s), 3):
-                if s[i:i+3] == 'TGG':
+                if s[i:i + 3] == 'TGG':
                     result[name] = i
                     break
             else:
                 raise ValueError(s)
     return result
 
-def consensus_by_allele():
-    def remove_allele(s):
-        return s.rpartition('*')[0]
-    with resource_stream(_PKG, 'ighv_aligned.fasta') as fp:
-        sequences = ((name.split('|')[1], seq) for name, seq, _ in util.readfq(fp))
+
+def consensus_by_allele(file_name):
+    with resource_stream(_PKG, file_name) as fp:
+        sequences = ((name.split('|')[1], seq)
+                     for name, seq, _ in util.readfq(fp))
         sequences = sorted(sequences)
-        grouped = itertools.groupby(sequences, lambda (name, _): remove_allele(name))
+        grouped = itertools.groupby(sequences,
+                                    lambda (name, _): _remove_allele(name))
         for g, seqs in grouped:
             seqs = list(seqs)
             drop_indices = frozenset([i for i in xrange(len(seqs[0][1]))
-                                      if all(s[i] in '.-' for _, s in seqs)])
+                                      if all(s[i] in _GAP for _, s in seqs)])
 
             def remove_dropped(s):
                 return ''.join(c for i, c in enumerate(s)
@@ -94,4 +103,4 @@ def consensus_by_allele():
                 name, seq, _ = next(util.readfq(fp))
             returncode = p.wait()
             assert returncode == 0, returncode
-            yield name, remove_dropped(seq)
+            yield name, remove_dropped(seq).upper()
