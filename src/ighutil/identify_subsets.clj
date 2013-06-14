@@ -48,7 +48,7 @@
          :n-seqs n-seqs}))))
 
 (defcommand identify-subsets
-  "Enumerate mutations by V / J"
+  "Identify reads containing supersets of mutations on other reads."
   {:opts-spec [["-j" "--jobs" "Number of processors" :default 1
                 :parse-fn #(Integer. ^String %)]
                ["-o" "--out-file" "Destination path"
