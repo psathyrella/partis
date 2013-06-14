@@ -2,7 +2,7 @@
   (:require [cliopatra.command :as command]
             [ighutil enumerate-mutations
              identify-subsets count-mismatches
-             mutations-by-site])
+             mutations-by-site add-quality-scores])
   (:gen-class
    :name ighutil.main))
 
@@ -11,5 +11,6 @@
    ['ighutil.enumerate-mutations
     'ighutil.identify-subsets
     'ighutil.count-mismatches
-    'ighutil.mutations-by-site]
+    'ighutil.mutations-by-site
+    'ighutil.add-quality-scores]
    args))
