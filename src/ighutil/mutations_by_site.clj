@@ -41,7 +41,8 @@
 
 (defcommand mutations-by-site
   "Count mutations in reads"
-  {:opts-spec [["-i" "--in-file" "Source file" :required true]
+  {:opts-spec [["-i" "--in-file" "Source file" :required true
+                :parse-fn io/file]
                ["-o" "--out-file" "Destination path"
                 :parse-fn zio/writer :required true]
                ["-r" "--reference-file" "Reference file" :required true]]}
@@ -49,7 +50,7 @@
                  io/file
                  ReferenceSequenceFileFactory/getReferenceSequenceFile)
          ref-map (into {}  (extract-refs ref))]
-     (with-open [sam (SAMFileReader. (io/file in-file))]
+     (with-open [sam (SAMFileReader. in-file)]
        (.setValidationStringency
         sam
         SAMFileReader$ValidationStringency/SILENT)
