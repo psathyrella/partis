@@ -46,7 +46,7 @@
                ["-o" "--out-file" "Destination path"
                 :parse-fn zio/writer :required true]
                ["-r" "--reference-file" "Reference file" :required true]]}
-  ((let [ref (-> reference-file
+  (let [ref (-> reference-file
                  io/file
                  ReferenceSequenceFileFactory/getReferenceSequenceFile)
          ref-map (into {}  (extract-refs ref))]
@@ -58,4 +58,4 @@
          (csv/write-csv out-file [["reference" "position" "ref-base" "n-reads" "A" "C" "G" "T" "N"]])
          (let [base-freqs (count-mutations-by-position sam ref-map)
                rows (map (juxt :reference :position :ref-base :n-reads :A :C :G :T :N) base-freqs)]
-           (csv/write-csv out-file rows)))))))
+           (csv/write-csv out-file rows))))))
