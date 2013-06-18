@@ -19,19 +19,19 @@
     identity))
 
 (defn ^java.io.OutputStream output-stream [file-name]
+  (if (= file-name "-")
+    (io/output-stream System/out)
   (let [cls (output-stream-for-name file-name)]
-    (-> file-name io/file io/output-stream cls)))
+    (-> file-name io/file io/output-stream cls))))
 
 (defn ^java.io.Writer writer [file-name]
   (-> file-name output-stream io/writer))
 
 (defn ^java.io.InputStream input-stream [file-name]
-  (let [cls (input-stream-for-name file-name)]
-    (-> file-name io/file io/input-stream cls)))
+  (if (= file-name "-")
+    (io/input-stream System/in)
+    (let [cls (input-stream-for-name file-name)]
+      (-> file-name io/file io/input-stream cls))))
 
 (defn ^java.io.Reader reader [file-name]
   (-> file-name input-stream io/reader))
-
-(defn test-write-bz2 []
-  (with-open [w (writer "/tmp/test.txt.bz2")]
-    (.write w "Some test text I want to keep.")))
