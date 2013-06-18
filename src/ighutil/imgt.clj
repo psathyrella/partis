@@ -1,6 +1,7 @@
 (ns ighutil.imgt
   (:require [clojure.java.io :as io]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [clojure.edn :as edn])
   (:import [net.sf.picard.reference FastaSequenceFile ReferenceSequence]))
 
 (defn indexed
@@ -44,3 +45,14 @@
                                           nongap-lookup)]
                              [name (get pos-map CYSTEINE-POSITION)]))]
     (into {} (map extract-position (read-fasta f)))))
+
+(defn slurp-edn-resource [resource-name]
+  (with-open [reader (-> resource-name
+                         io/resource
+                         io/file
+                         io/reader
+                         (java.io.PushbackReader.))]
+    (edn/read reader)))
+
+(def cons-cysteine-map (slurp-edn-resource
+                        "ighutil/ighv_cons_cysteine.clj"))
