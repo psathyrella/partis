@@ -28,7 +28,7 @@
                 :parse-fn #(Integer/valueOf ^String %)]
                ["--[no-]sorted" "Input values are sorted." :default false]]}
   (assert (not= in-file out-file))
-  (assert (.exists in-file))
+  (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
     (.setValidationStringency
      reader

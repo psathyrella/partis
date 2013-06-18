@@ -6,6 +6,7 @@
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
+            [plumbing.core :refer [frequencies-fast]]
             [ighutil.io :as zio]))
 
 (defn- strip-allele [^String s]
@@ -18,13 +19,11 @@
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
-(defrecord MutationSummary [^String reference ^String read-name n-aligned
-                            n-mismatches])
+(defrecord MutationSummary [^String reference n-aligned n-mismatches])
 
 (defn- count-mutations-in-record [^SAMRecord read]
   (MutationSummary.
-   (.getReferenceName read)
-   (.getReadName read)
+   ^String (.getReferenceName read)
    (- (.getAlignmentEnd read) (.getAlignmentStart read))
    (.getAttribute read "NM")))
 
@@ -33,7 +32,8 @@
        (.iterator)
        iterator-seq
        (remove non-primary)
-       (map count-mutations-in-record)))
+       (map count-mutations-in-record)
+       frequencies-fast))
 
 (defcommand count-mismatches
   "Count mutations in reads"
@@ -44,9 +44,9 @@
     (.setValidationStringency
      sam
      SAMFileReader$ValidationStringency/SILENT)
-    (let [rows (map (juxt :read-name :reference :n-aligned :n-mismatches)
+    (let [rows (map (fn [[{:keys [reference n-aligned n-mismatches]} v]]
+                      [reference n-aligned n-mismatches v])
                     (count-mutations-in-sam sam))]
       (with-open [^java.io.Closeable out-file out-file]
-        (csv/write-csv out-file [["sequence" "reference" "aligned_length"
-                                  "mismatches"]])
+        (csv/write-csv out-file [["reference" "aligned_length" "mismatches" "frequency"]])
         (csv/write-csv out-file rows)))))
