@@ -50,11 +50,11 @@
                  io/file
                  ReferenceSequenceFileFactory/getReferenceSequenceFile)
          ref-map (into {}  (extract-refs ref))]
-     (with-open [sam (SAMFileReader. in-file)]
+     (with-open [sam (SAMFileReader. ^java.io.File in-file)]
        (.setValidationStringency
         sam
         SAMFileReader$ValidationStringency/SILENT)
-       (with-open [out-file out-file]
+       (with-open [^java.io.Closeable out-file out-file]
          (csv/write-csv out-file [["reference" "position" "ref-base" "n-reads" "A" "C" "G" "T" "N"]])
          (let [base-freqs (count-mutations-by-position sam ref-map)
                rows (map (juxt :reference :position :ref-base :n-reads :A :C :G :T :N) base-freqs)]
