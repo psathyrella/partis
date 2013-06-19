@@ -19,21 +19,27 @@
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
-(defrecord MutationSummary [^String reference n-aligned n-mismatches])
+(defrecord ^{:private true} MutationKey [^String reference n-aligned n-mismatches])
 
 (defn- count-mutations-in-record [^SAMRecord read]
-  (MutationSummary.
-   ^String (.getReferenceName read)
-   (- (.getAlignmentEnd read) (.getAlignmentStart read))
-   (.getAttribute read "NM")))
+  [(MutationKey.
+      ^String (.getReferenceName read)
+      (- (.getAlignmentEnd read) (.getAlignmentStart read))
+      (.getAttribute read "NM")) (or (.getAttribute read "XC") 1)])
 
 (defn- count-mutations-in-sam [^SAMFileReader sam-file]
+  (letfn [(reduce-counts [xs]
+            (let [m (java.util.HashMap.)]
+              (doseq [[mut record-count] xs]
+                (let [[n c] (or (.get m mut) [0 0])]
+                  (.put m mut [(unchecked-inc n) (+ record-count c)])))
+              (into {} m)))]
   (->> sam-file
        (.iterator)
        iterator-seq
        (remove non-primary)
        (map count-mutations-in-record)
-       frequencies-fast))
+       reduce-counts)))
 
 (defcommand count-mismatches
   "Count mutations in reads"
@@ -44,9 +50,9 @@
     (.setValidationStringency
      sam
      SAMFileReader$ValidationStringency/SILENT)
-    (let [rows (map (fn [[{:keys [reference n-aligned n-mismatches]} v]]
-                      [reference n-aligned n-mismatches v])
+    (let [rows (map (fn [[{:keys [reference n-aligned n-mismatches]} [n c]]]
+                      [reference n-aligned n-mismatches n c])
                     (count-mutations-in-sam sam))]
       (with-open [^java.io.Closeable out-file out-file]
-        (csv/write-csv out-file [["reference" "aligned_length" "mismatches" "frequency"]])
+        (csv/write-csv out-file [["reference" "aligned_length" "mismatches" "count" "frequency"]])
         (csv/write-csv out-file rows)))))
