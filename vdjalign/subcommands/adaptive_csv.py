@@ -1,5 +1,5 @@
 """
-Align V and J starting from an adaptive XsV file
+Align V and J starting from an adaptive CSV file
 """
 import contextlib
 import csv
