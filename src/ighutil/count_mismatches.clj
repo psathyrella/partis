@@ -7,7 +7,9 @@
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
             [plumbing.core :refer [frequencies-fast]]
-            [ighutil.io :as zio]))
+            [ighutil.io :as zio]
+            [ighutil.sam-tags :refer [TAG-COUNT
+                                       TAG-N-MISMATCHES]]))
 
 (defn- strip-allele [^String s]
   "Remove the allele from a string"
@@ -25,7 +27,8 @@
   [(MutationKey.
       ^String (.getReferenceName read)
       (- (.getAlignmentEnd read) (.getAlignmentStart read))
-      (.getAttribute read "NM")) (or (.getAttribute read "XC") 1)])
+      (.getAttribute read TAG-N-MISMATCHES))
+   (or (.getAttribute read TAG-COUNT) 1)])
 
 (defn- count-mutations-in-sam [^SAMFileReader sam-file]
   (letfn [(reduce-counts [xs]
