@@ -16,8 +16,8 @@
             [ighutil.io :as zio]
             [ighutil.ubtree :as ub]
             [clojure.core.reducers :as r]
-            [ighutil.enumerate-mutations :refer [identify-mutations-in-sam
-                                                       extract-refs]]))
+            [ighutil.enumerate-mutations :refer [identify-mutations-in-sam]]
+            [ighutil.fasta :refer [extract-references]]))
 
 (defn summarize-mutation-partition [coll]
   "Look for mutations which are supersets of the mutations in other reads."
@@ -57,7 +57,7 @@
   (let [ref (-> reference
                 io/file
                 ReferenceSequenceFileFactory/getReferenceSequenceFile)
-        ref-map (extract-refs ref)]
+        ref-map (extract-references ref)]
     (with-open [sam (SAMFileReader. (io/file v-sam-path))]
       (.setValidationStringency
        sam

@@ -15,6 +15,7 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.io :as zio]
             [ighutil.ubtree :as ub]
+            [ighutil.fasta :refer [extract-references]]
             [clojure.core.reducers :as r]))
 
 (def ^{:private true} n-records (atom 0))
@@ -74,15 +75,6 @@
             ;; Only one SAM iterator may be open at a time.
             (doall mutations))))))))
 
-(defn extract-refs [^ReferenceSequenceFile f]
-  "Extract all references into a seq of [name, bases]
-   Bases are encoded in a byte array."
-  (.reset f)
-  (->> (repeatedly #(.nextSequence f))
-       (take-while identity)
-       (map (fn [^ReferenceSequence s]
-              [(.getName s) (.getBases s)]))))
-
 (defcommand enumerate-mutations
   "Enumerate mutations by V / J"
   {:opts-spec [["-j" "--jobs" "Number of processors" :default 1
@@ -93,7 +85,7 @@
   (let [ref (-> reference
                 io/file
                 ReferenceSequenceFileFactory/getReferenceSequenceFile)
-        ref-map (extract-refs ref)]
+        ref-map (extract-references ref)]
     (with-open [sam (SAMFileReader. (io/file v-sam-path))]
       (.setValidationStringency
        sam

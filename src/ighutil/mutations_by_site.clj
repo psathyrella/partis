@@ -14,7 +14,7 @@
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
-            [ighutil.enumerate-mutations :refer [extract-refs]]
+            [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]))
 
 (defn count-mutations-by-position [^SAMFileReader reader ref-map]
@@ -49,7 +49,7 @@
   (let [ref (-> reference-file
                  io/file
                  ReferenceSequenceFileFactory/getReferenceSequenceFile)
-         ref-map (into {}  (extract-refs ref))]
+         ref-map (into {}  (extract-references ref))]
      (with-open [sam (SAMFileReader. ^java.io.File in-file)]
        (.setValidationStringency
         sam
