@@ -56,3 +56,5 @@
 
 (def cons-cysteine-map (slurp-edn-resource
                         "ighutil/ighv_cons_cysteine.clj"))
+
+(def v-gene-meta (slurp-edn-resource "ighutil/ighv_cons.clj"))
