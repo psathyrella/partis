@@ -11,11 +11,10 @@
    :name ighutil.main))
 
 (defn -main [& args]
-  (command/dispatch
-   ['ighutil.enumerate-mutations
-    'ighutil.identify-subsets
-    'ighutil.count-mismatches
-    'ighutil.identify-motif
-    'ighutil.mutations-by-site
-    'ighutil.add-quality-scores]
-   args))
+  (let [commands ['ighutil.enumerate-mutations
+                  'ighutil.identify-subsets
+                  'ighutil.count-mismatches
+                  'ighutil.identify-motif
+                  'ighutil.mutations-by-site
+                  'ighutil.add-quality-scores]]
+    (command/dispatch (sort commands) args)))
