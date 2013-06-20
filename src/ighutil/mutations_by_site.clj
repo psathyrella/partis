@@ -26,7 +26,9 @@
                 pos (dec (.getPosition locus))
                 ref-base (char (aget ^bytes ref-bases pos))
                 record-pos (.getRecordAndPositions locus)
-                bases (map #(-> (.getReadBase ^SamLocusIterator$RecordAndOffset %) char str keyword)
+                bases (map #(->
+                             (.getReadBase ^SamLocusIterator$RecordAndOffset %)
+                             char str keyword)
                            record-pos)]
             (assoc (frequencies bases)
               :position pos
@@ -47,15 +49,17 @@
                 :parse-fn zio/writer :required true]
                ["-r" "--reference-file" "Reference file" :required true]]}
   (let [ref (-> reference-file
-                 io/file
-                 ReferenceSequenceFileFactory/getReferenceSequenceFile)
-         ref-map (into {}  (extract-references ref))]
-     (with-open [sam (SAMFileReader. ^java.io.File in-file)]
-       (.setValidationStringency
-        sam
-        SAMFileReader$ValidationStringency/SILENT)
-       (with-open [^java.io.Closeable out-file out-file]
-         (csv/write-csv out-file [["reference" "position" "ref-base" "n-reads" "A" "C" "G" "T" "N"]])
-         (let [base-freqs (count-mutations-by-position sam ref-map)
-               rows (map (juxt :reference :position :ref-base :n-reads :A :C :G :T :N) base-freqs)]
-           (csv/write-csv out-file rows))))))
+                io/file
+                ReferenceSequenceFileFactory/getReferenceSequenceFile)
+        ref-map (into {}  (extract-references ref))]
+    (with-open [sam (SAMFileReader. ^java.io.File in-file)]
+      (.setValidationStringency
+       sam
+       SAMFileReader$ValidationStringency/SILENT)
+      (with-open [^java.io.Closeable out-file out-file]
+        (csv/write-csv out-file [["reference" "position" "ref-base" "n-reads"
+                                  "A" "C" "G" "T" "N"]])
+        (let [base-freqs (count-mutations-by-position sam ref-map)
+              rows (map (juxt :reference :position:ref-base :n-reads
+                              :A :C :G :T :N) base-freqs)]
+          (csv/write-csv out-file rows))))))
