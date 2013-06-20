@@ -2,9 +2,7 @@
   "Enumerate all mutations from germline.
    Output is a graph containing edges between nodes with subsets of mutations."
   (:import [net.sf.picard.reference
-            ReferenceSequenceFileFactory
-            ReferenceSequenceFile
-            ReferenceSequence]
+            ReferenceSequenceFileFactory]
            [net.sf.samtools
             SAMRecord
             SAMFileReader
