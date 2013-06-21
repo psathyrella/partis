@@ -70,7 +70,7 @@ public class IUPACUtils {
 //    return true;
   }
 
-  public static boolean areCompatible(final short[] s1, final short[] s2, 
+  public static boolean areCompatible(final short[] s1, final short[] s2,
       final int start, final int length) {
     checkNotNull(s1);
     checkNotNull(s2);
@@ -80,7 +80,7 @@ public class IUPACUtils {
         s2.length);
     checkArgument(start < s1.length,
         "Start after end of array (%d >= %d)",
-        start, 
+        start,
         s1.length);
     final int end = start + length;
     checkArgument(end <= s1.length,
@@ -90,6 +90,39 @@ public class IUPACUtils {
         return false;
     }
     return true;
+  }
+
+  /**
+   * Tests whether s2 is a subset of s1
+   */
+  public static boolean isSubset(short s1, short s2) {
+    return 0 == (s2 & ~s1);
+  }
+
+  public static boolean isSubset(final short[] s1, final short[] s2,
+      final int start, final int length) {
+    checkNotNull(s1);
+    checkNotNull(s2);
+    checkArgument(length == s2.length,
+        "Lengths differ: %d != %d",
+        length,
+        s2.length);
+    checkArgument(start < s1.length,
+        "Start after end of array (%d >= %d)",
+        start,
+        s1.length);
+    final int end = start + length;
+    checkArgument(end <= s1.length,
+        "End after end of array (%d > %d)", end, s1.length);
+    for(int i = 0; i < length; ++i) {
+      if(!isSubset(s1[start + i], s2[i]))
+        return false;
+    }
+    return true;
+  }
+
+  public static boolean isSubset(final short[] s1, final short[] s2) {
+    return isSubset(s1, s2, 0, s1.length);
   }
 
 }

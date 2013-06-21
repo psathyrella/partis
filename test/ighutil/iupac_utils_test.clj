@@ -33,3 +33,17 @@
        "V" "T"
        "C" "D"
        "R" "Y"))
+
+(defn subset? [^String s1 ^String s2]
+  (let [p1 (IUPACUtils/packBytes (.getBytes s1))
+        p2 (IUPACUtils/packBytes (.getBytes s2))]
+    (IUPACUtils/isSubset p1 p2)))
+
+(deftest test-is-subset
+  (are [x y] (subset? x y)
+       "ACGT" "ACGT"
+       "NNNN" "ACGT"
+       "WCGB" "ACGT")
+  (are [x y] (not (subset? x y))
+       "M" "R"
+       "Y" "N"))
