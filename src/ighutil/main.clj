@@ -6,7 +6,8 @@
              count-mismatches
              mutations-by-site
              add-quality-scores
-             identify-motif])
+             identify-motif
+             reset-primary])
   (:gen-class
    :name ighutil.main))
 
@@ -16,5 +17,6 @@
                   'ighutil.count-mismatches
                   'ighutil.identify-motif
                   'ighutil.mutations-by-site
-                  'ighutil.add-quality-scores]]
+                  'ighutil.add-quality-scores
+                  'ighutil.reset-primary]]
     (command/dispatch (sort commands) args)))
