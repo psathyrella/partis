@@ -15,15 +15,15 @@
 
 (defn- random-tiebreak [reads]
   (let [^SAMRecord primary (first (filter primary? reads))
-        sorted (sort-by alignment-score #(compare %2 %1))
+        sorted (sort-by alignment-score #(compare %2 %1) reads)
         max-score (-> sorted
                       first
                       alignment-score)
         max-records (vec (take-while
-                          (comp (partial = max-score) (alignment-score))
+                          (comp (partial = max-score) alignment-score)
                           sorted))
-        selection (rand-nth max-records)]
-    (when-not (= selection primary)
+        ^SAMRecord selection (rand-nth max-records)]
+    (when (and primary (not= selection primary))
       (do
         (doto selection
           (.setReadBases (.getReadBases primary))
