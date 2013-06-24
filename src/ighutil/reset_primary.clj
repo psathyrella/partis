@@ -25,6 +25,7 @@
         ^SAMRecord selection (rand-nth max-records)]
     (when (and primary (not= selection primary))
       (do
+        ;; Swap out the primary read
         (doto selection
           (.setReadBases (.getReadBases primary))
           (.setBaseQualities (.getBaseQualities primary))
@@ -36,6 +37,7 @@
     reads))
 
 (defn- assign-primary-for-partition [select-fn reads]
+  "Assign a primary read for a partition of mappings for a single read"
   (if (= 1 (count reads))
     reads
     (select-fn reads)))
