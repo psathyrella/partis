@@ -37,9 +37,7 @@
                                             (.getFileHeader reader)
                                             sorted
                                             ^java.io.File out-file)]
-      (doseq [read (seq-counter
-                    (->> reader
-                         .iterator
-                         iterator-seq)
-                    100000 (partial println "Record"))]
+      (doseq [read (->> reader
+                        .iterator
+                        iterator-seq)]
         (.addAlignment writer (fill-read-quality quality read))))))
