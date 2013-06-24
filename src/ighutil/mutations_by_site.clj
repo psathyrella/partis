@@ -60,6 +60,6 @@
         (csv/write-csv out-file [["reference" "position" "ref-base" "n-reads"
                                   "A" "C" "G" "T" "N"]])
         (let [base-freqs (count-mutations-by-position sam ref-map)
-              rows (map (juxt :reference :position:ref-base :n-reads
+              rows (map (juxt :reference :position :ref-base :n-reads
                               :A :C :G :T :N) base-freqs)]
           (csv/write-csv out-file rows))))))
