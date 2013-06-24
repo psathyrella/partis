@@ -110,22 +110,16 @@ def identify_cdr3_end(j_bam, v_metadata):
         read.tags = tags
         yield read
 
-def bwa_to_sorted_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
+def bwa_to_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
     cmd1 = ['bwa', alg, index_path, '-'] + (bwa_opts or [])
-    cmd2 = ['samtools', 'view', '-Su', '-'] + (sam_opts or [])
-    cmd3 = ['samtools', 'sort', '-', os.path.splitext(bam_dest)[0]]
-    log.info('BWA: %s | %s | %s', ' '.join(cmd1), ' '.join(cmd2), ' '.join(cmd3))
+    cmd2 = ['samtools', 'view', '-o', bam_dest, '-Sb', '-'] + (sam_opts or [])
+    log.info('BWA: %s | %s', ' '.join(cmd1), ' '.join(cmd2))
     p1 = subprocess.Popen(cmd1, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    p2 = subprocess.Popen(cmd2, stdin=p1.stdout, stdout=subprocess.PIPE)
-    p3 = subprocess.Popen(cmd3, stdin=p2.stdout)
+    p2 = subprocess.Popen(cmd2, stdin=p1.stdout)
 
     with p1.stdin as fp:
         for name, seq in sequence_iter:
             fp.write('>{0}\n{1}\n'.format(name, seq))
-
-    exit_code3 = p3.wait()
-    if exit_code3:
-        raise subprocess.CalledProcessError(exit_code3, cmd3)
 
     exit_code2 = p2.wait()
     if exit_code2:
@@ -142,7 +136,7 @@ def align_v(v_index_path, sequence_iter, bam_dest, threads=1, rg=None):
         opts.extend(('-t', str(threads)))
     if rg is not None:
         opts.extend(('-R', rg))
-    return bwa_to_sorted_bam(v_index_path, sequence_iter, bam_dest,
+    return bwa_to_bam(v_index_path, sequence_iter, bam_dest,
                              bwa_opts=opts)
 
 
@@ -168,7 +162,7 @@ def align_j(j_index_path, v_bam, bam_dest, threads=1, rg=None):
     if rg is not None:
         opts.extend(('-R', rg))
     sequences = extract_unaligned_tail(v_bam)
-    return bwa_to_sorted_bam(j_index_path, sequences, bam_dest, bwa_opts=opts)
+    return bwa_to_bam(j_index_path, sequences, bam_dest, bwa_opts=opts)
 
 
 def build_parser(p):
