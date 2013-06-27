@@ -15,10 +15,15 @@
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
-            [ighutil.io :as zio]))
+            [ighutil.io :as zio]
+            [ighutil.imgt :as imgt]
+            [plumbing.core :refer [map-vals]]))
 
 (defn count-mutations-by-position [^SAMFileReader reader ref-map]
   (let [locus-iterator (SamLocusIterator. reader)
+        position-translation (map-vals (comp (partial into {})
+                                             :translation)
+                                       imgt/v-gene-meta)
         summarize-position
         (fn [^SamLocusIterator$LocusInfo locus]
           (let [ref-name (.getSequenceName locus)
@@ -32,6 +37,7 @@
                            record-pos)]
             (assoc (frequencies bases)
               :position pos
+              :alignment-position (get-in position-translation [ref-name pos])
               :reference ref-name
               :n-reads (.size record-pos)
               :ref-base ref-base)))]
@@ -57,9 +63,12 @@
        sam
        SAMFileReader$ValidationStringency/SILENT)
       (with-open [^java.io.Closeable out-file out-file]
-        (csv/write-csv out-file [["reference" "position" "ref-base" "n-reads"
+        (csv/write-csv out-file [["reference" "position"
+                                  "alignment_position"
+                                  "ref_base" "n_reads"
                                   "A" "C" "G" "T" "N"]])
         (let [base-freqs (count-mutations-by-position sam ref-map)
-              rows (map (juxt :reference :position :ref-base :n-reads
+              rows (map (juxt :reference :position :alignment-position
+                              :ref-base :n-reads
                               :A :C :G :T :N) base-freqs)]
           (csv/write-csv out-file rows))))))
