@@ -49,7 +49,6 @@
 (defn slurp-edn-resource [resource-name]
   (with-open [reader (-> resource-name
                          io/resource
-                         io/file
                          io/reader
                          (java.io.PushbackReader.))]
     (edn/read reader)))
