@@ -44,7 +44,9 @@
                 :required true :parse-fn io/file]
                ["-o" "--out-file" "Destination path":required true
                 :parse-fn io/file]
-               ["--[no-]sorted" "Input values are sorted." :default false]]}
+               ["--[no-]sorted" "Input values are sorted." :default false]
+               ["--compression-level" "Compression level"
+                :parse-fn #(Integer/valueOf %) :default 9]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -60,9 +62,10 @@
                                  (mapcat (partial
                                           assign-primary-for-partition
                                           random-tiebreak)))]
-      (with-open [writer (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
-                                              (.getFileHeader reader)
-                                              sorted
-                                              ^java.io.File out-file)]
+      (with-open [writer (.makeBAMWriter (SAMFileWriterFactory.)
+                                         (.getFileHeader reader)
+                                         sorted
+                                         ^java.io.File out-file
+                                         compression-level)]
         (doseq [^SAMRecordread read partitioned-reads]
           (.addAlignment writer read))))))
