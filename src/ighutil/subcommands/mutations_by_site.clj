@@ -13,11 +13,12 @@
             ReferenceSequence])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
+            [clojure.core.reducers :as r]
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.imgt :as imgt]
-            [plumbing.core :refer [map-vals]]))
+            [plumbing.core :refer [map-vals frequencies-fast]]))
 
 (defn count-mutations-by-position [^SAMFileReader reader ref-map]
   (let [locus-iterator (SamLocusIterator. reader)
@@ -31,16 +32,27 @@
                 pos (dec (.getPosition locus))
                 ref-base (char (aget ^bytes ref-bases pos))
                 record-pos (.getRecordAndPositions locus)
+                extract-bq (fn [^SamLocusIterator$RecordAndOffset x]
+                             (let [offset (.getOffset x)
+                                   ^SAMRecord record (.getRecord x)
+                                   ^bytes bq (.getAttribute record "bq")]
+                               (aget bq offset)))
                 bases (map #(->
                              (.getReadBase ^SamLocusIterator$RecordAndOffset %)
                              char str keyword)
-                           record-pos)]
-            (assoc (frequencies bases)
+                           record-pos)
+                exp-match (->> record-pos
+                               (r/map extract-bq)
+                               (r/filter (partial <= 0)) ;; Missing
+                               (r/map (partial * 0.01))
+                               (r/reduce +))]
+            (assoc (frequencies-fast bases)
               :position pos
               :alignment-position (get-in position-translation [ref-name pos])
               :reference ref-name
               :n-reads (.size record-pos)
-              :ref-base ref-base)))]
+              :ref-base ref-base
+              :exp-match exp-match)))]
     (->> locus-iterator
          (.iterator)
          iterator-seq
@@ -65,10 +77,10 @@
       (with-open [^java.io.Closeable out-file out-file]
         (csv/write-csv out-file [["reference" "position"
                                   "alignment_position"
-                                  "ref_base" "n_reads"
+                                  "ref_base" "n_reads" "exp_matching"
                                   "A" "C" "G" "T" "N"]])
         (let [base-freqs (count-mutations-by-position sam ref-map)
               rows (map (juxt :reference :position :alignment-position
-                              :ref-base :n-reads
+                              :ref-base :n-reads :exp-match
                               :A :C :G :T :N) base-freqs)]
           (csv/write-csv out-file rows))))))
