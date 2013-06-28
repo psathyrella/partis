@@ -1,4 +1,4 @@
-(ns ighutil.identify-subsets
+(ns ighutil.subcommands.identify-subsets
   "Enumerate all mutations from germline.
    Output is a graph containing edges between nodes with subsets of mutations."
   (:import [net.sf.picard.reference
@@ -14,7 +14,7 @@
             [ighutil.io :as zio]
             [ighutil.ubtree :as ub]
             [clojure.core.reducers :as r]
-            [ighutil.enumerate-mutations :refer [identify-mutations-in-sam]]
+            [ighutil.subcommands.enumerate-mutations :refer [identify-mutations-in-sam]]
             [ighutil.fasta :refer [extract-references]]))
 
 (defn summarize-mutation-partition [coll]

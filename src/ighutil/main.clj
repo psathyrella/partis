@@ -1,6 +1,6 @@
 (ns ighutil.main
   (:require [cliopatra.command :as command]
-            [ighutil
+            [ighutil.subcommands
              enumerate-mutations
              identify-subsets
              count-mismatches
@@ -12,11 +12,11 @@
    :name ighutil.main))
 
 (defn -main [& args]
-  (let [commands ['ighutil.enumerate-mutations
-                  'ighutil.identify-subsets
-                  'ighutil.count-mismatches
-                  'ighutil.identify-motif
-                  'ighutil.mutations-by-site
-                  'ighutil.add-quality-scores
-                  'ighutil.reset-primary]]
+  (let [commands ['ighutil.subcommands.enumerate-mutations
+                  'ighutil.subcommands.identify-subsets
+                  'ighutil.subcommands.count-mismatches
+                  'ighutil.subcommands.identify-motif
+                  'ighutil.subcommands.mutations-by-site
+                  'ighutil.subcommands.add-quality-scores
+                  'ighutil.subcommands.reset-primary]]
     (command/dispatch (sort commands) args)))

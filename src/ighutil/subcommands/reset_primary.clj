@@ -1,4 +1,4 @@
-(ns ighutil.reset-primary
+(ns ighutil.subcommands.reset-primary
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader

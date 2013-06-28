@@ -1,4 +1,4 @@
-(ns ighutil.mutations-by-site
+(ns ighutil.subcommands.mutations-by-site
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader

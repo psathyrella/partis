@@ -1,4 +1,4 @@
-(ns ighutil.identify-motif
+(ns ighutil.subcommands.identify-motif
   (:import [net.sf.picard.reference
             ReferenceSequenceFileFactory]
            [io.github.cmccoy.dna IUPACUtils])

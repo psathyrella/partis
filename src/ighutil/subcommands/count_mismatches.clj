@@ -1,4 +1,4 @@
-(ns ighutil.count-mismatches
+(ns ighutil.subcommands.count-mismatches
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader

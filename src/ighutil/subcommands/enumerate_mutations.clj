@@ -1,4 +1,4 @@
-(ns ighutil.enumerate-mutations
+(ns ighutil.subcommands.enumerate-mutations
   "Enumerate all mutations from germline.
    Output is a graph containing edges between nodes with subsets of mutations."
   (:import [net.sf.picard.reference

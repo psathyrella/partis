@@ -1,4 +1,4 @@
-(ns ighutil.add-quality-scores
+(ns ighutil.subcommands.add-quality-scores
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
