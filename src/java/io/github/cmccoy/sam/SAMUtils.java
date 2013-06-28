@@ -1,7 +1,8 @@
 package io.github.cmccoy.sam;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import net.sf.picard.reference.ReferenceSequence;
 import net.sf.picard.reference.ReferenceSequenceFile;
@@ -81,7 +82,7 @@ public class SAMUtils {
      * \param records SAM alignments for a given sequence, primary first
      * \returns 100 * p(base matches)
      */
-    public static byte[] calculateBaseEqualProbabilities(ReferenceSequenceFile ref,
+    public static byte[] calculateBaseEqualProbabilities(Map<String, byte[]> ref,
                                                          Iterable<SAMRecord> records) {
       final PeekIterator<SAMRecord> it = new PeekIterator<SAMRecord>(checkNotNull(records).iterator());
       checkArgument(it.hasNext(), "No records in iterable!");
@@ -103,7 +104,8 @@ public class SAMUtils {
             record.getReadName(),
             primary.getReadName());
         final String referenceName = record.getReferenceName();
-        final byte[] refBases = ref.getSequence(referenceName).getBases();
+        final byte[] refBases = checkNotNull(ref.get(referenceName),
+                                             "No reference %s", referenceName);
         for(final AlignmentBlock b : record.getAlignmentBlocks()) {
           // 0-based index in read, ref
           final int readStart = b.getReadStart() - 1;

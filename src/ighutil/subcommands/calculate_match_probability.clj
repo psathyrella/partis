@@ -4,29 +4,28 @@
             SAMFileReader
             SAMFileReader$ValidationStringency
             SAMFileWriterFactory]
-           [net.sf.picard.reference
-            IndexedFastaSequenceFile
-            ReferenceSequenceFile]
+           [net.sf.picard.reference FastaSequenceFile]
            [io.github.cmccoy.sam SAMUtils])
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
+            [ighutil.fasta :refer [extract-references]]
             [ighutil.sam :refer [primary? alignment-score
                                        partition-by-name read-name mapped?]]))
 
-(defn- cal-equal [^ReferenceSequenceFile refs reads]
+(defn- cal-equal [refs reads]
   (when-let [mapped (seq (filter mapped? reads))]
-  (when-let [^SAMRecord primary (first (filter primary? mapped))]
-    (let [sorted (sort-by (juxt primary? alignment-score)
-                          #(compare %2 %1)
-                          mapped)
-          max-score (-> sorted
-                        first
-                        alignment-score)
-          max-records (vec (take-while
-                            (comp (partial = max-score) alignment-score)
-                            sorted))
-          eq-prop (SAMUtils/calculateBaseEqualProbabilities refs max-records)]
-      (.setAttribute primary "bq" eq-prop))))
+    (when-let [^SAMRecord primary (first (filter primary? mapped))]
+      (let [sorted (sort-by (juxt primary? alignment-score)
+                            #(compare %2 %1)
+                            mapped)
+            max-score (-> sorted
+                          first
+                          alignment-score)
+            max-records (vec (take-while
+                              (comp (partial = max-score) alignment-score)
+                              sorted))
+            eq-prop (SAMUtils/calculateBaseEqualProbabilities refs max-records)]
+        (.setAttribute primary "bq" eq-prop))))
   reads)
 
 (defcommand calculate-match-probability
@@ -46,7 +45,8 @@
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (let [ref (IndexedFastaSequenceFile. reference-file)
+    (let [refs (with-open [f (FastaSequenceFile. reference-file true)]
+                 (->> f extract-references (into {})))
           read-iterator (->> reader
                              .iterator
                              iterator-seq)
@@ -55,7 +55,7 @@
                                  (map vec)
                                  (mapcat (partial
                                           cal-equal
-                                          ref)))]
+                                          refs)))]
       (with-open [writer (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
                                               (.getFileHeader reader)
                                               sorted

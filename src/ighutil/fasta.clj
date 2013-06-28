@@ -3,10 +3,6 @@
             ReferenceSequenceFile
             ReferenceSequence]))
 
-
-
-(defn encode-bases [^bytes bases])
-
 (defn extract-references [^ReferenceSequenceFile f]
   "Extract all references into a seq of [name, bases]
    Bases are encoded in a byte array."
