@@ -23,8 +23,18 @@
                         partition-by
                         read-name))
 
+;; Accessors
+(defn read-name [^SAMRecord read]
+  (.getReadName read))
+
 (defn alignment-score [^SAMRecord read]
   (.getAttribute read "AS"))
 
 (defn nm [^SAMRecord read]
   (.getAttribute read "NM"))
+
+(defn primary? [^SAMRecord read]
+  (not (.getNotPrimaryAlignmentFlag read)))
+
+(defn mapped? [^SAMRecord read]
+  (not (.getReadUnmappedFlag read)))

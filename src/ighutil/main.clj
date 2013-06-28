@@ -1,12 +1,13 @@
 (ns ighutil.main
   (:require [cliopatra.command :as command]
             [ighutil.subcommands
-             enumerate-mutations
-             identify-subsets
-             count-mismatches
-             mutations-by-site
              add-quality-scores
+             calculate-match-probability
+             count-mismatches
+             enumerate-mutations
              identify-motif
+             identify-subsets
+             mutations-by-site
              reset-primary])
   (:gen-class
    :name ighutil.main))
@@ -18,5 +19,6 @@
                   'ighutil.subcommands.identify-motif
                   'ighutil.subcommands.mutations-by-site
                   'ighutil.subcommands.add-quality-scores
-                  'ighutil.subcommands.reset-primary]]
+                  'ighutil.subcommands.reset-primary
+                  'ighutil.subcommands.calculate-match-probability]]
     (command/dispatch (sort commands) args)))

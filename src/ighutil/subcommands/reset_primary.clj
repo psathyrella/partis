@@ -5,13 +5,9 @@
             SAMFileReader$ValidationStringency
             SAMFileWriterFactory])
   (:require [clojure.java.io :as io]
-            [cliopatra.command :refer [defcommand]]))
-
-(defn primary? [^SAMRecord read]
-  (not (.getNotPrimaryAlignmentFlag read)))
-
-(defn alignment-score [^SAMRecord read]
-  (.getAttribute read "AS"))
+            [cliopatra.command :refer [defcommand]]
+            [ighutil.sam :refer [primary? alignment-score
+                                       partition-by-name]]))
 
 (defn- random-tiebreak [reads]
   (let [^SAMRecord primary (first (filter primary? reads))
@@ -48,8 +44,6 @@
                 :required true :parse-fn io/file]
                ["-o" "--out-file" "Destination path":required true
                 :parse-fn io/file]
-               ["--quality" "Value to use for quality score" :default 40
-                :parse-fn #(Integer/valueOf ^String %)]
                ["--[no-]sorted" "Input values are sorted." :default false]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
@@ -61,8 +55,7 @@
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
-                                 (partition-by
-                                  #(.getReadName ^SAMRecord %))
+                                 partition-by-name
                                  (map vec)
                                  (mapcat (partial
                                           assign-primary-for-partition
