@@ -1,6 +1,7 @@
 package io.github.cmccoy.sam;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -13,6 +14,7 @@ import net.sf.samtools.util.PeekIterator;
 
 import static com.google.common.base.Preconditions.*;
 
+import io.github.cmccoy.dna.IUPACUtils;
 import io.github.cmccoy.sam.Mutation.MutationType;
 
 public class SAMUtils {
@@ -82,8 +84,8 @@ public class SAMUtils {
      * \param records SAM alignments for a given sequence, primary first
      * \returns 100 * p(base matches)
      */
-    public static byte[] calculateBaseEqualProbabilities(Map<String, byte[]> ref,
-                                                         Iterable<SAMRecord> records) {
+    public static byte[] calculateBaseEqualProbabilities(final Map<String, byte[]> ref,
+                                                         final Iterable<SAMRecord> records) {
       final PeekIterator<SAMRecord> it = new PeekIterator<SAMRecord>(checkNotNull(records).iterator());
       checkArgument(it.hasNext(), "No records in iterable!");
       final SAMRecord primary = it.peek();
@@ -92,10 +94,9 @@ public class SAMUtils {
 
       byte[] matches = new byte[primary.getReadLength()];
       byte[] tot = new byte[primary.getReadLength()];
-      for(int i = 0; i < primary.getReadLength(); i++) {
-        matches[i] = 0;
-        tot[i] = 0;
-      }
+
+      java.util.Arrays.fill(matches, (byte)0);
+      java.util.Arrays.fill(tot, (byte)0);
 
       while(it.hasNext()) {
         final SAMRecord record = it.next();
@@ -129,5 +130,50 @@ public class SAMUtils {
       }
 
       return result;
+    }
+
+    /**
+     * Calculates the <i> possibility</i> that each base matches the reference.
+     * Differs from calculateBaseEqualProbabilities in that if any reference
+     * matches the query (including IUPAC), the field is true.
+     */
+    public static byte[] calculatePossibleMatchToRef(final Map<String, byte[]> ref,
+                                                     final Iterable<SAMRecord> records) {
+        final byte MISSING = -1;
+        final PeekIterator<SAMRecord> it = new PeekIterator<SAMRecord>(checkNotNull(records).iterator());
+        checkArgument(it.hasNext(), "No records in iterable!");
+        final SAMRecord primary = it.peek();
+        final byte[] bases = primary.getReadBases();
+        checkArgument(!primary.getNotPrimaryAlignmentFlag(), "First record is not primary");
+        byte[] mayMatch = new byte[primary.getReadLength()];
+        java.util.Arrays.fill(mayMatch, MISSING);
+
+        final short[] packedRead = IUPACUtils.packBytes(bases);
+
+        while(it.hasNext()) {
+            final SAMRecord record = it.next();
+            checkState(record.getReadName().equals(primary.getReadName()),
+                       "Unmatched read names in group (%s, %s)",
+                       record.getReadName(),
+                       primary.getReadName());
+            final String referenceName = record.getReferenceName();
+            final byte[] refBases = checkNotNull(ref.get(referenceName),
+                                                 "No reference %s", referenceName);
+            final short[] packedRef = IUPACUtils.packBytes(refBases);
+            for(final AlignmentBlock b : record.getAlignmentBlocks()) {
+                // 0-based index in read, ref
+                final int readStart = b.getReadStart() - 1;
+                final int refStart = b.getReferenceStart() - 1;
+                for(int i = 0; i < b.getLength(); i++) {
+                    if(mayMatch[readStart + i] == MISSING)
+                        mayMatch[readStart + i] = 0;
+                    if(IUPACUtils.isSubset(packedRef[refStart + i],
+                                           packedRead[readStart + i]))
+                        mayMatch[readStart + i] = 1;
+                }
+            }
+        }
+
+        return mayMatch;
     }
 }
