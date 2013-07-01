@@ -5,7 +5,7 @@
 (defn roundtrip [^String s]
   (let [b (.getBytes s)
         packed (IUPACUtils/packBytes b)
-        unpacked (IUPACUtils/unpackShorts packed)
+        unpacked (IUPACUtils/unpackBytes packed)
         unpacked-str (String. unpacked)]
     (is (= s unpacked-str))))
 

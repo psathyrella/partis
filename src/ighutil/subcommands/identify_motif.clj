@@ -9,7 +9,7 @@
             [ighutil.io :as zio]
             [ighutil.fasta :refer [extract-references]]))
 
-(defn- motif-occurrences [^shorts motif ^bytes s]
+(defn- motif-occurrences [^bytes motif ^bytes s]
   "Finds occurrences of motif in ref, allowing for ambiguity
   returns a lazy-seq of (location, sequence)"
   (let [packed (IUPACUtils/packBytes s)
