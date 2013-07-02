@@ -48,7 +48,7 @@ length >= k"
             c (p/div (float c) (float (alength unambig)))]
         (vec (for [r (seq unambig)] [[(String. ^bytes r) q] c]))))))
 
-(defn- print-dna-matrix [m k]
+(defn- kmer-mutation-matrix [m k]
   "Given a map from [ref-kmer qry-kmer] -> count,
    generates a square matrix suitable for printing."
   (let [bases [\A \C \G \T]
@@ -56,7 +56,7 @@ length >= k"
                    (repeat k)
                    (apply cartesian-product)
                    (mapv string/join))
-        header (cons "" kmers)
+        header (cons "reference" kmers)
         rows (for [i kmers]
                (vec (cons i (for [j kmers] (get m [i j] 0)))))]
     (cons header rows)))
@@ -91,4 +91,4 @@ length >= k"
                                (mapcat resolve-ambiguous-in-ref)
                                (into {}))]
       (with-open [out (zio/writer out-file)]
-        (csv/write-csv out (print-dna-matrix mutation-counts k))))))
+        (csv/write-csv out (kmer-mutation-matrix mutation-counts k))))))
