@@ -29,7 +29,7 @@ length >= k"
                              (let [qstart (dec (.getReadStart b))
                                    rstart (dec (.getReferenceStart b))
                                    l (.getLength b)]
-                               (for [i (range (- l (dec k)))]
+                               (for [i (range (p/- l (dec k)))]
                                  [(String. ref ^Integer (p/+ rstart (int i)) k)
                                   (String. query ^Integer (p/+ qstart (int i)) k)])))]
     (->> read
@@ -41,10 +41,10 @@ length >= k"
   (let [packed-ref (-> ^String r .getBytes
                        IUPACUtils/packBytes)
         ref-card (IUPACUtils/cardinality packed-ref)]
-    (if (= 1 ref-card)
+    (if (p/== 1 ref-card)
       [[[r q] c]]
       (let [unambig (IUPACUtils/disambiguate packed-ref)
-            c (/ (float c) (alength unambig))]
+            c (p/div (float c) (float (alength unambig)))]
         (vec (for [r (seq unambig)] [[(String. ^bytes r) q] c]))))))
 
 (defn- print-dna-matrix [m k]
