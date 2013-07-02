@@ -165,4 +165,36 @@ public class IUPACUtils {
         return isSubset(s1, s2, 0, s1.length);
     }
 
+
+    private static int BITS_PER_BASE = 4;
+    private static int SINGLE_BASE_MASK = 0xf;
+
+    public static long packKmer(final byte[] packed, final int start, final int length) {
+        checkNotNull(packed);
+        checkArgument(start >= 0, "Negative start: %d", start);
+        checkArgument(length >= start, "length %d < start %d", length, start);
+        long result = 0;
+        for (int i = start; i < start + length; i++) {
+            result = (result << BITS_PER_BASE) + packed[i];
+        }
+        return result;
+    }
+
+    public static long packKmer(final byte[] packed) {
+        return packKmer(packed, 0, packed.length);
+    }
+
+    public static byte[] unpackKmer(final long value) {
+        final int highest = (int)Long.numberOfTrailingZeros(Long.highestOneBit(value));
+        final int n = highest / BITS_PER_BASE + ((highest % BITS_PER_BASE) > 0 ? 1 : 0);
+        byte[] result = new byte[n];
+        // Fill right-to-left
+        for(int i = 0; i < n; i++) {
+            // This nastiness just extracts a specific base (4 bits) by
+            // masking and shifting.
+            final int bitOffset = i * BITS_PER_BASE;
+            result[n - 1 - i] = (byte) ((value & (SINGLE_BASE_MASK << bitOffset)) >> bitOffset);
+        }
+        return result;
+    }
 }
