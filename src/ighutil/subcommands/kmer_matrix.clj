@@ -37,8 +37,9 @@ length >= k"
          (remove too-short?)
          (mapcat mutations-in-block))))
 
-(defn- resolve-ambiguous-in-ref [[[r q] c]]
-  (let [packed-ref (-> ^String r .getBytes
+(defn- resolve-ambiguous-in-ref [[[^String r q] c]]
+  "Distributes c among all unambiguous kmers encoded by r"
+  (let [packed-ref (-> r .getBytes
                        IUPACUtils/packBytes)
         ref-card (IUPACUtils/cardinality packed-ref)]
     (if (p/== 1 ref-card)
@@ -48,6 +49,8 @@ length >= k"
         (vec (for [r (seq unambig)] [[(String. ^bytes r) q] c]))))))
 
 (defn- print-dna-matrix [m k]
+  "Given a map from [ref-kmer qry-kmer] -> count,
+   generates a square matrix suitable for printing."
   (let [bases [\A \C \G \T]
         kmers (->> bases
                    (repeat k)
@@ -65,8 +68,7 @@ length >= k"
                ["-r" "--reference-file" "Reference sequence file"
                 :required true :parse-fn io/file]
                ["-k" "Kmer size" :default 4 :parse-fn #(Integer/parseInt %)]
-               ["-o" "--out-file" "Destination path":required true
-                :parse-fn io/file]]}
+               ["-o" "--out-file" "Destination path":required true]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
