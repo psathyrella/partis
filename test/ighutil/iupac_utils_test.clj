@@ -60,3 +60,17 @@
          "NNNN"
          "WCGB"
          "AAAAA")))
+
+(deftest test-disambiguate
+  (letfn [(disambiguate [^String s]
+            (->> s
+                .getBytes
+                IUPACUtils/packBytes
+                IUPACUtils/disambiguate
+                seq
+                (mapv #(String. ^bytes %))))]
+    (are [x y] (= x (disambiguate y))
+         ["ACGT"] "ACGT"
+         ["CCGT" "TCGT"] "YCGT"
+         ["CCAT" "CCGT" "TCAT" "TCGT"] "YCRT")
+    (is (= (int (Math/pow 4 4)) (count (disambiguate "NNNN"))))))

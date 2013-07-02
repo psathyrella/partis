@@ -7,6 +7,7 @@
              enumerate-mutations
              identify-motif
              identify-subsets
+             kmer-matrix
              mutations-by-site
              reset-primary])
   (:gen-class
@@ -17,6 +18,7 @@
                   'ighutil.subcommands.identify-subsets
                   'ighutil.subcommands.count-mismatches
                   'ighutil.subcommands.identify-motif
+                  'ighutil.subcommands.kmer-matrix
                   'ighutil.subcommands.mutations-by-site
                   'ighutil.subcommands.add-quality-scores
                   'ighutil.subcommands.reset-primary
