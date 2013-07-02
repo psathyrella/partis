@@ -68,7 +68,8 @@ length >= k"
                ["-r" "--reference-file" "Reference sequence file"
                 :required true :parse-fn io/file]
                ["-k" "Kmer size" :default 4 :parse-fn #(Integer/parseInt %)]
-               ["-o" "--out-file" "Destination path":required true]]}
+               ["-o" "--out-file" "Destination path":required true]
+               ["--[no-]ambiguous" "Assign ambiguous references equally to each?" :default false]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -82,13 +83,16 @@ length >= k"
                                 k
                                 r
                                 (get refs (.getReferenceName r))))
-          mutation-counts (->> reader
-                               .iterator
-                               iterator-seq
-                               (mapcat mutations-for-read)
-                               frequencies-fast
-                               seq
-                               (mapcat resolve-ambiguous-in-ref)
-                               (into {}))]
+          raw-mutation-counts (->> reader
+                                   .iterator
+                                   iterator-seq
+                                   (mapcat mutations-for-read)
+                                   frequencies-fast)
+          mutation-counts (if ambiguous
+                            (->> raw-mutation-counts
+                                 seq
+                                 (mapcat resolve-ambiguous-in-ref)
+                                 (into {}))
+                            raw-mutation-counts)]
       (with-open [out (zio/writer out-file)]
         (csv/write-csv out (kmer-mutation-matrix mutation-counts k))))))
