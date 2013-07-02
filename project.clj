@@ -12,7 +12,8 @@
                  [org.apache.commons/commons-compress "1.5"]
                  [com.google.guava/guava "14.0.1"]
                  [org.clojars.runa/cliopatra "1.1.0"]
-                 [prismatic/plumbing "0.1.0"]]
+                 [prismatic/plumbing "0.1.0"]
+                 [primitive-math "0.1.2"]]
   :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}}
   :java-source-paths ["src/java"]
   :javac-options ["-target" "1.6" "-source" "1.6"]

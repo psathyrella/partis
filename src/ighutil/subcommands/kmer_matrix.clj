@@ -14,20 +14,24 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
-            [plumbing.core :refer [frequencies-fast]]))
+            [plumbing.core :refer [frequencies-fast]]
+            [primitive-math :as p]))
 
-(defn- kmer-mutations [^Integer k ^SAMRecord read ^bytes ref]
+(set! *unchecked-math* true)
+
+(defn- kmer-mutations [k ^SAMRecord read ^bytes ref]
   "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
 length >= k"
-  (let [^bytes query (.getReadBases read)
-        too-short? (fn [^AlignmentBlock b] (< (.getLength b) k))
+  (let [k (int k)
+        ^bytes query (.getReadBases read)
+        too-short? (fn [^AlignmentBlock b] (p/< (.getLength b) k))
         mutations-in-block (fn [^AlignmentBlock b]
                              (let [qstart (dec (.getReadStart b))
                                    rstart (dec (.getReferenceStart b))
                                    l (.getLength b)]
                                (for [i (range (- l (dec k)))]
-                                 [(String. ref ^Integer (+ rstart i) k)
-                                  (String. query ^Integer (+ qstart i) k)])))]
+                                 [(String. ref ^Integer (p/+ rstart (int i)) k)
+                                  (String. query ^Integer (p/+ qstart (int i)) k)])))]
     (->> read
          .getAlignmentBlocks
          (remove too-short?)
