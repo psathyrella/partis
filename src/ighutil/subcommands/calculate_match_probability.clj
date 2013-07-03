@@ -10,9 +10,11 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.sam :refer [primary? alignment-score
-                                       partition-by-name read-name mapped?]]))
+                                       partition-by-name read-name mapped?]]
+            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
 
 (defn- cal-equal [refs reads]
+  "Calculate the expectation that each position matches reference."
   (when-let [mapped (seq (filter mapped? reads))]
     (when-let [^SAMRecord primary (first (filter primary? mapped))]
       (let [sorted (sort-by (juxt primary? alignment-score)
@@ -25,7 +27,7 @@
                               (comp (partial = max-score) alignment-score)
                               sorted))
             eq-prop (SAMUtils/calculateBaseEqualProbabilities refs max-records)]
-        (.setAttribute primary "bq" eq-prop))))
+        (.setAttribute primary TAG-EXP-MATCH eq-prop))))
   reads)
 
 (defcommand calculate-match-probability
@@ -36,8 +38,6 @@
                 :required true :parse-fn io/file]
                ["-o" "--out-file" "Destination path":required true
                 :parse-fn io/file]
-               ["--quality" "Value to use for quality score" :default 40
-                :parse-fn #(Integer/valueOf ^String %)]
                ["--[no-]sorted" "Input values are sorted." :default false]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))

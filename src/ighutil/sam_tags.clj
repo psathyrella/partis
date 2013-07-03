@@ -4,3 +4,5 @@
 (def ^String TAG-N-MISMATCHES "NM")
 
 (def ^String TAG-COUNT "XC")
+
+(def ^String TAG-EXP-MATCH "bq")
