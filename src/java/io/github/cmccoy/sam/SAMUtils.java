@@ -116,7 +116,8 @@ public class SAMUtils {
                 final int refStart = b.getReferenceStart() - 1;
                 for (int i = 0; i < b.getLength(); i++) {
                     tot[readStart + i]++;
-                    if (bases[readStart + i] == refBases[refStart + i])
+                    if (IUPACUtils.isSubset(IUPACUtils.packByte(refBases[refStart + i]),
+                                            IUPACUtils.packByte(bases[readStart + i])))
                         matches[readStart + i]++;
                 }
             }
