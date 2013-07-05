@@ -15,7 +15,7 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.csv :refer [read-typed-csv]]
-            [plumbing.core :refer [frequencies-fast]]
+            [plumbing.core :refer [frequencies-fast ?>>]]
             [primitive-math :as p]))
 
 (set! *unchecked-math* true)
@@ -106,16 +106,13 @@ length >= k"
                                 r
                                 (get refs (.getReferenceName r))
                                 :exclude (get exclude (.getReferenceName r) #{})))
-          raw-mutation-counts (->> reader
-                                   .iterator
-                                   iterator-seq
-                                   (mapcat mutations-for-read)
-                                   frequencies-fast)
-          mutation-counts (if ambiguous
-                            (->> raw-mutation-counts
-                                 seq
-                                 (mapcat resolve-ambiguous-in-ref)
-                                 (into {}))
-                            raw-mutation-counts)]
+          mutation-counts (->> reader
+                               .iterator
+                               iterator-seq
+                               (mapcat mutations-for-read)
+                               frequencies-fast
+                               (?>> ambiguous
+                                    mapcat resolve-ambiguous-in-ref)
+                               (?>> ambiguous into {}))]
       (with-open [out (zio/writer out-file)]
         (csv/write-csv out (kmer-mutation-matrix mutation-counts k))))))
