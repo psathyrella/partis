@@ -10,7 +10,7 @@
   (-> path io/file SAMFileReader.))
 
 (defn bam-writer [path ^SAMFileReader reader &
-                  {:keys [sorted] :or {:sorted false}}]
+                  {:keys [sorted] :or {sorted false}}]
   (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
                        (.getFileHeader reader)
                        sorted
