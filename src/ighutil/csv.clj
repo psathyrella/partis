@@ -1,13 +1,24 @@
 (ns ighutil.csv
-  (:require [clojure.data.csv :as csv]))
+  (:require [clojure.data.csv :as csv]
+            [plumbing.core :refer [?>>]]))
 
-(defn csv-to-maps [fp & {:keys [keywordize]
-                         :or {keywordize true}
+(defn int-of-string [^String s]
+  (Integer/parseInt s))
+
+(defn float-of-string [^String s]
+  (Float/parseFloat s))
+
+(defn double-of-string [^String s]
+  (Double/parseDouble s))
+
+(defn csv-to-maps [fp & {:keys [keywordize?]
+                         :or {keywordize? true}
                          :as options}]
   (let [rows (apply (partial csv/read-csv fp)
-                    (dissoc options :keywordize))
-        header ((if keywordize (partial map keyword) identity)
-                (first rows))
+                    (dissoc options :keywordize?))
+        header (->> rows
+                    first
+                    (?>> keywordize? map keyword))
         make-row (partial zipmap header)]
     (map make-row (rest rows))))
 
