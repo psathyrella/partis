@@ -14,12 +14,14 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
+            [ighutil.csv :refer [read-typed-csv]]
             [plumbing.core :refer [frequencies-fast]]
             [primitive-math :as p]))
 
 (set! *unchecked-math* true)
 
-(defn- kmer-mutations [k ^SAMRecord read ^bytes ref]
+(defn- kmer-mutations [k ^SAMRecord read ^bytes ref & {:keys [exclude]
+                                                       :or {exclude #{}}}]
   "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
 length >= k"
   (let [k (int k)
@@ -30,12 +32,16 @@ length >= k"
                                    rstart (dec (.getReferenceStart b))
                                    l (.getLength b)]
                                (for [i (range (p/- l (dec k)))]
-                                 [(String. ref ^Integer (p/+ rstart (int i)) k)
-                                  (String. query ^Integer (p/+ qstart (int i)) k)])))]
+                                 (when-not (some exclude
+                                                 (range (p/+ rstart (int i))
+                                                        (+ rstart (int i) (int k))))
+                                   [(String. ref ^Integer (p/+ rstart (int i)) k)
+                                    (String. query ^Integer (p/+ qstart (int i)) k)]))))]
     (->> read
          .getAlignmentBlocks
          (remove too-short?)
-         (mapcat mutations-in-block))))
+         (mapcat mutations-in-block)
+         (filter identity))))
 
 (defn- resolve-ambiguous-in-ref [[[^String r q] c]]
   "Distributes c among all unambiguous kmers encoded by r"
@@ -61,6 +67,12 @@ length >= k"
                (vec (cons i (for [j kmers] (get m [i j] 0)))))]
     (cons header rows)))
 
+(defn- parse-exclude-file [^java.io.Reader r]
+  (let [rows (read-typed-csv r {:position #(Integer/parseInt ^String %)})
+        f (fn [m {:keys [reference position]}]
+            (assoc! m reference (conj (get m reference #{}) position)))]
+    (persistent! (reduce f (transient {}) rows))))
+
 (defcommand kmer-matrix
   ""
   {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
@@ -69,20 +81,27 @@ length >= k"
                 :required true :parse-fn io/file]
                ["-k" "Kmer size" :default 4 :parse-fn #(Integer/parseInt %)]
                ["-o" "--out-file" "Destination path":required true]
-               ["--[no-]ambiguous" "Assign ambiguous references equally to each?" :default false]]}
+               ["--exclude-positions" "Positions to exclude"
+                :parse-fn zio/reader]
+               ["--[no-]ambiguous" "Assign ambiguous references equally to each?"
+                :default false]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (let [refs (with-open [f (FastaSequenceFile. reference-file true)]
+    (let [exclude (when exclude-positions
+                    (with-open [r exclude-positions]
+                      (parse-exclude-file r)))
+          refs (with-open [f (FastaSequenceFile. reference-file true)]
                  (->> f extract-references (into {})))
           mutations-for-read (fn [^SAMRecord r]
                                (kmer-mutations
                                 k
                                 r
-                                (get refs (.getReferenceName r))))
+                                (get refs (.getReferenceName r))
+                                :exclude (get exclude (.getReferenceName r) #{})))
           raw-mutation-counts (->> reader
                                    .iterator
                                    iterator-seq

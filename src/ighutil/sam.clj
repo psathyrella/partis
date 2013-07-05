@@ -19,9 +19,7 @@
 (defn read-name [^SAMRecord read]
   (.getReadName read))
 
-(def partition-by-name (partial
-                        partition-by
-                        read-name))
+(def partition-by-name (partial partition-by read-name))
 
 ;; Accessors
 (defn read-name [^SAMRecord read]
