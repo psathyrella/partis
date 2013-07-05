@@ -32,11 +32,15 @@ length >= k"
                                    rstart (dec (.getReferenceStart b))
                                    l (.getLength b)]
                                (for [i (range (p/- l (dec k)))]
-                                 (when-not (some exclude
-                                                 (range (p/+ rstart (int i))
-                                                        (+ rstart (int i) (int k))))
-                                   [(String. ref ^Integer (p/+ rstart (int i)) k)
-                                    (String. query ^Integer (p/+ qstart (int i)) k)]))))]
+                                 (let [r (p/+ rstart (int i))
+                                       q (p/+ qstart (int i))]
+                                   ;; Skip any kmers which overlap with sites in
+                                   ;; exclude
+                                   (when-not
+                                       (some exclude
+                                             (range r (p/+ r (int k))))
+                                     [(String. ref r k)
+                                      (String. query q k)])))))]
     (->> read
          .getAlignmentBlocks
          (remove too-short?)
