@@ -1,16 +1,9 @@
 (ns ighutil.imgt
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [flatland.useful.seq :refer [indexed]])
   (:import [net.sf.picard.reference FastaSequenceFile ReferenceSequence]))
-
-(defn indexed
-  "Returns a lazy sequence of [index, item] pairs, where items come
-  from 's' and indexes count up from zero.
-
-  (indexed '(a b c d))  =>  ([0 a] [1 b] [2 c] [3 d])"
-  [s]
-  (map vector (iterate inc 0) s))
 
 (def GAP-CHARS #{\. \-})
 
