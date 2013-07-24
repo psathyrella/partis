@@ -6,6 +6,7 @@
             SAMFileReader$ValidationStringency
             SAMFileWriterFactory]
            [net.sf.picard.reference FastaSequenceFile]
+           [net.sf.picard.util IntervalTree]
            [io.github.cmccoy sam.SAMUtils dna.IUPACUtils])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
@@ -14,14 +15,14 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
-            [ighutil.csv :refer [read-typed-csv]]
-            [plumbing.core :refer [frequencies-fast ?>>]]
+            [ighutil.csv :refer [read-typed-csv int-of-string]]
+            [plumbing.core :refer [frequencies-fast ?>> safe-get]]
             [primitive-math :as p]))
 
 (set! *unchecked-math* true)
 
 (defn- kmer-mutations [k ^SAMRecord read ^bytes ref & {:keys [exclude]
-                                                       :or {exclude #{}}}]
+                                                       :or {exclude (IntervalTree.)}}]
   "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
 length >= k"
   (let [k (int k)
@@ -37,8 +38,8 @@ length >= k"
                                    ;; Skip any kmers which overlap with sites in
                                    ;; exclude
                                    (when-not
-                                       (some exclude
-                                             (range r (p/+ r (int k))))
+                                       (.minOverlapper ^IntervalTree exclude
+                                                       r (p/+ r (int k)))
                                      [(String. ref r k)
                                       (String. query q k)])))))]
     (->> read
@@ -71,11 +72,31 @@ length >= k"
                (vec (cons i (for [j kmers] (get m [i j] 0)))))]
     (cons header rows)))
 
+(defn- ^IntervalTree interval-list-of-positions [positions]
+  (when (seq positions)
+    (let [f (first positions)
+          positions (rest positions)]
+      (loop [result (IntervalTree.)
+             [start end] [f f]
+             positions positions]
+        (if-let [[i & r] positions]
+          (if (or (= end i) (= (inc end) i))
+            (recur result [start i] r)
+            (do
+              (.put result start end 1)
+              (recur result [i i] r)))
+          (do
+            (.put result start end 1)
+            result))))))
+
 (defn- parse-exclude-file [^java.io.Reader r]
-  (let [rows (read-typed-csv r {:position #(Integer/parseInt ^String %)})
-        f (fn [m {:keys [reference position]}]
-            (assoc! m reference (conj (get m reference #{}) position)))]
-    (persistent! (reduce f (transient {}) rows))))
+  (->> (read-typed-csv r {:position int-of-string})
+       (sort-by (juxt :reference :position))
+       (partition-by :reference)
+       (map (fn [xs] [(-> xs first :reference)
+                      (->> xs (map :position)
+                           interval-list-of-positions)]))
+       (into {})))
 
 (defcommand kmer-matrix
   ""
@@ -96,7 +117,7 @@ length >= k"
      reader
      SAMFileReader$ValidationStringency/SILENT)
     (let [exclude (when exclude-positions
-                    (with-open [r exclude-positions]
+                    (with-open [^java.io.Reader r exclude-positions]
                       (parse-exclude-file r)))
           refs (with-open [f (FastaSequenceFile. reference-file true)]
                  (->> f extract-references (into {})))
@@ -104,8 +125,10 @@ length >= k"
                                (kmer-mutations
                                 k
                                 r
-                                (get refs (.getReferenceName r))
-                                :exclude (get exclude (.getReferenceName r) #{})))
+                                (safe-get refs (.getReferenceName r))
+                                :exclude (get exclude
+                                              (.getReferenceName r)
+                                              (IntervalTree.))))
           mutation-counts (->> reader
                                .iterator
                                iterator-seq
