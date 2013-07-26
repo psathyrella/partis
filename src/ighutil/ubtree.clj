@@ -35,10 +35,10 @@
     (let [qi (first q)
           r (rest q)
           more (empty? r)
-          c (get sons qi (UBNode. qi more {}))]
+          c (get sons qi (->UBNode qi more {}))]
       (if (empty? q)
-        (UBNode. element true sons)
-        (UBNode. element end-of-path (assoc sons qi (node-insert c r))))))
+        (->UBNode element true sons)
+        (->UBNode element end-of-path (assoc sons qi (node-insert c r))))))
   (node-lookup-first [_ q]
     (or end-of-path
         (let [s (suffixes q)
@@ -65,8 +65,8 @@
     (ensure-non-empty s)
     (let [[qi & r] s
           more (not (empty? r))]
-      (let [n (get forest qi (UBNode. qi false {}))]
-        (UBTree. (assoc forest qi (node-insert n r))))))
+      (let [n (get forest qi (->UBNode qi false {}))]
+        (->UBTree (assoc forest qi (node-insert n r))))))
   (lookup-first [_ q]
     (ensure-non-empty q)
     (let [s (suffixes q)
@@ -82,4 +82,4 @@
                 (node-lookup-subs n r [qi])))]
       (mapcat f s))))
 
-(def ubtree (UBTree. {}))
+(def ubtree (->UBTree {}))

@@ -24,7 +24,7 @@
 (defrecord ^{:private true} MutationKey [^String reference n-aligned n-mismatches])
 
 (defn- count-mutations-in-record [^SAMRecord read]
-  [(MutationKey.
+  [(->MutationKey
       ^String (.getReferenceName read)
       (- (.getAlignmentEnd read) (.getAlignmentStart read))
       (.getAttribute read TAG-N-MISMATCHES))
