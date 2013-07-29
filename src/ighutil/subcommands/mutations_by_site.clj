@@ -2,11 +2,8 @@
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
-            SAMFileReader$ValidationStringency]
-           [net.sf.picard.util
-            SamLocusIterator
-            SamLocusIterator$LocusInfo
-            SamLocusIterator$RecordAndOffset]
+            SAMFileReader$ValidationStringency
+            AlignmentBlock]
            [net.sf.picard.reference
             ReferenceSequenceFileFactory
             ReferenceSequenceFile
@@ -19,51 +16,83 @@
             [ighutil.io :as zio]
             [ighutil.imgt :as imgt]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
-            [plumbing.core :refer [map-vals frequencies-fast]]))
+            [primitive-math :as p]
+            [hiphip.double :as dbl]
+            [hiphip.long :as long]
+            [plumbing.core :refer [map-vals frequencies-fast safe-get]]))
 
-(defn count-mutations-by-position [^SAMFileReader reader ref-map
-                                   & {:keys [drop-uncertain]
-                                      :or {:drop-uncertain false}}]
-  (let [locus-iterator (SamLocusIterator. reader)
-        position-translation (map-vals (comp (partial into {})
-                                             :translation)
+(defn- percent-to-proportion [^bytes b]
+  (let [^doubles xs (io.github.cmccoy.Primitives/bytesToDoubles b)]
+    (dbl/afill! [x xs] (p/div x 100.0))))
+
+(defn- count-bases-in-read [^SAMRecord record ref-length &
+                            {:keys [drop-uncertain]
+                             :or {drop-uncertain false}}]
+  (let [ref-length (int ref-length)
+        ^bytes qbases (.getReadBases record)
+        ^bytes bq (.getAttribute record TAG-EXP-MATCH)
+        ^doubles bqd (percent-to-proportion bq)
+        ^longs abases (long-array (p/* 4 ref-length) 0)
+        ^doubles ematch (double-array ref-length 0.0)
+        ^longs coverage (long-array ref-length 0.0)]
+    (doseq [^AlignmentBlock ab (.getAlignmentBlocks record)]
+      (let [qstart (-> ab .getReadStart dec int)
+            rstart (-> ab .getReferenceStart dec int)
+            length (-> ab .getLength int)]
+        (doseq [i (range length)]
+          (let [ridx (p/+ rstart (int i))
+                qidx (p/+ qstart (int i))
+                is-certain (= 0 (mod (aget bq qidx) 100))
+                b (char (aget qbases (p/+ (int i) qstart)))
+                offset (case b
+                         \A 0
+                         \C 1
+                         \G 2
+                         \T 3
+                         (throw (IllegalArgumentException. "Unknown base!")))]
+            (when (or (not drop-uncertain) is-certain)
+              (aset-long abases (p/+ offset (p/* 4 ridx)) 1)
+              (aset-double ematch ridx (aget bqd qidx))
+              (aset-long coverage ridx 1))))))
+    [abases ematch coverage]))
+
+(defn count-bases-by-position [records ref-map
+                               & {:keys [drop-uncertain]
+                                  :or {drop-uncertain false}}]
+  (let [position-translation (map-vals (comp (partial into {}) :translation)
                                        imgt/v-gene-meta)
-        summarize-position
-        (fn [^SamLocusIterator$LocusInfo locus]
-          (let [ref-name (.getSequenceName locus)
-                ref-bases (get ref-map ref-name)
-                pos (dec (.getPosition locus))
-                ref-base (char (aget ^bytes ref-bases pos))
-                record-pos (.getRecordAndPositions locus)
-                extract-bq (fn [^SamLocusIterator$RecordAndOffset x]
-                             (let [offset (.getOffset x)
-                                   ^SAMRecord record (.getRecord x)
-                                   ^bytes bq (.getAttribute record TAG-EXP-MATCH)]
-                               (aget bq offset)))
-                bases (map #(->
-                             (.getReadBase ^SamLocusIterator$RecordAndOffset %)
-                             char str keyword)
-                           record-pos)
-                exp-match (->> record-pos
-                               (r/map extract-bq)
-                               (r/filter (partial <= 0)) ;; Missing
-                               (r/filter (if drop-uncertain
-                                           #(or (= % 100) (= % 0))
-                                           (constantly true)))
-                               (r/map (partial * 0.01))
-                               (r/reduce +))]
-            (assoc (frequencies-fast bases)
-              :position pos
-              :alignment-position (get-in position-translation [ref-name pos])
-              :reference ref-name
-              :n-reads (.size record-pos)
-              :ref-base ref-base
-              :exp-match exp-match)))]
-    (->> locus-iterator
-         (.iterator)
-         iterator-seq
-         (map summarize-position)
-         (remove (comp zero? :n-reads)))))
+        result (map-vals (fn [^bytes x] (let [l (alength x)]
+                                          [x
+                                           (long-array (* 4 l))
+                                           (double-array l)
+                                           (long-array l)])) ref-map)
+        process-read (fn [^SAMRecord read]
+                       (let [[^bytes rbases ra re rc] (safe-get
+                                                       result
+                                                       (.getReferenceName read))
+                             [qa qe qc] (count-bases-in-read
+                                         read
+                                         (alength rbases)
+                                         :drop-uncertain drop-uncertain)]
+                         (long/afill! [r ra q qa] (+ r q))
+                         (dbl/afill! [r re q qe] (+ r q))
+                         (long/afill! [r rc q qc] (+ r q))))]
+    (doall (map process-read records))
+    (for [[name [^bytes bases ^longs counts ^doubles ematch ^longs cov]] result
+          i (range (alength bases))]
+      (let [i (int i)
+            ref-base (char (aget bases i))
+            [a c g t] (java.util.Arrays/copyOfRange
+                       counts
+                       (p/* i 4)
+                       (p/* (inc i) 4))]
+        {:position i
+         :alignment-position (get-in position-translation [name i])
+         :reference name
+         :n-reads (aget cov i)
+         :ref-base ref-base
+         :A a :C c :G g :T t
+         :exp-match (aget ematch i)}))))
 
 (defcommand mutations-by-site
   "Count mutations in reads"
@@ -86,11 +115,13 @@
                                   "alignment_position"
                                   "ref_base" "n_reads" "exp_matching"
                                   "A" "C" "G" "T" "N"]])
-        (let [base-freqs (count-mutations-by-position
-                          sam
+        (let [base-freqs (count-bases-by-position
+                          (-> sam .iterator iterator-seq)
                           ref-map
                           :drop-uncertain (not uncertain))
-              rows (map (juxt :reference :position :alignment-position
-                              :ref-base :n-reads :exp-match
-                              :A :C :G :T :N) base-freqs)]
+              rows (->> base-freqs
+                        (remove (comp zero? :n-reads))
+                        (map (juxt :reference :position :alignment-position
+                                   :ref-base :n-reads :exp-match
+                                   :A :C :G :T :N)))]
           (csv/write-csv out-file rows))))))
