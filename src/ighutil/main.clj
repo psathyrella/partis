@@ -10,6 +10,7 @@
 
 (def command-names (sort ["add-quality-scores"
                           "calculate-match-probability"
+                          "count-alignment-ties"
                           "count-mismatches"
                           "enumerate-mutations"
                           "identify-motif"
