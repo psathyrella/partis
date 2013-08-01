@@ -8,7 +8,9 @@
   </xsl:template>
 
   <xsl:template match="germline">
-&gt;<xsl:value-of select="@name" /> <xsl:value-of select="@familyname" /> <xsl:value-of select="@cdr3index" />
+&gt;<xsl:value-of select="@immunoseq1" /><xsl:text> </xsl:text><xsl:value-of select="@familyname" /><xsl:text> </xsl:text><xsl:value-of select="@cdr3index" />
+<xsl:text>
+</xsl:text>
 <xsl:value-of select="@sequence" />
   </xsl:template>
 
