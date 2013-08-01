@@ -21,7 +21,7 @@
     (if-let [[raw-idx base] (first sequence)]
       (if (GAP-CHARS base)
         (recur result (rest sequence) c)
-        (recur (conj result [raw-idx c]) (rest sequence) (inc c)))
+        (recur (conj result [c raw-idx]) (rest sequence) (inc c)))
       (into {} result))))
 
 (defn- parse-fasta [^FastaSequenceFile f]
@@ -35,16 +35,20 @@
 
 (def CYSTEINE-POSITION (* 3 (- 104 1)))
 
-(defn create-cysteine-map []
-  (let [f (-> "ighutil/ighv_aligned.fasta" io/resource io/file)
-        extract-position (fn [^ReferenceSequence s]
-                           (let [name (second (.. s (getName) (split "\\|")))
-                                 pos-map (->> s
-                                          (.getBases)
-                                          (String.)
-                                          nongap-lookup)]
-                             [name (get pos-map CYSTEINE-POSITION)]))]
-    (into {} (map extract-position (read-fasta f)))))
+(defn create-v-meta
+  ([] (create-v-meta "ighutil/ighv_aligned.fasta"))
+  ([resource-path]
+     (let [f (-> resource-path io/resource io/file)
+           extract-position (fn [^ReferenceSequence s]
+                              (let [name (second (.. s (getName) (split "\\|")))
+                                    sequence (-> s .getBases String.)
+                                    pos-map (nongap-lookup sequence)]
+                                [name
+                                 {:cysteine-position
+                                  (get pos-map CYSTEINE-POSITION)
+                                  :translation pos-map
+                                  :sequence (.replaceAll sequence "[.-]" "")}]))]
+       (into {} (map extract-position (read-fasta f))))))
 
 (defn slurp-edn-resource [resource-name]
   (with-open [reader (-> resource-name
@@ -53,7 +57,4 @@
                          (java.io.PushbackReader.))]
     (edn/read reader)))
 
-(def cons-cysteine-map (slurp-edn-resource
-                        "ighutil/ighv_cons_cysteine.clj"))
-
-(def v-gene-meta (slurp-edn-resource "ighutil/ighv_cons.clj"))
+(def v-gene-meta (create-v-meta))
