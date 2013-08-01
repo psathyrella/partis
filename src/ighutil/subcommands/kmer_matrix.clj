@@ -21,7 +21,7 @@
 
 (set! *unchecked-math* true)
 
-(defn- kmer-mutations [k ^SAMRecord read ^bytes ref & {:keys [exclude]
+(defn kmer-mutations [k ^SAMRecord read ^bytes ref & {:keys [exclude]
                                                        :or {exclude (IntervalTree.)}}]
   "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
 length >= k"
