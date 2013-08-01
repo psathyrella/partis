@@ -25,6 +25,10 @@
 
 (defn read-typed-csv [fp types & csv-opts]
   (let [rows (apply csv-to-maps fp csv-opts)
-        type-entry (fn [[k v]] [k ((get types k identity) v)])
-        type-row (fn [m] (->> m (map type-entry) (into {})))]
+        type-entry (fn [m [k v]] (assoc! m k (v (get m k))))
+        type-row (fn [row] (persistent!
+                            (reduce
+                             type-entry
+                             (transient row)
+                             types)))]
     (map type-row rows)))
