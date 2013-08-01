@@ -16,17 +16,27 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.csv :refer [read-typed-csv int-of-string]]
+            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
             [plumbing.core :refer [frequencies-fast ?>> safe-get]]
             [primitive-math :as p]))
 
 (set! *unchecked-math* true)
 
-(defn kmer-mutations [k ^SAMRecord read ^bytes ref & {:keys [exclude]
-                                                       :or {exclude (IntervalTree.)}}]
+(defn kmer-mutations [k ^SAMRecord read ^bytes ref &
+                      {:keys [exclude
+                              drop-uncertain?]
+                       :or {exclude (IntervalTree.)
+                            drop-uncertain false}}]
   "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
 length >= k"
   (let [k (int k)
         ^bytes query (.getReadBases read)
+        ^bytes bq (.getAttribute read TAG-EXP-MATCH)
+        any-uncertain? (fn [start]
+                         (some (fn [i]
+                                 (let [b (aget bq i)]
+                                   (not (or (= 100 b) (= 0 b)))))
+                               (range start (p/+ (int start) k))))
         too-short? (fn [^AlignmentBlock b] (p/< (.getLength b) k))
         mutations-in-block (fn [^AlignmentBlock b]
                              (let [qstart (dec (.getReadStart b))
@@ -38,8 +48,10 @@ length >= k"
                                    ;; Skip any kmers which overlap with sites in
                                    ;; exclude
                                    (when-not
-                                       (.minOverlapper ^IntervalTree exclude
-                                                       r (p/+ r (int k)))
+                                       (or
+                                        (and drop-uncertain? (any-uncertain? q))
+                                        (.minOverlapper ^IntervalTree exclude
+                                                        r (p/+ r (int k))))
                                      [(String. ref r k)
                                       (String. query q k)])))))]
     (->> read
@@ -108,6 +120,7 @@ length >= k"
                ["-o" "--out-file" "Destination path":required true]
                ["--exclude-positions" "Positions to exclude"
                 :parse-fn zio/reader]
+               ["--[no-]uncertain" "Allow uncertain positions?"]
                ["--[no-]ambiguous" "Assign ambiguous references equally to each?"
                 :default false]]}
   (assert (not= in-file out-file))
@@ -128,7 +141,8 @@ length >= k"
                                 (safe-get refs (.getReferenceName r))
                                 :exclude (get exclude
                                               (.getReferenceName r)
-                                              (IntervalTree.))))
+                                              (IntervalTree.))
+                                :drop-uncertain? (not uncertain)))
           mutation-counts (->> reader
                                .iterator
                                iterator-seq
