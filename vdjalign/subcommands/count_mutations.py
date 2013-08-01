@@ -19,7 +19,7 @@ import pysam
 log = logging.getLogger(__name__)
 
 from .. import util
-from .adaptive_csv import TAG_COUNT
+from .adaptive_tsv import TAG_COUNT
 
 @contextlib.contextmanager
 def indexed_bam(bam_path):
