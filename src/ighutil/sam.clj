@@ -25,6 +25,9 @@
 (defn read-name [^SAMRecord read]
   (.getReadName read))
 
+(defn reference-name [^SAMRecord r]
+  (.getReferenceName r))
+
 (defn alignment-score [^SAMRecord read]
   (.getAttribute read "AS"))
 

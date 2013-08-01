@@ -7,6 +7,13 @@
 
 (def GAP-CHARS #{\. \-})
 
+(defn strip-allele [^String s]
+  "Remove the allele from a string"
+  (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
+    (if (< idx 0)
+      s
+      (.substring s 0 idx))))
+
 (defn- nongap-lookup [sequence]
   (loop [result []
          sequence (indexed sequence)

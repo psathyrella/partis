@@ -7,33 +7,37 @@
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
-            [plumbing.core :refer [frequencies-fast]]
+            [plumbing.core :refer [frequencies-fast distinct-fast]]
             [ighutil.io :as zio]
+            [ighutil.imgt :refer [strip-allele]]
             [ighutil.sam :as sam]))
 
 (defn- n-ties [records]
-  (let [scores (mapv sam/alignment-score records)
+  (let [records (vec records)
+        names (mapv sam/reference-name records)
+        scores (mapv sam/alignment-score records)
         max-score (apply max scores)]
-    (->> scores
-         (filter (partial = max-score))
+    (->> (map vector scores names)
+         (filter (comp (partial = max-score) first))
+         (map (comp strip-allele second))
+         distinct-fast
          count)))
 
 (defcommand count-alignment-ties
-  "Count alignment ties"
+  "Count alignment ties, ignoring multiple hits to different alleles of the same
+   gene"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn io/file]
-               ["-o" "--out-file" "Destination path":required true
+               ["-o" "--out-file" "Destination path" :required true
                 :parse-fn zio/writer]
                ["--quality" "Value to use for quality score" :default 40
-                :parse-fn #(Integer/valueOf ^String %)]
-               ["--[no-]sorted" "Input values are sorted." :default false]]}
+                :parse-fn #(Integer/valueOf ^String %)]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-
     (let [tie-histogram (->> reader
                              .iterator
                              iterator-seq
