@@ -148,6 +148,7 @@ def action(a):
         log.info('Aligning J-region')
         align_bwa(j_index, j_sequences, j_tf.name, threads=a.threads,
                     rg=a.read_group)
+        logging.info('Annotating J-region')
         with closing(pysam.Samfile(j_tf.name, 'rb')) as j_tmp_bam, \
                 closing(pysam.Samfile(a.j_bamfile, 'wb',
                                       template=j_tmp_bam)) as j_bam:
