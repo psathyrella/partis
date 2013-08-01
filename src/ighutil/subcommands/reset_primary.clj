@@ -46,7 +46,7 @@
                 :parse-fn io/file]
                ["--[no-]sorted" "Input values are sorted." :default false]
                ["--compression-level" "Compression level"
-                :parse-fn #(Integer/valueOf %) :default 9]]}
+                :parse-fn #(Integer/valueOf ^String %) :default 9]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
