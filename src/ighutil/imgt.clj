@@ -24,31 +24,45 @@
         (recur (conj result [c raw-idx]) (rest sequence) (inc c)))
       (into {} result))))
 
-(defn- parse-fasta [^FastaSequenceFile f]
+
+(defn- parse-fasta [lines]
+  "Read a FASTA file"
+  (let [fasta-header? (fn [^String s] (.startsWith s ">"))]
+    (->> lines
+         (remove string/blank?)
+         (partition-by fasta-header?)
+         (partition 2)
+         (map (fn [[[^String name] seqs]]
+                [(.substring name 1)
+                 (string/join (apply concat seqs))])))))
+
+(defn- parse-fasta-picard [^FastaSequenceFile f]
   (lazy-seq
    (when-let [ref (.nextSequence f)]
      (cons ref (parse-fasta f)))))
 
 (defn read-fasta [file]
   (with-open [ref-file (FastaSequenceFile. (io/file file) false)]
-    (doall (parse-fasta ref-file))))
+    (doall (parse-fasta-picard ref-file))))
 
 (def CYSTEINE-POSITION (* 3 (- 104 1)))
 
 (defn create-v-meta
   ([] (create-v-meta "ighutil/ighv_aligned.fasta"))
-  ([resource-path]
-     (let [f (-> resource-path io/resource io/file)
-           extract-position (fn [^ReferenceSequence s]
-                              (let [name (second (.. s (getName) (split "\\|")))
-                                    sequence (-> s .getBases String.)
-                                    pos-map (nongap-lookup sequence)]
-                                [name
-                                 {:cysteine-position
-                                  (get pos-map CYSTEINE-POSITION)
-                                  :translation pos-map
-                                  :sequence (.replaceAll sequence "[.-]" "")}]))]
-       (into {} (map extract-position (read-fasta f))))))
+  ([^String resource-path]
+     (with-open [reader (->> resource-path io/resource io/reader)]
+       (let [extract-position (fn [[^String name ^String sequence]]
+                                (let [pos-map (nongap-lookup sequence)]
+                                  [(second (.split name "\\|"))
+                                   {:cysteine-position
+                                    (get pos-map CYSTEINE-POSITION)
+                                    :translation pos-map
+                                    :sequence (.replaceAll sequence "[.-]" "")}]))]
+         (->> reader
+              line-seq
+              parse-fasta
+              (map extract-position)
+              (into {}))))))
 
 (defn slurp-edn-resource [resource-name]
   (with-open [reader (-> resource-name
