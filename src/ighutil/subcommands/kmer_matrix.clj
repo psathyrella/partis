@@ -16,7 +16,7 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.csv :refer [read-typed-csv int-of-string]]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
+            [ighutil.sam :as sam]
             [plumbing.core :refer [frequencies-fast ?>> safe-get]]
             [primitive-math :as p]))
 
@@ -31,12 +31,11 @@
 length >= k"
   (let [k (int k)
         ^bytes query (.getReadBases read)
-        ^bytes bq (.getAttribute read TAG-EXP-MATCH)
-        any-uncertain? (fn [start]
-                         (some (fn [i]
-                                 (let [b (aget bq i)]
-                                   (not (or (= 100 b) (= 0 b)))))
-                               (range start (p/+ (int start) k))))
+        uncertain (sam/uncertain-sites read)
+        certain? (fn [start]
+                   (= 0 (.. uncertain
+                            (get (int start) (p/+ (int start) k))
+                            (cardinality))))
         too-short? (fn [^AlignmentBlock b] (p/< (.getLength b) k))
         mutations-in-block (fn [^AlignmentBlock b]
                              (let [qstart (dec (.getReadStart b))
@@ -49,7 +48,7 @@ length >= k"
                                    ;; exclude
                                    (when-not
                                        (or
-                                        (and drop-uncertain? (any-uncertain? q))
+                                        (and drop-uncertain? (not (certain? q)))
                                         (.minOverlapper ^IntervalTree exclude
                                                         r (p/+ r (int k))))
                                      [(String. ref r k)

@@ -3,8 +3,10 @@
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency
-            SAMFileWriterFactory])
-  (:require [clojure.java.io :as io]))
+            SAMFileWriterFactory]
+           [java.util BitSet])
+  (:require [clojure.java.io :as io]
+            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
 
 (defn bam-reader [path]
   (-> path io/file SAMFileReader.))
@@ -39,3 +41,16 @@
 
 (defn mapped? [^SAMRecord read]
   (not (.getReadUnmappedFlag read)))
+
+(defn- ^BitSet byte-array->uncertain-sites [^bytes xs]
+  (let [l (alength xs)
+        ^BitSet bs (BitSet. l)]
+    (doseq [i (range l)]
+      (let [b (aget xs i)
+            uncertain? (and (not= b 100) (not= b 0))]
+        (.set bs (int i) uncertain?)))
+    bs))
+
+;; Handle record base expected match
+(defn ^BitSet uncertain-sites [^SAMRecord r]
+  (-> r (.getAttribute TAG-EXP-MATCH) byte-array->uncertain-sites))
