@@ -17,6 +17,7 @@
 (def ^:private N 128)
 
 (defn- block-composition [^bytes qbases ^AlignmentBlock b]
+  (assert (> (alength qbases) 0) "No bases")
   (let [^doubles result (double-array N 0.0)
         start (dec (int (.getReadStart b)))
         length (int (.getLength b))]
@@ -38,8 +39,7 @@
 
 (defn- dbl-proportion [^doubles xs]
   (let [tot (dbl/asum xs)]
-    (dbl/afill! [x xs] (/ x tot))
-    xs))
+    (dbl/amap [x xs] (/ x tot))))
 
 (defcommand aligned-base-composition
   "Aligned base composition"
@@ -56,6 +56,7 @@
     (let [composition (->> reader
                            .iterator
                            iterator-seq
+                           (filter (every-pred sam/mapped? sam/primary?))
                            (map read-composition)
                            (reduce pairwise-sum))
           props (dbl-proportion composition)
