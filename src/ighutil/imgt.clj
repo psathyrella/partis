@@ -71,4 +71,4 @@
                          (java.io.PushbackReader.))]
     (edn/read reader)))
 
-(def v-gene-meta (create-v-meta))
+(def v-gene-meta (delay (create-v-meta)))

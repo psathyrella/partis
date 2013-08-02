@@ -62,7 +62,7 @@
                                & {:keys [drop-uncertain]
                                   :or {drop-uncertain false}}]
   (let [position-translation (map-vals (comp (partial into {}) :translation)
-                                       imgt/v-gene-meta)
+                                       @imgt/v-gene-meta)
         result (map-vals (fn [^bytes x] (let [l (alength x)]
                                           [x
                                            (long-array (* 4 l))
