@@ -119,7 +119,7 @@ length >= k"
                ["-o" "--out-file" "Destination path":required true]
                ["--exclude-positions" "Positions to exclude"
                 :parse-fn zio/reader]
-               ["--[no-]uncertain" "Allow uncertain positions?"]
+               ["--[no-]uncertain" "Allow uncertain positions?" :default true]
                ["--[no-]ambiguous" "Assign ambiguous references equally to each?"
                 :default false]]}
   (assert (not= in-file out-file))
