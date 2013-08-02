@@ -15,6 +15,7 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.imgt :as imgt]
+            [ighutil.sam :as sam]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
             [primitive-math :as p]
             [hiphip.double :as dbl]
@@ -30,7 +31,8 @@
                              :or {drop-uncertain false}}]
   (let [ref-length (int ref-length)
         ^bytes qbases (.getReadBases record)
-        ^bytes bq (.getAttribute record TAG-EXP-MATCH)
+        ^bytes bq (.getByteArrayAttribute record TAG-EXP-MATCH)
+        uncertain (sam/uncertain-sites record)
         ^doubles bqd (percent-to-proportion bq)
         ^longs abases (long-array (p/* 4 ref-length) 0)
         ^doubles ematch (double-array ref-length 0.0)
@@ -42,7 +44,7 @@
         (doseq [i (range length)]
           (let [ridx (p/+ rstart (int i))
                 qidx (p/+ qstart (int i))
-                is-certain (= 0 (mod (aget bq qidx) 100))
+                is-certain (not (.get uncertain qidx))
                 b (char (aget qbases (p/+ (int i) qstart)))
                 offset (case b
                          \A 0
