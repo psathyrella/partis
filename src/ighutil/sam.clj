@@ -18,14 +18,15 @@
                        sorted
                        (io/file path)))
 
-(defn read-name [^SAMRecord read]
-  (.getReadName read))
-
-(def partition-by-name (partial partition-by read-name))
-
 ;; Accessors
 (defn read-name [^SAMRecord read]
   (.getReadName read))
+
+(defn position [^SAMRecord read]
+  (-> read
+      .getAlignmentStart
+      int
+      dec))
 
 (defn reference-name [^SAMRecord r]
   (.getReferenceName r))
@@ -54,3 +55,5 @@
 ;; Handle record base expected match
 (defn ^BitSet uncertain-sites [^SAMRecord r]
   (-> r (.getAttribute TAG-EXP-MATCH) byte-array->uncertain-sites))
+
+(def partition-by-name (partial partition-by read-name))

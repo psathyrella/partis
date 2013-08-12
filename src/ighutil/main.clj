@@ -16,6 +16,7 @@
                           "identify-motif"
                           "identify-subsets"
                           "kmer-matrix"
+                          "mutation-correlation"
                           "aligned-base-composition"
                           "mutations-by-site"
                           "reset-primary"]))
