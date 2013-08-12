@@ -38,18 +38,20 @@
 (defn- match-by-site-of-read [^SAMRecord read ref-length]
   "Given a SAM record with the TAG-EXP-MATCH tag,
    generates a vector of
-   [reference-name {site->{matches at site -> [counts arr]}}]"
+   [reference-name {site-index {matches-at-site }}]"
   (let [^bytes bq (.getAttribute read TAG-EXP-MATCH)
         [^longs counts ^longs arr] (unmask-base-exp-match read bq ref-length)
         reference-name (sam/reference-name read)
-        f (fn [i] (when (not= 0 (long/aget counts i))
-                        [i {:count counts
-                            (not= (long/aget arr i) 0) arr}]))]
+        f (fn [i] (if (not= 0 (long/aget counts i))
+                    {:index i
+                     :count counts
+                     (safe-get {true :unmutated false :mutated}
+                               (not= (long/aget arr i) 0)) arr}
+                    {:index i}))]
     (assert (not (nil? bq)))
     {reference-name (->> (vec (range ref-length))
                          (r/map f)
-                         (r/filter identity)
-                         (into {}))}))
+                         (into []))}))
 
 (defn- ^longs sum-longs [^longs xs ^longs ys]
   (long/amap [x xs y ys] (+ x y)))
@@ -58,12 +60,17 @@
   (letfn [(f [^SAMRecord read]
             (match-by-site-of-read
              read
-             (safe-get ref-lengths (sam/reference-name read))))]
+             (safe-get ref-lengths (sam/reference-name read))))
+          (merge-vector-item [x y]
+            (assert (= (safe-get x :index) (safe-get y :index)))
+            (let [sk #(select-keys % [:count :mutated :unmutated])]
+              (assoc (merge-with sum-longs (sk x) (sk y))
+                :index (safe-get x :index))))
+          (merge-fn
+            ([x y] (mapv merge-vector-item x y)))]
     (->> records
          (map f)
-         (apply merge-with
-                (partial merge-with
-                         (partial merge-with sum-longs))))))
+         (apply merge-with merge-fn))))
 
 
 (defn- reference-lengths [^SAMFileHeader header]
