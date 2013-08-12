@@ -46,12 +46,15 @@ length >= k"
                                (for [i (range (p/- l (dec k)))]
                                  (let [r (p/+ rstart (int i))
                                        q (p/+ qstart (int i))]
-                                   ;; Skip any kmers which overlap with sites in
+                                   ;; Skip any k-mers which overlap with sites in
                                    ;; exclude
                                    (when-not
                                        (or
+                                        ;; Frame specified and not in frame
                                         (and (not (nil? frame)) (not= frame (mod r k)))
+                                        ;; Uncertain about ref base
                                         (and drop-uncertain? (not (certain? q)))
+                                        ;; In list of positions to exclude
                                         (.minOverlapper ^IntervalTree exclude
                                                         r (p/+ r (int k))))
                                      [(String. ref r k)
