@@ -23,9 +23,6 @@
 
 (set! *unchecked-math* true)
 
-(definline nnil? [x]
-  (not (nil? x)))
-
 (defn kmer-mutations [k ^SAMRecord read ^bytes ref &
                       {:keys [exclude
                               drop-uncertain?
@@ -53,7 +50,7 @@ length >= k"
                                    ;; exclude
                                    (when-not
                                        (or
-                                        (and (nnil? frame) (not= frame (mod r k)))
+                                        (and (not (nil? frame)) (not= frame (mod r k)))
                                         (and drop-uncertain? (not (certain? q)))
                                         (.minOverlapper ^IntervalTree exclude
                                                         r (p/+ r (int k))))
