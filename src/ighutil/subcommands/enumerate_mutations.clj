@@ -75,8 +75,10 @@
           (csv/write-csv out-file [["sequence" "reference" "location" "type" "wt" "mut"]])
           (let [rows (for [{:keys [mutations name reference] :as read} muts
                            ^Mutation m mutations]
-                       [name reference (.. m (getType) (getCode))
+                       [name
+                        reference
                         (.getPosition m)
+                        (.. m (getType) (getCode))
                         (.getWildType m)
                         (.getMutant m)])]
             (csv/write-csv out-file rows)))))))
