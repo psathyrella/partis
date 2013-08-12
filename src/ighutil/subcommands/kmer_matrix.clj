@@ -8,11 +8,12 @@
            [net.sf.picard.reference FastaSequenceFile]
            [net.sf.picard.util IntervalTree]
            [io.github.cmccoy sam.SAMUtils dna.IUPACUtils])
-  (:require [clojure.java.io :as io]
+  (:require [cliopatra.command :refer [defcommand]]
             [clojure.data.csv :as csv]
-            [clojure.string :as string]
+            [clojure.java.io :as io]
             [clojure.math.combinatorics :refer [cartesian-product]]
-            [cliopatra.command :refer [defcommand]]
+            [clojure.string :as string]
+            [ighutil.csv :refer [read-typed-csv]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.csv :refer [read-typed-csv int-of-string]]
@@ -22,9 +23,13 @@
 
 (set! *unchecked-math* true)
 
+(definline nnil? [x]
+  (not (nil? x)))
+
 (defn kmer-mutations [k ^SAMRecord read ^bytes ref &
                       {:keys [exclude
-                              drop-uncertain?]
+                              drop-uncertain?
+                              frame]
                        :or {exclude (IntervalTree.)
                             drop-uncertain false}}]
   "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
@@ -48,6 +53,7 @@ length >= k"
                                    ;; exclude
                                    (when-not
                                        (or
+                                        (and (nnil? frame) (not= frame (mod r k)))
                                         (and drop-uncertain? (not (certain? q)))
                                         (.minOverlapper ^IntervalTree exclude
                                                         r (p/+ r (int k))))
@@ -109,16 +115,20 @@ length >= k"
                            interval-list-of-positions)]))
        (into {})))
 
+(defn- atoi [^String s]
+  (Integer/parseInt s))
+
 (defcommand kmer-matrix
   ""
   {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
                 :required true :parse-fn io/file]
                ["-r" "--reference-file" "Reference sequence file"
                 :required true :parse-fn io/file]
-               ["-k" "Kmer size" :default 4 :parse-fn #(Integer/parseInt %)]
+               ["-k" "Kmer size" :default 4 :parse-fn atoi]
                ["-o" "--out-file" "Destination path":required true]
                ["--exclude-positions" "Positions to exclude"
                 :parse-fn zio/reader]
+               ["-f" "--frame" "Frame to use" :parse-fn atoi]
                ["--[no-]uncertain" "Allow uncertain positions?" :default true]
                ["--[no-]ambiguous" "Assign ambiguous references equally to each?"
                 :default false]]}
@@ -141,7 +151,8 @@ length >= k"
                                 :exclude (get exclude
                                               (.getReferenceName r)
                                               (IntervalTree.))
-                                :drop-uncertain? (not uncertain)))
+                                :drop-uncertain? (not uncertain)
+                                :frame frame))
           mutation-counts (->> reader
                                .iterator
                                iterator-seq

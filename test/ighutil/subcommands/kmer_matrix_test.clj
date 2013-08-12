@@ -49,3 +49,8 @@
             (doto (read) (.setAttribute "bq" (byte-array (map byte [99 99 99 99]))))
             SEQUENCE1
             :drop-uncertain? true)))))
+
+(deftest test-kmer-mutations-frame
+  (let [read (create-read "sequence1" "ACCTT" "4M1S" 1)]
+    (is (= [["AC" "AC"] ["GT" "CT"]] (kmer-mutations 2 read SEQUENCE1 :frame 0)))
+    (is (= [["CG" "CC"]] (kmer-mutations 2 read SEQUENCE1 :frame 1)))))
