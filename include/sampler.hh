@@ -29,6 +29,13 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <utility>
+
+#ifdef SMCTC_HAVE_BGL
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/labeled_graph.hpp>
+#include <boost/graph/graphviz.hpp>
+#endif
 
 #include "rng.hh"
 #include "history.hh"
@@ -90,6 +97,19 @@ private:
     ///The historical process associated with the particle system.
     history<particle<Space> > History;
 
+#ifdef SMCTC_HAVE_BGL
+    /// A vertex in the particle history graph:
+    /// (generation, particle index)
+    typedef std::pair<size_t, size_t> Vertex;
+    /// Particle history graph
+    typedef boost::labeled_graph<
+        boost::adjacency_list< boost::vecS, boost::vecS, boost::directedS, size_t >,
+        Vertex
+    > Graph;
+
+    Graph g;
+#endif
+
 public:
     ///Create an particle system containing lSize uninitialised particles with the specified mode.
     sampler(long lSize, HistoryType htHistoryMode);
@@ -140,11 +160,26 @@ public:
     ///Allow a human readable version of the sampler configuration to be produced using the stream operator.
     /// std::ostream & operator<< (std::ostream& os, sampler<Space> & s);
 
+#ifdef SMCTC_HAVE_BGL
+    /// Dump the particle graph to an output stream
+    std::ostream & StreamParticleGraph(std::ostream & os) const;
+#endif
+
 private:
     ///Duplication of smc::sampler is not currently permitted.
     sampler(const sampler<Space> & sFrom);
     ///Duplication of smc::sampler is not currently permitted.
     sampler<Space> & operator=(const sampler<Space> & sFrom);
+
+#ifdef SMCTC_HAVE_BGL
+    /// Add a level to the particle history graph
+    ///
+    /// \param parents: length N array with the parent index of each new particle. Alternatively, \c nullptr may be
+    /// passed to indicate that no resampling was performed.
+    ///
+    /// Should be called before incrementing T
+    void UpdateParticleGraph(const unsigned int* parents);
+#endif
 };
 
 
@@ -350,8 +385,12 @@ double sampler<Space>::IterateEss(void)
     if(ESS < dResampleThreshold) {
         nResampled = 1;
         Resample(rtResampleMode);
-    } else
+    } else {
+#ifdef SMCTC_HAVE_BGL
+        UpdateParticleGraph(nullptr);
+#endif
         nResampled = 0;
+    }
     //A possible MCMC step should be included here.
     for(int i = 0; i < N; i++) {
         if(Moves.DoMCMC(T + 1, pParticles[i], pRng))
@@ -499,6 +538,10 @@ void sampler<Space>::Resample(ResampleType lMode)
         }
     }
 
+#ifdef SMCTC_HAVE_BGL
+    UpdateParticleGraph(uRSIndices);
+#endif
+
     //Perform the replication of the chosen.
     for(unsigned int i = 0; i < N ; ++i) {
         if(uRSIndices[i] != i)
@@ -549,6 +592,33 @@ std::ostream & sampler<Space>::StreamParticles(std::ostream & os)
 
     return os;
 }
+
+#ifdef SMCTC_HAVE_BGL
+template <class Space>
+std::ostream & sampler<Space>::StreamParticleGraph(std::ostream & os) const
+{
+    boost::write_graphviz(os, this->g);
+    return os;
+}
+
+template <class Space>
+void sampler<Space>::UpdateParticleGraph(const unsigned int* parents)
+{
+    const Vertex root(0, 0);
+    if(T == 0) {
+        boost::add_vertex(root, g);
+    }
+    for(size_t i = 0; i < N; ++i) {
+        const Vertex u = T == 0 ? root : Vertex(T, parents == nullptr ? i : parents[i]);
+        const Vertex v = Vertex(T + 1, i);
+        assert(boost::vertex_by_label(u, g) != boost::graph_traits<Graph>::null_vertex() &&
+               "Cannot find vertex!");
+        boost::add_vertex(v, g);
+        boost::add_edge_by_label(u, v, g);
+    }
+}
+#endif
+
 
 }
 

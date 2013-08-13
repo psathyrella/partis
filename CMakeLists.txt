@@ -8,7 +8,7 @@ endif()
 
 include_directories(include)
 
-set(SMCTC_SOURCE_FILES 
+set(SMCTC_SOURCE_FILES
   src/history.cc
   src/rng.cc
   src/smc-exception.cc)
