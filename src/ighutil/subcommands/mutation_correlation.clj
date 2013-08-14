@@ -15,7 +15,28 @@
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
-            [plumbing.core :refer [safe-get map-vals]]))
+            [plumbing.core :refer [safe-get map-vals]]
+            [primitive-math :as p]))
+
+
+(defn- result-skeleton [ref-lengths]
+  (into
+   {}
+   (for [[name length] ref-lengths]
+     (let [msize (* length length)]
+       [name {:length length
+              :mutated (long-array msize)
+              :unmutated (long-array msize)
+              :count (long-array length)}] ))))
+
+(defn- finalize-result [result]
+  (map-vals
+   (fn [{:keys [mutated unmutated count length] :as m}]
+     (assoc m
+       :mutated (vec mutated)
+       :unmutated (vec unmutated)
+       :count (vec count)))
+   result))
 
 (defn- unmask-base-exp-match [^SAMRecord read ^bytes bq ref-len]
   "Generates two arrays: [counts matches]
@@ -35,48 +56,31 @@
             (long/aset matches ref-idx (/ b 100))))))
     [counts matches]))
 
-(defn- match-by-site-of-read [^SAMRecord read ref-length]
+(defn- match-by-site-of-read [^SAMRecord read
+                              {:keys [length mutated unmutated count]}]
   "Given a SAM record with the TAG-EXP-MATCH tag,
    generates a vector of
    [reference-name {site-index {matches-at-site }}]"
   (let [^bytes bq (.getAttribute read TAG-EXP-MATCH)
-        [^longs counts ^longs arr] (unmask-base-exp-match read bq ref-length)
-        reference-name (sam/reference-name read)
-        f (fn [i] (if (not= 0 (long/aget counts i))
-                    {:index i
-                     :count counts
-                     (safe-get {true :unmutated false :mutated}
-                               (not= (long/aget arr i) 0)) arr}
-                    {:index i}))]
+        [^longs read-counts ^longs read-matches] (unmask-base-exp-match read bq length)]
     (assert (not (nil? bq)))
-    {reference-name (->> (vec (range ref-length))
-                         (r/map f)
-                         (into []))}))
-
-(defn- ^longs sum-longs [^longs xs ^longs ys]
-  "Sum two primitive arrays of longs"
-  (long/amap [x xs y ys] (+ x y)))
+    (long/afill! [c count i read-counts] (p/+ i c))
+    (doseq [i (range (alength read-matches))]
+      (let [^longs tgt (if (p/not== 0 (long/aget read-matches i))
+                         unmutated
+                         mutated)]
+        (long/doarr [[j c] read-matches]
+                    (long/ainc tgt (+ (* i length) j) c))))))
 
 (defn- match-by-site-of-records [ref-lengths records]
   "Get the number of records that match / mismatch at each other site
    conditioning on a mutation in each position"
-  (letfn [(f [^SAMRecord read]
-            (match-by-site-of-read
-             read
-             (safe-get ref-lengths (sam/reference-name read))))
-          (merge-vector-item [x y]
-            (assert (= (safe-get x :index) (safe-get y :index)))
-            (let [sk #(select-keys % [:count :mutated :unmutated])]
-              (assoc (merge-with sum-longs (sk x) (sk y))
-                :index (safe-get x :index))))
-          (merge-fn
-            ([x y] (mapv merge-vector-item x y)))]
-    (->> records
-         (map f)
-         (apply merge-with merge-fn)
-         (map-vals (fn [xs] (filter #(or (contains? % :mutated)
-                                         (contains? % :unmutated)) xs))))))
-
+  (let [result (result-skeleton ref-lengths)]
+    (doseq [^SAMRecord read records]
+      (match-by-site-of-read
+       read
+       (safe-get result  (sam/reference-name read))))
+    result))
 
 (defn- reference-lengths [^SAMFileHeader header]
   "Generate a map of reference name -> length"
@@ -87,26 +91,12 @@
                 [(.getSequenceName r) (.getSequenceLength r)]))
        (into {})))
 
-(defn- mutation-rows [records]
-  "Convert records from `match-by-site-of-records` into a long seq
-   for each site-index mutation-index pair."
-  (for [[reference xs] records
-        {:keys [index count mutated unmutated] :as record} xs
-        i (range (long/alength count))]
-    {:reference reference
-     :mutation-index index
-     :site-index i
-     :count (long/aget count i)
-     :mutated (when mutated (long/aget mutated i))
-     :unmutated (when unmutated (long/aget unmutated i))}))
-
 (defcommand mutation-correlation
   "Set up for summarizing mutation correlation"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn io/file]
                ["-o" "--out-file" "Destination path" :required true
-                :parse-fn zio/writer]
-               ["-j" "--[no-]json" "JSON output? [default csv]" :default false]]}
+                :parse-fn zio/writer]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)
@@ -114,21 +104,13 @@
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (let [ref-lengths (-> reader .getFileHeader reference-lengths)
+    (let [long-array-cls (resolve (symbol "[J"))
+          ref-lengths (-> reader .getFileHeader reference-lengths)
           m (->> reader
                  .iterator
                  iterator-seq
-                 (match-by-site-of-records ref-lengths))
-          rows (->> m
-                    mutation-rows
-                    (map (juxt :reference :mutation-index :site-index
-                               :count :mutated :unmutated)))]
-      (if json
-        (do
-          (add-encoder (resolve (symbol "[J")) encode-seq)
-          (try
-            (generate-stream m writer {:pretty true})
-            (finally (remove-encoder (resolve (symbol "[J"))))))
-        (csv/write-csv writer (cons ["reference" "mutation_index" "site_index"
-                                     "count" "mutated" "unmutated"]
-                                    rows))))))
+                 (match-by-site-of-records ref-lengths))]
+      (add-encoder long-array-cls encode-seq)
+      (try
+        (generate-stream m writer {:pretty true})
+        (finally (remove-encoder long-array-cls))))))
