@@ -114,5 +114,5 @@
                  (match-by-site-of-records ref-lengths))]
       (add-encoder long-array-cls encode-seq)
       (try
-        (generate-stream m writer {:pretty true})
+        (generate-stream m writer)
         (finally (remove-encoder long-array-cls))))))
