@@ -15,7 +15,8 @@
                  [prismatic/plumbing "0.1.0"]
                  [prismatic/hiphip "0.1.0"]
                  [org.flatland/useful "0.10.1"]
-                 [primitive-math "0.1.2"]]
+                 [primitive-math "0.1.2"]
+                 [cheshire "5.2.0"]]
   :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}}
   :java-source-paths ["src/java"]
   :javac-options ["-target" "1.6" "-source" "1.6"]
