@@ -6,17 +6,16 @@
             SAMFileReader$ValidationStringency
             SAMSequenceRecord])
   (:require [cheshire.core :refer [generate-stream]]
-            [cheshire.generate :refer [add-encoder encode-seq]]
+            [cheshire.generate :refer [add-encoder remove-encoder encode-seq]]
             [clojure.core.reducers :as r]
+            [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [hiphip.long :as long]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
-            [plumbing.core :refer [safe-get]]))
-
-(add-encoder (resolve (symbol "[J")) encode-seq)
+            [plumbing.core :refer [safe-get map-vals]]))
 
 (defn- unmask-base-exp-match [^SAMRecord read ^bytes bq ref-len]
   "Generates two arrays: [counts matches]
@@ -25,7 +24,7 @@
 
   matches contains 1/0 indicating whether there is a match at
   each position."
-  (let [counts (long-array ref-len)
+  (let [counts (long-array ref-len 0)
         matches (long/aclone counts)]
     (doseq [i (range (alength bq))]
       (let [ref-idx (.getReferencePositionAtReadPosition read i)
@@ -70,7 +69,9 @@
             ([x y] (mapv merge-vector-item x y)))]
     (->> records
          (map f)
-         (apply merge-with merge-fn))))
+         (apply merge-with merge-fn)
+         (map-vals (fn [xs] (filter #(or (contains? % :mutated)
+                                         (contains? % :unmutated)) xs))))))
 
 
 (defn- reference-lengths [^SAMFileHeader header]
@@ -82,13 +83,24 @@
                 [(.getSequenceName r) (.getSequenceLength r)]))
        (into {})))
 
+(defn- mutation-rows [records]
+  (for [[reference xs] records
+        {:keys [index count mutated unmutated] :as record} xs
+        i (range (long/alength count))]
+    {:reference reference
+     :mutation-index index
+     :site-index i
+     :count (long/aget count i)
+     :mutated (when mutated (long/aget mutated i))
+     :unmutated (when unmutated (long/aget unmutated i))}))
 
 (defcommand mutation-correlation
   "Set up data structures for summarizing mutation correlation"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn io/file]
-               ["-o" "--out-file" "Destination path":required true
-                :parse-fn zio/writer]]}
+               ["-o" "--out-file" "Destination path" :required true
+                :parse-fn zio/writer]
+               ["-j" "--[no-]json" "JSON output? [default csv]" :default false]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)
@@ -100,5 +112,16 @@
           m (->> reader
                  .iterator
                  iterator-seq
-                 (match-by-site-of-records ref-lengths))]
-      (generate-stream m writer {:pretty true}))))
+                 (match-by-site-of-records ref-lengths))
+          rows (->> m
+                    mutation-rows
+                    (map (juxt :reference :mutation-index :site-index
+                               :count :mutated :unmutated)))]
+      (if json
+        (do
+          (add-encoder (resolve (symbol "[J")) encode-seq)
+          (generate-stream m writer {:pretty true})
+          (remove-encoder (resolve (symbol "[J"))))
+        (csv/write-csv writer (cons ["reference" "mutation_index" "site_index"
+                                   "count" "mutated" "unmutated"]
+                                  rows))))))
