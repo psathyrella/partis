@@ -30,8 +30,9 @@
       (let [ref-idx (.getReferencePositionAtReadPosition read i)
             b (long (aget bq i))]
         (when (and (not= 0 ref-idx) (>= b 0) (= 0 (mod b 100)))
-          (long/aset counts ref-idx 1)
-          (long/aset matches ref-idx (/ b 100)))))
+          (let [ref-idx (dec (int ref-idx))]
+            (long/aset counts ref-idx 1)
+            (long/aset matches ref-idx (/ b 100))))))
     [counts matches]))
 
 (defn- match-by-site-of-read [^SAMRecord read ref-length]
@@ -120,8 +121,9 @@
       (if json
         (do
           (add-encoder (resolve (symbol "[J")) encode-seq)
-          (generate-stream m writer {:pretty true})
-          (remove-encoder (resolve (symbol "[J"))))
+          (try
+            (generate-stream m writer {:pretty true})
+            (finally (remove-encoder (resolve (symbol "[J"))))))
         (csv/write-csv writer (cons ["reference" "mutation_index" "site_index"
-                                   "count" "mutated" "unmutated"]
-                                  rows))))))
+                                     "count" "mutated" "unmutated"]
+                                    rows))))))
