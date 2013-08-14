@@ -102,10 +102,10 @@ private:
     /// (generation, particle index)
     typedef std::pair<size_t, size_t> Vertex;
     /// Particle history graph
-    typedef boost::labeled_graph<
-        boost::adjacency_list< boost::vecS, boost::vecS, boost::directedS, size_t >,
-        Vertex
-    > Graph;
+    typedef boost::labeled_graph <
+    boost::adjacency_list< boost::vecS, boost::vecS, boost::directedS, size_t >,
+          Vertex
+          > Graph;
 
     Graph g;
 #endif
@@ -606,15 +606,19 @@ void sampler<Space>::UpdateParticleGraph(const unsigned int* parents)
 {
     const Vertex root(0, 0);
     if(T == 0) {
-        boost::add_vertex(root, g);
-    }
-    for(size_t i = 0; i < N; ++i) {
-        const Vertex u = T == 0 ? root : Vertex(T, parents == nullptr ? i : parents[i]);
-        const Vertex v = Vertex(T + 1, i);
-        assert(boost::vertex_by_label(u, g) != boost::graph_traits<Graph>::null_vertex() &&
-               "Cannot find vertex!");
-        boost::add_vertex(v, g);
-        boost::add_edge_by_label(u, v, g);
+        // Initial particles - add each to the graph with no parent.
+        for(size_t i = 0; i < N; ++i)
+            boost::add_vertex(Vertex(T + 1, i), g);
+    } else {
+        // Add an edge between each particle and its parent
+        for(size_t i = 0; i < N; ++i) {
+            const Vertex u = T == 0 ? root : Vertex(T, parents == nullptr ? i : parents[i]);
+            const Vertex v = Vertex(T + 1, i);
+            assert(boost::vertex_by_label(u, g) != boost::graph_traits<Graph>::null_vertex() &&
+                   "Cannot find vertex!");
+            boost::add_vertex(v, g);
+            boost::add_edge_by_label(u, v, g);
+        }
     }
 }
 #endif
