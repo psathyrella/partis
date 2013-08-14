@@ -61,16 +61,18 @@
   "Given a SAM record with the TAG-EXP-MATCH tag,
    generates a vector of
    [reference-name {site-index {matches-at-site }}]"
-  (let [^bytes bq (.getAttribute read TAG-EXP-MATCH)
+  (let [length (int length)
+        ^bytes bq (.getAttribute read TAG-EXP-MATCH)
         [^longs read-counts ^longs read-matches] (unmask-base-exp-match read bq length)]
     (assert (not (nil? bq)))
     (long/afill! [c count i read-counts] (p/+ i c))
     (doseq [i (range (alength read-matches))]
-      (let [^longs tgt (if (p/not== 0 (long/aget read-matches i))
+      (let [i (int i)
+            ^longs tgt (if (p/not== 0 (long/aget read-matches i))
                          unmutated
                          mutated)]
         (long/doarr [[j c] read-matches]
-                    (long/ainc tgt (+ (* i length) j) c))))))
+                    (long/ainc tgt (p/+ (p/* i length) j) c))))))
 
 (defn- match-by-site-of-records [ref-lengths records]
   "Get the number of records that match / mismatch at each other site
