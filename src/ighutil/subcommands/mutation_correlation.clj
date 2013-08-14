@@ -114,6 +114,7 @@
                  iterator-seq
                  (match-by-site-of-records ref-lengths))]
       (add-encoder long-array-cls encode-seq)
+      (println "Finished: writing results")
       (try
         (generate-stream m writer)
         (finally (remove-encoder long-array-cls)))))
