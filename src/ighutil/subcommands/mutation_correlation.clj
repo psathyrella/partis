@@ -54,9 +54,12 @@
                          (into []))}))
 
 (defn- ^longs sum-longs [^longs xs ^longs ys]
+  "Sum two primitive arrays of longs"
   (long/amap [x xs y ys] (+ x y)))
 
 (defn- match-by-site-of-records [ref-lengths records]
+  "Get the number of records that match / mismatch at each other site
+   conditioning on a mutation in each position"
   (letfn [(f [^SAMRecord read]
             (match-by-site-of-read
              read
@@ -85,6 +88,8 @@
        (into {})))
 
 (defn- mutation-rows [records]
+  "Convert records from `match-by-site-of-records` into a long seq
+   for each site-index mutation-index pair."
   (for [[reference xs] records
         {:keys [index count mutated unmutated] :as record} xs
         i (range (long/alength count))]
@@ -96,7 +101,7 @@
      :unmutated (when unmutated (long/aget unmutated i))}))
 
 (defcommand mutation-correlation
-  "Set up data structures for summarizing mutation correlation"
+  "Set up for summarizing mutation correlation"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn io/file]
                ["-o" "--out-file" "Destination path" :required true
