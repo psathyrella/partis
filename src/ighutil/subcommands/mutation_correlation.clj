@@ -30,24 +30,13 @@
               :count (long-array length)}] ))))
 
 (defn- finalize-result [result]
-  (letfn [(longs-to-matrix
-            ([arr nrow] (longs-to-matrix arr nrow nrow))
-            ([^longs arr nrow ncol]
-               (assert (= (alength arr) (* nrow ncol)))
-               (let [nrow (int nrow)
-                     ncol (int ncol)]
-                 (vec
-                  (for [i (range nrow)]
-                    (vec
-                     (for [j (range ncol)]
-                       (long/aget arr (p/+ (p/* i ncol) j)))))))))]
-    (map-vals
-     (fn [{:keys [mutated unmutated count length] :as m}]
-       (assoc m
-         :mutated (longs-to-matrix mutated length)
-         :unmutated (longs-to-matrix unmutated length)
-         :count (vec count)))
-     result)))
+  (map-vals
+   (fn [{:keys [mutated unmutated count length] :as m}]
+     (assoc m
+       :mutated (vec mutated)
+       :unmutated (vec unmutated)
+       :count (vec count)))
+   result))
 
 (defn- unmask-base-exp-match [^SAMRecord read ^bytes bq ref-len]
   "Generates two arrays: [counts matches]
@@ -91,7 +80,7 @@
       (match-by-site-of-read
        read
        (safe-get result  (sam/reference-name read))))
-    (finalize-result result)))
+    result))
 
 (defn- reference-lengths [^SAMFileHeader header]
   "Generate a map of reference name -> length"
@@ -115,9 +104,13 @@
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (let [ref-lengths (-> reader .getFileHeader reference-lengths)
+    (let [long-array-cls (resolve (symbol "[J"))
+          ref-lengths (-> reader .getFileHeader reference-lengths)
           m (->> reader
                  .iterator
                  iterator-seq
                  (match-by-site-of-records ref-lengths))]
-      (generate-stream m writer {:pretty true}))))
+      (add-encoder long-array-cls encode-seq)
+      (try
+        (generate-stream m writer {:pretty true})
+        (finally (remove-encoder long-array-cls))))))
