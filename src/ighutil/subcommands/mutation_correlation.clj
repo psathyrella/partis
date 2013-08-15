@@ -39,11 +39,11 @@
    result))
 
 (defn- unmask-base-exp-match [^SAMRecord read ^bytes bq ref-len]
-  "Generates two arrays: [counts matches]
+  "Generates two arrays: [counts mutations]
   counts contains 1/0 indicating whether a base aligns to each
   position.
 
-  matches contains 1/0 indicating whether there is a match at
+  mutations contains 1/0 indicating whether there is a mutation at
   each position."
   (let [counts (long-array ref-len 0)
         matches (long/aclone counts)]
@@ -53,7 +53,7 @@
         (when (and (not= 0 ref-idx) (>= b 0) (= 0 (mod b 100)))
           (let [ref-idx (dec (int ref-idx))]
             (long/aset counts ref-idx 1)
-            (long/aset matches ref-idx (/ b 100))))))
+            (long/aset matches ref-idx (- 1 (/ b 100)))))))
     [counts matches]))
 
 (defn- match-by-site-of-read [^SAMRecord read
@@ -63,15 +63,16 @@
    [reference-name {site-index {matches-at-site }}]"
   (let [length (int length)
         ^bytes bq (.getAttribute read TAG-EXP-MATCH)
-        [^longs read-counts ^longs read-matches] (unmask-base-exp-match read bq length)]
+        [^longs read-counts
+         ^longs read-muts] (unmask-base-exp-match read bq length)]
     (assert (not (nil? bq)))
     (long/afill! [c count i read-counts] (p/+ i c))
-    (doseq [i (range (alength read-matches))]
+    (doseq [i (range (alength read-muts))]
       (let [i (int i)
-            ^longs tgt (if (p/not== 0 (long/aget read-matches i))
+            ^longs tgt (if (p/not== 0 (long/aget read-muts i))
                          unmutated
                          mutated)]
-        (long/doarr [[j c] read-matches]
+        (long/doarr [[j c] read-muts]
                     (long/ainc tgt (p/+ (p/* i length) j) c))))))
 
 (defn- match-by-site-of-records [ref-lengths records]
@@ -115,4 +116,5 @@
       (add-encoder long-array-cls encode-seq)
       (try
         (generate-stream m writer)
-        (finally (remove-encoder long-array-cls))))))
+        (finally (remove-encoder long-array-cls)))))
+  nil)
