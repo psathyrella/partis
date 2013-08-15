@@ -4,7 +4,9 @@
             SAMFileHeader
             SAMFileReader
             SAMFileReader$ValidationStringency
-            SAMSequenceRecord])
+            SAMSequenceRecord]
+           [net.sf.picard.reference
+            ReferenceSequenceFileFactory])
   (:require [cheshire.core :refer [generate-stream]]
             [cheshire.generate :refer [add-encoder remove-encoder encode-seq]]
             [clojure.core.reducers :as r]
@@ -12,6 +14,7 @@
             [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [hiphip.long :as long]
+            [ighutil.fasta :refer [extract-references]]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
@@ -19,12 +22,14 @@
             [primitive-math :as p]))
 
 
-(defn- result-skeleton [ref-lengths]
+(defn- result-skeleton [refs]
   (into
    {}
-   (for [[name length] ref-lengths]
-     (let [msize (* length length)]
+   (for [[name ^bytes bases] refs]
+     (let [length (alength bases)
+           msize (* length length)]
        [name {:length length
+              :bases (String. bases)
               :mutated (long-array msize)
               :unmutated (long-array msize)
               :count (long-array length)}] ))))
@@ -75,28 +80,21 @@
         (long/doarr [[j c] read-muts]
                     (long/ainc tgt (p/+ (p/* i length) j) c))))))
 
-(defn- match-by-site-of-records [ref-lengths records]
+(defn- match-by-site-of-records [refs records]
   "Get the number of records that match / mismatch at each other site
    conditioning on a mutation in each position"
-  (let [result (result-skeleton ref-lengths)]
+  (let [result (result-skeleton refs)]
     (doseq [^SAMRecord read records]
       (match-by-site-of-read
        read
        (safe-get result  (sam/reference-name read))))
     result))
 
-(defn- reference-lengths [^SAMFileHeader header]
-  "Generate a map of reference name -> length"
-  (->> header
-       .getSequenceDictionary
-       .getSequences
-       (r/map (fn [^SAMSequenceRecord r]
-                [(.getSequenceName r) (.getSequenceLength r)]))
-       (into {})))
-
 (defcommand mutation-correlation
   "Set up for summarizing mutation correlation"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
+                :parse-fn io/file]
+               ["-r" "--reference-file" "Reference file" :required true
                 :parse-fn io/file]
                ["-o" "--out-file" "Destination path" :required true
                 :parse-fn zio/writer]]}
@@ -108,11 +106,14 @@
      reader
      SAMFileReader$ValidationStringency/SILENT)
     (let [long-array-cls (resolve (symbol "[J"))
-          ref-lengths (-> reader .getFileHeader reference-lengths)
+          ref-map (->> reference-file
+                       ReferenceSequenceFileFactory/getReferenceSequenceFile
+                       extract-references
+                       (into {}))
           m (->> reader
                  .iterator
                  iterator-seq
-                 (match-by-site-of-records ref-lengths))]
+                 (match-by-site-of-records ref-map))]
       (add-encoder long-array-cls encode-seq)
       (println "Finished: writing results")
       (try
