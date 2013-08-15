@@ -74,7 +74,7 @@
     (long/afill! [c count i read-counts] (p/+ i c))
     (doseq [i (range (alength read-muts))]
       (let [i (int i)
-            ^longs tgt (if (p/not== 0 (long/aget read-muts i))
+            ^longs tgt (if (p/== 0 (long/aget read-muts i))
                          unmutated
                          mutated)]
         (long/doarr [[j c] read-muts]
