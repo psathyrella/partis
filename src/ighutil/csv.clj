@@ -20,7 +20,7 @@
         header (->> rows
                     first
                     (?>> keywordize? map keyword))
-        make-row (partial zipmap header)]
+        make-row #(zipmap header %)]
     (map make-row (rest rows))))
 
 (defn read-typed-csv [fp types & csv-opts]
