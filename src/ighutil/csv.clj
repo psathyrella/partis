@@ -16,7 +16,7 @@
                          :as options}]
   (let [rows (apply csv/read-csv
                     fp
-                    (dissoc options :keywordize?))
+                    (apply concat (dissoc options :keywordize?)))
         header (->> rows
                     first
                     (?>> keywordize? map keyword))
