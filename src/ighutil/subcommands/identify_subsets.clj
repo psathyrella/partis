@@ -1,9 +1,7 @@
 (ns ighutil.subcommands.identify-subsets
   "Enumerate all mutations from germline.
    Output is a graph containing edges between nodes with subsets of mutations."
-  (:import [net.sf.picard.reference
-            ReferenceSequenceFileFactory]
-           [net.sf.samtools
+  (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency]
@@ -52,10 +50,7 @@
                ["-o" "--out-file" "Destination path"
                 :parse-fn zio/writer :required true]]
    :bind-args-to [reference v-sam-path]}
-  (let [ref (-> reference
-                io/file
-                ReferenceSequenceFileFactory/getReferenceSequenceFile)
-        ref-map (extract-references ref)]
+  (let [ref-map (extract-references reference)]
     (with-open [sam (SAMFileReader. (io/file v-sam-path))]
       (.setValidationStringency
        sam

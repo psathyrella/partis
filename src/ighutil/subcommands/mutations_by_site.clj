@@ -3,11 +3,7 @@
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency
-            AlignmentBlock]
-           [net.sf.picard.reference
-            ReferenceSequenceFileFactory
-            ReferenceSequenceFile
-            ReferenceSequence])
+            AlignmentBlock])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [clojure.core.reducers :as r]
@@ -104,10 +100,7 @@
                 :parse-fn zio/writer :required true]
                ["-r" "--reference-file" "Reference file" :required true]
                ["--[no-]uncertain" "Allow uncertain positions?" :default true]]}
-  (let [ref (-> reference-file
-                io/file
-                ReferenceSequenceFileFactory/getReferenceSequenceFile)
-        ref-map (into {}  (extract-references ref))]
+  (let [ref-map (into {}  (extract-references reference-file))]
     (with-open [sam (SAMFileReader. ^java.io.File in-file)]
       (.setValidationStringency
        sam

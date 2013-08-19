@@ -45,17 +45,14 @@
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (let [refs (with-open [f (FastaSequenceFile. reference-file true)]
-                 (->> f extract-references (into {})))
+    (let [refs (->> reference-file extract-references (into {}))
           read-iterator (->> reader
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
                                  partition-by-name
                                  (map vec)
-                                 (mapcat (partial
-                                          cal-equal
-                                          refs)))]
+                                 (mapcat #(cal-equal refs %)))]
       (with-open [writer (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
                                               (.getFileHeader reader)
                                               sorted

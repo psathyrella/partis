@@ -4,9 +4,7 @@
             SAMFileHeader
             SAMFileReader
             SAMFileReader$ValidationStringency
-            SAMSequenceRecord]
-           [net.sf.picard.reference
-            ReferenceSequenceFileFactory])
+            SAMSequenceRecord])
   (:require [cheshire.core :refer [generate-stream]]
             [cheshire.generate :refer [add-encoder remove-encoder encode-seq]]
             [clojure.core.reducers :as r]
@@ -107,7 +105,6 @@
      SAMFileReader$ValidationStringency/SILENT)
     (let [long-array-cls (resolve (symbol "[J"))
           ref-map (->> reference-file
-                       ReferenceSequenceFileFactory/getReferenceSequenceFile
                        extract-references
                        (into {}))
           m (->> reader

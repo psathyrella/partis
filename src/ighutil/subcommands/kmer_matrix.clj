@@ -5,7 +5,6 @@
             SAMFileReader
             SAMFileReader$ValidationStringency
             SAMFileWriterFactory]
-           [net.sf.picard.reference FastaSequenceFile]
            [net.sf.picard.util IntervalTree]
            [io.github.cmccoy sam.SAMUtils dna.IUPACUtils])
   (:require [cliopatra.command :refer [defcommand]]
@@ -141,8 +140,7 @@ length >= k"
     (let [exclude (when exclude-positions
                     (with-open [^java.io.Reader r exclude-positions]
                       (parse-exclude-file r)))
-          refs (with-open [f (FastaSequenceFile. reference-file true)]
-                 (->> f extract-references (into {})))
+          refs (->> reference-file extract-references (into {}))
           mutations-for-read (fn [^SAMRecord r]
                                (kmer-mutations
                                 k

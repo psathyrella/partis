@@ -1,7 +1,5 @@
 (ns ighutil.subcommands.identify-motif
-  (:import [net.sf.picard.reference
-            ReferenceSequenceFileFactory]
-           [io.github.cmccoy.dna IUPACUtils])
+  (:import  [io.github.cmccoy.dna IUPACUtils])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [clojure.string :as string]
@@ -29,9 +27,7 @@
                 :required true]]}
   (with-open [out (zio/writer out-file)]
     (csv/write-csv out [["reference" "position" "motif" "sequence"]])
-    (let [reference-seqs (-> in-file
-                             ReferenceSequenceFileFactory/getReferenceSequenceFile
-                             extract-references)]
+    (let [reference-seqs (extract-references in-file)]
       (doseq [^String motif (string/split motifs #",")]
         (let [packed-motif (IUPACUtils/packBytes (.getBytes motif))]
           (doseq [[ref-name ^bytes ref-bytes] reference-seqs]
