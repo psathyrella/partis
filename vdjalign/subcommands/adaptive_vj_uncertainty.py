@@ -57,16 +57,15 @@ def row_to_combination(row):
         js = frozenset(row['jTies'])
     return Combination(vs, js, row['cdr3Length'], 1)
 
-def build_parser(p):
-    p.add_argument('infiles', metavar='infile', nargs='+')
-    p.add_argument('--prefix', default='')
-    p.add_argument('-o', '--outfile', default=sys.stdout, type=util.opener('w'))
-    p.set_defaults(func=action)
-
 def resolutions(comb):
     for v in comb.vs:
         for j in comb.js:
             yield v, j, comb.cdr3_length
+
+def combination_str(c):
+    js = '|'.join(set(str(j) for j in c.js))
+    vs = '|'.join(set(str(v) for v in c.vs))
+    return '{0}-{1}-{2}'.format(vs, c.cdr3_length, js)
 
 def freqs_to_graph(freqs):
     resolution_nodes = collections.defaultdict(set)
@@ -80,6 +79,13 @@ def freqs_to_graph(freqs):
             neighbors.add(n)
     return g
 
+def build_parser(p):
+    p.add_argument('infiles', metavar='infile', nargs='+')
+    p.add_argument('--prefix', default='')
+    p.add_argument('-o', '--outfile', default=sys.stdout, type=util.opener('w'))
+    p.add_argument('-c', '--frequency-cutoffs', default=[0], type=int_set)
+    p.set_defaults(func=action)
+
 def action(a):
     rows = (row for f in a.infiles
             for row in load_csv_rows(f, [('vGeneName', or_none(int)),
@@ -91,15 +97,28 @@ def action(a):
     rows = distinct_by(rows, operator.itemgetter('nucleotide'))
     rows = (row_to_combination(row) for row in rows)
     freqs = (k._replace(count=v) for k, v in collections.Counter(rows).iteritems())
-    logging.info('creating graph')
+    log.info('creating graph')
     g = freqs_to_graph(freqs)
-    logging.info('%d nodes, %d edges', g.number_of_nodes(), g.number_of_edges())
+    log.info('%d nodes, %d edges', g.number_of_nodes(), g.number_of_edges())
 
     with a.outfile as fp:
         w = csv.writer(fp, lineterminator='\n')
-        w.writerow(['vs', 'js', 'cdr3_length', 'n_nodes', 'total_count'])
-        for cc in networkx.connected_components(g):
-            vs = '|'.join(set(str(j) for i in cc for j in i.vs))
-            js = '|'.join(set(str(j) for i in cc for j in i.js))
-            cdr3s = '|'.join(set(str(i.cdr3_length) for i in cc))
-            w.writerow([vs, js, cdr3s, len(cc), sum(i.count for i in cc)])
+        w.writerow(['cutoff', 'vs', 'js', 'cdr3_length', 'n_nodes', 'total_count'])
+        for cutoff in sorted(a.frequency_cutoffs):
+            g2 = g.copy()
+            g2.remove_nodes_from(i for i in g.nodes() if i.count < cutoff)
+            connected = networkx.connected_components(g2)
+            log.info('cutoff=%d: %d connected components  %d nodes  %d edges',
+                     cutoff,
+                     len(connected),
+                     g2.number_of_nodes(),
+                     g2.number_of_edges())
+            for cc in connected:
+                vs = '|'.join(set(str(j) for i in cc for j in i.vs))
+                js = '|'.join(set(str(j) for i in cc for j in i.js))
+                cdr3s = '|'.join(set(str(i.cdr3_length) for i in cc))
+                w.writerow([cutoff, vs, js, cdr3s, len(cc), sum(i.count for i in cc)])
+            #if cutoff == 1000:
+                #cc = max((i for i in connected if len(i) < 1000), key=len)
+                #g2.remove_nodes_from(i for i in g2.nodes() if i not in set(cc))
+                #networkx.write_dot(g2, 'hairball.dot')
