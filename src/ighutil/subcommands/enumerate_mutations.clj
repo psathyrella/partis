@@ -10,10 +10,11 @@
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
             [plumbing.core :refer [safe-get]]
+            [ighutil.fasta :refer [extract-references]]
+            [ighutil.imgt :refer [strip-allele]]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
-            [ighutil.ubtree :as ub]
-            [ighutil.fasta :refer [extract-references]]))
+            [ighutil.ubtree :as ub]))
 
 
 (let [n-records (atom 0)]
@@ -21,14 +22,6 @@
     (let [n (swap! n-records inc)]
       (when (= 0 (mod n 50000))
         (.print System/err (format "Read record %10d\r" n))))))
-
-
-(defn- strip-allele [^String s]
-  "Remove the allele from a string"
-  (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
-    (if (< idx 0)
-      s
-      (.substring s 0 idx))))
 
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
