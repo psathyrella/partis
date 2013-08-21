@@ -99,7 +99,10 @@
     result))
 
 (defcommand mutation-correlation
-  "Set up for summarizing mutation correlation"
+  "Set up for summarizing mutation correlation
+
+   Resulting matrices have a row for each position, with the number of mutations
+   at the column j conditioned on the state in row i"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn io/file]
                ["-r" "--reference-file" "Reference file" :required true
