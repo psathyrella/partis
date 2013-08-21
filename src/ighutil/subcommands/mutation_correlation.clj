@@ -13,6 +13,7 @@
             [cliopatra.command :refer [defcommand]]
             [hiphip.long :as long]
             [ighutil.fasta :refer [extract-references]]
+            [ighutil.imgt :as imgt]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
@@ -24,10 +25,14 @@
   (into
    {}
    (for [[name ^bytes bases] refs]
-     (let [length (alength bases)
+     (let [length (or (get-in @imgt/v-gene-meta
+                              [name :aligned-length])
+                      (alength bases))
            msize (* length length)]
        [name {:length length
-              :bases (String. bases)
+              :bases (or (get-in @imgt/v-gene-meta
+                                 [name :aligned])
+                         (String. bases))
               :mutated (long-array msize)
               :unmutated (long-array msize)
               :count (long-array length)}] ))))
@@ -49,18 +54,23 @@
   mutations contains 1/0 indicating whether there is a mutation at
   each position."
   (let [counts (long-array ref-len 0)
-        matches (long/aclone counts)]
+        matches (long/aclone counts)
+        ref-name (.getReferenceName read)]
     (doseq [i (range (alength bq))]
       (let [ref-idx (.getReferencePositionAtReadPosition read i)
+            idx (or (get-in @imgt/v-gene-meta
+                            [ref-name :translation (dec ref-idx)])
+                    (dec ref-idx))
             b (long (aget bq i))]
-        (when (and (not= 0 ref-idx) (>= b 0) (= 0 (mod b 100)))
-          (let [ref-idx (dec (int ref-idx))]
-            (long/aset counts ref-idx 1)
-            (long/aset matches ref-idx (- 1 (/ b 100)))))))
+        (when (and (not= 0 ref-idx)            ; Is aligned
+                   (>= b 0) (= 0 (mod b 100))) ; Certain match/mismatch
+          (let [idx (int idx)]
+            (long/aset counts idx 1)
+            (long/aset matches idx (- 1 (/ b 100)))))))
     [counts matches]))
 
-(defn- match-by-site-of-read [^SAMRecord read
-                              {:keys [length mutated unmutated count]}]
+(defn- conditional-mutations-of-read [^SAMRecord read
+                                      {:keys [length mutated unmutated count]}]
   "Given a SAM record with the TAG-EXP-MATCH tag,
    generates a vector of
    [reference-name {site-index {matches-at-site }}]"
@@ -78,14 +88,14 @@
         (long/doarr [[j c] read-muts]
                     (long/ainc tgt (p/+ (p/* i length) j) c))))))
 
-(defn- match-by-site-of-records [refs records]
+(defn- conditional-mutations-of-records [refs records]
   "Get the number of records that match / mismatch at each other site
    conditioning on a mutation in each position"
   (let [result (result-skeleton refs)]
     (doseq [^SAMRecord read records]
-      (match-by-site-of-read
+      (conditional-mutations-of-read
        read
-       (safe-get result  (sam/reference-name read))))
+       (safe-get result (sam/reference-name read))))
     result))
 
 (defcommand mutation-correlation
@@ -110,7 +120,7 @@
           m (->> reader
                  .iterator
                  iterator-seq
-                 (match-by-site-of-records ref-map))]
+                 (conditional-mutations-of-records ref-map))]
       (add-encoder long-array-cls encode-seq)
       (println "Finished: writing results")
       (try
