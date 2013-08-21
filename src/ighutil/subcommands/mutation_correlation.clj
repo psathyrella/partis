@@ -120,10 +120,11 @@
           m (->> reader
                  .iterator
                  iterator-seq
-                 (conditional-mutations-of-records ref-map))]
+                 (conditional-mutations-of-records ref-map)
+                 (filter (fn [x] (-> x second :count long/asum (> 0)))))]
       (add-encoder long-array-cls encode-seq)
       (println "Finished: writing results")
       (try
-        (generate-stream m writer)
+        (generate-stream m writer {:pretty true})
         (finally (remove-encoder long-array-cls)))))
   nil)
