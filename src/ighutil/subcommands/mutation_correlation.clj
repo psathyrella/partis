@@ -121,7 +121,8 @@
                  .iterator
                  iterator-seq
                  (conditional-mutations-of-records ref-map)
-                 (filter (fn [x] (-> x second :count long/asum (> 0)))))]
+                 (filter (fn [x] (-> x second :count long/asum (> 0))))
+                 (into {}))]
       (add-encoder long-array-cls encode-seq)
       (println "Finished: writing results")
       (try
