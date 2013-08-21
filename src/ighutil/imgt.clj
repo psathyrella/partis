@@ -2,6 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
             [clojure.edn :as edn]
+            [cheshire.core :as cheshire]
             [flatland.useful.seq :refer [indexed]])
   (:import [net.sf.picard.reference FastaSequenceFile ReferenceSequence]))
 
@@ -72,3 +73,12 @@
     (edn/read reader)))
 
 (def v-gene-meta (delay (create-v-meta)))
+
+
+(defn dump-v-gene-meta [fname]
+  (->> @v-gene-meta
+       (map #(update-in % [1 :translation]
+                        (comp (partial apply mapv vector) sort)))
+       (into {})
+       cheshire/encode
+       (spit fname)))
