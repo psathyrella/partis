@@ -4,7 +4,6 @@ Align V and J starting from an adaptive XsV file
 import contextlib
 import collections
 import csv
-import functools
 import logging
 import os
 import os.path

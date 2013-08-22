@@ -6,7 +6,6 @@ import contextlib
 import csv
 import logging
 import functools
-import os.path
 import shutil
 import subprocess
 import tempfile
