@@ -2,11 +2,10 @@
 
 PYTHON ?= python
 
-CYTHON_COMPILED  = vdjalign/bwa.c
-
 CYTHON_FILES = $(wildcard vdjalign/*.pyx)
 
 LIBRARIES = $(CYTHON_FILES:pyx=so)
+CYTHON_COMPILED = $(CYTHON_FILES:pyx=cpp) $(CYTHON_FILES:pyx=c)
 
 inplace: $(EXTS)
 	$(PYTHON) setup.py build_ext --inplace
