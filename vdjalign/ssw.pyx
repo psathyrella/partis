@@ -1,6 +1,8 @@
 # distutils: language = c++
 # distutils: include_dirs = ssw-src/src
 # distutils: sources = ssw-src/src/ssw_cpp.cpp ssw-src/src/ssw.c
+# distutils: extra_compile_args = -fopenmp
+# distutils: extra_link_args = -fopenmp -lz
 import re
 from libcpp.string cimport string
 from libc.stdlib cimport free, malloc
