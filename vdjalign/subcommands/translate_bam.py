@@ -8,7 +8,7 @@ import sys
 import pysam
 
 from .. import codons, util
-from .adaptive_csv import TAG_CDR3_START
+from .adaptive_tsv import TAG_CDR3_START
 
 log = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-COMMANDS = ('adaptive_csv', 'count_mutations', 'translate_bam', 'collapse_identical_reads')
+COMMANDS = ('adaptive_tsv', 'count_mutations', 'translate_bam', 'collapse_identical_reads', 'adaptive_vj_uncertainty')
 
 
 def itermodules(root=__name__):

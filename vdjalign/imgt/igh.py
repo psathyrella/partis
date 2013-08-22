@@ -6,6 +6,7 @@ import subprocess
 
 from pkg_resources import resource_stream
 
+from lxml import etree
 
 from .. import util
 
@@ -69,6 +70,21 @@ def tryptophan_map():
             else:
                 raise ValueError(s)
     return result
+
+
+def load_ighj():
+    with resource_stream(_PKG, 'ighj_adaptive.xml') as fp:
+        doc = etree.parse(fp)
+
+        for elem in doc.xpath('/region/germline'):
+            record = dict(elem.attrib)
+            for k in ('length', 'aminoacidindex', 'cdr3index'):
+                record[k] = int(record[k])
+
+            record['trp_index'] = record['length'] + record['cdr3index'] - 3
+            record['cdr3end'] = record['trp_index'] + 3
+
+            yield record
 
 
 def consensus_by_allele(file_name):
