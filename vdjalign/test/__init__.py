@@ -1,7 +1,7 @@
 import unittest
 
 modules = [
-    'test_subcommands_adaptive_tsv',
+    'test_ssw',
 ]
 
 def suite():
