@@ -1,6 +1,6 @@
 # distutils: language = c
-# distutils: include_dirs = ssw-src/src
-# distutils: sources = ssw-src/src/ssw.c vdjalign/ssw_align.c
+# distutils: include_dirs = lib/ssw/src src
+# distutils: sources = lib/ssw/src/ssw.c src/ssw_align.c
 # distutils: extra_compile_args = -fopenmp
 # distutils: extra_link_args = -fopenmp -lz
 from libc.stdlib cimport free, malloc

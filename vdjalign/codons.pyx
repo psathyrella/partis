@@ -1,7 +1,7 @@
 # distutils: language = c++
-# distutils: include_dirs = vdjalign
+# distutils: include_dirs = src
 # distutils: extra_compile_args = -std=c++0x -Wall -Wextra
-# distutils: sources = vdjalign/c_codons.cpp
+# distutils: sources = src/c_codons.cpp
 """
 Codon translation
 """
