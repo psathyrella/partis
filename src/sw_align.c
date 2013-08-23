@@ -13,6 +13,7 @@
 
 #include "sw_align.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <emmintrin.h>
@@ -46,42 +47,60 @@
 
 KSEQ_INIT(gzFile, gzread);
 
-typedef kvec_t(kseq_t*) kseq_v;
+typedef kvec_t(kseq_t) kseq_v;
 
 /* Destroy a vector of pointers, calling f on each item */
 #define kvp_destroy(f, v) \
-    for(size_t __kpd = 0; __kpd < kv_size(v); __kpd++) \
+    for(size_t __kpd = 0; __kpd < kv_size(v); ++__kpd) \
         f(kv_A(v, __kpd)); \
     kv_destroy(v)
 
-kseq_v read_all_seqs(gzFile fp) {
-    kseq_t *seq = kseq_init(fp);
-    kseq_v result;
-    kv_init(result);
-    int l;
-    while((l = kseq_read(seq)) > 0) {
-        kv_push(kseq_t*, result, seq);
-        seq = kseq_init(fp);
+#define kvi_destroy(f, v) \
+    for(size_t __kpd = 0; __kpd < kv_size(v); ++__kpd) \
+        f(&kv_A(v, __kpd)); \
+    kv_destroy(v)
+
+static void kstring_copy(kstring_t* dest, const kstring_t* other) {
+    dest->l = other->l;
+    dest->m = dest->l + 1;
+    if(dest->l > 0) {
+        assert(other->s != NULL);
+        dest->s = malloc(dest->l + 1);
+        memcpy(dest->s, other->s, dest->l);
+        dest->s[dest->l] = 0; // null-terminate
+    } else {
+        dest->s = NULL;
     }
-    kseq_destroy(seq); // one extra
-    return result;
 }
 
+static void kseq_stack_destroy(kseq_t* seq)
+{
+    free(seq->name.s);
+    free(seq->comment.s);
+    free(seq->seq.s);
+    free(seq->qual.s);
+}
 
-kseq_v read_seqs(gzFile fp,
+static void kseq_copy(kseq_t* dest, const kseq_t* seq)
+{
+    dest->f = NULL;
+    kstring_copy(&dest->name, &seq->name);
+    kstring_copy(&dest->comment, &seq->comment);
+    kstring_copy(&dest->seq, &seq->seq);
+    kstring_copy(&dest->qual, &seq->qual);
+}
+
+kseq_v read_seqs(kseq_t* seq,
                  size_t n_wanted) {
-    kseq_t *seq = kseq_init(fp);
     kseq_v result;
     kv_init(result);
-    for(size_t i = 0; i < n_wanted; i++) {
-        const int l = kseq_read(seq);
-        if(l <= 0) {
+    for(size_t i = 0; i < n_wanted || n_wanted == 0; i++) {
+        if(kseq_read(seq) <= 0)
             break;
-        }
-        kv_push(kseq_t*, result, seq);
-        seq = kseq_init(fp);
+        kseq_t s;
+        kseq_copy(&s, seq);
+        kv_push(kseq_t, result, s);
     }
-    kseq_destroy(seq); // one extra
     return result;
 }
 
@@ -129,7 +148,7 @@ static aln_v align_read(const kseq_t* read,
     kswq_t *qry = NULL;
     for(size_t j = 0; j < kv_size(targets); j++) {
         // Encode target
-        r = kv_A(targets, j);
+        r = &kv_A(targets, j);
         uint8_t *ref_num = calloc(r->seq.l, sizeof(uint8_t));
         for (size_t k = 0; k < r->seq.l; ++k)
             ref_num[k] = conf->table[(int)r->seq.s[k]];
@@ -152,7 +171,7 @@ static aln_v align_read(const kseq_t* read,
                    conf->mat,
                    conf->gap_o,
                    conf->gap_e,
-                   20,
+                   40, /* TODO: Magic number */
                    &aln.n_cigar,
                    &aln.cigar);
         kv_push(aln_t, result, aln);
@@ -172,11 +191,11 @@ static void write_sam_records(gzFile dest,
     for(size_t i = 0; i < kv_size(result); i++) {
         aln_t a = kv_A(result, i);
         gzprintf(dest, "%s\t%d\t", read->name.s,
-                 i == 0 ? 0 : 256); // Secondary
+                i == 0 ? 0 : 256); // Secondary
         gzprintf(dest, "%s\t%d\t%d\t",
-                 kv_A(ref_seqs, a.target_idx)->name.s, /* Reference */
-                 a.loc.tb + 1,                         /* POS */
-                 40);                                  /* MAPQ */
+                kv_A(ref_seqs, a.target_idx).name.s, /* Reference */
+                a.loc.tb + 1,                        /* POS */
+                40);                                 /* MAPQ */
         if (a.loc.qb)
             gzprintf(dest, "%dS", a.loc.qb);
         for (size_t c = 0; c < a.n_cigar; c++) {
@@ -189,12 +208,12 @@ static void write_sam_records(gzFile dest,
         }
 
         if (a.loc.qe + 1 != read->seq.l)
-            gzprintf(dest, "%dS", read->seq.l - a.loc.qe - 1);
+            gzprintf(dest, "%luS", read->seq.l - a.loc.qe - 1);
 
         gzprintf(dest, "\t*\t0\t0\t");
         gzprintf(dest, "%s\t", i > 0 ? "*" : read->seq.s);
         if (read->qual.s && i == 0)
-            gzprintf(dest, read->qual.s);
+            gzprintf(dest, "%s", read->qual.s);
         else
             gzprintf(dest, "*");
 
@@ -205,14 +224,15 @@ static void write_sam_records(gzFile dest,
 void align_reads (const char* ref_path,
                   const char* qry_path,
                   const char* output_path,
-                  const int32_t match,    /* 2 */
-                  const int32_t mismatch, /* 2 */
-                  const int32_t gap_o,    /* 3 */
-                  const int32_t gap_e,    /* 1 */
+                  const int32_t match,       /* 2 */
+                  const int32_t mismatch,    /* 2 */
+                  const int32_t gap_o,       /* 3 */
+                  const int32_t gap_e,       /* 1 */
                   const uint8_t n_threads) { /* 1 */
     gzFile read_fp, ref_fp, out_fp;
-    int32_t j, l, k;
+    int32_t j, k, l;
     const int m = 5;
+    kseq_t *seq;
     int8_t* mat = (int8_t*)calloc(25, sizeof(int8_t));
 
     /* This table is used to transform nucleotide letters into numbers. */
@@ -237,17 +257,22 @@ void align_reads (const char* ref_path,
 
     // Read reference sequences
     ref_fp = gzopen(ref_path, "r");
+    seq = kseq_init(ref_fp);
     kseq_v ref_seqs;
-    ref_seqs = read_all_seqs(ref_fp);
+    ref_seqs = read_seqs(seq, 0);
+    kseq_destroy(seq);
     gzclose(ref_fp);
 
+    fprintf(stderr, "Read %lu references\n",
+            kv_size(ref_seqs));
+
     // Print SAM header
-    out_fp = gzopen(output_path, "w0");
+    out_fp = gzopen(output_path, "w");
     gzprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
     for(size_t i = 0; i < kv_size(ref_seqs); i++) {
+        seq = &kv_A(ref_seqs, i);
         gzprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
-                 kv_A(ref_seqs, i)->name.s,
-                 (int32_t)kv_A(ref_seqs, i)->seq.l);
+                seq->name.s, (int32_t)seq->seq.l);
     }
 
     align_config_t conf;
@@ -258,30 +283,38 @@ void align_reads (const char* ref_path,
     conf.mat = mat;
 
     read_fp = gzopen(qry_path, "r");
+    size_t count = 0;
+    seq = kseq_init(read_fp);
     while(true) {
-        kseq_v reads = read_seqs(read_fp, 10000); // TODO: Magic number
-        if(!kv_size(reads))
+        kseq_v reads = read_seqs(seq, 5); // TODO: Magic number
+        count += kv_size(reads);
+        if(!kv_size(reads)) {
             break;
+        }
+
         const size_t n_reads = kv_size(reads);
         for(size_t i = 0; i < n_reads; i++) {
-            aln_v result = align_read(kv_A(reads, i),
+            kseq_t *s = &kv_A(reads, i);
+            aln_v result = align_read(s,
                                       ref_seqs,
                                       &conf);
 
             write_sam_records(out_fp,
-                              kv_A(reads, i),
+                              s,
                               result,
                               ref_seqs);
 
             for(size_t j = 0; j < kv_size(result); j++)
                 free(kv_A(result, j).cigar);
             kv_destroy(result);
+            kseq_stack_destroy(s);
         }
-        kvp_destroy(kseq_destroy, reads);
+        kv_destroy(reads);
     }
+    kseq_destroy(seq);
 
     // Clean up reference sequences
-    kvp_destroy(kseq_destroy, ref_seqs);
+    kvi_destroy(kseq_stack_destroy, ref_seqs);
 
     gzclose(read_fp);
     gzclose(out_fp);
