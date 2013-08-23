@@ -1,7 +1,10 @@
 #ifndef SSW_ALIGN_H
 #define SSW_ALIGN_H
 
-void align_reads (const char* ref_path, const char* qry_path,
+#include <stdint.h>
+
+void align_reads (const char* ref_path,
+                  const char* qry_path,
                   const char* output_path,
                   const int32_t match, /* 2 */
                   const int32_t mismatch, /* 2 */

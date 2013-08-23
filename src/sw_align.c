@@ -11,6 +11,7 @@
  *  Last revision by Mengyao Zhao on 07/31/12.
  */
 
+#include "sw_align.h"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,8 +28,6 @@
 #include "ksort.h"
 #include "ksw.h"
 #include "kvec.h"
-
-#include "sw_align.h"
 
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)
@@ -157,8 +156,10 @@ static aln_v align_read(const kseq_t* read,
                    &aln.n_cigar,
                    &aln.cigar);
         kv_push(aln_t, result, aln);
+        free(ref_num);
     }
     free(qry);
+    free(read_num);
     ks_introsort(dec_score, kv_size(result), result.a);
     return result;
 }
@@ -235,7 +236,6 @@ void align_reads (const char* ref_path,
 
 
     // Read reference sequences
-
     ref_fp = gzopen(ref_path, "r");
     kseq_v ref_seqs;
     ref_seqs = read_all_seqs(ref_fp);
