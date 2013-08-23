@@ -19,10 +19,12 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <math.h>
 #include "kseq.h"
+#include "ksort.h"
 #include "ksw.h"
 #include "kvec.h"
 
@@ -90,23 +92,13 @@ typedef struct {
 } aln_t;
 typedef kvec_t(aln_t) aln_v;
 
+#define __aln_score_lt(a, b) ((a).loc.score > (b).loc.score)
+KSORT_INIT(dec_score, aln_t, __aln_score_lt)
+
 typedef struct {
     aln_v alignments;
 } aln_task_t;
 typedef kvec_t(aln_task_t) aln_task_v;
-
-typedef struct {
-    int tid;
-    int n_threads;
-    int32_t gap_o; /* 3 */
-    int32_t gap_e; /* 1 */
-    uint8_t *table;
-    int m; /* Number of residue tyes */
-    int8_t *mat; /* Scoring matrix */
-    kseq_v targets;
-    kseq_v reads;
-    aln_v* alignments;
-} thread_aux_t;
 
 typedef struct {
     int32_t gap_o; /* 3 */
@@ -115,14 +107,6 @@ typedef struct {
     int m; /* Number of residue tyes */
     int8_t *mat; /* Scoring matrix */
 } align_config_t;
-
-int ascore_lt_dec(const void* va, const void* vb) {
-    const aln_t* a = (const aln_t*) va;
-    const aln_t* b = (const aln_t*) vb;
-    if(a->loc.score == b->loc.score) return 0;
-    if(a->loc.score < b->loc.score) return 1;
-    return -1;
-}
 
 static aln_v align_read(const kseq_t* read,
                         const kseq_v targets,
@@ -159,10 +143,10 @@ static aln_v align_read(const kseq_t* read,
                             conf->gap_e,
                             KSW_XSTART,
                             &qry);
-        ksw_global(aln.loc.qe - aln.loc.qb,
-                   read_num + aln.loc.qb,
-                   aln.loc.te - aln.loc.tb,
-                   ref_num + aln.loc.tb,
+        ksw_global(aln.loc.qe - aln.loc.qb + 1,
+                   &read_num[aln.loc.qb],
+                   aln.loc.te - aln.loc.tb + 1,
+                   &ref_num[aln.loc.tb],
                    conf->m,
                    conf->mat,
                    conf->gap_o,
@@ -173,11 +157,46 @@ static aln_v align_read(const kseq_t* read,
         kv_push(aln_t, result, aln);
     }
     free(qry);
-    qsort(result.a,
-          kv_size(result),
-          sizeof(aln_t),
-          ascore_lt_dec);
+    ks_introsort(dec_score, kv_size(result), result.a);
     return result;
+}
+
+static void write_sam_records(gzFile dest,
+                              const kseq_t *read,
+                              const aln_v result,
+                              const kseq_v ref_seqs)
+{
+    for(size_t i = 0; i < kv_size(result); i++) {
+        aln_t a = kv_A(result, i);
+        gzprintf(dest, "%s\t%d\t", read->name.s,
+                 i == 0 ? 0 : 256); // Secondary
+        gzprintf(dest, "%s\t%d\t%d\t",
+                 kv_A(ref_seqs, a.target_idx)->name.s, /* Reference */
+                 a.loc.tb + 1,                         /* POS */
+                 40);                                  /* MAPQ */
+        if (a.loc.qb)
+            gzprintf(dest, "%dS", a.loc.qb);
+        for (size_t c = 0; c < a.n_cigar; c++) {
+            int32_t letter = 0xf&*(a.cigar + c);
+            int32_t length = (0xfffffff0&*(a.cigar + c))>>4;
+            gzprintf(dest, "%d", length);
+            if (letter == 0) gzprintf(dest, "M");
+            else if (letter == 1) gzprintf(dest, "I");
+            else gzprintf(dest, "D");
+        }
+
+        if (a.loc.qe + 1 != read->seq.l)
+            gzprintf(dest, "%dS", read->seq.l - a.loc.qe - 1);
+
+        gzprintf(dest, "\t*\t0\t0\t");
+        gzprintf(dest, "%s\t", i > 0 ? "*" : read->seq.s);
+        if (read->qual.s && i == 0)
+            gzprintf(dest, read->qual.s);
+        else
+            gzprintf(dest, "*");
+
+        gzprintf(dest, "\tAS:i:%d\n", a.loc.score);
+    }
 }
 
 void align_reads (const char* ref_path,
@@ -222,6 +241,12 @@ void align_reads (const char* ref_path,
 
     // Print SAM header
     out_fp = gzopen(output_path, "w0");
+    gzprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
+    for(size_t i = 0; i < kv_size(ref_seqs); i++) {
+        gzprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
+                 kv_A(ref_seqs, i)->name.s,
+                 (int32_t)kv_A(ref_seqs, i)->seq.l);
+    }
 
     align_config_t conf;
     conf.gap_o = gap_o;
@@ -237,10 +262,15 @@ void align_reads (const char* ref_path,
             break;
         const size_t n_reads = kv_size(reads);
         for(size_t i = 0; i < n_reads; i++) {
-            printf("Aligning %8lu\r", i);
             aln_v result = align_read(kv_A(reads, i),
                                       ref_seqs,
                                       &conf);
+
+            write_sam_records(out_fp,
+                              kv_A(reads, i),
+                              result,
+                              ref_seqs);
+
             for(size_t j = 0; j < kv_size(result); j++)
                 free(kv_A(result, j).cigar);
             kv_destroy(result);
