@@ -1,3 +1,11 @@
+
+/* Maybe:
+ * - read a batch of sequences
+ * - Create some threads
+ * - process / write
+ * - read more
+ */
+
 /*  main.c
  *  Created by Mengyao Zhao on 06/23/11.
  *	Version 0.1.4
@@ -8,12 +16,14 @@
 #include <stdint.h>
 #include <emmintrin.h>
 #include <zlib.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <time.h>
 #include <string.h>
 #include <math.h>
-#include "ssw.h"
 #include "kseq.h"
+#include "ksw.h"
 #include "kvec.h"
 
 #ifdef __GNUC__
@@ -33,98 +43,158 @@
 
 KSEQ_INIT(gzFile, gzread);
 
+typedef kvec_t(kseq_t*) kseq_v;
+
+/* Destroy a vector of pointers, calling f on each item */
+#define kvp_destroy(f, v) \
+    for(size_t __kpd = 0; __kpd < kv_size(v); __kpd++) \
+        f(kv_A(v, __kpd)); \
+    kv_destroy(v)
+
+kseq_v read_all_seqs(gzFile fp) {
+    kseq_t *seq = kseq_init(fp);
+    kseq_v result;
+    kv_init(result);
+    int l;
+    while((l = kseq_read(seq)) > 0) {
+        kv_push(kseq_t*, result, seq);
+        seq = kseq_init(fp);
+    }
+    kseq_destroy(seq); // one extra
+    return result;
+}
+
+
+kseq_v read_seqs(gzFile fp,
+                 size_t n_wanted) {
+    kseq_t *seq = kseq_init(fp);
+    kseq_v result;
+    kv_init(result);
+    for(size_t i = 0; i < n_wanted; i++) {
+        const int l = kseq_read(seq);
+        if(l <= 0) {
+            break;
+        }
+        kv_push(kseq_t*, result, seq);
+        seq = kseq_init(fp);
+    }
+    kseq_destroy(seq); // one extra
+    return result;
+}
+
+typedef struct {
+    size_t target_idx;
+    kswr_t loc;
+    uint32_t *cigar;
+    int n_cigar;
+} aln_t;
+typedef kvec_t(aln_t) aln_v;
+
+typedef struct {
+    aln_v alignments;
+} aln_task_t;
+typedef kvec_t(aln_task_t) aln_task_v;
+
+typedef struct {
+    int tid;
+    int n_threads;
+    int32_t gap_o; /* 3 */
+    int32_t gap_e; /* 1 */
+    uint8_t *table;
+    int m; /* Number of residue tyes */
+    int8_t *mat; /* Scoring matrix */
+    kseq_v targets;
+    kseq_v reads;
+    aln_v* alignments;
+} thread_aux_t;
+
+typedef struct {
+    int32_t gap_o; /* 3 */
+    int32_t gap_e; /* 1 */
+    uint8_t *table;
+    int m; /* Number of residue tyes */
+    int8_t *mat; /* Scoring matrix */
+} align_config_t;
+
 int ascore_lt_dec(const void* va, const void* vb) {
-    const s_align* a = *((const s_align**) va);
-    const s_align* b = *((const s_align**) vb);
-    if(a->score1 == b->score1) return 0;
-    if(a->score1 < b->score1) return 1;
+    const aln_t* a = (const aln_t*) va;
+    const aln_t* b = (const aln_t*) vb;
+    if(a->loc.score == b->loc.score) return 0;
+    if(a->loc.score < b->loc.score) return 1;
     return -1;
 }
 
-void ssw_write_sam (gzFile* dest,
-                    const s_align* a,
-                    const kseq_t* ref_seq,
-                    const kseq_t* read,
-                    const char* read_seq,
-                    const int8_t* table,
-                    const int32_t flag) {
+static aln_v align_read(const kseq_t* read,
+                        const kseq_v targets,
+                        const align_config_t *conf)
+{
+    kseq_t *r;
+    const int32_t read_len = read->seq.l;
 
-        gzprintf(dest, "%s\t", read->name.s);
-        if (a->score1 == 0) gzprintf(dest, "4\t*\t0\t255\t*\t*\t0\t0\t*\t*\n");
-        else {
-            int32_t c, l = a->read_end1 - a->read_begin1 + 1, qb = a->ref_begin1, pb = a->read_begin1, p;
-            uint32_t mapq = -4.343 * log(1 - (double)abs(a->score1 - a->score2)/(double)a->score1);
-            mapq = (uint32_t) (mapq + 4.99);
-            mapq = mapq < 254 ? mapq : 254;
-            gzprintf(dest, "%d\t", flag);
-            gzprintf(dest, "%s\t%d\t%d\t", ref_seq->name.s, a->ref_begin1 + 1, mapq);
-            if (a->read_begin1)
-                gzprintf(dest, "%dS", a->read_begin1);
+    aln_v result;
+    kv_init(result);
+    kv_resize(aln_t, result, kv_size(targets));
 
-            for (c = 0; c < a->cigarLen; ++c) {
-                int32_t letter = 0xf&*(a->cigar + c);
-                int32_t length = (0xfffffff0&*(a->cigar + c))>>4;
-                gzprintf(dest, "%d", length);
-                if (letter == 0) gzprintf(dest, "M");
-                else if (letter == 1) gzprintf(dest, "I");
-                else gzprintf(dest, "D");
-            }
+    uint8_t *read_num = calloc(read_len, sizeof(uint8_t));
 
-            if (a->read_end1 + 1 != read->seq.l)
-                gzprintf(dest, "%dS", read->seq.l - a->read_end1 - 1);
+    for (size_t k = 0; k < read_len; ++k)
+        read_num[k] = conf->table[(int)read->seq.s[k]];
 
-            gzprintf(dest, "\t*\t0\t0\t");
-            if (!(flag & 256)) {
-                gzprintf(dest, read->seq.s);
-            } else {
-                gzprintf(dest, "*");
-            }
-            gzprintf(dest, "\t");
-            if (read->qual.s && !(flag & 256)) {
-                gzprintf(dest, read->qual.s);
-            } else gzprintf(dest, "*");
-            gzprintf(dest, "\tAS:i:%d", a->score1);
-            mapq = 0;	// counter of difference
-            for (c = 0; c < a->cigarLen; ++c) {
-                int32_t letter = 0xf&*(a->cigar + c);
-                int32_t length = (0xfffffff0&*(a->cigar + c))>>4;
-                if (letter == 0) {
-                    for (p = 0; p < length; ++p){
-                        if (table[(int)*(ref_seq->seq.s + qb)] != table[(int)*(read_seq + pb)]) ++mapq;
-                        ++qb;
-                        ++pb;
-                    }
-                } else if (letter == 1) {
-                    pb += length;
-                    mapq += length;
-                } else {
-                    qb += length;
-                    mapq += length;
-                }
-            }
-            gzprintf(dest,"\tNM:i:%d\t", mapq);
-            if (a->score2 > 0) gzprintf(dest, "ZS:i:%d\n", a->score2);
-            else gzprintf(dest, "\n");
-        }
+    // Align to each target
+    kswq_t *qry = NULL;
+    for(size_t j = 0; j < kv_size(targets); j++) {
+        // Encode target
+        r = kv_A(targets, j);
+        uint8_t *ref_num = calloc(r->seq.l, sizeof(uint8_t));
+        for (size_t k = 0; k < r->seq.l; ++k)
+            ref_num[k] = conf->table[(int)r->seq.s[k]];
+
+        aln_t aln;
+        aln.target_idx = j;
+        aln.loc = ksw_align(read_len, read_num,
+                            r->seq.l, ref_num,
+                            conf->m,
+                            conf->mat,
+                            conf->gap_o,
+                            conf->gap_e,
+                            KSW_XSTART,
+                            &qry);
+        ksw_global(aln.loc.qe - aln.loc.qb,
+                   read_num + aln.loc.qb,
+                   aln.loc.te - aln.loc.tb,
+                   ref_num + aln.loc.tb,
+                   conf->m,
+                   conf->mat,
+                   conf->gap_o,
+                   conf->gap_e,
+                   20,
+                   &aln.n_cigar,
+                   &aln.cigar);
+        kv_push(aln_t, result, aln);
+    }
+    free(qry);
+    qsort(result.a,
+          kv_size(result),
+          sizeof(aln_t),
+          ascore_lt_dec);
+    return result;
 }
 
 void align_reads (const char* ref_path,
                   const char* qry_path,
                   const char* output_path,
-                  const int32_t match, /* 2 */
+                  const int32_t match,    /* 2 */
                   const int32_t mismatch, /* 2 */
-                  const int32_t gap_open, /* 3 */
-                  const int32_t gap_extension) { /* 1 */
-    clock_t start, end;
-    float cpu_time;
+                  const int32_t gap_o,    /* 3 */
+                  const int32_t gap_e,    /* 1 */
+                  const uint8_t n_threads) { /* 1 */
     gzFile read_fp, ref_fp, out_fp;
-    kseq_t *read_seq, *ref_seq;
-    int32_t l, m, k, n = 5, s2 = 128, filter = 0;
-    int8_t* mata = (int8_t*)calloc(25, sizeof(int8_t)), *mat = mata;
-    int8_t* num = (int8_t*)malloc(s2);
+    int32_t j, l, k;
+    const int m = 5;
+    int8_t* mat = (int8_t*)calloc(25, sizeof(int8_t));
 
     /* This table is used to transform nucleotide letters into numbers. */
-    int8_t table[128] = {
+    uint8_t table[128] = {
         4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
         4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
         4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
@@ -137,99 +207,51 @@ void align_reads (const char* ref_path,
 
     // initialize scoring matrix for genome sequences
     for (l = k = 0; LIKELY(l < 4); ++l) {
-        for (m = 0; LIKELY(m < 4); ++m) mata[k++] = l == m ? match : -mismatch;	/* weight_match : -weight_mismatch */
-        mata[k++] = 0; // ambiguous base
+        for (j = 0; LIKELY(j < 4); ++j) mat[k++] = l == j ? match : -mismatch;	/* weight_match : -weight_mismatch */
+        mat[k++] = 0; // ambiguous base
     }
-    for (m = 0; LIKELY(m < 5); ++m) mata[k++] = 0;
+    for (j = 0; LIKELY(j < 5); ++j) mat[k++] = 0;
 
-    read_fp = gzopen(qry_path, "r");
 
     // Read reference sequences
-    kvec_t(kseq_t*) ref_seqs;
-    kv_init(ref_seqs);
 
     ref_fp = gzopen(ref_path, "r");
-    ref_seq = kseq_init(ref_fp);
-    while ((l = kseq_read(ref_seq)) >= 0) {
-        kv_push(kseq_t*, ref_seqs, ref_seq);
-        ref_seq = kseq_init(ref_fp);
-    }
-    kseq_destroy(ref_seq); // One extra allocated
+    kseq_v ref_seqs;
+    ref_seqs = read_all_seqs(ref_fp);
     gzclose(ref_fp);
 
     // Print SAM header
     out_fp = gzopen(output_path, "w0");
-    gzprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
-    for(l = 0; l < kv_size(ref_seqs); l++) {
-        ref_seq = kv_A(ref_seqs, l);
-        gzprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n", ref_seq->name.s, (int32_t)ref_seq->seq.l);
+
+    align_config_t conf;
+    conf.gap_o = gap_o;
+    conf.gap_e = gap_e;
+    conf.m = m;
+    conf.table = table;
+    conf.mat = mat;
+
+    read_fp = gzopen(qry_path, "r");
+    while(true) {
+        kseq_v reads = read_seqs(read_fp, 10000); // TODO: Magic number
+        if(!kv_size(reads))
+            break;
+        const size_t n_reads = kv_size(reads);
+        for(size_t i = 0; i < n_reads; i++) {
+            printf("Aligning %8lu\r", i);
+            aln_v result = align_read(kv_A(reads, i),
+                                      ref_seqs,
+                                      &conf);
+            for(size_t j = 0; j < kv_size(result); j++)
+                free(kv_A(result, j).cigar);
+            kv_destroy(result);
+        }
+        kvp_destroy(kseq_destroy, reads);
     }
 
-    read_seq = kseq_init(read_fp);
-
-    // alignment
-    start = clock();
-    while (kseq_read(read_seq) >= 0) {
-        s_profile* p;
-        const int32_t read_len = read_seq->seq.l;
-        const int32_t maskLen = read_len / 2;
-
-        while (read_len >= s2) {
-            ++s2;
-            kroundup32(s2);
-            num = (int8_t*)realloc(num, s2);
-        }
-        for (m = 0; m < read_len; ++m) num[m] = table[(int)read_seq->seq.s[m]];
-        p = ssw_init(num, read_len, mat, n, 2);
-
-        kvec_t(s_align*) alignments;
-        kv_init(alignments);
-        kv_resize(s_align*, alignments, kv_size(ref_seqs));
-
-        for(l = 0; l < kv_size(ref_seqs); ++l) {
-            ref_seq = kv_A(ref_seqs, l);
-            const int32_t ref_len = ref_seq->seq.l;
-            int32_t s1 = ref_len;
-            kroundup32(s1);
-            int8_t* ref_num = malloc(s1);
-            int8_t flag = 2;
-            for (m = 0; m < ref_len; ++m) ref_num[m] = table[(int)ref_seq->seq.s[m]];
-            s_align* result = ssw_align (p, ref_num, ref_len, gap_open, gap_extension, flag,
-                                         filter, 0, maskLen);
-            kv_push(s_align*, alignments, result);
-            free(ref_num);
-        }
-
-        // Descending alignment score
-        qsort(alignments.a,
-              kv_size(alignments),
-              sizeof(s_align*),
-              ascore_lt_dec);
-
-        for(l = 0; l < kv_size(alignments); l++) {
-            ssw_write_sam(out_fp, kv_A(alignments, l),
-                          ref_seq, read_seq, read_seq->seq.s, table,
-                          l == 0 ? 0 : 256);
-            align_destroy(kv_A(alignments, l));
-        }
-        kv_destroy(alignments);
-
-        init_destroy(p);
-    }
-
-
-    end = clock();
-    cpu_time = ((float) (end - start)) / CLOCKS_PER_SEC;
-    fprintf(stderr, "CPU time: %f seconds\n", cpu_time);
-
-    kseq_destroy(read_seq);
     // Clean up reference sequences
-    for(l = 0; l < kv_size(ref_seqs); ++l)
-        free(kv_A(ref_seqs, l));
-    kv_destroy(ref_seqs);
+    kvp_destroy(kseq_destroy, ref_seqs);
 
     gzclose(read_fp);
     gzclose(out_fp);
-    free(num);
-    free(mata);
+    free(mat);
 }

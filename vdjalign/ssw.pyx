@@ -1,10 +1,10 @@
 # distutils: language = c
 # distutils: include_dirs = lib/ssw/src src
-# distutils: sources = lib/ssw/src/ssw.c src/ssw_align.c
-# distutils: extra_compile_args = -fopenmp
-# distutils: extra_link_args = -fopenmp -lz
+# distutils: sources = lib/ssw/src/ssw.c src/ssw_align.c src/ksw.c
+# distutils: extra_compile_args = -std=c99
+# distutils: extra_link_args =  -lz
 from libc.stdlib cimport free, malloc
-from libc.stdint cimport int32_t
+from libc.stdint cimport int32_t, uint8_t
 
 
 cdef extern from "ssw_align.h":
@@ -14,7 +14,8 @@ cdef extern from "ssw_align.h":
                      int32_t,
                      int32_t,
                      int32_t,
-                     int32_t) nogil
+                     int32_t,
+                     uint8_t) nogil
 
 def align_reads_to_ref(bytes ref_path,
                        bytes qry_path,
@@ -28,7 +29,8 @@ def align_reads_to_ref(bytes ref_path,
     cdef char* out = output_path
 
     cdef int32_t m = match, p = mismatch, go = gap_open, ge = gap_extend
+    cdef uint8_t threads = 12
 
     with nogil:
-        align_reads(ref, qry, out, m, p, go, ge)
+        align_reads(ref, qry, out, m, p, go, ge, threads)
 
