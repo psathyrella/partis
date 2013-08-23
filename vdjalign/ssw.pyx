@@ -31,7 +31,4 @@ def align_reads_to_ref(bytes ref_path,
 
     with nogil:
         align_reads(ref, qry, out, m, p, go, ge)
-    free(ref)
-    free(qry)
-    free(out)
 

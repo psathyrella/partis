@@ -56,41 +56,41 @@ KSEQ_INIT(gzFile, gzread);
         /*if (start == end) rc[start] = (char)rc_table[(int8_t)seq[start]];*/
     /*}*/
 
-void ssw_write_sam (FILE* dest,
+void ssw_write_sam (gzFile* dest,
                     const s_align* a,
                     const kseq_t* ref_seq,
                     const kseq_t* read,
                     const char* read_seq,
                     const int8_t* table) {
 
-        fprintf(dest, "%s\t", read->name.s);
-        if (a->score1 == 0) fprintf(dest, "4\t*\t0\t255\t*\t*\t0\t0\t*\t*\n");
+        gzprintf(dest, "%s\t", read->name.s);
+        if (a->score1 == 0) gzprintf(dest, "4\t*\t0\t255\t*\t*\t0\t0\t*\t*\n");
         else {
             int32_t c, l = a->read_end1 - a->read_begin1 + 1, qb = a->ref_begin1, pb = a->read_begin1, p;
             uint32_t mapq = -4.343 * log(1 - (double)abs(a->score1 - a->score2)/(double)a->score1);
             mapq = (uint32_t) (mapq + 4.99);
             mapq = mapq < 254 ? mapq : 254;
-            fprintf(dest, "0\t");
-            fprintf(dest, "%s\t%d\t%d\t", ref_seq->name.s, a->ref_begin1 + 1, mapq);
+            gzprintf(dest, "0\t");
+            gzprintf(dest, "%s\t%d\t%d\t", ref_seq->name.s, a->ref_begin1 + 1, mapq);
             for (c = 0; c < a->cigarLen; ++c) {
                 int32_t letter = 0xf&*(a->cigar + c);
                 int32_t length = (0xfffffff0&*(a->cigar + c))>>4;
-                fprintf(dest, "%d", length);
-                if (letter == 0) fprintf(dest, "M");
-                else if (letter == 1) fprintf(dest, "I");
-                else fprintf(dest, "D");
+                gzprintf(dest, "%d", length);
+                if (letter == 0) gzprintf(dest, "M");
+                else if (letter == 1) gzprintf(dest, "I");
+                else gzprintf(dest, "D");
             }
-            fprintf(dest, "\t*\t0\t0\t");
-            for (c = a->read_begin1; c <= a->read_end1; ++c) fprintf(dest, "%c", read_seq[c]);
-            fprintf(dest, "\t");
+            gzprintf(dest, "\t*\t0\t0\t");
+            for (c = a->read_begin1; c <= a->read_end1; ++c) gzprintf(dest, "%c", read_seq[c]);
+            gzprintf(dest, "\t");
             if (read->qual.s) {
                 p = a->read_begin1;
                 for (c = 0; c < l; ++c) {
-                    fprintf(dest, "%c", read->qual.s[p]);
+                    gzprintf(dest, "%c", read->qual.s[p]);
                     ++p;
                 }
-            } else fprintf(dest, "*");
-            fprintf(dest, "\tAS:i:%d", a->score1);
+            } else gzprintf(dest, "*");
+            gzprintf(dest, "\tAS:i:%d", a->score1);
             mapq = 0;	// counter of difference
             for (c = 0; c < a->cigarLen; ++c) {
                 int32_t letter = 0xf&*(a->cigar + c);
@@ -109,13 +109,14 @@ void ssw_write_sam (FILE* dest,
                     mapq += length;
                 }
             }
-            fprintf(dest,"\tNM:i:%d\t", mapq);
-            if (a->score2 > 0) fprintf(dest, "ZS:i:%d\n", a->score2);
-            else fprintf(dest, "\n");
+            gzprintf(dest,"\tNM:i:%d\t", mapq);
+            if (a->score2 > 0) gzprintf(dest, "ZS:i:%d\n", a->score2);
+            else gzprintf(dest, "\n");
         }
 }
 
-void align_reads (const char* ref_path, const char* qry_path,
+void align_reads (const char* ref_path,
+                  const char* qry_path,
                   const char* output_path,
                   const int32_t match, /* 2 */
                   const int32_t mismatch, /* 2 */
@@ -158,19 +159,20 @@ void align_reads (const char* ref_path, const char* qry_path,
     ref_fp = gzopen(ref_path, "r");
     ref_seq = kseq_init(ref_fp);
     while ((l = kseq_read(ref_seq)) >= 0) {
-        fprintf(stderr, "Read %s\n", ref_seq->name.s);
+        fprintf(stderr, "Read %s...", ref_seq->name.s);
         kv_push(kseq_t*, ref_seqs, ref_seq);
+        fprintf(stderr, "pushed.\n");
         ref_seq = kseq_init(ref_fp);
     }
     kseq_destroy(ref_seq); // One extra allocated
     gzclose(ref_fp);
 
     // Print SAM header
-    out_fp = gzopen(output_path, "w");
-    fprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
+    out_fp = gzopen(output_path, "w0");
+    gzprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
     for(l = 0; l < kv_size(ref_seqs); l++) {
         ref_seq = kv_A(ref_seqs, l);
-        fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n", ref_seq->name.s, (int32_t)ref_seq->seq.l);
+        gzprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n", ref_seq->name.s, (int32_t)ref_seq->seq.l);
     }
 
     read_seq = kseq_init(read_fp);
@@ -178,10 +180,10 @@ void align_reads (const char* ref_path, const char* qry_path,
     // alignment
     start = clock();
     while (kseq_read(read_seq) >= 0) {
+        fprintf(stderr, "Read %s\n", read_seq->name.s);
         s_profile* p;
-        int32_t readLen = read_seq->seq.l;
-        int32_t maskLen = readLen / 2;
-        //	int32_t maskLen = 2*readLen;
+        const int32_t readLen = read_seq->seq.l;
+        const int32_t maskLen = readLen / 2;
 
         while (readLen >= s2) {
             ++s2;
@@ -223,6 +225,7 @@ void align_reads (const char* ref_path, const char* qry_path,
     kv_destroy(ref_seqs);
 
     gzclose(read_fp);
+    gzclose(out_fp);
     free(num);
     free(ref_num);
     free(mata);
