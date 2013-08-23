@@ -1,4 +1,3 @@
-
 /* Maybe:
  * - read a batch of sequences
  * - Create some threads
@@ -11,6 +10,7 @@
  *	Version 0.1.4
  *  Last revision by Mengyao Zhao on 07/31/12.
  */
+
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,6 +27,8 @@
 #include "ksort.h"
 #include "ksw.h"
 #include "kvec.h"
+
+#include "sw_align.h"
 
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)

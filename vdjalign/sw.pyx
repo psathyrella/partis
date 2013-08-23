@@ -1,13 +1,13 @@
 # distutils: language = c
-# distutils: include_dirs = lib/ssw/src src
-# distutils: sources = lib/ssw/src/ssw.c src/ssw_align.c src/ksw.c
+# distutils: include_dirs = src
+# distutils: sources = src/ksw.c src/sw_align.c
 # distutils: extra_compile_args = -std=c99
-# distutils: extra_link_args =  -lz
+# distutils: extra_link_args = -lz
 from libc.stdlib cimport free, malloc
 from libc.stdint cimport int32_t, uint8_t
 
 
-cdef extern from "ssw_align.h":
+cdef extern from "sw_align.h":
     void align_reads(const char*,
                      const char*,
                      const char*,
