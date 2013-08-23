@@ -119,10 +119,8 @@ void align_reads (const char* ref_path,
     float cpu_time;
     gzFile read_fp, ref_fp, out_fp;
     kseq_t *read_seq, *ref_seq;
-    int32_t l, m, k, n = 5, s1 = 1048575, s2 = 128, filter = 0;
-    kroundup32(s1);
+    int32_t l, m, k, n = 5, s2 = 128, filter = 0;
     int8_t* mata = (int8_t*)calloc(25, sizeof(int8_t)), *mat = mata;
-    int8_t* ref_num = (int8_t*)malloc(s1);
     int8_t* num = (int8_t*)malloc(s2);
 
     /* This table is used to transform nucleotide letters into numbers. */
@@ -173,16 +171,16 @@ void align_reads (const char* ref_path,
     start = clock();
     while (kseq_read(read_seq) >= 0) {
         s_profile* p;
-        const int32_t readLen = read_seq->seq.l;
-        const int32_t maskLen = readLen / 2;
+        const int32_t read_len = read_seq->seq.l;
+        const int32_t maskLen = read_len / 2;
 
-        while (readLen >= s2) {
+        while (read_len >= s2) {
             ++s2;
             kroundup32(s2);
             num = (int8_t*)realloc(num, s2);
         }
-        for (m = 0; m < readLen; ++m) num[m] = table[(int)read_seq->seq.s[m]];
-        p = ssw_init(num, readLen, mat, n, 2);
+        for (m = 0; m < read_len; ++m) num[m] = table[(int)read_seq->seq.s[m]];
+        p = ssw_init(num, read_len, mat, n, 2);
 
         kvec_t(s_align*) alignments;
         kv_init(alignments);
@@ -190,17 +188,16 @@ void align_reads (const char* ref_path,
 
         for(l = 0; l < kv_size(ref_seqs); ++l) {
             ref_seq = kv_A(ref_seqs, l);
-            int32_t refLen = ref_seq->seq.l;
-            int8_t flag = 0;
-            while (refLen > s1) {
-                ++s1;
-                kroundup32(s1);
-                ref_num = (int8_t*)realloc(ref_num, s1);
-            }
-            for (m = 0; m < refLen; ++m) ref_num[m] = table[(int)ref_seq->seq.s[m]];
-            flag = 2;
-            s_align* result = ssw_align (p, ref_num, refLen, gap_open, gap_extension, flag, filter, 0, maskLen);
+            const int32_t ref_len = ref_seq->seq.l;
+            int32_t s1 = ref_len;
+            kroundup32(s1);
+            int8_t* ref_num = malloc(s1);
+            int8_t flag = 2;
+            for (m = 0; m < ref_len; ++m) ref_num[m] = table[(int)ref_seq->seq.s[m]];
+            s_align* result = ssw_align (p, ref_num, ref_len, gap_open, gap_extension, flag,
+                                         filter, 0, maskLen);
             kv_push(s_align*, alignments, result);
+            free(ref_num);
         }
 
         // Descending alignment score
@@ -234,6 +231,5 @@ void align_reads (const char* ref_path,
     gzclose(read_fp);
     gzclose(out_fp);
     free(num);
-    free(ref_num);
     free(mata);
 }
