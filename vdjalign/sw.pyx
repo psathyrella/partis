@@ -17,19 +17,20 @@ cdef extern from "sw_align.h":
                      int32_t,
                      uint8_t) nogil
 
-def align_reads_to_ref(bytes ref_path,
-                       bytes qry_path,
-                       bytes output_path,
-                       int match=2,
-                       int mismatch=2,
-                       int gap_open=3,
-                       int gap_extend=1):
+def align(bytes ref_path,
+          bytes qry_path,
+          bytes output_path,
+          int match=2,
+          int mismatch=2,
+          int gap_open=3,
+          int gap_extend=1,
+          int n_threads=1):
     cdef char* ref = ref_path
     cdef char* qry = qry_path
     cdef char* out = output_path
 
     cdef int32_t m = match, p = mismatch, go = gap_open, ge = gap_extend
-    cdef uint8_t threads = 12
+    cdef uint8_t threads = n_threads
 
     with nogil:
         align_reads(ref, qry, out, m, p, go, ge, threads)

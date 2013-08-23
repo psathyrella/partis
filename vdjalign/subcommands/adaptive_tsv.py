@@ -6,6 +6,7 @@ import contextlib
 import csv
 import logging
 import functools
+import os
 import shutil
 import subprocess
 import tempfile
@@ -15,10 +16,8 @@ import pysam
 
 log = logging.getLogger('vdjalign')
 
-from .. import util
+from .. import util, sw
 
-BWA_OPTS = ['-k', '6', '-O', '10', '-L', '0', '-v', '2', '-T', '10', '-M',
-            '-a']
 
 TAG_FRAME = 'XF'
 TAG_CDR3_START = 'XB'
@@ -27,19 +26,14 @@ TAG_COUNT = 'XC'
 TAG_CDR3_LENGTH = 'XL'
 TAG_JGENE = 'XJ'
 
-
 @contextlib.contextmanager
-def bwa_index_of_package_imgt_fasta(file_name):
-    with util.tempdir(prefix='bwa-') as td, \
-            resource_stream('vdjalign.imgt.data', file_name) as in_fasta, \
-            tempfile.TemporaryFile(prefix='stderr', dir=td()) as dn:
-        with open(td(file_name), 'w') as fp:
-            shutil.copyfileobj(in_fasta, fp)
-        cmd = ['bwa', 'index', file_name]
-        log.info('Running "%s" in %s', ' '.join(cmd), td())
-        subprocess.check_call(cmd, cwd=td(), stderr=dn)
-        yield td(file_name)
-
+def resource_fasta(name):
+    with resource_stream('vdjalign.imgt.data', name) as in_fasta, \
+            tempfile.NamedTemporaryFile(prefix=name) as tf:
+        shutil.copyfileobj(in_fasta, tf)
+        in_fasta.close()
+        tf.flush()
+        yield tf.name
 
 def annotate_alignments(input_bam, tags):
     for read in input_bam:
@@ -57,35 +51,26 @@ def or_none(fn):
             return fn(s)
     return apply_or_none
 
+@contextlib.contextmanager
+def tmpfifo(**kwargs):
+    with util.tempdir(**kwargs) as j:
+        f = j('fifo')
+        os.mkfifo(f)
+        yield f
 
-def bwa_to_bam(index_path, sequence_iter, bam_dest, bwa_opts=None, sam_opts=None, alg='mem'):
-    cmd1 = ['bwa', alg, index_path, '-'] + (bwa_opts or [])
-    cmd2 = ['samtools', 'view', '-o', bam_dest, '-Sb', '-'] + (sam_opts or [])
-    log.info('BWA: %s | %s', ' '.join(cmd1), ' '.join(cmd2))
-    p1 = subprocess.Popen(cmd1, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    p2 = subprocess.Popen(cmd2, stdin=p1.stdout)
-
-    with p1.stdin as fp:
-        for name, seq in sequence_iter:
-            fp.write('>{0}\n{1}\n'.format(name, seq))
-
-    exit_code2 = p2.wait()
-    if exit_code2:
-        raise subprocess.CalledProcessError(exit_code2, cmd2)
-
-    exit_code1 = p1.wait()
-    if exit_code1:
-        raise subprocess.CalledProcessError(exit_code1, cmd1)
-
-
-def align_bwa(index_path, sequence_iter, bam_dest, threads=1, rg=None):
-    opts = BWA_OPTS[:]
-    if threads > 1:
-        opts.extend(('-t', str(threads)))
-    if rg is not None:
-        opts.extend(('-R', rg))
-    return bwa_to_bam(index_path, sequence_iter, bam_dest,
-                      bwa_opts=opts)
+def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads):
+    with tmpfifo(prefix='pw-to-bam') as fifo_path, \
+            tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
+        for name, sequence in sequence_iter:
+            tf.write('>{0}\n{1}\n'.format(name, sequence))
+            tf.flush()
+        cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
+        log.info(' '.join(cmd1))
+        p = subprocess.Popen(cmd1)
+        sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads)
+        returncode = p.wait()
+        if returncode:
+            raise subprocess.CalledProcessError(cmd1, returncode)
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
@@ -93,21 +78,19 @@ def build_parser(p):
                    help="""Delimiter [default: tab]""")
     p.add_argument('-c', '--count-column', default='n_sources')
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
-            threads for BWA [default: %(default)d]""")
+            threads [default: %(default)d]""")
     p.add_argument('v_bamfile')
     p.add_argument('j_bamfile')
     p.add_argument('-r', '--read-group')
     p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
-
 def action(a):
-    indexed = bwa_index_of_package_imgt_fasta
     ntf = functools.partial(tempfile.NamedTemporaryFile, suffix='.bam')
     closing = contextlib.closing
 
-    with indexed('ighv.fasta') as v_index, \
-         indexed('ighj_adaptive.fasta') as j_index, \
+    with resource_fasta('ighv.fasta') as v_fasta, \
+            resource_fasta('ighj_adaptive.fasta') as j_fasta, \
             a.csv_file as ifp, \
             ntf(prefix='v_alignments-') as v_tf, \
             ntf(prefix='j_alignments-') as j_tf:
@@ -132,8 +115,9 @@ def action(a):
         j_sequences = ((i.name, i.sequence[i.j_index:])
                        for i in sequences if i.j_index is not None)
 
-        align_bwa(v_index, v_sequences, v_tf.name, threads=a.threads,
-                  rg=a.read_group)
+        # TODO: read group
+        sw_to_bam(v_fasta, v_sequences, v_tf.name, n_threads=a.threads)
+
         with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
                 pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
             log.info('Identifying frame and CDR3 start')
@@ -145,8 +129,7 @@ def action(a):
                 v_bam.write(read)
 
         log.info('Aligning J-region')
-        align_bwa(j_index, j_sequences, j_tf.name, threads=a.threads,
-                    rg=a.read_group)
+        sw_to_bam(j_fasta, j_sequences, j_tf.name, n_threads=a.threads)
         logging.info('Annotating J-region')
         with closing(pysam.Samfile(j_tf.name, 'rb')) as j_tmp_bam, \
                 closing(pysam.Samfile(a.j_bamfile, 'wb',
