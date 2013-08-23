@@ -25,6 +25,7 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
+#include "kstring.h"
 #include "kseq.h"
 #include "ksort.h"
 #include "ksw.h"
@@ -183,42 +184,80 @@ static aln_v align_read(const kseq_t* read,
     return result;
 }
 
-static void write_sam_records(gzFile dest,
+static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
                               const kseq_v ref_seqs)
 {
     for(size_t i = 0; i < kv_size(result); i++) {
         aln_t a = kv_A(result, i);
-        gzprintf(dest, "%s\t%d\t", read->name.s,
+        ksprintf(str, "%s\t%d\t", read->name.s,
                 i == 0 ? 0 : 256); // Secondary
-        gzprintf(dest, "%s\t%d\t%d\t",
+        ksprintf(str, "%s\t%d\t%d\t",
                 kv_A(ref_seqs, a.target_idx).name.s, /* Reference */
                 a.loc.tb + 1,                        /* POS */
                 40);                                 /* MAPQ */
         if (a.loc.qb)
-            gzprintf(dest, "%dS", a.loc.qb);
+            ksprintf(str, "%dS", a.loc.qb);
         for (size_t c = 0; c < a.n_cigar; c++) {
             int32_t letter = 0xf&*(a.cigar + c);
             int32_t length = (0xfffffff0&*(a.cigar + c))>>4;
-            gzprintf(dest, "%d", length);
-            if (letter == 0) gzprintf(dest, "M");
-            else if (letter == 1) gzprintf(dest, "I");
-            else gzprintf(dest, "D");
+            ksprintf(str, "%d", length);
+            if (letter == 0) ksprintf(str, "M");
+            else if (letter == 1) ksprintf(str, "I");
+            else ksprintf(str, "D");
         }
 
         if (a.loc.qe + 1 != read->seq.l)
-            gzprintf(dest, "%luS", read->seq.l - a.loc.qe - 1);
+            ksprintf(str, "%luS", read->seq.l - a.loc.qe - 1);
 
-        gzprintf(dest, "\t*\t0\t0\t");
-        gzprintf(dest, "%s\t", i > 0 ? "*" : read->seq.s);
+        ksprintf(str, "\t*\t0\t0\t");
+        ksprintf(str, "%s\t", i > 0 ? "*" : read->seq.s);
         if (read->qual.s && i == 0)
-            gzprintf(dest, "%s", read->qual.s);
+            ksprintf(str, "%s", read->qual.s);
         else
-            gzprintf(dest, "*");
+            ksprintf(str, "*");
 
-        gzprintf(dest, "\tAS:i:%d\n", a.loc.score);
+        ksprintf(str, "\tAS:i:%d\n", a.loc.score);
     }
+}
+
+
+typedef struct {
+    size_t start;
+    size_t step;
+    size_t n;
+    kseq_v ref_seqs;
+    kseq_v reads;
+    kstring_t* sams;
+    align_config_t* config;
+} worker_t;
+
+static void *worker(void *data)
+{
+    worker_t *w = (worker_t*)data;
+    for(size_t i = w->start; i < w->n; i+= w->step) {
+        kseq_t *s = &kv_A(w->reads, i);
+        aln_v result = align_read(s,
+                                  w->ref_seqs,
+                                  w->config);
+
+        kstring_t str = { 0, 0, NULL };
+
+        write_sam_records(&str,
+                          s,
+                          result,
+                          w->ref_seqs);
+
+        w->sams[i] = str;
+
+        for(size_t j = 0; j < kv_size(result); j++)
+            free(kv_A(result, j).cigar);
+        kv_destroy(result);
+        kseq_stack_destroy(s);
+    }
+
+    return 0;
 }
 
 void align_reads (const char* ref_path,
@@ -267,7 +306,7 @@ void align_reads (const char* ref_path,
             kv_size(ref_seqs));
 
     // Print SAM header
-    out_fp = gzopen(output_path, "w");
+    out_fp = gzopen(output_path, "w0");
     gzprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
     for(size_t i = 0; i < kv_size(ref_seqs); i++) {
         seq = &kv_A(ref_seqs, i);
@@ -286,29 +325,33 @@ void align_reads (const char* ref_path,
     size_t count = 0;
     seq = kseq_init(read_fp);
     while(true) {
-        kseq_v reads = read_seqs(seq, 1000); // TODO: Magic number
-        count += kv_size(reads);
-        if(!kv_size(reads)) {
+        kseq_v reads = read_seqs(seq, 1000 * n_threads);
+        const size_t n_reads = kv_size(reads);
+        if(!n_reads) {
             break;
         }
 
-        const size_t n_reads = kv_size(reads);
-        for(size_t i = 0; i < n_reads; i++) {
-            kseq_t *s = &kv_A(reads, i);
-            aln_v result = align_read(s,
-                                      ref_seqs,
-                                      &conf);
-
-            write_sam_records(out_fp,
-                              s,
-                              result,
-                              ref_seqs);
-
-            for(size_t j = 0; j < kv_size(result); j++)
-                free(kv_A(result, j).cigar);
-            kv_destroy(result);
-            kseq_stack_destroy(s);
+        worker_t* w = calloc(n_threads, sizeof(worker_t));
+        kstring_t *sams  = calloc(n_reads, sizeof(kstring_t));
+        for(size_t i = 0; i < n_threads; i++) {
+            w[i].start = i;
+            w[i].n = n_reads;
+            w[i].step = n_threads;
+            w[i].ref_seqs = ref_seqs;
+            w[i].reads = reads;
+            w[i].sams = sams;
+            w[i].config = &conf;
         }
+
+        pthread_t *tid = calloc(n_threads, sizeof(pthread_t));
+        for (size_t i = 0; i < n_threads; ++i) pthread_create(&tid[i], 0, worker, &w[i]);
+        for (size_t i = 0; i < n_threads; ++i) pthread_join(tid[i], 0);
+
+        for (size_t i = 0; i < n_reads; i++) {
+            gzputs(out_fp, sams[i].s);
+        }
+        free(sams);
+        count += n_reads;
         kv_destroy(reads);
     }
     kseq_destroy(seq);
