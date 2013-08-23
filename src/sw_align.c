@@ -286,7 +286,7 @@ void align_reads (const char* ref_path,
     size_t count = 0;
     seq = kseq_init(read_fp);
     while(true) {
-        kseq_v reads = read_seqs(seq, 5); // TODO: Magic number
+        kseq_v reads = read_seqs(seq, 1000); // TODO: Magic number
         count += kv_size(reads);
         if(!kv_size(reads)) {
             break;
@@ -312,6 +312,7 @@ void align_reads (const char* ref_path,
         kv_destroy(reads);
     }
     kseq_destroy(seq);
+    fprintf(stderr, "Aligned %lu reads\n", count);
 
     // Clean up reference sequences
     kvi_destroy(kseq_stack_destroy, ref_seqs);
