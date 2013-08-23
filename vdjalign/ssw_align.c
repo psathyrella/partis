@@ -126,7 +126,8 @@ void align_reads (const char* ref_path,
     float cpu_time;
     gzFile read_fp, ref_fp, out_fp;
     kseq_t *read_seq, *ref_seq;
-    int32_t l, m, k, n = 5, s1 = 1048576, s2 = 128, filter = 0;
+    int32_t l, m, k, n = 5, s1 = 1048575, s2 = 128, filter = 0;
+    kroundup32(s1);
     int8_t* mata = (int8_t*)calloc(25, sizeof(int8_t)), *mat = mata;
     int8_t* ref_num = (int8_t*)malloc(s1);
     int8_t* num = (int8_t*)malloc(s2);
@@ -159,9 +160,7 @@ void align_reads (const char* ref_path,
     ref_fp = gzopen(ref_path, "r");
     ref_seq = kseq_init(ref_fp);
     while ((l = kseq_read(ref_seq)) >= 0) {
-        fprintf(stderr, "Read %s...", ref_seq->name.s);
         kv_push(kseq_t*, ref_seqs, ref_seq);
-        fprintf(stderr, "pushed.\n");
         ref_seq = kseq_init(ref_fp);
     }
     kseq_destroy(ref_seq); // One extra allocated
@@ -180,7 +179,6 @@ void align_reads (const char* ref_path,
     // alignment
     start = clock();
     while (kseq_read(read_seq) >= 0) {
-        fprintf(stderr, "Read %s\n", read_seq->name.s);
         s_profile* p;
         const int32_t readLen = read_seq->seq.l;
         const int32_t maskLen = readLen / 2;
