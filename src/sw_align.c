@@ -312,6 +312,7 @@ void align_reads (const char* ref_path,
     }
     if(read_group) {
         fputs(read_group, out_fp);
+        fputc('\n', out_fp);
     }
 
     align_config_t conf;

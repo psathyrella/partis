@@ -73,7 +73,7 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
                      read_group=read_group)
             returncode = p.wait()
             if returncode:
-                raise subprocess.CalledProcessError(cmd1, returncode)
+                raise subprocess.CalledProcessError(returncode, cmd1)
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
