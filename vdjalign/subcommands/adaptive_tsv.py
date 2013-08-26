@@ -29,11 +29,12 @@ TAG_JGENE = 'XJ'
 @contextlib.contextmanager
 def resource_fasta(name):
     with resource_stream('vdjalign.imgt.data', name) as in_fasta, \
-            tempfile.NamedTemporaryFile(prefix=name) as tf:
-        shutil.copyfileobj(in_fasta, tf)
+            util.tempdir(prefix=name) as j, \
+            open(j(name), 'w') as fp:
+        shutil.copyfileobj(in_fasta, fp)
         in_fasta.close()
-        tf.flush()
-        yield tf.name
+        fp.close()
+        yield fp.name
 
 def annotate_alignments(input_bam, tags):
     for read in input_bam:
@@ -42,7 +43,6 @@ def annotate_alignments(input_bam, tags):
         read.tags = ([(k, v) for k, v in read.tags if k and k != 'SA'] +
                      tags[read.qname].items())
         yield read
-
 
 def or_none(fn):
     @functools.wraps(fn)
@@ -90,7 +90,7 @@ def action(a):
     ntf = functools.partial(tempfile.NamedTemporaryFile, suffix='.bam')
     closing = contextlib.closing
 
-    with resource_fasta('ighv.fasta') as v_fasta, \
+    with resource_fasta('ighv_functional.fasta') as v_fasta, \
             resource_fasta('ighj_adaptive.fasta') as j_fasta, \
             a.csv_file as ifp, \
             ntf(prefix='v_alignments-') as v_tf, \
