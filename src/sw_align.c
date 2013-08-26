@@ -159,7 +159,7 @@ static aln_v align_read(const kseq_t* read,
                    conf->mat,
                    conf->gap_o,
                    conf->gap_e,
-                   40, /* TODO: Magic number */
+                   40, /* TODO: Magic number - band width */
                    &aln.n_cigar,
                    &aln.cigar);
         kv_push(aln_t, result, aln);
@@ -168,6 +168,7 @@ static aln_v align_read(const kseq_t* read,
     free(qry);
     free(read_num);
     ks_introsort(dec_score, kv_size(result), result.a);
+
     return result;
 }
 
@@ -177,8 +178,10 @@ static void write_sam_records(kstring_t *str,
                               const kseq_v ref_seqs,
                               const char* read_group_id)
 {
-    for(size_t i = 0; i < kv_size(result); i++) {
+    /* Alignments are sorted by decreasing score */
+    for(size_t i = 0; i < kv_size(result) && i < 20; i++) { /* TODO: magic number on max alignments */
         aln_t a = kv_A(result, i);
+
         ksprintf(str, "%s\t%d\t", read->name.s,
                 i == 0 ? 0 : 256); // Secondary
         ksprintf(str, "%s\t%d\t%d\t",
