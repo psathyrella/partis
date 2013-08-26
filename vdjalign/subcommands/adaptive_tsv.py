@@ -64,13 +64,14 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads):
         for name, sequence in sequence_iter:
             tf.write('>{0}\n{1}\n'.format(name, sequence))
             tf.flush()
-        cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
-        log.info(' '.join(cmd1))
-        p = subprocess.Popen(cmd1)
-        sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads)
-        returncode = p.wait()
-        if returncode:
-            raise subprocess.CalledProcessError(cmd1, returncode)
+        with open(bam_dest, 'w') as ofp:
+            cmd1 = ['samtools', 'calmd', '-Sb', fifo_path, ref_path]
+            log.info(' '.join(cmd1))
+            p = subprocess.Popen(cmd1, stdout=ofp)
+            sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads)
+            returncode = p.wait()
+            if returncode:
+                raise subprocess.CalledProcessError(cmd1, returncode)
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))

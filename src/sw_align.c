@@ -1,16 +1,3 @@
-/* Maybe:
- * - read a batch of sequences
- * - Create some threads
- * - process / write
- * - read more
- */
-
-/*  main.c
- *  Created by Mengyao Zhao on 06/23/11.
- *	Version 0.1.4
- *  Last revision by Mengyao Zhao on 07/31/12.
- */
-
 #include "sw_align.h"
 
 #include <assert.h>
@@ -25,9 +12,9 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
-#include "kstring.h"
 #include "kseq.h"
 #include "ksort.h"
+#include "kstring.h"
 #include "ksw.h"
 #include "kvec.h"
 
@@ -297,6 +284,7 @@ void align_reads (const char* ref_path,
 
     // Read reference sequences
     ref_fp = gzopen(ref_path, "r");
+    assert(ref_fp != NULL && "Failed to open reference");
     seq = kseq_init(ref_fp);
     kseq_v ref_seqs;
     ref_seqs = read_seqs(seq, 0);
@@ -323,10 +311,11 @@ void align_reads (const char* ref_path,
     conf.mat = mat;
 
     read_fp = gzopen(qry_path, "r");
+    assert(read_fp != NULL && "Failed to open query");
     size_t count = 0;
     seq = kseq_init(read_fp);
     while(true) {
-        kseq_v reads = read_seqs(seq, 1000 * n_threads);
+        kseq_v reads = read_seqs(seq, 5000 * n_threads);
         const size_t n_reads = kv_size(reads);
         if(!n_reads) {
             break;
@@ -348,8 +337,10 @@ void align_reads (const char* ref_path,
             worker(w);
         } else {
             pthread_t *tid = calloc(n_threads, sizeof(pthread_t));
-            for (size_t i = 0; i < n_threads; ++i) pthread_create(&tid[i], 0, worker, &w[i]);
-            for (size_t i = 0; i < n_threads; ++i) pthread_join(tid[i], 0);
+            for (size_t i = 0; i < n_threads; ++i)
+                pthread_create(&tid[i], 0, worker, &w[i]);
+            for (size_t i = 0; i < n_threads; ++i)
+                pthread_join(tid[i], 0);
         }
 
         for (size_t i = 0; i < n_reads; i++) {
