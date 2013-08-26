@@ -4,8 +4,8 @@ Align V and J starting from an adaptive CSV file
 import collections
 import contextlib
 import csv
-import logging
 import functools
+import logging
 import os
 import shutil
 import subprocess

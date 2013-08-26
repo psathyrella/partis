@@ -268,7 +268,8 @@ void align_reads (const char* ref_path,
                   const int32_t gap_o,       /* 3 */
                   const int32_t gap_e,       /* 1 */
                   const uint8_t n_threads) { /* 1 */
-    gzFile read_fp, ref_fp, out_fp;
+    gzFile read_fp, ref_fp;
+    FILE* out_fp;
     int32_t j, k, l;
     const int m = 5;
     kseq_t *seq;
@@ -306,11 +307,11 @@ void align_reads (const char* ref_path,
             kv_size(ref_seqs));
 
     // Print SAM header
-    out_fp = gzopen(output_path, "w0");
-    gzprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
+    out_fp = fopen(output_path, "w");
+    fprintf(out_fp, "@HD\tVN:1.4\tSO:queryname\n");
     for(size_t i = 0; i < kv_size(ref_seqs); i++) {
         seq = &kv_A(ref_seqs, i);
-        gzprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
+        fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
                 seq->name.s, (int32_t)seq->seq.l);
     }
 
@@ -343,12 +344,16 @@ void align_reads (const char* ref_path,
             w[i].config = &conf;
         }
 
-        pthread_t *tid = calloc(n_threads, sizeof(pthread_t));
-        for (size_t i = 0; i < n_threads; ++i) pthread_create(&tid[i], 0, worker, &w[i]);
-        for (size_t i = 0; i < n_threads; ++i) pthread_join(tid[i], 0);
+        if(n_threads == 1) {
+            worker(w);
+        } else {
+            pthread_t *tid = calloc(n_threads, sizeof(pthread_t));
+            for (size_t i = 0; i < n_threads; ++i) pthread_create(&tid[i], 0, worker, &w[i]);
+            for (size_t i = 0; i < n_threads; ++i) pthread_join(tid[i], 0);
+        }
 
         for (size_t i = 0; i < n_reads; i++) {
-            gzputs(out_fp, sams[i].s);
+            fputs(sams[i].s, out_fp);
         }
         free(sams);
         count += n_reads;
@@ -361,6 +366,6 @@ void align_reads (const char* ref_path,
     kvi_destroy(kseq_stack_destroy, ref_seqs);
 
     gzclose(read_fp);
-    gzclose(out_fp);
+    fclose(out_fp);
     free(mat);
 }
