@@ -174,7 +174,8 @@ static aln_v align_read(const kseq_t* read,
 static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
-                              const kseq_v ref_seqs)
+                              const kseq_v ref_seqs,
+                              const char* read_group_id)
 {
     for(size_t i = 0; i < kv_size(result); i++) {
         aln_t a = kv_A(result, i);
@@ -205,7 +206,10 @@ static void write_sam_records(kstring_t *str,
         else
             ksprintf(str, "*");
 
-        ksprintf(str, "\tAS:i:%d\n", a.loc.score);
+        ksprintf(str, "\tAS:i:%d", a.loc.score);
+        if (read_group_id)
+            ksprintf(str, "\tRG:Z:%s", read_group_id);
+        kputs("\n", str);
     }
 }
 
@@ -218,6 +222,7 @@ typedef struct {
     kseq_v reads;
     kstring_t* sams;
     align_config_t* config;
+    const char* read_group_id;
 } worker_t;
 
 static void *worker(void *data)
@@ -234,7 +239,8 @@ static void *worker(void *data)
         write_sam_records(&str,
                           s,
                           result,
-                          w->ref_seqs);
+                          w->ref_seqs,
+                          w->read_group_id);
 
         w->sams[i] = str;
 
@@ -254,7 +260,9 @@ void align_reads (const char* ref_path,
                   const int32_t mismatch,    /* 2 */
                   const int32_t gap_o,       /* 3 */
                   const int32_t gap_e,       /* 1 */
-                  const uint8_t n_threads) { /* 1 */
+                  const uint8_t n_threads,   /* 1 */
+                  const char* read_group,
+                  const char* read_group_id) {
     gzFile read_fp, ref_fp;
     FILE* out_fp;
     int32_t j, k, l;
@@ -302,6 +310,9 @@ void align_reads (const char* ref_path,
         fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
                 seq->name.s, (int32_t)seq->seq.l);
     }
+    if(read_group) {
+        fputs(read_group, out_fp);
+    }
 
     align_config_t conf;
     conf.gap_o = gap_o;
@@ -331,6 +342,7 @@ void align_reads (const char* ref_path,
             w[i].reads = reads;
             w[i].sams = sams;
             w[i].config = &conf;
+            w[i].read_group_id = read_group_id;
         }
 
         if(n_threads == 1) {

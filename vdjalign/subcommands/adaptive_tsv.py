@@ -58,7 +58,8 @@ def tmpfifo(**kwargs):
         os.mkfifo(f)
         yield f
 
-def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads):
+def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
+              read_group=None):
     with tmpfifo(prefix='pw-to-bam') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
         for name, sequence in sequence_iter:
@@ -68,7 +69,8 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads):
             cmd1 = ['samtools', 'calmd', '-Sb', fifo_path, ref_path]
             log.info(' '.join(cmd1))
             p = subprocess.Popen(cmd1, stdout=ofp)
-            sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads)
+            sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
+                     read_group=read_group)
             returncode = p.wait()
             if returncode:
                 raise subprocess.CalledProcessError(cmd1, returncode)
@@ -116,8 +118,8 @@ def action(a):
         j_sequences = ((i.name, i.sequence[i.j_index:])
                        for i in sequences if i.j_index is not None)
 
-        # TODO: read group
-        sw_to_bam(v_fasta, v_sequences, v_tf.name, n_threads=a.threads)
+        sw_to_bam(v_fasta, v_sequences, v_tf.name, n_threads=a.threads,
+                  read_group=a.read_group)
 
         with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
                 pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
