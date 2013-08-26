@@ -48,7 +48,8 @@ typedef kvec_t(kseq_t) kseq_v;
         f(&kv_A(v, __kpd)); \
     kv_destroy(v)
 
-static void kstring_copy(kstring_t* dest, const kstring_t* other) {
+static void kstring_copy(kstring_t *dest, const kstring_t *other)
+{
     dest->l = other->l;
     dest->m = dest->l + 1;
     if(dest->l > 0) {
@@ -61,7 +62,7 @@ static void kstring_copy(kstring_t* dest, const kstring_t* other) {
     }
 }
 
-static void kseq_stack_destroy(kseq_t* seq)
+static void kseq_stack_destroy(kseq_t *seq)
 {
     free(seq->name.s);
     free(seq->comment.s);
@@ -69,7 +70,7 @@ static void kseq_stack_destroy(kseq_t* seq)
     free(seq->qual.s);
 }
 
-static void kseq_copy(kseq_t* dest, const kseq_t* seq)
+static void kseq_copy(kseq_t *dest, const kseq_t *seq)
 {
     dest->f = NULL;
     kstring_copy(&dest->name, &seq->name);
@@ -78,8 +79,9 @@ static void kseq_copy(kseq_t* dest, const kseq_t* seq)
     kstring_copy(&dest->qual, &seq->qual);
 }
 
-kseq_v read_seqs(kseq_t* seq,
-                 size_t n_wanted) {
+kseq_v read_seqs(kseq_t *seq,
+                 size_t n_wanted)
+{
     kseq_v result;
     kv_init(result);
     for(size_t i = 0; i < n_wanted || n_wanted == 0; i++) {
@@ -116,7 +118,7 @@ typedef struct {
     int8_t *mat; /* Scoring matrix */
 } align_config_t;
 
-static aln_v align_read(const kseq_t* read,
+static aln_v align_read(const kseq_t *read,
                         const kseq_v targets,
                         const align_config_t *conf)
 {
@@ -129,7 +131,7 @@ static aln_v align_read(const kseq_t* read,
 
     uint8_t *read_num = calloc(read_len, sizeof(uint8_t));
 
-    for (size_t k = 0; k < read_len; ++k)
+    for(size_t k = 0; k < read_len; ++k)
         read_num[k] = conf->table[(int)read->seq.s[k]];
 
     // Align to each target
@@ -138,7 +140,7 @@ static aln_v align_read(const kseq_t* read,
         // Encode target
         r = &kv_A(targets, j);
         uint8_t *ref_num = calloc(r->seq.l, sizeof(uint8_t));
-        for (size_t k = 0; k < r->seq.l; ++k)
+        for(size_t k = 0; k < r->seq.l; ++k)
             ref_num[k] = conf->table[(int)r->seq.s[k]];
 
         aln_t aln;
@@ -176,41 +178,41 @@ static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
                               const kseq_v ref_seqs,
-                              const char* read_group_id)
+                              const char *read_group_id)
 {
     /* Alignments are sorted by decreasing score */
     for(size_t i = 0; i < kv_size(result) && i < 20; i++) { /* TODO: magic number on max alignments */
         aln_t a = kv_A(result, i);
 
         ksprintf(str, "%s\t%d\t", read->name.s,
-                i == 0 ? 0 : 256); // Secondary
+                 i == 0 ? 0 : 256); // Secondary
         ksprintf(str, "%s\t%d\t%d\t",
-                kv_A(ref_seqs, a.target_idx).name.s, /* Reference */
-                a.loc.tb + 1,                        /* POS */
-                40);                                 /* MAPQ */
-        if (a.loc.qb)
+                 kv_A(ref_seqs, a.target_idx).name.s, /* Reference */
+                 a.loc.tb + 1,                        /* POS */
+                 40);                                 /* MAPQ */
+        if(a.loc.qb)
             ksprintf(str, "%dS", a.loc.qb);
-        for (size_t c = 0; c < a.n_cigar; c++) {
+        for(size_t c = 0; c < a.n_cigar; c++) {
             int32_t letter = 0xf&*(a.cigar + c);
             int32_t length = (0xfffffff0&*(a.cigar + c))>>4;
             ksprintf(str, "%d", length);
-            if (letter == 0) ksprintf(str, "M");
-            else if (letter == 1) ksprintf(str, "I");
+            if(letter == 0) ksprintf(str, "M");
+            else if(letter == 1) ksprintf(str, "I");
             else ksprintf(str, "D");
         }
 
-        if (a.loc.qe + 1 != read->seq.l)
+        if(a.loc.qe + 1 != read->seq.l)
             ksprintf(str, "%luS", read->seq.l - a.loc.qe - 1);
 
         ksprintf(str, "\t*\t0\t0\t");
         ksprintf(str, "%s\t", i > 0 ? "*" : read->seq.s);
-        if (read->qual.s && i == 0)
+        if(read->qual.s && i == 0)
             ksprintf(str, "%s", read->qual.s);
         else
             ksprintf(str, "*");
 
         ksprintf(str, "\tAS:i:%d", a.loc.score);
-        if (read_group_id)
+        if(read_group_id)
             ksprintf(str, "\tRG:Z:%s", read_group_id);
         kputs("\n", str);
     }
@@ -223,14 +225,14 @@ typedef struct {
     size_t n;
     kseq_v ref_seqs;
     kseq_v reads;
-    kstring_t* sams;
-    align_config_t* config;
-    const char* read_group_id;
+    kstring_t *sams;
+    align_config_t *config;
+    const char *read_group_id;
 } worker_t;
 
 static void *worker(void *data)
 {
-    worker_t *w = (worker_t*)data;
+    worker_t *w = (worker_t *)data;
     for(size_t i = w->start; i < w->n; i+= w->step) {
         kseq_t *s = &kv_A(w->reads, i);
         aln_v result = align_read(s,
@@ -256,22 +258,23 @@ static void *worker(void *data)
     return 0;
 }
 
-void align_reads (const char* ref_path,
-                  const char* qry_path,
-                  const char* output_path,
-                  const int32_t match,       /* 2 */
-                  const int32_t mismatch,    /* 2 */
-                  const int32_t gap_o,       /* 3 */
-                  const int32_t gap_e,       /* 1 */
-                  const uint8_t n_threads,   /* 1 */
-                  const char* read_group,
-                  const char* read_group_id) {
+void align_reads(const char *ref_path,
+                 const char *qry_path,
+                 const char *output_path,
+                 const int32_t match,       /* 2 */
+                 const int32_t mismatch,    /* 2 */
+                 const int32_t gap_o,       /* 3 */
+                 const int32_t gap_e,       /* 1 */
+                 const uint8_t n_threads,   /* 1 */
+                 const char *read_group,
+                 const char *read_group_id)
+{
     gzFile read_fp, ref_fp;
-    FILE* out_fp;
+    FILE *out_fp;
     int32_t j, k, l;
     const int m = 5;
     kseq_t *seq;
-    int8_t* mat = (int8_t*)calloc(25, sizeof(int8_t));
+    int8_t *mat = (int8_t *)calloc(25, sizeof(int8_t));
 
     /* This table is used to transform nucleotide letters into numbers. */
     uint8_t table[128] = {
@@ -286,11 +289,11 @@ void align_reads (const char* ref_path,
     };
 
     // initialize scoring matrix for genome sequences
-    for (l = k = 0; LIKELY(l < 4); ++l) {
-        for (j = 0; LIKELY(j < 4); ++j) mat[k++] = l == j ? match : -mismatch;	/* weight_match : -weight_mismatch */
+    for(l = k = 0; LIKELY(l < 4); ++l) {
+        for(j = 0; LIKELY(j < 4); ++j) mat[k++] = l == j ? match : -mismatch;	/* weight_match : -weight_mismatch */
         mat[k++] = 0; // ambiguous base
     }
-    for (j = 0; LIKELY(j < 5); ++j) mat[k++] = 0;
+    for(j = 0; LIKELY(j < 5); ++j) mat[k++] = 0;
 
 
     // Read reference sequences
@@ -336,7 +339,7 @@ void align_reads (const char* ref_path,
             break;
         }
 
-        worker_t* w = calloc(n_threads, sizeof(worker_t));
+        worker_t *w = calloc(n_threads, sizeof(worker_t));
         kstring_t *sams  = calloc(n_reads, sizeof(kstring_t));
         for(size_t i = 0; i < n_threads; i++) {
             w[i].start = i;
@@ -353,14 +356,14 @@ void align_reads (const char* ref_path,
             worker(w);
         } else {
             pthread_t *tid = calloc(n_threads, sizeof(pthread_t));
-            for (size_t i = 0; i < n_threads; ++i)
+            for(size_t i = 0; i < n_threads; ++i)
                 pthread_create(&tid[i], 0, worker, &w[i]);
-            for (size_t i = 0; i < n_threads; ++i)
+            for(size_t i = 0; i < n_threads; ++i)
                 pthread_join(tid[i], 0);
         }
         free(w);
 
-        for (size_t i = 0; i < n_reads; i++) {
+        for(size_t i = 0; i < n_reads; i++) {
             fputs(sams[i].s, out_fp);
             free(sams[i].s);
         }
