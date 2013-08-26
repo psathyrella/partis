@@ -342,9 +342,11 @@ void align_reads (const char* ref_path,
             for (size_t i = 0; i < n_threads; ++i)
                 pthread_join(tid[i], 0);
         }
+        free(w);
 
         for (size_t i = 0; i < n_reads; i++) {
             fputs(sams[i].s, out_fp);
+            free(sams[i].s);
         }
         free(sams);
         count += n_reads;
