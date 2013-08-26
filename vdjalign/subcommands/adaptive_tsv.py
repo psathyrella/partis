@@ -103,6 +103,7 @@ def action(a):
         int_or_none = or_none(int)
         Row = collections.namedtuple('Row', ['name', 'sequence', 'v_index',
                                              'j_index', 'tags'])
+        log.info('Loading sequences.')
         sequences = [Row(name=row['name'],
                          sequence=row['nucleotide'],
                          v_index=int_or_none(row['vIndex']),
@@ -111,6 +112,7 @@ def action(a):
                                TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
                                TAG_JGENE: row['jGeneName'] if row['jGeneName'] != '-1' else row['jTies']})
                      for i, row in enumerate(r)]
+        log.info('Done.')
 
         tags = {i.name: i.tags for i in sequences}
         v_sequences = ((i.name, i.sequence[:i.v_index])
