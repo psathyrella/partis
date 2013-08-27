@@ -67,5 +67,5 @@
                                          sorted
                                          ^java.io.File out-file
                                          compression-level)]
-        (doseq [^SAMRecordread read partitioned-reads]
+        (doseq [^SAMRecord read partitioned-reads]
           (.addAlignment writer read))))))
