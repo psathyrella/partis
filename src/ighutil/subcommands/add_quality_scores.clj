@@ -2,10 +2,10 @@
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMFileWriterFactory])
+            SAMFileReader$ValidationStringency])
   (:require [clojure.java.io :as io]
-            [cliopatra.command :refer [defcommand]]))
+            [cliopatra.command :refer [defcommand]]
+            [ighutil.sam :as sam]))
 
 (defn- fill-read-quality [^Integer score ^SAMRecord read]
   (let [read-length (.getReadLength read)
@@ -33,10 +33,7 @@
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (with-open [writer (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
-                                            (.getFileHeader reader)
-                                            sorted
-                                            ^java.io.File out-file)]
+    (with-open [writer (sam/bam-writer out-file (.getFileHeader reader))]
       (doseq [read (->> reader
                         .iterator
                         iterator-seq)]

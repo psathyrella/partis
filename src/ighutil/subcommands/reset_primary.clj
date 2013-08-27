@@ -8,7 +8,8 @@
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary? alignment-score
-                                       partition-by-name]]))
+                                 partition-by-name
+                                 bam-writer]]))
 
 (defn- random-tiebreak [reads]
   (let [^SAMRecord primary (first (filter primary? reads))

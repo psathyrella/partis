@@ -2,15 +2,15 @@
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMFileWriterFactory]
+            SAMFileReader$ValidationStringency]
            [net.sf.picard.reference FastaSequenceFile]
            [io.github.cmccoy.sam SAMUtils])
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.sam :refer [primary? alignment-score
-                                       partition-by-name read-name mapped?]]
+                                 partition-by-name read-name mapped?
+                                 bam-writer]]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
 
 (defn- cal-equal [refs reads]
@@ -53,9 +53,6 @@
                                  partition-by-name
                                  (map vec)
                                  (mapcat #(cal-equal refs %)))]
-      (with-open [writer (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
-                                              (.getFileHeader reader)
-                                              true
-                                              ^java.io.File out-file)]
+      (with-open [writer (bam-writer out-file (.getFileHeader reader))]
         (doseq [^SAMRecordread read partitioned-reads]
           (.addAlignment writer read))))))

@@ -3,7 +3,8 @@
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency
-            SAMFileWriterFactory]
+            SAMFileWriterFactory
+            SAMFileWriter]
            [java.util BitSet])
   (:require [clojure.java.io :as io]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
@@ -11,8 +12,9 @@
 (defn bam-reader [path]
   (-> path io/file SAMFileReader.))
 
-(defn bam-writer [path ^SAMFileReader reader &
-                  {:keys [sorted] :or {sorted false}}]
+(defn ^SAMFileWriter bam-writer [path ^SAMFileReader reader &
+                  {:keys [sorted]
+                   :or {sorted true}}]
   (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
                        (.getFileHeader reader)
                        sorted
