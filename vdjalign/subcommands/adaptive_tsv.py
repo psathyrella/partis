@@ -60,7 +60,7 @@ def tmpfifo(**kwargs):
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
               read_group=None, n_keep=-1):
-    with tmpfifo(prefix='pw-to-bam') as fifo_path, \
+    with tmpfifo(prefix='pw-to-bam', name='samtools-calmd-fifo') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
         for name, sequence in sequence_iter:
             tf.write('>{0}\n{1}\n'.format(name, sequence))
@@ -116,8 +116,8 @@ def action(a):
                        for i in sequences if i.j_index is not None)
 
         sw_to_bam(v_fasta, v_sequences, a.v_bamfile, n_threads=a.threads,
-                  read_group=a.read_group, n_keep=15)
+                  read_group=a.read_group, n_keep=20)
 
         log.info('Aligning J-region')
         sw_to_bam(j_fasta, j_sequences, a.j_bamfile, n_threads=a.threads,
-                  n_keep=5)
+                  read_group=a.read_group, n_keep=5)
