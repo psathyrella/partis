@@ -310,7 +310,7 @@ void align_reads(const char *ref_path,
     kseq_destroy(seq);
     gzclose(ref_fp);
 
-    fprintf(stderr, "Read %lu references\n",
+    fprintf(stderr, "[sw_align] Read %lu references\n",
             kv_size(ref_seqs));
 
     // Print SAM header
@@ -378,7 +378,7 @@ void align_reads(const char *ref_path,
         kv_destroy(reads);
     }
     kseq_destroy(seq);
-    fprintf(stderr, "Aligned %lu reads\n", count);
+    fprintf(stderr, "[sw_align] Aligned %lu reads\n", count);
 
     // Clean up reference sequences
     kvi_destroy(kseq_stack_destroy, ref_seqs);
