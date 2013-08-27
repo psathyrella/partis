@@ -3,7 +3,8 @@
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency
-            SAMFileWriterFactory])
+            SAMFileWriterFactory
+            SAMFileHeader$SortOrder])
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary? alignment-score
@@ -53,7 +54,8 @@
     (.setValidationStringency
      reader
      SAMFileReader$ValidationStringency/SILENT)
-    (let [read-iterator (->> reader
+    (let [header (.getFileHeader reader)
+          read-iterator (->> reader
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
@@ -62,10 +64,12 @@
                                  (mapcat (partial
                                           assign-primary-for-partition
                                           random-tiebreak)))]
+      (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (.makeBAMWriter (SAMFileWriterFactory.)
-                                         (.getFileHeader reader)
-                                         sorted
+                                         header
+                                         true
                                          ^java.io.File out-file
                                          compression-level)]
         (doseq [^SAMRecord read partitioned-reads]
+          (assert (not (nil? read)))
           (.addAlignment writer read))))))
