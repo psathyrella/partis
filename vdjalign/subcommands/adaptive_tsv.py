@@ -125,7 +125,7 @@ def action(a):
 
         with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
                 pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
-            log.info('Identifying frame and CDR3 start')
+            log.info('Annotating alignments [CDR3, J, count]')
             reads = annotate_alignments(v_tmp_bam, tags)
             for read in reads:
                 if not (read.is_unmapped or read.is_secondary or read.is_reverse):
