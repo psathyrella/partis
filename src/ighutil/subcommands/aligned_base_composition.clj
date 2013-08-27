@@ -3,8 +3,7 @@
             AlignmentBlock
             SAMRecord
             SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMFileWriterFactory])
+            SAMFileReader$ValidationStringency])
   (:require [clojure.java.io :as io]
             [clojure.data.csv :as csv]
             [cliopatra.command :refer [defcommand]]
