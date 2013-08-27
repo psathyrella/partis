@@ -55,7 +55,7 @@
                                  (mapcat #(cal-equal refs %)))]
       (with-open [writer (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
                                               (.getFileHeader reader)
-                                              sorted
+                                              true
                                               ^java.io.File out-file)]
         (doseq [^SAMRecordread read partitioned-reads]
           (.addAlignment writer read))))))
