@@ -59,7 +59,7 @@ def tmpfifo(**kwargs):
         yield f
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
-              read_group=None):
+              read_group=None, n_keep=-1):
     with tmpfifo(prefix='pw-to-bam') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
         for name, sequence in sequence_iter:
@@ -70,7 +70,7 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
             log.info(' '.join(cmd1))
             p = subprocess.Popen(cmd1, stdout=ofp)
             sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
-                     read_group=read_group)
+                     read_group=read_group, n_keep=n_keep)
             returncode = p.wait()
             if returncode:
                 raise subprocess.CalledProcessError(returncode, cmd1)
@@ -116,7 +116,8 @@ def action(a):
                        for i in sequences if i.j_index is not None)
 
         sw_to_bam(v_fasta, v_sequences, a.v_bamfile, n_threads=a.threads,
-                  read_group=a.read_group)
+                  read_group=a.read_group, n_keep=15)
 
         log.info('Aligning J-region')
-        sw_to_bam(j_fasta, j_sequences, a.j_bamfile, n_threads=a.threads)
+        sw_to_bam(j_fasta, j_sequences, a.j_bamfile, n_threads=a.threads,
+                  n_keep=5)

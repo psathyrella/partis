@@ -18,6 +18,7 @@ cdef extern from "sw_align.h":
                      int32_t,
                      int32_t,
                      uint8_t,
+                     const int32_t,
                      const char*,
                      const char*) nogil
 
@@ -33,6 +34,7 @@ def align(bytes ref_path,
           int gap_open=3,
           int gap_extend=1,
           int n_threads=1,
+          int n_keep=-1,
           bytes read_group=None):
     """
     :param ref_path: Path to reference sequence file (optionally gzipped) fasta
@@ -64,5 +66,5 @@ def align(bytes ref_path,
     cdef uint8_t threads = n_threads
 
     with nogil:
-        align_reads(ref, qry, out, m, p, go, ge, threads, rg, rg_id)
+        align_reads(ref, qry, out, m, p, go, ge, threads, n_keep, rg, rg_id)
 

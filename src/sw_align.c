@@ -116,6 +116,7 @@ typedef struct {
     uint8_t *table;
     int m; /* Number of residue tyes */
     int8_t *mat; /* Scoring matrix */
+    int32_t n_keep; /* Number of alignments to keep */
 } align_config_t;
 
 static aln_v align_read(const kseq_t *read,
@@ -178,10 +179,11 @@ static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
                               const kseq_v ref_seqs,
-                              const char *read_group_id)
+                              const char *read_group_id,
+                              const int32_t n_keep)
 {
     /* Alignments are sorted by decreasing score */
-    for(size_t i = 0; i < kv_size(result) && i < 20; i++) { /* TODO: magic number on max alignments */
+    for(size_t i = 0; i < kv_size(result) && (n_keep <= 0 || i < n_keep); i++) {
         aln_t a = kv_A(result, i);
 
         ksprintf(str, "%s\t%d\t", read->name.s,
@@ -230,6 +232,7 @@ typedef struct {
     const char *read_group_id;
 } worker_t;
 
+
 static void *worker(void *data)
 {
     worker_t *w = (worker_t *)data;
@@ -245,7 +248,8 @@ static void *worker(void *data)
                           s,
                           result,
                           w->ref_seqs,
-                          w->read_group_id);
+                          w->read_group_id,
+                          w->config->n_keep);
 
         w->sams[i] = str;
 
@@ -266,6 +270,7 @@ void align_reads(const char *ref_path,
                  const int32_t gap_o,       /* 3 */
                  const int32_t gap_e,       /* 1 */
                  const uint8_t n_threads,   /* 1 */
+                 const int32_t n_keep,
                  const char *read_group,
                  const char *read_group_id)
 {
@@ -327,6 +332,7 @@ void align_reads(const char *ref_path,
     conf.m = m;
     conf.table = table;
     conf.mat = mat;
+    conf.n_keep = n_keep;
 
     read_fp = gzopen(qry_path, "r");
     assert(read_fp != NULL && "Failed to open query");
