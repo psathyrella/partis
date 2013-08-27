@@ -12,7 +12,6 @@ import subprocess
 import tempfile
 
 from pkg_resources import resource_stream
-import pysam
 
 log = logging.getLogger('vdjalign')
 
@@ -41,7 +40,7 @@ def annotate_alignments(input_bam, tags):
         if read.is_reverse:
             continue
         read.tags = ([(k, v) for k, v in read.tags if k and k != 'SA'] +
-                     tags[read.qname].items())
+                     list(tags[read.qname].items()))
         yield read
 
 def or_none(fn):
@@ -53,8 +52,9 @@ def or_none(fn):
 
 @contextlib.contextmanager
 def tmpfifo(**kwargs):
+    fifo_name = kwargs.pop('name', 'fifo')
     with util.tempdir(**kwargs) as j:
-        f = j('fifo')
+        f = j(fifo_name)
         os.mkfifo(f)
         yield f
 
@@ -89,14 +89,9 @@ def build_parser(p):
     p.set_defaults(func=action)
 
 def action(a):
-    ntf = functools.partial(tempfile.NamedTemporaryFile, suffix='.bam')
-    closing = contextlib.closing
-
     with resource_fasta('ighv_functional.fasta') as v_fasta, \
             resource_fasta('ighj_adaptive.fasta') as j_fasta, \
-            a.csv_file as ifp, \
-            ntf(prefix='v_alignments-') as v_tf, \
-            ntf(prefix='j_alignments-') as j_tf:
+            a.csv_file as ifp:
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
@@ -114,34 +109,14 @@ def action(a):
                      for i, row in enumerate(r)]
         log.info('Done.')
 
-        tags = {i.name: i.tags for i in sequences}
+        #tags = {i.name: i.tags for i in sequences}
         v_sequences = ((i.name, i.sequence[:i.v_index])
                        for i in sequences if i.v_index is not None)
         j_sequences = ((i.name, i.sequence[i.j_index:])
                        for i in sequences if i.j_index is not None)
 
-        sw_to_bam(v_fasta, v_sequences, v_tf.name, n_threads=a.threads,
+        sw_to_bam(v_fasta, v_sequences, a.v_bamfile, n_threads=a.threads,
                   read_group=a.read_group)
 
-        with pysam.Samfile(v_tf.name, 'rb') as v_tmp_bam, \
-                pysam.Samfile(a.v_bamfile, 'wb', template=v_tmp_bam) as v_bam:
-            log.info('Annotating alignments [CDR3, J, count]')
-            reads = annotate_alignments(v_tmp_bam, tags)
-            for read in reads:
-                if not (read.is_unmapped or read.is_secondary or read.is_reverse):
-                    if a.default_qual and read.rlen:
-                        read.qual = a.default_qual * read.rlen
-                v_bam.write(read)
-
         log.info('Aligning J-region')
-        sw_to_bam(j_fasta, j_sequences, j_tf.name, n_threads=a.threads)
-        logging.info('Annotating J-region')
-        with closing(pysam.Samfile(j_tf.name, 'rb')) as j_tmp_bam, \
-                closing(pysam.Samfile(a.j_bamfile, 'wb',
-                                      template=j_tmp_bam)) as j_bam:
-            reads = annotate_alignments(j_tmp_bam, tags)
-            for read in reads:
-                if not (read.is_unmapped or read.is_secondary or read.is_reverse):
-                    if a.default_qual and read.rlen:
-                        read.qual = a.default_qual * read.rlen
-                j_bam.write(read)
+        sw_to_bam(j_fasta, j_sequences, a.j_bamfile, n_threads=a.threads)
