@@ -3,8 +3,7 @@
             AlignmentBlock
             SAMRecord
             SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMFileWriterFactory]
+            SAMFileReader$ValidationStringency]
            [net.sf.picard.util IntervalTree]
            [io.github.cmccoy sam.SAMUtils dna.IUPACUtils])
   (:require [cliopatra.command :refer [defcommand]]
