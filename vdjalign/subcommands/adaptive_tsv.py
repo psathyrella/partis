@@ -70,7 +70,8 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
             log.info(' '.join(cmd1))
             p = subprocess.Popen(cmd1, stdout=ofp)
             sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
-                     read_group=read_group, n_keep=n_keep)
+                     read_group=read_group, n_keep=n_keep,
+                     gap_open=10, mismatch=4, match=1)
             returncode = p.wait()
             if returncode:
                 raise subprocess.CalledProcessError(returncode, cmd1)

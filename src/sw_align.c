@@ -162,7 +162,7 @@ static aln_v align_read(const kseq_t *read,
                    conf->mat,
                    conf->gap_o,
                    conf->gap_e,
-                   40, /* TODO: Magic number - band width */
+                   50, /* TODO: Magic number - band width */
                    &aln.n_cigar,
                    &aln.cigar);
         kv_push(aln_t, result, aln);
