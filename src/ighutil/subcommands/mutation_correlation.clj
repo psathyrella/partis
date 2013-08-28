@@ -54,7 +54,7 @@
   mutations contains 1/0 indicating whether there is a mutation at
   each position."
   (let [counts (long-array ref-len 0)
-        matches (long/aclone counts)
+        muts (long/aclone counts)
         ref-name (.getReferenceName read)]
     (doseq [i (range (alength bq))]
       (let [ref-idx (.getReferencePositionAtReadPosition read i)
@@ -66,8 +66,8 @@
                    (>= b 0) (= 0 (mod b 100))) ; Certain match/mismatch
           (let [idx (int idx)]
             (long/aset counts idx 1)
-            (long/aset matches idx (- 1 (/ b 100)))))))
-    [counts matches]))
+            (long/aset muts idx (- 1 (/ b 100)))))))
+    [counts muts]))
 
 (defn- conditional-mutations-of-read [^SAMRecord read
                                       {:keys [length mutated unmutated count]}]
@@ -124,7 +124,8 @@
                  .iterator
                  iterator-seq
                  (conditional-mutations-of-records ref-map)
-                 (filter (fn [x] (-> x second :count long/asum (> 0))))
+                 (filter (fn [x] (let [^longs l (-> x second :count)]
+                                   (-> l long/asum (> 0)))))
                  (into {}))]
       (add-encoder long-array-cls encode-seq)
       (println "Finished: writing results")
