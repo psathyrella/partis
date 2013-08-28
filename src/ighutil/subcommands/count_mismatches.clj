@@ -23,7 +23,7 @@
 (defn- count-mutations-in-record [^SAMRecord read ref-map]
   [(->MutationKey
     ^String (.getReferenceName read)
-    (- (.getAlignmentEnd read) (.getAlignmentStart read))
+    (SAMUtils/countAlignedBases read)
     (SAMUtils/countMutations
      read
      ^bytes (safe-get ref-map (.getReferenceName read))))

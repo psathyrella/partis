@@ -4,6 +4,7 @@ import io.github.cmccoy.dna.IUPACUtils;
 import io.github.cmccoy.sam.Mutation.MutationType;
 import net.sf.samtools.AlignmentBlock;
 import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.util.PeekIterator;
 
@@ -14,6 +15,22 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.*;
 
 public class SAMUtils {
+
+    public static int countAlignedBases(final SAMRecord record) {
+        checkNotNull(record, "null SAM record");
+        checkNotNull(record.getCigar(), "Null cigar");
+        final List<CigarElement> cigarElements = record.getCigar().getCigarElements();
+
+        int result = 0;
+        for (final CigarElement e : cigarElements) {
+            final CigarOperator op = e.getOperator();
+            if (op == CigarOperator.EQ ||
+                op == CigarOperator.M ||
+                op == CigarOperator.X)
+              result += e.getLength();
+        }
+        return result;
+    }
 
     public static int countMutations(final SAMRecord record,
                                      final byte[] referenceBases) {
