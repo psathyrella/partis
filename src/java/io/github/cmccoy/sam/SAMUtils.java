@@ -15,6 +15,25 @@ import static com.google.common.base.Preconditions.*;
 
 public class SAMUtils {
 
+    public static int countMutations(final SAMRecord record,
+                                     final byte[] referenceBases) {
+        checkNotNull(record, "null SAM record");
+        checkNotNull(referenceBases, "null reference bases");
+
+        int result = 0;
+        final byte[] qBases = record.getReadBases();
+        for (final AlignmentBlock b : record.getAlignmentBlocks()) {
+            final int qStart = b.getReadStart() - 1,
+                      rStart = b.getReferenceStart() - 1,
+                      length = b.getLength();
+            for(int i = 0; i < length; i++) {
+                if(referenceBases[rStart + i] != qBases[qStart + i])
+                    result++;
+            }
+        }
+        return result;
+    }
+
     /**
      * List all mutations relative to the reference.
      *
@@ -36,39 +55,39 @@ public class SAMUtils {
         for (final CigarElement e : record.getCigar().getCigarElements()) {
             final int length = e.getLength();
             switch (e.getOperator()) {
-                case H:
-                case S:
-                    break;
-                case I:
-                    result.add(new Mutation(MutationType.INSERTION, ri, "-",
-                            new String(qBases, qi, length)));
-                    break;
-                case D:
-                    result.add(new Mutation(MutationType.DELETION, ri,
-                            new String(referenceBases, ri, 1),
-                            "-"));
-                    break;
-                case M:
-                    for (int i = 0; i < length; ++i) {
-                        if (qBases[qi + i] != referenceBases[ri + i]) {
-                            result.add(new Mutation(MutationType.MUTATION, ri + i,
-                                    new String(referenceBases, ri + i, 1),
-                                    new String(qBases, qi + i, 1)));
-                        }
-                    }
-                    break;
-                case X:
-                    // Bases not equal - skip check
-                    for (int i = 0; i < length; ++i) {
+            case H:
+            case S:
+                break;
+            case I:
+                result.add(new Mutation(MutationType.INSERTION, ri, "-",
+                                        new String(qBases, qi, length)));
+                break;
+            case D:
+                result.add(new Mutation(MutationType.DELETION, ri,
+                                        new String(referenceBases, ri, 1),
+                                        "-"));
+                break;
+            case M:
+                for (int i = 0; i < length; ++i) {
+                    if (qBases[qi + i] != referenceBases[ri + i]) {
                         result.add(new Mutation(MutationType.MUTATION, ri + i,
-                                new String(referenceBases, ri + i, 1),
-                                new String(qBases, qi + i, 1)));
+                                                new String(referenceBases, ri + i, 1),
+                                                new String(qBases, qi + i, 1)));
                     }
-                case EQ:
-                    // Bases equal - no action.
-                    break;
-                default:
-                    throw new IllegalArgumentException("unknown " + e.toString());
+                }
+                break;
+            case X:
+                // Bases not equal - skip check
+                for (int i = 0; i < length; ++i) {
+                    result.add(new Mutation(MutationType.MUTATION, ri + i,
+                                            new String(referenceBases, ri + i, 1),
+                                            new String(qBases, qi + i, 1)));
+                }
+            case EQ:
+                // Bases equal - no action.
+                break;
+            default:
+                throw new IllegalArgumentException("unknown " + e.toString());
             }
             final int l = e.getLength();
             if (e.getOperator().consumesReadBases())
@@ -104,12 +123,12 @@ public class SAMUtils {
         while (it.hasNext()) {
             final SAMRecord record = it.next();
             checkState(record.getReadName().equals(primary.getReadName()),
-                    "Unmatched read names in group (%s, %s)",
-                    record.getReadName(),
-                    primary.getReadName());
+                       "Unmatched read names in group (%s, %s)",
+                       record.getReadName(),
+                       primary.getReadName());
             final String referenceName = record.getReferenceName();
             final byte[] refBases = checkNotNull(ref.get(referenceName),
-                    "No reference %s", referenceName);
+                                                 "No reference %s", referenceName);
             for (final AlignmentBlock b : record.getAlignmentBlocks()) {
                 // 0-based index in read, ref
                 final int readStart = b.getReadStart() - 1;
@@ -157,12 +176,12 @@ public class SAMUtils {
         while (it.hasNext()) {
             final SAMRecord record = it.next();
             checkState(record.getReadName().equals(primary.getReadName()),
-                    "Unmatched read names in group (%s, %s)",
-                    record.getReadName(),
-                    primary.getReadName());
+                       "Unmatched read names in group (%s, %s)",
+                       record.getReadName(),
+                       primary.getReadName());
             final String referenceName = record.getReferenceName();
             final byte[] refBases = checkNotNull(ref.get(referenceName),
-                    "No reference %s", referenceName);
+                                                 "No reference %s", referenceName);
             final byte[] packedRef = IUPACUtils.packBytes(refBases);
             for (final AlignmentBlock b : record.getAlignmentBlocks()) {
                 // 0-based index in read, ref
@@ -172,7 +191,7 @@ public class SAMUtils {
                     if (mayMatch[readStart + i] == MISSING)
                         mayMatch[readStart + i] = 0;
                     if (IUPACUtils.isSubset(packedRef[refStart + i],
-                            packedRead[readStart + i]))
+                                            packedRead[readStart + i]))
                         mayMatch[readStart + i] = 1;
                 }
             }
