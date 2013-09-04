@@ -55,9 +55,11 @@
        (let [extract-position (fn [[^String name ^String sequence]]
                                 (let [pos-map (nongap-lookup sequence)]
                                   [(second (.split name "\\|"))
-                                   {:cysteine-position
+                                   {:aligned-length (count sequence)
+                                    :cysteine-position
                                     (get pos-map CYSTEINE-POSITION)
                                     :translation pos-map
+                                    :aligned sequence
                                     :sequence (.replaceAll sequence "[.-]" "")}]))]
          (->> reader
               line-seq
