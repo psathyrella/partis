@@ -11,7 +11,7 @@ from vdjalign.util import opener
 
 
 KEEP = ['nucleotide', 'copy', 'cdr3Length', 'jGeneName', 'jTies', 'vIndex',
-        'jIndex', 'source']
+        'jIndex', 'source', 'sequenceStatus']
 
 OUT = ['name'] + KEEP + ['sources', 'n_sources']
 
