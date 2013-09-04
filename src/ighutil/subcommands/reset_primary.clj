@@ -61,9 +61,9 @@
           partitioned-reads (->> read-iterator
                                  partition-by-name
                                  (map vec)
-                                 (mapcat (partial
-                                          assign-primary-for-partition
-                                          random-tiebreak)))]
+                                 (mapcat #(assign-primary-for-partition
+                                            random-tiebreak
+                                            %)))]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (.makeBAMWriter (SAMFileWriterFactory.)
                                          header
