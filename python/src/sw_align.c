@@ -18,6 +18,24 @@
 #include "ksw.h"
 #include "kvec.h"
 
+/* Cigar operations */
+/**
+ * Describing how CIGAR operation/length is packed in a 32-bit integer.
+ */
+#define BAM_CIGAR_SHIFT 4
+#define BAM_CIGAR_MASK  ((1 << BAM_CIGAR_SHIFT) - 1)
+
+#define BAM_CIGAR_STR  "MIDNSHP=XB"
+#define BAM_CIGAR_TYPE 0x3C1A7
+
+#define bam_cigar_op(c) ((c)&BAM_CIGAR_MASK)
+#define bam_cigar_oplen(c) ((c)>>BAM_CIGAR_SHIFT)
+#define bam_cigar_opchr(c) (BAM_CIGAR_STR[bam_cigar_op(c)])
+#define bam_cigar_gen(l, o) ((l)<<BAM_CIGAR_SHIFT|(o))
+#define bam_cigar_type(o) (BAM_CIGAR_TYPE>>((o)<<1)&3) // bit 1: consume query; bit 2: consume reference
+/* end */
+
+
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)
 #define UNLIKELY(x) __builtin_expect((x),0)
@@ -28,8 +46,7 @@
 
 /*! @function
   @abstract  Round an integer to the next closest power-2 integer.
-  @param  x  integer to be rounded (in place)
-  @discussion x will be modified.
+  @param  x  integer to be rounded (in place) @discussion x will be modified.
   */
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 
@@ -99,6 +116,7 @@ typedef struct {
     kswr_t loc;
     uint32_t *cigar;
     int n_cigar;
+    uint32_t nm;
 } aln_t;
 typedef kvec_t(aln_t) aln_v;
 
@@ -165,6 +183,25 @@ static aln_v align_read(const kseq_t *read,
                    50, /* TODO: Magic number - band width */
                    &aln.n_cigar,
                    &aln.cigar);
+
+        aln.nm = 0;
+        size_t qi = aln.loc.qb, ri = aln.loc.tb;
+        for(size_t k = 0; k < aln.n_cigar; k++) {
+            const int32_t oplen = bam_cigar_oplen(aln.cigar[k]),
+                          optype = bam_cigar_type(aln.cigar[k]);
+
+            if(optype & 3) { // consumes both - check for mismatches
+                for(size_t j = 0; j < oplen; j++) {
+                    if(UNLIKELY(read_num[qi + j] != ref_num[ri + j]))
+                        aln.nm++;
+                }
+            } else {
+                aln.nm += oplen;
+            }
+            if(optype & 1) qi += oplen;
+            if(optype & 2) ri += oplen;
+        }
+
         kv_push(aln_t, result, aln);
         free(ref_num);
     }
@@ -213,7 +250,7 @@ static void write_sam_records(kstring_t *str,
         else
             ksprintf(str, "*");
 
-        ksprintf(str, "\tAS:i:%d", a.loc.score);
+        ksprintf(str, "\tAS:i:%d\tNM:i:%d", a.loc.score, a.nm);
         if(read_group_id)
             ksprintf(str, "\tRG:Z:%s", read_group_id);
         kputs("\n", str);
@@ -315,7 +352,7 @@ void align_reads(const char *ref_path,
 
     // Print SAM header
     out_fp = fopen(output_path, "w");
-    fprintf(out_fp, "@HD\tVN:1.4\tSO:unknown\n");
+    fprintf(out_fp, "@HD\tVN:1.4\tSO:unsorted\n");
     for(size_t i = 0; i < kv_size(ref_seqs); i++) {
         seq = &kv_A(ref_seqs, i);
         fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
