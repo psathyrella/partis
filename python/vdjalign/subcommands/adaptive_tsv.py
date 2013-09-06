@@ -26,22 +26,18 @@ TAG_CDR3_LENGTH = 'XL'
 TAG_JGENE = 'XJ'
 
 @contextlib.contextmanager
-def resource_fasta(name):
-    with resource_stream('vdjalign.imgt.data', name) as in_fasta, \
-            util.tempdir(prefix=name) as j, \
-            open(j(name), 'w') as fp:
-        shutil.copyfileobj(in_fasta, fp)
-        in_fasta.close()
+def resource_fasta(names):
+    if isinstance(names, basestring):
+        names = [names]
+    if not names:
+        raise ValueError('Missing sequence files')
+    with util.tempdir(prefix=names[0]) as j, \
+            open(j(names[0]), 'w') as fp:
+        for name in names:
+            with resource_stream('vdjalign.imgt.data', name) as in_fasta:
+                shutil.copyfileobj(in_fasta, fp)
         fp.close()
         yield fp.name
-
-def annotate_alignments(input_bam, tags):
-    for read in input_bam:
-        if read.is_reverse:
-            continue
-        read.tags = ([(k, v) for k, v in read.tags if k and k != 'SA'] +
-                     list(tags[read.qname].items()))
-        yield read
 
 def or_none(fn):
     @functools.wraps(fn)
@@ -82,15 +78,15 @@ def build_parser(p):
     p.add_argument('-c', '--count-column', default='n_sources')
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
             threads [default: %(default)d]""")
-    p.add_argument('v_bamfile')
-    p.add_argument('j_bamfile')
+    p.add_argument('bamfile')
     p.add_argument('-r', '--read-group')
     p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
 def action(a):
-    with resource_fasta('ighv_functional.fasta') as v_fasta, \
-            resource_fasta('ighj_adaptive.fasta') as j_fasta, \
+    with resource_fasta(['ighv_functional.fasta',
+                         'ighj_adaptive.fasta',
+                         'ighd.fasta']) as fasta, \
             a.csv_file as ifp:
 
         csv_lines = (i for i in ifp if not i.startswith('#'))
@@ -110,14 +106,8 @@ def action(a):
         log.info('Done.')
 
         #tags = {i.name: i.tags for i in sequences}
-        v_sequences = ((i.name, i.sequence[:i.v_index])
-                       for i in sequences if i.v_index is not None)
-        j_sequences = ((i.name, i.sequence[i.j_index:])
-                       for i in sequences if i.j_index is not None)
+        sequences = ((i.name, i.sequence) for i in sequences)
 
-        sw_to_bam(v_fasta, v_sequences, a.v_bamfile, n_threads=a.threads,
-                  read_group=a.read_group, n_keep=20)
-
-        log.info('Aligning J-region')
-        sw_to_bam(j_fasta, j_sequences, a.j_bamfile, n_threads=a.threads,
-                  read_group=a.read_group, n_keep=5)
+        log.info('aligning all')
+        sw_to_bam(fasta, sequences, a.bamfile, n_threads=a.threads,
+                  read_group=a.read_group)
