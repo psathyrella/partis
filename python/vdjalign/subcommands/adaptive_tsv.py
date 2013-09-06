@@ -60,21 +60,20 @@ def tmpfifo(**kwargs):
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
               read_group=None, n_keep=-1):
-    with tmpfifo(prefix='pw-to-bam', name='samtools-calmd-fifo') as fifo_path, \
+    with tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
         for name, sequence in sequence_iter:
             tf.write('>{0}\n{1}\n'.format(name, sequence))
             tf.flush()
-        with open(bam_dest, 'w') as ofp:
-            cmd1 = ['samtools', 'calmd', '-Sb', fifo_path, ref_path]
-            log.info(' '.join(cmd1))
-            p = subprocess.Popen(cmd1, stdout=ofp)
-            sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
-                     read_group=read_group, n_keep=n_keep,
-                     gap_open=10, mismatch=4, match=1)
-            returncode = p.wait()
-            if returncode:
-                raise subprocess.CalledProcessError(returncode, cmd1)
+        cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
+        log.info(' '.join(cmd1))
+        p = subprocess.Popen(cmd1)
+        sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
+                    read_group=read_group, n_keep=n_keep,
+                    gap_open=10, mismatch=4, match=1)
+        returncode = p.wait()
+        if returncode:
+            raise subprocess.CalledProcessError(returncode, cmd1)
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
