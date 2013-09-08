@@ -108,7 +108,7 @@ def action(a):
         log.info('Done.')
 
         #tags = {i.name: i.tags for i in sequences}
-        sequences = ((i.name, i.sequence) for i in sequences)
+        sequences = [(i.name, i.sequence) for i in sequences]
 
         align = functools.partial(sw_to_bam,n_threads=a.threads,
                                   read_group=a.read_group,
