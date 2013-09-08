@@ -8,7 +8,7 @@
                  [org.clojars.chapmanb/sam "1.90"]
                  [org.clojure/data.csv "0.1.2"]
                  [org.clojure/math.combinatorics "0.0.4"]
-                 [me.raynes/fs "1.4.3"]
+                 [me.raynes/fs "1.4.5"]
                  [org.apache.commons/commons-compress "1.5"]
                  [com.google.guava/guava "14.0.1"]
                  [org.clojars.runa/cliopatra "1.1.0"]
