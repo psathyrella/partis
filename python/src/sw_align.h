@@ -12,6 +12,7 @@ void align_reads(const char *ref_path,
                  const int32_t gap_e,    /* 1 */
                  const uint8_t n_threads,
                  const int32_t n_keep,
+                 const int32_t max_drop,
                  const char *read_group,
                  const char *read_group_id);
 

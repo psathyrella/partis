@@ -132,9 +132,10 @@ typedef struct {
     int32_t gap_o; /* 3 */
     int32_t gap_e; /* 1 */
     uint8_t *table;
-    int m; /* Number of residue tyes */
-    int8_t *mat; /* Scoring matrix */
-    int32_t n_keep; /* Number of alignments to keep */
+    int m;            /* Number of residue tyes */
+    int8_t *mat;      /* Scoring matrix */
+    int32_t n_keep;   /* Number of alignments to keep */
+    int32_t max_drop; /* Maximum drop from best alignment score */
 } align_config_t;
 
 static aln_v align_read(const kseq_t *read,
@@ -217,11 +218,20 @@ static void write_sam_records(kstring_t *str,
                               const aln_v result,
                               const kseq_v ref_seqs,
                               const char *read_group_id,
-                              const int32_t n_keep)
+                              const int32_t n_keep,
+                              const int32_t max_drop)
 {
+    if(kv_size(result) == 0)
+        return;
+
+    const int32_t min_score = kv_A(result, 0).loc.score - max_drop;
+
     /* Alignments are sorted by decreasing score */
     for(size_t i = 0; i < kv_size(result) && (n_keep <= 0 || i < n_keep); i++) {
         aln_t a = kv_A(result, i);
+
+        if(a.loc.score < min_score)
+            break;
 
         ksprintf(str, "%s\t%d\t", read->name.s,
                  i == 0 ? 0 : 256); // Secondary
@@ -286,7 +296,8 @@ static void *worker(void *data)
                           result,
                           w->ref_seqs,
                           w->read_group_id,
-                          w->config->n_keep);
+                          w->config->n_keep,
+                          w->config->max_drop);
 
         w->sams[i] = str;
 
@@ -308,6 +319,7 @@ void align_reads(const char *ref_path,
                  const int32_t gap_e,       /* 1 */
                  const uint8_t n_threads,   /* 1 */
                  const int32_t n_keep,
+                 const int32_t max_drop,
                  const char *read_group,
                  const char *read_group_id)
 {
@@ -370,6 +382,7 @@ void align_reads(const char *ref_path,
     conf.table = table;
     conf.mat = mat;
     conf.n_keep = n_keep;
+    conf.max_drop = max_drop;
 
     read_fp = gzopen(qry_path, "r");
     assert(read_fp != NULL && "Failed to open query");

@@ -13,11 +13,12 @@ cdef extern from "sw_align.h":
     void align_reads(const char*,
                      const char*,
                      const char*,
-                     int32_t,
-                     int32_t,
-                     int32_t,
-                     int32_t,
-                     uint8_t,
+                     const int32_t,
+                     const int32_t,
+                     const int32_t,
+                     const int32_t,
+                     const uint8_t,
+                     const int32_t,
                      const int32_t,
                      const char*,
                      const char*) nogil
@@ -35,6 +36,7 @@ def align(bytes ref_path,
           int gap_extend=1,
           int n_threads=1,
           int n_keep=-1,
+          int max_drop=100,
           bytes read_group=None):
     """
     :param ref_path: Path to reference sequence file (optionally gzipped) fasta
@@ -42,6 +44,8 @@ def align(bytes ref_path,
     :param output_path: Path to write output (SAM)
     :param match: positive match score
     :param mismatch: positive mismatch penalty
+    :param n_keep: Maximum number of alignments to output
+    :param max_drop: Maximum drop from best alignment score
     :param read_group: read group string
     """
     cdef char* ref = ref_path
@@ -62,9 +66,9 @@ def align(bytes ref_path,
             raise InvalidReadGroupError('Could not find ID: "{0}" {1}'.format(read_group, read_group_id))
         rg_id = read_group_id[0]
 
-    cdef int32_t m = match, p = mismatch, go = gap_open, ge = gap_extend
+    cdef int32_t m = match, p = mismatch, go = gap_open, ge = gap_extend, md = max_drop
     cdef uint8_t threads = n_threads
 
     with nogil:
-        align_reads(ref, qry, out, m, p, go, ge, threads, n_keep, rg, rg_id)
+        align_reads(ref, qry, out, m, p, go, ge, threads, n_keep, md, rg, rg_id)
 
