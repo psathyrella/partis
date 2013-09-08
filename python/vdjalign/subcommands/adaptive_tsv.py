@@ -55,7 +55,7 @@ def tmpfifo(**kwargs):
         yield f
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
-              read_group=None, n_keep=-1):
+              read_group=None, n_keep=-1, max_drop=100):
     with tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
         for name, sequence in sequence_iter:
@@ -65,8 +65,8 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
         log.info(' '.join(cmd1))
         p = subprocess.Popen(cmd1)
         sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
-                    read_group=read_group, n_keep=n_keep,
-                    gap_open=10, mismatch=4, match=1)
+                 read_group=read_group, n_keep=n_keep, max_drop=max_drop,
+                 gap_open=10, mismatch=4, match=1)
         returncode = p.wait()
         if returncode:
             raise subprocess.CalledProcessError(returncode, cmd1)
@@ -82,7 +82,11 @@ def build_parser(p):
     p.add_argument('d_bamfile')
     p.add_argument('j_bamfile')
     p.add_argument('-r', '--read-group')
-    p.add_argument('--default-qual')
+    agrp = p.add_argument_group('Alignment options')
+    agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
+                      gene [default: 15V, 5J, 10D]""")
+    agrp.add_argument('-m', '--max-drop', help="""Discard alignments with scores VALUE below max score.""",
+                      default=5)
     p.set_defaults(func=action)
 
 def action(a):
@@ -106,15 +110,16 @@ def action(a):
         #tags = {i.name: i.tags for i in sequences}
         sequences = ((i.name, i.sequence) for i in sequences)
 
+        align = functools.partial(sw_to_bam,n_threads=a.threads,
+                                  read_group=a.read_group,
+                                  max_drop=a.max_drop)
+
         log.info('aligning V')
         with resource_fasta('ighv_functional.fasta') as fasta:
-            sw_to_bam(fasta, sequences, a.v_bamfile, n_threads=a.threads,
-                  read_group=a.read_group)
+            align(fasta, sequences, a.v_bamfile, n_keep=a.keep or 15)
         log.info('aligning D')
         with resource_fasta('ighd.fasta') as fasta:
-            sw_to_bam(fasta, sequences, a.d_bamfile, n_threads=a.threads,
-                  read_group=a.read_group)
+            align(fasta, sequences, a.d_bamfile, n_keep=a.keep or 10)
         log.info('aligning J')
         with resource_fasta('ighj_adaptive.fasta') as fasta:
-            sw_to_bam(fasta, sequences, a.j_bamfile, n_threads=a.threads,
-                  read_group=a.read_group)
+            align(fasta, sequences, a.j_bamfile, n_keep=a.keep or 5)
