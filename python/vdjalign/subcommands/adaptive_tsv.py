@@ -78,17 +78,15 @@ def build_parser(p):
     p.add_argument('-c', '--count-column', default='n_sources')
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
             threads [default: %(default)d]""")
-    p.add_argument('bamfile')
+    p.add_argument('v_bamfile')
+    p.add_argument('d_bamfile')
+    p.add_argument('j_bamfile')
     p.add_argument('-r', '--read-group')
     p.add_argument('--default-qual')
     p.set_defaults(func=action)
 
 def action(a):
-    with resource_fasta(['ighv_functional.fasta',
-                         'ighj_adaptive.fasta',
-                         'ighd.fasta']) as fasta, \
-            a.csv_file as ifp:
-
+    with a.csv_file as ifp:
         csv_lines = (i for i in ifp if not i.startswith('#'))
         r = csv.DictReader(csv_lines, delimiter=a.delimiter)
         int_or_none = or_none(int)
@@ -108,6 +106,15 @@ def action(a):
         #tags = {i.name: i.tags for i in sequences}
         sequences = ((i.name, i.sequence) for i in sequences)
 
-        log.info('aligning all')
-        sw_to_bam(fasta, sequences, a.bamfile, n_threads=a.threads,
+        log.info('aligning V')
+        with resource_fasta('ighv_functional.fasta') as fasta:
+            sw_to_bam(fasta, sequences, a.v_bamfile, n_threads=a.threads,
+                  read_group=a.read_group)
+        log.info('aligning D')
+        with resource_fasta('ighd.fasta') as fasta:
+            sw_to_bam(fasta, sequences, a.d_bamfile, n_threads=a.threads,
+                  read_group=a.read_group)
+        log.info('aligning J')
+        with resource_fasta('ighj_adaptive.fasta') as fasta:
+            sw_to_bam(fasta, sequences, a.j_bamfile, n_threads=a.threads,
                   read_group=a.read_group)
