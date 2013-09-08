@@ -84,9 +84,9 @@ def build_parser(p):
     p.add_argument('-r', '--read-group')
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
-                      gene [default: 15V, 5J, 10D]""")
+                      gene [default: 15V, 5J, 10D]""", type=int)
     agrp.add_argument('-m', '--max-drop', help="""Discard alignments with scores VALUE below max score.""",
-                      default=5)
+                      default=5, type=int)
     p.set_defaults(func=action)
 
 def action(a):
