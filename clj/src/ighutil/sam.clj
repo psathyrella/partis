@@ -7,7 +7,7 @@
             SAMFileWriter]
            [java.util BitSet])
   (:require [clojure.java.io :as io]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
+            [ighutil.sam-tags :refer [TAG-EXP-MATCH TAG-STATUS]]))
 
 (defn bam-reader [path]
   (-> path io/file SAMFileReader.))
@@ -33,11 +33,14 @@
 (defn reference-name [^SAMRecord r]
   (.getReferenceName r))
 
-(defn alignment-score [^SAMRecord read]
+(defn ^Integer alignment-score [^SAMRecord read]
   (.getAttribute read "AS"))
 
-(defn nm [^SAMRecord read]
+(defn ^Integer nm [^SAMRecord read]
   (.getAttribute read "NM"))
+
+(defn ^Integer sequence-status [^SAMRecord read]
+  (.getAttribute read TAG-STATUS))
 
 (defn primary? [^SAMRecord read]
   (not (.getNotPrimaryAlignmentFlag read)))
