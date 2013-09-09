@@ -5,7 +5,9 @@ import collections
 import contextlib
 import csv
 import functools
+import itertools
 import logging
+import operator
 import os
 import shutil
 import subprocess
@@ -13,17 +15,14 @@ import tempfile
 
 from pkg_resources import resource_stream
 
-log = logging.getLogger('vdjalign')
+import pysam
 
 from .. import util, sw
 
-
-TAG_FRAME = 'XF'
-TAG_CDR3_START = 'XB'
-TAG_CDR3_END = 'XE'
+log = logging.getLogger('vdjalign')
 TAG_COUNT = 'XC'
 TAG_CDR3_LENGTH = 'XL'
-TAG_JGENE = 'XJ'
+TAG_STATUS = 'XS'
 
 @contextlib.contextmanager
 def resource_fasta(names):
@@ -38,6 +37,17 @@ def resource_fasta(names):
                 shutil.copyfileobj(in_fasta, fp)
         fp.close()
         yield fp.name
+
+def add_tags(reads, rows):
+    """Tags should be the length of reads, in same order"""
+    reads = itertools.groupby(reads, operator.attrgetter('qname'))
+    for r, (g, v) in itertools.izip_longest(rows, reads):
+        assert r.name == g, (g, r.name)
+        for read in v:
+            t = read.tags
+            t.extend(r.tags.iteritems())
+            read.tags = t
+            yield read
 
 def or_none(fn):
     @functools.wraps(fn)
@@ -97,29 +107,34 @@ def action(a):
         Row = collections.namedtuple('Row', ['name', 'sequence', 'v_index',
                                              'j_index', 'tags'])
         log.info('Loading sequences.')
-        sequences = [Row(name=row['name'],
-                         sequence=row['nucleotide'],
-                         v_index=int_or_none(row['vIndex']),
-                         j_index=int_or_none(row['jIndex']),
-                         tags={TAG_COUNT: int_or_none(row[a.count_column]),
-                               TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
-                               TAG_JGENE: row['jGeneName'] if row['jGeneName'] != '-1' else row['jTies']})
-                     for i, row in enumerate(r)]
+        rows= [Row(name=row['name'],
+                   sequence=row['nucleotide'],
+                   v_index=int_or_none(row['vIndex']),
+                   j_index=int_or_none(row['jIndex']),
+                   tags={TAG_COUNT: int_or_none(row[a.count_column]),
+                         TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
+                         TAG_STATUS: int(row['sequenceStatus'])})
+               for i, row in enumerate(r)]
         log.info('Done.')
 
-        #tags = {i.name: i.tags for i in sequences}
-        sequences = [(i.name, i.sequence) for i in sequences]
+        sequences = [(i.name, i.sequence) for i in rows]
 
         align = functools.partial(sw_to_bam,n_threads=a.threads,
                                   read_group=a.read_group,
                                   max_drop=a.max_drop)
 
+        closing = contextlib.closing
+        def align_gene(resource_name, outfile, keep=a.keep):
+            with resource_fasta(resource_name) as fasta, \
+                    tempfile.NamedTemporaryFile(suffix='.bam') as tf:
+                align(fasta, sequences, tf.name, n_keep=keep)
+                with closing(pysam.Samfile(tf.name, 'rb')) as in_sam, \
+                        closing(pysam.Samfile(outfile, 'wb', template=in_sam)) as out_sam:
+                    for read in add_tags(in_sam, rows):
+                        out_sam.write(read)
         log.info('aligning V')
-        with resource_fasta('ighv_functional.fasta') as fasta:
-            align(fasta, sequences, a.v_bamfile, n_keep=a.keep or 15)
+        align_gene('ighv_functional.fasta', a.v_bamfile, keep=a.keep or 15)
         log.info('aligning D')
-        with resource_fasta('ighd.fasta') as fasta:
-            align(fasta, sequences, a.d_bamfile, n_keep=a.keep or 10)
+        align_gene('ighd.fasta', a.d_bamfile, keep=a.keep or 10)
         log.info('aligning J')
-        with resource_fasta('ighj_adaptive.fasta') as fasta:
-            align(fasta, sequences, a.j_bamfile, n_keep=a.keep or 5)
+        align_gene('ighj_adaptive.fasta', a.j_bamfile, keep=a.keep or 5)
