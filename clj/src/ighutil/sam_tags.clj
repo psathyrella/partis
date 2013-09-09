@@ -6,3 +6,5 @@
 (def ^String TAG-COUNT "XC")
 
 (def ^String TAG-EXP-MATCH "bq")
+
+(def ^String TAG-STATUS "XS")
