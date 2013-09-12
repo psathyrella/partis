@@ -65,18 +65,20 @@ def tmpfifo(**kwargs):
         yield f
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
-              read_group=None, n_keep=-1, max_drop=100):
+              read_group=None, n_keep=-1, max_drop=100,
+              match=1, mismatch=1, gap_open=7, gap_extend=1):
     with tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
         for name, sequence in sequence_iter:
             tf.write('>{0}\n{1}\n'.format(name, sequence))
-            tf.flush()
+        tf.flush()
         cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
         log.info(' '.join(cmd1))
         p = subprocess.Popen(cmd1)
         sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
                  read_group=read_group, n_keep=n_keep, max_drop=max_drop,
-                 gap_open=10, mismatch=4, match=1)
+                 gap_open=gap_open, mismatch=mismatch, match=match,
+                 gap_extend=gap_extend)
         returncode = p.wait()
         if returncode:
             raise subprocess.CalledProcessError(returncode, cmd1)
@@ -95,8 +97,14 @@ def build_parser(p):
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
                       gene [default: 15V, 5J, 10D]""", type=int)
-    agrp.add_argument('-m', '--max-drop', help="""Discard alignments with scores VALUE below max score.""",
+    agrp.add_argument('--max-drop', help="""Discard alignments with scores VALUE below max score.""",
                       default=5, type=int)
+    agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
+                      [default: %(default)d]""")
+    agrp.add_argument('-u', '--mismatch', default=1, type=int, help="""Match score
+                      [default: %(default)d]""")
+    agrp.add_argument('-o', '--gap-open', default=7, type=int, help="""Gap opening penalty [default: %(default)d]""")
+    agrp.add_argument('-e', '--gap-extend', default=1, type=int, help="""Gap extension penalty [default: %(default)d]""")
     p.set_defaults(func=action)
 
 def action(a):
@@ -107,7 +115,7 @@ def action(a):
         Row = collections.namedtuple('Row', ['name', 'sequence', 'v_index',
                                              'j_index', 'tags'])
         log.info('Loading sequences.')
-        rows= [Row(name=row['name'],
+        rows= [Row(name=row.get('name', str(i)),
                    sequence=row['nucleotide'],
                    v_index=int_or_none(row['vIndex']),
                    j_index=int_or_none(row['jIndex']),
@@ -119,9 +127,13 @@ def action(a):
 
         sequences = [(i.name, i.sequence) for i in rows]
 
-        align = functools.partial(sw_to_bam,n_threads=a.threads,
+        align = functools.partial(sw_to_bam, n_threads=a.threads,
                                   read_group=a.read_group,
-                                  max_drop=a.max_drop)
+                                  max_drop=a.max_drop,
+                                  match=a.match,
+                                  mismatch=a.mismatch,
+                                  gap_open=a.gap_open,
+                                  gap_extend=a.gap_extend)
 
         closing = contextlib.closing
         def align_gene(resource_name, outfile, keep=a.keep):
@@ -132,6 +144,7 @@ def action(a):
                         closing(pysam.Samfile(outfile, 'wb', template=in_sam)) as out_sam:
                     for read in add_tags(in_sam, rows):
                         out_sam.write(read)
+
         log.info('aligning V')
         align_gene('ighv_functional.fasta', a.v_bamfile, keep=a.keep or 15)
         log.info('aligning D')
