@@ -81,7 +81,6 @@ def freqs_to_graph(freqs):
 
 def build_parser(p):
     p.add_argument('infiles', metavar='infile', nargs='+')
-    p.add_argument('--prefix', default='')
     p.add_argument('-o', '--outfile', default=sys.stdout, type=util.opener('w'))
     p.add_argument('-c', '--frequency-cutoffs', default=[0], type=int_set)
     p.set_defaults(func=action)
