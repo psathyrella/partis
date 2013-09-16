@@ -1,17 +1,18 @@
 #include "sw_align.h"
 
 #include <assert.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <emmintrin.h>
-#include <zlib.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
 #include <math.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include <zlib.h>
 #include "kseq.h"
 #include "ksort.h"
 #include "kstring.h"
