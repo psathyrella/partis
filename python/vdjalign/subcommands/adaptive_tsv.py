@@ -89,22 +89,24 @@ def build_parser(p):
                    help="""Delimiter [default: tab]""")
     p.add_argument('-c', '--count-column', default='n_sources')
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
-            threads [default: %(default)d]""")
-    p.add_argument('v_bamfile')
-    p.add_argument('d_bamfile')
-    p.add_argument('j_bamfile')
+                   threads [default: %(default)d]""")
+    p.add_argument('v_bamfile', help="""Path for V alignments""")
+    p.add_argument('d_bamfile', help="""Path for D alignmnets""")
+    p.add_argument('j_bamfile', help="""Path for J alignments""")
     p.add_argument('-r', '--read-group')
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
                       gene [default: 15V, 5J, 10D]""", type=int)
-    agrp.add_argument('--max-drop', help="""Discard alignments with scores VALUE below max score.""",
-                      default=5, type=int)
+    agrp.add_argument('--max-drop', help="""Discard alignments with scores
+                      VALUE below max score.""", default=5, type=int)
     agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
                       [default: %(default)d]""")
     agrp.add_argument('-u', '--mismatch', default=1, type=int, help="""Match score
                       [default: %(default)d]""")
-    agrp.add_argument('-o', '--gap-open', default=7, type=int, help="""Gap opening penalty [default: %(default)d]""")
-    agrp.add_argument('-e', '--gap-extend', default=1, type=int, help="""Gap extension penalty [default: %(default)d]""")
+    agrp.add_argument('-o', '--gap-open', default=7, type=int, help="""Gap
+                      opening penalty [default: %(default)d]""")
+    agrp.add_argument('-e', '--gap-extend', default=1, type=int, help="""Gap
+                      extension penalty [default: %(default)d]""")
     p.set_defaults(func=action)
 
 def action(a):
