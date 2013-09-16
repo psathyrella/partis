@@ -1,6 +1,7 @@
 """
 Access to IMGT germline abs
 """
+import csv
 import itertools
 import subprocess
 
@@ -49,28 +50,34 @@ def cysteine_map(fname='ighv_aligned.fasta'):
 
     return result
 
-
-def tryptophan_map():
+def cdr_gff3(out_fp, fname='ighv_aligned.fasta', gffname='ighv_aligned.gff3'):
     """
-    Calculate T position in each sequence of the ighj alignment
+    Calculate cysteine position in each sequence of the ighv alignment
     """
-    result = {}
-    with resource_stream(_PKG, 'ighj_orig.fasta') as fp:
-        sequences = ((name, seq.upper()) for name, seq, _ in util.readfq(fp))
 
-        for desc, s in sequences:
-            splt = desc.split('|')
-            name = splt[1]
-            codon_start = int(splt[7])
+    from .. import gff3
 
-            for i in xrange(codon_start - 1, len(s), 3):
-                if s[i:i + 3] == 'TGG':
-                    result[name] = i
-                    break
-            else:
-                raise ValueError(s)
-    return result
+    with resource_stream(_PKG, fname) as fp, resource_stream(_PKG, gffname) as gff_fp:
+        sequences = ((name.split('|')[1], seq)
+                     for name, seq, _ in util.readfq(fp))
 
+        records = list(gff3.parse(gff_fp))
+
+        out_fp.write('##gff-version\t3\n')
+        w = csv.writer(out_fp, delimiter='\t', quoting=csv.QUOTE_NONE, lineterminator='\n')
+        for name, s in sequences:
+            pl = _position_lookup(s)
+
+            for feature in records:
+                start0 = pl.get(feature.start0)
+                end = pl.get(feature.end - 1)
+                if start0 is None or end is None:
+                    continue
+
+                f = feature._replace(seqid=name,
+                                     start=start0 + 1,
+                                     end=end + 1)
+                w.writerow(f.update_attributes(ID=f.attribute_dict()['Name'] + '_' + name))
 
 def load_ighj():
     with resource_stream(_PKG, 'ighj_adaptive.xml') as fp:
