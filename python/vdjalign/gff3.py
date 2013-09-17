@@ -2,6 +2,7 @@ import collections
 import csv
 import urllib
 
+from .util import memoized
 
 # Bits for handling attribute encoding
 _ENCODE_CHARS = ',=;\t'
@@ -35,6 +36,11 @@ class GFF3Record(_GFF3Base):
     """
     Primitive GFF3 representation
     """
+    @property
+    def attr(self):
+        return self.attribute_dict()
+
+    @memoized
     def attribute_dict(self):
         return parse_attributes(self.attributes)
 

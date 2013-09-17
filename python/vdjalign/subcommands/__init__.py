@@ -1,4 +1,5 @@
-COMMANDS = ('adaptive_tsv', 'count_mutations', 'collapse_identical_reads', 'adaptive_vj_uncertainty')
+COMMANDS = ('adaptive_tsv', 'count_mutations', 'collapse_identical_reads',
+            'adaptive_vj_uncertainty', 'classify_vdj_bams')
 
 
 def itermodules(root=__name__):
