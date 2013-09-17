@@ -14,13 +14,12 @@ def intersect_feature(dict rmap, feature):
     cdef int rmin = min(rmap), rmax = max(rmap)
     cdef int any_overlap = rmin <= end0 and rmax >= start0
     cdef int complete_overlap = rmin <= start0 and rmax >= end0
+
     if not any_overlap:
         return None
 
-    cdef int sstart0 = rmap[rmin if rmin > start0 else start0]
-    cdef int send0 = rmap[rmax if rmax < end0 else end0]
-    #print '{}: start0={} end0={} qstart0={} qend0={} rmin={} rmax={} complete={}'.format(
-        #feature.attr['Name'], start0, end0, sstart0, send0, rmin, rmax, complete_overlap)
+    cdef int sstart0 = rmap.get(rmin if rmin > start0 else start0)
+    cdef int send0 = rmap.get(rmax if rmax < end0 else end0, -1)
 
     return feature.update_attributes(complete_overlap=str(complete_overlap))\
             ._replace(start=sstart0 + 1, end=send0 + 1)
@@ -57,8 +56,7 @@ def classify_record(v, d, j, dict v_annot, dict j_annot):
         result['cdr3_aa'] = translate(v.seq[cys.start0:tryp.end])
 
     features = ((n, feat) for i in [v_trans, j_trans]
-                for n, feat in i.iteritems()
-                if feat is not None)
+                for n, feat in i.iteritems())
 
     for (gene, alignment) in [('v', v), ('d', d), ('j', j)]:
         result['{0}_nm'.format(gene)] = alignment.opt('NM')
@@ -66,8 +64,8 @@ def classify_record(v, d, j, dict v_annot, dict j_annot):
         result['{0}_qend'.format(gene)] = alignment.qend
 
     for n, feature in features:
-        result['{0}_begin'.format(n)] = feature.start0
-        result['{0}_end'.format(n)] = feature.end
-        result['{0}_complete'.format(n)] = feature.attr['complete_overlap'] == '1'
+        result['{0}_begin'.format(n)] = feature.start0 if feature else None
+        result['{0}_end'.format(n)] = feature.end if feature else None
+        result['{0}_complete'.format(n)] = feature.attr['complete_overlap'] == '1' if feature else None
 
     return result
