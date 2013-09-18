@@ -52,17 +52,20 @@ def classify_record(v, d, j, dict v_annot, dict j_annot):
     # CDR3 length
     cys = v_trans['Cys']
     tryp = j_trans['J_Tryp']
-    if cys and cys.attr['complete_overlap'] == '1':
-        result['frame'] = cys.start0 % 3
-        result['amino_acid'] = translate(v.seq[cys.start0 % 3:])
-    if (cys and tryp and
-        cys.attr['complete_overlap'] == '1' and
-        tryp.attr['complete_overlap'] == '1'):
-        result['cdr3_start'] = cys.start0
-        result['cdr3_end'] = tryp.end
-        result['cdr3_length'] = tryp.end - cys.start0
-        result['cdr3_aa'] = translate(v.seq[cys.start0:tryp.end])
 
+    # Find maximum aligned base in v at or before the cysteine
+    vmax_r, vmax_q = max(((r, q) for r, q in vm.iteritems()
+                          if r is not None and q is not None and r < v_annot['Cys'].start0))
+
+    result['cdr3_start'] = v_annot['Cys'].start0 - (vmax_r - vmax_q)
+    result['cdr3_end'] = j_annot['J_Tryp'].end - j.pos + j.qstart
+    result['frame'] = result['cdr3_start'] % 3
+    result['amino_acid'] = translate(v.seq[result['frame']:])
+    result['cdr3_length'] = result['cdr3_end'] - result['cdr3_start']
+    result['cdr3_aa'] = translate(v.seq[result['cdr3_start']:result['cdr3_end']])
+    result['cdr3_coverage'] = (cys and tryp and
+        cys.attr['complete_overlap'] == '1' and
+        tryp.attr['complete_overlap'] == '1')
 
     features = ((n, feat) for i in [v_trans, j_trans]
                 for n, feat in i.iteritems())

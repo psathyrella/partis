@@ -119,8 +119,8 @@ def action(a):
         log.info('Loading sequences.')
         rows= [Row(name=row.get('name', str(i)),
                    sequence=row['nucleotide'],
-                   v_index=int_or_none(row['vIndex']),
-                   j_index=int_or_none(row['jIndex']),
+                   v_index=int_or_none(row.get('vIndex')),
+                   j_index=int_or_none(row.get('jIndex')),
                    tags={TAG_COUNT: int_or_none(row[a.count_column]),
                          TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
                          TAG_STATUS: int(row['sequenceStatus'])})
@@ -145,6 +145,7 @@ def action(a):
                 with closing(pysam.Samfile(tf.name, 'rb')) as in_sam, \
                         closing(pysam.Samfile(outfile, 'wb', template=in_sam)) as out_sam:
                     for read in add_tags(in_sam, rows):
+                    #for read in in_sam:
                         out_sam.write(read)
 
         log.info('aligning V')
