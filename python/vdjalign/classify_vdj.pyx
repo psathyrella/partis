@@ -8,6 +8,11 @@ def ref_map(list ap, int qstart=0):
             result[j] = i + qstart if i is not None else None
     return result
 
+def fst(*args):
+    for arg in args:
+        if arg is not None:
+            return arg
+
 def intersect_feature(dict rmap, feature):
     """Update a GFF feature to refer to query coordinates"""
     cdef int start0 = feature.start0, end0 = feature.end - 1
@@ -18,8 +23,11 @@ def intersect_feature(dict rmap, feature):
     if not any_overlap:
         return None
 
-    cdef int sstart0 = rmap.get(rmin if rmin > start0 else start0)
-    cdef int send0 = rmap.get(rmax if rmax < end0 else end0, -1)
+    cdef int sstart0 = fst(rmap.get(rmin if rmin > start0 else start0), -1)
+    cdef int send0 = fst(rmap.get(rmax if rmax < end0 else end0), -1)
+
+    if sstart0 < 0 or send0 < 0: # gap in query at start or end
+        return None
 
     return feature.update_attributes(complete_overlap=str(complete_overlap))\
             ._replace(start=sstart0 + 1, end=send0 + 1)
@@ -43,7 +51,7 @@ def classify_record(v, d, j, dict v_annot, dict j_annot):
 
     # CDR3 length
     cys = v_trans['Cys']
-    tryp = j_trans['J-Tryp']
+    tryp = j_trans['J_Tryp']
     if cys and cys.attr['complete_overlap'] == '1':
         result['frame'] = cys.start0 % 3
         result['amino_acid'] = translate(v.seq[cys.start0 % 3:])
