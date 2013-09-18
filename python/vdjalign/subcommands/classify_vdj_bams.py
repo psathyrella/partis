@@ -53,7 +53,9 @@ def action(a):
     it = itertools.izip_longest(a.v_bam, a.d_bam, a.j_bam)
 
     v_targets = a.v_bam.references
+    v_lengths = {i['SN']: i['LN'] for i in a.v_bam.header['SQ']}
     d_targets = a.d_bam.references
+    d_lengths = {i['SN']: i['LN'] for i in a.d_bam.header['SQ']}
     j_targets = a.j_bam.references
 
     with a.outfile as ofp:
@@ -71,8 +73,12 @@ def action(a):
                                              j_annot=j_annot[j_targets[j.tid]])
             classification['qname'] = v.qname
             classification['v'] = v_targets[v.tid]
+            classification['vdel'] = v_lengths[v_targets[v.tid]] - v.aend
             classification['d'] = d_targets[d.tid]
+            classification['d5del'] = d.pos
+            classification['d3del'] = d_lengths[d_targets[d.tid]] - d.aend
             classification['j'] = j_targets[j.tid]
+            classification['jdel'] = j.pos
 
             for i in all_loci:
                 for k in ['begin', 'end', 'complete']:

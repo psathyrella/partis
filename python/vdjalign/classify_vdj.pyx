@@ -63,6 +63,7 @@ def classify_record(v, d, j, dict v_annot, dict j_annot):
         result['cdr3_length'] = tryp.end - cys.start0
         result['cdr3_aa'] = translate(v.seq[cys.start0:tryp.end])
 
+
     features = ((n, feat) for i in [v_trans, j_trans]
                 for n, feat in i.iteritems())
 
