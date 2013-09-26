@@ -140,7 +140,7 @@ typedef struct {
 static aln_t align_read_against_one(kseq_t *target,
                                     const int read_len,
                                     uint8_t *read_num,
-                                    kswq_t *qry,
+                                    kswq_t **qry,
                                     const align_config_t *conf)
 {
     uint8_t *ref_num = calloc(target->seq.l, sizeof(uint8_t));
@@ -155,7 +155,7 @@ static aln_t align_read_against_one(kseq_t *target,
                         conf->gap_o,
                         conf->gap_e,
                         KSW_XSTART,
-                        &qry);
+                        qry);
     ksw_global(aln.loc.qe - aln.loc.qb + 1,
                &read_num[aln.loc.qb],
                aln.loc.te - aln.loc.tb + 1,
@@ -215,7 +215,7 @@ static aln_v align_read(const kseq_t *read,
         // Encode target
         r = &kv_A(targets, j);
         aln_t aln = align_read_against_one(r, read_len, read_num,
-                                           qry,
+                                           &qry,
                                            conf);
 
         aln.target_idx = count++;
@@ -236,7 +236,7 @@ static aln_v align_read(const kseq_t *read,
                 aln_t aln = align_read_against_one(r,
                                                    read_len_trunc,
                                                    read_num_trunc,
-                                                   qry,
+                                                   &qry,
                                                    conf);
                 aln.target_idx = count++;
                 aln.loc.qb += qend;
