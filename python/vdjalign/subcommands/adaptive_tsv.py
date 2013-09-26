@@ -65,7 +65,7 @@ def tmpfifo(**kwargs):
         yield f
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
-              read_group=None, n_keep=-1, max_drop=100,
+              read_group=None, extra_ref_paths=[],
               match=1, mismatch=1, gap_open=7, gap_extend=1):
     with tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path, \
             tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
@@ -75,10 +75,10 @@ def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
         cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
         log.info(' '.join(cmd1))
         p = subprocess.Popen(cmd1)
-        sw.align(ref_path, tf.name, fifo_path, n_threads=n_threads,
-                 read_group=read_group, n_keep=n_keep, max_drop=max_drop,
-                 gap_open=gap_open, mismatch=mismatch, match=match,
-                 gap_extend=gap_extend)
+        sw.ig_align(ref_path, tf.name, fifo_path, n_threads=n_threads,
+                    read_group=read_group, extra_ref_paths=extra_ref_paths,
+                    gap_open=gap_open, mismatch=mismatch, match=match,
+                    gap_extend=gap_extend)
         returncode = p.wait()
         if returncode:
             raise subprocess.CalledProcessError(returncode, cmd1)
@@ -131,26 +131,21 @@ def action(a):
 
         align = functools.partial(sw_to_bam, n_threads=a.threads,
                                   read_group=a.read_group,
-                                  max_drop=a.max_drop,
                                   match=a.match,
                                   mismatch=a.mismatch,
                                   gap_open=a.gap_open,
                                   gap_extend=a.gap_extend)
 
         closing = contextlib.closing
-        def align_gene(resource_name, outfile, keep=a.keep):
-            with resource_fasta(resource_name) as fasta, \
-                    tempfile.NamedTemporaryFile(suffix='.bam') as tf:
-                align(fasta, sequences, tf.name, n_keep=keep)
-                with closing(pysam.Samfile(tf.name, 'rb')) as in_sam, \
-                        closing(pysam.Samfile(outfile, 'wb', template=in_sam)) as out_sam:
-                    for read in add_tags(in_sam, rows):
-                    #for read in in_sam:
-                        out_sam.write(read)
 
         log.info('aligning V')
-        align_gene('ighv_functional.fasta', a.v_bamfile, keep=a.keep or 15)
-        log.info('aligning D')
-        align_gene('ighd.fasta', a.d_bamfile, keep=a.keep or 10)
-        log.info('aligning J')
-        align_gene('ighj_adaptive.fasta', a.j_bamfile, keep=a.keep or 5)
+        with resource_fasta('ighv_functional.fasta') as vf, \
+                resource_fasta('ighj_adaptive.fasta') as jf, \
+                resource_fasta('ighd.fasta') as df, \
+                tempfile.NamedTemporaryFile(suffix='.bam') as tf:
+            align(vf, sequences, tf.name, extra_ref_paths=[df, jf])
+            with closing(pysam.Samfile(tf.name, 'rb')) as in_sam, \
+                    closing(pysam.Samfile(a.v_bamfile, 'wb', template=in_sam)) as out_sam:
+                for read in add_tags(in_sam, rows):
+                    #for read in in_sam:
+                    out_sam.write(read)
