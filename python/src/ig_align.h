@@ -1,5 +1,5 @@
-#ifndef SSW_ALIGN_H
-#define SSW_ALIGN_H
+#ifndef IG_ALIGN_H
+#define IG_ALIGN_H
 
 #include <stdint.h>
 

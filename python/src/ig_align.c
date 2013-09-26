@@ -223,10 +223,13 @@ static aln_v align_read(const kseq_t *read,
     }
     ks_introsort(cdec_score, kv_size(result), result.a);
 
-    // Extra references
-    const int qend = kv_A(result, 0).loc.qe;
+    // Extra references - qe points to the exact end of the sequence
+    const int qend = kv_A(result, 0).loc.qe + 1;
     const int read_len_trunc = read_len - qend;
     uint8_t *read_num_trunc = read_num + qend;
+
+    free(qry);
+    qry = NULL;
 
     if(read_len_trunc > 2) {
         for(size_t i = 0; i < n_extra_targets; i++) {
