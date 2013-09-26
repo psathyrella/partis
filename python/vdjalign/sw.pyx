@@ -1,6 +1,6 @@
 # distutils: language = c
 # distutils: include_dirs = src
-# distutils: sources = src/ksw.c src/sw_align.c src/kstring.c
+# distutils: sources = src/ksw.c src/sw_align.c src/ig_align.c src/kstring.c
 # distutils: extra_compile_args = -std=c99
 # distutils: extra_link_args = -lz
 from libc.stdlib cimport free, malloc

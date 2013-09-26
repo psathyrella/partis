@@ -97,7 +97,7 @@ static void kseq_copy(kseq_t *dest, const kseq_t *seq)
     kstring_copy(&dest->qual, &seq->qual);
 }
 
-kseq_v read_seqs(kseq_t *seq,
+static kseq_v read_seqs(kseq_t *seq,
                  size_t n_wanted)
 {
     kseq_v result;
@@ -122,7 +122,7 @@ typedef struct {
 typedef kvec_t(aln_t) aln_v;
 
 #define __aln_score_lt(a, b) ((a).loc.score > (b).loc.score)
-KSORT_INIT(dec_score, aln_t, __aln_score_lt)
+KSORT_INIT(cdec_score, aln_t, __aln_score_lt)
 
 typedef struct {
     aln_v alignments;
@@ -221,7 +221,7 @@ static aln_v align_read(const kseq_t *read,
         aln.target_idx = count++;
         kv_push(aln_t, result, aln);
     }
-    ks_introsort(dec_score, kv_size(result), result.a);
+    ks_introsort(cdec_score, kv_size(result), result.a);
 
     // Extra references
     const int qend = kv_A(result, 0).loc.qe;
@@ -243,7 +243,7 @@ static aln_v align_read(const kseq_t *read,
                 aln.loc.qe += qend;
                 kv_push(aln_t, result, aln);
             }
-            ks_introsort(dec_score, kv_size(result) - init_count, result.a + init_count);
+            ks_introsort(cdec_score, kv_size(result) - init_count, result.a + init_count);
         }
     }
 
@@ -268,16 +268,17 @@ static void write_sam_records(kstring_t *str,
     for(size_t i = 0; i < n_extra_refs; i++) {
         n_total_refs += kv_size(extra_ref_seqs[i]);
     }
-    char **all_ref_names = malloc(sizeof(char*) * n_total_refs);
+    char **all_ref_names = calloc(n_total_refs, sizeof(char*));
     int k = 0;
     for(size_t i = 0; i < kv_size(ref_seqs); i++) {
         all_ref_names[k++] = kv_A(ref_seqs, i).name.s;
     }
     for(size_t j = 0; j < n_extra_refs; j++) {
-        for(size_t i = 0; i < kv_size(extra_ref_seqs[i]); i++) {
+        for(size_t i = 0; i < kv_size(extra_ref_seqs[j]); i++) {
             all_ref_names[k++] = kv_A(extra_ref_seqs[j], i).name.s;
         }
     }
+    assert(k == n_total_refs && "Expected reference count does not match.");
 
     /* Alignments are sorted by decreasing score */
     for(size_t i = 0; i < kv_size(result); i++) {
@@ -286,7 +287,7 @@ static void write_sam_records(kstring_t *str,
         ksprintf(str, "%s\t%d\t", read->name.s,
                  i == 0 ? 0 : 256); // Secondary
         ksprintf(str, "%s\t%d\t%d\t",
-                 kv_A(ref_seqs, a.target_idx).name.s, /* Reference */
+                 all_ref_names[a.target_idx],         /* Reference */
                  a.loc.tb + 1,                        /* POS */
                  40);                                 /* MAPQ */
         if(a.loc.qb)
@@ -440,7 +441,7 @@ void ig_align_reads(const char *ref_path,
                 seq->name.s, (int32_t)seq->seq.l);
     }
     for(size_t i = 0; i < n_extra_refs; i++) {
-        for(size_t j = 0; j < kv_size(ref_seqs); j++) {
+        for(size_t j = 0; j < kv_size(extra_ref_seqs[i]); j++) {
             seq = &kv_A(extra_ref_seqs[i], j);
             fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
                     seq->name.s, (int32_t)seq->seq.l);
