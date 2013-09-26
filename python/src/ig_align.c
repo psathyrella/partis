@@ -241,6 +241,8 @@ static aln_v align_read(const kseq_t *read,
                                                    qry,
                                                    conf);
                 aln.target_idx = count++;
+                aln.loc.qb += qend;
+                aln.loc.qe += qend;
                 kv_push(aln_t, result, aln);
             }
             ks_introsort(dec_score, kv_size(result) - init_count, result.a + init_count);
@@ -257,21 +259,31 @@ static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
                               const kseq_v ref_seqs,
-                              const char *read_group_id,
-                              const int32_t n_keep,
-                              const int32_t max_drop)
+                              const int n_extra_refs,
+                              const kseq_v *extra_ref_seqs,
+                              const char *read_group_id)
 {
     if(kv_size(result) == 0)
         return;
 
-    const int32_t min_score = kv_A(result, 0).loc.score - max_drop;
+    int n_total_refs = kv_size(ref_seqs);
+    for(size_t i = 0; i < n_extra_refs; i++) {
+        n_total_refs += kv_size(extra_ref_seqs[i]);
+    }
+    char **all_ref_names = malloc(sizeof(char*) * n_total_refs);
+    int k = 0;
+    for(size_t i = 0; i < kv_size(ref_seqs); i++) {
+        all_ref_names[k++] = kv_A(ref_seqs, i).name.s;
+    }
+    for(size_t j = 0; j < n_extra_refs; j++) {
+        for(size_t i = 0; i < kv_size(extra_ref_seqs[i]); i++) {
+            all_ref_names[k++] = kv_A(extra_ref_seqs[j], i).name.s;
+        }
+    }
 
     /* Alignments are sorted by decreasing score */
-    for(size_t i = 0; i < kv_size(result) && (n_keep <= 0 || i < n_keep); i++) {
+    for(size_t i = 0; i < kv_size(result); i++) {
         aln_t a = kv_A(result, i);
-
-        if(a.loc.score < min_score)
-            break;
 
         ksprintf(str, "%s\t%d\t", read->name.s,
                  i == 0 ? 0 : 256); // Secondary
@@ -305,6 +317,7 @@ static void write_sam_records(kstring_t *str,
             ksprintf(str, "\tRG:Z:%s", read_group_id);
         kputs("\n", str);
     }
+    free(all_ref_names);
 }
 
 
@@ -339,9 +352,9 @@ static void *worker(void *data)
                           s,
                           result,
                           w->ref_seqs,
-                          w->read_group_id,
-                          w->config->n_keep,
-                          w->config->max_drop);
+                          w->n_extra_refs,
+                          w->extra_ref_seqs,
+                          w->read_group_id);
 
         w->sams[i] = str;
 
@@ -429,6 +442,13 @@ void align_reads(const char *ref_path,
         seq = &kv_A(ref_seqs, i);
         fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
                 seq->name.s, (int32_t)seq->seq.l);
+    }
+    for(size_t i = 0; i < n_extra_refs; i++) {
+        for(size_t j = 0; j < kv_size(ref_seqs); j++) {
+            seq = &kv_A(extra_ref_seqs[i], j);
+            fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
+                    seq->name.s, (int32_t)seq->seq.l);
+        }
     }
     if(read_group) {
         fputs(read_group, out_fp);
