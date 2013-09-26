@@ -8,35 +8,19 @@ import functools
 import itertools
 import logging
 import operator
-import os
-import shutil
 import subprocess
 import tempfile
 
-from pkg_resources import resource_stream
 
 import pysam
 
 from .. import util, sw
+from . import align_fastq
 
 log = logging.getLogger('vdjalign')
 TAG_COUNT = 'XC'
 TAG_CDR3_LENGTH = 'XL'
 TAG_STATUS = 'XS'
-
-@contextlib.contextmanager
-def resource_fasta(names):
-    if isinstance(names, basestring):
-        names = [names]
-    if not names:
-        raise ValueError('Missing sequence files')
-    with util.tempdir(prefix=names[0]) as j, \
-            open(j(names[0]), 'w') as fp:
-        for name in names:
-            with resource_stream('vdjalign.imgt.data', name) as in_fasta:
-                shutil.copyfileobj(in_fasta, fp)
-        fp.close()
-        yield fp.name
 
 def add_tags(reads, rows):
     """Tags should be the length of reads, in same order"""
@@ -55,14 +39,6 @@ def or_none(fn):
         if s:
             return fn(s)
     return apply_or_none
-
-@contextlib.contextmanager
-def tmpfifo(**kwargs):
-    fifo_name = kwargs.pop('name', 'fifo')
-    with util.tempdir(**kwargs) as j:
-        f = j(fifo_name)
-        os.mkfifo(f)
-        yield f
 
 def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
               read_group=None, extra_ref_paths=[],
@@ -90,9 +66,7 @@ def build_parser(p):
     p.add_argument('-c', '--count-column', default='n_sources')
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
                    threads [default: %(default)d]""")
-    p.add_argument('v_bamfile', help="""Path for V alignments""")
-    p.add_argument('d_bamfile', help="""Path for D alignmnets""")
-    p.add_argument('j_bamfile', help="""Path for J alignments""")
+    p.add_argument('out_bamfile', help="""Path for V alignments""")
     p.add_argument('-r', '--read-group')
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
@@ -137,15 +111,17 @@ def action(a):
                                   gap_extend=a.gap_extend)
 
         closing = contextlib.closing
+        with align_fastq.resource_fasta('ighv_functional.fasta') as vf, \
+                align_fastq.resource_fasta('ighj_adaptive.fasta') as jf, \
+                align_fastq.resource_fasta('ighd.fasta') as df, \
+                tempfile.NamedTemporaryFile(suffix='.bam') as tbam, \
+                tempfile.NamedTemporaryFile(suffix='.fasta') as tf:
+            for name, sequence in sequences:
+                tf.write('>{0}\n{1}\n'.format(name, sequence))
+            tf.flush()
 
-        log.info('aligning V')
-        with resource_fasta('ighv_functional.fasta') as vf, \
-                resource_fasta('ighj_adaptive.fasta') as jf, \
-                resource_fasta('ighd.fasta') as df, \
-                tempfile.NamedTemporaryFile(suffix='.bam') as tf:
-            align(vf, sequences, tf.name, extra_ref_paths=[df, jf])
-            with closing(pysam.Samfile(tf.name, 'rb')) as in_sam, \
-                    closing(pysam.Samfile(a.v_bamfile, 'wb', template=in_sam)) as out_sam:
+            align(vf, tf.name, tbam.name, extra_ref_paths=[df, jf])
+            with closing(pysam.Samfile(tbam.name, 'rb')) as in_sam, \
+                    closing(pysam.Samfile(a.out_bamfile, 'wb', template=in_sam)) as out_sam:
                 for read in add_tags(in_sam, rows):
-                    #for read in in_sam:
                     out_sam.write(read)

@@ -1,4 +1,5 @@
 COMMANDS = ('adaptive_tsv', 'count_mutations', 'collapse_identical_reads',
+            'align_fastq',
             'adaptive_vj_uncertainty', 'classify_vdj_bams')
 
 
