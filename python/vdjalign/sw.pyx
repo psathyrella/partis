@@ -23,9 +23,72 @@ cdef extern from "sw_align.h":
                      const char*,
                      const char*) nogil
 
+cdef extern from "ig_align.h":
+    void ig_align_reads(const char*,
+                        const uint8_t,
+                        const char**,
+                        const char*,
+                        const char*,
+                        const int32_t,
+                        const int32_t,
+                        const int32_t,
+                        const int32_t,
+                        const uint8_t,
+                        const char*,
+                        const char*) nogil
+
 class InvalidReadGroupError(ValueError):
     pass
 
+def ig_align(bytes ref_path,
+             bytes qry_path,
+             bytes output_path,
+             list extra_ref_paths = [],
+             int match=2,
+             int mismatch=2,
+             int gap_open=3,
+             int gap_extend=1,
+             int n_threads=1,
+             bytes read_group=None):
+    """
+    :param ref_path: Path to reference sequence file (optionally gzipped) fasta
+    :param qry_path: Path to query sequence file (optionally gzipped) fasta
+    :param output_path: Path to write output (SAM)
+    :param match: positive match score
+    :param mismatch: positive mismatch penalty
+    :param extra_ref_paths: Extra references to align the tail of each read against
+    """
+    cdef char* ref = ref_path
+    cdef char* qry = qry_path
+    cdef char* out = output_path
+    cdef list read_group_id
+    cdef char* rg = NULL
+    cdef char* rg_id = NULL
+
+    if read_group is not None:
+        read_group = read_group.replace('\\t', '\t')
+        rg = read_group
+        if not read_group.startswith('@RG'):
+            raise InvalidReadGroupError('Does not start with @RG: "{0}"'.format(read_group))
+
+        read_group_id = re.findall('\tID:([^\t]+)', read_group)
+        if len(read_group_id) != 1:
+            raise InvalidReadGroupError('Could not find ID: "{0}" {1}'.format(read_group, read_group_id))
+        rg_id = read_group_id[0]
+
+    cdef int32_t m = match, p = mismatch, go = gap_open, ge = gap_extend, ne = len(extra_ref_paths)
+    cdef uint8_t threads = n_threads
+    cdef char** extra = <char**>malloc(sizeof(char*) * len(extra_ref_paths))
+
+    cdef bytes r
+    try:
+        for i in xrange(len(extra_ref_paths)):
+            r = extra_ref_paths[i]
+            extra[i] = r
+        with nogil:
+            ig_align_reads(ref, ne, extra, qry, out, m, p, go, ge, threads, rg, rg_id)
+    finally:
+        free(extra)
 
 def align(bytes ref_path,
           bytes qry_path,

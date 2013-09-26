@@ -135,8 +135,6 @@ typedef struct {
     uint8_t *table;
     int m;            /* Number of residue tyes */
     int8_t *mat;      /* Scoring matrix */
-    int32_t n_keep;   /* Number of alignments to keep */
-    int32_t max_drop; /* Maximum drop from best alignment score */
 } align_config_t;
 
 static aln_t align_read_against_one(kseq_t *target,
@@ -367,20 +365,18 @@ static void *worker(void *data)
     return 0;
 }
 
-void align_reads(const char *ref_path,
-                 const uint8_t n_extra_refs,
-                 const char **extra_ref_paths,
-                 const char *qry_path,
-                 const char *output_path,
-                 const int32_t match,       /* 2 */
-                 const int32_t mismatch,    /* 2 */
-                 const int32_t gap_o,       /* 3 */
-                 const int32_t gap_e,       /* 1 */
-                 const uint8_t n_threads,   /* 1 */
-                 const int32_t n_keep,
-                 const int32_t max_drop,
-                 const char *read_group,
-                 const char *read_group_id)
+void ig_align_reads(const char *ref_path,
+                    const uint8_t n_extra_refs,
+                    const char **extra_ref_paths,
+                    const char *qry_path,
+                    const char *output_path,
+                    const int32_t match,       /* 2 */
+                    const int32_t mismatch,    /* 2 */
+                    const int32_t gap_o,       /* 3 */
+                    const int32_t gap_e,       /* 1 */
+                    const uint8_t n_threads,   /* 1 */
+                    const char *read_group,
+                    const char *read_group_id)
 {
     gzFile read_fp, ref_fp;
     FILE *out_fp;
@@ -461,8 +457,6 @@ void align_reads(const char *ref_path,
     conf.m = m;
     conf.table = table;
     conf.mat = mat;
-    conf.n_keep = n_keep;
-    conf.max_drop = max_drop;
 
     read_fp = gzopen(qry_path, "r");
     assert(read_fp != NULL && "Failed to open query");
