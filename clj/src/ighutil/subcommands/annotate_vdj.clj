@@ -44,7 +44,9 @@
                 :parse-fn zio/reader]]}
   (with-open [^net.sf.samtools.SAMFileReader in-file in-file]
     (let [feature-tree (with-open [^java.io.Reader gff gff]
-                         (-> gff gff3/parse-gff3
+                         (-> gff
+                             line-seq
+                             gff3/parse-gff3
                              gff3/gff3-to-interval-map))]
       (->> in-file
            .iterator
