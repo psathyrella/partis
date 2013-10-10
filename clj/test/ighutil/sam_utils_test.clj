@@ -1,4 +1,4 @@
-(ns ighutil.subcommands.mutations-by-site-test
+(ns ighutil.sam-utils-test
   (:import [net.sf.samtools SAMRecord SAMFileHeader SAMSequenceRecord]
            [io.github.cmccoy.sam SAMUtils AlignedPair$MatchesReference])
   (:require [clojure.test :refer :all]))
@@ -25,6 +25,6 @@
           T AlignedPair$MatchesReference/TRUE
           U AlignedPair$MatchesReference/UNKNOWN]
       (is (= 7 (count r)))
-      (is (= [T F F F T F F] (map #(.getMatchesReference %) r)))
+      (is (= [T U F F T F F] (map #(.getMatchesReference %) r)))
       (is (= [0 1 2 -1 3 4 5] (map #(.getQueryPosition %) r)))
       (is (= [1 2 3 4 5 -1 -1] (map #(.getReferencePosition %) r))))))

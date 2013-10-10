@@ -48,5 +48,7 @@ public final class AlignedPair {
   public boolean isInsertion() { return referencePosition < 0; }
   public boolean isDeletion() { return queryPosition < 0; }
   public boolean isIndel() { return isInsertion() || isDeletion(); }
-
+  public boolean isMatch() { return matchesReference == MatchesReference.TRUE; };
+  public boolean isMutation() { return matchesReference == MatchesReference.FALSE; };
+  public boolean isUnknown() { return matchesReference == MatchesReference.UNKNOWN; };
 }
