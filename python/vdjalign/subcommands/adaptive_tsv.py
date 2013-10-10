@@ -8,13 +8,12 @@ import functools
 import itertools
 import logging
 import operator
-import subprocess
 import tempfile
 
 
 import pysam
 
-from .. import util, sw
+from .. import util
 from . import align_fastq
 
 log = logging.getLogger('vdjalign')
@@ -40,24 +39,6 @@ def or_none(fn):
             return fn(s)
     return apply_or_none
 
-def sw_to_bam(ref_path, sequence_iter, bam_dest, n_threads,
-              read_group=None, extra_ref_paths=[],
-              match=1, mismatch=1, gap_open=7, gap_extend=1):
-    with tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path, \
-            tempfile.NamedTemporaryFile(suffix='.fasta', prefix='pw_to_bam') as tf:
-        for name, sequence in sequence_iter:
-            tf.write('>{0}\n{1}\n'.format(name, sequence))
-        tf.flush()
-        cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
-        log.info(' '.join(cmd1))
-        p = subprocess.Popen(cmd1)
-        sw.ig_align(ref_path, tf.name, fifo_path, n_threads=n_threads,
-                    read_group=read_group, extra_ref_paths=extra_ref_paths,
-                    gap_open=gap_open, mismatch=mismatch, match=match,
-                    gap_extend=gap_extend)
-        returncode = p.wait()
-        if returncode:
-            raise subprocess.CalledProcessError(returncode, cmd1)
 
 def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
@@ -103,7 +84,7 @@ def action(a):
 
         sequences = [(i.name, i.sequence) for i in rows]
 
-        align = functools.partial(sw_to_bam, n_threads=a.threads,
+        align = functools.partial(align_fastq.sw_to_bam, n_threads=a.threads,
                                   read_group=a.read_group,
                                   match=a.match,
                                   mismatch=a.mismatch,
