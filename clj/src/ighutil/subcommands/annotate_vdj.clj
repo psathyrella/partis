@@ -32,11 +32,16 @@
                                         (update-in [:aligned] inc)
                                         (?> is-mismatch update-in [:mismatch] inc))))]
               (reduce add-base m overlaps)))]
-    {:name read-name :annotations (reduce f {} aligned-pairs)} ))
+    {:name read-name
+     :reference reference-name
+     :cdr3 (.getAttribute read "XL")
+     :alignment-score (.getAttribute read "AS")
+     :nm (.getAttribute read "NM")
+     :annotations (reduce f {} aligned-pairs)} ))
 
-(defn- build-rows [{:keys [name annotations]}]
+(defn- build-rows [{:keys [name annotations cdr3 alignment-score nm reference]}]
   (for [[ann-name {:keys [aligned mismatch type]}] annotations]
-    [name ann-name type aligned mismatch]))
+    [name cdr3 alignment-score nm reference ann-name type aligned mismatch]))
 
 (defcommand annotate-vdj
   "Annotate VDJ alignments"
@@ -53,7 +58,9 @@
                              line-seq
                              gff3/parse-gff3
                              gff3/gff3-to-interval-map))]
-      (csv/write-csv out-file [["read_name" "feature" "feature_type" "n_aligned" "n_mutated"]])
+      (csv/write-csv out-file [["read_name" "cdr3_length" "alignment_score"
+                                "nm" "reference_name" "feature" "feature_type"
+                                "n_aligned" "n_mutated"]])
       (->> in-file
            .iterator
            iterator-seq
