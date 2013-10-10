@@ -56,6 +56,6 @@
                                  partition-by-name-type
                                  (map vec)
                                  (mapcat #(cal-equal refs %)))]
-      (with-open [writer (bam-writer out-file (.getFileHeader reader))]
+      (with-open [writer (bam-writer out-file reader)]
         (doseq [^SAMRecordread read partitioned-reads]
           (.addAlignment writer read))))))
