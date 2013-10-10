@@ -7,9 +7,28 @@
             SAMFileHeader$SortOrder])
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
-            [ighutil.sam :refer [primary? alignment-score
+            [ighutil.sam :refer [primary?
+                                 alignment-score
+                                 partition-by-name
                                  partition-by-name-type
+                                 gene-type
                                  bam-writer]]))
+
+(defn- set-supp-and-bases-per-gene [reads]
+  "Set read bases and quals for each gene primary record"
+  (let [^SAMRecord primary (first (filter primary? reads))
+        ^bytes bases (.getReadBases primary)
+        ^bytes quals (.getBaseQualities primary)
+        parts (partition-by gene-type reads)
+        update-first (fn [r] 
+                       (let [^SAMRecord f (first r)]
+                         (doto f
+                           (.setReadBases bases)
+                           (.setBaseQualities quals)
+                           ;; (.setSupplementaryAlignmentFlag true) ;; TODO: Add when next picard released
+                           (.setNotPrimaryAlignmentFlag false))
+                         (cons f (rest r))))]
+    (mapcat update-first parts)))
 
 (defn- random-tiebreak [reads]
   (let [^SAMRecord primary (first (filter primary? reads))
@@ -60,6 +79,8 @@
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
+                                 partition-by-name
+                                 (mapcat set-supp-and-bases-per-gene)
                                  partition-by-name-type
                                  (map vec)
                                  (mapcat #(assign-primary-for-partition

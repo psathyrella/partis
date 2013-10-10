@@ -61,7 +61,7 @@
 (defn ^BitSet uncertain-sites [^SAMRecord r]
   (-> r (.getAttribute TAG-EXP-MATCH) byte-array->uncertain-sites))
 
-(defn- gene-type [^SAMRecord r]
+(defn gene-type [^SAMRecord r]
   (-> r reference-name (.charAt 3)))
 
 (def partition-by-name-type (partial partition-by (juxt read-name gene-type)))

@@ -4,8 +4,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojars.chapmanb/picard "1.90"]
-                 [org.clojars.chapmanb/sam "1.90"]
+                 [org.clojars.chapmanb/picard "1.96"]
+                 [org.clojars.chapmanb/sam "1.96"]
                  [org.clojure/data.csv "0.1.2"]
                  [org.clojure/math.combinatorics "0.0.4"]
                  [me.raynes/fs "1.4.5"]
