@@ -172,6 +172,62 @@ public class SAMUtils {
         return result;
     }
 
+    public static List<AlignedPair> getAlignedPairs(final SAMRecord record) {
+      checkNotNull(record, "null SAM record");
+      final byte[] baseEqualProbs = record.getByteArrayAttribute("bq");
+      final boolean hasBaseEqualProbs = baseEqualProbs != null;
+      checkArgument(!hasBaseEqualProbs || baseEqualProbs.length == record.getReadLength());
+      checkNotNull(baseEqualProbs, "Missing bq tag.");
+      final List<AlignedPair> result = new ArrayList<AlignedPair>(record.getReadLength());
+
+      // Always be noting 1-based indexing!
+      final int start = record.getAlignmentStart() - 1;
+
+      int qi = 0, ri = start;
+
+      for (final CigarElement e : record.getCigar().getCigarElements()) {
+        final int length = e.getLength();
+        switch (e.getOperator()) {
+          case H:
+          case S:
+            break;
+          case I:
+            for(int i = 0; i < length; i++)
+              result.add(new AlignedPair(-1, qi + i, AlignedPair.MatchesReference.FALSE));
+            break;
+          case D:
+            for(int i = 0; i < length; i++)
+              result.add(new AlignedPair(ri + i, -1, AlignedPair.MatchesReference.FALSE));
+            break;
+          case M:
+          case X:
+          case EQ:
+            // TODO: more sophisticated X / EQ handling? right now: UNKNOWN
+            for (int i = 0; i < length; ++i) {
+              final AlignedPair.MatchesReference m;
+              if (hasBaseEqualProbs)
+                  if(baseEqualProbs[qi + i] == 100)
+                    m = AlignedPair.MatchesReference.TRUE;
+                  else if(baseEqualProbs[qi + i] == 0)
+                    m = AlignedPair.MatchesReference.FALSE;
+                  else m = AlignedPair.MatchesReference.UNKNOWN;
+              else
+                m = AlignedPair.MatchesReference.UNKNOWN;
+              result.add(new AlignedPair(ri + i, qi + i, m));
+            }
+            break;
+          default:
+            throw new IllegalArgumentException("unknown " + e.toString());
+        }
+        final int l = e.getLength();
+        if (e.getOperator().consumesReadBases())
+          qi += l;
+        if (e.getOperator().consumesReferenceBases())
+          ri += l;
+      }
+      return result;
+    }
+
     /**
      * Calculates the <i>possibility</i> that each base matches the reference.
      * Differs from calculateBaseEqualProbabilities in that if any reference

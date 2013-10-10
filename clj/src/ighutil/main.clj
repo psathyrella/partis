@@ -9,6 +9,7 @@
        symbol))
 
 (def command-names (sort ["add-quality-scores"
+                          "annotate-vdj"
                           "calculate-match-probability"
                           "count-alignment-ties"
                           "count-mismatches"

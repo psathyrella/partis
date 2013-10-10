@@ -9,7 +9,7 @@
   (:require [clojure.java.io :as io]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH TAG-STATUS]]))
 
-(defn bam-reader [path]
+(defn ^SAMFileReader bam-reader [path]
   (-> path io/file SAMFileReader.))
 
 (defn ^SAMFileWriter bam-writer [path ^SAMFileReader reader &
