@@ -30,7 +30,7 @@
       int
       dec))
 
-(defn reference-name [^SAMRecord r]
+(defn ^String reference-name [^SAMRecord r]
   (.getReferenceName r))
 
 (defn ^Integer alignment-score [^SAMRecord read]
@@ -61,4 +61,8 @@
 (defn ^BitSet uncertain-sites [^SAMRecord r]
   (-> r (.getAttribute TAG-EXP-MATCH) byte-array->uncertain-sites))
 
+(defn- gene-type [^SAMRecord r]
+  (-> r reference-name (.charAt 3)))
+
+(def partition-by-name-type (partial partition-by (juxt read-name gene-type)))
 (def partition-by-name (partial partition-by read-name))

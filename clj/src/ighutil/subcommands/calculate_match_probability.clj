@@ -8,8 +8,11 @@
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
-            [ighutil.sam :refer [primary? alignment-score
-                                 partition-by-name read-name mapped?
+            [ighutil.sam :refer [primary?
+                                 alignment-score
+                                 partition-by-name-type
+                                 read-name
+                                 mapped?
                                  bam-writer]]
             [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
 
@@ -50,7 +53,7 @@
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
-                                 partition-by-name
+                                 partition-by-name-type
                                  (map vec)
                                  (mapcat #(cal-equal refs %)))]
       (with-open [writer (bam-writer out-file (.getFileHeader reader))]

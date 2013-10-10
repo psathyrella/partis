@@ -8,7 +8,7 @@
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary? alignment-score
-                                 partition-by-name
+                                 partition-by-name-type
                                  bam-writer]]))
 
 (defn- random-tiebreak [reads]
@@ -60,7 +60,7 @@
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
-                                 partition-by-name
+                                 partition-by-name-type
                                  (map vec)
                                  (mapcat #(assign-primary-for-partition
                                            random-tiebreak
