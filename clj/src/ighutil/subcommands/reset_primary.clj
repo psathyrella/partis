@@ -25,7 +25,7 @@
                          (doto f
                            (.setReadBases bases)
                            (.setBaseQualities quals)
-                           ;; (.setSupplementaryAlignmentFlag true) ;; TODO: Add when next picard released
+                           (.setSupplementaryAlignmentFlag true)
                            (.setNotPrimaryAlignmentFlag false))
                          (cons f (rest r))))]
     (mapcat update-first parts)))
