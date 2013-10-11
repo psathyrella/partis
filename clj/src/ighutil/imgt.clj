@@ -3,6 +3,7 @@
             [clojure.string :as string]
             [clojure.edn :as edn]
             [cheshire.core :as cheshire]
+            [ighutil.gff3 :as gff3]
             [flatland.useful.seq :refer [indexed]])
   (:import [net.sf.picard.reference FastaSequenceFile ReferenceSequence]))
 
@@ -76,6 +77,14 @@
 
 (def v-gene-meta (delay (create-v-meta)))
 
+
+(def ighvj-gff (delay (with-open [reader (-> "ighutil/ighvj.gff3"
+                                             io/resource
+                                             io/reader)]
+                        (->> reader
+                             line-seq
+                             gff3/parse-gff3
+                             vec))))
 
 (defn dump-v-gene-meta [fname]
   (->> @v-gene-meta
