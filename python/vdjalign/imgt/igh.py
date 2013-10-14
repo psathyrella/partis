@@ -69,10 +69,11 @@ def cdr_gff3(out_fp, fname='ighv_aligned.fasta', gffname='ighv_aligned.gff3'):
             pl = _position_lookup(s)
 
             for feature in records:
-                start0 = pl.get(feature.start0)
-                end = pl.get(feature.end - 1)
-                if start0 is None or end is None:
+                if feature.start0 not in pl and feature.end - 1 not in pl:
                     continue
+
+                start0 = pl.get(feature.start0, min(q for r, q in pl.items() if r >= feature.start0))
+                end = pl.get(feature.end - 1, max(q for r, q in pl.items() if r <= feature.end - 1))
 
                 f = feature._replace(seqid=name,
                                      start=start0 + 1,
