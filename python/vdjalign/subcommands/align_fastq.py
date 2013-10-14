@@ -3,10 +3,7 @@ Align V D, J starting from a FASTQ file
 """
 import contextlib
 import functools
-import itertools
 import logging
-import operator
-import os
 import shutil
 import subprocess
 
@@ -30,19 +27,11 @@ def resource_fasta(names):
         fp.close()
         yield fp.name
 
-@contextlib.contextmanager
-def tmpfifo(**kwargs):
-    fifo_name = kwargs.pop('name', 'fifo')
-    with util.tempdir(**kwargs) as j:
-        f = j(fifo_name)
-        os.mkfifo(f)
-        yield f
-
 def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
               read_group=None, extra_ref_paths=[],
               match=1, mismatch=1, gap_open=7, gap_extend=1):
-    with tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path:
-        cmd1 = ['samtools', 'view', '-o', bam_dest, '-Sb', fifo_path]
+    with util.tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path:
+        cmd1 = ['samtools', 'view', '-@', n_threads, '-o', bam_dest, '-Sb', fifo_path]
         log.info(' '.join(cmd1))
         p = subprocess.Popen(cmd1)
         sw.ig_align(ref_path, sequence_path, fifo_path, n_threads=n_threads,

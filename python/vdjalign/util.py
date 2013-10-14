@@ -49,6 +49,24 @@ def tempdir(**kwargs):
     finally:
         shutil.rmtree(td)
 
+
+@contextlib.contextmanager
+def tmpfifo(**kwargs):
+    """
+    Context manager - yields a temporary filesystem FIFO object, with optional
+    named argument ``name`` from ``**kwargs``. Remaining arguments passed to
+    :func:`tempdir`.
+
+    On exiting the context manager, the temporary directory containing the FIFO
+    is deleted.
+    """
+    fifo_name = kwargs.pop('name', 'fifo')
+    with tempdir(**kwargs) as j:
+        f = j(fifo_name)
+        os.mkfifo(f)
+        yield f
+
+
 def opener(mode, *args, **kwargs):
     """
     Open a file, with optional compression based on extension
