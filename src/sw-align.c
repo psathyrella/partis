@@ -442,6 +442,7 @@ int usage()
 {
     fprintf(stderr, "Usage: sw-align [options] <ref.fasta> <qry.fastaq> <out.bam>\n\n");
     fprintf(stderr, "         -@ INT    Number of worker threads\n");
+    fprintf(stderr, "         -j INT    Number of worker threads\n");
     fprintf(stderr, "         -A INT    match [1]\n");
     fprintf(stderr, "         -B INT    mismatch [4]\n");
     fprintf(stderr, "         -O INT    gap open [6]\n");
@@ -467,7 +468,7 @@ int main(int argc, char *argv[])
     }
 
     char c;
-    while((c = getopt(argc, argv, "A:B:O:E:k:d:@:h?")) >= 0) {
+    while((c = getopt(argc, argv, "A:B:O:E:k:d:@:j:h?")) >= 0) {
         switch(c) {
             case 'A': match = atoi(optarg); break;
             case 'B': mismatch = atoi(optarg); break;
@@ -476,6 +477,7 @@ int main(int argc, char *argv[])
             case 'k': n_keep = atoi(optarg); break;
             case 'd': max_drop = atoi(optarg); break;
             case '@': n_threads = atoi(optarg); break;
+            case 'j': n_threads = atoi(optarg); break;
             default: return usage();
         }
     }
