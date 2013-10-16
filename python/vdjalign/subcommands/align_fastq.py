@@ -31,7 +31,7 @@ def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
               read_group=None, extra_ref_paths=[],
               match=1, mismatch=1, gap_open=7, gap_extend=1):
     with util.tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path:
-        cmd1 = ['samtools', 'view', '-@', n_threads, '-o', bam_dest, '-Sb', fifo_path]
+        cmd1 = ['samtools', 'view', '-@', str(n_threads), '-o', bam_dest, '-Sb', fifo_path]
         log.info(' '.join(cmd1))
         p = subprocess.Popen(cmd1)
         sw.ig_align(ref_path, sequence_path, fifo_path, n_threads=n_threads,
