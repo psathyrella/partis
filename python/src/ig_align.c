@@ -135,7 +135,7 @@ typedef struct {
     uint8_t *table;
     int m;            /* Number of residue tyes */
     int8_t *mat;      /* Scoring matrix */
-    unsigned max_drop;
+    int max_drop;
 } align_config_t;
 
 static aln_t align_read_against_one(kseq_t *target,
@@ -221,7 +221,7 @@ void drop_low_scores(aln_v *vec,
 
 static aln_v align_read(const kseq_t *read,
                         const kseq_v targets,
-                        const int n_extra_targets,
+                        const size_t n_extra_targets,
                         const kseq_v* extra_targets,
                         const align_config_t *conf)
 {
@@ -299,7 +299,7 @@ static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
                               const kseq_v ref_seqs,
-                              const int n_extra_refs,
+                              const size_t n_extra_refs,
                               const kseq_v *extra_ref_seqs,
                               const char *read_group_id)
 {
@@ -323,7 +323,7 @@ static void write_sam_records(kstring_t *str,
                  40);                   /* MAPQ */
         if(a.loc.qb)
             ksprintf(str, "%dS", a.loc.qb);
-        for(size_t c = 0; c < a.n_cigar; c++) {
+        for(int c = 0; c < a.n_cigar; c++) {
             int32_t letter = 0xf&*(a.cigar + c);
             int32_t length = (0xfffffff0&*(a.cigar + c))>>4;
             ksprintf(str, "%d", length);
