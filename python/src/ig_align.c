@@ -113,7 +113,7 @@ static kseq_v read_seqs(kseq_t *seq,
 }
 
 typedef struct {
-    size_t target_idx;
+    char *target_name;
     kswr_t loc;
     uint32_t *cigar;
     int n_cigar;
@@ -130,11 +130,12 @@ typedef struct {
 typedef kvec_t(aln_task_t) aln_task_v;
 
 typedef struct {
-    int32_t gap_o; /* 3 */
-    int32_t gap_e; /* 1 */
+    int32_t gap_o;    /* 3 */
+    int32_t gap_e;    /* 1 */
     uint8_t *table;
     int m;            /* Number of residue tyes */
     int8_t *mat;      /* Scoring matrix */
+    unsigned max_drop;
 } align_config_t;
 
 static aln_t align_read_against_one(kseq_t *target,
@@ -190,6 +191,27 @@ static aln_t align_read_against_one(kseq_t *target,
     return aln;
 }
 
+/* Returns total size after dropping low scores */
+void drop_low_scores(aln_v *vec,
+                    int offset,
+                    int max_drop) {
+    const int size = kv_size(*vec);
+    ks_introsort(cdec_score,
+                 size - offset,
+                 vec->a + offset);
+    const int min_score = kv_A(*vec, offset).loc.score - max_drop;
+    for(int i = offset; i < size; i++) {
+        if(kv_A(*vec, i).loc.score < min_score) {
+            vec->n = i;
+
+            /* Free remaining */
+            for(int j = i; j < size; j++)
+                free(kv_A(*vec, j).cigar);
+            return;
+        }
+    }
+}
+
 static aln_v align_read(const kseq_t *read,
                         const kseq_v targets,
                         const int n_extra_targets,
@@ -210,7 +232,6 @@ static aln_v align_read(const kseq_t *read,
 
     // Align to each target
     kswq_t *qry = NULL;
-    size_t count = 0;
     for(size_t j = 0; j < kv_size(targets); j++) {
         // Encode target
         r = &kv_A(targets, j);
@@ -218,10 +239,11 @@ static aln_v align_read(const kseq_t *read,
                                            &qry,
                                            conf);
 
-        aln.target_idx = count++;
+        aln.target_name = r->name.s;
         kv_push(aln_t, result, aln);
     }
-    ks_introsort(cdec_score, kv_size(result), result.a);
+
+    drop_low_scores(&result, 0, conf->max_drop);
 
     // Extra references - qe points to the exact end of the sequence
     const int qend = kv_A(result, 0).loc.qe + 1;
@@ -233,7 +255,7 @@ static aln_v align_read(const kseq_t *read,
 
     if(read_len_trunc > 2) {
         for(size_t i = 0; i < n_extra_targets; i++) {
-            const size_t init_count = count;
+            const size_t init_count = kv_size(result);
             for(size_t j = 0; j < kv_size(extra_targets[i]); j++) {
                 r = &kv_A(extra_targets[i], j);
                 aln_t aln = align_read_against_one(r,
@@ -241,12 +263,13 @@ static aln_v align_read(const kseq_t *read,
                                                    read_num_trunc,
                                                    &qry,
                                                    conf);
-                aln.target_idx = count++;
+
+                aln.target_name = r->name.s;
                 aln.loc.qb += qend;
                 aln.loc.qe += qend;
                 kv_push(aln_t, result, aln);
             }
-            ks_introsort(cdec_score, kv_size(result) - init_count, result.a + init_count);
+            drop_low_scores(&result, init_count, conf->max_drop);
         }
     }
 
@@ -271,28 +294,17 @@ static void write_sam_records(kstring_t *str,
     for(size_t i = 0; i < n_extra_refs; i++) {
         n_total_refs += kv_size(extra_ref_seqs[i]);
     }
-    char **all_ref_names = calloc(n_total_refs, sizeof(char*));
-    int k = 0;
-    for(size_t i = 0; i < kv_size(ref_seqs); i++) {
-        all_ref_names[k++] = kv_A(ref_seqs, i).name.s;
-    }
-    for(size_t j = 0; j < n_extra_refs; j++) {
-        for(size_t i = 0; i < kv_size(extra_ref_seqs[j]); i++) {
-            all_ref_names[k++] = kv_A(extra_ref_seqs[j], i).name.s;
-        }
-    }
-    assert(k == n_total_refs && "Expected reference count does not match.");
 
     /* Alignments are sorted by decreasing score */
     for(size_t i = 0; i < kv_size(result); i++) {
         aln_t a = kv_A(result, i);
 
         ksprintf(str, "%s\t%d\t", read->name.s,
-                 i == 0 ? 0 : 256); // Secondary
+                 i == 0 ? 0 : 256);     /* Secondary */
         ksprintf(str, "%s\t%d\t%d\t",
-                 all_ref_names[a.target_idx],         /* Reference */
-                 a.loc.tb + 1,                        /* POS */
-                 40);                                 /* MAPQ */
+                 a.target_name,         /* Reference */
+                 a.loc.tb + 1,          /* POS */
+                 40);                   /* MAPQ */
         if(a.loc.qb)
             ksprintf(str, "%dS", a.loc.qb);
         for(size_t c = 0; c < a.n_cigar; c++) {
@@ -319,7 +331,6 @@ static void write_sam_records(kstring_t *str,
             ksprintf(str, "\tRG:Z:%s", read_group_id);
         kputs("\n", str);
     }
-    free(all_ref_names);
 }
 
 
@@ -378,6 +389,7 @@ void ig_align_reads(const char *ref_path,
                     const int32_t mismatch,    /* 2 */
                     const int32_t gap_o,       /* 3 */
                     const int32_t gap_e,       /* 1 */
+                    const unsigned max_drop,   /* 1000 */
                     const uint8_t n_threads,   /* 1 */
                     const char *read_group,
                     const char *read_group_id)
@@ -458,6 +470,7 @@ void ig_align_reads(const char *ref_path,
     align_config_t conf;
     conf.gap_o = gap_o;
     conf.gap_e = gap_e;
+    conf.max_drop = max_drop;
     conf.m = m;
     conf.table = table;
     conf.mat = mat;

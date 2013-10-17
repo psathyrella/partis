@@ -52,8 +52,6 @@ def build_parser(p):
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
                       gene [default: 15V, 5J, 10D]""", type=int)
-    agrp.add_argument('--max-drop', help="""Discard alignments with scores
-                      VALUE below max score.""", default=5, type=int)
     agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
                       [default: %(default)d]""")
     agrp.add_argument('-u', '--mismatch', default=1, type=int, help="""Match score
@@ -62,6 +60,8 @@ def build_parser(p):
                       opening penalty [default: %(default)d]""")
     agrp.add_argument('-e', '--gap-extend', default=1, type=int, help="""Gap
                       extension penalty [default: %(default)d]""")
+    agrp.add_argument('--max-drop', default=0, type=int, help="""Maximum
+                      alignment score drop [default: %(default)d]""")
     p.set_defaults(func=action)
 
 def action(a):
@@ -89,7 +89,8 @@ def action(a):
                                   match=a.match,
                                   mismatch=a.mismatch,
                                   gap_open=a.gap_open,
-                                  gap_extend=a.gap_extend)
+                                  gap_extend=a.gap_extend,
+                                  max_drop=a.max_drop)
 
         closing = contextlib.closing
         with align_fastq.resource_fasta('ighv_functional.fasta') as vf, \
