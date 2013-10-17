@@ -31,6 +31,18 @@ def _position_lookup(sequence):
 
     return result
 
+def ighv_position_lookup(fname='ighv_aligned.fasta'):
+    result = {}
+    with resource_stream(_PKG, fname) as fp:
+        sequences = ((name.split('|')[1], seq)
+                     for name, seq, _ in util.readfq(fp))
+
+        for name, s in sequences:
+            p = [i for i, b in enumerate(s) if b not in _GAP]
+            assert len(p) == len(s.translate(None, _GAP))
+            result[name] = p
+
+    return result
 
 def cysteine_map(fname='ighv_aligned.fasta'):
     """

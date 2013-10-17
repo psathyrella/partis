@@ -14,6 +14,8 @@ clean:
 
 sw-align: $(OBJ)
 
+sw-align.o: kseq.h ksort.h kstring.h ksw.h kvec.h
+
 install: sw-align
 	mkdir -p $(PREFIX)/bin
 	install -m 775 $< $(PREFIX)/bin
