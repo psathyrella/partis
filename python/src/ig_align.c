@@ -142,7 +142,8 @@ static aln_t align_read_against_one(kseq_t *target,
                                     const int read_len,
                                     uint8_t *read_num,
                                     kswq_t **qry,
-                                    const align_config_t *conf)
+                                    const align_config_t *conf,
+                                    const int min_score)
 {
     uint8_t *ref_num = calloc(target->seq.l, sizeof(uint8_t));
     for(size_t k = 0; k < target->seq.l; ++k)
@@ -157,6 +158,12 @@ static aln_t align_read_against_one(kseq_t *target,
                         conf->gap_e,
                         KSW_XSTART,
                         qry);
+
+    if(aln.loc.score < min_score) {
+        aln.cigar = NULL;
+        return aln;
+    }
+
     ksw_global(aln.loc.qe - aln.loc.qb + 1,
                &read_num[aln.loc.qb],
                aln.loc.te - aln.loc.tb + 1,
@@ -232,15 +239,19 @@ static aln_v align_read(const kseq_t *read,
 
     // Align to each target
     kswq_t *qry = NULL;
+    int min_score = -1000;
     for(size_t j = 0; j < kv_size(targets); j++) {
         // Encode target
         r = &kv_A(targets, j);
         aln_t aln = align_read_against_one(r, read_len, read_num,
                                            &qry,
-                                           conf);
-
-        aln.target_name = r->name.s;
-        kv_push(aln_t, result, aln);
+                                           conf,
+                                           min_score);
+        if(aln.cigar != NULL) {
+            min_score = (aln.loc.score - conf->max_drop) > min_score ? (aln.loc.score - conf->max_drop) : min_score;
+            aln.target_name = r->name.s;
+            kv_push(aln_t, result, aln);
+        }
     }
 
     drop_low_scores(&result, 0, conf->max_drop);
@@ -255,6 +266,7 @@ static aln_v align_read(const kseq_t *read,
 
     if(read_len_trunc > 2) {
         for(size_t i = 0; i < n_extra_targets; i++) {
+            min_score = -1000;
             const size_t init_count = kv_size(result);
             for(size_t j = 0; j < kv_size(extra_targets[i]); j++) {
                 r = &kv_A(extra_targets[i], j);
@@ -262,12 +274,16 @@ static aln_v align_read(const kseq_t *read,
                                                    read_len_trunc,
                                                    read_num_trunc,
                                                    &qry,
-                                                   conf);
+                                                   conf,
+                                                   min_score);
 
-                aln.target_name = r->name.s;
-                aln.loc.qb += qend;
-                aln.loc.qe += qend;
-                kv_push(aln_t, result, aln);
+                if(aln.cigar != NULL) {
+                    min_score = (aln.loc.score - conf->max_drop) > min_score ? (aln.loc.score - conf->max_drop) : min_score;
+                    aln.target_name = r->name.s;
+                    aln.loc.qb += qend;
+                    aln.loc.qe += qend;
+                    kv_push(aln_t, result, aln);
+                }
             }
             drop_low_scores(&result, init_count, conf->max_drop);
         }
