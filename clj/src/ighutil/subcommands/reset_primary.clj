@@ -17,18 +17,19 @@
 (defn- set-supp-and-bases-per-gene [reads]
   "Set read bases and quals for each gene primary record"
   (let [^SAMRecord primary (first (filter primary? reads))
-        ^bytes bases (.getReadBases primary)
-        ^bytes quals (.getBaseQualities primary)
-        parts (partition-by gene-type reads)
-        update-first (fn [r] 
+        ^bytes read-seq (.getReadBases primary)
+        ^bytes read-qual (.getBaseQualities primary)
+        update-first (fn [r]
                        (let [^SAMRecord f (first r)]
                          (doto f
-                           (.setReadBases bases)
-                           (.setBaseQualities quals)
+                           (.setReadBases read-seq)
+                           (.setBaseQualities read-qual)
                            (.setSupplementaryAlignmentFlag true)
                            (.setNotPrimaryAlignmentFlag false))
                          (cons f (rest r))))]
-    (mapcat update-first parts)))
+    (->> reads
+         (partition-by gene-type)
+         (mapcat update-first))))
 
 (defn- random-tiebreak [reads]
   (let [^SAMRecord primary (first (filter primary? reads))
