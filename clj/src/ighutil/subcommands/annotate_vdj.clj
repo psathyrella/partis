@@ -23,7 +23,9 @@
             (let [rpos (.getReferencePosition ap)
                   qpos (.getQueryPosition ap)
                   is-mismatch (.isMutation ap)
-                  overlaps (conj (when tree (gff3/overlapping-vals tree (inc rpos)))
+                  overlaps (conj (when tree (gff3/overlapping-vals
+                                             tree
+                                             (inc rpos)))
                                  reference-name)
                   add-base (fn [acc o]
                              (assoc acc o
