@@ -4,28 +4,12 @@ Align V D, J starting from a FASTQ file
 import contextlib
 import functools
 import logging
-import shutil
 import subprocess
 
-from pkg_resources import resource_stream
-
-from .. import util, sw
+from .. import imgt, util, sw
 
 log = logging.getLogger('vdjalign')
 
-@contextlib.contextmanager
-def resource_fasta(names):
-    if isinstance(names, basestring):
-        names = [names]
-    if not names:
-        raise ValueError('Missing sequence files')
-    with util.tempdir(prefix=names[0]) as j, \
-            open(j(names[0]), 'w') as fp:
-        for name in names:
-            with resource_stream('vdjalign.imgt.data', name) as in_fasta:
-                shutil.copyfileobj(in_fasta, fp)
-        fp.close()
-        yield fp.name
 
 def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
               read_group=None, extra_ref_paths=[],
@@ -43,12 +27,23 @@ def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
         if returncode:
             raise subprocess.CalledProcessError(returncode, cmd1)
 
-def build_parser(p):
-    p.add_argument('fastq')
+def fill_targets_alignment_options(p):
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
                    threads [default: %(default)d]""")
     p.add_argument('out_bamfile', help="""Path for alignments""")
-    p.add_argument('-r', '--read-group')
+    p.add_argument('-r', '--read-group', help="""read group header line such as
+                   '@RG\tID:foo\tSM:bar'""")
+
+    tgrp = p.add_argument_group('Target options')
+    tgrp.add_argument('-l', '--locus', default='IGH', choices=('IGH', 'IGK', 'IGL'),
+             help="""Locus to align reads against [default: %(default)s]""")
+    tgrp.add_argument('--v-subset', help="""Subset of V reads to use (e.g.,
+                      functional) [default: %(default)s]""")
+    tgrp.add_argument('--d-subset', help="""Subset of D reads to use
+                      (currently: No options) [default: %(default)s]""")
+    tgrp.add_argument('--j-subset', help="""Subset of J reads to use (e.g.,
+                      adaptive) [default: %(default)s]""")
+
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
                       [default: %(default)d]""")
@@ -60,6 +55,10 @@ def build_parser(p):
                       extension penalty [default: %(default)d]""")
     agrp.add_argument('--max-drop', default=0, type=int, help="""Maximum
                       alignment score drop [default: %(default)d]""")
+
+def build_parser(p):
+    p.add_argument('fastq')
+    fill_targets_alignment_options(p)
     p.set_defaults(func=action)
 
 def action(a):
@@ -72,7 +71,9 @@ def action(a):
                               max_drop=a.max_drop)
 
     log.info('aligning')
-    with resource_fasta('ighv_functional.fasta') as vf, \
-            resource_fasta('ighj_adaptive.fasta') as jf, \
-            resource_fasta('ighd.fasta') as df:
-        align(vf, a.fastq, a.out_bamfile, extra_ref_paths=[df, jf])
+    with imgt.temp_fasta(a.locus, 'v', a.v_subset) as vf, \
+            imgt.temp_fasta(a.locus, 'j', a.j_subset) as jf, \
+            util.with_if(a.locus == 'IGH', imgt.temp_fasta, a.locus, 'd',
+                    collection=a.d_subset) as df:
+        ex_refs = [i for i in [df, jf] if i is not None]
+        align(vf, a.fastq, a.out_bamfile, extra_ref_paths=ex_refs)

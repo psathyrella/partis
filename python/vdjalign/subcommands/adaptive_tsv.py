@@ -45,23 +45,9 @@ def build_parser(p):
     p.add_argument('-d', '--delimiter', default='\t',
                    help="""Delimiter [default: tab]""")
     p.add_argument('-c', '--count-column', default='n_sources')
-    p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
-                   threads [default: %(default)d]""")
-    p.add_argument('out_bamfile', help="""Path for V alignments""")
-    p.add_argument('-r', '--read-group')
-    agrp = p.add_argument_group('Alignment options')
-    agrp.add_argument('-k', '--keep', help="""Number of alignments to keep per
-                      gene [default: 15V, 5J, 10D]""", type=int)
-    agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
-                      [default: %(default)d]""")
-    agrp.add_argument('-u', '--mismatch', default=1, type=int, help="""Match score
-                      [default: %(default)d]""")
-    agrp.add_argument('-o', '--gap-open', default=7, type=int, help="""Gap
-                      opening penalty [default: %(default)d]""")
-    agrp.add_argument('-e', '--gap-extend', default=1, type=int, help="""Gap
-                      extension penalty [default: %(default)d]""")
-    agrp.add_argument('--max-drop', default=0, type=int, help="""Maximum
-                      alignment score drop [default: %(default)d]""")
+
+    align_fastq.fill_targets_alignment_options(p)
+
     p.set_defaults(func=action)
 
 def action(a):

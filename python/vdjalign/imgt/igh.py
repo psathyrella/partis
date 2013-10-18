@@ -2,7 +2,10 @@
 Access to IMGT germline abs
 """
 import csv
+import contextlib
 import itertools
+import os.path
+import shutil
 import subprocess
 
 from pkg_resources import resource_stream
@@ -140,3 +143,4 @@ def consensus_by_allele(file_name):
             returncode = p.wait()
             assert returncode == 0, returncode
             yield name, remove_dropped(seq).upper()
+

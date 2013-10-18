@@ -112,3 +112,29 @@ class memoized(object):
       return functools.partial(self.__call__, obj)
 
 
+@contextlib.contextmanager
+def maybe_with(fn, arg=None, **kwargs):
+    """
+    if ``arg`` is truthy, yields the managed object resulting from applying context
+    manager ``fn`` to ``arg`` with extra arguments ``**kwargs``.
+    Otherwise, yields None.
+    """
+    if not arg:
+        yield arg
+    else:
+        with fn(arg, **kwargs) as result:
+            yield result
+
+@contextlib.contextmanager
+def with_if(condition, fn, *args, **kwargs):
+    """
+    If ``condition`` yields the managed object resulting from applying context
+    manager ``fn`` with arguments ``*args`` and ``**kwargs``, otherwise yields
+    None.
+    """
+    if condition:
+        with fn(*args, **kwargs) as result:
+            yield result
+    else:
+        yield
+
