@@ -1,7 +1,6 @@
 """
 Align V D, J starting from a FASTQ file
 """
-import contextlib
 import functools
 import logging
 import subprocess
@@ -30,7 +29,7 @@ def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
 def fill_targets_alignment_options(p):
     p.add_argument('-j', '--threads', default=1, type=int, help="""Number of
                    threads [default: %(default)d]""")
-    p.add_argument('out_bamfile', help="""Path for alignments""")
+    p.add_argument('out_bamfile', help="""Destination path""")
     p.add_argument('-r', '--read-group', help="""read group header line such as
                    '@RG\tID:foo\tSM:bar'""")
 

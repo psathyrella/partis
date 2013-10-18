@@ -1,6 +1,5 @@
 COMMANDS = ('adaptive_tsv', 'count_mutations', 'collapse_identical_reads',
-            'align_fastq',
-            'adaptive_vj_uncertainty')
+            'export_targets', 'align_fastq', 'adaptive_vj_uncertainty')
 
 
 def itermodules(root=__name__):
