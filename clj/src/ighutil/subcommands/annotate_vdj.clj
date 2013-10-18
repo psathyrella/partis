@@ -5,8 +5,7 @@
             [ighutil.gff3 :as gff3]
             [ighutil.imgt :as imgt]
             [ighutil.io :as zio]
-            [ighutil.sam :as sam]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH]])
+            [ighutil.sam :as sam])
   (:import [net.sf.samtools SAMRecord]
            [net.sf.picard.util IntervalTree]
            [io.github.cmccoy.sam SAMUtils AlignedPair

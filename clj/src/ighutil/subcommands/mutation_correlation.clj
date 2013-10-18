@@ -16,7 +16,6 @@
             [ighutil.imgt :as imgt]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
             [plumbing.core :refer [safe-get map-vals]]
             [primitive-math :as p]))
 
@@ -75,7 +74,7 @@
    generates a vector of
    [reference-name {site-index {matches-at-site }}]"
   (let [length (int length)
-        ^bytes bq (.getAttribute read TAG-EXP-MATCH)
+        ^bytes bq (sam/exp-match read)
         [^longs read-counts
          ^longs read-muts] (unmask-base-exp-match read bq length)]
     (assert (not (nil? bq)))

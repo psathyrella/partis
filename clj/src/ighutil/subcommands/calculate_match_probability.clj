@@ -10,11 +10,11 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.sam :refer [primary?
                                  alignment-score
-                                 partition-by-name-type
+                                 partition-by-name-segment
                                  read-name
                                  mapped?
-                                 bam-writer]]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]))
+                                 bam-writer
+                                 TAG-EXP-MATCH]]))
 
 (defn- cal-equal [refs reads]
   "Calculate the expectation that each position matches reference."
@@ -53,7 +53,7 @@
                              .iterator
                              iterator-seq)
           partitioned-reads (->> read-iterator
-                                 partition-by-name-type
+                                 partition-by-name-segment
                                  (map vec)
                                  (mapcat #(cal-equal refs %)))]
       (with-open [writer (bam-writer out-file reader)]

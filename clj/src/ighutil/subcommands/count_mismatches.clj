@@ -11,8 +11,8 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.imgt :refer [strip-allele]]
             [ighutil.io :as zio]
-            [ighutil.sam-tags :refer [TAG-COUNT
-                                      TAG-N-MISMATCHES]]))
+            [ighutil.sam :refer [TAG-COUNT
+                                 TAG-N-MISMATCHES]]))
 
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
@@ -60,5 +60,6 @@
                         [reference n-aligned n-mismatches n c])
                       (count-mutations-in-sam sam ref-map))]
         (with-open [^java.io.Closeable out-file out-file]
-          (csv/write-csv out-file [["reference" "aligned_length" "mismatches" "count" "frequency"]])
+          (csv/write-csv out-file [["reference" "aligned_length"
+                                    "mismatches" "count" "frequency"]])
           (csv/write-csv out-file rows))))))

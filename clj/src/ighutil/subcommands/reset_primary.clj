@@ -10,8 +10,8 @@
             [ighutil.sam :refer [primary?
                                  alignment-score
                                  partition-by-name
-                                 partition-by-name-type
-                                 gene-type
+                                 partition-by-name-segment
+                                 ig-segment
                                  bam-writer]]))
 
 (defn- set-supp-and-bases-per-gene [reads]
@@ -28,7 +28,7 @@
                            (.setNotPrimaryAlignmentFlag false))
                          (cons f (rest r))))]
     (->> reads
-         (partition-by gene-type)
+         (partition-by ig-segment)
          (mapcat update-first))))
 
 (defn- random-tiebreak [reads]
@@ -82,12 +82,11 @@
           partitioned-reads (->> read-iterator
                                  partition-by-name
                                  (mapcat set-supp-and-bases-per-gene)
-                                 partition-by-name-type
+                                 partition-by-name-segment
                                  (map vec)
                                  (mapcat #(assign-primary-for-partition
                                            random-tiebreak
-                                           %))
-                                 )]
+                                           %)))]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (.makeBAMWriter (SAMFileWriterFactory.)
                                          header

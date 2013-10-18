@@ -12,7 +12,6 @@
             [ighutil.io :as zio]
             [ighutil.imgt :as imgt]
             [ighutil.sam :as sam]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH]]
             [primitive-math :as p]
             [hiphip.double :as dbl]
             [hiphip.long :as long]
@@ -27,7 +26,7 @@
                              :or {drop-uncertain false}}]
   (let [ref-length (int ref-length)
         ^bytes qbases (.getReadBases record)
-        ^bytes bq (.getByteArrayAttribute record TAG-EXP-MATCH)
+        ^bytes bq (sam/exp-match record)
         uncertain (sam/uncertain-sites record)
         ^doubles bqd (percent-to-proportion bq)
         ^longs abases (long-array (p/* 4 ref-length) 0)

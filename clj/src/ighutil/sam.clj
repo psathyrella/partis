@@ -1,4 +1,5 @@
 (ns ighutil.sam
+  "Tools for working with SAM/BAM records"
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
@@ -6,25 +7,38 @@
             SAMFileWriterFactory
             SAMFileWriter]
            [java.util BitSet])
-  (:require [clojure.java.io :as io]
-            [ighutil.sam-tags :refer [TAG-EXP-MATCH TAG-STATUS]]))
+  (:require [clojure.java.io :as io]))
 
+;;;;;;;;;;;;;;;;
+;; SAM tag names
+(def ^String TAG-N-MISMATCHES "NM")
+(def ^String TAG-COUNT "XC")
+(def ^String TAG-EXP-MATCH "bq")
+(def ^String TAG-STATUS "XS")
+;;;;;;;;;;;;;;;;
+
+;;;;;;
+;; I/O
+;;;;;;
 (defn ^SAMFileReader bam-reader [path]
   (-> path io/file SAMFileReader.))
 
 (defn ^SAMFileWriter bam-writer [path ^SAMFileReader reader &
-                  {:keys [sorted]
-                   :or {sorted true}}]
+                                 {:keys [sorted]
+                                  :or {sorted true}}]
   (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
                        (.getFileHeader reader)
                        sorted
                        (io/file path)))
 
+;;;;;;;;;;;;;
 ;; Accessors
+;;;;;;;;;;;;;
 (defn read-name [^SAMRecord read]
   (.getReadName read))
 
 (defn position [^SAMRecord read]
+  "*0-based* position of read along reference sequence"
   (-> read
       .getAlignmentStart
       int
@@ -34,21 +48,34 @@
   (.getReferenceName r))
 
 (defn ^Integer alignment-score [^SAMRecord read]
-  (.getAttribute read "AS"))
+  (.getIntegerAttribute read "AS"))
 
 (defn ^Integer nm [^SAMRecord read]
-  (.getAttribute read "NM"))
+  "Number of mismatches"
+  (.getIntegerAttribute read "NM"))
 
 (defn ^Integer sequence-status [^SAMRecord read]
-  (.getAttribute read TAG-STATUS))
+  (.getIntegerAttribute read TAG-STATUS))
 
-(defn primary? [^SAMRecord read]
+(defn ^Boolean primary? [^SAMRecord read]
   (not (.getNotPrimaryAlignmentFlag read)))
 
-(defn mapped? [^SAMRecord read]
+(defn ^Boolean mapped? [^SAMRecord read]
   (not (.getReadUnmappedFlag read)))
 
+(defn ^Boolean supplementary? [^SAMRecord read]
+  (.getSupplementaryAlignmentFlag read))
+
+(defn exp-match [^SAMRecord read]
+  "Matching probabilities, expressed as percentage"
+  (.getByteArrayAttribute read TAG-EXP-MATCH))
+
+;;;;;;;;;;;;;;;;;;
+;; Site-certainty
+;;;;;;;;;;;;;;;;;;
 (defn- ^BitSet byte-array->uncertain-sites [^bytes xs]
+  "Convert a byte array [e.g., from the bq tag] to a bitset with uncertain
+   sites."
   (let [l (alength xs)
         ^BitSet bs (BitSet. l)]
     (doseq [i (range l)]
@@ -59,10 +86,15 @@
 
 ;; Handle record base expected match
 (defn ^BitSet uncertain-sites [^SAMRecord r]
-  (-> r (.getAttribute TAG-EXP-MATCH) byte-array->uncertain-sites))
+  "Returns a BitSet where set bits indicate that a site is certain"
+  (-> r exp-match byte-array->uncertain-sites))
 
-(defn gene-type [^SAMRecord r]
+(defn ig-segment [^SAMRecord r]
+  "Gene segment type (e.g. V / D / J"
   (-> r reference-name (.charAt 3)))
 
-(def partition-by-name-type (partial partition-by (juxt read-name gene-type)))
+;;;;;;;;;;;;;;;;;;;;;;
+;; Record partitioning
+;;;;;;;;;;;;;;;;;;;;;;
+(def partition-by-name-segment (partial partition-by (juxt read-name ig-segment)))
 (def partition-by-name (partial partition-by read-name))
