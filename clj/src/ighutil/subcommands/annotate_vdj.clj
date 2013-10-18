@@ -13,6 +13,12 @@
             AlignedPair$MatchesReference]
            [io.github.cmccoy.dna Codons]))
 
+(defn- translate-read [^SAMRecord read frame]
+  (-> read
+      .getReadBases
+      (Codons/translateSequence frame)
+      (String.)))
+
 (defn- annotate-read [^SAMRecord read ^IntervalTreeMap tree]
   (let [reference-name (sam/reference-name read)
         nm (sam/nm read)
@@ -53,13 +59,20 @@
         annotations (->> reads
                          (map #(annotate-read % tree))
                          (apply merge))
+        v-start (get-in annotations [\V :minqpos])
         cys-start (get-in annotations ["Cys" :minqpos])
         tryp-end (get-in annotations ["J_Tryp" :maxqpos])
+        frame (when (not (some nil? [cys-start tryp-end]))
+                (mod (- (int cys-start) (int v-start)) 3))
         cdr3-length (when (not (some nil? [cys-start tryp-end]))
-          (- tryp-end cys-start))]
+                      (- tryp-end cys-start))
+        translation (when frame (translate-read f frame))]
     {:name (sam/read-name f)
      :cdr3-length cdr3-length
-     :has-stop nil
+     :frame frame
+     :has-stop (when (not (nil? translation))
+                 (.contains ^String translation "*"))
+     :translation translation
      :in-frame (when cdr3-length (= 0 (mod (int cdr3-length) 3)))
      :annotations annotations}))
 
@@ -85,26 +98,31 @@
 (defn- header-row [feature-names]
   (->> feature-names
        (map names-for-feature)
-       (apply concat ["read_name" "cdr3_length" "in_frame" "has_stop"])))
+       (apply concat ["read_name" "cdr3_length" "frame" "in_frame"
+                      "has_stop" "translation"])))
 
-(defn- to-row [{:keys [name cdr3-length in-frame has-stop annotations] :as m}
+(defn- to-row [{:keys [name cdr3-length in-frame frame
+                       has-stop annotations translation] :as m}
                feature-names]
   (->> feature-names
        (map (fn [x] (for [k (keys-for-feature x)]
                       (get-in annotations [x k]))))
-       (apply concat [name cdr3-length in-frame has-stop])))
+       (apply concat [name cdr3-length frame in-frame has-stop translation])))
 
 (defcommand annotate-vdj
   "Annotate VDJ alignments"
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn sam/bam-reader]
                ["-o" "--out-file" "Destination path" :required true
-                :parse-fn zio/writer]]}
+                :parse-fn zio/writer]
+               ["-g" "--gff3" "GFF3 file [default: internal]"
+                :parse-fn gff3/slurp-gff3
+                :default @imgt/ighvj-gff]]}
   (with-open [^net.sf.samtools.SAMFileReader in-file in-file
               ^java.io.Writer out-file out-file]
     (let [reference-names (sam/reference-names in-file)
           feature-tree (gff3/gff3-to-interval-map
-                        @imgt/ighvj-gff
+                        gff3
                         :key (comp :Name :attributes))
           feature-names (vec
                          (concat

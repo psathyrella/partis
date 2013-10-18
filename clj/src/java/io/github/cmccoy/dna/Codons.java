@@ -87,4 +87,18 @@ public class Codons {
   public static byte translateCodon(final byte[] b) {
     return translateCodon(b, 0);
   }
+
+  public static byte[] translateSequence(final byte[] b, final int start) {
+    final int l = b.length;
+    final int outLen = (l - start) / 3;
+    byte result[] = new byte[outLen];
+    Arrays.fill(result, (byte)'-');
+    int j = 0;
+    for(int i = start; i < b.length - 2; i += 3)
+        result[j++] = translateCodon(b, i);
+    if(j != outLen)
+        throw new IllegalStateException(String.format("l=%d s=%d out=%d j=%d", l,
+                                                      start, outLen, j));
+    return result;
+  }
 }

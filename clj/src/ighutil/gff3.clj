@@ -1,6 +1,7 @@
 (ns ighutil.gff3
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
+            [ighutil.io :as zio]
             [plumbing.core :refer [keywordize-map ?>>]])
   (:import [net.sf.picard.util Interval IntervalTreeMap]))
 
@@ -32,6 +33,13 @@
        (remove #(or (string/blank? %) (.startsWith ^String % "#")))
        (map parse-gff3-record)))
 
+(defn slurp-gff3 [file-name]
+  (-> file-name
+      zio/reader
+      file-seq
+      parse-gff3
+      (into [])))
+
 (defn ^IntervalTreeMap gff3-to-interval-map [gff-records &
                                              {:keys [key]
                                               :or {key identity}}]
@@ -46,7 +54,6 @@
   "Get all intervals overlapping position `pos`"
   (let [pos (int pos)]
     (vec (.getOverlapping tree (Interval. seqid pos pos)))))
-
 
 (defn all-feature-names [^IntervalTreeMap tree &
                          {:keys [key]
