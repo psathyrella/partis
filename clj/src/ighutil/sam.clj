@@ -31,6 +31,16 @@
                        sorted
                        (io/file path)))
 
+(defn reference-names [^SAMFileReader reader]
+  "Get the names of the reference sequences in this file."
+  (letfn [(sequence-name [^net.sf.samtools.SAMSequenceRecord x]
+            (.getSequenceName x))]
+  (->> reader
+       .getFileHeader
+       .getSequenceDictionary
+       .getSequences
+       (mapv sequence-name))))
+
 ;;;;;;;;;;;;;
 ;; Accessors
 ;;;;;;;;;;;;;
