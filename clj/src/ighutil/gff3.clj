@@ -32,14 +32,14 @@
        (remove #(or (string/blank? %) (.startsWith ^String % "#")))
        (map parse-gff3-record)))
 
-(defn ^IntervalTreeMap gff3-to-interval-map [gff-records]
+(defn ^IntervalTreeMap gff3-to-interval-map [gff-records &
+                                             {:keys [key]
+                                              :or {key identity}}]
   "Creates an IntervalTreeMap, with reference intervals as keys,
    and gff-records as values"
   (let [result (IntervalTreeMap.)]
     (doseq [{:keys [seqid start end attributes] :as record} gff-records]
-      (.put result (Interval. seqid start end
-                              false
-                              ^String (get attributes :Name)) record))
+      (.put result (Interval. seqid start end) (key record)))
     result))
 
 (defn overlapping [^IntervalTreeMap tree ^String seqid pos]
@@ -47,9 +47,12 @@
   (let [pos (int pos)]
     (vec (.getOverlapping tree (Interval. seqid pos pos)))))
 
-(defn all-feature-names [^IntervalTreeMap tree]
+
+(defn all-feature-names [^IntervalTreeMap tree &
+                         {:keys [key]
+                          :or {key (comp :Name :attributes)}}]
   "Get all feature names from an interval tree map"
   (vec
    (for [^java.util.Map$Entry item tree]
      [(.getSequence ^Interval (.getKey item))
-      (-> item .getValue :attributes :Name)])))
+      (-> item .getValue key)])))
