@@ -7,7 +7,7 @@
             [ighutil.io :as zio]
             [ighutil.sam :as sam])
   (:import [net.sf.samtools SAMRecord]
-           [net.sf.picard.util IntervalTree]
+           [net.sf.picard.util IntervalTreeMap]
            [io.github.cmccoy.sam SAMUtils AlignedPair
             AlignedPair$MatchesReference]))
 
@@ -22,8 +22,9 @@
             (let [rpos (.getReferencePosition ap)
                   qpos (.getQueryPosition ap)
                   is-mismatch (.isMutation ap)
-                  overlaps (conj (when tree (gff3/overlapping-vals
+                  overlaps (conj (when tree (gff3/overlapping
                                              tree
+                                             reference-name
                                              (inc rpos)))
                                  reference-name)
                   add-base (fn [acc o]
@@ -41,7 +42,6 @@
               (reduce add-base m overlaps)))]
     {:name read-name
      :reference reference-name
-     :cdr3 (.getAttribute read "XL")
      :alignment-score (.getAttribute read "AS")
      :nm (.getAttribute read "NM")
      :annotations (reduce f {} aligned-pairs)} ))
@@ -70,6 +70,6 @@
                   (annotate-read r
                                  (->> r
                                       sam/reference-name
-                                      (get feature-tree)))))
+                                      feature-tree))))
            (mapcat build-rows)
            (csv/write-csv out-file)))))
