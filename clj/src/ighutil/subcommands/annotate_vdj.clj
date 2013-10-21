@@ -13,10 +13,10 @@
             AlignedPair$MatchesReference]
            [io.github.cmccoy.dna Codons]))
 
-(defn- translate-read [^SAMRecord read frame]
+(defn- translate-read [^SAMRecord read frame start]
   (-> read
       .getReadBases
-      (Codons/translateSequence frame)
+      (Codons/translateSequence (+ (int frame) (int start)))
       (String.)))
 
 (defn- annotate-read [^SAMRecord read ^IntervalTreeMap tree]
@@ -65,8 +65,8 @@
         frame (when (not (some nil? [cys-start tryp-end]))
                 (mod (- (int cys-start) (int v-start)) 3))
         cdr3-length (when (not (some nil? [cys-start tryp-end]))
-                      (- tryp-end cys-start))
-        translation (when frame (translate-read f frame))]
+                      (inc (- tryp-end cys-start)))
+        translation (when frame (translate-read f frame v-start))]
     {:name (sam/read-name f)
      :cdr3-length cdr3-length
      :frame frame
