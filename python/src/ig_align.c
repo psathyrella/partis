@@ -175,7 +175,7 @@ static aln_t align_read_against_one(kseq_t *target,
                conf->mat,
                conf->gap_o,
                conf->gap_e,
-               50, /* TODO: Magic number - band width */
+               150, /* TODO: Magic number - band width */
                &aln.n_cigar,
                &aln.cigar);
 
