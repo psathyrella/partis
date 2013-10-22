@@ -160,6 +160,8 @@ static aln_t align_read_against_one(kseq_t *target,
                         KSW_XSTART,
                         qry);
 
+    aln.target_name = target->name.s;
+
     if(aln.loc.score < min_score) {
         free(ref_num);
         return aln;
@@ -250,7 +252,6 @@ static aln_v align_read(const kseq_t *read,
                                            min_score);
         if(aln.cigar != NULL) {
             min_score = (aln.loc.score - conf->max_drop) > min_score ? (aln.loc.score - conf->max_drop) : min_score;
-            aln.target_name = r->name.s;
             kv_push(aln_t, result, aln);
         }
     }
@@ -280,7 +281,6 @@ static aln_v align_read(const kseq_t *read,
 
                 if(aln.cigar != NULL) {
                     min_score = (aln.loc.score - conf->max_drop) > min_score ? (aln.loc.score - conf->max_drop) : min_score;
-                    aln.target_name = r->name.s;
                     aln.loc.qb += qend;
                     aln.loc.qe += qend;
                     kv_push(aln_t, result, aln);
@@ -299,18 +299,10 @@ static aln_v align_read(const kseq_t *read,
 static void write_sam_records(kstring_t *str,
                               const kseq_t *read,
                               const aln_v result,
-                              const kseq_v ref_seqs,
-                              const size_t n_extra_refs,
-                              const kseq_v *extra_ref_seqs,
                               const char *read_group_id)
 {
     if(kv_size(result) == 0)
         return;
-
-    int n_total_refs = kv_size(ref_seqs);
-    for(size_t i = 0; i < n_extra_refs; i++) {
-        n_total_refs += kv_size(extra_ref_seqs[i]);
-    }
 
     /* Alignments are sorted by decreasing score */
     for(size_t i = 0; i < kv_size(result); i++) {
@@ -378,13 +370,7 @@ static void *worker(void *data)
 
         kstring_t str = { 0, 0, NULL };
 
-        write_sam_records(&str,
-                          s,
-                          result,
-                          w->ref_seqs,
-                          w->n_extra_refs,
-                          w->extra_ref_seqs,
-                          w->read_group_id);
+        write_sam_records(&str, s, result, w->read_group_id);
 
         w->sams[i] = str;
 
