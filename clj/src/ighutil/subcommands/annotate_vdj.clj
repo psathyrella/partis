@@ -61,19 +61,22 @@
                          (apply merge))
         v-start (get-in annotations [\V :minqpos])
         cys-start (get-in annotations ["Cys" :minqpos])
+        tryp-start (get-in annotations ["J_Tryp" :minqpos])
         tryp-end (get-in annotations ["J_Tryp" :maxqpos])
+        in-frame (when (not (some nil? [cys-start tryp-start]))
+                   (= (mod (int cys-start) 3) (mod (int tryp-start) 3)))
         frame (when (not (some nil? [cys-start tryp-end]))
                 (mod (- (int cys-start) (int v-start)) 3))
         cdr3-length (when (not (some nil? [cys-start tryp-end]))
-                      (inc (- tryp-end cys-start)))
-        translation (when frame (translate-read f frame v-start))]
+                      (inc (- (int tryp-end) (int cys-start))))
+        translation (when in-frame (translate-read f frame v-start))]
     {:name (sam/read-name f)
      :cdr3-length cdr3-length
      :frame frame
      :has-stop (when (not (nil? translation))
                  (.contains ^String translation "*"))
      :translation translation
-     :in-frame (when cdr3-length (= 0 (mod (int cdr3-length) 3)))
+     :in-frame in-frame
      :annotations annotations}))
 
 (defn- features-for-references [reference-names
