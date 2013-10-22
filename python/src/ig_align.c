@@ -150,6 +150,7 @@ static aln_t align_read_against_one(kseq_t *target,
         ref_num[k] = conf->table[(int)target->seq.s[k]];
 
     aln_t aln;
+    aln.cigar = NULL;
     aln.loc = ksw_align(read_len, read_num,
                         target->seq.l, ref_num,
                         conf->m,
@@ -160,7 +161,7 @@ static aln_t align_read_against_one(kseq_t *target,
                         qry);
 
     if(aln.loc.score < min_score) {
-        aln.cigar = NULL;
+        free(ref_num);
         return aln;
     }
 
