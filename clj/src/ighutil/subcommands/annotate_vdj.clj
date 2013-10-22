@@ -2,7 +2,8 @@
   (:require [cliopatra.command :refer [defcommand]]
             [clojure.data.csv :as csv]
             [clojure.string :as string]
-            [plumbing.core :refer [?>]]
+            [plumbing.core :refer [?> map-vals]]
+            [flatland.useful.map :refer [update-in!]]
             [ighutil.gff3 :as gff3]
             [ighutil.imgt :as imgt]
             [ighutil.io :as zio]
@@ -37,21 +38,24 @@
                                   (inc rpos))
                                  (sam/ig-segment read))
                   add-base (fn [acc o]
-                             (assoc
+                             (assoc!
                                  acc o
-                                 (-> (get acc o {:aligned 0
-                                                 :mismatch 0
-                                                 :reference reference-name
-                                                 :minqpos qpos
-                                                 :maxqpos qpos
-                                                 :alignment-score as
-                                                 :nm nm})
-                                     (update-in [:aligned] inc)
-                                     (update-in [:minqpos] #(min qpos %))
-                                     (update-in [:maxqpos] #(max qpos %))
-                                     (?> is-mismatch update-in [:mismatch] inc))))]
+                                 (-> (get acc o (transient {:aligned 0
+                                                            :mismatch 0
+                                                            :reference reference-name
+                                                            :minqpos qpos
+                                                            :maxqpos qpos
+                                                            :alignment-score as
+                                                            :nm nm}))
+                                     (update-in! [:aligned] inc)
+                                     (update-in! [:minqpos] #(min qpos %))
+                                     (update-in! [:maxqpos] #(max qpos %))
+                                     (?> is-mismatch update-in! [:mismatch] inc))))]
               (reduce add-base m overlaps)))]
-    (reduce f {} aligned-pairs)))
+    (map-vals
+     persistent!
+     (persistent!
+      (reduce f (transient {}) aligned-pairs)))))
 
 (defn- annotate-reads [reads ^IntervalTreeMap tree]
   "Annotate read using (possibly) multiple alignment segments"
