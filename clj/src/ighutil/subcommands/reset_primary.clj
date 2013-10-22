@@ -24,8 +24,9 @@
                          (doto f
                            (.setReadBases read-seq)
                            (.setBaseQualities read-qual)
-                           (.setSupplementaryAlignmentFlag true)
-                           (.setNotPrimaryAlignmentFlag false))
+                           (.setNotPrimaryAlignmentFlag false)
+                           (.setSupplementaryAlignmentFlag
+                            (= (ig-segment f) \V)))
                          (cons f (rest r))))]
     (->> reads
          (partition-by ig-segment)
