@@ -106,6 +106,9 @@
   "Gene segment type (e.g. V / D / J)"
   (-> r reference-name (.charAt 3)))
 
+(defn ^String ig-locus-segment [^SAMRecord r]
+  "Gene locus and segment type (e.g. IGHV, IGHD, IGLJ)"
+  (-> r reference-name (.substring 0 4)))
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Record partitioning
 ;;;;;;;;;;;;;;;;;;;;;;

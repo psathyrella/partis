@@ -16,11 +16,12 @@
         names (mapv sam/reference-name records)
         scores (mapv sam/alignment-score records)
         max-score (apply max scores)]
-    (->> (map vector scores names)
-         (filter (comp (partial = max-score) first))
-         (map (comp strip-allele second))
-         distinct-fast
-         count)))
+    [(-> records first sam/ig-locus-segment)
+     (->> (map vector scores names)
+          (filter (comp (partial = max-score) first))
+          (map (comp strip-allele second))
+          distinct-fast
+          count)]))
 
 (defcommand count-alignment-ties
   "Count alignment ties, ignoring multiple hits to different alleles of the same
@@ -28,9 +29,7 @@
   {:opts-spec [["-i" "--in-file" "Source file" :required true
                 :parse-fn io/file]
                ["-o" "--out-file" "Destination path" :required true
-                :parse-fn zio/writer]
-               ["--quality" "Value to use for quality score" :default 40
-                :parse-fn #(Integer/valueOf ^String %)]]}
+                :parse-fn zio/writer]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -40,10 +39,11 @@
     (let [tie-histogram (->> reader
                              .iterator
                              iterator-seq
-                             sam/partition-by-name
+                             sam/partition-by-name-segment
                              (map n-ties)
                              frequencies-fast
+                             (map #(apply conj %))
                              sort)]
       (with-open [writer ^java.io.Closeable out-file]
-        (csv/write-csv writer (concat [["n_ties" "frequency"]]
-                                      tie-histogram))))))
+        (csv/write-csv writer (cons ["locus" "n_ties" "frequency"]
+                                    tie-histogram))))))
