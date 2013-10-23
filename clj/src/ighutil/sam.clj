@@ -1,6 +1,7 @@
 (ns ighutil.sam
   "Tools for working with SAM/BAM records"
   (:import [net.sf.samtools
+            Defaults
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency
@@ -31,7 +32,7 @@
                   (.getFileHeader reader)
                   sorted
                   (io/file path)
-                  (if compress 5 0)))
+                  (if compress Defaults/COMPRESSION_LEVEL 0)))
 
 (defn reference-names [^SAMFileReader reader]
   "Get the names of the reference sequences in this file."
