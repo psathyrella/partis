@@ -95,8 +95,8 @@
                              iterator-seq)]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (bam-writer
-                          header
                           out-file
+                          header
                           :compress compress)]
         (doseq [^SAMRecord read (reset-primary-record read-iterator
                                                       :randomize randomize)]

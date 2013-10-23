@@ -66,5 +66,5 @@
                              iterator-seq)]
       (with-open [writer (bam-writer out-file reader
                                      :compress compress)]
-        (doseq [^SAMRecord read (match-probability read-iterator)]
+        (doseq [^SAMRecord read (match-probability read-iterator refs)]
           (.addAlignment writer read))))))
