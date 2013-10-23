@@ -86,6 +86,6 @@ void deduplicate_fastq(const char* in_path,
     std::sort(reads.begin(), reads.end(), dec_count);
 
     for(const ReadWithCount& r : reads) {
-        gzprintf(out_fp.fp, ">%s %lu\n%s\n", r.name.c_str(), r.count, r.seq.c_str());
+        gzprintf(out_fp.fp, ">%s_%lu\n%s\n", r.name.c_str(), r.count, r.seq.c_str());
     }
 }
