@@ -136,6 +136,7 @@ typedef struct {
     int m;            /* Number of residue tyes */
     int8_t *mat;      /* Scoring matrix */
     int max_drop;
+    int min_score;
     unsigned bandwidth;
 } align_config_t;
 
@@ -244,6 +245,7 @@ static aln_v align_read(const kseq_t *read,
     // Align to each target
     kswq_t *qry = NULL;
     int min_score = -1000;
+    int max_score = 0;
     for(size_t j = 0; j < kv_size(targets); j++) {
         // Encode target
         r = &kv_A(targets, j);
@@ -252,9 +254,22 @@ static aln_v align_read(const kseq_t *read,
                                            conf,
                                            min_score);
         if(aln.cigar != NULL) {
+            max_score = aln.loc.score > max_score ? aln.loc.score : max_score;
             min_score = (aln.loc.score - conf->max_drop) > min_score ? (aln.loc.score - conf->max_drop) : min_score;
             kv_push(aln_t, result, aln);
         }
+    }
+
+    /* If no alignments to the first set of targets reached the minimum score,
+     * abort.
+     */
+    if(max_score < conf->min_score) {
+        for(int i = 0; i < kv_size(result); i++)
+            free(kv_A(result, i).cigar);
+        kv_size(result) = 0;
+        free(qry);
+        free(read_num);
+        return result;
     }
 
     drop_low_scores(&result, 0, conf->max_drop);
@@ -394,6 +409,7 @@ void ig_align_reads(const char *ref_path,
                     const int32_t gap_o,       /* 3 */
                     const int32_t gap_e,       /* 1 */
                     const unsigned max_drop,   /* 1000 */
+                    const int min_score,       /* 0 */
                     const unsigned bandwidth,  /* 150 */
                     const uint8_t n_threads,   /* 1 */
                     const char *read_group,
@@ -435,7 +451,7 @@ void ig_align_reads(const char *ref_path,
     kseq_destroy(seq);
     gzclose(ref_fp);
 
-    fprintf(stderr, "[sw_align] Read %lu references\n",
+    fprintf(stderr, "[ig_align] Read %lu references\n",
             kv_size(ref_seqs));
 
     kseq_v* extra_ref_seqs = malloc(sizeof(kseq_v) * n_extra_refs);
@@ -447,7 +463,7 @@ void ig_align_reads(const char *ref_path,
         extra_ref_seqs[i] = read_seqs(seq, 0);
         kseq_destroy(seq);
         gzclose(ref_fp);
-        fprintf(stderr, "[sw_align] Read %lu extra references from %s\n",
+        fprintf(stderr, "[ig_align] Read %lu extra references from %s\n",
                 kv_size(extra_ref_seqs[i]),
                 extra_ref_paths[i]);
     }
@@ -476,6 +492,7 @@ void ig_align_reads(const char *ref_path,
     conf.gap_o = gap_o;
     conf.gap_e = gap_e;
     conf.max_drop = max_drop;
+    conf.min_score = min_score;
     conf.m = m;
     conf.table = table;
     conf.mat = mat;
@@ -519,15 +536,17 @@ void ig_align_reads(const char *ref_path,
         free(w);
 
         for(size_t i = 0; i < n_reads; i++) {
-            fputs(sams[i].s, out_fp);
-            free(sams[i].s);
+            if(sams[i].s) {
+                fputs(sams[i].s, out_fp);
+                free(sams[i].s);
+            }
         }
         free(sams);
         count += n_reads;
         kv_destroy(reads);
     }
     kseq_destroy(seq);
-    fprintf(stderr, "[sw_align] Aligned %lu reads\n", count);
+    fprintf(stderr, "[ig_align] Aligned %lu reads\n", count);
 
     // Clean up reference sequences
     kvi_destroy(kseq_stack_destroy, ref_seqs);
