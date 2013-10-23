@@ -99,8 +99,8 @@
   "Returns a BitSet where set bits indicate that a site is certain"
   (-> r exp-match byte-array->uncertain-sites))
 
-(defn ig-segment [^SAMRecord r]
-  "Gene segment type (e.g. V / D / J"
+(defn ^Character ig-segment [^SAMRecord r]
+  "Gene segment type (e.g. V / D / J)"
   (-> r reference-name (.charAt 3)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
