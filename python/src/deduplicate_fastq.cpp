@@ -67,9 +67,11 @@ void deduplicate_fastq(const char* in_path,
         }
         it->second.count++;
 
-        if(n_processed % 50000 == 0) 
-            std::cout << "[dedup_fq] " << std::setw(10) << n_unique << "/" 
+        if(n_processed % 50000 == 0) {
+            std::cout << "[dedup_fq] "
+                << std::setw(10) << n_unique << "/"
                 << std::setw(10) << n_processed << " unique\r";
+        }
     }
     kseq_destroy(seq);
 
