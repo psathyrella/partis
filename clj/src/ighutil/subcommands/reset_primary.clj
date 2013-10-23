@@ -26,7 +26,7 @@
                            (.setBaseQualities read-qual)
                            (.setNotPrimaryAlignmentFlag false)
                            (.setSupplementaryAlignmentFlag
-                            (= (ig-segment f) \V)))
+                            (not= (ig-segment f) \V)))
                          (cons f (rest r))))]
     (->> reads
          (partition-by ig-segment)
