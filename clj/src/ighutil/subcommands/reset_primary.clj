@@ -32,7 +32,7 @@
          (partition-by ig-segment)
          (mapcat update-first))))
 
-(defn- max-score-tiebreak [reads {:keys [rand-f] :or {rand-f rand-nth}}]
+(defn- max-score-tiebreak [reads & {:keys [rand-f] :or {rand-f rand-nth}}]
   "Break the tie between SAM records with identical maximum alignment
    score using rand-nth."
   (if (= 1 (count reads))
@@ -52,11 +52,14 @@
           (doto selection
             (.setReadBases (.getReadBases primary))
             (.setBaseQualities (.getBaseQualities primary))
-            (.setNotPrimaryAlignmentFlag false))
+            (.setNotPrimaryAlignmentFlag false)
+            (.setSupplementaryAlignmentFlag
+             (.getSupplementaryAlignmentFlag primary)))
           (doto primary
             (.setNotPrimaryAlignmentFlag true)
             (.setReadBases SAMRecord/NULL_SEQUENCE)
-            (.setBaseQualities SAMRecord/NULL_QUALS))))
+            (.setBaseQualities SAMRecord/NULL_QUALS)
+            (.setSupplementaryAlignmentFlag false))))
       reads)))
 
 (defn reset-primary-record [sam-records & {:keys [randomize]
@@ -96,7 +99,7 @@
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (bam-writer
                           out-file
-                          header
+                          reader
                           :compress compress)]
         (doseq [^SAMRecord read (reset-primary-record read-iterator
                                                       :randomize randomize)]
