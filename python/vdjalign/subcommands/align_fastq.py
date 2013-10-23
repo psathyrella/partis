@@ -54,6 +54,8 @@ def fill_targets_alignment_options(p):
                       extension penalty [default: %(default)d]""")
     agrp.add_argument('--max-drop', default=0, type=int, help="""Maximum
                       alignment score drop [default: %(default)d]""")
+    agrp.add_argument('--bandwidth', default=150, type=int, help="""Bandwidth
+                      for global alignment [default: %(default)d]""")
 
 def build_parser(p):
     p.add_argument('fastq')
@@ -67,6 +69,7 @@ def action(a):
                               mismatch=a.mismatch,
                               gap_open=a.gap_open,
                               gap_extend=a.gap_extend,
+                              bandwidth=a.bandwidth,
                               max_drop=a.max_drop)
 
     log.info('aligning')

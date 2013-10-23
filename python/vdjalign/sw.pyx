@@ -34,6 +34,7 @@ cdef extern from "ig_align.h":
                         const int32_t,
                         const int32_t,
                         const unsigned,
+                        const unsigned,
                         const uint8_t,
                         const char*,
                         const char*) nogil
@@ -50,6 +51,7 @@ def ig_align(bytes ref_path,
              int gap_open=3,
              int gap_extend=1,
              int max_drop=0,
+             int bandwidth=150,
              int n_threads=1,
              bytes read_group=None):
     """
@@ -84,7 +86,7 @@ def ig_align(bytes ref_path,
     cdef int32_t m = match, p = mismatch, go = gap_open, ge = gap_extend, ne = len(extra_ref_paths)
     cdef uint8_t threads = n_threads
     cdef char** extra = <char**>malloc(sizeof(char*) * len(extra_ref_paths))
-    cdef unsigned md = max_drop
+    cdef unsigned md = max_drop, bw = bandwidth
 
     cdef bytes r
     try:
@@ -92,7 +94,7 @@ def ig_align(bytes ref_path,
             r = extra_ref_paths[i]
             extra[i] = r
         with nogil:
-            ig_align_reads(ref, ne, extra, qry, out, m, p, go, ge, md, threads, rg, rg_id)
+            ig_align_reads(ref, ne, extra, qry, out, m, p, go, ge, md, bandwidth, threads, rg, rg_id)
     finally:
         free(extra)
 
