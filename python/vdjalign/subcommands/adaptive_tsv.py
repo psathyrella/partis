@@ -76,6 +76,7 @@ def action(a):
                                   mismatch=a.mismatch,
                                   gap_open=a.gap_open,
                                   gap_extend=a.gap_extend,
+                                  bandwidth=a.bandwidth,
                                   max_drop=a.max_drop)
 
         closing = contextlib.closing

@@ -136,6 +136,7 @@ typedef struct {
     int m;            /* Number of residue tyes */
     int8_t *mat;      /* Scoring matrix */
     int max_drop;
+    unsigned bandwidth;
 } align_config_t;
 
 static aln_t align_read_against_one(kseq_t *target,
@@ -175,7 +176,7 @@ static aln_t align_read_against_one(kseq_t *target,
                conf->mat,
                conf->gap_o,
                conf->gap_e,
-               150, /* TODO: Magic number - band width */
+               conf->bandwidth,
                &aln.n_cigar,
                &aln.cigar);
 
@@ -393,6 +394,7 @@ void ig_align_reads(const char *ref_path,
                     const int32_t gap_o,       /* 3 */
                     const int32_t gap_e,       /* 1 */
                     const unsigned max_drop,   /* 1000 */
+                    const unsigned bandwidth,  /* 150 */
                     const uint8_t n_threads,   /* 1 */
                     const char *read_group,
                     const char *read_group_id)
@@ -477,6 +479,7 @@ void ig_align_reads(const char *ref_path,
     conf.m = m;
     conf.table = table;
     conf.mat = mat;
+    conf.bandwidth = bandwidth;
 
     read_fp = gzopen(qry_path, "r");
     assert(read_fp != NULL && "Failed to open query");
