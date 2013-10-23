@@ -24,22 +24,24 @@
   (-> path io/file SAMFileReader.))
 
 (defn ^SAMFileWriter bam-writer [path ^SAMFileReader reader &
-                                 {:keys [sorted]
-                                  :or {sorted true}}]
-  (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
-                       (.getFileHeader reader)
-                       sorted
-                       (io/file path)))
+                                 {:keys [sorted compress]
+                                  :or {sorted true
+                                       compress true}}]
+  (.makeBAMWriter (SAMFileWriterFactory.)
+                  (.getFileHeader reader)
+                  sorted
+                  (io/file path)
+                  (if compress 5 0)))
 
 (defn reference-names [^SAMFileReader reader]
   "Get the names of the reference sequences in this file."
   (letfn [(sequence-name [^net.sf.samtools.SAMSequenceRecord x]
             (.getSequenceName x))]
-  (->> reader
-       .getFileHeader
-       .getSequenceDictionary
-       .getSequences
-       (mapv sequence-name))))
+    (->> reader
+         .getFileHeader
+         .getSequenceDictionary
+         .getSequences
+         (mapv sequence-name))))
 
 ;;;;;;;;;;;;;
 ;; Accessors

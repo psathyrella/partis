@@ -51,6 +51,7 @@
                 :required true :parse-fn io/file]
                ["-r" "--reference-file" "Reference sequence file"
                 :required true :parse-fn io/file]
+               ["--[no-]compress" "Compress output?" :default true]
                ["-o" "--out-file" "Destination path"
                 :required true :parse-fn io/file]]}
   (assert (not= in-file out-file))
@@ -63,6 +64,7 @@
           read-iterator (->> reader
                              .iterator
                              iterator-seq)]
-      (with-open [writer (bam-writer out-file reader)]
+      (with-open [writer (bam-writer out-file reader
+                                     :compress compress)]
         (doseq [^SAMRecord read (match-probability read-iterator)]
           (.addAlignment writer read))))))

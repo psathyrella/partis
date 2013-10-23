@@ -82,8 +82,7 @@
                 :parse-fn io/file]
                ["--[no-]randomize" "Randomize primary record among top-scoring alignments."
                 :default true]
-               ["--compression-level" "Compression level"
-                :parse-fn #(Integer/valueOf ^String %) :default 9]]}
+               ["--[no-]compress" "Compress output?" :default true]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -95,11 +94,10 @@
                              .iterator
                              iterator-seq)]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
-      (with-open [writer (.makeBAMWriter (SAMFileWriterFactory.)
-                                         header
-                                         true
-                                         ^java.io.File out-file
-                                         compression-level)]
+      (with-open [writer (bam-writer
+                          header
+                          out-file
+                          :compress compress)]
         (doseq [^SAMRecord read (reset-primary-record read-iterator
                                                       :randomize randomize)]
           (assert (not (nil? read)))
