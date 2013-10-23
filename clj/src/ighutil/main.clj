@@ -8,8 +8,7 @@
        (str "ighutil.subcommands.")
        symbol))
 
-(def command-names (sort ["add-quality-scores"
-                          "annotate-vdj"
+(def command-names (sort ["annotate-vdj"
                           "calculate-match-probability"
                           "count-alignment-ties"
                           "count-mismatches"
