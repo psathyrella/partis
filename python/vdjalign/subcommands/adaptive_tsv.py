@@ -66,13 +66,13 @@ def action(a):
                           TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
                           TAG_STATUS: int(row['sequenceStatus'])})
                for i, row in enumerate(r))
-        log.info('Done.')
 
         sequences = []
         tags = []
         for i in rows:
             sequences.append((i.name, i.sequence))
             tags.append((i.name, i.tags))
+        log.info('Done: read %d', len(sequences))
 
         align = functools.partial(align_fastq.sw_to_bam, n_threads=a.threads,
                                   read_group=a.read_group,
