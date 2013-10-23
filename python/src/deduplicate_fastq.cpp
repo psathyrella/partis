@@ -21,8 +21,8 @@ KSEQ_INIT(gzFile, gzread);
 
 struct ReadWithCount
 {
-    ReadWithCount() : count(0) {};
-    ReadWithCount(string n, string s, size_t c=0) : name(n), seq(s), count(c) {};
+    ReadWithCount(const string& name, const string& seq, const size_t count=0) :
+        name(name), seq(seq), count(count) {};
     string name, seq;
     size_t count;
 };
@@ -69,8 +69,8 @@ void deduplicate_fastq(const char* in_path,
 
         if(n_processed % 50000 == 0) {
             std::cout << "[dedup_fq] "
-                << std::setw(10) << n_unique << "/"
-                << std::setw(10) << n_processed << " unique\r";
+                << std::right << std::setw(10) << n_unique << "/"
+                << std::right << std::setw(10) << n_processed << " unique\r";
         }
     }
     kseq_destroy(seq);
@@ -80,9 +80,11 @@ void deduplicate_fastq(const char* in_path,
 
     for(auto p : result)
         reads.push_back(std::move(p.second));
+    result.clear();
 
-    auto dec_count = [](const ReadWithCount& a, const ReadWithCount& b) { 
-        return a.count > b.count; 
+    /* Sort by descending frequency */
+    auto dec_count = [](const ReadWithCount& a, const ReadWithCount& b) {
+        return a.count > b.count;
     };
 
     std::sort(reads.begin(), reads.end(), dec_count);
