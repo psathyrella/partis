@@ -13,7 +13,7 @@ import tempfile
 
 import pysam
 
-from .. import util
+from .. import imgt, util
 from . import align_fastq
 
 log = logging.getLogger('vdjalign')
@@ -24,11 +24,11 @@ TAG_STATUS = 'XS'
 def add_tags(reads, rows):
     """Tags should be the length of reads, in same order"""
     reads = itertools.groupby(reads, operator.attrgetter('qname'))
-    for r, (g, v) in itertools.izip_longest(rows, reads):
-        assert r.name == g, (g, r.name)
+    for (name, tags), (g, v) in itertools.izip_longest(rows, reads):
+        assert name == g, (g, name)
         for read in v:
             t = read.tags
-            t.extend(r.tags.iteritems())
+            t.extend(tags.iteritems())
             read.tags = t
             yield read
 
@@ -58,17 +58,21 @@ def action(a):
         Row = collections.namedtuple('Row', ['name', 'sequence', 'v_index',
                                              'j_index', 'tags'])
         log.info('Loading sequences.')
-        rows= [Row(name=row.get('name', str(i)),
-                   sequence=row['nucleotide'],
-                   v_index=int_or_none(row.get('vIndex')),
-                   j_index=int_or_none(row.get('jIndex')),
-                   tags={TAG_COUNT: int_or_none(row[a.count_column]),
-                         TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
-                         TAG_STATUS: int(row['sequenceStatus'])})
-               for i, row in enumerate(r)]
+        rows = (Row(name=row.get('name', str(i)),
+                    sequence=row['nucleotide'],
+                    v_index=int_or_none(row.get('vIndex')),
+                    j_index=int_or_none(row.get('jIndex')),
+                    tags={TAG_COUNT: int_or_none(row[a.count_column]),
+                          TAG_CDR3_LENGTH: int_or_none(row['cdr3Length']),
+                          TAG_STATUS: int(row['sequenceStatus'])})
+               for i, row in enumerate(r))
         log.info('Done.')
 
-        sequences = [(i.name, i.sequence) for i in rows]
+        sequences = []
+        tags = []
+        for i in rows:
+            sequences.append((i.name, i.sequence))
+            tags.append((i.name, i.tags))
 
         align = functools.partial(align_fastq.sw_to_bam, n_threads=a.threads,
                                   read_group=a.read_group,
@@ -81,17 +85,20 @@ def action(a):
                                   max_drop=a.max_drop)
 
         closing = contextlib.closing
-        with align_fastq.resource_fasta('ighv_functional.fasta') as vf, \
-                align_fastq.resource_fasta('ighj_adaptive.fasta') as jf, \
-                align_fastq.resource_fasta('ighd.fasta') as df, \
+
+        with imgt.temp_fasta(a.locus, 'v', a.v_subset) as vf, \
+                imgt.temp_fasta(a.locus, 'j', a.j_subset) as jf, \
+                util.with_if(a.locus == 'IGH', imgt.temp_fasta, a.locus, 'd',
+                        collection=a.d_subset) as df, \
                 tempfile.NamedTemporaryFile(suffix='.bam') as tbam, \
                 tempfile.NamedTemporaryFile(suffix='.fasta') as tf:
             for name, sequence in sequences:
                 tf.write('>{0}\n{1}\n'.format(name, sequence))
             tf.flush()
+            ex_refs = [i for i in [df, jf] if i is not None]
+            align(vf, tf.name, tbam.name, extra_ref_paths=ex_refs)
 
-            align(vf, tf.name, tbam.name, extra_ref_paths=[df, jf])
             with closing(pysam.Samfile(tbam.name, 'rb')) as in_sam, \
                     closing(pysam.Samfile(a.out_bamfile, 'wb', template=in_sam)) as out_sam:
-                for read in add_tags(in_sam, rows):
+                for read in add_tags(in_sam, tags):
                     out_sam.write(read)
