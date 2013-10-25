@@ -19,6 +19,9 @@
 #include "ksw.h"
 #include "kvec.h"
 
+#define xstr(a) str(a)
+#define str(a) #a
+
 /* Cigar operations */
 /**
  * Describing how CIGAR operation/length is packed in a 32-bit integer.
@@ -471,8 +474,8 @@ void ig_align_reads(const char *ref_path,
     // Print SAM header
     out_fp = fopen(output_path, "w");
     fprintf(out_fp, "@HD\tVN:1.4\tSO:unsorted\n");
-    fprintf(out_fp, "@PG\tID:ig_align\tPN:ig_align\tCL:match=%d,mismatch=%d,go=%d,ge=%d\n",
-            match, mismatch, gap_o, gap_e);
+    fprintf(out_fp, "@PG\tID:ig_align\tPN:ig_align\tCL:match=%d,mismatch=%d,go=%d,ge=%d\tVN:%s\n",
+            match, mismatch, gap_o, gap_e, xstr(VDJALIGN_VERSION));
     for(size_t i = 0; i < kv_size(ref_seqs); i++) {
         seq = &kv_A(ref_seqs, i);
         fprintf(out_fp, "@SQ\tSN:%s\tLN:%d\n",
