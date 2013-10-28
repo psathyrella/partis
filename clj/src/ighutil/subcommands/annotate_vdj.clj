@@ -57,7 +57,8 @@
      (persistent!
       (reduce f (transient {}) aligned-pairs)))))
 
-(defn- annotate-reads [reads ^IntervalTreeMap tree]
+(defn- annotate-reads [reads ^IntervalTreeMap tree &
+                       {:keys [full-translation]}]
   "Annotate read using (possibly) multiple alignment segments"
   (let [^SAMRecord f (first reads)
         annotations (->> reads
@@ -73,7 +74,10 @@
                 (mod (- (int cys-start) (int v-start)) 3))
         cdr3-length (when (not (some nil? [cys-start tryp-end]))
                       (inc (- (int tryp-end) (int cys-start))))
-        translation (when in-frame (translate-read f frame v-start))]
+        translation (when in-frame
+                      (if full-translation
+                        (translate-read f (mod cys-start 3) 0)
+                        (translate-read f frame v-start)))]
     {:name (sam/read-name f)
      :cdr3-length cdr3-length
      :frame frame
@@ -124,7 +128,9 @@
                 :parse-fn zio/writer]
                ["-g" "--gff3" "GFF3 file [default: internal]"
                 :parse-fn gff3/slurp-gff3
-                :default @imgt/ighvj-gff]]}
+                :default @imgt/ighvj-gff]
+               ["--[no-]full-translation" "Completely translate sequence (outside of optimal alignment)?"
+                :default false]]}
   (with-open [^net.sf.samtools.SAMFileReader in-file in-file
               ^java.io.Writer out-file out-file]
     (let [reference-names (sam/reference-names in-file)
@@ -140,6 +146,7 @@
            .iterator
            iterator-seq
            sam/partition-by-name
-           (map #(annotate-reads % feature-tree))
+           (map #(annotate-reads % feature-tree
+                                 :full-translation full-translation))
            (map #(to-row % feature-names))
            (csv/write-csv out-file)))))
