@@ -1,9 +1,9 @@
 (ns ighutil.gff3
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
+            [ighutil.io :as zio]
             [plumbing.core :refer [keywordize-map ?>>]])
-  (:import [net.sf.picard.util IntervalTree
-            IntervalTree$Node]))
+  (:import [net.sf.picard.util Interval IntervalTreeMap]))
 
 (defn- parse-gff3-attributes [^String attributes &
                               {:keys [keywordize?]}]
@@ -33,19 +33,33 @@
        (remove #(or (string/blank? %) (.startsWith ^String % "#")))
        (map parse-gff3-record)))
 
-(defn gff3-to-interval-map [gff-records &
-                            {:keys [key] :or {key :Name}}]
-  "Creates a map of seqid -> IntervalTree, with `key` as the value in the
-   tree."
-  (letfn [(r [m {:keys [seqid start end attributes]}]
-            (let [^IntervalTree t (get m seqid (IntervalTree.))]
-              (.put t start end (get attributes key))
-              (assoc! m seqid t)))]
-    (persistent! (reduce r (transient {}) gff-records))))
+(defn slurp-gff3 [file-name]
+  (-> file-name
+      zio/reader
+      file-seq
+      parse-gff3
+      (into [])))
 
-(defn overlapping-vals [^IntervalTree tree pos]
-  (let [pos (int pos)
-        overlappers (.overlappers tree pos pos)]
-    (->> overlappers
-         iterator-seq
-         (mapv #(.getValue ^IntervalTree$Node %)))))
+(defn ^IntervalTreeMap gff3-to-interval-map [gff-records &
+                                             {:keys [key]
+                                              :or {key identity}}]
+  "Creates an IntervalTreeMap, with reference intervals as keys,
+   and gff-records as values"
+  (let [result (IntervalTreeMap.)]
+    (doseq [{:keys [seqid start end attributes] :as record} gff-records]
+      (.put result (Interval. seqid start end) (key record)))
+    result))
+
+(defn overlapping [^IntervalTreeMap tree ^String seqid pos]
+  "Get all intervals overlapping position `pos`"
+  (let [pos (int pos)]
+    (vec (.getOverlapping tree (Interval. seqid pos pos)))))
+
+(defn all-feature-names [^IntervalTreeMap tree &
+                         {:keys [key]
+                          :or {key (comp :Name :attributes)}}]
+  "Get all feature names from an interval tree map"
+  (vec
+   (for [^java.util.Map$Entry item tree]
+     [(.getSequence ^Interval (.getKey item))
+      (-> item .getValue key)])))

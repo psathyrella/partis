@@ -13,7 +13,7 @@ log = logging.getLogger('vdjalign')
 def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
               read_group=None, extra_ref_paths=[],
               match=1, mismatch=1, gap_open=7, gap_extend=1,
-              max_drop=0):
+              max_drop=0, min_score=0, bandwidth=150):
     with util.tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path:
         cmd1 = ['samtools', 'view', '-@', str(n_threads), '-o', bam_dest, '-Sb', fifo_path]
         log.info(' '.join(cmd1))
@@ -21,7 +21,8 @@ def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
         sw.ig_align(ref_path, sequence_path, fifo_path, n_threads=n_threads,
                     read_group=read_group, extra_ref_paths=extra_ref_paths,
                     gap_open=gap_open, mismatch=mismatch, match=match,
-                    gap_extend=gap_extend, max_drop=max_drop)
+                    gap_extend=gap_extend, max_drop=max_drop,
+                    bandwidth=bandwidth, min_score=min_score)
         returncode = p.wait()
         if returncode:
             raise subprocess.CalledProcessError(returncode, cmd1)
@@ -54,6 +55,10 @@ def fill_targets_alignment_options(p):
                       extension penalty [default: %(default)d]""")
     agrp.add_argument('--max-drop', default=0, type=int, help="""Maximum
                       alignment score drop [default: %(default)d]""")
+    agrp.add_argument('--min-score', default=0, type=int, help="""Minimum (V)
+                      alignment score [default: %(default)d]""")
+    agrp.add_argument('--bandwidth', default=150, type=int, help="""Bandwidth
+                      for global alignment [default: %(default)d]""")
 
 def build_parser(p):
     p.add_argument('fastq')
@@ -65,8 +70,10 @@ def action(a):
                               read_group=a.read_group,
                               match=a.match,
                               mismatch=a.mismatch,
+                              min_score=a.min_score,
                               gap_open=a.gap_open,
                               gap_extend=a.gap_extend,
+                              bandwidth=a.bandwidth,
                               max_drop=a.max_drop)
 
     log.info('aligning')

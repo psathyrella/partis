@@ -24,41 +24,58 @@
                          (doto f
                            (.setReadBases read-seq)
                            (.setBaseQualities read-qual)
-                           (.setSupplementaryAlignmentFlag true)
-                           (.setNotPrimaryAlignmentFlag false))
+                           (.setNotPrimaryAlignmentFlag false)
+                           (.setSupplementaryAlignmentFlag
+                            (not= (ig-segment f) \V)))
                          (cons f (rest r))))]
     (->> reads
          (partition-by ig-segment)
          (mapcat update-first))))
 
-(defn- random-tiebreak [reads]
-  (let [^SAMRecord primary (first (filter primary? reads))
-        sorted (sort-by alignment-score #(compare %2 %1) reads)
-        max-score (-> sorted
-                      first
-                      alignment-score)
-        max-records (vec (take-while
-                          (comp (partial = max-score) alignment-score)
-                          sorted))
-        ^SAMRecord selection (rand-nth max-records)]
-    (when (and primary (not= selection primary))
-      (do
-        ;; Swap out the primary read
-        (doto selection
-          (.setReadBases (.getReadBases primary))
-          (.setBaseQualities (.getBaseQualities primary))
-          (.setNotPrimaryAlignmentFlag false))
-        (doto primary
-          (.setNotPrimaryAlignmentFlag true)
-          (.setReadBases SAMRecord/NULL_SEQUENCE)
-          (.setBaseQualities SAMRecord/NULL_QUALS))))
-    reads))
-
-(defn- assign-primary-for-partition [select-fn reads]
-  "Assign a primary read for a partition of mappings for a single read"
+(defn- max-score-tiebreak [reads & {:keys [rand-f] :or {rand-f rand-nth}}]
+  "Break the tie between SAM records with identical maximum alignment
+   score using rand-nth."
   (if (= 1 (count reads))
     reads
-    (select-fn reads)))
+    (let [^SAMRecord primary (first (filter primary? reads))
+          sorted (sort-by alignment-score #(compare %2 %1) reads)
+          max-score (-> sorted
+                        first
+                        alignment-score)
+          max-records (vec (take-while
+                            (comp (partial = max-score) alignment-score)
+                            sorted))
+          ^SAMRecord selection (rand-f max-records)]
+      (when (and primary (not= selection primary))
+        (do
+          ;; Swap out the primary read
+          (doto selection
+            (.setReadBases (.getReadBases primary))
+            (.setBaseQualities (.getBaseQualities primary))
+            (.setNotPrimaryAlignmentFlag false)
+            (.setSupplementaryAlignmentFlag
+             (.getSupplementaryAlignmentFlag primary)))
+          (doto primary
+            (.setNotPrimaryAlignmentFlag true)
+            (.setReadBases SAMRecord/NULL_SEQUENCE)
+            (.setBaseQualities SAMRecord/NULL_QUALS)
+            (.setSupplementaryAlignmentFlag false))))
+      reads)))
+
+(defn reset-primary-record [sam-records & {:keys [randomize]
+                                           :or {randomize true}}]
+  "Given a sequence of SAMRecord objects, sorted by name, assigns a
+   new primary record for each partition (if :randomize is true
+   [default]), copies bases and qualities to each primary segment
+   record, sets the supplementary alignment flag for each non-V segment"
+  (->> sam-records
+       partition-by-name
+       (mapcat set-supp-and-bases-per-gene)
+       partition-by-name-segment
+       (map vec)
+       (mapcat #(max-score-tiebreak
+                 %
+                 :rand-f (if randomize rand-nth first)))))
 
 (defcommand reset-primary
   "Reset primary alignment, breaking ties randomly"
@@ -66,9 +83,9 @@
                 :required true :parse-fn io/file]
                ["-o" "--out-file" "Destination path":required true
                 :parse-fn io/file]
-               ["--[no-]sorted" "Input values are sorted." :default false]
-               ["--compression-level" "Compression level"
-                :parse-fn #(Integer/valueOf ^String %) :default 9]]}
+               ["--[no-]randomize" "Randomize primary record among top-scoring alignments."
+                :default true]
+               ["--[no-]compress" "Compress output?" :default true]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -78,21 +95,13 @@
     (let [header (.getFileHeader reader)
           read-iterator (->> reader
                              .iterator
-                             iterator-seq)
-          partitioned-reads (->> read-iterator
-                                 partition-by-name
-                                 (mapcat set-supp-and-bases-per-gene)
-                                 partition-by-name-segment
-                                 (map vec)
-                                 (mapcat #(assign-primary-for-partition
-                                           random-tiebreak
-                                           %)))]
+                             iterator-seq)]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
-      (with-open [writer (.makeBAMWriter (SAMFileWriterFactory.)
-                                         header
-                                         true
-                                         ^java.io.File out-file
-                                         compression-level)]
-        (doseq [^SAMRecord read partitioned-reads]
+      (with-open [writer (bam-writer
+                          out-file
+                          reader
+                          :compress compress)]
+        (doseq [^SAMRecord read (reset-primary-record read-iterator
+                                                      :randomize randomize)]
           (assert (not (nil? read)))
           (.addAlignment writer read))))))

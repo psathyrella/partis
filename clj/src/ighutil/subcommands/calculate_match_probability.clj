@@ -9,10 +9,10 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
             [ighutil.sam :refer [primary?
-                                 alignment-score
-                                 partition-by-name-segment
-                                 read-name
                                  mapped?
+                                 alignment-score
+                                 read-name
+                                 partition-by-name-segment
                                  bam-writer
                                  TAG-EXP-MATCH]]))
 
@@ -27,21 +27,33 @@
                           first
                           alignment-score)
             max-records (vec (take-while
-                              (comp (partial = max-score) alignment-score)
+                              (comp #(= max-score %) alignment-score)
                               sorted))
             eq-prop (SAMUtils/calculateBaseEqualProbabilities refs max-records)]
         (.setAttribute primary TAG-EXP-MATCH eq-prop))))
   reads)
 
+(defn match-probability [sam-records refs]
+  "Calculate the match probability for a collection of records ordered
+   by name and V/D/J segment.
+
+   Match probability (expressed as percentage) is added as
+   tag 'bq', a byte array, to the primary record."
+  (->> sam-records
+       partition-by-name-segment
+       (map vec)
+       (mapcat #(cal-equal refs %))))
+
+;; Command line interface to match-probability
 (defcommand calculate-match-probability
   "Calculate the probability that each base matches the reference"
   {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
                 :required true :parse-fn io/file]
                ["-r" "--reference-file" "Reference sequence file"
                 :required true :parse-fn io/file]
-               ["-o" "--out-file" "Destination path":required true
-                :parse-fn io/file]
-               ["--[no-]sorted" "Input values are sorted." :default false]]}
+               ["--[no-]compress" "Compress output?" :default true]
+               ["-o" "--out-file" "Destination path"
+                :required true :parse-fn io/file]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -51,11 +63,8 @@
     (let [refs (->> reference-file extract-references (into {}))
           read-iterator (->> reader
                              .iterator
-                             iterator-seq)
-          partitioned-reads (->> read-iterator
-                                 partition-by-name-segment
-                                 (map vec)
-                                 (mapcat #(cal-equal refs %)))]
-      (with-open [writer (bam-writer out-file reader)]
-        (doseq [^SAMRecordread read partitioned-reads]
+                             iterator-seq)]
+      (with-open [writer (bam-writer out-file reader
+                                     :compress compress)]
+        (doseq [^SAMRecord read (match-probability read-iterator refs)]
           (.addAlignment writer read))))))

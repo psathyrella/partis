@@ -91,18 +91,21 @@ length >= k"
   (when (seq positions)
     (let [f (first positions)
           positions (rest positions)]
-      (loop [result (IntervalTree.)
-             [start end] [f f]
-             positions positions]
-        (if-let [[i & r] positions]
-          (if (or (= end i) (= (inc end) i))
-            (recur result [start i] r)
+      (if (seq positions)
+        (loop [result (IntervalTree.)
+               [start end] [f f]
+               positions positions]
+          (if-let [[i & r] positions]
+            (if (or (= end i) (= (inc end) i))
+              (recur result [start i] r)
+              (do
+                (.put result start end 1)
+                (recur result [i i] r)))
             (do
               (.put result start end 1)
-              (recur result [i i] r)))
-          (do
-            (.put result start end 1)
-            result))))))
+              result)))
+        (doto (IntervalTree.)
+          (.put f f 1))))))
 
 (defn- parse-exclude-file [^java.io.Reader r]
   (->> (read-typed-csv r {:position int-of-string})

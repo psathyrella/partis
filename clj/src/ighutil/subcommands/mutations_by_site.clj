@@ -100,16 +100,16 @@
                ["-r" "--reference-file" "Reference file" :required true]
                ["--[no-]uncertain" "Allow uncertain positions?" :default true]]}
   (let [ref-map (into {}  (extract-references reference-file))]
-    (with-open [sam (SAMFileReader. ^java.io.File in-file)]
+    (with-open [sam (sam/bam-reader in-file)]
       (.setValidationStringency
        sam
        SAMFileReader$ValidationStringency/SILENT)
       (with-open [^java.io.Closeable out-file out-file]
-        (csv/write-csv out-file [["reference" "position"
-                                  "alignment_position"
-                                  "ref_base" "n_reads" "exp_matching"
-                                  "A" "C" "G" "T" "N"]])
-        (let [base-freqs (count-bases-by-position
+        (let [header ["reference" "position"
+                      "alignment_position"
+                      "ref_base" "n_reads" "exp_matching"
+                      "A" "C" "G" "T" "N"]
+              base-freqs (count-bases-by-position
                           (-> sam .iterator iterator-seq)
                           ref-map
                           :drop-uncertain (not uncertain))
@@ -118,4 +118,4 @@
                         (map (juxt :reference :position :alignment-position
                                    :ref-base :n-reads :exp-match
                                    :A :C :G :T :N)))]
-          (csv/write-csv out-file rows))))))
+          (csv/write-csv out-file (cons header rows)))))))

@@ -4,7 +4,7 @@
             [clojure.edn :as edn]
             [cheshire.core :as cheshire]
             [ighutil.gff3 :as gff3]
-            [flatland.useful.seq :refer [indexed]])
+            [plumbing.core :refer [indexed]])
   (:import [net.sf.picard.reference FastaSequenceFile ReferenceSequence]))
 
 (def GAP-CHARS #{\. \-})

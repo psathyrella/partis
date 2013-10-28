@@ -1,6 +1,7 @@
 (ns ighutil.sam
   "Tools for working with SAM/BAM records"
   (:import [net.sf.samtools
+            Defaults
             SAMRecord
             SAMFileReader
             SAMFileReader$ValidationStringency
@@ -24,12 +25,24 @@
   (-> path io/file SAMFileReader.))
 
 (defn ^SAMFileWriter bam-writer [path ^SAMFileReader reader &
-                                 {:keys [sorted]
-                                  :or {sorted true}}]
-  (.makeSAMOrBAMWriter (SAMFileWriterFactory.)
-                       (.getFileHeader reader)
-                       sorted
-                       (io/file path)))
+                                 {:keys [sorted compress]
+                                  :or {sorted true
+                                       compress true}}]
+  (.makeBAMWriter (SAMFileWriterFactory.)
+                  (.getFileHeader reader)
+                  sorted
+                  (io/file path)
+                  (if compress Defaults/COMPRESSION_LEVEL 0)))
+
+(defn reference-names [^SAMFileReader reader]
+  "Get the names of the reference sequences in this file."
+  (letfn [(sequence-name [^net.sf.samtools.SAMSequenceRecord x]
+            (.getSequenceName x))]
+    (->> reader
+         .getFileHeader
+         .getSequenceDictionary
+         .getSequences
+         (mapv sequence-name))))
 
 ;;;;;;;;;;;;;
 ;; Accessors
@@ -89,10 +102,13 @@
   "Returns a BitSet where set bits indicate that a site is certain"
   (-> r exp-match byte-array->uncertain-sites))
 
-(defn ig-segment [^SAMRecord r]
-  "Gene segment type (e.g. V / D / J"
+(defn ^Character ig-segment [^SAMRecord r]
+  "Gene segment type (e.g. V / D / J)"
   (-> r reference-name (.charAt 3)))
 
+(defn ^String ig-locus-segment [^SAMRecord r]
+  "Gene locus and segment type (e.g. IGHV, IGHD, IGLJ)"
+  (-> r reference-name (.substring 0 4)))
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Record partitioning
 ;;;;;;;;;;;;;;;;;;;;;;
