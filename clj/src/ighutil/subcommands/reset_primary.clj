@@ -138,7 +138,8 @@
                          .iterator
                          iterator-seq
                          unlikely-alleles))]
-    (println "Removing " to-remove)
+    (binding [*out* *err*]
+      (println "Removing " to-remove))
     (with-open [reader (SAMFileReader. ^java.io.File in-file)]
       (.setValidationStringency
        reader
