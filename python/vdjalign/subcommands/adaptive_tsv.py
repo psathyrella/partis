@@ -44,7 +44,8 @@ def build_parser(p):
     p.add_argument('csv_file', type=util.opener('rU'))
     p.add_argument('-d', '--delimiter', default='\t',
                    help="""Delimiter [default: tab]""")
-    p.add_argument('-c', '--count-column', default='n_sources')
+    p.add_argument('-c', '--count-column', default='n_sources', help="""Column
+                   containing (integer) counts [default: %(default)s]""")
 
     align_fastq.fill_targets_alignment_options(p)
 
