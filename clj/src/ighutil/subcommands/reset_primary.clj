@@ -35,63 +35,75 @@
          (partition-by ig-segment)
          (mapcat update-first))))
 
-
-(defn- unlikely-alleles [reads]
-  (let [filter-max-score
-        (fn [reads]
-          (let [sorted (sort-by alignment-score #(compare %2 %1) reads)
-                max-score (-> sorted first alignment-score)]
-            (take-while #(= max-score (alignment-score %)) sorted)))
-        drop-group
-        (fn [freqs]
-          (let [s (reduce + (map second freqs))
-                minimum (* 0.2 (float s))]
-            (->> freqs
-                 (filter (comp #(<= % minimum) second))
-                 (map first))))]
-    (->> reads
+(defn- unlikely-alleles [alignments & {:keys [min-prop] :or {min-prop 0.1}}]
+  "List alleles present at less than 'min-prop' proportion of reads for a gene"
+  (letfn [(filter-max-score
+            [alignments]
+            (let [sorted (sort-by alignment-score #(compare %2 %1) alignments)
+                  max-score (-> sorted first alignment-score)
+                  to-keep (vec (take-while #(= max-score (alignment-score %)) sorted))
+                  n-keep (count to-keep)]
+              (into
+               {}
+               (for [record to-keep]
+                 [(reference-name record) (/ 1.0 n-keep)]))))
+          (drop-group
+            [freqs]
+            (let [s (reduce + (map second freqs))
+                  minimum (* min-prop (float s))]
+              (->> freqs
+                   (filter (comp #(<= % minimum) second))
+                   (map first))))]
+    (->> alignments
          partition-by-name-segment
-         (mapcat filter-max-score)
-         (map reference-name)
-         frequencies-fast
+         (map filter-max-score)
+         (reduce #(merge-with + %1 %2))
          seq
          sort
          (partition-by (comp strip-allele first))
          (mapcat drop-group)
          (into #{}))))
 
-(defn- max-score-tiebreak [reads & {:keys [rand-f to-remove]
-                                    :or {rand-f rand-nth
-                                         to-remove #{}}}]
-  "Break the tie between SAM records with identical maximum alignment
-   score using rand-nth."
-  (if (= 1 (count reads))
-    reads
-    (let [^SAMRecord primary (first (filter primary? reads))
-          sorted (sort-by alignment-score #(compare %2 %1) reads)
-          dropped-unlikely (remove to-remove sorted)
-          max-score (-> sorted
-                        first
-                        alignment-score)
-          max-records (vec (take-while
-                            (comp #(= max-score %) alignment-score)
-                            dropped-unlikely))
-          ^SAMRecord selection (rand-f max-records)]
-      (when (and primary (not= selection primary))
-        (do
-          ;; Swap out the primary read
-          (doto selection
-            (.setReadBases (.getReadBases primary))
-            (.setBaseQualities (.getBaseQualities primary))
-            (.setNotPrimaryAlignmentFlag false)
-            (.setSupplementaryAlignmentFlag
-             (.getSupplementaryAlignmentFlag primary)))
-          (doto primary
-            (.setNotPrimaryAlignmentFlag true)
-            (.setReadBases SAMRecord/NULL_SEQUENCE)
-            (.setBaseQualities SAMRecord/NULL_QUALS)
-            (.setSupplementaryAlignmentFlag false))))
-      reads)))
+(defn- max-score-tiebreak [alignments & {:keys [rand-f to-remove]
+                                         :or {rand-f rand-nth
+                                              to-remove #{}}}]
+  "alignments should all have the same query
+
+   Break the tie between SAM records with identical maximum alignment
+   score using rand-nth.
+
+   Drops any alignments to "
+  (assert (set? to-remove))
+  (if (= 1 (count alignments))
+    alignments
+    (let [^SAMRecord primary (first (filter primary? alignments))
+          sorted (sort-by alignment-score #(compare %2 %1) alignments)
+          dropped-unlikely (remove #(-> % reference-name to-remove) sorted)]
+      (if (seq dropped-unlikely)
+        (let [max-score (-> dropped-unlikely
+                            first
+                            alignment-score)
+              max-records (vec (take-while
+                                (comp #(= max-score %) alignment-score)
+                                dropped-unlikely))
+              ^SAMRecord selection (rand-f max-records)]
+          (when (and primary (not= selection primary))
+            (do
+              ;; Swap out the primary read and the new selection
+              (doto selection
+                (.setReadBases (.getReadBases primary))
+                (.setBaseQualities (.getBaseQualities primary))
+                (.setNotPrimaryAlignmentFlag false)
+                (.setSupplementaryAlignmentFlag
+                 (.getSupplementaryAlignmentFlag primary)))
+              (doto primary
+                (.setNotPrimaryAlignmentFlag true)
+                (.setReadBases SAMRecord/NULL_SEQUENCE)
+                (.setBaseQualities SAMRecord/NULL_QUALS)
+                (.setSupplementaryAlignmentFlag false))))
+          alignments)
+        ;; drop all alignments for the read
+        []))))
 
 (defn reset-primary-record [sam-records & {:keys [randomize to-remove]
                                            :or {randomize true
