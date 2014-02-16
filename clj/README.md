@@ -2,12 +2,8 @@
 
 A clojure library for working with IGH sequencing data
 
-## Usage
-
-FIXME
-
 ## License
 
-Copyright © 2013 FIXME
+Copyright © 2013 Connor McCoy
 
-Distributed under the Eclipse Public License, the same as Clojure.
+Distributed under the GNU public license version 3

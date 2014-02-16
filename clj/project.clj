@@ -1,8 +1,7 @@
 (defproject ighutil "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
-  :url "http://example.com/FIXME"
-  :license {:name "Eclipse Public License"
-            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :description "Tools for working with immunoglobulin sequences at high throughput"
+  :license {:name "GPL v3"
+            :url "https://www.gnu.org/licenses/gpl.txt"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojars.chapmanb/picard "1.96"]
                  [org.clojars.chapmanb/sam "1.96"]
