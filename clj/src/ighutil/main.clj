@@ -12,6 +12,7 @@
                           "calculate-match-probability"
                           "count-alignment-ties"
                           "count-mismatches"
+                          "distinct-by-vdjcdr3"
                           "enumerate-mutations"
                           "identify-motif"
                           "identify-subsets"
