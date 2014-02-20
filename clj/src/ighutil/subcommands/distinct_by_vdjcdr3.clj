@@ -11,14 +11,13 @@
             [ighutil.imgt :refer [strip-allele]]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
-            [plumbing.core :refer [distinct-by for-map frequencies-fast]]))
+            [plumbing.core :refer [distinct-by frequencies-fast]]))
 
 
 (defn- vdjcdr3 [sam-records]
   (let [^SAMRecord record (first sam-records)
-        vdj (for-map
-             [^String reference (map sam/reference-name sam-records)]
-             (.substring reference 0 4) reference)
+        vdj (into {} (for [^String r (mapv sam/reference-name sam-records)]
+                       [(.substring r 0 4) r]))
         cdr3-length (.getIntegerAttribute record "XL")]
     [(get vdj "IGHV") (get vdj "IGHD") (get vdj "IGHJ") cdr3-length]))
 
