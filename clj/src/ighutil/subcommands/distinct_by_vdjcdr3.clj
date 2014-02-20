@@ -13,6 +13,7 @@
             [ighutil.sam :as sam]
             [plumbing.core :refer [distinct-by for-map frequencies-fast]]))
 
+
 (defn- vdjcdr3 [sam-records]
   (let [^SAMRecord record (first sam-records)
         vdj (for-map
@@ -20,6 +21,9 @@
              (.substring reference 0 4) reference)
         cdr3-length (.getIntegerAttribute record "XL")]
     [(get vdj "IGHV") (get vdj "IGHD") (get vdj "IGHJ") cdr3-length]))
+
+(defn- frequency-atom [f a]
+  (fn [x] (let [r (f x)] (swap! a update-in [r] (fnil inc 0)) r)))
 
 (defcommand distinct-by-vdjcdr3
   "Distinct records by V/D/J/cdr3"
@@ -40,24 +44,19 @@
           read-iterator (->> reader
                              .iterator
                              iterator-seq)
-          by-name (->> read-iterator
-                       (partition-by sam/read-name)
-                       (map vec))
-          vdj-freqs (atom {})]
+          vdj-freqs (atom {})
+          to-write (->> read-iterator
+                        (partition-by sam/read-name)
+                        (distinct-by (frequency-atom vdjcdr3 vdj-freqs))
+                        (apply concat))]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (sam/bam-writer
                           out-file
                           reader
                           :compress compress)]
-        (doseq [record-group by-name]
-          (assert (<= (count record-group) 3))
-          (let [g (vdjcdr3 record-group)]
-            (when (every? (complement nil?) g)
-              (when (not (contains? @vdj-freqs g))
-                ;; New group
-                (doseq [^SAMRecord read record-group]
-                  (.addAlignment writer read)))
-              (swap! vdj-freqs update-in [g] (fnil inc 0))))))
+        (doseq [^SAMRecord read to-write]
+          (assert (not (nil? read)))
+          (.addAlignment writer read)))
       (when count-file
         (with-open [^java.io.Writer f count-file]
           (->> @vdj-freqs
