@@ -50,11 +50,12 @@
                           :compress compress)]
         (doseq [record-group by-name]
           (let [group (vdjcdr3 record-group)]
-            (when (not (contains? @vdj-freqs group))
-              ;; New group
-              (doseq [^SAMRecord read record-group]
-                (.addAlignment writer read)))
-            (swap! vdj-freqs update-in [group] (fnil inc 0)))))
+            (when (every? (complement nil?) group)
+              (when (not (contains? @vdj-freqs group))
+                ;; New group
+                (doseq [^SAMRecord read record-group]
+                  (.addAlignment writer read)))
+              (swap! vdj-freqs update-in [group] (fnil inc 0))))))
       (when count-file
         (with-open [^java.io.Writer f count-file]
           (->> @vdj-freqs
