@@ -5,25 +5,35 @@
             SAMFileReader$ValidationStringency
             SAMFileWriterFactory
             SAMFileHeader$SortOrder])
-  (:require [clojure.java.io :as io]
+  (:require [clojure.data.csv :as csv]
+            [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
-            [ighutil.sam :as sam]
             [ighutil.imgt :refer [strip-allele]]
-            [plumbing.core :refer [frequencies-fast distinct-by]]))
+            [ighutil.io :as zio]
+            [ighutil.sam :as sam]
+            [plumbing.core :refer [?>> distinct-by]]))
+
 
 (defn- vdjcdr3 [sam-records]
   (let [^SAMRecord record (first sam-records)
-        vdj (into #{} (map sam/reference-name sam-records))
+        vdj (into {} (for [^String r (mapv sam/reference-name sam-records)]
+                       [(.substring r 0 4) r]))
         cdr3-length (.getIntegerAttribute record "XL")]
-    [vdj cdr3-length]))
+    [(get vdj "IGHV") (get vdj "IGHD") (get vdj "IGHJ") cdr3-length]))
+
+(defn- frequency-atom [f a]
+  (fn [x] (let [r (f x)] (swap! a update-in [r] (fnil inc 0)) r)))
 
 (defcommand distinct-by-vdjcdr3
   "Distinct records by V/D/J/cdr3"
   {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
                 :required true :parse-fn io/file]
-               ["-o" "--out-file" "Destination path":required true
+               ["-o" "--out-file" "Destination path" :required true
                 :parse-fn io/file]
-               ["--[no-]compress" "Compress output?" :default true]]}
+               ["--[no-]all-vdj" "require a V, D, and J alignment" :default true]
+               ["-c" "--count-file" "Store input counts of each V/D/J/CDR3 combination to this path"
+                :parse-fn zio/writer]
+               ["--[no-]compress" "Compress BAM output?" :default true]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
   (with-open [reader (SAMFileReader. ^java.io.File in-file)]
@@ -34,10 +44,15 @@
           read-iterator (->> reader
                              .iterator
                              iterator-seq)
+          vdj-freqs (atom {})
           to-write (->> read-iterator
-                          (partition-by sam/read-name)
-                          (distinct-by vdjcdr3)
-                          (apply concat))]
+                        (partition-by sam/read-name)
+                        (?>> all-vdj remove (fn [x] (->> x vdjcdr3 (some nil?))))
+                        (distinct-by
+                         (if count-file
+                           (frequency-atom vdjcdr3 vdj-freqs)
+                           vdjcdr3))
+                        (apply concat))]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (sam/bam-writer
                           out-file
@@ -45,4 +60,12 @@
                           :compress compress)]
         (doseq [^SAMRecord read to-write]
           (assert (not (nil? read)))
-          (.addAlignment writer read))))))
+          (.addAlignment writer read)))
+      (when count-file
+        (with-open [^java.io.Writer f count-file]
+          (->> @vdj-freqs
+               seq
+               sort
+               (map #(apply conj %))
+               (cons ["v_gene" "d_gene" "j_gene" "cdr3_length" "count"])
+               (csv/write-csv count-file)))))))
