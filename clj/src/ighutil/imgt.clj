@@ -67,8 +67,7 @@
               parse-fasta
               (map extract-position)
               (into {}))))))
-
-(defn slurp-edn-resource [resource-name]
+(defn- slurp-edn-resource [resource-name]
   (with-open [reader (-> resource-name
                          io/resource
                          io/reader
