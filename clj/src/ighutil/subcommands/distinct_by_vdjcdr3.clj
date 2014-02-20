@@ -47,7 +47,10 @@
           vdj-freqs (atom {})
           to-write (->> read-iterator
                         (partition-by sam/read-name)
-                        (distinct-by (frequency-atom vdjcdr3 vdj-freqs))
+                        (distinct-by
+                         (if count-file
+                           (frequency-atom vdjcdr3 vdj-freqs)
+                           vdjcdr3))
                         (apply concat))]
       (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
       (with-open [writer (sam/bam-writer
