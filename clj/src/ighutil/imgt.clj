@@ -58,8 +58,12 @@
                                   [(second (.split name "\\|"))
                                    {:aligned-length (count sequence)
                                     :cysteine-position
-                                    (get pos-map CYSTEINE-POSITION)
-                                    :translation pos-map
+                                    (get (->> pos-map
+                                              seq (map reverse)
+                                              (map vec)
+                                              (into {}))
+                                         CYSTEINE-POSITION)
+                                    :translation (->> pos-map seq sort (mapv second))
                                     :aligned sequence
                                     :sequence (.replaceAll sequence "[.-]" "")}]))]
          (->> reader
@@ -85,10 +89,11 @@
                              gff3/parse-gff3
                              vec))))
 
-(defn dump-v-gene-meta [fname]
-  (->> @v-gene-meta
-       (map #(update-in % [1 :translation]
-                        (comp (partial apply mapv vector) sort)))
-       (into {})
-       cheshire/encode
-       (spit fname)))
+(defn dump-v-gene-meta [fname & {:keys [pretty?] :or {pretty? true}}]
+  (let [encode-pretty #(cheshire/encode % {:pretty pretty?})]
+    (->> @v-gene-meta
+         (map #(update-in % [1 :translation]
+                          (comp (partial apply mapv vector) sort)))
+         (into {})
+         encode-pretty
+         (spit fname))))
