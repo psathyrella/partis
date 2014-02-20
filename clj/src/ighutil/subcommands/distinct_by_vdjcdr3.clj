@@ -11,7 +11,7 @@
             [ighutil.imgt :refer [strip-allele]]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
-            [plumbing.core :refer [distinct-by frequencies-fast]]))
+            [plumbing.core :refer [?>> distinct-by]]))
 
 
 (defn- vdjcdr3 [sam-records]
@@ -30,6 +30,7 @@
                 :required true :parse-fn io/file]
                ["-o" "--out-file" "Destination path" :required true
                 :parse-fn io/file]
+               ["--[no-]all-vdj" "require a V, D, and J alignment" :default true]
                ["-c" "--count-file" "Store input counts of each V/D/J/CDR3 combination to this path"
                 :parse-fn zio/writer]
                ["--[no-]compress" "Compress BAM output?" :default true]]}
@@ -46,6 +47,7 @@
           vdj-freqs (atom {})
           to-write (->> read-iterator
                         (partition-by sam/read-name)
+                        (?>> all-vdj remove (fn [x] (->> x vdjcdr3 (some nil?))))
                         (distinct-by
                          (if count-file
                            (frequency-atom vdjcdr3 vdj-freqs)
