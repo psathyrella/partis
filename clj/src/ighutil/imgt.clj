@@ -59,11 +59,12 @@
                                    {:aligned-length (count sequence)
                                     :cysteine-position
                                     (get (->> pos-map
-                                              seq (map reverse)
+                                              seq
+                                              (map reverse)
                                               (map vec)
                                               (into {}))
                                          CYSTEINE-POSITION)
-                                    :translation (->> pos-map seq sort (mapv second))
+                                    :translation pos-map
                                     :aligned sequence
                                     :sequence (.replaceAll sequence "[.-]" "")}]))]
          (->> reader
@@ -93,7 +94,7 @@
   (let [encode-pretty #(cheshire/encode % {:pretty pretty?})]
     (->> @v-gene-meta
          (map #(update-in % [1 :translation]
-                          (comp (partial apply mapv vector) sort)))
+                          (comp (partial mapv second) sort seq)))
          (into {})
          encode-pretty
          (spit fname))))
