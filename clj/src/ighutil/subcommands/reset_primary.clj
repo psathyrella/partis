@@ -1,4 +1,8 @@
 (ns ighutil.subcommands.reset-primary
+  "Resets the primary record for each sequence,
+  first adding sequence data to each segment (IGHV, IGHD, IGHJ),
+  then finding alleles which may be present in the data,
+  finally choosing randomly among best-scoring alignments."
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader

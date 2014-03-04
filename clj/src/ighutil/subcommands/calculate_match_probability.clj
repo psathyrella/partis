@@ -1,4 +1,6 @@
 (ns ighutil.subcommands.calculate-match-probability
+  "Calculate the probability of a match/mismatch at each position averaged over
+  best-scoring alignments."
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
