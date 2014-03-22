@@ -18,7 +18,6 @@
                  [cheshire "5.2.0"]]
   :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}}
   :java-source-paths ["src/java"]
-  :javac-options ["-target" "1.6" "-source" "1.6"]
   :omit-source false
   :global-vars {*warn-on-reflection* true}
   :aot [ighutil.main]

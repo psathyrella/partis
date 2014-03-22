@@ -1,9 +1,10 @@
 (ns ighutil.fasta
+  "Simple FASTA parsing - loads all sequences into memory."
+  (:require [clojure.java.io :as io])
   (:import [net.sf.picard.reference
             ReferenceSequenceFile
             ReferenceSequenceFileFactory
-            ReferenceSequence])
-  (:require [clojure.java.io :as io]))
+            ReferenceSequence]))
 
 (defprotocol ExtractRefable
   (extract-references [x]

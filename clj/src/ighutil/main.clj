@@ -10,6 +10,7 @@
        symbol))
 
 (def command-names (sort ["annotate-vdj"
+                          "aligned-base-composition"
                           "calculate-match-probability"
                           "count-alignment-ties"
                           "count-mismatches"
@@ -18,7 +19,6 @@
                           "identify-motif"
                           "kmer-matrix"
                           "mutation-correlation"
-                          "aligned-base-composition"
                           "mutations-by-site"
                           "reset-primary"]))
 
