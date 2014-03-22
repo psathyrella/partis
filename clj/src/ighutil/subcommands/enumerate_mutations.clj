@@ -13,8 +13,7 @@
             [ighutil.fasta :refer [extract-references]]
             [ighutil.imgt :refer [strip-allele]]
             [ighutil.io :as zio]
-            [ighutil.sam :as sam]
-            [ighutil.ubtree :as ub]))
+            [ighutil.sam :as sam]))
 
 
 (let [n-records (atom 0)]

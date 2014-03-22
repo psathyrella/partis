@@ -16,7 +16,6 @@
                           "distinct-by-vdjcdr3"
                           "enumerate-mutations"
                           "identify-motif"
-                          "identify-subsets"
                           "kmer-matrix"
                           "mutation-correlation"
                           "aligned-base-composition"
