@@ -1,4 +1,5 @@
 (ns ighutil.main
+  "Main entry point - dispatches to subcommands"
   (:require [cliopatra.command :as command])
   (:gen-class
    :name ighutil.main))

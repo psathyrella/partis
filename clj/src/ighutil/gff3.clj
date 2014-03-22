@@ -1,4 +1,5 @@
 (ns ighutil.gff3
+  "Primitive GFF3 parser"
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
             [ighutil.io :as zio]
@@ -29,11 +30,13 @@
      :attributes (parse-gff3-attributes attr :keywordize? true)}))
 
 (defn parse-gff3 [line-iter]
+  "Parse GFF3 records from an iterable of lines"
   (->> line-iter
        (remove #(or (string/blank? %) (.startsWith ^String % "#")))
        (map parse-gff3-record)))
 
 (defn slurp-gff3 [file-name]
+  "Read GFF3 records from a file"
   (-> file-name
       zio/reader
       file-seq

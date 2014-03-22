@@ -1,5 +1,5 @@
 (ns ighutil.sam
-  "Tools for working with SAM/BAM records"
+  "Functions for working with SAM/BAM records"
   (:import [net.sf.samtools
             Defaults
             SAMRecord
@@ -50,7 +50,7 @@
 (defn read-name [^SAMRecord read]
   (.getReadName read))
 
-(defn position [^SAMRecord read]
+(defn ^Integer position [^SAMRecord read]
   "*0-based* position of read along reference sequence"
   (-> read
       .getAlignmentStart
@@ -109,6 +109,7 @@
 (defn ^String ig-locus-segment [^SAMRecord r]
   "Gene locus and segment type (e.g. IGHV, IGHD, IGLJ)"
   (-> r reference-name (.substring 0 4)))
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Record partitioning
 ;;;;;;;;;;;;;;;;;;;;;;

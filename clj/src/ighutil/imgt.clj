@@ -1,4 +1,5 @@
 (ns ighutil.imgt
+  "Parsing of IMGT records"
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
             [clojure.edn :as edn]
@@ -72,6 +73,7 @@
               parse-fasta
               (map extract-position)
               (into {}))))))
+
 (defn- slurp-edn-resource [resource-name]
   (with-open [reader (-> resource-name
                          io/resource
@@ -80,7 +82,6 @@
     (edn/read reader)))
 
 (def v-gene-meta (delay (create-v-meta)))
-
 
 (def ighvj-gff (delay (with-open [reader (-> "ighutil/ighvj.gff3"
                                              io/resource
@@ -91,6 +92,7 @@
                              vec))))
 
 (defn dump-v-gene-meta [fname & {:keys [pretty?] :or {pretty? true}}]
+  "Dump V gene metadata as JSON to file name"
   (let [encode-pretty #(cheshire/encode % {:pretty pretty?})]
     (->> @v-gene-meta
          (map #(update-in % [1 :translation]
