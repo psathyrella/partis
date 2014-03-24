@@ -3,7 +3,8 @@
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
             [ighutil.io :as zio]
-            [plumbing.core :refer [keywordize-map ?>>]])
+            [plumbing.core :refer [keywordize-map ?>>]]
+            [schema.core :as s])
   (:import [net.sf.picard.util Interval IntervalTreeMap]))
 
 (defn- parse-gff3-attributes [^String attributes &
@@ -18,7 +19,15 @@
 (defn- mask-missing [^String s]
   (when (not= s ".") s))
 
-(defn parse-gff3-record [^String line]
+;; A GFF3 record schema
+(def GFF
+  {:seqid s/Str
+   :source (s/maybe s/Str)
+   :start s/Int
+   :end s/Int
+   :attributes {s/Keyword s/Str}})
+
+(s/defn parse-gff3-record :- GFF [line :- s/Str]
   (let [[seqid source type start end score strand phase attr]
         (map mask-missing (string/split line #"\t"))
         start (Integer/parseInt start)
@@ -35,7 +44,7 @@
        (remove #(or (string/blank? %) (.startsWith ^String % "#")))
        (map parse-gff3-record)))
 
-(defn slurp-gff3 [file-name]
+(s/defn slurp-gff3 :- [GFF] [file-name]
   "Read GFF3 records from a file"
   (-> file-name
       zio/reader

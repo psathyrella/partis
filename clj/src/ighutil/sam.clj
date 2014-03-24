@@ -52,13 +52,12 @@
 ;;;;;;;;;;;;;
 ;; Accessors
 ;;;;;;;;;;;;;
-(s/defn read-name :- String
-  [read :- SAMRecord]
-  (.getReadName read))
+(s/defn read-name :- String [r :- SAMRecord]
+  (.getReadName r))
 
-(s/defn position :- s/Int [read :- SAMRecord]
+(s/defn position :- s/Int [r :- SAMRecord]
   "*0-based* position of read along reference sequence"
-  (-> read
+  (-> r
       .getAlignmentStart
       int
       dec))
@@ -66,28 +65,28 @@
 (s/defn reference-name :- String [r :- SAMRecord]
   (.getReferenceName r))
 
-(s/defn alignment-score :- s/Int [read :- SAMRecord]
-  (.getIntegerAttribute read "AS"))
+(s/defn alignment-score :- s/Int [r :- SAMRecord]
+  (.getIntegerAttribute r "AS"))
 
-(s/defn nm :- s/Int [read :- SAMRecord]
+(s/defn nm :- s/Int [r :- SAMRecord]
   "Number of mismatches"
-  (.getIntegerAttribute read "NM"))
+  (.getIntegerAttribute r "NM"))
 
-(s/defn sequence-status :- s/Int [read :- SAMRecord]
-  (.getIntegerAttribute read TAG-STATUS))
+(s/defn sequence-status :- s/Int [r :- SAMRecord]
+  (.getIntegerAttribute r TAG-STATUS))
 
-(s/defn primary? :- s/Bool [read :- SAMRecord]
-  (not (.getNotPrimaryAlignmentFlag read)))
+(s/defn primary? :- s/Bool [r :- SAMRecord]
+  (not (.getNotPrimaryAlignmentFlag r)))
 
-(s/defn mapped? :- s/Bool [read :- SAMRecord]
-  (not (.getReadUnmappedFlag read)))
+(s/defn mapped? :- s/Bool [r :- SAMRecord]
+  (not (.getReadUnmappedFlag r)))
 
-(s/defn supplementary? :- s/Bool [read :- SAMRecord]
-  (.getSupplementaryAlignmentFlag read))
+(s/defn supplementary? :- s/Bool [r :- SAMRecord]
+  (.getSupplementaryAlignmentFlag r))
 
-(s/defn exp-match :- bytes [read :- SAMRecord]
+(s/defn exp-match :- bytes [r :- SAMRecord]
   "Matching probabilities, expressed as percentage"
-  (.getByteArrayAttribute read TAG-EXP-MATCH))
+  (.getByteArrayAttribute r TAG-EXP-MATCH))
 
 ;;;;;;;;;;;;;;;;;;
 ;; Site-certainty
