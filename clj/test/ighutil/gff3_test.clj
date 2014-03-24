@@ -1,6 +1,9 @@
 (ns ighutil.gff3-test
   (:require [ighutil.gff3 :refer :all]
-            [clojure.test :refer :all]))
+            [clojure.test :refer :all]
+            [schema.test]))
+
+(use-fixtures :once schema.test/validate-schemas)
 
 (deftest record-parsing
   (let [s "ctg123	.	gene	1000	9000	.	+	.	ID=gene00001;Name=EDEN

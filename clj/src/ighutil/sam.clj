@@ -1,5 +1,7 @@
 (ns ighutil.sam
   "Functions for working with SAM/BAM records"
+  (:require [clojure.java.io :as io]
+            [schema.core :as s])
   (:import [net.sf.samtools
             Defaults
             SAMRecord
@@ -7,8 +9,7 @@
             SAMFileReader$ValidationStringency
             SAMFileWriterFactory
             SAMFileWriter]
-           [java.util BitSet])
-  (:require [clojure.java.io :as io]))
+           [java.util BitSet]))
 
 ;;;;;;;;;;;;;;;;
 ;; SAM tag names
@@ -21,21 +22,25 @@
 ;;;;;;
 ;; I/O
 ;;;;;;
-(defn ^SAMFileReader bam-reader [path]
+(s/defn bam-reader :- SAMFileReader
+  [path]
   (-> path io/file SAMFileReader.))
 
-(defn ^SAMFileWriter bam-writer [path ^SAMFileReader reader &
-                                 {:keys [sorted compress]
-                                  :or {sorted true
-                                       compress true}}]
+(defn ^SAMFileWriter bam-writer
+  [path
+   ^SAMFileReader reader &
+   {:keys [sorted compress]
+    :or {sorted true
+         compress true}}]
   (.makeBAMWriter (SAMFileWriterFactory.)
                   (.getFileHeader reader)
                   sorted
                   (io/file path)
                   (if compress Defaults/COMPRESSION_LEVEL 0)))
 
-(defn reference-names [^SAMFileReader reader]
+(s/defn reference-names :- [String]
   "Get the names of the reference sequences in this file."
+  [reader :- SAMFileReader]
   (letfn [(sequence-name [^net.sf.samtools.SAMSequenceRecord x]
             (.getSequenceName x))]
     (->> reader
@@ -47,50 +52,54 @@
 ;;;;;;;;;;;;;
 ;; Accessors
 ;;;;;;;;;;;;;
-(defn read-name [^SAMRecord read]
-  (.getReadName read))
+(s/defn read-name :- String [r :- SAMRecord]
+  (.getReadName r))
 
-(defn ^Integer position [^SAMRecord read]
+(s/defn position :- s/Int
   "*0-based* position of read along reference sequence"
-  (-> read
+  [r :- SAMRecord]
+  (-> r
       .getAlignmentStart
       int
       dec))
 
-(defn ^String reference-name [^SAMRecord r]
+(s/defn reference-name :- String [r :- SAMRecord]
   (.getReferenceName r))
 
-(defn ^Integer alignment-score [^SAMRecord read]
-  (.getIntegerAttribute read "AS"))
+(s/defn alignment-score :- s/Int [r :- SAMRecord]
+  (.getIntegerAttribute r "AS"))
 
-(defn ^Integer nm [^SAMRecord read]
+(s/defn nm :- s/Int
   "Number of mismatches"
-  (.getIntegerAttribute read "NM"))
+  [r :- SAMRecord]
+  (.getIntegerAttribute r "NM"))
 
-(defn ^Integer sequence-status [^SAMRecord read]
-  (.getIntegerAttribute read TAG-STATUS))
+(s/defn sequence-status :- s/Int [r :- SAMRecord]
+  (.getIntegerAttribute r TAG-STATUS))
 
-(defn ^Boolean primary? [^SAMRecord read]
-  (not (.getNotPrimaryAlignmentFlag read)))
+(s/defn primary? :- s/Bool [r :- SAMRecord]
+  (not (.getNotPrimaryAlignmentFlag r)))
 
-(defn ^Boolean mapped? [^SAMRecord read]
-  (not (.getReadUnmappedFlag read)))
+(s/defn mapped? :- s/Bool [r :- SAMRecord]
+  (not (.getReadUnmappedFlag r)))
 
-(defn ^Boolean supplementary? [^SAMRecord read]
-  (.getSupplementaryAlignmentFlag read))
+(s/defn supplementary? :- s/Bool [r :- SAMRecord]
+  (.getSupplementaryAlignmentFlag r))
 
-(defn exp-match [^SAMRecord read]
+(s/defn exp-match
   "Matching probabilities, expressed as percentage"
-  (.getByteArrayAttribute read TAG-EXP-MATCH))
+  [r :- SAMRecord]
+  (.getByteArrayAttribute r TAG-EXP-MATCH))
 
 ;;;;;;;;;;;;;;;;;;
 ;; Site-certainty
 ;;;;;;;;;;;;;;;;;;
-(defn- ^BitSet byte-array->uncertain-sites [^bytes xs]
+(defn- ^java.util.BitSet byte-array->uncertain-sites
   "Convert a byte array [e.g., from the bq tag] to a bitset with uncertain
    sites."
+  [^bytes xs]
   (let [l (alength xs)
-        ^BitSet bs (BitSet. l)]
+        ^java.util.BitSet bs (java.util.BitSet. l)]
     (doseq [i (range l)]
       (let [b (aget xs i)
             uncertain? (and (not= b 100) (not= b 0))]
@@ -98,16 +107,19 @@
     bs))
 
 ;; Handle record base expected match
-(defn ^BitSet uncertain-sites [^SAMRecord r]
+(s/defn uncertain-sites :- java.util.BitSet
   "Returns a BitSet where set bits indicate that a site is certain"
+  [r :- SAMRecord]
   (-> r exp-match byte-array->uncertain-sites))
 
-(defn ^Character ig-segment [^SAMRecord r]
+(s/defn ig-segment :- Character
   "Gene segment type (e.g. V / D / J)"
+  [r :- SAMRecord]
   (-> r reference-name (.charAt 3)))
 
-(defn ^String ig-locus-segment [^SAMRecord r]
+(s/defn ig-locus-segment :- String
   "Gene locus and segment type (e.g. IGHV, IGHD, IGLJ)"
+  [r :- SAMRecord]
   (-> r reference-name (.substring 0 4)))
 
 ;;;;;;;;;;;;;;;;;;;;;;

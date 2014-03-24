@@ -1,12 +1,6 @@
 (ns ighutil.subcommands.calculate-match-probability
   "Calculate the probability of a match/mismatch at each position averaged over
   best-scoring alignments."
-  (:import [net.sf.samtools
-            SAMRecord
-            SAMFileReader
-            SAMFileReader$ValidationStringency]
-           [net.sf.picard.reference FastaSequenceFile]
-           [io.github.cmccoy.sam SAMUtils])
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.fasta :refer [extract-references]]
@@ -16,10 +10,17 @@
                                  read-name
                                  partition-by-name-segment
                                  bam-writer
-                                 TAG-EXP-MATCH]]))
+                                 TAG-EXP-MATCH]])
+  (:import [net.sf.samtools
+            SAMRecord
+            SAMFileReader
+            SAMFileReader$ValidationStringency]
+           [net.sf.picard.reference FastaSequenceFile]
+           [io.github.cmccoy.sam SAMUtils]))
 
-(defn- cal-equal [refs reads]
+(defn- cal-equal
   "Calculate the expectation that each position matches reference."
+  [refs reads]
   (when-let [mapped (seq (filter mapped? reads))]
     (when-let [^SAMRecord primary (first (filter primary? mapped))]
       (let [sorted (sort-by (juxt primary? alignment-score)
@@ -35,12 +36,13 @@
         (.setAttribute primary TAG-EXP-MATCH eq-prop))))
   reads)
 
-(defn match-probability [sam-records refs]
+(defn match-probability
   "Calculate the match probability for a collection of records ordered
    by name and V/D/J segment.
 
    Match probability (expressed as percentage) is added as
    tag 'bq', a byte array, to the primary record."
+  [sam-records refs]
   (->> sam-records
        partition-by-name-segment
        (map vec)

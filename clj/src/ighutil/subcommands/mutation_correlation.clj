@@ -1,10 +1,4 @@
 (ns ighutil.subcommands.mutation-correlation
-  (:import [net.sf.samtools
-            SAMRecord
-            SAMFileHeader
-            SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMSequenceRecord])
   (:require [cheshire.core :refer [generate-stream]]
             [cheshire.generate :refer [add-encoder remove-encoder encode-seq]]
             [clojure.core.reducers :as r]
@@ -17,7 +11,13 @@
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
             [plumbing.core :refer [safe-get map-vals]]
-            [primitive-math :as p]))
+            [primitive-math :as p])
+  (:import [net.sf.samtools
+            SAMRecord
+            SAMFileHeader
+            SAMFileReader
+            SAMFileReader$ValidationStringency
+            SAMSequenceRecord]))
 
 
 (defn- result-skeleton [refs]
@@ -45,13 +45,15 @@
        :count (vec count)))
    result))
 
-(defn- unmask-base-exp-match [^SAMRecord read ^bytes bq ref-len]
+(defn- unmask-base-exp-match
   "Generates two arrays: [counts mutations]
+
   counts contains 1/0 indicating whether a base aligns to each
   position.
 
   mutations contains 1/0 indicating whether there is a mutation at
   each position."
+  [^SAMRecord read ^bytes bq ref-len]
   (let [counts (long-array ref-len 0)
         muts (long/aclone counts)
         ref-name (.getReferenceName read)]
@@ -68,11 +70,12 @@
             (long/aset muts idx (- 1 (/ b 100)))))))
     [counts muts]))
 
-(defn- conditional-mutations-of-read [^SAMRecord read
-                                      {:keys [length mutated unmutated count]}]
+(defn- conditional-mutations-of-read
   "Given a SAM record with the TAG-EXP-MATCH tag,
    generates a vector of
    [reference-name {site-index {matches-at-site }}]"
+  [^SAMRecord read
+   {:keys [length mutated unmutated count]}]
   (let [length (int length)
         ^bytes bq (sam/exp-match read)
         [^longs read-counts
@@ -87,9 +90,10 @@
         (long/doarr [[j c] read-muts]
                     (long/ainc tgt (p/+ (p/* i length) j) c))))))
 
-(defn- conditional-mutations-of-records [refs records]
+(defn- conditional-mutations-of-records
   "Get the number of records that match / mismatch at each other site
    conditioning on a mutation in each position"
+  [refs records]
   (let [result (result-skeleton refs)]
     (doseq [^SAMRecord read records]
       (conditional-mutations-of-read

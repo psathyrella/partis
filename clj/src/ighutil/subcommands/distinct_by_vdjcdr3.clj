@@ -1,17 +1,16 @@
 (ns ighutil.subcommands.distinct-by-vdjcdr3
-  (:import [net.sf.samtools
-            SAMRecord
-            SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMFileWriterFactory
-            SAMFileHeader$SortOrder])
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.imgt :refer [strip-allele]]
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
-            [plumbing.core :refer [?>> distinct-by]]))
+            [plumbing.core :refer [?>> distinct-by]])
+  (:import [net.sf.samtools
+            SAMRecord
+            SAMFileReader
+            SAMFileReader$ValidationStringency
+            SAMFileHeader$SortOrder]))
 
 
 (defn- vdjcdr3 [sam-records]

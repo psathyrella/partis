@@ -1,11 +1,4 @@
 (ns ighutil.subcommands.kmer-matrix
-  (:import [net.sf.samtools
-            AlignmentBlock
-            SAMRecord
-            SAMFileReader
-            SAMFileReader$ValidationStringency]
-           [net.sf.picard.util IntervalTree]
-           [io.github.cmccoy sam.SAMUtils dna.IUPACUtils])
   (:require [cliopatra.command :refer [defcommand]]
             [clojure.data.csv :as csv]
             [clojure.java.io :as io]
@@ -17,18 +10,25 @@
             [ighutil.csv :refer [read-typed-csv int-of-string]]
             [ighutil.sam :as sam]
             [plumbing.core :refer [frequencies-fast ?>> safe-get]]
-            [primitive-math :as p]))
+            [primitive-math :as p])
+  (:import [net.sf.samtools
+            AlignmentBlock
+            SAMRecord
+            SAMFileReader
+            SAMFileReader$ValidationStringency]
+           [net.sf.picard.util IntervalTree]
+           [io.github.cmccoy sam.SAMUtils dna.IUPACUtils]))
 
 (set! *unchecked-math* true)
 
-(defn kmer-mutations [k ^SAMRecord read ^bytes ref &
-                      {:keys [exclude
-                              drop-uncertain?
-                              frame]
-                       :or {exclude (IntervalTree.)
-                            drop-uncertain false}}]
-  "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks of
-length >= k"
+(defn kmer-mutations
+  "Yields [ref-kmer query-kmer] tuples for all kmers in aligned blocks
+of length >= k"
+  [^Integer k
+   ^SAMRecord read
+   ^bytes ref
+   & {:keys [exclude drop-uncertain?  frame]
+      :or {exclude (IntervalTree.) drop-uncertain false}}]
   (let [k (int k)
         ^bytes query (.getReadBases read)
         uncertain (sam/uncertain-sites read)
@@ -63,8 +63,9 @@ length >= k"
          (mapcat mutations-in-block)
          (filter identity))))
 
-(defn- resolve-ambiguous-in-ref [[[^String r q] c]]
+(defn- resolve-ambiguous-in-ref
   "Distributes c among all unambiguous kmers encoded by r"
+  [[[^String r q] c]]
   (let [packed-ref (-> r .getBytes
                        IUPACUtils/packBytes)
         ref-card (IUPACUtils/cardinality packed-ref)]
@@ -74,9 +75,10 @@ length >= k"
             c (p/div (float c) (float (alength unambig)))]
         (vec (for [r (seq unambig)] [[(String. ^bytes r) q] c]))))))
 
-(defn- kmer-mutation-matrix [m k]
+(defn- kmer-mutation-matrix
   "Given a map from [ref-kmer qry-kmer] -> count,
    generates a square matrix suitable for printing."
+  [m k]
   (let [bases [\A \C \G \T]
         kmers (->> bases
                    (repeat k)
@@ -120,7 +122,7 @@ length >= k"
   (Integer/parseInt s))
 
 (defcommand kmer-matrix
-  ""
+  "k-mer mutation matrix"
   {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
                 :required true :parse-fn io/file]
                ["-r" "--reference-file" "Reference sequence file"
