@@ -1,14 +1,15 @@
 (ns ighutil.csv
   (:require [clojure.data.csv :as csv]
-            [plumbing.core :refer [?>>]]))
+            [plumbing.core :refer [?>>]]
+            [schema.core :as s]))
 
-(defn int-of-string [^String s]
+(s/defn int-of-string :- s/Int [s :- s/Str]
   (Integer/parseInt s))
 
-(defn float-of-string [^String s]
+(s/defn float-of-string :- s/Num [s :- s/Str]
   (Float/parseFloat s))
 
-(defn double-of-string [^String s]
+(s/defn double-of-string :- s/Num [s :- s/Str]
   (Double/parseDouble s))
 
 (defn csv-to-maps [fp & {:keys [keywordize?]
