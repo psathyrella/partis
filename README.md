@@ -13,6 +13,11 @@ The project is divided into two sections: a python module for aligning sequences
 * A C++11-compatible compiler (tested against gcc 4.8)
 * [Cython](http://cython.org) (tested against v0.20)
 
+# Installation
+
+* Run `make -C clj`
+* Run `pip install python`
+
 # Workflow
 
 ## Alignment
