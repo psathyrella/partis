@@ -3,12 +3,6 @@
   first adding sequence data to each segment (IGHV, IGHD, IGHJ),
   then finding alleles which may be present in the data,
   finally choosing randomly among best-scoring alignments."
-  (:import [net.sf.samtools
-            SAMRecord
-            SAMFileReader
-            SAMFileReader$ValidationStringency
-            SAMFileWriterFactory
-            SAMFileHeader$SortOrder])
   (:require [clojure.java.io :as io]
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary?
@@ -19,10 +13,16 @@
                                  ig-segment
                                  bam-writer]]
             [ighutil.imgt :refer [strip-allele]]
-            [plumbing.core :refer [frequencies-fast]]))
+            [plumbing.core :refer [frequencies-fast]])
+  (:import [net.sf.samtools
+            SAMRecord
+            SAMFileReader
+            SAMFileReader$ValidationStringency
+            SAMFileHeader$SortOrder]))
 
-(defn- set-supp-and-bases-per-gene [reads]
+(defn- set-supp-and-bases-per-gene
   "Set read bases and quals for each gene primary record"
+  [reads]
   (let [^SAMRecord primary (first (filter primary? reads))
         ^bytes read-seq (.getReadBases primary)
         ^bytes read-qual (.getBaseQualities primary)
@@ -39,13 +39,15 @@
          (partition-by ig-segment)
          (mapcat update-first))))
 
-(defn- unlikely-alleles [alignments & {:keys [min-prop] :or {min-prop 0.1}}]
+(defn- unlikely-alleles
   "List alleles present at less than 'min-prop' proportion of reads for a gene"
+  [alignments & {:keys [min-prop] :or {min-prop 0.1}}]
   (letfn [(filter-max-score
             [alignments]
             (let [sorted (sort-by alignment-score #(compare %2 %1) alignments)
                   max-score (-> sorted first alignment-score)
-                  to-keep (vec (take-while #(= max-score (alignment-score %)) sorted))
+                  to-keep (vec (take-while #(= max-score (alignment-score %))
+                                           sorted))
                   n-keep (count to-keep)]
               (into
                {}
@@ -68,15 +70,16 @@
          (mapcat drop-group)
          (into #{}))))
 
-(defn- max-score-tiebreak [alignments & {:keys [rand-f to-remove]
-                                         :or {rand-f rand-nth
-                                              to-remove #{}}}]
+(defn- max-score-tiebreak
   "alignments should all have the same query
 
    Break the tie between SAM records with identical maximum alignment
    score using rand-nth.
 
-   Drops any alignments to "
+   Drops any alignments to *to-remove*"
+  [alignments & {:keys [rand-f to-remove]
+                 :or {rand-f rand-nth
+                      to-remove #{}}}]
   (assert (set? to-remove))
   (if (= 1 (count alignments))
     alignments
@@ -109,13 +112,14 @@
         ;; drop all alignments for the read
         []))))
 
-(defn reset-primary-record [sam-records & {:keys [randomize to-remove]
-                                           :or {randomize true
-                                                to-remove #{}}}]
+(defn reset-primary-record
   "Given a sequence of SAMRecord objects, sorted by name, assigns a
    new primary record for each partition (if :randomize is true
    [default]), copies bases and qualities to each primary segment
    record, sets the supplementary alignment flag for each non-V segment"
+  [sam-records & {:keys [randomize to-remove]
+                  :or {randomize true
+                       to-remove #{}}}]
   (->> sam-records
        partition-by-name
        (mapcat set-supp-and-bases-per-gene)

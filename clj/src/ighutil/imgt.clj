@@ -6,12 +6,15 @@
             [cheshire.core :as cheshire]
             [ighutil.gff3 :as gff3]
             [plumbing.core :refer [indexed]])
-  (:import [net.sf.picard.reference FastaSequenceFile ReferenceSequence]))
+  (:import [net.sf.picard.reference
+            FastaSequenceFile
+            ReferenceSequence]))
 
 (def GAP-CHARS #{\. \-})
 
-(defn strip-allele [^String s]
+(defn strip-allele
   "Remove the allele from a string"
+  [^String s]
   (let [idx (.lastIndexOf s 42)]  ; 42 == '*'
     (if (< idx 0)
       s
@@ -28,8 +31,9 @@
       (into {} result))))
 
 
-(defn- parse-fasta [lines]
+(defn- parse-fasta
   "Read a FASTA file"
+  [lines]
   (let [fasta-header? (fn [^String s] (.startsWith s ">"))]
     (->> lines
          (remove string/blank?)
@@ -91,8 +95,9 @@
                              gff3/parse-gff3
                              vec))))
 
-(defn dump-v-gene-meta [fname & {:keys [pretty?] :or {pretty? true}}]
+(defn dump-v-gene-meta
   "Dump V gene metadata as JSON to file name"
+  [fname & {:keys [pretty?] :or {pretty? true}}]
   (let [encode-pretty #(cheshire/encode % {:pretty pretty?})]
     (->> @v-gene-meta
          (map #(update-in % [1 :translation]

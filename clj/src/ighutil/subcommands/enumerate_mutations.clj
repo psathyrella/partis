@@ -25,8 +25,9 @@
 (defn- non-primary [^SAMRecord r]
   (or (.getReadUnmappedFlag r) (.getNotPrimaryAlignmentFlag r)))
 
-(defn identify-mutations-in-sam [records ref-map]
+(defn identify-mutations-in-sam
   "Identify mutations from reference sequence in a SAM file."
+  [records ref-map]
   (for [^SAMRecord read records]
     (let [ref-name (sam/reference-name read)
           ref-bases (safe-get ref-map ref-name)

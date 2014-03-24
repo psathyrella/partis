@@ -39,27 +39,27 @@
                                  (sam/ig-segment read))
                   add-base (fn [acc o]
                              (assoc!
-                                 acc o
-                                 (-> (get acc o (transient {:aligned 0
-                                                            :mismatch 0
-                                                            :reference reference-name
-                                                            :minqpos qpos
-                                                            :maxqpos qpos
-                                                            :alignment-score as
-                                                            :nm nm}))
-                                     (update-in! [:aligned] inc)
-                                     (update-in! [:minqpos] #(min qpos %))
-                                     (update-in! [:maxqpos] #(max qpos %))
-                                     (?> is-mismatch update-in! [:mismatch] inc))))]
+                              acc o
+                              (-> (get acc o (transient {:aligned 0
+                                                         :mismatch 0
+                                                         :reference reference-name
+                                                         :minqpos qpos
+                                                         :maxqpos qpos
+                                                         :alignment-score as
+                                                         :nm nm}))
+                                  (update-in! [:aligned] inc)
+                                  (update-in! [:minqpos] #(min qpos %))
+                                  (update-in! [:maxqpos] #(max qpos %))
+                                  (?> is-mismatch update-in! [:mismatch] inc))))]
               (reduce add-base m overlaps)))]
     (map-vals
      persistent!
      (persistent!
       (reduce f (transient {}) aligned-pairs)))))
 
-(defn- annotate-reads [reads ^IntervalTreeMap tree &
-                       {:keys [full-translation]}]
+(defn- annotate-reads
   "Annotate read using (possibly) multiple alignment segments"
+  [reads ^IntervalTreeMap tree & {:keys [full-translation]}]
   (let [^SAMRecord f (first reads)
         annotations (->> reads
                          (map #(annotate-read % tree))

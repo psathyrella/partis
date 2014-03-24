@@ -21,24 +21,28 @@
     ".gz"  #(GzipCompressorInputStream. %)
     identity))
 
-(defn ^java.io.OutputStream output-stream [file-name]
+(defn ^java.io.OutputStream output-stream
   "Create an output stream for a file. '-' is mapped to stdout"
+  [file-name]
   (if (= file-name "-")
     (io/output-stream System/out)
-  (let [cls (output-stream-for-name file-name)]
-    (-> file-name io/file io/output-stream cls))))
+    (let [cls (output-stream-for-name file-name)]
+      (-> file-name io/file io/output-stream cls))))
 
-(defn ^java.io.Writer writer [file-name]
+(defn ^java.io.Writer writer
   "Create a writer for a file. '-' is mapped to stdout"
+  [file-name]
   (-> file-name output-stream io/writer))
 
-(defn ^java.io.InputStream input-stream [file-name]
+(defn ^java.io.InputStream input-stream
   "Create an input stream for a file. '-' is mapped to stdin"
+  [file-name]
   (if (= file-name "-")
     (io/input-stream System/in)
     (let [cls (input-stream-for-name file-name)]
       (-> file-name io/file io/input-stream cls))))
 
-(defn ^java.io.Reader reader [file-name]
+(defn ^java.io.Reader reader
   "Create a reader for a file. '-' is mapped to stdin"
+  [file-name]
   (-> file-name input-stream io/reader))
