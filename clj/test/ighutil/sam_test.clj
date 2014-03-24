@@ -5,6 +5,8 @@
 
 (use-fixtures :once schema.test/validate-schemas)
 
+(def ^:private BAM "testdata/test.bam")
+
 (defmacro with-sam-reader [bindings & body]
   (assert (vector? bindings))
   (assert (= 2 (count bindings)))
@@ -12,13 +14,13 @@
      ~@body))
 
 (deftest test-ig-segment
-  (with-sam-reader [reader "data/test.bam"]
+  (with-sam-reader [reader BAM]
     (let [records (-> reader .iterator iterator-seq)]
       (doseq [record (take 10 records)]
         (is (= "IGHV" (ig-locus-segment record)))))))
 
 (deftest test-accessors
-  (with-sam-reader [reader "data/test.bam"]
+  (with-sam-reader [reader BAM]
     (let [record (-> reader .iterator iterator-seq first)]
       (is (= 12 (nm record)))
       (is (= 39 (alignment-score record)))
@@ -37,7 +39,7 @@
       (is (= false (supplementary? record))))))
 
 (deftest test-uncertain-sites
-  (with-sam-reader [reader "data/test.bam"]
+  (with-sam-reader [reader BAM]
     (let [records (-> reader .iterator iterator-seq)
           uncertain (map uncertain-sites records)
           card (map #(.cardinality %) uncertain)]
