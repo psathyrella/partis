@@ -1,6 +1,7 @@
 (ns ighutil.fasta
   "Simple FASTA parsing - loads all sequences into memory."
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [schema.core :as s])
   (:import [net.sf.picard.reference
             ReferenceSequenceFile
             ReferenceSequenceFileFactory
