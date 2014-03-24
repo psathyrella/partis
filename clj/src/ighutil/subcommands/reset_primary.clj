@@ -23,21 +23,22 @@
 (defn- set-supp-and-bases-per-gene
   "Set read bases and quals for each gene primary record"
   [reads]
-  (let [^SAMRecord primary (first (filter primary? reads))
-        ^bytes read-seq (.getReadBases primary)
-        ^bytes read-qual (.getBaseQualities primary)
-        update-first (fn [r]
-                       (let [^SAMRecord f (first r)]
-                         (doto f
-                           (.setReadBases read-seq)
-                           (.setBaseQualities read-qual)
-                           (.setNotPrimaryAlignmentFlag false)
-                           (.setSupplementaryAlignmentFlag
-                            (not= (ig-segment f) \V)))
-                         (cons f (rest r))))]
-    (->> reads
-         (partition-by ig-segment)
-         (mapcat update-first))))
+  (when (some primary? reads)
+    (let [^SAMRecord primary (first (filter primary? reads))
+          ^bytes read-seq (.getReadBases primary)
+          ^bytes read-qual (.getBaseQualities primary)
+          update-first (fn [r]
+                         (let [^SAMRecord f (first r)]
+                           (doto f
+                             (.setReadBases read-seq)
+                             (.setBaseQualities read-qual)
+                             (.setNotPrimaryAlignmentFlag false)
+                             (.setSupplementaryAlignmentFlag
+                              (not= (ig-segment f) \V)))
+                           (cons f (rest r))))]
+      (->> reads
+           (partition-by ig-segment)
+           (mapcat update-first)))))
 
 (defn- unlikely-alleles
   "List alleles present at less than 'min-prop' proportion of reads for a gene"
