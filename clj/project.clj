@@ -16,7 +16,8 @@
                  [prismatic/schema "0.2.1"]
                  [org.flatland/useful "0.11.2"]
                  [primitive-math "0.1.3"]
-                 [cheshire "5.3.1"]]
+                 [cheshire "5.3.1"]
+                 [com.taoensso/timbre "3.1.6"]]
   :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}}
   :java-source-paths ["src/java"]
   :omit-source false
