@@ -1,55 +1,64 @@
 #!/usr/bin/env python
-
+""" Simulates the process of VDJ recombination """ 
 import sys
 import random
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Alphabet import generic_alphabet
 
+def int_to_nucleotide(number):
+    """ Convert between (0,1,2,3) and (A,C,G,T) """
+    if number == 0:
+        return 'A'
+    elif number == 1:
+        return 'C'
+    elif number == 2:
+        return 'G'
+    elif number == 3:
+        return 'T'
+    else:
+        print 'ERROR bad number'
+        sys.exit()
+
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """ 
-    
-    seqs = {}
+    all_seqs = {} # all the Vs, all the Ds...
+    seqs = {} # one of each
+    regions = ['v', 'd', 'j']
     def __init__(self):
         """ Initialize from files """ 
-        self.read_file('v', 'ighv.fasta')
-        self.read_file('d', 'ighd.fasta')
-        self.read_file('j', 'ighd.fasta')
+        for region in self.regions:
+            self.read_file(region, 'igh'+region+'.fasta')
 
     def combine(self):
         """ Run the combination """
-        self.v_seq = self.choose_seq('v')
-        self.d_seq = self.choose_seq('d')
-        self.j_seq = self.choose_seq('j')
-        self.erode('right', self.v_seq, 'v')
-        self.erode('left', self.d_seq, 'd')
-        self.erode('right', self.d_seq, 'd')
-        self.erode('left', self.j_seq, 'j')
-        vd_insertion = self.get_insertion()
-        vd_seq = self.join(self.v_seq, vd_insertion, self.d_seq)
-        dj_insertion = self.get_insertion()
-        self.join(vd_seq, dj_insertion, self.j_seq)
+        for region in self.regions:
+            self.seqs[region] = self.choose_seq(region)
+        self.erode('right', self.seqs['v'], 'v')
+        self.erode('left', self.seqs['d'], 'd')
+        self.erode('right', self.seqs['d'], 'd')
+        self.erode('left', self.seqs['j'], 'j')
+        vd_seq = self.join(self.seqs['v'], self.get_insertion(), self.seqs['d'])
+        self.join(vd_seq, self.get_insertion(), self.seqs['j'])
 
     def read_file(self, region, fname):
         """ Read the various germline variants from file and store as
         Seq objects """
-        self.seqs[region] = []
+        self.all_seqs[region] = []
         for seq_record in SeqIO.parse(fname, "fasta"):
-            self.seqs[region].append(seq_record.seq)
+            self.all_seqs[region].append(seq_record.seq)
 
     def choose_seq(self, region):
         """ Choose which of the germline variants to use """
-        i_seq = random.randint(0, len(self.seqs[region])-1)
-        print ('choosing %s'
-               'sequence number %d (of %d)') % (region,
-                                                          i_seq,
-                                                          len(self.seqs[region]))
-        return self.seqs[region][i_seq]
+        i_seq = random.randint(0, len(self.all_seqs[region])-1)
+        print 'choosing %s' % region,
+        print 'sequence number %d (of %d)' % (i_seq, len(self.all_seqs[region]))
+        return self.all_seqs[region][i_seq]
 
     def erode(self, location, seq, region):
         """ Erode (delete) some number of letters from the <location> side of
         <seq>, where location is 'left' or 'right' """
-        n_to_remove = random.randint(0,3) # number of bases to remove
+        n_to_remove = random.randint(0, 3) # number of bases to remove
         fragment_before = ''
         fragment_after = ''
         if location == 'left':
@@ -63,37 +72,25 @@ class Recombinator(object):
         else:
             print 'no way bub'
             sys.exit()
-        tail_after = seq[len(seq) - n_to_remove - 3 : ]
-        print 'eroding %3d from %5s of %s region: %15s --> %-15s' % (n_to_remove, location, region, fragment_before, fragment_after)
-
-    def int_to_nucleotide(self, number):
-        """ Convert between (0,1,2,3) and (A,C,G,T) """
-        if number == 0:
-            return 'A'
-        elif number == 1:
-            return 'C'
-        elif number == 2:
-            return 'G'
-        elif number == 3:
-            return 'T'
-        else:
-            print 'ERROR bad number'
-            sys.exit()
+        print 'eroding %3d from %5s' % (n_to_remove, location)
+        print ' of %s region: %15s' % (region, fragment_before)
+        print ' --> %-15s' % fragment_after
 
     def get_insertion(self):
         """ Get the non-templated sequence to insert between
         templated regions """
-        length = random.randint(0,5)
+        length = random.randint(0, 5)
         insert_seq_str = ''
-        for ic in range(0,length):
-            insert_seq_str += self.int_to_nucleotide(random.randint(0,3))
+        for _ in range(0, length):
+            insert_seq_str += int_to_nucleotide(random.randint(0, 3))
         print 'inserting %d: %s' % (length, insert_seq_str)
         return Seq(insert_seq_str, generic_alphabet)
 
     def join(self, left_seq, insert_sequence, right_seq):
-        print 'joining: %s + %s + %s' % (left_seq, insert_sequence, right_seq)
+        """ Join three sequences in the indicated order """
         new_seq = left_seq + insert_sequence + right_seq
-        print new_seq
+        print 'joining: %s + %s + %s' % (left_seq, insert_sequence, right_seq)
+        print 'gives: %s' % new_seq
         return new_seq
 
 if __name__ == '__main__':
