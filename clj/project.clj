@@ -2,7 +2,7 @@
   :description "Tools for working with immunoglobulin sequences at high throughput"
   :license {:name "GPL v3"
             :url "https://www.gnu.org/licenses/gpl.txt"}
-  :dependencies [[org.clojure/clojure "1.5.1"]
+  :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojars.chapmanb/picard "1.107"]
                  [org.clojars.chapmanb/sam "1.107"]
                  [org.clojure/data.csv "0.1.2"]
