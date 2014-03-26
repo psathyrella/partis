@@ -13,7 +13,8 @@
                                  ig-segment
                                  bam-writer]]
             [ighutil.imgt :refer [strip-allele]]
-            [plumbing.core :refer [frequencies-fast]])
+            [plumbing.core :refer [frequencies-fast]]
+            [taoensso.timbre :as timbre])
   (:import [net.sf.samtools
             SAMRecord
             SAMFileReader
@@ -147,8 +148,8 @@
                          .iterator
                          iterator-seq
                          unlikely-alleles))]
-    (binding [*out* *err*]
-      (println "Removing " to-remove))
+
+    (timbre/info "Removing " to-remove)
     (with-open [reader (SAMFileReader. ^java.io.File in-file)]
       (.setValidationStringency
        reader
@@ -158,6 +159,8 @@
                                .iterator
                                iterator-seq)]
         (.setSortOrder header SAMFileHeader$SortOrder/unsorted)
+        (timbre/info "Filtering / resetting to"
+                     (.getName ^java.io.File out-file))
         (with-open [writer (bam-writer
                             out-file
                             reader

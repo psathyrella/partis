@@ -11,7 +11,8 @@
             [ighutil.io :as zio]
             [ighutil.sam :as sam]
             [plumbing.core :refer [safe-get map-vals]]
-            [primitive-math :as p])
+            [primitive-math :as p]
+            [taoensso.timbre :as timbre])
   (:import [net.sf.samtools
             SAMRecord
             SAMFileHeader
@@ -131,7 +132,7 @@
                                    (-> l long/asum (> 0)))))
                  (into {}))]
       (add-encoder long-array-cls encode-seq)
-      (println "Finished: writing results")
+      (timbre/info "Finished: writing results")
       (try
         (generate-stream m writer {:pretty true})
         (finally (remove-encoder long-array-cls)))))
