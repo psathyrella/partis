@@ -37,8 +37,9 @@
 
 (deftest test-readers
   (are [pth]
-    (= (with-open [istream (reader pth)] (-> istream class .getSimpleName))
-       "BufferedReader")
+    (=
+     (with-open [istream (reader pth)] (slurp istream))
+     "Test!\n")
     "testdata/test.txt"
     "testdata/test.txt.gz"
     "testdata/test.txt.bz2"))
