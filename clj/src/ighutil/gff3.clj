@@ -19,8 +19,8 @@
 (defn- mask-missing [^String s]
   (when (not= s ".") s))
 
-;; A GFF3 record schema
-(def GFF
+(s/defschema GFF
+  "A GFF3 record schema"
   {:seqid s/Str
    :source (s/maybe s/Str)
    :start s/Int

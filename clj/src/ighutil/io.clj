@@ -10,7 +10,9 @@
            [org.apache.commons.compress.compressors.gzip
             GzipCompressorOutputStream GzipCompressorInputStream]))
 
-(def ^:private Fileable (s/either s/Str java.io.File java.net.URL))
+(s/defschema Fileable
+  "types supported by clojure.java.io/file"
+  (s/either s/Str java.io.File java.net.URL))
 
 (defn- output-stream-for-name [file-name]
   (case (fs/extension file-name)
