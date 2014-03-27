@@ -2,6 +2,7 @@
 """ Simulates the process of VDJ recombination """ 
 import sys
 import random
+import numpy
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Alphabet import generic_alphabet
@@ -17,13 +18,13 @@ def int_to_nucleotide(number):
     elif number == 3:
         return 'T'
     else:
-        print 'ERROR bad number'
+        print 'ERROR nucleotide number not in [0,4]'
         sys.exit()
 
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """ 
-    all_seqs = {} # all the Vs, all the Ds...
-    seqs = {} # one of each
+    all_seqs = {}  # all the Vs, all the Ds...
+    seqs = {}  # one of each
     regions = ['v', 'd', 'j']
     def __init__(self):
         """ Initialize from files """ 
@@ -43,7 +44,8 @@ class Recombinator(object):
 
     def read_file(self, region, fname):
         """ Read the various germline variants from file and store as
-        Seq objects """
+        Seq objects
+        """
         self.all_seqs[region] = []
         for seq_record in SeqIO.parse(fname, "fasta"):
             self.all_seqs[region].append(seq_record.seq)
@@ -55,31 +57,40 @@ class Recombinator(object):
         print 'sequence number %d (of %d)' % (i_seq, len(self.all_seqs[region]))
         return self.all_seqs[region][i_seq]
 
+    def get_n_to_erode(self):
+        """ Number of bases to remove before joining to the neighboring
+        sequence
+        """
+        # NOTE: casting to an int reduces the mean somewhat
+        return int(numpy.random.exponential(4))
+
     def erode(self, location, seq, region):
         """ Erode (delete) some number of letters from the <location> side of
-        <seq>, where location is 'left' or 'right' """
-        n_to_remove = random.randint(0, 3) # number of bases to remove
+        <seq>, where location is 'left' or 'right'
+        """
+        n_to_erode = self.get_n_to_erode()
         fragment_before = ''
         fragment_after = ''
         if location == 'left':
-            fragment_before = seq[:n_to_remove + 3]
-            seq = seq[n_to_remove:len(seq)]
-            fragment_after = seq[:n_to_remove + 3]
+            fragment_before = seq[:n_to_erode + 3]
+            seq = seq[n_to_erode:len(seq)]
+            fragment_after = seq[:n_to_erode + 3]
         elif location == 'right':
-            fragment_before = seq[len(seq) - n_to_remove - 3 :]
-            seq = seq[0:len(seq)-n_to_remove]
-            fragment_after = seq[len(seq) - n_to_remove - 3 :]
+            fragment_before = seq[len(seq) - n_to_erode - 3 :]
+            seq = seq[0:len(seq)-n_to_erode]
+            fragment_after = seq[len(seq) - n_to_erode - 3 :]
         else:
-            print 'no way bub'
+            print 'ERROR location must be \"left\" or \"right\"'
             sys.exit()
-        print 'eroding %3d from %5s' % (n_to_remove, location)
+        print 'eroding %3d from %5s' % (n_to_erode, location)
         print ' of %s region: %15s' % (region, fragment_before)
         print ' --> %-15s' % fragment_after
 
     def get_insertion(self):
         """ Get the non-templated sequence to insert between
-        templated regions """
-        length = random.randint(0, 5)
+        templated regions
+        """
+        length = int(numpy.random.exponential(6))
         insert_seq_str = ''
         for _ in range(0, length):
             insert_seq_str += int_to_nucleotide(random.randint(0, 3))
