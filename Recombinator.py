@@ -18,21 +18,29 @@ def int_to_nucleotide(number):
     elif number == 3:
         return 'T'
     else:
-        print 'ERROR nucleotide number not in [0,4]'
+        print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
 
 class Recombinator(object):
-    """ Simulates the process of VDJ recombination """ 
+    """ Simulates the process of VDJ recombination """
+
+    # parameters that control recombination, erosion, and whatnot
+    mean_nukes_eroded = 4  # Mean number of nucleotides to remove at each side of the boundary.
+                           # NOTE actual mean is a bit less than this because I round to an integer
+    mute_rate = 0.1  # average number of point mutations per base
+    mean_insertion_length = 6  # mean length of the non-templated insertion
+
     all_seqs = {}  # all the Vs, all the Ds...
-    seqs = {}  # one of each
+    seqs = {}   # one of each
     regions = ['v', 'd', 'j']
+
     def __init__(self):
         """ Initialize from files """ 
         for region in self.regions:
             self.read_file(region, 'igh'+region+'.fasta')
 
     def combine(self):
-        """ Run the combination """
+        """ Run the combination. Returns the new sequence. """
         for region in self.regions:
             self.seqs[region] = self.choose_seq(region)
         self.erode('right', self.seqs['v'], 'v')
@@ -40,7 +48,11 @@ class Recombinator(object):
         self.erode('right', self.seqs['d'], 'd')
         self.erode('left', self.seqs['j'], 'j')
         vd_seq = self.join(self.seqs['v'], self.get_insertion(), self.seqs['d'])
-        self.join(vd_seq, self.get_insertion(), self.seqs['j'])
+        recombined_seq = self.join(vd_seq, self.get_insertion(), self.seqs['j'])
+        final_seq = self.mutate(recombined_seq)
+        print 'before mute:',recombined_seq
+        print 'after mute: ',final_seq
+        return final_seq
 
     def read_file(self, region, fname):
         """ Read the various germline variants from file and store as
@@ -52,6 +64,7 @@ class Recombinator(object):
 
     def choose_seq(self, region):
         """ Choose which of the germline variants to use """
+        # NOTE the files we read from a.t.m. have all the different alleles
         i_seq = random.randint(0, len(self.all_seqs[region])-1)
         print 'choosing %s' % region,
         print 'sequence number %d (of %d)' % (i_seq, len(self.all_seqs[region]))
@@ -61,8 +74,8 @@ class Recombinator(object):
         """ Number of bases to remove before joining to the neighboring
         sequence
         """
-        # NOTE: casting to an int reduces the mean somewhat
-        return int(numpy.random.exponential(4))
+        # NOTE casting to an int reduces the mean somewhat
+        return int(numpy.random.exponential(self.mean_nukes_eroded))
 
     def erode(self, location, seq, region):
         """ Erode (delete) some number of letters from the <location> side of
@@ -90,7 +103,7 @@ class Recombinator(object):
         """ Get the non-templated sequence to insert between
         templated regions
         """
-        length = int(numpy.random.exponential(6))
+        length = int(numpy.random.exponential(self.mean_insertion_length))
         insert_seq_str = ''
         for _ in range(0, length):
             insert_seq_str += int_to_nucleotide(random.randint(0, 3))
@@ -98,12 +111,33 @@ class Recombinator(object):
         return Seq(insert_seq_str, generic_alphabet)
 
     def join(self, left_seq, insert_sequence, right_seq):
-        """ Join three sequences in the indicated order """
+        """ Join three sequences in the indicated order.
+        Return the new sequence.
+        """
         new_seq = left_seq + insert_sequence + right_seq
         print 'joining: %s + %s + %s' % (left_seq, insert_sequence, right_seq)
         print 'gives: %s' % new_seq
         return new_seq
 
+    def mutate(self, seq):
+        """ Apply point mutations to <seq>, then return it """
+        n_mutes = int(numpy.random.poisson(self.mute_rate*len(seq)))
+        original_seq = seq
+        print 'adding %3d point mutations' % n_mutes
+        for _ in range(n_mutes):
+            position = random.randint(0, len(seq)-1)
+            old_nuke = seq[position]
+            new_nuke = old_nuke
+            while new_nuke == old_nuke:
+                new_nuke = int_to_nucleotide(random.randint(0,3))
+            print '  muting %s to %s at position %3d' % (old_nuke, new_nuke, position)
+            seq = seq[:position] + new_nuke + seq[position+1:]
+
+        return seq
+
+#----------------------------------------------------------------------------------------
+#
 if __name__ == '__main__':
     reco = Recombinator()
-    reco.combine()
+    raw_reco_seq = reco.combine()
+    print 'final %s' % raw_reco_seq
