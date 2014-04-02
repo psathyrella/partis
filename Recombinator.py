@@ -25,6 +25,19 @@ def int_to_nucleotide(number):
         sys.exit()
 
 #----------------------------------------------------------------------------------------
+def region_to_int(region):
+    """ Convert region: ('v','d','j') --> 0,1,2 """
+    if region == 'v':
+        return 0
+    elif region == 'd':
+        return 1
+    elif region == 'j':
+        return 2
+    else:
+        print 'ERROR bad region'
+        sys.exit()
+
+#----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
 
@@ -43,8 +56,11 @@ class Recombinator(object):
         for region in self.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
         self.read_vdj_version_freqs('version-counter/filtered-vdj-probs.txt')
-        with open('data/v-meta.json','r') as jfile:
-            self.json_data = json.load(jfile)
+        with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in v regions
+            self.cyst_positions = json.load(json_file)
+        with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in j regions (TGG)
+            tryp_reader = csv.reader(csv_file)
+            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
     def combine(self, outfile=''):
         """ Run the combination. Returns the new sequence. """
@@ -52,28 +68,39 @@ class Recombinator(object):
         reco_info = {}  # collect information about the recombination process for output to csv file
         reco_info['vdj_combo'] = vdj_combo_label
         chosen_seqs = {}
+        cyst_position = self.cyst_positions[vdj_combo_label[0]]['cysteine-position']
+        tryp_position = int(self.tryp_positions[vdj_combo_label[2]])
         for region in self.regions:
             chosen_seqs[region] = self.get_seq(region, vdj_combo_label)
-        cysteine_position = self.json_data[vdj_combo_label[0]]['cysteine-position']
-        print '  cysteine position: %d' % cysteine_position
+            print '    found %s: %s' % (region, vdj_combo_label[region_to_int(region)]),
+            if region == 'v':
+                print ' (cysteine: %d)' % cyst_position
+            elif region == 'j':
+                print ' (tryptophan: %d)' % tryp_position
+            else:
+                print ''
         print '  eroding'
-        chosen_seqs['v'] = self.erode(reco_info, 'right', chosen_seqs['v'], 'v', cysteine_position)
+        chosen_seqs['v'] = self.erode(reco_info, 'right', chosen_seqs['v'], 'v', cyst_position)
         chosen_seqs['d'] = self.erode(reco_info, 'left', chosen_seqs['d'], 'd')
         chosen_seqs['d'] = self.erode(reco_info, 'right', chosen_seqs['d'], 'd')
-        chosen_seqs['j'] = self.erode(reco_info, 'left', chosen_seqs['j'], 'j')
+        chosen_seqs['j'] = self.erode(reco_info, 'left', chosen_seqs['j'], 'j', tryp_position)
         reco_info['vd_insertion'] = self.get_insertion()
-        vd_seq = self.join(chosen_seqs['v'], reco_info['vd_insertion'], chosen_seqs['d'])
         reco_info['dj_insertion'] = self.get_insertion()
-        recombined_seq = self.join(vd_seq, reco_info['dj_insertion'], chosen_seqs['j'])
+        print '  joining'
+        print '         v: %s' % chosen_seqs['v']
+        print '    insert: %s' % reco_info['vd_insertion']
+        print '         d: %s' % chosen_seqs['d']
+        print '    insert: %s' % reco_info['dj_insertion']
+        print '         j: %s' % chosen_seqs['j']
+        recombined_seq = chosen_seqs['v'] + reco_info['vd_insertion'] + chosen_seqs['d'] + reco_info['dj_insertion'] + chosen_seqs['j']
         reco_info['mutations'] = ''
-        final_seq = self.mutate(reco_info, recombined_seq, cysteine_position)
+        # figure out the position the tryptophan's at in the final sequence
+        length_to_left_of_j = len(chosen_seqs['v'] + reco_info['vd_insertion'] + chosen_seqs['d'] + reco_info['dj_insertion'])
+        final_tryp_position = tryp_position - reco_info['j_left'] + length_to_left_of_j
+        print '  final tryptophan position: %d' % final_tryp_position
+        final_seq = self.mutate(reco_info, recombined_seq, (cyst_position, final_tryp_position))
         reco_info['seq'] = final_seq
-        print '  before mute:',recombined_seq
-        print '  after mute: ',final_seq
-        cysteine_word = str(final_seq[cysteine_position:cysteine_position+3])
-        if cysteine_word != 'TGT' and cysteine_word != 'TGC':
-            print 'ERROR cysteine in V is messed up, you probably eroded it off: %s' % cysteine_word
-            sys.exit()
+        self.check_conserved_codons(final_seq, cyst_position, final_tryp_position)
         if outfile != '':
             self.write_csv(outfile, reco_info)
         return final_seq
@@ -110,11 +137,10 @@ class Recombinator(object):
         """ Choose which combination germline variants to use """
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
-        print '  choosing combination',
         for vdj_choice in self.version_freq_table:
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                print ' ---> ',vdj_choice
+                print '  chose combination: ',vdj_choice
                 return vdj_choice
         print 'ERROR I shouldn\'t be here'
         sys.exit()
@@ -130,7 +156,6 @@ class Recombinator(object):
         else:
             print 'ERROR that don\'t make no sense'
             sys.exit()
-        print '    returning %s: %s' % (region, gene_name)
         return self.all_seqs[region][gene_name]
 
     def get_n_to_erode(self):
@@ -140,18 +165,26 @@ class Recombinator(object):
         # NOTE casting to an int reduces the mean somewhat
         return int(numpy.random.exponential(self.mean_nukes_eroded))
 
-    def erode(self, reco_info, location, seq, region, cysteine_position=-1):
-        """ Erode (delete) some number of letters from the <location> side of
-        <seq>, where location is 'left' or 'right'
+    def erode(self, reco_info, location, seq, region, protected_position=-1):
+        """ Erode some number of letters from seq.
+
+        Nucleotides are removed from the <location> ('left' or 'right') side of
+        <seq>. The codon beginning at index <protected_position> is protected
+        from removal.
         """
         n_to_erode = self.get_n_to_erode()
-        if cysteine_position > 0:
-            if location != 'right' or region != 'v':
-                print 'ERROR that doesn\'t make sense'
+        if protected_position > 0:
+            if location == 'right' and region == 'v':
+                while len(seq) - n_to_erode <= protected_position + 2:
+                    print '    about to erode cysteine (%d), try again' % n_to_erode
+                    n_to_erode = self.get_n_to_erode()
+            elif location == 'left' and region == 'j':
+                while n_to_erode - 1 >= protected_position:
+                    print '    about to erode tryptophan (%d), try again' % n_to_erode
+                    n_to_erode = self.get_n_to_erode()
+            else:
+                print 'ERROR unanticipated protection'
                 sys.exit()
-            while len(seq) - n_to_erode - 3 <= cysteine_position:
-                print '    about to erode off cysteine (%d), try again' % n_to_erode
-                n_to_erode = self.get_n_to_erode()
 
         reco_info[region + '_' + location] = n_to_erode
         fragment_before = ''
@@ -182,39 +215,53 @@ class Recombinator(object):
         insert_seq_str = ''
         for _ in range(0, length):
             insert_seq_str += int_to_nucleotide(random.randint(0, 3))
-        print '  inserting %d: %s' % (length, insert_seq_str)
         return insert_seq_str
 
-    def join(self, left_seq, insert_sequence, right_seq):
-        """ Join three sequences in the indicated order.
-        Return the new sequence.
-        """
-        new_seq = left_seq + insert_sequence + right_seq
-        print '  joining: %s + %s + %s' % (left_seq, insert_sequence, right_seq)
-        print '  gives: %s' % new_seq
-        return new_seq
+    def is_position_protected(self, protected_positions, prospective_position):
+        for position in protected_positions:
+            if (prospective_position == position or
+                prospective_position == (position + 1) or
+                prospective_position == (position + 2)):
+                return True
+        return False
 
-    def mutate(self, reco_info, seq, cysteine_position):
+    def mutate(self, reco_info, seq, protected_positions):
         """ Apply point mutations to <seq>, then return it """
         n_mutes = int(numpy.random.poisson(self.mute_rate*len(seq)))
         original_seq = seq
-        print '  adding %d point mutations' % n_mutes
+        print '  making %d point mutations: ' % n_mutes,
+        mute_locations = []
         for _ in range(n_mutes):
             position = random.randint(0, len(seq)-1)
-            while (position == cysteine_position or
-                   position == (cysteine_position + 1) or
-                   position == (cysteine_position + 2)):
-                print '  position is in cysteine codon (%d), trying again.' % position
+            while self.is_position_protected(protected_positions, position):
                 position = random.randint(0, len(seq)-1)
+            mute_locations.append(position)
             old_nuke = seq[position]
             new_nuke = old_nuke
             while new_nuke == old_nuke:
                 new_nuke = int_to_nucleotide(random.randint(0,3))
-            print '    muting %s to %s at position %3d' % (old_nuke, new_nuke, position)
+            print '%d%s%s' % (position, old_nuke, new_nuke),
             reco_info['mutations'] += '%d%s%s-' % (position, old_nuke, new_nuke)
             seq = seq[:position] + new_nuke + seq[position+1:]
-
+        print ''
         reco_info['mutations'] = reco_info['mutations'].rstrip('-')
+
+        # print out mutation locations
+        mute_locations = set(mute_locations)
+        mute_print_str = ''
+        for ich in range(len(seq)):
+            if ich in mute_locations:
+                if self.is_position_protected(protected_positions, ich):
+                    print 'ERROR mutated a protected position'
+                mute_print_str += '|'
+            elif self.is_position_protected(protected_positions, ich):
+                mute_print_str += 'o'
+            else:
+                mute_print_str += ' '
+        print '  before mute:',original_seq
+        print '  mutations:  ',mute_print_str,'    (o: protected codons)'
+        print '  after mute: ',seq
+
         return seq
 
     def write_csv(self, outfile, reco_info):
@@ -225,7 +272,6 @@ class Recombinator(object):
             columns = ('vdj_combo', 'v_right', 'd_left', 'd_right', 'j_left', 'vd_insertion', 'dj_insertion', 'mutations', 'seq')
             csv_row = []
             for column in columns:
-                print column,
                 if column == 'vdj_combo':
                     csv_row.append(reco_info[column][0])
                     csv_row.append(reco_info[column][1])
@@ -234,5 +280,15 @@ class Recombinator(object):
                     csv_row.append(reco_info[column])
                     
             csv_writer.writerow(csv_row)
-#            print csv_row
                     
+    def check_conserved_codons(self, seq, cyst_position, tryp_position):
+        """ Double check that we conserved the cysteine and the tryptophan. """
+        cyst_word = str(seq[cyst_position:cyst_position+3])
+        if cyst_word != 'TGT' and cyst_word != 'TGC':
+            print 'ERROR cysteine in V is messed up: %s' % cyst_word
+            sys.exit()
+        tryp_word = str(seq[tryp_position:tryp_position+3])
+        if tryp_word != 'TGG':
+            print 'ERROR tryptophan in J is messed up: %s' % tryp_word
+            sys.exit()
+
