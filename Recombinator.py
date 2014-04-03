@@ -26,7 +26,7 @@ def int_to_nucleotide(number):
 
 #----------------------------------------------------------------------------------------
 def region_to_int(region):
-    """ Convert region: ('v','d','j') --> 0,1,2 """
+    """ Convert ('v','d','j') --> (0,1,2) """
     if region == 'v':
         return 0
     elif region == 'd':
@@ -56,38 +56,55 @@ def check_conserved_codons(seq, cyst_position, tryp_position):
     check_conserved_tryptophan(seq, tryp_position)
 
 #----------------------------------------------------------------------------------------
-def would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position): #location, seq, region, protected_position):
+def is_position_protected(protected_positions, prospective_position):
+    """ Would a mutation at <prospective_position> screw up a protected codon? """
+    for position in protected_positions:
+        if (prospective_position == position or
+            prospective_position == (position + 1) or
+            prospective_position == (position + 2)):
+            return True
+    return False
+
+#----------------------------------------------------------------------------------------
+def would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position):
+    """ Would any of the erosion <lengths> delete a conserved codon? """
     if len(lengths) == 0:  # i.e. if we haven't yet filled the lengths
         return True
-#    print 'CHECK %d %d' % (cyst_position, tryp_position)
     # check conserved cysteine
     if len(seqs['v']) - lengths['v_right'] <= cyst_position + 2:
         print '      about to erode cysteine (%d), try again' % lengths['v_right']
-        return True  # it *would* screw it up
-    # then check conserved tryptophan
+        return True  # i.e. it *would* screw it up
+    # check conserved tryptophan
     if lengths['j_left'] - 1 >= tryp_position:
         print '      about to erode tryptophan (%d), try again' % lengths['j_left']
         return True
 
     return False  # *whew*, it won't erode either of 'em
 
-#----------------------------------------------------------------------------------------0    
+#----------------------------------------------------------------------------------------
 def is_erosion_longer_than_seq(lengths, seqs):
+    """ Are any of the proposed erosion <lengths> longer than the seq to be eroded? """
     if lengths['v_right'] > len(seqs['v']):  # NOTE not actually possible since we already know we didn't erode the cysteine
+        print '      v_right erosion too long (%d)' % lengths['v_right']
         return True
     if lengths['d_left'] + lengths['d_right'] > len(seqs['d']):
+        print '      d erosions too long (%d)' % (lengths['d_left'] + lengths['d_right'])
         return True
     if lengths['j_left'] > len(seqs['j']):  # NOTE also not possible for the same reason
+        print '      j_left erosion too long (%d)' % lengths['j_left']
         return True
+    return False
 
 #----------------------------------------------------------------------------------------
 def find_tryp_in_joined_seq(tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_insertion, j_seq, j_erosion):
     """ Find the <end> tryptophan in a joined sequence.
 
     Given local tryptophan position in the j region, figure
-    out what position it's at in the final sequence
+    out what position it's at in the final sequence.
+    NOTE tryp_position_in_j is the position *before* the j was eroded,
+    but this fcn assumes that the j *has* been eroded.
     """
-    check_conserved_tryptophan(j_seq, tryp_position_in_j - j_erosion)  # can't be too careful
+    check_conserved_tryptophan(j_seq, tryp_position_in_j - j_erosion)  # make sure tryp is where it's supposed to be
     length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion)
     return tryp_position_in_j - j_erosion + length_to_left_of_j
 
@@ -108,9 +125,9 @@ class Recombinator(object):
         for region in self.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
         self.read_vdj_version_freqs('version-counter/filtered-vdj-probs.txt')
-        with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in v regions
+        with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
-        with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in j regions (TGG)
+        with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
@@ -122,8 +139,10 @@ class Recombinator(object):
         chosen_seqs = {}
         cyst_position = self.cyst_positions[vdj_combo_label[0]]['cysteine-position']
         tryp_position = int(self.tryp_positions[vdj_combo_label[2]])
+
+        # choose germline seqs
         for region in self.regions:
-            chosen_seqs[region] = self.get_seq(region, vdj_combo_label)
+            chosen_seqs[region] = self.all_seqs[region][vdj_combo_label[region_to_int(region)]]
             print '    found %s: %s' % (region, vdj_combo_label[region_to_int(region)]),
             if region == 'v':
                 print ' (cysteine: %d)' % cyst_position
@@ -131,6 +150,8 @@ class Recombinator(object):
                 print ' (tryptophan: %d)' % tryp_position
             else:
                 print ''
+
+        # erode, insert, and combine
         self.erode_and_insert(reco_info, vdj_combo_label, chosen_seqs, cyst_position, tryp_position)
         print '  joining'
         print '         v: %s' % chosen_seqs['v']
@@ -139,7 +160,7 @@ class Recombinator(object):
         print '    insert: %s' % reco_info['dj_insertion']
         print '         j: %s' % chosen_seqs['j']
         recombined_seq = chosen_seqs['v'] + reco_info['vd_insertion'] + chosen_seqs['d'] + reco_info['dj_insertion'] + chosen_seqs['j']
-        final_tryp_position = find_tryp_in_joined_seq(tryp_position,
+        final_tryp_position = find_tryp_in_joined_seq(tryp_position,  # NOTE remember this is the tryp position, in j alone, *before* erosion
                                                       chosen_seqs['v'],
                                                       reco_info['vd_insertion'],
                                                       chosen_seqs['d'],
@@ -147,22 +168,24 @@ class Recombinator(object):
                                                       chosen_seqs['j'],
                                                       reco_info['j_left'])
         print '  final tryptophan position: %d' % final_tryp_position
-        reco_info['mutations'] = ''  # string to keep track of all mutations four output to csv
+
+        # add point mutations
+        reco_info['mutations'] = ''  # string to keep track of all mutations for output to csv
         final_seq = self.mutate(reco_info, recombined_seq, (cyst_position, final_tryp_position))
-        reco_info['seq'] = final_seq
         check_conserved_codons(final_seq, cyst_position, final_tryp_position)
-        # check cdr3 length
+        reco_info['seq'] = final_seq
+
+        # make sure cdr3 length matches the desired length in vdj_combo_label
         final_cdr3_length = final_tryp_position - cyst_position + 3
-#        print final_cdr3_length,vdj_combo_label[3]
         assert final_cdr3_length == vdj_combo_label[3]
+
         if outfile != '':
             self.write_csv(outfile, reco_info)
+
         return final_seq
 
     def read_vdj_versions(self, region, fname):
-        """ Read the various germline variants from file and store as
-        Seq objects
-        """
+        """ Read the various germline variants from file. """
         self.all_seqs[region] = {}
         for seq_record in SeqIO.parse(fname, "fasta"):
             # This line works equally well without the string conversion
@@ -196,92 +219,52 @@ class Recombinator(object):
             if iprob < sum_prob:
                 print '  chose combination: ',vdj_choice
                 return vdj_choice
-        print 'ERROR I shouldn\'t be here'
+        print 'ERROR shouldn\'t have fallen through'
         sys.exit()
-
-    def get_seq(self, region, vdj_combo_label):
-        gene_name = ''
-        if region == 'v':
-            gene_name = vdj_combo_label[0]
-        elif region == 'd':
-            gene_name = vdj_combo_label[1]
-        elif region == 'j':
-            gene_name = vdj_combo_label[2]
-        else:
-            print 'ERROR that don\'t make no sense'
-            sys.exit()
-        return self.all_seqs[region][gene_name]
 
     def get_insert_delete_lengths(self, cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length):
         """ Choose random insertion and deletion lengths consisent with desired cdr3 length. """
-        lengths = {}
-        # first choose a total insertion length (vd + dj)
+        lengths = {}  # return values
         net_length_change = desired_cdr3_length - current_cdr3_length
+
+        # first choose a total insertion length (vd + dj)
         total_insertion_length = int(numpy.random.exponential(2*self.mean_insertion_length))
-        while total_insertion_length <= net_length_change:  # has to be greater than delta
+        while total_insertion_length <= net_length_change:  # have to insert at least this many
             total_insertion_length = int(numpy.random.exponential(2*self.mean_insertion_length))
-        total_deletion_length = total_insertion_length - net_length_change  # fabs of d, if you like
+        total_deletion_length = total_insertion_length - net_length_change
         print '    trying totals: insert %d delete %d' % (total_insertion_length, total_deletion_length)
         assert total_insertion_length >= 0 and total_deletion_length >= 0
+
         # divide total_insertion_length into vd_insertion and dj_insertion
         partition_point = numpy.random.uniform(0, total_insertion_length)
         lengths['vd_insertion'] = int(round(partition_point))
         lengths['dj_insertion'] = total_insertion_length - lengths['vd_insertion']
         print '      insertion lengths: %d %d' % (lengths['vd_insertion'], lengths['dj_insertion'])
         assert lengths['vd_insertion'] + lengths['dj_insertion'] == total_insertion_length  # check for rounding problems
+
         # divide total_deletion_length into the four erosions
         partition_point_2 = int(round(numpy.random.uniform(0,total_deletion_length)))  # 'middle' point of the interval
-        # NOTE this better work with zero-length deletions
         partition_point_1 = int(round(numpy.random.uniform(0, partition_point_2)))  # leftmost
         partition_point_3 = int(round(numpy.random.uniform(partition_point_2, total_deletion_length)))  # rightmost
         lengths['v_right'] = partition_point_1
         lengths['d_left'] = partition_point_2 - partition_point_1
         lengths['d_right'] = partition_point_3 - partition_point_2
         lengths['j_left'] = total_deletion_length - partition_point_3
-#        print '        partition points: %d %d %d' % (partition_point_1, partition_point_2, partition_point_3)
         print '      erosion lengths: %d %d %d %d' % (lengths['v_right'], lengths['d_left'], lengths['d_right'], lengths['j_left'])
         assert lengths['v_right'] + lengths['d_left'] + lengths['d_right'] + lengths['j_left'] == total_deletion_length
 
         return lengths
-        
-    def erode_and_insert(self, reco_info, vdj_combo_label, seqs, cyst_position, tryp_position):
-        """ Erode and insert based on the cdr3 length in vdj_combo_label. """
-        desired_cdr3_length = vdj_combo_label[3]
-        # find current cdr3 length (i.e. with no insertions or erosions)
-        tryp_position_in_joined_seq = find_tryp_in_joined_seq(tryp_position, seqs['v'],  '', seqs['d'], '', seqs['j'], 0)
-        check_conserved_codons(seqs['v'] + seqs['d'] + seqs['j'], cyst_position, tryp_position_in_joined_seq)
-        current_cdr3_length = tryp_position_in_joined_seq - cyst_position + 3
-        print '  choosing lengths'
-        print '    cdr3: %d --> %d (%+d)' % (current_cdr3_length, desired_cdr3_length, desired_cdr3_length - current_cdr3_length)
-
-        # Choose the deletion and insertion lengths, rechoosing if the original
-        # choice would have eroded a conserved codon
-        lengths = {}
-        while would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position) or is_erosion_longer_than_seq(lengths, seqs):
-            lengths = self.get_insert_delete_lengths(cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length)
-
-        # copy lengths over to reco_info
-        for key,val in lengths.iteritems():
-            reco_info[key] = lengths[key]
-
-        print '  eroding'
-        seqs['v'] = self.erode('v', 'right', seqs, lengths, cyst_position)
-        seqs['d'] = self.erode('d', 'left', seqs, lengths)
-        seqs['d'] = self.erode('d', 'right', seqs, lengths)
-        seqs['j'] = self.erode('j', 'left', seqs, lengths, tryp_position)
-        for boundary in ('vd', 'dj'):
-            reco_info[boundary + '_insertion'] = self.get_insertion(lengths[boundary + '_insertion'])
 
     def erode(self, region, location, seqs, lengths, protected_position=-1):
         """ Erode some number of letters from seq.
 
         Nucleotides are removed from the <location> ('left' or 'right') side of
-        <seq>. The codon beginning at index <protected_position> is protected
-        from removal.
+        <seq>. The codon beginning at index <protected_position> is optionally
+        protected from removal.
         """
         seq = seqs[region]
         n_to_erode = lengths[region + '_' + location]
-        if protected_position > 0:  # this check is redundant
+        if protected_position > 0:  # this check is redundant at this point
             if location == 'right' and region == 'v':
                 if len(seq) - n_to_erode <= protected_position + 2:
                     assert False
@@ -320,24 +303,45 @@ class Recombinator(object):
         for _ in range(0, length):
             insert_seq_str += int_to_nucleotide(random.randint(0, 3))
         return insert_seq_str
+        
+    def erode_and_insert(self, reco_info, vdj_combo_label, seqs, cyst_position, tryp_position):
+        """ Erode and insert based on the cdr3 length in vdj_combo_label. """
+        desired_cdr3_length = vdj_combo_label[3]
+        # find 'current' cdr3 length (i.e. with no insertions or erosions)
+        tryp_position_in_joined_seq = find_tryp_in_joined_seq(tryp_position, seqs['v'],  '', seqs['d'], '', seqs['j'], 0)
+        check_conserved_codons(seqs['v'] + seqs['d'] + seqs['j'], cyst_position, tryp_position_in_joined_seq)
+        current_cdr3_length = tryp_position_in_joined_seq - cyst_position + 3
+        print '  choosing lengths'
+        print '    cdr3: %d --> %d (%+d)' % (current_cdr3_length, desired_cdr3_length, desired_cdr3_length - current_cdr3_length)
 
-    def is_position_protected(self, protected_positions, prospective_position):
-        for position in protected_positions:
-            if (prospective_position == position or
-                prospective_position == (position + 1) or
-                prospective_position == (position + 2)):
-                return True
-        return False
+        # Choose the deletion and insertion lengths, rechoosing if the original
+        #   choice would have eroded a conserved codon
+        lengths = {}
+        while (would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position) or
+               is_erosion_longer_than_seq(lengths, seqs)):
+            lengths = self.get_insert_delete_lengths(cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length)
+
+        # copy lengths over to reco_info
+        for key,val in lengths.iteritems():
+            reco_info[key] = lengths[key]
+
+        print '  eroding'
+        seqs['v'] = self.erode('v', 'right', seqs, lengths, cyst_position)
+        seqs['d'] = self.erode('d', 'left', seqs, lengths)
+        seqs['d'] = self.erode('d', 'right', seqs, lengths)
+        seqs['j'] = self.erode('j', 'left', seqs, lengths, tryp_position)
+        for boundary in ('vd', 'dj'):
+            reco_info[boundary + '_insertion'] = self.get_insertion(lengths[boundary + '_insertion'])
 
     def mutate(self, reco_info, seq, protected_positions):
-        """ Apply point mutations to <seq>, then return it """
+        """ Apply point mutations to <seq>, then return it. """
         n_mutes = int(numpy.random.poisson(self.mute_rate*len(seq)))
         original_seq = seq
         print '  making %d point mutations: ' % n_mutes,
         mute_locations = []
         for _ in range(n_mutes):
             position = random.randint(0, len(seq)-1)
-            while self.is_position_protected(protected_positions, position):
+            while is_position_protected(protected_positions, position):
                 position = random.randint(0, len(seq)-1)
             mute_locations.append(position)
             old_nuke = seq[position]
@@ -355,10 +359,10 @@ class Recombinator(object):
         mute_print_str = ''
         for ich in range(len(seq)):
             if ich in mute_locations:
-                if self.is_position_protected(protected_positions, ich):
+                if is_position_protected(protected_positions, ich):
                     print 'ERROR mutated a protected position'
                 mute_print_str += '|'
-            elif self.is_position_protected(protected_positions, ich):
+            elif is_position_protected(protected_positions, ich):
                 mute_print_str += 'o'
             else:
                 mute_print_str += ' '
