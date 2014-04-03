@@ -115,6 +115,7 @@ class Recombinator(object):
     # parameters that control recombination, erosion, and whatnot
     mute_rate = 0.06  # average number of point mutations per base
     mean_insertion_length = 6  # mean length of the non-templated insertion
+    mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
 
     all_seqs = {}  # all the Vs, all the Ds...
     regions = ['v', 'd', 'j']
@@ -132,7 +133,7 @@ class Recombinator(object):
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
     def combine(self, outfile=''):
-        """ Run the combination. Returns the new sequence. """
+        """ Run the combination. """
         vdj_combo_label = self.choose_vdj_combo()  # a tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length)
         reco_info = {}  # collect information about the recombination process for output to csv file
         reco_info['vdj_combo'] = vdj_combo_label
@@ -168,21 +169,18 @@ class Recombinator(object):
                                                       chosen_seqs['j'],
                                                       reco_info['j_left'])
         print '  final tryptophan position: %d' % final_tryp_position
-
-        # add point mutations
-        reco_info['mutations'] = ''  # string to keep track of all mutations for output to csv
-        final_seq = self.mutate(reco_info, recombined_seq, (cyst_position, final_tryp_position))
-        check_conserved_codons(final_seq, cyst_position, final_tryp_position)
-        reco_info['seq'] = final_seq
-
         # make sure cdr3 length matches the desired length in vdj_combo_label
         final_cdr3_length = final_tryp_position - cyst_position + 3
         assert final_cdr3_length == vdj_combo_label[3]
 
-        if outfile != '':
-            self.write_csv(outfile, reco_info)
+        # toss a bunch of clones: add point mutations
+        for ic in range(int(round(numpy.random.poisson(self.mean_n_clones)))):
+            print '  clone %d' % ic
+            reco_info['seq'] = self.mutate(reco_info, recombined_seq, (cyst_position, final_tryp_position))
+            check_conserved_codons(reco_info['seq'], cyst_position, final_tryp_position)
 
-        return final_seq
+            if outfile != '':
+                self.write_csv(outfile, reco_info)
 
     def read_vdj_versions(self, region, fname):
         """ Read the various germline variants from file. """
@@ -335,10 +333,11 @@ class Recombinator(object):
 
     def mutate(self, reco_info, seq, protected_positions):
         """ Apply point mutations to <seq>, then return it. """
-        n_mutes = int(numpy.random.poisson(self.mute_rate*len(seq)))
+        n_mutes = int(round(numpy.random.poisson(self.mute_rate*len(seq))))
         original_seq = seq
-        print '  making %d point mutations: ' % n_mutes,
+        print '    making %d point mutations: ' % n_mutes,
         mute_locations = []
+        reco_info['mutations'] = ''
         for _ in range(n_mutes):
             position = random.randint(0, len(seq)-1)
             while is_position_protected(protected_positions, position):
@@ -361,14 +360,15 @@ class Recombinator(object):
             if ich in mute_locations:
                 if is_position_protected(protected_positions, ich):
                     print 'ERROR mutated a protected position'
+                    sys.exit()
                 mute_print_str += '|'
             elif is_position_protected(protected_positions, ich):
                 mute_print_str += 'o'
             else:
                 mute_print_str += ' '
-        print '  before mute:',original_seq
-        print '  mutations:  ',mute_print_str,'    (o: protected codons)'
-        print '  after mute: ',seq
+        print '    before mute:',original_seq
+        print '    mutations:  ',mute_print_str,'    (o: protected codons)'
+        print '    after mute: ',seq
 
         return seq
 
@@ -376,14 +376,17 @@ class Recombinator(object):
         with open(outfile, 'ab') as csvfile:
             csv_writer = csv.writer(csvfile)
             columns = ('vdj_combo', 'vd_insertion', 'dj_insertion', 'v_right', 'd_left', 'd_right', 'j_left', 'mutations', 'seq')
+            string_to_hash = ''  # hash the information that uniquely identifies each recombination event
             csv_row = []
             for column in columns:
                 if column == 'vdj_combo':
-                    csv_row.append(reco_info[column][0])
-                    csv_row.append(reco_info[column][1])
-                    csv_row.append(reco_info[column][2])
-                    csv_row.append(reco_info[column][3])
+                    for i in range(4):
+                        csv_row.append(reco_info[column][i])
+                        string_to_hash += str(reco_info[column][i])
                 else:
                     csv_row.append(reco_info[column])
-                    
+                    if column != 'mutations' and column != 'seq':
+                        string_to_hash += str(reco_info[column])
+
+            csv_row.insert(0, hash(string_to_hash))
             csv_writer.writerow(csv_row)
