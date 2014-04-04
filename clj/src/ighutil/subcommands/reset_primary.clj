@@ -4,6 +4,7 @@
   then finding alleles which may be present in the data,
   finally choosing randomly among best-scoring alignments."
   (:require [clojure.java.io :as io]
+            [clojure.set :as set]
             [clojure.string :as string]
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary?
@@ -83,11 +84,15 @@
                  [(reference-name record) (/ 1.0 n-keep)]))))
           (drop-group
             [freqs]
-            (let [s (reduce + (map second freqs))
-                  minimum (* min-prop (float s))]
-              (->> freqs
-                   (filter (comp #(<= % minimum) second))
-                   (map first))))]
+            (let [all (->> freqs (map first) (into #{}))
+                  tot (reduce + (map second freqs))
+                  minimum (* min-prop (float tot))
+                  to-keep (->> freqs
+                               (filter (comp #(>= % minimum) second))
+                               (sort-by (comp vec reverse) #(compare %2 %1))
+                               (map first)
+                               (take 2))]
+              (set/difference all to-keep)))]
     (->> alignments
          partition-by-name-segment
          (map filter-max-score)
@@ -95,8 +100,8 @@
          seq
          sort
          (partition-by (comp strip-allele first))
-         (mapcat drop-group)
-         (into #{}))))
+         (map drop-group)
+         (reduce set/union))))
 
 
 (defn- max-score-tiebreak
@@ -110,38 +115,40 @@
                  :or {record-selector rand-nth
                       to-remove #{}}}]
   (assert (set? to-remove))
-  (let [^SAMRecord primary (first (filter primary? alignments))
-        sorted (sort-by alignment-score #(compare %2 %1) alignments)
-        dropped-unlikely (remove #(-> % reference-name to-remove) sorted)]
+  (let [is-unlikely-allele? (comp to-remove reference-name)]
+    (if (= 1 (count alignments))
+     (remove is-unlikely-allele? alignments) ; Only one alignment
+     (let [^SAMRecord primary (first (filter primary? alignments))
+           sorted (sort-by alignment-score #(compare %2 %1) alignments)
+           dropped-unlikely (remove is-unlikely-allele? sorted)]
        (assert (= 1 (count (filter primary? alignments))))
-    (if (seq dropped-unlikely)
-      (let [max-score (-> dropped-unlikely
-                          first
-                          alignment-score)
-            max-records (vec (take-while
-                              (comp #(= max-score %) alignment-score)
-                              dropped-unlikely))
+       (if (seq dropped-unlikely)
+         (let [max-score (-> dropped-unlikely
+                             first
+                             alignment-score)
+               max-records (vec (take-while
+                                 (comp #(= max-score %) alignment-score)
+                                 dropped-unlikely))
             ^SAMRecord selection (record-selector max-records)]
-        (when (and primary (not= selection primary))
-          (do
-            ;; Swap out the primary read and the new selection
+           (when (and primary (not= selection primary))
+             (do
+               ;; Swap out the primary read and the new selection
             (make-primary!
              selection
              (.getReadBases primary)
              (.getBaseQualities primary)
              :supplementary (.getSupplementaryAlignmentFlag primary))
             (make-secondary! primary)))
-        (assert (= 1 (count (filter primary? alignments))))
-        ;; Add number of ties
-        (let [ties (->> max-records
-                        (remove #(= selection %))
-                        (map reference-name)
-                        sort
-                        (string/join "|"))]
-          (.setAttribute selection sam/TAG-TIES ties))
-        alignments)
-      ;; drop all alignments for the read
-      [])))
+           ;; Add number of ties
+           (let [ties (->> max-records
+                           (remove #(= selection %))
+                           (map reference-name)
+                           sort
+                           (string/join "|"))]
+             (.setAttribute selection sam/TAG-TIES ties))
+           dropped-unlikely)
+         ;; drop all alignments for the read
+         [])))))
 
 (defn- order-by-vdj
   "Place reads in V-D-J order"
@@ -223,7 +230,7 @@
                            unlikely-alleles))
                     #{})
         random-gen (java.util.Random. ^Long seed)]
-    (timbre/info "Removing " to-remove)
+    (timbre/info "Removing " (sort to-remove))
     (with-open [reader (SAMFileReader. ^java.io.File in-file)]
       (.setValidationStringency
        reader
