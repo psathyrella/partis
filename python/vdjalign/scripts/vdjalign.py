@@ -84,3 +84,7 @@ def parse_arguments(argv):
         return parse_arguments([str(arguments.action[0]), '-h'])
 
     return arguments
+
+
+if __name__ == '__main__':
+    main()
