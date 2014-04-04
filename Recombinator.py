@@ -377,16 +377,23 @@ class Recombinator(object):
             csv_writer = csv.writer(csvfile)
             columns = ('vdj_combo', 'vd_insertion', 'dj_insertion', 'v_right', 'd_left', 'd_right', 'j_left', 'mutations', 'seq')
             string_to_hash = ''  # hash the information that uniquely identifies each recombination event
+            string_to_hash_unique = ''  # Hash to *uniquely* identify the sequence.
+                                        #   It's just strings of all the column values mashed together
+                                        #   with a random number tossed on top.
             csv_row = []
             for column in columns:
                 if column == 'vdj_combo':
                     for i in range(4):
                         csv_row.append(reco_info[column][i])
                         string_to_hash += str(reco_info[column][i])
+                        string_to_hash_unique += str(reco_info[column][i])
                 else:
                     csv_row.append(reco_info[column])
+                    string_to_hash_unique += str(reco_info[column])
                     if column != 'mutations' and column != 'seq':
                         string_to_hash += str(reco_info[column])
 
             csv_row.insert(0, hash(string_to_hash))
+            string_to_hash_unique += str(numpy.random.uniform())
+            csv_row.insert(0, hash(string_to_hash_unique))
             csv_writer.writerow(csv_row)
