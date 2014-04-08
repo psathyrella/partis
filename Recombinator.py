@@ -179,6 +179,7 @@ class Recombinator(object):
             reco_info['seq'] = self.mutate(reco_info, recombined_seq, (cyst_position, final_tryp_position))
             check_conserved_codons(reco_info['seq'], cyst_position, final_tryp_position)
 
+#            self.write_final_vdj(vdj_combo_label, reco_info)
             if outfile != '':
                 self.write_csv(outfile, reco_info)
 
@@ -371,6 +372,36 @@ class Recombinator(object):
         print '    after mute: ',seq
 
         return seq
+
+    def write_final_vdj(self, vdj_combo_label, reco_info):
+        """ Write the eroded and mutated v, d, and j regions to file. """
+        original_seqs = {}
+        for region in self.regions:
+            original_seqs[region] = self.all_seqs[region][vdj_combo_label[region_to_int(region)]]
+        # work out the final starting positions and lengths
+        v_start = 0
+        v_length = len(original_seqs['v']) - reco_info['v_right']
+        d_start = v_length + len(reco_info['vd_insertion'])
+        d_length = len(original_seqs['d']) - reco_info['d_left'] - reco_info['d_right']
+        j_start = v_length + len(reco_info['vd_insertion']) + d_length + len(reco_info['dj_insertion'])
+        j_length = len(original_seqs['j']) - reco_info['j_left']
+        assert len(reco_info['seq']) == v_length + len(reco_info['vd_insertion']) + d_length + len(reco_info['dj_insertion']) + j_length
+        # get the final seqs (i.e. what v, d, and j look like in the final sequence)
+        final_seqs = {}
+        final_seqs['v'] = reco_info['seq'][v_start:v_start+v_length]
+        final_seqs['d'] = reco_info['seq'][d_start:d_start+d_length]
+        final_seqs['j'] = reco_info['seq'][j_start:j_start+j_length]
+        # pad with dots so it looks like (ok, is) an m.s.a. file
+        final_seqs['v'] = final_seqs['v'] + reco_info['v_right'] * '.'
+        final_seqs['d'] = reco_info['d_left'] * '.' + final_seqs['d'] + reco_info['d_right'] * '.'
+        final_seqs['j'] = reco_info['j_left'] * '.' + final_seqs['j']
+        for region in self.regions:
+            sanitized_name = vdj_combo_label[region_to_int(region)]  # replace special characters in gene names
+            sanitized_name = sanitized_name.replace('*','-')
+            sanitized_name = sanitized_name.replace('/','-')
+            out_fname = 'data/msa/' + sanitized_name + '.sto'
+            with open(out_fname, 'ab') as outfile:
+                outfile.write('%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region]))
 
     def write_csv(self, outfile, reco_info):
         with open(outfile, 'ab') as csvfile:
