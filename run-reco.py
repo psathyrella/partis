@@ -3,7 +3,7 @@ from Recombinator import Recombinator
 
 #----------------------------------------------------------------------------------------
 reco = Recombinator()
-for _ in range(1000):
+for _ in range(1):
     print 'combining'
 #    raw_reco_seq = reco.combine('out.csv')
     raw_reco_seq = reco.combine()

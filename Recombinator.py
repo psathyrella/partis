@@ -71,12 +71,12 @@ def would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position):
     if len(lengths) == 0:  # i.e. if we haven't yet filled the lengths
         return True
     # check conserved cysteine
-    if len(seqs['v']) - lengths['v_right'] <= cyst_position + 2:
-        print '      about to erode cysteine (%d), try again' % lengths['v_right']
+    if len(seqs['v']) - lengths['v_3p_del'] <= cyst_position + 2:
+        print '      about to erode cysteine (%d), try again' % lengths['v_3p_del']
         return True  # i.e. it *would* screw it up
     # check conserved tryptophan
-    if lengths['j_left'] - 1 >= tryp_position:
-        print '      about to erode tryptophan (%d), try again' % lengths['j_left']
+    if lengths['j_5p_del'] - 1 >= tryp_position:
+        print '      about to erode tryptophan (%d), try again' % lengths['j_5p_del']
         return True
 
     return False  # *whew*, it won't erode either of 'em
@@ -84,14 +84,14 @@ def would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position):
 #----------------------------------------------------------------------------------------
 def is_erosion_longer_than_seq(lengths, seqs):
     """ Are any of the proposed erosion <lengths> longer than the seq to be eroded? """
-    if lengths['v_right'] > len(seqs['v']):  # NOTE not actually possible since we already know we didn't erode the cysteine
-        print '      v_right erosion too long (%d)' % lengths['v_right']
+    if lengths['v_3p_del'] > len(seqs['v']):  # NOTE not actually possible since we already know we didn't erode the cysteine
+        print '      v_3p_del erosion too long (%d)' % lengths['v_3p_del']
         return True
-    if lengths['d_left'] + lengths['d_right'] > len(seqs['d']):
-        print '      d erosions too long (%d)' % (lengths['d_left'] + lengths['d_right'])
+    if lengths['d_5p_del'] + lengths['d_3p_del'] > len(seqs['d']):
+        print '      d erosions too long (%d)' % (lengths['d_5p_del'] + lengths['d_3p_del'])
         return True
-    if lengths['j_left'] > len(seqs['j']):  # NOTE also not possible for the same reason
-        print '      j_left erosion too long (%d)' % lengths['j_left']
+    if lengths['j_5p_del'] > len(seqs['j']):  # NOTE also not possible for the same reason
+        print '      j_5p_del erosion too long (%d)' % lengths['j_5p_del']
         return True
     return False
 
@@ -167,7 +167,7 @@ class Recombinator(object):
                                                       chosen_seqs['d'],
                                                       reco_info['dj_insertion'],
                                                       chosen_seqs['j'],
-                                                      reco_info['j_left'])
+                                                      reco_info['j_5p_del'])
         print '  final tryptophan position: %d' % final_tryp_position
         # make sure cdr3 length matches the desired length in vdj_combo_label
         final_cdr3_length = final_tryp_position - cyst_position + 3
@@ -245,29 +245,29 @@ class Recombinator(object):
         partition_point_2 = int(round(numpy.random.uniform(0,total_deletion_length)))  # 'middle' point of the interval
         partition_point_1 = int(round(numpy.random.uniform(0, partition_point_2)))  # leftmost
         partition_point_3 = int(round(numpy.random.uniform(partition_point_2, total_deletion_length)))  # rightmost
-        lengths['v_right'] = partition_point_1
-        lengths['d_left'] = partition_point_2 - partition_point_1
-        lengths['d_right'] = partition_point_3 - partition_point_2
-        lengths['j_left'] = total_deletion_length - partition_point_3
-        print '      erosion lengths: %d %d %d %d' % (lengths['v_right'], lengths['d_left'], lengths['d_right'], lengths['j_left'])
-        assert lengths['v_right'] + lengths['d_left'] + lengths['d_right'] + lengths['j_left'] == total_deletion_length
+        lengths['v_3p_del'] = partition_point_1
+        lengths['d_5p_del'] = partition_point_2 - partition_point_1
+        lengths['d_3p_del'] = partition_point_3 - partition_point_2
+        lengths['j_5p_del'] = total_deletion_length - partition_point_3
+        print '      erosion lengths: %d %d %d %d' % (lengths['v_3p_del'], lengths['d_5p_del'], lengths['d_3p_del'], lengths['j_5p_del'])
+        assert lengths['v_3p_del'] + lengths['d_5p_del'] + lengths['d_3p_del'] + lengths['j_5p_del'] == total_deletion_length
 
         return lengths
 
     def erode(self, region, location, seqs, lengths, protected_position=-1):
         """ Erode some number of letters from seq.
 
-        Nucleotides are removed from the <location> ('left' or 'right') side of
+        Nucleotides are removed from the <location> ('5p' or '3p') side of
         <seq>. The codon beginning at index <protected_position> is optionally
         protected from removal.
         """
         seq = seqs[region]
-        n_to_erode = lengths[region + '_' + location]
+        n_to_erode = lengths[region + '_' + location + '_del']
         if protected_position > 0:  # this check is redundant at this point
-            if location == 'right' and region == 'v':
+            if location == '3p' and region == 'v':
                 if len(seq) - n_to_erode <= protected_position + 2:
                     assert False
-            elif location == 'left' and region == 'j':
+            elif location == '5p' and region == 'j':
                 if n_to_erode - 1 >= protected_position:
                     assert False
             else:
@@ -276,16 +276,16 @@ class Recombinator(object):
 
         fragment_before = ''
         fragment_after = ''
-        if location == 'left':
+        if location == '5p':
             fragment_before = seq[:n_to_erode + 3] + '...'
             new_seq = seq[n_to_erode:len(seq)]
             fragment_after = new_seq[:n_to_erode + 3] + '...'
-        elif location == 'right':
+        elif location == '3p':
             fragment_before = '...' + seq[len(seq) - n_to_erode - 3 :]
             new_seq = seq[0:len(seq)-n_to_erode]
             fragment_after = '...' + new_seq[len(new_seq) - n_to_erode - 3 :]
         else:
-            print 'ERROR location must be \"left\" or \"right\"'
+            print 'ERROR location must be \"5p\" or \"3p\"'
             sys.exit()
         print '    %3d from %5s' % (n_to_erode, location),
         print ' of %s region: %15s' % (region, fragment_before),
@@ -325,10 +325,10 @@ class Recombinator(object):
             reco_info[key] = lengths[key]
 
         print '  eroding'
-        seqs['v'] = self.erode('v', 'right', seqs, lengths, cyst_position)
-        seqs['d'] = self.erode('d', 'left', seqs, lengths)
-        seqs['d'] = self.erode('d', 'right', seqs, lengths)
-        seqs['j'] = self.erode('j', 'left', seqs, lengths, tryp_position)
+        seqs['v'] = self.erode('v', '3p', seqs, lengths, cyst_position)
+        seqs['d'] = self.erode('d', '5p', seqs, lengths)
+        seqs['d'] = self.erode('d', '3p', seqs, lengths)
+        seqs['j'] = self.erode('j', '5p', seqs, lengths, tryp_position)
         for boundary in ('vd', 'dj'):
             reco_info[boundary + '_insertion'] = self.get_insertion(lengths[boundary + '_insertion'])
 
@@ -380,11 +380,11 @@ class Recombinator(object):
             original_seqs[region] = self.all_seqs[region][vdj_combo_label[region_to_int(region)]]
         # work out the final starting positions and lengths
         v_start = 0
-        v_length = len(original_seqs['v']) - reco_info['v_right']
+        v_length = len(original_seqs['v']) - reco_info['v_3p_del']
         d_start = v_length + len(reco_info['vd_insertion'])
-        d_length = len(original_seqs['d']) - reco_info['d_left'] - reco_info['d_right']
+        d_length = len(original_seqs['d']) - reco_info['d_5p_del'] - reco_info['d_3p_del']
         j_start = v_length + len(reco_info['vd_insertion']) + d_length + len(reco_info['dj_insertion'])
-        j_length = len(original_seqs['j']) - reco_info['j_left']
+        j_length = len(original_seqs['j']) - reco_info['j_5p_del']
         assert len(reco_info['seq']) == v_length + len(reco_info['vd_insertion']) + d_length + len(reco_info['dj_insertion']) + j_length
         # get the final seqs (i.e. what v, d, and j look like in the final sequence)
         final_seqs = {}
@@ -392,9 +392,9 @@ class Recombinator(object):
         final_seqs['d'] = reco_info['seq'][d_start:d_start+d_length]
         final_seqs['j'] = reco_info['seq'][j_start:j_start+j_length]
         # pad with dots so it looks like (ok, is) an m.s.a. file
-        final_seqs['v'] = final_seqs['v'] + reco_info['v_right'] * '.'
-        final_seqs['d'] = reco_info['d_left'] * '.' + final_seqs['d'] + reco_info['d_right'] * '.'
-        final_seqs['j'] = reco_info['j_left'] * '.' + final_seqs['j']
+        final_seqs['v'] = final_seqs['v'] + reco_info['v_3p_del'] * '.'
+        final_seqs['d'] = reco_info['d_5p_del'] * '.' + final_seqs['d'] + reco_info['d_3p_del'] * '.'
+        final_seqs['j'] = reco_info['j_5p_del'] * '.' + final_seqs['j']
         for region in self.regions:
             sanitized_name = vdj_combo_label[region_to_int(region)]  # replace special characters in gene names
             sanitized_name = sanitized_name.replace('*','-')
@@ -406,7 +406,7 @@ class Recombinator(object):
     def write_csv(self, outfile, reco_info):
         with open(outfile, 'ab') as csvfile:
             csv_writer = csv.writer(csvfile)
-            columns = ('vdj_combo', 'vd_insertion', 'dj_insertion', 'v_right', 'd_left', 'd_right', 'j_left', 'mutations', 'seq')
+            columns = ('vdj_combo', 'vd_insertion', 'dj_insertion', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'mutations', 'seq')
             string_to_hash = ''  # hash the information that uniquely identifies each recombination event
             string_to_hash_unique = ''  # Hash to *uniquely* identify the sequence.
                                         #   It's just strings of all the column values mashed together
