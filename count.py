@@ -2,6 +2,7 @@
 
 from versioncounter import VersionCounter
 
-vc = VersionCounter('data/human-beings/01-C-N_filtered.vdjcdr3.csv.bz2', 'data/human-beings/A/N')
+person = 'C'
+stage = 'N'
+vc = VersionCounter('data/human-beings/01-' + person + '-' + stage + '_filtered.vdjcdr3.csv.bz2', 'data/human-beings/' + person + '/' + stage)
 vc.count()
-

@@ -6,9 +6,11 @@ import random
 import numpy
 import bz2
 import math
+import os
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Alphabet import generic_alphabet
+from opener import opener
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
@@ -120,13 +122,16 @@ class Recombinator(object):
 
     all_seqs = {}  # all the Vs, all the Ds...
     regions = ['v', 'd', 'j']
+    erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
     version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
+    erosion_length_freqs = {}
 
     def __init__(self):
         """ Initialize from files """
         for region in self.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
-        self.read_vdj_version_freqs('data/human-beings/A/N/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
+        self.read_vdj_version_freqs('data/human-beings/C/N/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
+        self.read_erosion_lengths('data/human-beings/C/N')  # get erosion lengths from data
         with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
         with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
@@ -207,6 +212,27 @@ class Recombinator(object):
                 self.version_freq_table[index] = float(line['prob'])
             assert math.fabs(total - 1.0) < 1e-8
 
+    def read_erosion_lengths(self, indir):
+        for end in ['5p', '3p']:  # 5p or 3p end of the sequence?
+            if end not in self.erosion_length_freqs:
+                self.erosion_length_freqs[end] = {}
+            for region in self.regions:
+                if region not in self.erosion_length_freqs[end]:
+                    self.erosion_length_freqs[end][region] = {}
+                for infname in os.listdir(indir + '/' + region + '/' + end):
+                    gene_name = infname.replace('_star_','*').replace('_slash_','/').replace('.csv.bz2','')
+                    assert gene_name not in self.erosion_length_freqs[end][region]  # should be filling the same info twice
+                    self.erosion_length_freqs[end][region][gene_name] = []
+                    with opener('r')(indir + '/' + region + '/' + end + '/' + infname) as infile:
+                        reader = csv.DictReader(infile)
+                        total = 0.0  # make sure they sum to 1.0
+                        for line in reader:
+                            n_eroded = int(line['n_eroded'])
+                            prob = float(line['prob'])
+                            total += prob
+                            self.erosion_length_freqs[end][region][gene_name].append((n_eroded, prob))
+                        assert math.fabs(total - 1.0) < 1e-8
+
     def choose_vdj_combo(self):
         """ Choose which combination germline variants to use """
         iprob = numpy.random.uniform(0,1)
@@ -216,13 +242,51 @@ class Recombinator(object):
             if iprob < sum_prob:
                 print '  chose combination: ',vdj_choice
                 return vdj_choice
-        print 'ERROR shouldn\'t have fallen through (%f)' % iprob
-        sys.exit()
+        assert False  # shouldn't fall through to here
 
-    def get_insert_delete_lengths(self, cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length):
+    def get_deletion_length(self, distribution):
+        """ Choose an entry from <distribution>.
+
+        <distribution> must be a list of entries of the form (value, prob),
+        e.g. (2, 0.2), and it is assumed the normalization has already been checked.
+        """
+        iprob = numpy.random.uniform(0,1)
+        sum_prob = 0.0
+        for tup in distribution:
+            value = tup[0]
+            prob = tup[1]
+            sum_prob += prob
+            if iprob < sum_prob:
+                return value
+        assert False  # shouldn't fall through to here
+
+    def get_deletion_lengths(self, vdj_combo_label, lengths):
+        """ run get_deletion_length on all four ends that need it. """
+        total_deletion_length = 0
+        for erosion in self.erosions:
+            region = erosion.split('_')[0]
+            end = erosion.split('_')[1]
+            length_distribution = self.erosion_length_freqs[end][region][vdj_combo_label[region_to_int(region)]]
+            lengths[region + '_' + end + '_del'] = self.get_deletion_length(length_distribution)
+            total_deletion_length += lengths[region + '_' + end + '_del']
+        return total_deletion_length
+
+    def get_insert_delete_lengths(self, cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length, vdj_combo_label):
         """ Choose random insertion and deletion lengths consisent with desired cdr3 length. """
         lengths = {}  # return values
         net_length_change = desired_cdr3_length - current_cdr3_length
+
+        # redoing this to choose erosion lengths from data:
+        #   - first choose the four erosion lengths (repeating until you get enough erosion to make up the net_length_change
+        total_deletion_length = -999
+        while -total_deletion_length > net_length_change:
+            if total_deletion_length != -999:
+                print '    deletion too small: %d %d' % (-total_deletion_length,net_length_change)
+            total_deletion_length = self.get_deletion_lengths(vdj_combo_label, lengths)
+        print '      erosion lengths: %d %d %d %d' % (lengths['v_3p_del'], lengths['d_5p_del'], lengths['d_3p_del'], lengths['j_5p_del'])
+        assert -total_deletion_length <= net_length_change
+        sys.exit()
+        #   - then subtract to get the insertion length
 
         # first choose a total insertion length (vd + dj)
         total_insertion_length = int(numpy.random.exponential(2*self.mean_insertion_length))
@@ -316,7 +380,7 @@ class Recombinator(object):
         lengths = {}
         while (would_erode_conserved_codon(lengths, seqs, cyst_position, tryp_position) or
                is_erosion_longer_than_seq(lengths, seqs)):
-            lengths = self.get_insert_delete_lengths(cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length)
+            lengths = self.get_insert_delete_lengths(cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length, vdj_combo_label)
 
         # copy lengths over to reco_info
         for key,val in lengths.iteritems():

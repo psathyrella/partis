@@ -82,7 +82,7 @@ class VersionCounter:
     def write_gene_choice_probs(self, total):
         """ Write vdj combo freqs to file. """
         outfname = self.base_outdir + '/' + os.path.basename(self.infname.replace('.csv.bz2','.probs.csv.bz2'))
-        print '  writing gene choice probabilities'
+        print '  writing gene choice probabilities to %s' % outfname
         with bz2.BZ2File(outfname, 'w') as outfile:
             out_fieldnames = ['v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'prob']
             out_data = csv.DictWriter(outfile, out_fieldnames)
@@ -126,7 +126,7 @@ class VersionCounter:
     
     def write_erosion_probs(self):
         """ Write erosion_probs to disk. """
-        print '  writing erosion probs'
+        print '  writing erosion probs to %s' % self.base_outdir
         for region in self.regions:
             for erosion in self.erosions:
                 outdir = self.base_outdir + '/' + region + '/' + erosion
@@ -137,10 +137,11 @@ class VersionCounter:
                     sanitized_gene_name = gene_name.replace('*',"_star_").replace('/','_slash_')
                     outfname = outdir + '/' + sanitized_gene_name + '.csv.bz2'
                     with bz2.BZ2File(outfname, 'w') as outfile:  # this compression is kind of pointless a.t.m.
-                        out_fieldnames = [region + '_gene', 'n_eroded', 'prob']
+                        out_fieldnames = ['n_eroded', 'prob']
                         writer = csv.writer(outfile, out_fieldnames)
+                        writer.writerow(out_fieldnames)
                         # sort by n_eroded so file is more human readable
                         sorted_values = sorted(self.erosion_probs[erosion][gene_name].iteritems(),
                                                key=operator.itemgetter(0))
                         for n_eroded,prob in sorted_values:
-                             writer.writerow([gene_name, str(n_eroded), str(prob)])
+                             writer.writerow([str(n_eroded), str(prob)])
