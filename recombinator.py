@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """ Simulates the process of VDJ recombination """ 
 import sys
 import csv
@@ -127,7 +126,7 @@ class Recombinator(object):
         """ Initialize from files """
         for region in self.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
-        self.read_vdj_version_freqs('data/human-beings/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
+        self.read_vdj_version_freqs('data/human-beings/A/N/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
         with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
         with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
