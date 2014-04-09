@@ -16,16 +16,28 @@ regions = ['v', 'd', 'j']
 erosions = ['5p', '3p']
 gene_names = {}
 
-def parse_input(infname, erosion_counts):
+min_counts = 3  # if a combo has fewer counts than this, ignore it completely
+
+def parse_input(infname, version_freqs, erosion_counts):
     """ get sum of the \'count\' column in <infname>. """
-    print '  getting total from %s' % infname
+    print '  parsing input file %s' % infname
     total = 0.0
     with bz2.BZ2File(infname) as infile:
         in_data = csv.DictReader(infile)
-        progress_count = 0
-        n_lines = 5000000 #subprocess.check_output(['bzcat ', infname, ' | wc'])
+#        progress_count = 0
+#        n_lines = 5000000 #subprocess.check_output(['bzcat ', infname, ' | wc'])
         for line in in_data:
+#            if progress_count % 100000 == 0:
+#                print '  %3.1e / %3.0e = %5.2f  %s' % (progress_count, n_lines, float(progress_count) / n_lines, line['count'])
+#            progress_count += 1
+            if int(line['count']) < min_counts:
+                print '    breaking because count is less than %d. \n    NOTE that this assumes input file is sorted!' % min_counts
+                break
             total += int(line['count'])
+            index = (line['v_gene'], line['d_gene'], line['j_gene'], line['cdr3_length'])
+            if index not in version_freqs:
+                version_freqs[index] = 0
+            version_freqs[index] += int(line['count'])
             for region in regions:
                 if line[region + '_gene'] not in gene_names[region]:
                     gene_names[region].add(line[region + '_gene'])
@@ -34,28 +46,33 @@ def parse_input(infname, erosion_counts):
                     gene_name = line[region + '_gene']
                     if gene_name not in erosion_counts[erosion]:
                         erosion_counts[erosion][gene_name] = {}
-                    if line[erosion_name] in erosion_counts[erosion][gene_name]:  # e.g.: if we've already seen IGHV3-64*04 with an erosion of length 4 on the 3p end
-                        erosion_counts[erosion][gene_name][line[erosion_name]] += int(line['count'])
-                    else:
-                        erosion_counts[erosion][gene_name][line[erosion_name]] = int(line['count'])
+                    if line[erosion_name] not in erosion_counts[erosion][gene_name]:  # e.g.: if we haven't already seen IGHV3-64*04 with an erosion of length 4 on the 3p end
+                        erosion_counts[erosion][gene_name][line[erosion_name]] = 0
+                    erosion_counts[erosion][gene_name][line[erosion_name]] += int(line['count'])
 
-            if progress_count % 100000 == 0:
-                print '  %3.1e / %3.0e = %5.2f  %s' % (progress_count, n_lines, float(progress_count) / n_lines, line['count'])
-            progress_count += 1
     return total
 
-def write_gene_choice_probs(infname, outfname, total):
-    with bz2.BZ2File(infname) as infile:
-        in_data = csv.DictReader(infile)
-        with bz2.BZ2File(outfname, 'w') as outfile:
-            out_fieldnames = in_data.fieldnames
-            out_fieldnames.append('prob')
-            out_data = csv.DictWriter(outfile, out_fieldnames)
-            for line in in_data:
-                line['prob'] = float(line['count']) / total
-                out_data.writerow(line)
+def write_gene_choice_probs(infname, outfname, total, version_freqs):
+    print '  writing gene choice probabilities'
+    with bz2.BZ2File(outfname, 'w') as outfile:
+        out_fieldnames = ['v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'prob']
+        out_data = csv.DictWriter(outfile, out_fieldnames)
+        out_data.writeheader()
+        check_tot = 0.0
+        for index,count in version_freqs.iteritems():
+            prob = float(count) / total
+            line = {}
+            line['v_gene'] = index[0]
+            line['d_gene'] = index[1]
+            line['j_gene'] = index[2]
+            line['cdr3_length'] = index[3]
+            line['prob'] = prob
+            check_tot += prob
+            out_data.writerow(line)
+        print 'check: %f' % check_tot
 
 def normalize_erosion_counts(erosion_counts):
+    print '  normalizing erosion counts'
     erosion_probs = {}
     for erosion in erosions:
         erosion_probs[erosion] = {}
@@ -82,7 +99,8 @@ def check_normalization(erosion_probs):
 #                    print '  ',n_eroded,prob,total
                 assert math.fabs(total - 1.0) < 1e-5
 
-def write_erosion_counts(basedir, erosion_probs):
+def write_erosion_probs(basedir, erosion_probs):
+    print '  writing erosion probs'
     for region in regions:
         for erosion in erosions:
             outdir = basedir + '/' + region + '/' + erosion
@@ -97,7 +115,7 @@ def write_erosion_counts(basedir, erosion_probs):
                     for n_eroded,prob in erosion_probs[erosion][gene_name].iteritems():
                         writer.writerow([gene_name, str(n_eroded), str(prob)])
 
-#write_gene_choice_probs('data/human-beings/01-C-N_filtered.vdjcdr3.csv.bz2', 'tmp.csv')
+version_freqs = {}
 erosion_counts = {}  # Dict of erosion side, gene name, and number eroded to frequency, e.g.: erosion_counts['5p']['IGHV3-64*04']['3'] = 35
                      #   means that for that gene, we saw 5p erosions of length 3 35 times
 for region in regions:
@@ -106,8 +124,9 @@ for region in regions:
 for erosion in erosions:
     erosion_counts[erosion] = {}
 
-total = parse_input('head.csv.bz2', erosion_counts)
-write_gene_choice_probs('head.csv.bz2', 'tmp.csv.bz2', total)
+infname = 'data/human-beings/01-C-N_filtered.vdjcdr3.csv.bz2'
+total = parse_input(infname, version_freqs, erosion_counts)
+write_gene_choice_probs(infname, infname.replace('.csv.bz2','.probs.csv.bz2'), total, version_freqs)
 erosion_probs = normalize_erosion_counts(erosion_counts)
 check_normalization(erosion_probs)
-write_erosion_counts('tmp', erosion_counts)
+write_erosion_probs('data/human-beings', erosion_counts)

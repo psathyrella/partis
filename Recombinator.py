@@ -5,6 +5,8 @@ import csv
 import json
 import random
 import numpy
+import bz2
+import math
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Alphabet import generic_alphabet
@@ -125,7 +127,7 @@ class Recombinator(object):
         """ Initialize from files """
         for region in self.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
-        self.read_vdj_version_freqs('version-counter/filtered-vdj-probs.txt')
+        self.read_vdj_version_freqs('data/human-beings/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
         with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
         with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
@@ -196,18 +198,15 @@ class Recombinator(object):
         """ Read the frequencies at which various VDJ combinations appeared
         in data. This file was created with the code in version-counter/
         """
-        with open(fname) as infile:
-            for line in infile:
-                if line[0]=='#':
-                    continue
-                line_fragments = line.split()
-                v_gene = str(line_fragments[0])
-                d_gene = str(line_fragments[1])
-                j_gene = str(line_fragments[2])
-                cdr3_length  = int(line_fragments[3])
-                prob = float(line_fragments[4])
-                # TODO add some input sanitization here
-                self.version_freq_table[(v_gene, d_gene, j_gene, cdr3_length)] = prob
+        with bz2.BZ2File(fname) as infile:
+            in_data = csv.DictReader(infile)
+            total = 0.0  # check that the probs sum to 1.0
+            for line in in_data:
+                total += float(line['prob'])
+                index = (line['v_gene'], line['d_gene'], line['j_gene'], int(line['cdr3_length']))
+                assert index not in self.version_freq_table
+                self.version_freq_table[index] = float(line['prob'])
+            assert math.fabs(total - 1.0) < 1e-8
 
     def choose_vdj_combo(self):
         """ Choose which combination germline variants to use """
@@ -218,7 +217,7 @@ class Recombinator(object):
             if iprob < sum_prob:
                 print '  chose combination: ',vdj_choice
                 return vdj_choice
-        print 'ERROR shouldn\'t have fallen through'
+        print 'ERROR shouldn\'t have fallen through (%f)' % iprob
         sys.exit()
 
     def get_insert_delete_lengths(self, cyst_position, tryp_position, desired_cdr3_length, current_cdr3_length):
