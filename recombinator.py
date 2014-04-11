@@ -398,7 +398,10 @@ class Recombinator(object):
                     outfile.write('%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region]))
 
     def are_erosion_lengths_inconsistent(self, reco_event):
-        """ Are the erosion lengths inconsistent with the cdr3 length? """
+        """ Are the erosion lengths inconsistent with the cdr3 length?
+        TODO we need to work out why these are sometimes inconsistent, so we're not
+        just throwing out ~1/3 of the input file.
+        """
         if reco_event.vdj_combo_label == ():  # haven't filled it yet
             return True
         # now are the erosion lengths we chose consistent with the cdr3_length we chose?
@@ -409,10 +412,34 @@ class Recombinator(object):
         # print some crap
         gene_choices = reco_event.vdj_combo_label[util.index_keys['v_gene']] + ' ' + reco_event.vdj_combo_label[util.index_keys['d_gene']] + ' ' + reco_event.vdj_combo_label[util.index_keys['j_gene']]
         print '               try: %45s %10s %10d %10d' % (gene_choices, reco_event.vdj_combo_label[util.index_keys['cdr3_length']], total_deletion_length, reco_event.net_length_change),
-        if -total_deletion_length > reco_event.net_length_change:
+        is_bad = (-total_deletion_length > reco_event.net_length_change)
+        if is_bad:
             print '%10s' % 'no'
         else:
             print '%10s' % 'yes'
 
+        # write out some stuff for connor to check
+        outfname = 'for-connor.csv'
+        if os.path.isfile(outfname):
+            mode = 'ab'
+        else:
+            mode = 'wb'
+        columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'initial_cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'is_bad')
+        with opener('ab')(outfname) as outfile:
+            writer = csv.DictWriter(outfile, columns)
+            if mode == 'wb':  # write the header if file wasn't there before
+                writer.writeheader()
+            # fill the row with values
+            row = {}
+            # first the stuff that's common to the whole recombination event
+            row['cdr3_length'] = reco_event.cdr3_length
+            row['initial_cdr3_length'] = reco_event.current_cdr3_length
+            for region in util.regions:
+                row[region + '_gene'] = reco_event.gene_names[region]
+            for erosion_location in util.erosions:
+                row[erosion_location + '_del'] = reco_event.erosions[erosion_location]
+            row['is_bad'] = is_bad
+            writer.writerow(row)
+
         # i.e. we're *in*consistent if net change is negative and also less than total deletions
-        return -total_deletion_length > reco_event.net_length_change
+        return is_bad
