@@ -4,124 +4,205 @@ import csv
 import json
 import random
 import numpy
-import bz2
 import math
+import os
 from Bio import SeqIO
 
 from opener import opener
 import recoutils as util
 
 #----------------------------------------------------------------------------------------
-class Recombinator(object):
-    """ Simulates the process of VDJ recombination """
-
-    # parameters that control recombination, erosion, and whatnot
-    mute_rate = 0.06  # average number of point mutations per base
-    mean_insertion_length = 6  # mean length of the non-templated insertion
-    mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
-
-    all_seqs = {}  # all the Vs, all the Ds...
-    regions = ['v', 'd', 'j']
-    erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
-    index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
-    version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
+class RecombinationEvent(object):
+    """ Container to hold the information for a single recombination event. """
 
     def __init__(self):
-        """ Initialize from files """
+        self.vdj_combo_label = ()  # A tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
+                                   # NOTE I leave the lengths in here as strings
+        self.gene_names = {}
+        self.seqs = {}
+        self.cyst_position = -1
+        self.tryp_position = -1  # NOTE this is the position *within* the j gene *only*
+        self.final_tryp_position = -1  # while *this* is the tryp position in the final recombined sequence
+        self.erosions = {}  # erosion lengths for the event
+        self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
+        self.current_cdr3_length = 0  # while this is the lenght beforehand
+        self.net_length_change = 0  # and this is the difference between the two
+        self.total_deletion_length = 0
+        self.insertion_lengths = {}
+        self.insertions = {}
+        self.recombined_seq = ''  # combined sequence *before* mutations
+        self.mutations = []
+        self.final_seqs = []
+
+    def add_empty_mutant(self):
+        """ Prepare to add a new mutant. """
+        self.mutations.append('')
+
+    def add_mutation(self, position, old_nuke, new_nuke):
+        """ Add a single mutation to the list of mutations. """
+        if len(self.mutations[-1]) != 0:  # add a separator between adjacent mutations
+            self.mutations[-1] += '-'
+        self.mutations[-1] += '%d%s%s' % (position, old_nuke, new_nuke)
+
+    def set_vdj_combo(self, vdj_combo_label, cyst_position, tryp_position, all_seqs):
+        """ Set the label which labels the gene/length choice (a tuple of strings)
+        as well as it's constituent parts. """
+        self.vdj_combo_label = vdj_combo_label
+        self.cyst_position = cyst_position
+        self.tryp_position = tryp_position
+        for region in util.regions:
+            self.gene_names[region] = vdj_combo_label[util.index_keys[region + '_gene']]
+            self.seqs[region] = all_seqs[region][vdj_combo_label[util.index_keys[region + '_gene']]]
+        # set the erosion lengths
+        for erosion_location in util.erosions:
+            self.erosions[erosion_location] = int(vdj_combo_label[util.index_keys[erosion_location + '_del']])
+        # set the desired cdr3_length
+        self.cdr3_length = int(vdj_combo_label[util.index_keys['cdr3_length']])
+        # find 'current' cdr3 length (i.e. with no insertions or erosions)
+        tryp_position_in_joined_seq = util.find_tryp_in_joined_seq(self.tryp_position,
+                                                                   self.seqs['v'],
+                                                                   '',
+                                                                   self.seqs['d'],
+                                                                   '',
+                                                                   self.seqs['j'],
+                                                                   0)
+        util.check_conserved_codons(self.seqs['v'] + self.seqs['d'] + self.seqs['j'], self.cyst_position, tryp_position_in_joined_seq)
+        self.current_cdr3_length = tryp_position_in_joined_seq - self.cyst_position + 3
+        self.net_length_change = self.cdr3_length - self.current_cdr3_length
+        
+        self.total_deletion_length = 0
+        for erosion_location in util.erosions:
+            self.total_deletion_length += self.erosions[erosion_location]
+
+    def set_final_tryp_position(self):
+        """ Set tryp position in the final, combined sequence. """
+        self.final_tryp_position = util.find_tryp_in_joined_seq(self.tryp_position,
+                                                                self.seqs['v'],
+                                                                self.insertions['vd'],
+                                                                self.seqs['d'],
+                                                                self.insertions['dj'],
+                                                                self.seqs['j'],
+                                                                self.erosions['j_5p'])
+        print '  final tryptophan position: %d' % self.final_tryp_position
+        # make sure cdr3 length matches the desired length in vdj_combo_label
+        final_cdr3_length = self.final_tryp_position - self.cyst_position + 3
+        assert final_cdr3_length == int(self.cdr3_length)
+
+
+    def write_event(self, outfile):
+        """ Write out all info to csv file. """
+        columns = ('unique_id', 'reco_id', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'vd_insertion', 'dj_insertion', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'mutations', 'seq')
+        mode = ''
+        if os.path.isfile(outfile):
+            mode = 'ab'
+        else:
+            mode = 'wb'
+        with opener(mode)(outfile) as csvfile:
+            writer = csv.DictWriter(csvfile, columns)
+            if mode == 'wb':  # write the header if file wasn't there before
+                writer.writeheader()
+            # fill the row with values
+            row = {}
+            # first the stuff that's common to the whole recombination event
+            row['cdr3_length'] = self.cdr3_length
+            for region in util.regions:
+                row[region + '_gene'] = self.gene_names[region]
+            for boundary in util.boundaries:
+                row[boundary + '_insertion'] = self.insertions[boundary]
+            for erosion_location in util.erosions:
+                row[erosion_location + '_del'] = self.erosions[erosion_location]
+            # hash the information that uniquely identifies each recombination event
+            reco_id = ''
+            for column in row:
+                assert 'unique_id' not in row
+                assert 'mutations' not in row
+                assert 'seq' not in row
+                reco_id += str(row[column])
+            row['reco_id'] = hash(reco_id)
+            # then the stuff that's particular to each mutant/clone
+            for imute in range(len(self.final_seqs)):
+                row['seq'] = self.final_seqs[imute]
+                row['mutations'] = self.mutations[imute]
+                unique_id = ''  # Hash to uniquely identify the sequence.
+                for column in row:
+                    unique_id += str(row[column])
+                unique_id += str(numpy.random.uniform())
+                row['unique_id'] = hash(unique_id)
+                
+                # write the row
+                writer.writerow(row)
+
+#----------------------------------------------------------------------------------------
+class Recombinator(object):
+    """ Simulates the process of VDJ recombination """
+    def __init__(self):
+        # parameters that control recombination, erosion, and whatnot
+        self.mute_rate = 0.06  # average number of point mutations per base
+        self.mean_insertion_length = 6  # mean length of the non-templated insertion
+        self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
+    
+        self.all_seqs = {}  # all the Vs, all the Ds...
+        self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
+        self.version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
+
         print '  init'
         print '    reading vdj versions'
-        # tuple with the variables that are used to index selection frequencies
-        self.index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del')
-        for i in range(len(self.index_columns)):  # dict so we can access them by name instead of by index number
-            self.index_keys[self.index_columns[i]] = i
-        for region in self.regions:
+        for region in util.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
         print '    reading version freqs'
         self.read_vdj_version_freqs('data/human-beings/C/N/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
         print '    reading cyst and tryp positions'
-        with open('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
+        with opener('r')('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
-        with open('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
+        with opener('r')('data/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
     def combine(self, outfile=''):
         """ Run the combination. """
-        vdj_combo_label = ()  # a tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
-        chosen_seqs = {}
-        cyst_position = -1
-        tryp_position = -1
-        net_length_change = 0
-        print '    choosing genes: %45s %10s %10s %10s %10s' % (' ', 'cdr3_length', 'deletions', 'net', 'ok?')
-        while self.are_erosion_lengths_inconsistent(vdj_combo_label, net_length_change):
-            # first choose a combination
-            vdj_combo_label = self.choose_vdj_combo()
-            for region in self.regions:
-                chosen_seqs[region] = self.all_seqs[region][vdj_combo_label[self.index_keys[region + '_gene']]]
-
-            # then update some parameters we need in order to figure out whether it's consistent
-            cyst_position = self.cyst_positions[vdj_combo_label[self.index_keys['v_gene']]]['cysteine-position']
-            tryp_position = int(self.tryp_positions[vdj_combo_label[self.index_keys['j_gene']]])
-            desired_cdr3_length = int(vdj_combo_label[self.index_keys['cdr3_length']])
-            # find 'current' cdr3 length (i.e. with no insertions or erosions)
-            tryp_position_in_joined_seq = util.find_tryp_in_joined_seq(tryp_position, chosen_seqs['v'],  '', chosen_seqs['d'], '', chosen_seqs['j'], 0)
-            util.check_conserved_codons(chosen_seqs['v'] + chosen_seqs['d'] + chosen_seqs['j'], cyst_position, tryp_position_in_joined_seq)
-            current_cdr3_length = tryp_position_in_joined_seq - cyst_position + 3
-            net_length_change = desired_cdr3_length - current_cdr3_length
-    
-        reco_info = {}  # collect information about the recombination process for output to csv file
-        reco_info['vdj_combo'] = vdj_combo_label
-        total_deletion_length = 0
-        for erosion in self.erosions:
-            deletion = int(vdj_combo_label[self.index_keys[erosion + '_del']])
-            total_deletion_length += deletion
-            reco_info[erosion + '_del'] = deletion
-        self.get_insertion_lengths(reco_info, total_deletion_length, net_length_change)
+        reco_event = RecombinationEvent()
+        print '      choosing genes %45s %10s %10s %10s %10s' % (' ', 'cdr3', 'deletions', 'net', 'ok?')
+        while self.are_erosion_lengths_inconsistent(reco_event):
+            self.choose_vdj_combo(reco_event)  # set a vdj/erosion choice in reco_event
+        self.get_insertion_lengths(reco_event)
 
         print '    chose:  gene             length'
-        for region in self.regions:
-            print '        %s  %-18s %-3d' % (region, vdj_combo_label[self.index_keys[region + '_gene']], len(chosen_seqs[region])),
+        for region in util.regions:
+            print '        %s  %-18s %-3d' % (region, reco_event.gene_names[region], len(reco_event.seqs[region])),
             if region == 'v':
-                print ' (cysteine: %d)' % cyst_position
+                print ' (cysteine: %d)' % reco_event.cyst_position
             elif region == 'j':
-                print ' (tryptophan: %d)' % tryp_position
+                print ' (tryptophan: %d)' % reco_event.tryp_position
             else:
                 print ''
 
-        assert not util.is_erosion_longer_than_seq(reco_info, chosen_seqs)
-        assert not util.would_erode_conserved_codon(reco_info, chosen_seqs, cyst_position, tryp_position)
+        assert not util.is_erosion_longer_than_seq(reco_event)
+        assert not util.would_erode_conserved_codon(reco_event)
         # erode, insert, and combine
-        self.erode_and_insert(reco_info, chosen_seqs, cyst_position, tryp_position)
+        self.erode_and_insert(reco_event)
         print '  joining'
-        print '         v: %s' % chosen_seqs['v']
-        print '    insert: %s' % reco_info['vd_insertion']
-        print '         d: %s' % chosen_seqs['d']
-        print '    insert: %s' % reco_info['dj_insertion']
-        print '         j: %s' % chosen_seqs['j']
-        recombined_seq = chosen_seqs['v'] + reco_info['vd_insertion'] + chosen_seqs['d'] + reco_info['dj_insertion'] + chosen_seqs['j']
-        final_tryp_position = util.find_tryp_in_joined_seq(tryp_position,  # NOTE remember this is the tryp position, in j alone, *before* erosion
-                                                      chosen_seqs['v'],
-                                                      reco_info['vd_insertion'],
-                                                      chosen_seqs['d'],
-                                                      reco_info['dj_insertion'],
-                                                      chosen_seqs['j'],
-                                                      reco_info['j_5p_del'])
-        print '  final tryptophan position: %d' % final_tryp_position
-        # make sure cdr3 length matches the desired length in vdj_combo_label
-        final_cdr3_length = final_tryp_position - cyst_position + 3
-        assert final_cdr3_length == int(vdj_combo_label[self.index_keys['cdr3_length']])
+        print '         v: %s' % reco_event.seqs['v']
+        print '    insert: %s' % reco_event.insertions['vd']
+        print '         d: %s' % reco_event.seqs['d']
+        print '    insert: %s' % reco_event.insertions['dj']
+        print '         j: %s' % reco_event.seqs['j']
+        reco_event.recombined_seq = reco_event.seqs['v'] + reco_event.insertions['vd'] + reco_event.seqs['d'] + reco_event.insertions['dj'] + reco_event.seqs['j']
+        reco_event.set_final_tryp_position()
 
         # toss a bunch of clones: add point mutations
-        for ic in range(int(round(numpy.random.poisson(self.mean_n_clones)))):
-            print '  clone %d' % ic
-            reco_info['seq'] = self.mutate(reco_info, recombined_seq, (cyst_position, final_tryp_position))
-            util.check_conserved_codons(reco_info['seq'], cyst_position, final_tryp_position)
+        for iclone in range(int(round(numpy.random.poisson(self.mean_n_clones)))):
+            print '  clone %d' % iclone
+            self.add_mutant(reco_event)
+            util.check_conserved_codons(reco_event.final_seqs[-1], reco_event.cyst_position, reco_event.final_tryp_position)
 
-            # write some stuff that can be used by hmmer for training profiles
-#            self.write_final_vdj(vdj_combo_label, reco_info)
+#        # write some stuff that can be used by hmmer for training profiles
+#        # NOTE at the moment I have this *appending* to the files
+#        self.write_final_vdj(reco_event)
 
-            if outfile != '':
-                self.write_csv(outfile, reco_info)
+        # write final output to csv
+        if outfile != '':
+            print '  writing'
+            reco_event.write_event(outfile)
 
     def read_vdj_versions(self, region, fname):
         """ Read the various germline variants from file. """
@@ -136,48 +217,54 @@ class Recombinator(object):
         """ Read the frequencies at which various VDJ combinations appeared
         in data. This file was created with versioncounter.py
         """
-        with bz2.BZ2File(fname) as infile:
+#        with bz2.BZ2File(fname) as infile:
+        with opener('r')(fname) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0  # check that the probs sum to 1.0
             for line in in_data:
                 total += float(line['prob'])
-                index = tuple(line[column] for column in self.index_columns)
+                index = tuple(line[column] for column in util.index_columns)
                 assert index not in self.version_freq_table
                 self.version_freq_table[index] = float(line['prob'])
             assert math.fabs(total - 1.0) < 1e-8
 
-    def choose_vdj_combo(self):
+    def choose_vdj_combo(self, reco_event):
         """ Choose which combination germline variants to use """
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
         for vdj_choice in self.version_freq_table:
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                return vdj_choice
+                reco_event.set_vdj_combo(vdj_choice,
+                                         self.cyst_positions[vdj_choice[util.index_keys['v_gene']]]['cysteine-position'],
+                                         int(self.tryp_positions[vdj_choice[util.index_keys['j_gene']]]),
+                                         self.all_seqs)
+                return
+
         assert False  # shouldn't fall through to here
 
-    def get_insertion_lengths(self, reco_info, total_deletion_length, net_length_change):
+    def get_insertion_lengths(self, reco_event):
         """ Partition the necessary insertion length between the vd and dj boundaries. """
         # first get total insertion length
-        total_insertion_length = total_deletion_length + net_length_change
+        total_insertion_length = reco_event.total_deletion_length + reco_event.net_length_change
         assert total_insertion_length >= 0
 
         # then divide total_insertion_length into vd_insertion and dj_insertion
         partition_point = numpy.random.uniform(0, total_insertion_length)
-        reco_info['vd_insertion_length'] = int(round(partition_point))
-        reco_info['dj_insertion_length'] = total_insertion_length - reco_info['vd_insertion_length']
-        print '      insertion lengths: %d %d' % (reco_info['vd_insertion_length'], reco_info['dj_insertion_length'])
-        assert reco_info['vd_insertion_length'] + reco_info['dj_insertion_length'] == total_insertion_length  # check for rounding problems
+        reco_event.insertion_lengths['vd'] = int(round(partition_point))
+        reco_event.insertion_lengths['dj'] = total_insertion_length - reco_event.insertion_lengths['vd']
+        print '      insertion lengths: %d %d' % (reco_event.insertion_lengths['vd'], reco_event.insertion_lengths['dj'])
+        assert reco_event.insertion_lengths['vd'] + reco_event.insertion_lengths['dj'] == total_insertion_length  # check for rounding problems
 
-    def erode(self, region, location, seqs, lengths, protected_position=-1):
+    def erode(self, region, location, reco_event, protected_position=-1):
         """ Erode some number of letters from seq.
 
         Nucleotides are removed from the <location> ('5p' or '3p') side of
         <seq>. The codon beginning at index <protected_position> is optionally
         protected from removal.
         """
-        seq = seqs[region]
-        n_to_erode = lengths[region + '_' + location + '_del']
+        seq = reco_event.seqs[region]
+        n_to_erode = reco_event.erosions[region + '_' + location]
         if protected_position > 0:  # this check is redundant at this point
             if location == '3p' and region == 'v':
                 if len(seq) - n_to_erode <= protected_position + 2:
@@ -207,34 +294,40 @@ class Recombinator(object):
         print ' --> %-15s' % fragment_after
         if len(fragment_after) == 0:
             print '    NOTE eroded away entire sequence'
-        return new_seq
 
-    def get_insertion(self, length):
+        reco_event.seqs[region] = new_seq
+
+    def get_insertion(self, boundary, reco_event):
         """ Get the non-templated sequence to insert between
         templated regions
         """
         insert_seq_str = ''
-        for _ in range(0, length):
+        for _ in range(0, reco_event.insertion_lengths[boundary]):
             insert_seq_str += util.int_to_nucleotide(random.randint(0, 3))
-        return insert_seq_str
+        reco_event.insertions[boundary] = insert_seq_str
         
-    def erode_and_insert(self, reco_info, seqs, cyst_position, tryp_position):
-        """ Erode and insert based on the lengths in reco_info. """
+    def erode_and_insert(self, reco_event):
+        """ Erode and insert based on the lengths in reco_event. """
         print '  eroding'
-        seqs['v'] = self.erode('v', '3p', seqs, reco_info, cyst_position)
-        seqs['d'] = self.erode('d', '5p', seqs, reco_info)
-        seqs['d'] = self.erode('d', '3p', seqs, reco_info)
-        seqs['j'] = self.erode('j', '5p', seqs, reco_info, tryp_position)
-        for boundary in ('vd', 'dj'):
-            reco_info[boundary + '_insertion'] = self.get_insertion(reco_info[boundary + '_insertion_length'])
+        self.erode('v', '3p', reco_event, reco_event.cyst_position)
+        self.erode('d', '5p', reco_event)
+        self.erode('d', '3p', reco_event)
+        self.erode('j', '5p', reco_event, reco_event.tryp_position)
 
-    def mutate(self, reco_info, seq, protected_positions):
-        """ Apply point mutations to <seq>, then return it. """
+        # then insert
+        for boundary in util.boundaries:
+            self.get_insertion(boundary, reco_event)
+
+    def add_mutant(self, reco_event):
+        """ Apply point mutations to a copy of reco_event.recombined_seq
+        and append the result to reco_event.final_seqs.
+        """
+        seq = reco_event.recombined_seq[:]  # make sure it's a copy, not a ref, because it gets mutated
+        protected_positions = (reco_event.cyst_position, reco_event.final_tryp_position)
         n_mutes = int(round(numpy.random.poisson(self.mute_rate*len(seq))))
-        original_seq = seq
         print '    making %d point mutations: ' % n_mutes,
-        mute_locations = []
-        reco_info['mutations'] = ''
+        reco_event.add_empty_mutant()
+        mute_locations = []  # list to help printing below
         for _ in range(n_mutes):
             position = random.randint(0, len(seq)-1)
             while util.is_position_protected(protected_positions, position):
@@ -245,15 +338,16 @@ class Recombinator(object):
             while new_nuke == old_nuke:
                 new_nuke = util.int_to_nucleotide(random.randint(0,3))
             print '%d%s%s' % (position, old_nuke, new_nuke),
-            reco_info['mutations'] += '%d%s%s-' % (position, old_nuke, new_nuke)
+            reco_event.add_mutation(position, old_nuke, new_nuke)
             seq = seq[:position] + new_nuke + seq[position+1:]
+
         print ''
-        reco_info['mutations'] = reco_info['mutations'].rstrip('-')
+        reco_event.final_seqs.append(seq)
 
         # print out mutation locations
         mute_locations = set(mute_locations)
         mute_print_str = ''
-        for ich in range(len(seq)):
+        for ich in range(len(reco_event.final_seqs[-1])):
             if ich in mute_locations:
                 if util.is_position_protected(protected_positions, ich):
                     print 'ERROR mutated a protected position'
@@ -263,85 +357,62 @@ class Recombinator(object):
                 mute_print_str += 'o'
             else:
                 mute_print_str += ' '
-        print '    before mute:', original_seq
+        print '    before mute:', reco_event.recombined_seq
         print '    mutations:  ', mute_print_str,'    (o: protected codons)'
-        print '    after mute: ', seq
+        print '    after mute: ', reco_event.final_seqs[-1]
 
-        return seq
-
-    def write_final_vdj(self, vdj_combo_label, reco_info):
+    def write_final_vdj(self, reco_event):
         """ Write the eroded and mutated v, d, and j regions to file. """
+        # first do info for the whole reco event
         original_seqs = {}
-        for region in self.regions:
-            original_seqs[region] = self.all_seqs[region][vdj_combo_label[self.index_keys[region]]]
+        for region in util.regions:
+            original_seqs[region] = self.all_seqs[region][reco_event.gene_names[region]]
         # work out the final starting positions and lengths
         v_start = 0
-        v_length = len(original_seqs['v']) - reco_info['v_3p_del']
-        d_start = v_length + len(reco_info['vd_insertion'])
-        d_length = len(original_seqs['d']) - reco_info['d_5p_del'] - reco_info['d_3p_del']
-        j_start = v_length + len(reco_info['vd_insertion']) + d_length + len(reco_info['dj_insertion'])
-        j_length = len(original_seqs['j']) - reco_info['j_5p_del']
-        assert len(reco_info['seq']) == v_length + len(reco_info['vd_insertion']) + d_length + len(reco_info['dj_insertion']) + j_length
-        # get the final seqs (i.e. what v, d, and j look like in the final sequence)
-        final_seqs = {}
-        final_seqs['v'] = reco_info['seq'][v_start:v_start+v_length]
-        final_seqs['d'] = reco_info['seq'][d_start:d_start+d_length]
-        final_seqs['j'] = reco_info['seq'][j_start:j_start+j_length]
-        # pad with dots so it looks like (ok, is) an m.s.a. file
-        final_seqs['v'] = final_seqs['v'] + reco_info['v_3p_del'] * '.'
-        final_seqs['d'] = reco_info['d_5p_del'] * '.' + final_seqs['d'] + reco_info['d_3p_del'] * '.'
-        final_seqs['j'] = reco_info['j_5p_del'] * '.' + final_seqs['j']
-        for region in self.regions:
-            sanitized_name = vdj_combo_label[self.index_keys[region]]  # replace special characters in gene names
-            sanitized_name = sanitized_name.replace('*','-')
-            sanitized_name = sanitized_name.replace('/','-')
-            out_fname = 'data/msa/' + sanitized_name + '.sto'
-            with open(out_fname, 'ab') as outfile:
-                outfile.write('%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region]))
+        v_length = len(original_seqs['v']) - reco_event.erosions['v_3p']
+        d_start = v_length + len(reco_event.insertions['vd'])
+        d_length = len(original_seqs['d']) - reco_event.erosions['d_5p'] - reco_event.erosions['d_3p']
+        j_start = v_length + len(reco_event.insertions['vd']) + d_length + len(reco_event.insertions['dj'])
+        j_length = len(original_seqs['j']) - reco_event.erosions['j_5p']
+        # then do stuff that's particular to each mutant
+        for final_seq in reco_event.final_seqs:
+            assert len(final_seq) == v_length + len(reco_event.insertions['vd']) + d_length + len(reco_event.insertions['dj']) + j_length
+            # get the final seqs (i.e. what v, d, and j look like in the final sequence)
+            final_seqs = {}
+            final_seqs['v'] = final_seq[v_start:v_start+v_length]
+            final_seqs['d'] = final_seq[d_start:d_start+d_length]
+            final_seqs['j'] = final_seq[j_start:j_start+j_length]
+            # pad with dots so it looks like (ok, is) an m.s.a. file
+            final_seqs['v'] = final_seqs['v'] + reco_event.erosions['v_3p'] * '.'
+            final_seqs['d'] = reco_event.erosions['d_5p'] * '.' + final_seqs['d'] + reco_event.erosions['d_3p'] * '.'
+            final_seqs['j'] = reco_event.erosions['j_5p'] * '.' + final_seqs['j']
+            for region in util.regions:
+                sanitized_name = reco_event.gene_names[region]  # replace special characters in gene names
+                sanitized_name = sanitized_name.replace('*','-')
+                sanitized_name = sanitized_name.replace('/','-')
+                out_dir = 'data/msa/' + region
+                if not os.path.exists(out_dir):
+                    os.makedirs(out_dir)
+                out_fname = out_dir + '/' + sanitized_name + '.sto'
+                with opener('ab')(out_fname) as outfile:
+                    outfile.write('%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region]))
 
-    def write_csv(self, outfile, reco_info):
-        """ Write out all info to csv file. """
-        with open(outfile, 'ab') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            columns = ('vdj_combo', 'vd_insertion', 'dj_insertion', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'mutations', 'seq')
-            string_to_hash = ''  # hash the information that uniquely identifies each recombination event
-            string_to_hash_unique = ''  # Hash to *uniquely* identify the sequence.
-                                        #   It's just strings of all the column values mashed together
-                                        #   with a random number tossed on top.
-            csv_row = []
-            for column in columns:
-                if column == 'vdj_combo':
-                    for i in range(4):
-                        csv_row.append(reco_info[column][i])
-                        string_to_hash += str(reco_info[column][i])
-                        string_to_hash_unique += str(reco_info[column][i])
-                else:
-                    csv_row.append(reco_info[column])
-                    string_to_hash_unique += str(reco_info[column])
-                    if column != 'mutations' and column != 'seq':
-                        string_to_hash += str(reco_info[column])
-
-            csv_row.insert(0, hash(string_to_hash))
-            string_to_hash_unique += str(numpy.random.uniform())
-            csv_row.insert(0, hash(string_to_hash_unique))
-            csv_writer.writerow(csv_row)
-
-    def are_erosion_lengths_inconsistent(self, vdj_combo_label, net_length_change):
+    def are_erosion_lengths_inconsistent(self, reco_event):
         """ Are the erosion lengths inconsistent with the cdr3 length? """
-        if vdj_combo_label == ():  # haven't filled it yet
+        if reco_event.vdj_combo_label == ():  # haven't filled it yet
             return True
         # now are the erosion lengths we chose consistent with the cdr3_length we chose?
         total_deletion_length = 0
-        for erosion in self.erosions:
-            total_deletion_length += int(vdj_combo_label[self.index_keys[erosion + '_del']])
+        for erosion in util.erosions:
+            total_deletion_length += int(reco_event.vdj_combo_label[util.index_keys[erosion + '_del']])
 
         # print some crap
-        gene_choices = vdj_combo_label[self.index_keys['v_gene']] + ' ' + vdj_combo_label[self.index_keys['d_gene']] + ' ' + vdj_combo_label[self.index_keys['j_gene']]
-        print '            trying: %45s %10s %10d %10d' % (gene_choices, vdj_combo_label[self.index_keys['cdr3_length']], total_deletion_length, net_length_change),
-        if -total_deletion_length > net_length_change:
+        gene_choices = reco_event.vdj_combo_label[util.index_keys['v_gene']] + ' ' + reco_event.vdj_combo_label[util.index_keys['d_gene']] + ' ' + reco_event.vdj_combo_label[util.index_keys['j_gene']]
+        print '               try: %45s %10s %10d %10d' % (gene_choices, reco_event.vdj_combo_label[util.index_keys['cdr3_length']], total_deletion_length, reco_event.net_length_change),
+        if -total_deletion_length > reco_event.net_length_change:
             print '%10s' % 'no'
         else:
             print '%10s' % 'yes'
 
         # i.e. we're *in*consistent if net change is negative and also less than total deletions
-        return -total_deletion_length > net_length_change
+        return -total_deletion_length > reco_event.net_length_change

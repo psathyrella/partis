@@ -36,8 +36,3 @@ def opener(mode):
         open_fn = exts.get(os.path.splitext(path)[1], open)
         return open_fn(path, mode)
     return open_file
-
-#with opener('r')('/tmp/out') as infile:
-#    print infile.readline()
-
-
