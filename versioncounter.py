@@ -1,26 +1,23 @@
 """ Process observed counts of recombination parameters into a form useful for sampling. """
 
-import bz2
 import csv
 import subprocess
 import math
 import os
 import operator
 
-class VersionCounter:
+from opener import opener
+
+class VersionCounter(object):
     """ Process observed counts of recombination parameters into a form useful for sampling.
 
     Input: csv with counts for each vdj gene choice, cdr3_length, and erosion lengths.
     Output: probabilities for each (vdj gene choice + cdr3_length combo + erosion length), eg: (IGHV3-23*04, IGHD4-17*01, IGHJ4*02_F, 42, 0, 2, 5, 2) : 3.4e-5
     """
-    min_counts = 10  # if a combo has fewer counts than this, ignore it completely
-
-    version_freqs = {}  # Dict with entries like: (IGHV3-23*04, IGHD4-17*01, IGHJ4*02_F, 42) : 360, i.e. we saw this combination of genes with cdr3_length 42 a total of 360 times
-    regions = ['v', 'd', 'j']
-    erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
-
-    def __init__(self, infname, base_outdir):
-        self.infname = infname
+    def __init__(self, infnames, base_outdir):
+        self.min_counts = 10  # if a combo has fewer counts than this, ignore it completely
+        self.version_freqs = {}  # Dict with entries like: (IGHV3-23*04, IGHD4-17*01, IGHJ4*02_F, 42) : 360, i.e. we saw this combination of genes with cdr3_length 42 a total of 360 times
+        self.infnames = infnames
         self.base_outdir = base_outdir
 
     def count(self):
@@ -30,33 +27,42 @@ class VersionCounter:
  
     def parse_input(self):
         """ Convert input csv file to dicts. Also sum totals for gene freqs. """
-        print '  parsing input file %s' % self.infname
+        print '  parsing input files '
         total = 0.0
-        with bz2.BZ2File(self.infname) as infile:
-            in_data = csv.DictReader(infile)
-    #        progress_count = 0
-    #        n_lines = 5000000 #subprocess.check_output(['bzcat ', infname, ' | wc'])
-            for line in in_data:
-    #            if progress_count % 100000 == 0:
-    #                print '  %3.1e / %3.0e = %5.2f  %s' % (progress_count, n_lines, float(progress_count) / n_lines, line['count'])
-    #            progress_count += 1
-                if int(line['count']) < self.min_counts:
-                    print '    breaking because count is less than %d.' % self.min_counts
-                    print '    NOTE that this assumes input file is sorted!'
-                    break
-                total += int(line['count'])
-                index = (line['v_gene'], line['d_gene'], line['j_gene'], line['cdr3_length'], line['v_3p_del'], line['d_5p_del'], line['d_3p_del'], line['j_5p_del'])
-                if index not in self.version_freqs:  # duplicates are from non-sensical 'v_5p_del' and 'j_3p_del' erosions
-                    self.version_freqs[index] = 0
-                self.version_freqs[index] += int(line['count'])
-    
+        for infname in self.infnames:
+            print '    %s' % infname,
+            broke = False
+            with opener('r')(infname) as infile:
+                in_data = csv.DictReader(infile)
+#                progress_count = 0
+#                n_lines = 5000000 #subprocess.check_output(['bzcat ', infname, ' | wc'])
+                for line in in_data:
+#                    if progress_count % 100000 == 0:
+#                        print '  %3.1e / %3.0e = %5.2f  %s' % (progress_count, n_lines, float(progress_count) / n_lines, line['count'])
+#                    progress_count += 1
+                    if int(line['count']) < self.min_counts:
+                        print '            BREAK count < %d.' % self.min_counts
+                        broke = True
+                        break
+                    total += int(line['count'])
+                    index = (line['v_gene'], line['d_gene'], line['j_gene'], line['cdr3_length'], line['v_3p_del'], line['d_5p_del'], line['d_3p_del'], line['j_5p_del'])
+                    if index not in self.version_freqs:  # duplicates are either from non-sensical 'v_5p_del' and 'j_3p_del' erosions or from the splitting of patient A's naive cells into two batches
+                        self.version_freqs[index] = 0
+                    self.version_freqs[index] += int(line['count'])
+#                    if progress_count < 5:
+#                        print index,int(line['count']),self.version_freqs[index]
+
+        if not broke:
+            print ''
         return total
     
     def write_gene_choice_probs(self, total):
         """ Write vdj combo freqs to file. """
-        outfname = self.base_outdir + '/' + os.path.basename(self.infname.replace('.csv.bz2','.probs.csv.bz2'))
-        print '  writing gene choice probabilities to %s' % outfname
-        with bz2.BZ2File(outfname, 'w') as outfile:
+        outfname = self.base_outdir + '/probs.csv.bz2'  #os.path.basename(self.infnames[0].replace('.csv.bz2','.probs.csv.bz2'))
+        print '      writing gene choice probabilities to %s' % outfname
+        if not os.path.exists(self.base_outdir):
+            os.makedirs(self.base_outdir)
+        with opener('w')(outfname) as outfile:
             out_fieldnames = ['v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'prob']
             out_data = csv.DictWriter(outfile, out_fieldnames)
             out_data.writeheader()
