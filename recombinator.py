@@ -135,10 +135,9 @@ class RecombinationEvent(object):
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self):
+    def __init__(self, version_freq_file):
         # parameters that control recombination, erosion, and whatnot
         self.mute_rate = 0.06  # average number of point mutations per base
-        self.mean_insertion_length = 6  # mean length of the non-templated insertion
         self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
     
         self.all_seqs = {}  # all the Vs, all the Ds...
@@ -150,7 +149,7 @@ class Recombinator(object):
         for region in util.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
         print '    reading version freqs'
-        self.read_vdj_version_freqs('data/human-beings/C/N/01-C-N_filtered.vdjcdr3.probs.csv.bz2')
+        self.read_vdj_version_freqs(version_freq_file)
         print '    reading cyst and tryp positions'
         with opener('r')('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -195,9 +194,9 @@ class Recombinator(object):
             self.add_mutant(reco_event)
             util.check_conserved_codons(reco_event.final_seqs[-1], reco_event.cyst_position, reco_event.final_tryp_position)
 
-#        # write some stuff that can be used by hmmer for training profiles
-#        # NOTE at the moment I have this *appending* to the files
-#        self.write_final_vdj(reco_event)
+        # write some stuff that can be used by hmmer for training profiles
+        # NOTE at the moment I have this *appending* to the files
+        self.write_final_vdj(reco_event)
 
         # write final output to csv
         if outfile != '':
@@ -388,15 +387,28 @@ class Recombinator(object):
             final_seqs['j'] = reco_event.erosions['j_5p'] * '.' + final_seqs['j']
             for region in util.regions:
                 sanitized_name = reco_event.gene_names[region]  # replace special characters in gene names
-                sanitized_name = sanitized_name.replace('*','-')
-                sanitized_name = sanitized_name.replace('/','-')
+                sanitized_name = sanitized_name.replace('*','_star_')
+                sanitized_name = sanitized_name.replace('/','_slash_')
                 out_dir = 'data/msa/' + region
                 if not os.path.exists(out_dir):
                     os.makedirs(out_dir)
                 out_fname = out_dir + '/' + sanitized_name + '.sto'
-                with opener('ab')(out_fname) as outfile:
-                    outfile.write('%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region]))
-
+                new_line = '%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region])
+                # a few machinations such that the stockholm format has a '//' at the end
+                # NOTE this method will use a lot of memory if these files get huge. I don't *anticipate* them getting huge, though
+                lines = []
+                if os.path.isfile(out_fname):  # if file already exists, insert the new line just before the '//'
+                    with opener('r')(out_fname) as outfile:
+                        lines = outfile.readlines()
+                        lines.insert(-1, new_line)
+                else:  # else insert everything we need
+                    lines = ['# STOCKHOLM 1.0\n', new_line, '//\n']
+                # did we screw this whole thing up?
+                assert lines[0].strip() == '# STOCKHOLM 1.0'
+                assert lines[-1].strip() == '//'
+                with opener('w')(out_fname) as outfile:
+                    outfile.writelines(lines)
+                    
     def are_erosion_lengths_inconsistent(self, reco_event):
         """ Are the erosion lengths inconsistent with the cdr3 length?
         TODO we need to work out why these are sometimes inconsistent, so we're not
