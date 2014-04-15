@@ -1,7 +1,8 @@
 (ns ighutil.sam
   "Functions for working with SAM/BAM records"
   (:require [clojure.java.io :as io]
-            [schema.core :as s])
+            [schema.core :as s]
+            [schema.macros :as sm])
   (:import [net.sf.samtools
             Defaults
             SAMRecord
@@ -22,7 +23,7 @@
 ;;;;;;
 ;; I/O
 ;;;;;;
-(s/defn bam-reader :- SAMFileReader
+(sm/defn bam-reader :- SAMFileReader
   [path]
   (-> path io/file SAMFileReader.))
 
@@ -38,7 +39,7 @@
                   (io/file path)
                   (if compress Defaults/COMPRESSION_LEVEL 0)))
 
-(s/defn reference-names :- [String]
+(sm/defn reference-names :- [String]
   "Get the names of the reference sequences in this file."
   [reader :- SAMFileReader]
   (letfn [(sequence-name [^net.sf.samtools.SAMSequenceRecord x]
@@ -52,10 +53,10 @@
 ;;;;;;;;;;;;;
 ;; Accessors
 ;;;;;;;;;;;;;
-(s/defn read-name :- String [r :- SAMRecord]
+(sm/defn read-name :- String [r :- SAMRecord]
   (.getReadName r))
 
-(s/defn position :- s/Int
+(sm/defn position :- s/Int
   "*0-based* position of read along reference sequence"
   [r :- SAMRecord]
   (-> r
@@ -63,30 +64,30 @@
       int
       dec))
 
-(s/defn reference-name :- String [r :- SAMRecord]
+(sm/defn reference-name :- String [r :- SAMRecord]
   (.getReferenceName r))
 
-(s/defn alignment-score :- s/Int [r :- SAMRecord]
+(sm/defn alignment-score :- s/Int [r :- SAMRecord]
   (.getIntegerAttribute r "AS"))
 
-(s/defn nm :- s/Int
+(sm/defn nm :- s/Int
   "Number of mismatches"
   [r :- SAMRecord]
   (.getIntegerAttribute r "NM"))
 
-(s/defn sequence-status :- s/Int [r :- SAMRecord]
+(sm/defn sequence-status :- s/Int [r :- SAMRecord]
   (.getIntegerAttribute r TAG-STATUS))
 
-(s/defn primary? :- s/Bool [r :- SAMRecord]
+(sm/defn primary? :- s/Bool [r :- SAMRecord]
   (not (.getNotPrimaryAlignmentFlag r)))
 
-(s/defn mapped? :- s/Bool [r :- SAMRecord]
+(sm/defn mapped? :- s/Bool [r :- SAMRecord]
   (not (.getReadUnmappedFlag r)))
 
-(s/defn supplementary? :- s/Bool [r :- SAMRecord]
+(sm/defn supplementary? :- s/Bool [r :- SAMRecord]
   (.getSupplementaryAlignmentFlag r))
 
-(s/defn exp-match
+(sm/defn exp-match
   "Matching probabilities, expressed as percentage"
   [r :- SAMRecord]
   (.getByteArrayAttribute r TAG-EXP-MATCH))
@@ -107,17 +108,17 @@
     bs))
 
 ;; Handle record base expected match
-(s/defn uncertain-sites :- java.util.BitSet
+(sm/defn uncertain-sites :- java.util.BitSet
   "Returns a BitSet where set bits indicate that a site is certain"
   [r :- SAMRecord]
   (-> r exp-match byte-array->uncertain-sites))
 
-(s/defn ig-segment :- Character
+(sm/defn ig-segment :- Character
   "Gene segment type (e.g. V / D / J)"
   [r :- SAMRecord]
   (-> r reference-name (.charAt 3)))
 
-(s/defn ig-locus-segment :- String
+(sm/defn ig-locus-segment :- String
   "Gene locus and segment type (e.g. IGHV, IGHD, IGLJ)"
   [r :- SAMRecord]
   (-> r reference-name (.substring 0 4)))

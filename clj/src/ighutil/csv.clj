@@ -1,15 +1,16 @@
 (ns ighutil.csv
   (:require [clojure.data.csv :as csv]
             [plumbing.core :refer [?>>]]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [schema.macros :as sm]))
 
-(s/defn int-of-string :- s/Int [s :- s/Str]
+(sm/defn int-of-string :- s/Int [s :- s/Str]
   (Integer/parseInt s))
 
-(s/defn float-of-string :- s/Num [s :- s/Str]
+(sm/defn float-of-string :- s/Num [s :- s/Str]
   (Float/parseFloat s))
 
-(s/defn double-of-string :- s/Num [s :- s/Str]
+(sm/defn double-of-string :- s/Num [s :- s/Str]
   (Double/parseDouble s))
 
 (defn csv-to-maps
@@ -26,8 +27,8 @@
         make-row #(zipmap header %)]
     (map make-row (rest rows))))
 
-(s/defn read-typed-csv
-  "Read a CSV file, converting types "
+(sm/defn read-typed-csv :- s/Any
+  "Read a CSV file, converting types"
   [fp types :- {s/Keyword s/Any} & csv-opts]
   (let [rows (apply csv-to-maps fp csv-opts)
         type-entry (fn [m [k v]] (assoc! m k (v (get m k))))

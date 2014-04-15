@@ -4,7 +4,8 @@
   stdin/stdout for '-'."
   (:require [clojure.java.io :as io]
             [me.raynes.fs :as fs]
-            [schema.core :as s])
+            [schema.core :as s]
+            [schema.macros :as sm])
   (:import
    [java.io InputStream OutputStream Reader Writer]
    [org.apache.commons.compress.compressors.bzip2
@@ -28,7 +29,7 @@
     ".gz"  #(GzipCompressorInputStream. %)
     identity))
 
-(s/defn output-stream :- OutputStream
+(sm/defn output-stream :- OutputStream
   "Create an output stream for a file. '-' is mapped to stdout"
   [file-name :- Fileable]
   (if (= file-name "-")
@@ -36,12 +37,12 @@
     (let [cls (output-stream-for-name file-name)]
       (-> file-name io/file io/output-stream cls))))
 
-(s/defn writer :- Writer
+(sm/defn writer :- Writer
   "Create a writer for a file. '-' is mapped to stdout"
   [file-name :- Fileable]
   (-> file-name output-stream io/writer))
 
-(s/defn input-stream :- InputStream
+(sm/defn input-stream :- InputStream
   "Create an input stream for a file. '-' is mapped to stdin"
   [file-name :- Fileable]
   (if (= file-name "-")
@@ -49,7 +50,7 @@
     (let [cls (input-stream-for-name file-name)]
       (-> file-name io/file io/input-stream cls))))
 
-(s/defn reader :- Reader
+(sm/defn reader :- Reader
   "Create a reader for a file. '-' is mapped to stdin"
   [file-name :- Fileable]
   (-> file-name input-stream io/reader))
