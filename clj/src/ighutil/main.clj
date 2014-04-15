@@ -22,7 +22,12 @@
                           "mutations-by-site"
                           "reset-primary"]))
 
-(defn -main [& args]
+(defn dispatch-to-subcommand [& args]
   (let [command-syms (map subcommand-name-to-symbol command-names)]
     (apply require command-syms)
     (command/dispatch command-syms args)))
+
+(defn -main [& args]
+  (try
+    (apply dispatch-to-subcommand args)
+    (finally (shutdown-agents))))
