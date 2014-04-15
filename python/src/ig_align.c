@@ -278,8 +278,8 @@ static aln_v align_read(const kseq_t *read,
     drop_low_scores(&result, 0, conf->max_drop);
 
     // Extra references - qe points to the exact end of the sequence
-    const int qend = kv_A(result, 0).loc.qe + 1;
-    const int read_len_trunc = read_len - qend;
+    int qend = kv_A(result, 0).loc.qe + 1;
+    int read_len_trunc = read_len - qend;
     uint8_t *read_num_trunc = read_num + qend;
 
     free(qry);
@@ -287,10 +287,11 @@ static aln_v align_read(const kseq_t *read,
 
     if(read_len_trunc > 2) {
         for(size_t i = 0; i < n_extra_targets; i++) {
+            const size_t idx = n_extra_targets - i - 1;
             min_score = -1000;
             const size_t init_count = kv_size(result);
-            for(size_t j = 0; j < kv_size(extra_targets[i]); j++) {
-                r = &kv_A(extra_targets[i], j);
+            for(size_t j = 0; j < kv_size(extra_targets[idx]); j++) {
+                r = &kv_A(extra_targets[idx], j);
                 aln_t aln = align_read_against_one(r,
                                                    read_len_trunc,
                                                    read_num_trunc,
@@ -306,6 +307,12 @@ static aln_v align_read(const kseq_t *read,
                 }
             }
             drop_low_scores(&result, init_count, conf->max_drop);
+
+            /* Truncate */
+            const int alen = kv_A(result, init_count).loc.qe - kv_A(result, init_count).loc.qb;
+            read_len_trunc = read_len_trunc - alen;
+            free(qry);
+            qry = NULL;
         }
     }
 

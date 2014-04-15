@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+/**
+ * If n_extra_refs is > 0,
+ * it should be in order D, J.
+ */
 void ig_align_reads(const char *ref_path,
                     const uint8_t n_extra_refs,
                     const char **extra_ref_paths,

@@ -62,7 +62,9 @@ def ig_align(bytes ref_path,
     :param output_path: Path to write output (SAM)
     :param match: positive match score
     :param mismatch: positive mismatch penalty
-    :param extra_ref_paths: Extra references to align the tail of each read against
+    :param extra_ref_paths: Extra references to align the tail of each read against.
+        If more than 1, should be in D, J order.
+        Alignment occurs first against the J, then D.
     """
     cdef char* ref = ref_path
     cdef char* qry = qry_path

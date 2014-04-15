@@ -256,26 +256,6 @@ typedef struct {
 			if (hh <= k) low = ll;										\
 			if (hh >= k) high = hh - 1;									\
 		}																\
-	}																	\
-	void ks_shuffle_##name(size_t n, type_t a[])						\
-	{																	\
-		int i, j;														\
-		for (i = n; i > 1; --i) {										\
-			type_t tmp;													\
-			j = (int)(drand48() * i);									\
-			tmp = a[j]; a[j] = a[i-1]; a[i-1] = tmp;					\
-		}																\
-	}																	\
-	void ks_sample_##name(size_t n, size_t r, type_t a[]) /* FIXME: NOT TESTED!!! */ \
-	{ /* reference: http://code.activestate.com/recipes/272884/ */ \
-		int i, k, pop = n; \
-		for (i = (int)r, k = 0; i >= 0; --i) { \
-			double z = 1., x = drand48(); \
-			type_t tmp; \
-			while (x < z) z -= z * i / (pop--); \
-			if (k != n - pop - 1) tmp = a[k], a[k] = a[n-pop-1], a[n-pop-1] = tmp; \
-			++k; \
-		} \
 	}
 
 #define ks_mergesort(name, n, a, t) ks_mergesort_##name(n, a, t)
