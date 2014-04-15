@@ -18,9 +18,16 @@
                  [primitive-math "0.1.3"]
                  [cheshire "5.3.1"]
                  [com.taoensso/timbre "3.1.6"]]
-  :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}}
+  :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}
+             :uberjar {:aot [ighutil.fasta
+                             ighutil.gff3
+                             ighutil.imgt
+                             ighutil.io
+                             ighutil.main
+                             ighutil.sam
+
+                             ighutil.subcommands.reset-primary]}}
   :java-source-paths ["src/java"]
   :omit-source false
   :global-vars {*warn-on-reflection* true}
-  :aot [ighutil.main]
   :main ighutil.main)
