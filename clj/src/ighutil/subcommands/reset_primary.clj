@@ -7,6 +7,7 @@
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary?
                                  alignment-score
+                                 read-name
                                  reference-name
                                  partition-by-name
                                  partition-by-name-segment
@@ -25,18 +26,20 @@
   "Set read bases and quals for each gene primary record"
   [reads]
   (when (some primary? reads)
+    (assert (= 1 (count (filter primary? reads))))
     (let [^SAMRecord primary (first (filter primary? reads))
           ^bytes read-seq (.getReadBases primary)
           ^bytes read-qual (.getBaseQualities primary)
           update-first (fn [r]
-                         (let [^SAMRecord f (first r)]
-                           (doto f
-                             (.setReadBases read-seq)
-                             (.setBaseQualities read-qual)
-                             (.setNotPrimaryAlignmentFlag false)
-                             (.setSupplementaryAlignmentFlag
-                              (not= (ig-segment f) \V)))
-                           (cons f (rest r))))]
+                         (when (->> r (filter primary?) count (= 0))
+                           (let [^SAMRecord f (first r)]
+                             (doto f
+                               (.setReadBases read-seq)
+                               (.setBaseQualities read-qual)
+                               (.setNotPrimaryAlignmentFlag false)
+                               (.setSupplementaryAlignmentFlag
+                                 (not= (ig-segment f) \V)))))
+                         r)]
       (->> reads
            (partition-by ig-segment)
            (mapcat update-first)))))
@@ -88,6 +91,7 @@
     (let [^SAMRecord primary (first (filter primary? alignments))
           sorted (sort-by alignment-score #(compare %2 %1) alignments)
           dropped-unlikely (remove #(-> % reference-name to-remove) sorted)]
+      (assert (= 1 (count (filter primary? alignments))))
       (if (seq dropped-unlikely)
         (let [max-score (-> dropped-unlikely
                             first
@@ -110,9 +114,17 @@
                 (.setReadBases SAMRecord/NULL_SEQUENCE)
                 (.setBaseQualities SAMRecord/NULL_QUALS)
                 (.setSupplementaryAlignmentFlag false))))
+          (assert (= 1 (count (filter primary? alignments))))
           alignments)
         ;; drop all alignments for the read
         []))))
+
+(defn- order-by-vdj
+  "Place reads in V-D-J order"
+  [reads]
+  (let [segment-order {\V 0 \D 1 \J 2}
+        k (juxt (comp segment-order ig-segment) (complement primary?))]
+    (sort-by k reads)))
 
 (defn reset-primary-record
   "Given a sequence of SAMRecord objects, sorted by name, assigns a
@@ -124,7 +136,8 @@
                        to-remove #{}}}]
   (->> sam-records
        partition-by-name
-       (mapcat set-supp-and-bases-per-gene)
+       (map set-supp-and-bases-per-gene)
+       (mapcat order-by-vdj)
        partition-by-name-segment
        (map vec)
        (mapcat #(max-score-tiebreak
