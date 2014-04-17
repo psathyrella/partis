@@ -38,7 +38,7 @@
                                (.setBaseQualities read-qual)
                                (.setNotPrimaryAlignmentFlag false)
                                (.setSupplementaryAlignmentFlag
-                                 (not= (ig-segment f) \V)))))
+                                (not= (ig-segment f) \V)))))
                          r)]
       (->> reads
            (partition-by ig-segment)
@@ -82,8 +82,8 @@
    score using rand-nth.
 
    Drops any alignments to *to-remove*"
-  [alignments & {:keys [rand-f to-remove]
-                 :or {rand-f rand-nth
+  [alignments & {:keys [record-selector to-remove]
+                 :or {record-selector rand-nth
                       to-remove #{}}}]
   (assert (set? to-remove))
   (if (= 1 (count alignments))
@@ -99,7 +99,7 @@
               max-records (vec (take-while
                                 (comp #(= max-score %) alignment-score)
                                 dropped-unlikely))
-              ^SAMRecord selection (rand-f max-records)]
+              ^SAMRecord selection (record-selector max-records)]
           (when (and primary (not= selection primary))
             (do
               ;; Swap out the primary read and the new selection
@@ -131,37 +131,54 @@
    new primary record for each partition (if :randomize is true
    [default]), copies bases and qualities to each primary segment
    record, sets the supplementary alignment flag for each non-V segment"
-  [sam-records & {:keys [randomize to-remove]
+  [sam-records & {:keys [randomize to-remove random-gen]
                   :or {randomize true
                        to-remove #{}}}]
-  (->> sam-records
-       partition-by-name
-       (map set-supp-and-bases-per-gene)
-       (mapcat order-by-vdj)
-       partition-by-name-segment
-       (map vec)
-       (mapcat #(max-score-tiebreak
-                 %
-                 :rand-f (if randomize rand-nth first)
-                 :to-remove to-remove))))
+  (when  (and randomize (not random-gen))
+    (timbre/error "Missing random number generator")
+    (throw (IllegalArgumentException. "Missing random number generator")))
+  (let [sel (if randomize
+              (fn [reads]
+                (let [reads (vec reads)
+                      n (count reads)]
+                  (nth reads (.nextInt ^java.util.Random random-gen n))))
+              first)]
+    (->> sam-records
+         partition-by-name
+         (map set-supp-and-bases-per-gene)
+         (mapcat order-by-vdj)
+         partition-by-name-segment
+         (map vec)
+         (mapcat #(max-score-tiebreak
+                   %
+                   :record-selector sel
+                   :to-remove to-remove)))))
 
 (defcommand reset-primary
   "Reset primary alignment, breaking ties randomly"
   {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
                 :required true :parse-fn io/file]
-               ["-o" "--out-file" "Destination path":required true
+               ["-o" "--out-file" "Destination path"
+                :required true
                 :parse-fn io/file]
+               ["--seed" "Random number seed"
+                :parse-fn #(Long/parseLong %)
+                :default 0]
+               ["--[no-]filter-alleles" "Filter to a maximum of 2 alleles per gene"
+                :default true]
                ["--[no-]randomize" "Randomize primary record among top-scoring alignments."
                 :default true]
                ["--[no-]compress" "Compress output?" :default true]]}
   (assert (not= in-file out-file))
   (assert (.exists ^java.io.File in-file))
-  (let [to-remove (with-open [reader (SAMFileReader. ^java.io.File in-file)]
-                    (->> reader
-                         .iterator
-                         iterator-seq
-                         unlikely-alleles))]
-
+  (let [to-remove (if filter-alleles
+                    (with-open [reader (SAMFileReader. ^java.io.File in-file)]
+                      (->> reader
+                           .iterator
+                           iterator-seq
+                           unlikely-alleles))
+                    #{})
+        random-gen (java.util.Random. ^Long seed)]
     (timbre/info "Removing " to-remove)
     (with-open [reader (SAMFileReader. ^java.io.File in-file)]
       (.setValidationStringency
@@ -181,6 +198,7 @@
           (doseq [^SAMRecord read (reset-primary-record
                                    read-iterator
                                    :randomize randomize
+                                   :random-gen random-gen
                                    :to-remove to-remove)]
             (assert (not (nil? read)))
             (.addAlignment writer read)))))))
