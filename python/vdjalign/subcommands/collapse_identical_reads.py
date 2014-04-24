@@ -51,16 +51,19 @@ def action(a):
     rows = sorted(rows, key=sort_key, reverse=True)
     logging.info("All data loaded and sorted.")
 
-    with a.outfile as fp:
-        w = csv.DictWriter(fp, OUT, delimiter='\t', lineterminator='\n')
-        w.writeheader()
+    with a.outfile as ofp:
+        writer = csv.DictWriter(ofp, OUT, delimiter='\t', lineterminator='\n')
+        writer.writeheader()
         grouped = itertools.groupby(rows, operator.itemgetter('nucleotide'))
-        for i, (_, values) in enumerate(grouped):
-            f = next(values)
-            values = list(values)
-            f['n_sources'] = len(values) + 1
-            f['sources'] = ','.join([f.pop('source'),
-                                     ','.join(i['source'] for i in values)])
-            f['copy'] += sum(i['copy'] for i in values)
-            f['name'] = '{0}{1:07d}'.format(a.prefix, i)
-            w.writerow(f)
+        grouped = (list(v) for _, v in grouped)
+        grouped = sorted(grouped,
+                         key=lambda v: (len(v), sum(i['copy'] for i in v)),
+                         reverse=True)
+
+        for i, values in enumerate(grouped):
+            representative = values[0]
+            representative['n_sources'] = len(values)
+            representative['sources'] = ','.join(i['source'] for i in values)
+            representative['copy'] += sum(i['copy'] for i in values)
+            representative['name'] = '{0}{1:07d}'.format(a.prefix, i)
+            writer.writerow(representative)
