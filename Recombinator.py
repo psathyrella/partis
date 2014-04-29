@@ -6,7 +6,7 @@ import random
 import numpy
 import math
 import os
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output
 from subprocess import call
 
 from Bio import SeqIO
@@ -133,20 +133,41 @@ class RecombinationEvent(object):
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, version_freq_file):
+    def __init__(self, datadir, human, naivety):  # yes, with a y! motherfucker
         # parameters that control recombination, erosion, and whatnot
         self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
     
         self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
+        self.mute_models = {}
+        for region in util.regions:
+            self.mute_models[region] = {}
+            for model in ['gtr', 'gamma']:
+                self.mute_models[region][model] = {}
 
         print '  init'
         print '    reading vdj versions'
         for region in util.regions:
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
+        with opener('r')(datadir + '/' + human + '/' + naivety + '/gtr.txt') as gtrfile:  # read gtr parameters
+            reader = csv.DictReader(gtrfile)
+            for line in reader:
+                parameters = line['parameter'].split('.')
+                region = parameters[0][3].lower()
+                assert region == 'v' or region == 'd' or region == 'j'
+                model = parameters[1].lower()
+                parameter_name = parameters[2]
+                assert model in self.mute_models[region]
+                self.mute_models[region][model][parameter_name] = line['value']
+
+        for region in util.regions:
+            for model in ['gtr', 'gamma']:
+                for key,val in self.mute_models[region][model].iteritems():
+                    print '%s %s %10s %10s' % (region, model,key,val)
+#        sys.exit()
         print '    reading version freqs'
-        self.read_vdj_version_freqs(version_freq_file)
+        self.read_vdj_version_freqs(datadir + '/' + human + '/' + naivety + '/probs.csv.bz2')
         print '    reading cyst and tryp positions'
         with opener('r')('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -313,8 +334,10 @@ class Recombinator(object):
         # then insert
         for boundary in util.boundaries:
             self.get_insertion(boundary, reco_event)
+        
 
-    def add_mutants(self, reco_event):
+    def run_bppseqgen(self, reco_event):
+        """ Run bppseqgen on recombined sequence """
         tmpdir = os.getenv('PWD') + '/tmp'
 
         # select a tree and write it to tmp file
@@ -323,7 +346,6 @@ class Recombinator(object):
             itree = random.randint(0, len(self.trees))
             treefile.write(self.trees[itree])
         
-        # run bppseqgen on recombined sequence
         reco_seq_fname = tmpdir + '/start_seq.txt'
         with opener('w')(reco_seq_fname) as reco_seq_file:  # write the input file for bppseqgen, one base per line
             reco_seq_file.write('state\n')
@@ -332,19 +354,34 @@ class Recombinator(object):
 
         print '    generating mutations'
         assert len(reco_event.final_seqs) == 0
-        leaf_seq_fname = tmpdir + '/leaf-seqs.fa'  # also in bpp-test.sh. Put it in only one place!
-        proc = Popen([os.getenv('PWD') + '/bin/run-bpp.sh', reco_seq_fname, treefname, leaf_seq_fname], stdout=PIPE)  # write leaf node mutants to file (see .sh for details)
-        output = proc.communicate()[0]
-        if proc.returncode != 0:
-            print '\n\nERROR (%d) in bppseqgen (seed %d):\n' % (proc.returncode, proc.pid)
-            print output
-            sys.exit()
+        leaf_seq_fname = tmpdir + '/leaf-seqs.fa'
+#----------------------------------------------------------------------------------------
+        bpp_dir = '/home/matsengrp/local/encap/bpp-master-20140414'  # on lemur: $HOME/Dropbox/work/bpp-master-20140414
+        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + bpp_dir + '/lib\n'  # build the command as a few separate lines
+#        command += 'export PATH=$bpp_dir/bin:$PATH\n'
+        command += bpp_dir + '/bin/bppseqgen'  # and build the bppseqgen line sequentially
+        command += ' input.tree.file=' + treefname
+        command += ' output.sequence.file=' + leaf_seq_fname
+        command += ' number_of_sites=' + str(len(reco_event.recombined_seq))
+        command += ' input.tree.format=Newick'
+        command += ' output.sequence.format=Fasta\(\)'
+        command += ' alphabet=DNA'
+        command += ' --seed=' + str(os.getpid())
+        command += ' model=JC69'
+        command += ' rate_distribution=\'Constant()\''
+        command += ' input.infos.states=state'
+        command += ' input.infos=' + reco_seq_fname
+        command += ' input.infos.rates=none'
+        output = check_output(command, shell=True)
         for seq_record in SeqIO.parse(leaf_seq_fname, "fasta"):  # add all the leaf node seqs to reco_event
             reco_event.final_seqs.append(str(seq_record.seq))
 
         os.remove(reco_seq_fname)  # clean up temp files
         os.remove(treefname)
         os.remove(leaf_seq_fname)
+
+    def add_mutants(self, reco_event):
+        self.run_bppseqgen(reco_event)
 
         for iseq in range(len(reco_event.final_seqs)):
             seq = reco_event.final_seqs[iseq]
