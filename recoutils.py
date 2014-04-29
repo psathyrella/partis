@@ -128,3 +128,78 @@ def find_tryp_in_joined_seq(tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_i
 #    print '    result = tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (tryp_position_in_j, j_erosion, length_to_left_of_j, tryp_position_in_j - j_erosion + length_to_left_of_j)
     return tryp_position_in_j - j_erosion + length_to_left_of_j
 
+class Colors:
+    head = '\033[95m'
+    blue = '\033[94m'
+    green = '\033[92m'
+    yellow = '\033[93m'
+    red = '\033[91m'
+    end = '\033[0m'
+
+def red(seq):
+    return Colors.red + seq + Colors.end
+
+def is_mutated(original, final):
+    if original == final:
+        return final
+    else:
+        return red(final)
+
+def print_reco_event(germlines, line):
+    """ Print ascii summary of recombination event and mutation. """
+    original_seqs = {}
+    for region in regions:
+        original_seqs[region] = germlines[region][line[region+'_gene']]
+    v_start = 0
+    v_length = len(original_seqs['v']) - int(line['v_3p_del'])
+    d_start = v_length + len(line['vd_insertion'])
+    d_length = len(original_seqs['d']) - int(line['d_5p_del']) - int(line['d_3p_del'])
+    j_start = v_length + len(line['vd_insertion']) + d_length + len(line['dj_insertion'])
+    j_length = len(original_seqs['j']) - int(line['j_5p_del'])
+    eroded_seqs = {}
+    eroded_seqs['v'] = original_seqs['v'][:len(original_seqs['v'])-int(line['v_3p_del'])]
+    eroded_seqs['d'] = original_seqs['d'][int(line['d_5p_del']) : len(original_seqs['d'])-int(line['d_3p_del'])]
+    eroded_seqs['j'] = original_seqs['j'][int(line['j_5p_del']) :]
+
+    germline_v_end = len(original_seqs['v']) - 1
+    germline_d_start = len(original_seqs['v']) - int(line['v_3p_del']) + len(line['vd_insertion']) - int(line['d_5p_del'])
+    germline_d_end = germline_d_start + len(original_seqs['d'])
+    germline_j_start = germline_d_end + 1 - int(line['d_3p_del']) + len(line['dj_insertion']) - int(line['j_5p_del'])
+
+    final_seq = ''
+    for inuke in range(len(line['seq'])):
+        ilocal = inuke
+        if ilocal < v_length:
+            final_seq += is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke])
+        else:
+            ilocal -= v_length
+            if ilocal < len(line['vd_insertion']):
+                final_seq += is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke])
+            else:
+                ilocal -= len(line['vd_insertion'])
+                if ilocal < d_length:
+                    final_seq += is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke])
+                else:
+                    ilocal -= d_length
+                    if ilocal < len(line['dj_insertion']):
+                        final_seq += is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke])
+                    else:
+                        ilocal -= len(line['dj_insertion'])
+                        final_seq += is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke])
+
+    # pad with dots
+    eroded_seqs['v'] = eroded_seqs['v'] + int(line['v_3p_del']) * '.'
+    eroded_seqs['d'] = int(line['d_5p_del']) * '.' + eroded_seqs['d'] + int(line['d_3p_del']) * '.'
+    eroded_seqs['j'] = int(line['j_5p_del']) * '.' + eroded_seqs['j']
+
+    insertions = v_length * ' ' + line['vd_insertion'] + d_length * ' ' + line['dj_insertion'] + j_length * ' '
+    vj = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - int(line['j_5p_del']) + len(line['dj_insertion']) - int(line['d_3p_del'])) * ' '
+    d = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
+
+    print '    ',insertions
+    print '    ',final_seq
+    print '    ',vj
+    print '    ',d
+    if 'ack' in line and line['ack']:
+        sys.exit()
+#    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']

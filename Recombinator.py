@@ -6,8 +6,7 @@ import random
 import numpy
 import math
 import os
-from subprocess import Popen, PIPE, check_output
-from subprocess import call
+from subprocess import Popen, PIPE, check_output, call
 
 from Bio import SeqIO
 
@@ -18,7 +17,8 @@ import recoutils as util
 class RecombinationEvent(object):
     """ Container to hold the information for a single recombination event. """
 
-    def __init__(self):
+    def __init__(self, germlines):
+        self.germlines = germlines
         self.vdj_combo_label = ()  # A tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
                                    # NOTE I leave the lengths in here as strings
         self.gene_names = {}
@@ -129,6 +129,8 @@ class RecombinationEvent(object):
                 
                 # write the row
                 writer.writerow(row)
+                # and print it out
+                util.print_reco_event(self.germlines, row)
 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
@@ -161,11 +163,6 @@ class Recombinator(object):
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
 
-        for region in util.regions:
-            for model in ['gtr', 'gamma']:
-                for key,val in self.mute_models[region][model].iteritems():
-                    print '%s %s %10s %10s' % (region, model,key,val)
-#        sys.exit()
         print '    reading version freqs'
         self.read_vdj_version_freqs(datadir + '/' + human + '/' + naivety + '/probs.csv.bz2')
         print '    reading cyst and tryp positions'
@@ -180,7 +177,7 @@ class Recombinator(object):
 
     def combine(self, outfile=''):
         """ Run the combination. """
-        reco_event = RecombinationEvent()
+        reco_event = RecombinationEvent(self.all_seqs)
         print '      choosing genes %45s %10s %10s %10s %10s' % (' ', 'cdr3', 'deletions', 'net', 'ok?')
         while self.are_erosion_lengths_inconsistent(reco_event):
             self.choose_vdj_combo(reco_event)  # set a vdj/erosion choice in reco_event
@@ -355,11 +352,10 @@ class Recombinator(object):
         print '    generating mutations'
         assert len(reco_event.final_seqs) == 0
         leaf_seq_fname = tmpdir + '/leaf-seqs.fa'
-#----------------------------------------------------------------------------------------
         bpp_dir = '/home/matsengrp/local/encap/bpp-master-20140414'  # on lemur: $HOME/Dropbox/work/bpp-master-20140414
-        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + bpp_dir + '/lib\n'  # build the command as a few separate lines
-#        command += 'export PATH=$bpp_dir/bin:$PATH\n'
-        command += bpp_dir + '/bin/bppseqgen'  # and build the bppseqgen line sequentially
+        # build the command as a few separate lines
+        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + bpp_dir + '/lib\n'
+        command += bpp_dir + '/bin/bppseqgen'  # build the bppseqgen line sequentially
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
         command += ' number_of_sites=' + str(len(reco_event.recombined_seq))
@@ -367,7 +363,14 @@ class Recombinator(object):
         command += ' output.sequence.format=Fasta\(\)'
         command += ' alphabet=DNA'
         command += ' --seed=' + str(os.getpid())
-        command += ' model=JC69'
+        command += ' model=GTR\('
+        region = 'v'  # TODO fix it
+        for par in self.mute_models[region]['gtr']:
+            val = self.mute_models[region]['gtr'][par]
+            command += par + '=' + val + ','
+        command = command.rstrip(',')
+        command += '\)'
+        # TODO should I use the "equilibrium frequencies" option?
         command += ' rate_distribution=\'Constant()\''
         command += ' input.infos.states=state'
         command += ' input.infos=' + reco_seq_fname
@@ -385,6 +388,8 @@ class Recombinator(object):
 
         for iseq in range(len(reco_event.final_seqs)):
             seq = reco_event.final_seqs[iseq]
+            # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
+            # NOTE um, won't this make it difficult to infer phylogenies?
             cpos = reco_event.cyst_position
             if seq[cpos : cpos + 3] != reco_event.original_cyst_word:
                 seq = seq[:cpos] + reco_event.original_cyst_word + seq[cpos+3:]
