@@ -14,6 +14,7 @@
                                  ig-segment
                                  bam-writer]]
             [ighutil.imgt :refer [strip-allele]]
+            [me.raynes.fs :as fs]
             [plumbing.core :refer [frequencies-fast]]
             [taoensso.timbre :as timbre])
   (:import [net.sf.samtools
@@ -156,7 +157,8 @@
 
 (defcommand reset-primary
   "Reset primary alignment, breaking ties randomly"
-  {:opts-spec [["-i" "--in-file" "Source BAM - must be sorted by *name*"
+  {:opts-spec [["-i" "--in-file"
+                "Source BAM - must be sorted by *name*"
                 :required true :parse-fn io/file]
                ["-o" "--out-file" "Destination path"
                 :required true
@@ -164,13 +166,15 @@
                ["--seed" "Random number seed"
                 :parse-fn #(Long/parseLong %)
                 :default 0]
-               ["--[no-]filter-alleles" "Filter to a maximum of 2 alleles per gene"
+               ["--[no-]filter-alleles"
+                "[Do not] filter to a maximum of 2 alleles per gene"
                 :default true]
-               ["--[no-]randomize" "Randomize primary record among top-scoring alignments."
+               ["--[no-]randomize"
+                "[do not] randomize primary record among top-scoring alignments."
                 :default true]
                ["--[no-]compress" "Compress output?" :default true]]}
-  (assert (not= in-file out-file))
-  (assert (.exists ^java.io.File in-file))
+  (assert (not= in-file out-file) "Same infile and outfile")
+  (assert (fs/exists? in-file) "Non-extant input file.")
   (let [to-remove (if filter-alleles
                     (with-open [reader (SAMFileReader. ^java.io.File in-file)]
                       (->> reader
