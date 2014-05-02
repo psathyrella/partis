@@ -145,8 +145,11 @@ def is_mutated(original, final):
     else:
         return red(final)
 
-def print_reco_event(germlines, line):
-    """ Print ascii summary of recombination event and mutation. """
+def print_reco_event(germlines, line, one_line=False):
+    """ Print ascii summary of recombination event and mutation.
+
+    If <one_line>, then only print out the final_seq line.
+    """
     original_seqs = {}
     for region in regions:
         original_seqs[region] = germlines[region][line[region+'_gene']]
@@ -193,13 +196,12 @@ def print_reco_event(germlines, line):
     eroded_seqs['j'] = int(line['j_5p_del']) * '.' + eroded_seqs['j']
 
     insertions = v_length * ' ' + line['vd_insertion'] + d_length * ' ' + line['dj_insertion'] + j_length * ' '
-    vj = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - int(line['j_5p_del']) + len(line['dj_insertion']) - int(line['d_3p_del'])) * ' '
-    d = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
+    d = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - int(line['j_5p_del']) + len(line['dj_insertion']) - int(line['d_3p_del'])) * ' '
+    vj = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
 
-    print '    ',insertions
+    if not one_line:
+        print '    ',insertions
+        print '    ',d
+        print '    ',vj,'\n'
     print '    ',final_seq
-    print '    ',vj
-    print '    ',d
-    if 'ack' in line and line['ack']:
-        sys.exit()
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']

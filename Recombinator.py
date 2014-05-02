@@ -6,9 +6,10 @@ import random
 import numpy
 import math
 import os
-from subprocess import Popen, PIPE, check_output, call
+from subprocess import Popen, PIPE, check_output, check_call
 
 from Bio import SeqIO
+import dendropy
 
 from opener import opener
 import recoutils as util
@@ -130,7 +131,7 @@ class RecombinationEvent(object):
                 # write the row
                 writer.writerow(row)
                 # and print it out
-                util.print_reco_event(self.germlines, row)
+                util.print_reco_event(self.germlines, row, one_line=(imute!=0))
 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
@@ -338,10 +339,11 @@ class Recombinator(object):
         tmpdir = os.getenv('PWD') + '/tmp'
 
         # select a tree and write it to tmp file
+        chosen_tree = self.trees[random.randint(0, len(self.trees))]
         treefname = tmpdir + '/tree.tre'
         with opener('w')(treefname) as treefile:
-            itree = random.randint(0, len(self.trees))
-            treefile.write(self.trees[itree])
+            print '    chose tree %s' % chosen_tree
+            treefile.write(chosen_tree)
         
         reco_seq_fname = tmpdir + '/start_seq.txt'
         with opener('w')(reco_seq_fname) as reco_seq_file:  # write the input file for bppseqgen, one base per line
@@ -349,7 +351,7 @@ class Recombinator(object):
             for nuke in reco_event.recombined_seq:
                 reco_seq_file.write(nuke + '\n')
 
-        print '    generating mutations'
+        print '    generating mutations (seed %d)' % os.getpid()
         assert len(reco_event.final_seqs) == 0
         leaf_seq_fname = tmpdir + '/leaf-seqs.fa'
         bpp_dir = '/home/matsengrp/local/encap/bpp-master-20140414'  # on lemur: $HOME/Dropbox/work/bpp-master-20140414
@@ -371,17 +373,22 @@ class Recombinator(object):
         command = command.rstrip(',')
         command += '\)'
         # TODO should I use the "equilibrium frequencies" option?
-        command += ' rate_distribution=\'Constant()\''
+#        command += ' rate_distribution=\'Constant()\''
+        command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
         command += ' input.infos.states=state'
         command += ' input.infos=' + reco_seq_fname
         command += ' input.infos.rates=none'
         output = check_output(command, shell=True)
+        print output
         for seq_record in SeqIO.parse(leaf_seq_fname, "fasta"):  # add all the leaf node seqs to reco_event
             reco_event.final_seqs.append(str(seq_record.seq))
+
+        self.check_tree_simulation(leaf_seq_fname, chosen_tree)
 
         os.remove(reco_seq_fname)  # clean up temp files
         os.remove(treefname)
         os.remove(leaf_seq_fname)
+#        os.remove(inferred_treefname)
 
     def add_mutants(self, reco_event):
         self.run_bppseqgen(reco_event)
@@ -495,3 +502,11 @@ class Recombinator(object):
 
         # i.e. we're *in*consistent if net change is negative and also less than total deletions
         return is_bad
+
+    def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str):
+        """ See how well we can reconstruct the true tree """
+        with opener('w')(os.devnull) as fnull:
+            inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
+        chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')
+        inferred_tree = dendropy.Tree.get_from_string(inferred_tree_str, 'newick')
+        print '    tree diffs:    symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))
