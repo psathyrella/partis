@@ -145,7 +145,7 @@ def is_mutated(original, final):
     else:
         return red(final)
 
-def print_reco_event(germlines, line, one_line=False):
+def print_reco_event(germlines, line, reco_event, one_line=False):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -172,23 +172,30 @@ def print_reco_event(germlines, line, one_line=False):
     final_seq = ''
     for inuke in range(len(line['seq'])):
         ilocal = inuke
+        new_nuke = ''
         if ilocal < v_length:
-            final_seq += is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke])
+            new_nuke = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke])
         else:
             ilocal -= v_length
             if ilocal < len(line['vd_insertion']):
-                final_seq += is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke])
+                new_nuke = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke])
             else:
                 ilocal -= len(line['vd_insertion'])
                 if ilocal < d_length:
-                    final_seq += is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke])
+                    new_nuke = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke])
                 else:
                     ilocal -= d_length
                     if ilocal < len(line['dj_insertion']):
-                        final_seq += is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke])
+                        new_nuke = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke])
                     else:
                         ilocal -= len(line['dj_insertion'])
-                        final_seq += is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke])
+                        new_nuke = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke])
+
+        if inuke == reco_event.cyst_position or inuke == reco_event.final_tryp_position:
+            new_nuke = '\033[7m' + new_nuke
+        elif inuke == reco_event.cyst_position + 2 or inuke == reco_event.final_tryp_position + 2:
+            new_nuke = new_nuke + '\033[m'
+        final_seq += new_nuke
 
     # pad with dots
     eroded_seqs['v'] = eroded_seqs['v'] + int(line['v_3p_del']) * '.'
@@ -200,8 +207,8 @@ def print_reco_event(germlines, line, one_line=False):
     vj = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
 
     if not one_line:
-        print '    ',insertions
-        print '    ',d
-        print '    ',vj,'\n'
-    print '    ',final_seq
+        print '    %s   inserts' % insertions
+        print '    %s   ighd' % d
+        print '    %s   ighv,ighj\n' % vj
+    print '    %s' % final_seq
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']

@@ -6,6 +6,7 @@ import random
 import numpy
 import math
 import os
+import re
 from subprocess import Popen, PIPE, check_output, check_call
 
 from Bio import SeqIO
@@ -131,12 +132,13 @@ class RecombinationEvent(object):
                 # write the row
                 writer.writerow(row)
                 # and print it out
-                util.print_reco_event(self.germlines, row, one_line=(imute!=0))
+                util.print_reco_event(self.germlines, row, self, one_line=(imute!=0))
 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
     def __init__(self, datadir, human, naivety):  # yes, with a y! motherfucker
+        self.tmpdir = os.getenv('PWD') + '/tmp'
         # parameters that control recombination, erosion, and whatnot
         self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
     
@@ -272,7 +274,7 @@ class Recombinator(object):
         assert reco_event.insertion_lengths['vd'] + reco_event.insertion_lengths['dj'] == total_insertion_length  # check for rounding problems
 
     def erode(self, region, location, reco_event, protected_position=-1):
-        """ Erode some number of letters from seq.
+        """ Erode some number of letters from reco_event.seqs[region]
 
         Nucleotides are removed from the <location> ('5p' or '3p') side of
         <seq>. The codon beginning at index <protected_position> is optionally
@@ -312,13 +314,12 @@ class Recombinator(object):
 
         reco_event.seqs[region] = new_seq
 
-    def get_insertion(self, boundary, reco_event):
-        """ Get the non-templated sequence to insert between
-        templated regions
-        """
+    def set_insertion(self, boundary, reco_event):
+        """ Set the insertions in reco_event """
         insert_seq_str = ''
         for _ in range(0, reco_event.insertion_lengths[boundary]):
             insert_seq_str += util.int_to_nucleotide(random.randint(0, 3))
+
         reco_event.insertions[boundary] = insert_seq_str
         
     def erode_and_insert(self, reco_event):
@@ -331,80 +332,94 @@ class Recombinator(object):
 
         # then insert
         for boundary in util.boundaries:
-            self.get_insertion(boundary, reco_event)
+            self.set_insertion(boundary, reco_event)
         
+    def run_bppseqgen(self, seq, region, chosen_tree):
+        """ Run bppseqgen on sequence
 
-    def run_bppseqgen(self, reco_event):
-        """ Run bppseqgen on recombined sequence """
-        tmpdir = os.getenv('PWD') + '/tmp'
+        Note that this is in general a piece of the full sequence, since
+        we have different mutation models for different regions. Returns
+        a list of mutated sequences.
+        """
 
-        # select a tree and write it to tmp file
-        chosen_tree = self.trees[random.randint(0, len(self.trees))]
-        treefname = tmpdir + '/tree.tre'
+        if len(seq) == 0:  # zero length insertion (or d)
+            treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
+            n_leaf_nodes = len(treg.findall(chosen_tree))
+            return ['' for x in range(n_leaf_nodes)]  # return an empty string for each leaf node
+
+        # write the tree to a tmp file
+        treefname = self.tmpdir + '/tree.tre'
         with opener('w')(treefname) as treefile:
-            print '    chose tree %s' % chosen_tree
             treefile.write(chosen_tree)
         
-        reco_seq_fname = tmpdir + '/start_seq.txt'
+        reco_seq_fname = self.tmpdir + '/start_seq.txt'
         with opener('w')(reco_seq_fname) as reco_seq_file:  # write the input file for bppseqgen, one base per line
             reco_seq_file.write('state\n')
-            for nuke in reco_event.recombined_seq:
+            for nuke in seq:
                 reco_seq_file.write(nuke + '\n')
 
-        print '    generating mutations (seed %d)' % os.getpid()
-        assert len(reco_event.final_seqs) == 0
-        leaf_seq_fname = tmpdir + '/leaf-seqs.fa'
+        leaf_seq_fname = self.tmpdir + '/leaf-seqs.fa'
         bpp_dir = '/home/matsengrp/local/encap/bpp-master-20140414'  # on lemur: $HOME/Dropbox/work/bpp-master-20140414
         # build the command as a few separate lines
         command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + bpp_dir + '/lib\n'
         command += bpp_dir + '/bin/bppseqgen'  # build the bppseqgen line sequentially
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
-        command += ' number_of_sites=' + str(len(reco_event.recombined_seq))
+        command += ' number_of_sites=' + str(len(seq))
         command += ' input.tree.format=Newick'
         command += ' output.sequence.format=Fasta\(\)'
         command += ' alphabet=DNA'
         command += ' --seed=' + str(os.getpid())
         command += ' model=GTR\('
-        region = 'v'  # TODO fix it
         for par in self.mute_models[region]['gtr']:
             val = self.mute_models[region]['gtr'][par]
             command += par + '=' + val + ','
         command = command.rstrip(',')
         command += '\)'
         # TODO should I use the "equilibrium frequencies" option?
-#        command += ' rate_distribution=\'Constant()\''
-        command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
+        # TODO how many categories for Gamma?
+        command += ' rate_distribution=\'Gamma(n=9,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
         command += ' input.infos.states=state'
         command += ' input.infos=' + reco_seq_fname
         command += ' input.infos.rates=none'
-        output = check_output(command, shell=True)
-        print output
-        for seq_record in SeqIO.parse(leaf_seq_fname, "fasta"):  # add all the leaf node seqs to reco_event
-            reco_event.final_seqs.append(str(seq_record.seq))
+        check_output(command, shell=True)
+
+        mutated_seqs = []
+        for seq_record in SeqIO.parse(leaf_seq_fname, "fasta"):  # get the leaf node sequences from the file that bppseqgen wrote
+            mutated_seqs.append(str(seq_record.seq))
 
         self.check_tree_simulation(leaf_seq_fname, chosen_tree)
 
         os.remove(reco_seq_fname)  # clean up temp files
         os.remove(treefname)
         os.remove(leaf_seq_fname)
-#        os.remove(inferred_treefname)
+
+        return mutated_seqs
 
     def add_mutants(self, reco_event):
-        self.run_bppseqgen(reco_event)
+        chosen_tree = self.trees[random.randint(0, len(self.trees))]
+        print '  generating mutations (seed %d) with tree %s' % (os.getpid(), chosen_tree)
+        v_mutes = self.run_bppseqgen(reco_event.seqs['v'], 'v', chosen_tree)
+        d_mutes = self.run_bppseqgen(reco_event.seqs['d'], 'd', chosen_tree)
+        j_mutes = self.run_bppseqgen(reco_event.seqs['j'], 'j', chosen_tree)
+        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], 'v', chosen_tree)  # TODO use a better mutation model for the insertions
+        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], 'd', chosen_tree)
 
-        for iseq in range(len(reco_event.final_seqs)):
-            seq = reco_event.final_seqs[iseq]
+        assert len(reco_event.final_seqs) == 0  # don't really need this, but it makes me feel warm and fuzzy
+        for iseq in range(len(v_mutes)):
+            seq = v_mutes[iseq] + vd_mutes[iseq] + d_mutes[iseq] + dj_mutes[iseq] + j_mutes[iseq]  # build final sequence
             # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
-            # NOTE um, won't this make it difficult to infer phylogenies?
             cpos = reco_event.cyst_position
             if seq[cpos : cpos + 3] != reco_event.original_cyst_word:
                 seq = seq[:cpos] + reco_event.original_cyst_word + seq[cpos+3:]
             tpos = reco_event.final_tryp_position
             if seq[tpos : tpos + 3] != reco_event.original_tryp_word:
                 seq = seq[:tpos] + reco_event.original_tryp_word + seq[tpos+3:]
-            reco_event.final_seqs[iseq] = seq
+            reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
+
         assert not util.are_conserved_codons_screwed_up(reco_event)
+        print '    check full seq trees'
+        self.check_tree_simulation('', chosen_tree, reco_event)
 
     def write_final_vdj(self, reco_event):
         """ Write the eroded and mutated v, d, and j regions to file. """
@@ -503,10 +518,21 @@ class Recombinator(object):
         # i.e. we're *in*consistent if net change is negative and also less than total deletions
         return is_bad
 
-    def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str):
+    def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):
         """ See how well we can reconstruct the true tree """
+        clean_up = False
+        if leaf_seq_fname == '':  # we need to make the leaf seq file based on info in reco_event
+            clean_up = True
+            leaf_seq_fname = self.tmpdir + '/leaf-seqs.fa'
+            with opener('w')(leaf_seq_fname) as leafseqfile:
+                for iseq in range(len(reco_event.final_seqs)):
+                    leafseqfile.write('>t' + str(iseq+1) + '\n')  # TODO the *order* of the seqs doesn't correspond to the tN number. does it matter?
+                    leafseqfile.write(reco_event.final_seqs[iseq] + '\n')
+
         with opener('w')(os.devnull) as fnull:
             inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
+        if clean_up:
+            os.remove(leaf_seq_fname)
         chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')
         inferred_tree = dendropy.Tree.get_from_string(inferred_tree_str, 'newick')
-        print '    tree diffs:    symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))
+        print '        tree diff -- symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))
