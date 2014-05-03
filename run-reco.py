@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from Recombinator import Recombinator
+from recombinator import Recombinator
 
 #----------------------------------------------------------------------------------------
 reco = Recombinator('data/human-beings','C','M')
