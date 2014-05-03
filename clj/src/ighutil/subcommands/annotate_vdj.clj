@@ -2,8 +2,7 @@
   (:require [cliopatra.command :refer [defcommand]]
             [clojure.data.csv :as csv]
             [clojure.string :as string]
-            [plumbing.core :refer [?> map-vals]]
-            [flatland.useful.map :refer [update-in!]]
+            [plumbing.core :refer [map-vals]]
             [ighutil.gff3 :as gff3]
             [ighutil.imgt :as imgt]
             [ighutil.io :as zio]
@@ -12,7 +11,9 @@
            [net.sf.picard.util IntervalTreeMap]
            [io.github.cmccoy.sam SAMUtils AlignedPair
             AlignedPair$MatchesReference]
-           [io.github.cmccoy.dna Codons]))
+           [io.github.cmccoy.dna Codons]
+           [io.github.cmccoy.sam VDJAnnotator
+            VDJAnnotator$RegionAnnotation]))
 
 (defn- translate-read [^SAMRecord read frame start]
   (-> read
@@ -21,41 +22,16 @@
       (String.)))
 
 (defn- annotate-read [^SAMRecord read ^IntervalTreeMap tree]
-  (let [reference-name (sam/reference-name read)
-        nm (sam/nm read)
-        as (sam/alignment-score read)
-        aligned-pairs (remove (fn [^AlignedPair ap]
-                                (or (.isUnknown ap)
-                                    (.isIndel ap)))
-                              (SAMUtils/getAlignedPairs read))
-        f (fn [m ^AlignedPair ap]
-            (let [rpos (.getReferencePosition ap)
-                  qpos (.getQueryPosition ap)
-                  is-mismatch (.isMutation ap)
-                  overlaps (conj (gff3/overlapping
-                                  tree
-                                  reference-name
-                                  (inc rpos))
-                                 (sam/ig-segment read))
-                  add-base (fn [acc o]
-                             (assoc!
-                              acc o
-                              (-> (get acc o (transient {:aligned 0
-                                                         :mismatch 0
-                                                         :reference reference-name
-                                                         :minqpos qpos
-                                                         :maxqpos qpos
-                                                         :alignment-score as
-                                                         :nm nm}))
-                                  (update-in! [:aligned] inc)
-                                  (update-in! [:minqpos] #(min qpos %))
-                                  (update-in! [:maxqpos] #(max qpos %))
-                                  (?> is-mismatch update-in! [:mismatch] inc))))]
-              (reduce add-base m overlaps)))]
-    (map-vals
-     persistent!
-     (persistent!
-      (reduce f (transient {}) aligned-pairs)))))
+  (let [annot (.annotateVDJ (VDJAnnotator. read tree))
+        to-map (fn [^VDJAnnotator$RegionAnnotation r]
+                 {:reference (.name r)
+                  :aligned (.aligned r)
+                  :mismatch (.mismatch r)
+                  :minqpos (.minqpos r)
+                  :maxqpos (.maxqpos r)
+                  :alignment-score (.alignmentScore r)
+                  :nm (.nm r)})]
+    (map-vals to-map annot)))
 
 (defn- annotate-reads
   "Annotate read using (possibly) multiple alignment segments"
@@ -64,7 +40,7 @@
         annotations (->> reads
                          (map #(annotate-read % tree))
                          (apply merge))
-        v-start (get-in annotations [\V :minqpos])
+        v-start (get-in annotations ["V" :minqpos])
         cys-start (get-in annotations ["Cys" :minqpos])
         tryp-start (get-in annotations ["J_Tryp" :minqpos])
         tryp-end (get-in annotations ["J_Tryp" :maxqpos])
@@ -97,7 +73,7 @@
 
 (defn- keys-for-feature [feature-name]
   (let [k [:aligned :mismatch :minqpos :maxqpos]]
-    (if (#{\V \D \J} feature-name)
+    (if (#{"V" "D" "J"} feature-name)
       (conj k :reference :alignment-score :nm)
       k)))
 
@@ -140,8 +116,10 @@
                         :key (comp :Name :attributes))
           feature-names (vec
                          (concat
-                          (features-for-references reference-names feature-tree)
-                          "VDJ"))]
+                          (features-for-references
+                           reference-names
+                           feature-tree)
+                          ["V" "D" "J"]))]
       (csv/write-csv out-file [(header-row feature-names)])
       (->> in-file
            .iterator
