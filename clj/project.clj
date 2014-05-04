@@ -25,7 +25,6 @@
                              ighutil.io
                              ighutil.main
                              ighutil.sam
-
                              ighutil.subcommands.reset-primary]}}
   :java-source-paths ["src/java"]
   :omit-source false

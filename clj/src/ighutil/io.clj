@@ -13,7 +13,7 @@
    [org.apache.commons.compress.compressors.gzip
     GzipCompressorOutputStream GzipCompressorInputStream]))
 
-(s/defschema Fileable
+(sm/defschema Fileable
   "types supported by clojure.java.io/file"
   (s/either s/Str java.io.File java.net.URL))
 

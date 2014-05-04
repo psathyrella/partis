@@ -127,13 +127,14 @@
                ["-o" "--out-file" "Destination path" :required true
                 :parse-fn zio/writer]
                ["-g" "--gff3" "GFF3 file [default: internal]"
-                :parse-fn gff3/slurp-gff3
-                :default @imgt/ighvj-gff]
-               ["--[no-]full-translation" "Completely translate sequence (outside of optimal alignment)?"
+                :parse-fn gff3/slurp-gff3]
+               ["--[no-]full-translation"
+                "Completely translate sequence (outside of optimal alignment)?"
                 :default false]]}
   (with-open [^net.sf.samtools.SAMFileReader in-file in-file
               ^java.io.Writer out-file out-file]
     (let [reference-names (sam/reference-names in-file)
+          gff3 (or gff3 @imgt/ighvj-gff)
           feature-tree (gff3/gff3-to-interval-map
                         gff3
                         :key (comp :Name :attributes))

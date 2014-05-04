@@ -59,7 +59,8 @@
         muts (long/aclone counts)
         ref-name (.getReferenceName read)]
     (doseq [i (range (alength bq))]
-      (let [ref-idx (.getReferencePositionAtReadPosition read i)
+      (let [i (int i)
+            ref-idx (.getReferencePositionAtReadPosition read i)
             idx (or (get-in @imgt/v-gene-meta
                             [ref-name :translation (dec ref-idx)])
                     (dec ref-idx))
