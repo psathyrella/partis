@@ -15,8 +15,8 @@ The project is divided into two sections: a python module for aligning sequences
 
 # Installation
 
-* Run `make -C clj`
-* Run `pip install python`
+* Run `make -C clj` - creates `clj/bin/ighutil`
+* Run `pip install ./python` - installs `vdjalign` Python tool.
 
 # Workflow
 
