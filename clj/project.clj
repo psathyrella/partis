@@ -14,7 +14,7 @@
                  [prismatic/hiphip "0.2.0"]
                  [prismatic/plumbing "0.2.2"]
                  [prismatic/schema "0.2.1"]
-                 [org.flatland/useful "0.11.2"]
+                 ;[org.flatland/useful "0.11.2"]
                  [primitive-math "0.1.3"]
                  [cheshire "5.3.1"]
                  [com.taoensso/timbre "3.1.6"]]

@@ -4,6 +4,7 @@
   then finding alleles which may be present in the data,
   finally choosing randomly among best-scoring alignments."
   (:require [clojure.java.io :as io]
+            [clojure.string :as string]
             [cliopatra.command :refer [defcommand]]
             [ighutil.sam :refer [primary?
                                  alignment-score
@@ -12,7 +13,8 @@
                                  partition-by-name
                                  partition-by-name-segment
                                  ig-segment
-                                 bam-writer]]
+                                 bam-writer]
+             :as sam]
             [ighutil.imgt :refer [strip-allele]]
             [me.raynes.fs :as fs]
             [plumbing.core :refer [frequencies-fast]]
@@ -87,38 +89,43 @@
                  :or {record-selector rand-nth
                       to-remove #{}}}]
   (assert (set? to-remove))
-  (if (= 1 (count alignments))
-    alignments
-    (let [^SAMRecord primary (first (filter primary? alignments))
-          sorted (sort-by alignment-score #(compare %2 %1) alignments)
-          dropped-unlikely (remove #(-> % reference-name to-remove) sorted)]
-      (assert (= 1 (count (filter primary? alignments))))
-      (if (seq dropped-unlikely)
-        (let [max-score (-> dropped-unlikely
-                            first
-                            alignment-score)
-              max-records (vec (take-while
-                                (comp #(= max-score %) alignment-score)
-                                dropped-unlikely))
-              ^SAMRecord selection (record-selector max-records)]
-          (when (and primary (not= selection primary))
-            (do
-              ;; Swap out the primary read and the new selection
-              (doto selection
-                (.setReadBases (.getReadBases primary))
-                (.setBaseQualities (.getBaseQualities primary))
-                (.setNotPrimaryAlignmentFlag false)
-                (.setSupplementaryAlignmentFlag
-                 (.getSupplementaryAlignmentFlag primary)))
-              (doto primary
-                (.setNotPrimaryAlignmentFlag true)
-                (.setReadBases SAMRecord/NULL_SEQUENCE)
-                (.setBaseQualities SAMRecord/NULL_QUALS)
-                (.setSupplementaryAlignmentFlag false))))
-          (assert (= 1 (count (filter primary? alignments))))
-          alignments)
-        ;; drop all alignments for the read
-        []))))
+  (let [^SAMRecord primary (first (filter primary? alignments))
+        sorted (sort-by alignment-score #(compare %2 %1) alignments)
+        dropped-unlikely (remove #(-> % reference-name to-remove) sorted)]
+    (assert (= 1 (count (filter primary? alignments))))
+    (if (seq dropped-unlikely)
+      (let [max-score (-> dropped-unlikely
+                          first
+                          alignment-score)
+            max-records (vec (take-while
+                              (comp #(= max-score %) alignment-score)
+                              dropped-unlikely))
+            ^SAMRecord selection (record-selector max-records)]
+        (when (and primary (not= selection primary))
+          (do
+            ;; Swap out the primary read and the new selection
+            (doto selection
+              (.setReadBases (.getReadBases primary))
+              (.setBaseQualities (.getBaseQualities primary))
+              (.setNotPrimaryAlignmentFlag false)
+              (.setSupplementaryAlignmentFlag
+               (.getSupplementaryAlignmentFlag primary)))
+            (doto primary
+              (.setNotPrimaryAlignmentFlag true)
+              (.setReadBases SAMRecord/NULL_SEQUENCE)
+              (.setBaseQualities SAMRecord/NULL_QUALS)
+              (.setSupplementaryAlignmentFlag false))))
+        (assert (= 1 (count (filter primary? alignments))))
+        ;; Add number of ties
+        (let [ties (->> max-records
+                        (remove #(= selection %))
+                        (map reference-name)
+                        sort
+                        (string/join "|"))]
+          (.setAttribute selection sam/TAG-TIES ties))
+        alignments)
+      ;; drop all alignments for the read
+      [])))
 
 (defn- order-by-vdj
   "Place reads in V-D-J order"
