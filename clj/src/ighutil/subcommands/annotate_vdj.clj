@@ -30,6 +30,7 @@
                   :minqpos (.minqpos r)
                   :maxqpos (.maxqpos r)
                   :alignment-score (.alignmentScore r)
+                  :ties (.getAttribute read sam/TAG-TIES)
                   :nm (.nm r)})]
     (map-vals to-map annot)))
 
@@ -74,7 +75,7 @@
 (defn- keys-for-feature [feature-name]
   (let [k [:aligned :mismatch :minqpos :maxqpos]]
     (if (#{"V" "D" "J"} feature-name)
-      (conj k :reference :alignment-score :nm)
+      (conj k :reference :alignment-score :nm :ties)
       k)))
 
 (defn- names-for-feature [feature-name]
