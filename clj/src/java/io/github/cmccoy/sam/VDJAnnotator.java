@@ -28,6 +28,13 @@ public final class VDJAnnotator {
         final String referenceName = read.getReferenceName();
         final int nm = read.getIntegerAttribute("NM");
         final int as = read.getIntegerAttribute("AS");
+        final int startPos = read.getAlignmentStart() - 1;
+        final int endPos = read.getAlignmentEnd();
+        checkState(startPos >= 0);
+        checkState(endPos != 0);
+
+        final int refLength = read.getHeader().getSequence(read.getReferenceIndex()).getSequenceLength();
+
 
         final List<AlignedPair> alignedPairs = SAMUtils.getAlignedPairs(read);
         for(final AlignedPair ap : alignedPairs) {
@@ -45,7 +52,8 @@ public final class VDJAnnotator {
                 if(this.annotations.containsKey(region)) {
                     annot = this.annotations.get(region);
                 } else {
-                    annot = new RegionAnnotation(referenceName, ap.getQueryPosition(), as, nm);
+                    annot = new RegionAnnotation(referenceName, startPos, refLength - endPos,
+                                                 ap.getQueryPosition(), as, nm);
                     this.annotations.put(region, annot);
                 }
 
@@ -63,6 +71,9 @@ public final class VDJAnnotator {
 
     public static class RegionAnnotation {
       public final String name;
+      public final int eroded5P;
+      public final int eroded3P;
+
       public int aligned;
       public int mismatch;
       public int minqpos;
@@ -70,8 +81,11 @@ public final class VDJAnnotator {
       public int alignmentScore;
       public int nm;
 
-      public RegionAnnotation(final String name, final int qpos, final int alignmentScore, final int nm) {
+      public RegionAnnotation(final String name, final int eroded5P, final int eroded3P,
+                              final int qpos, final int alignmentScore, final int nm) {
           this.name = name;
+          this.eroded5P = eroded5P;
+          this.eroded3P = eroded3P;
           this.mismatch = 0;
           this.aligned = 0;
           this.minqpos = qpos;

@@ -26,6 +26,8 @@
         to-map (fn [^VDJAnnotator$RegionAnnotation r]
                  {:reference (.name r)
                   :aligned (.aligned r)
+                  :eroded5p (.eroded5P r)
+                  :eroded3p (.eroded3P r)
                   :mismatch (.mismatch r)
                   :minqpos (.minqpos r)
                   :maxqpos (.maxqpos r)
@@ -75,7 +77,7 @@
 (defn- keys-for-feature [feature-name]
   (let [k [:aligned :mismatch :minqpos :maxqpos]]
     (if (#{"V" "D" "J"} feature-name)
-      (conj k :reference :alignment-score :nm :ties)
+      (conj k :reference :alignment-score :nm :ties :eroded5p :eroded3p)
       k)))
 
 (defn- names-for-feature [feature-name]
