@@ -17,7 +17,8 @@
                  ;[org.flatland/useful "0.11.2"]
                  [primitive-math "0.1.3"]
                  [cheshire "5.3.1"]
-                 [com.taoensso/timbre "3.1.6"]]
+                 [com.taoensso/timbre "3.1.6"]
+                 [lonocloud/synthread "1.0.4"]]
   :profiles {:java6 {:dependencies [[org.codehaus.jsr166-mirror/jsr166y "1.7.0"]]}
              :uberjar {:aot [ighutil.fasta
                              ighutil.gff3
