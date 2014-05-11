@@ -25,6 +25,27 @@
             SAMFileReader$ValidationStringency
             SAMFileHeader$SortOrder]))
 
+(defn- make-primary!
+  "Make a record primary"
+  [^SAMRecord read
+   ^bytes read-bases
+   ^bytes read-qualities &
+   {:keys [supplementary] :or {supplementary false}}]
+  (doto read
+    (.setReadBases read-bases)
+    (.setBaseQualities read-qualities)
+    (.setNotPrimaryAlignmentFlag false)
+    (.setSupplementaryAlignmentFlag supplementary)))
+
+(defn- make-secondary!
+  "Make a record secondary"
+  [^SAMRecord read]
+  (doto read
+    (.setNotPrimaryAlignmentFlag true)
+    (.setReadBases SAMRecord/NULL_SEQUENCE)
+    (.setBaseQualities SAMRecord/NULL_QUALS)
+    (.setSupplementaryAlignmentFlag false)))
+
 (defn- set-supp-and-bases-per-gene
   "Set read bases and quals for each gene primary record"
   [reads]
@@ -36,12 +57,11 @@
           update-first (fn [r]
                          (when (->> r (filter primary?) count (= 0))
                            (let [^SAMRecord f (first r)]
-                             (doto f
-                               (.setReadBases read-seq)
-                               (.setBaseQualities read-qual)
-                               (.setNotPrimaryAlignmentFlag false)
-                               (.setSupplementaryAlignmentFlag
-                                (not= (ig-segment f) \V)))))
+                             (make-primary!
+                              f
+                              read-seq
+                              read-qual
+                              :supplementary (not= (ig-segment f) \V))))
                          r)]
       (->> reads
            (partition-by ig-segment)
@@ -78,6 +98,7 @@
          (mapcat drop-group)
          (into #{}))))
 
+
 (defn- max-score-tiebreak
   "alignments should all have the same query
 
@@ -104,17 +125,12 @@
         (when (and primary (not= selection primary))
           (do
             ;; Swap out the primary read and the new selection
-            (doto selection
-              (.setReadBases (.getReadBases primary))
-              (.setBaseQualities (.getBaseQualities primary))
-              (.setNotPrimaryAlignmentFlag false)
-              (.setSupplementaryAlignmentFlag
-               (.getSupplementaryAlignmentFlag primary)))
-            (doto primary
-              (.setNotPrimaryAlignmentFlag true)
-              (.setReadBases SAMRecord/NULL_SEQUENCE)
-              (.setBaseQualities SAMRecord/NULL_QUALS)
-              (.setSupplementaryAlignmentFlag false))))
+            (make-primary!
+             selection
+             (.getReadBases primary)
+             (.getBaseQualities primary)
+             :supplementary (.getSupplementaryAlignmentFlag primary))
+            (make-secondary! primary)))
         (assert (= 1 (count (filter primary? alignments))))
         ;; Add number of ties
         (let [ties (->> max-records
