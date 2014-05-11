@@ -15,13 +15,17 @@
            [io.github.cmccoy.sam VDJAnnotator
             VDJAnnotator$RegionAnnotation]))
 
-(defn- translate-read [^SAMRecord read frame start]
+(defn- translate-read
+  "Translate read sequence"
+  [^SAMRecord read frame start]
   (-> read
       .getReadBases
       (Codons/translateSequence (+ (int frame) (int start)))
       (String.)))
 
-(defn- annotate-read [^SAMRecord read ^IntervalTreeMap tree]
+(defn- annotate-read
+  "Annotate a read, returning a map from region to annotations for the region"
+  [^SAMRecord read ^IntervalTreeMap tree]
   (let [annot (.annotateVDJ (VDJAnnotator. read tree))
         to-map (fn [^VDJAnnotator$RegionAnnotation r]
                  {:reference (.name r)
@@ -85,13 +89,17 @@
        keys-for-feature
        (map #(str feature-name "_" (string/replace (name %) \- \_)))))
 
-(defn- header-row [feature-names]
+(defn- header-row
+  "Generate a header row for a collection of feature names"
+  [feature-names]
   (->> feature-names
        (map names-for-feature)
        (apply concat ["read_name" "cdr3_length" "frame" "in_frame"
                       "has_stop" "translation"])))
 
-(defn- to-row [{:keys [name cdr3-length in-frame frame
+(defn- to-row
+  "Convert the results of annotate-reads to a row for CSV output"
+  [{:keys [name cdr3-length in-frame frame
                        has-stop annotations translation] :as m}
                feature-names]
   (->> feature-names
