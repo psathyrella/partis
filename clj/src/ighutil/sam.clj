@@ -19,6 +19,7 @@
 (def ^String TAG-EXP-MATCH "bq")
 (def ^String TAG-STATUS "XS")
 (def ^String TAG-TIES "XT")
+(def ^String TAG-FRAME "XF")
 ;;;;;;;;;;;;;;;;
 
 ;;;;;;

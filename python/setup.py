@@ -20,7 +20,8 @@ setup(
     packages=find_packages(),
     package_data={'vdjalign': ['imgt/data/*.fasta']},
     ext_modules=ext_modules,
-    install_requires=['pysam'],
+    version='0.1.0',
+    install_requires=['pysam', 'networkx'],
     entry_points={
         'console_scripts': [
             'vdjalign = vdjalign.scripts.vdjalign:main',

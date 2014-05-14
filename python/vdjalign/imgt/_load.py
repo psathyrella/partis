@@ -6,7 +6,7 @@ from pkg_resources import resource_stream, resource_exists
 
 from .. import util
 
-_PKG = '.'.join([__name__.rpartition('.')[0], 'data'])
+_PKG = __package__ + '.data'
 
 class InvalidLocusException(ValueError):
     pass

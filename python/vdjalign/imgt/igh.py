@@ -14,7 +14,7 @@ from lxml import etree
 
 from .. import util
 
-_PKG = 'vdjalign.imgt.data'
+_PKG = __package__ + '.data'
 
 # 0-based index of cysteine in NT alignment (position 104 in AA)
 _CYSTEINE_POSITION = 3 * (104 - 1)
