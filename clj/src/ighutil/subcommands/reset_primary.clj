@@ -113,7 +113,7 @@
   (let [^SAMRecord primary (first (filter primary? alignments))
         sorted (sort-by alignment-score #(compare %2 %1) alignments)
         dropped-unlikely (remove #(-> % reference-name to-remove) sorted)]
-    (assert (= 1 (count (filter primary? alignments))))
+       (assert (= 1 (count (filter primary? alignments))))
     (if (seq dropped-unlikely)
       (let [max-score (-> dropped-unlikely
                           first
@@ -150,6 +150,21 @@
         k (juxt (comp segment-order ig-segment) (complement primary?))]
     (sort-by k reads)))
 
+(defn- set-frame-for-group
+  "Set frame based on the first alignment"
+  [reads]
+  (let [reads (vec reads)
+        ^SAMRecord v-alignment (first reads)
+        frame (-> v-alignment
+                  sam/position
+                  (mod 3)
+                  int)]
+    (assert (primary? v-alignment))
+    (when (= \V (sam/ig-segment v-alignment))
+      (doseq [^SAMRecord r reads]
+        (.setAttribute r sam/TAG-FRAME frame))))
+  reads)
+
 (defn reset-primary-record
   "Given a sequence of SAMRecord objects, sorted by name, assigns a
    new primary record for each partition (if :randomize is true
@@ -169,14 +184,16 @@
               first)]
     (->> sam-records
          partition-by-name
-         (map set-supp-and-bases-per-gene)
-         (mapcat order-by-vdj)
+         (mapcat set-supp-and-bases-per-gene)
          partition-by-name-segment
          (map vec)
          (mapcat #(max-score-tiebreak
                    %
                    :record-selector sel
-                   :to-remove to-remove)))))
+                   :to-remove to-remove))
+         partition-by-name
+         (mapv order-by-vdj)
+         (mapcat set-frame-for-group))))
 
 (defcommand reset-primary
   "Reset primary alignment, breaking ties randomly"
