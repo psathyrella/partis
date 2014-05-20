@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+import os
+import sys
 from recombinator import Recombinator
+import utils
 
 #----------------------------------------------------------------------------------------
-reco = Recombinator('data/human-beings','C','M')
-#reco = Recombinator('data/hack-probs.csv.bz2')  # hacked this file by hand to use one v, j, and cdr3 length but vary the d gene.
-for _ in range(1):
-    print 'combining'
-    raw_reco_seq = reco.combine('simulated-seqs.csv')
+#assert len(sys.argv) == 2
+#human = sys.argv[1]  #'C'
+naivety = 'M'
+for human in utils.humans:
+    reco = Recombinator('data/human-beings', human, naivety)
+    for _ in range(100):
+        outdir = 'output/' + human + '/' + naivety
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        outfname = outdir + '/simu.csv'
+        success = False
+        while not success:
+            success = reco.combine(outfname, 'append')

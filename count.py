@@ -1,4 +1,5 @@
 #!/usr/bin/python
+""" Count the number of occurrences of each v/d/j/cdr3_length combination """
 
 from versioncounter import VersionCounter
 

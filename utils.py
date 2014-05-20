@@ -3,10 +3,14 @@ require member variables. """
 
 import sys
 
+from Bio import SeqIO
+
 #----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 boundaries = ('vd', 'dj')
+humans = ('A', 'B', 'C')
+nukes = ('A', 'C', 'G', 'T')
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del')
@@ -145,7 +149,7 @@ def is_mutated(original, final):
     else:
         return red(final)
 
-def print_reco_event(germlines, line, reco_event, one_line=False):
+def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -191,10 +195,11 @@ def print_reco_event(germlines, line, reco_event, one_line=False):
                         ilocal -= len(line['dj_insertion'])
                         new_nuke = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke])
 
-        if inuke == reco_event.cyst_position or inuke == reco_event.final_tryp_position:
-            new_nuke = '\033[7m' + new_nuke
-        elif inuke == reco_event.cyst_position + 2 or inuke == reco_event.final_tryp_position + 2:
-            new_nuke = new_nuke + '\033[m'
+        if cyst_position > 0 and final_tryp_position > 0:
+            if inuke == cyst_position or inuke == final_tryp_position:
+                new_nuke = '\033[7m' + new_nuke
+            elif inuke == cyst_position + 2 or inuke == final_tryp_position + 2:
+                new_nuke = new_nuke + '\033[m'
         final_seq += new_nuke
 
     # pad with dots
@@ -212,3 +217,27 @@ def print_reco_event(germlines, line, reco_event, one_line=False):
         print '    %s   ighv,ighj\n' % vj
     print '    %s' % final_seq
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
+
+#----------------------------------------------------------------------------------------
+def sanitize_name(name):
+    """ Replace characters in gene names that make crappy filenames. """
+    saniname = name.replace('*', '_star_')
+    saniname = saniname.replace('/', '_slash_')
+    return saniname
+
+#----------------------------------------------------------------------------------------
+def unsanitize_name(name):
+    """ Re-replace characters in gene names that make crappy filenames. """
+    unsaniname = name.replace('_star_', '*')
+    unsaniname = unsaniname.replace('_slash_', '/')
+    return unsaniname
+
+#----------------------------------------------------------------------------------------
+def read_germlines(data_dir):
+    germlines = {}
+    for region in regions:
+        germlines[region] = {}
+        for seq_record in SeqIO.parse(data_dir + '/data/igh'+region+'.fasta', "fasta"):
+            germlines[region][seq_record.name] = str(seq_record.seq)
+    return germlines
+

@@ -56,6 +56,7 @@ class RecombinationEvent(object):
                                                                    '',
                                                                    self.seqs['j'],
                                                                    0)
+
         utils.check_conserved_codons(self.seqs['v'] + self.seqs['d'] + self.seqs['j'], self.cyst_position, tryp_position_in_joined_seq)
         self.current_cdr3_length = tryp_position_in_joined_seq - self.cyst_position + 3
         self.net_length_change = self.cdr3_length - self.current_cdr3_length
@@ -124,5 +125,5 @@ class RecombinationEvent(object):
                 # write the row
                 writer.writerow(row)
                 # and print it out
-                utils.print_reco_event(self.germlines, row, self, one_line=(imute!=0))
+                utils.print_reco_event(self.germlines, row, self.cyst_position, self.final_tryp_position, one_line=(imute!=0))
 

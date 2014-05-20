@@ -7,6 +7,7 @@ import os
 import operator
 
 from opener import opener
+import utils
 
 class VersionCounter(object):
     """ Process observed counts of recombination parameters into a form useful for sampling.
@@ -81,3 +82,40 @@ class VersionCounter(object):
                 line['prob'] = prob
                 check_tot += prob
                 out_data.writerow(line)
+
+
+def integrate_version_freqs(fname):
+    """ Integrate to get single-gene-choice probabilities. """
+    freqs = {}
+    for region in utils.regions:
+        freqs[region] = {}
+    with opener('r')(fname) as infile:
+        in_data = csv.DictReader(infile)
+        total = 0.0  # check that the probs sum to 1.0
+        for line in in_data:
+            total += float(line['prob'])
+            for region in utils.regions:
+                gene_name = line[region + '_gene']
+                if gene_name in freqs[region]:
+                    freqs[region][gene_name] += float(line['prob'])
+                else:
+                    freqs[region][gene_name] = 0.0
+             
+        assert math.fabs(total - 1.0) < 1e-8
+    # then normalize 'em
+    for region in utils.regions:
+        total = 0.0
+        for gene in freqs[region]:
+            total += freqs[region][gene]
+        for gene in freqs[region]:
+            freqs[region][gene] /= total
+        # check it
+        total = 0.0
+        for gene in freqs[region]:
+            total += freqs[region][gene]
+        assert math.fabs(total - 1.0) < 1e-8
+        sorted_freqs = sorted(freqs[region].iteritems(), key=operator.itemgetter(1), reverse=True)
+        with opener('w')(fname.replace('probs.csv.bz2','igh' + region+ '-probs.txt')) as outfile:
+            for item in sorted_freqs:
+                # print '  %30s %f' % (item[0], item[1])
+                outfile.write('  %30s %20.15f\n' % (item[0], item[1]))
