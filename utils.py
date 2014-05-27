@@ -11,6 +11,8 @@ erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 boundaries = ('vd', 'dj')
 humans = ('A', 'B', 'C')
 nukes = ('A', 'C', 'G', 'T')
+maturities = ['memory', 'naive']  # NOTE eveywhere else I call this 'naivety' and give it the values 'M' or 'N'
+naivities = ['M', 'N']
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del')
@@ -241,3 +243,11 @@ def read_germlines(data_dir):
             germlines[region][seq_record.name] = str(seq_record.seq)
     return germlines
 
+# ----------------------------------------------------------------------------------------
+def maturity_to_naivety(maturity):
+    if maturity == 'memory':
+        return 'M'
+    elif maturity == 'naive':
+        return 'N'
+    else:
+        assert False

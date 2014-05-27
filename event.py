@@ -121,9 +121,17 @@ class RecombinationEvent(object):
                     unique_id += str(row[column])
                 unique_id += str(numpy.random.uniform())
                 row['unique_id'] = hash(unique_id)
-                
-                # write the row
                 writer.writerow(row)
-                # and print it out
-                utils.print_reco_event(self.germlines, row, self.cyst_position, self.final_tryp_position, one_line=(imute!=0))
 
+    def print_event(self):
+        line = {}  # collect some information into a form that print_reco_event understands
+        line['cdr3_length'] = self.cdr3_length
+        for region in utils.regions:
+            line[region + '_gene'] = self.gene_names[region]
+        for boundary in utils.boundaries:
+            line[boundary + '_insertion'] = self.insertions[boundary]
+        for erosion_location in utils.erosions:
+            line[erosion_location + '_del'] = self.erosions[erosion_location]
+        for imute in range(len(self.final_seqs)):
+            line['seq'] = self.final_seqs[imute]
+            utils.print_reco_event(self.germlines, line, self.cyst_position, self.final_tryp_position, one_line=(imute!=0))

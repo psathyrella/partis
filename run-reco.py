@@ -10,11 +10,12 @@ import utils
 naivety = 'M'
 for human in utils.humans:
     reco = Recombinator('data/human-beings', human, naivety)
-    for _ in range(100):
+    for _ in range(1):
         outdir = 'output/' + human + '/' + naivety
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outfname = outdir + '/simu.csv'
         success = False
         while not success:
-            success = reco.combine(outfname, 'append')
+            success = reco.combine()  #outfname, 'append')
+        sys.exit()
