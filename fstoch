@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./stochhmm $* |sed -e '/^$/ d' -e 's/ //g' | grep -v Traceback
