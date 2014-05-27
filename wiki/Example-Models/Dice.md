@@ -1,0 +1,64 @@
+##Occasionally Dishonest Casino Model
+
+[Durbin, R., Eddy, S., Krogh, A., Mitchison, G., Biological Sequence Analysis: Probabilistic models of proteins and nucleic acids. Cambride University Press, 1998, pg 54]
+
+##Model File
+```
+#STOCHHMM MODEL FILE
+<MODEL INFORMATION>
+======================================================
+MODEL_NAME:	CASINO DICE MODEL
+MODEL_DESCRIPTION:	Taken from CH3 Durbin/Eddy
+MODEL_CREATION_DATE:	August 28,2009
+
+<TRACK SYMBOL DEFINITIONS>
+======================================================
+DICE:	1,2,3,4,5,6
+
+<STATE DEFINITIONS>
+#############################################
+STATE:	
+	NAME:	INIT
+TRANSITION:	STANDARD: P(X)
+	FAIR:	0.5
+	LOADED:	0.5
+#############################################
+STATE:	
+	NAME:	FAIR
+	PATH_LABEL:	F
+	GFF_DESC:	FAIR
+TRANSITION:	STANDARD: P(X)
+	FAIR:	0.95
+	LOADED:	0.05
+	END:	1
+EMISSION:	DICE: P(X)
+	ORDER:	0
+@1	2	3	4	5	6
+0.167	0.167	0.167	0.167	0.167	0.167
+#############################################
+STATE:
+	NAME:	LOADED
+	PATH_LABEL:	L
+	GFF_DESC:	LOADED
+TRANSITION:	STANDARD: P(X)
+	FAIR:	0.1
+	LOADED:	0.9
+	END:	1
+EMISSION:	DICE: P(X)
+	ORDER:	0
+@1	2	3	4	5	6	
+0.1	0.1	0.1	0.1	0.1	0.5
+#############################################
+//END
+```
+
+
+##Sequence File
+```
+>Dice
+315116246446644245311321631164152133625144543631656626566666
+651166453132651245636664631636663162326455236266666625151631
+222555441666566563564324364131513465146353411126414626253356
+366163666466232534413661661163252562462255265252266435353336
+233121625364414432335163243633665562466662632666612355245242
+```
