@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """ Count the number of occurrences of each v/d/j/cdr3_length combination """
-
+# TEST
 from versioncounter import VersionCounter
 
 cryptic_strings = (('04-A-M',),
