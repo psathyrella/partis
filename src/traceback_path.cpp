@@ -192,16 +192,17 @@ namespace StochHMM{
     void traceback_path::print_path() const{
         int line=0;
         for(size_t k = this->size()-1; k != SIZE_MAX; k--){
-            std::cout << trace_path[k]<< " ";
+        // for(size_t k = 0; k < this->size(); k++) { // REVERSE
+            std::cout << trace_path[k];
             line++;
         }
-        std::cout << std::endl << std::endl;
     }
 
     //!Print the path to file stream
     void traceback_path::fprint_path(std::ofstream &file){
         int line=0;
         for(size_t k=this->size()-1;k != SIZE_MAX; k--){
+        // for(size_t k = 0; k < this->size(); k++) { // REVERSE
             file << trace_path[k]<< " ";
             line++;
         }
@@ -260,26 +261,25 @@ namespace StochHMM{
 
 
     //!Print traceback_path labels to stdout
-    void traceback_path::print_label() const {
-        int line=0;
+  void traceback_path::print_label() const {
+    int line=0;
 		
-		if ( hmm==NULL ){
-			std::cerr << "Model is NULL.  traceback::print_label() must have valid HMM model defined.\n";
-			exit(2);
-		}
-		
-        for(size_t k = trace_path.size()-1;k != SIZE_MAX;k--){
-//            if(line==WID && WID>0){
-//                std::cout<< std::endl;
-//                line=0;
-//            }
-            state* st = hmm->getState(trace_path[k]);
-            std::cout << st->getLabel() << " ";
-            line++;
-        }
-        std::cout << std::endl << std::endl;
-        
+    if ( hmm==NULL ){
+      std::cerr << "Model is NULL.  traceback::print_label() must have valid HMM model defined.\n";
+      exit(2);
     }
+		
+    for(size_t k = trace_path.size()-1;k != SIZE_MAX;k--){
+    // for (size_t k=0; k<trace_path.size(); k++) { // REVERSE
+      // if(line==WID && WID>0){
+      //     std::cout<< std::endl;
+      //     line=0;
+      // }
+      state* st = hmm->getState(trace_path[k]);
+      std::cout << st->getLabel();
+      line++;
+    }
+  }
 
     //!Outputs the gff formatted output for the traceback to stdout
     void traceback_path::print_gff(std::string sequence_name, double score, int ranking, int times, double posterior) const {
@@ -441,6 +441,7 @@ namespace StochHMM{
     multiTraceback::multiTraceback(){
         maxSize=0;
         vectorIterator=0;
+	isFinalized=false;
         table=NULL;
 	isFinalized=false;
     }
@@ -521,12 +522,14 @@ namespace StochHMM{
         assert(!isFinalized);
         maxSize=paths.size();
         vectorIterator=0;
-        
+
+	// push a pointer to each entry in paths into pathAccess
         std::map<traceback_path,int>::iterator pathsIterator;
         for(pathsIterator=paths.begin();pathsIterator!=paths.end();pathsIterator++){
             pathAccess.push_back(pathsIterator);
         }
-        
+
+	// then sort it
         sort(pathAccess.begin(),pathAccess.end(),sortTBVec);
 	isFinalized=true;
         return;
@@ -539,7 +542,7 @@ namespace StochHMM{
             delete table;
         }
         
-        //Over the lenght of the sequence
+        // Over the length of the sequence
         model* hmm = ((*pathAccess[0]).first).getModel();
         size_t sequenceSize=((*pathAccess[0]).first).size();
         size_t stateSize=hmm->state_size();
@@ -549,9 +552,10 @@ namespace StochHMM{
         table = new heatTable(sequenceSize,states);
         
         std::map<traceback_path,int>::iterator it;
-        
+
         for( it =paths.begin(); it!=paths.end();it++){
             int count = (*it).second;
+	    // for(size_t position=sequenceSize-1; position!=SIZE_MAX; position--){
             for(size_t position=0;position<sequenceSize;position++){
                 int tbState=(*it).first[position];
                 (*table)[sequenceSize - position - 1][tbState]+=count;
@@ -566,7 +570,7 @@ namespace StochHMM{
             get_hit_table();
         }
         
-        std::string header_row = "Position";
+        std::string header_row = "pos";
         model* hmm = ((*pathAccess[0]).first).getModel();
         for (size_t state_iter =0; state_iter<hmm->state_size(); state_iter++){
             header_row+="\t";
@@ -584,34 +588,30 @@ namespace StochHMM{
     }
     
     
-    void multiTraceback::print_path(){
+  void multiTraceback::print_path(std::string format, std::string *header){
         assert(isFinalized);
+	std::cout << "counts" << "          path" << std::endl;
         for(size_t iter=0; iter<this->size(); iter++){
-            std::cout << "Traceback occurred:\t " << (*pathAccess[iter]).second << std::endl;
-            (*pathAccess[iter]).first.print_path();
-            std::cout << std::endl;
+	  std::cout << (*pathAccess[iter]).second << "         ";
+	  if (format=="path")
+	    (*pathAccess[iter]).first.print_path();
+	  else if (format=="label")
+            (*pathAccess[iter]).first.print_label();
+	  else if (format=="gff")
+            (*pathAccess[iter]).first.print_gff(*header);
+	  else
+	    assert(0);
+	  std::cout << std::endl;
         }
         return;
     }
     
     void multiTraceback::print_label(){
-        assert(isFinalized);
-        for(size_t iter=0; iter<this->size(); iter++){
-            std::cout << "Traceback occurred:\t " << (*pathAccess[iter]).second << std::endl;
-            (*pathAccess[iter]).first.print_label();
-            std::cout << std::endl;
-        }
-        return;
+      print_path("label");
     }
     
     void multiTraceback::print_gff(std::string& header){
-        assert(isFinalized);
-        for(size_t iter=0; iter<this->size(); iter++){
-            std::cout << "Traceback occurred:\t " << (*pathAccess[iter]).second << std::endl;
-            (*pathAccess[iter]).first.print_gff(header);
-            std::cout << std::endl;
-        }
-        return;
+      print_path("gff", &header);
     }
     
     

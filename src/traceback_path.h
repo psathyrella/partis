@@ -180,7 +180,7 @@ namespace StochHMM{
         void operator=(size_t);
         
         
-        void print_path();
+      void print_path(std::string format="path", std::string *header=NULL);
         void print_label();
         void print_gff(std::string&);
         void print_hits();
