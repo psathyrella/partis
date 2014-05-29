@@ -193,9 +193,10 @@ namespace StochHMM{
         int line=0;
         for(size_t k = this->size()-1; k != SIZE_MAX; k--){
         // for(size_t k = 0; k < this->size(); k++) { // REVERSE
-            std::cout << trace_path[k];
+	  std::cout << trace_path[k] << " ";
             line++;
         }
+	std::cout << std::endl;
     }
 
     //!Print the path to file stream
@@ -276,9 +277,10 @@ namespace StochHMM{
       //     line=0;
       // }
       state* st = hmm->getState(trace_path[k]);
-      std::cout << st->getLabel();
+      std::cout << st->getLabel() << " ";
       line++;
     }
+    std::cout << std::endl;
   }
 
     //!Outputs the gff formatted output for the traceback to stdout
@@ -601,7 +603,7 @@ namespace StochHMM{
             (*pathAccess[iter]).first.print_gff(*header);
 	  else
 	    assert(0);
-	  std::cout << std::endl;
+	  // std::cout << std::endl;
         }
         return;
     }
