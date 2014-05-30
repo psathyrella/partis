@@ -41,10 +41,11 @@ def write_state(outfile, region, gene_name, seq, inuke, germline_nuke):
     outfile.write('  PATH_LABEL:  %s_%d\n' % (saniname, inuke))
     outfile.write('  GFF_DESC:    %s_%d\n' % (saniname, inuke))
     outfile.write('TRANSITION: STANDARD: P(X)\n')
-    end_probability = get_end_probability(gene_name, seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene. TODO use data
+    end_probability = 0.0  # TODO fix this! to use v_end get_end_probability(gene_name, seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene. TODO use data
     if inuke < len(seq) - 1:
         outfile.write(('   %s_%d:  %.' + precision + 'f\n') % (gene_name, inuke+1, 1 - end_probability))  # add a transition to next state
-    outfile.write(('  %s_end:  %.' + precision + 'f\n') % (region, end_probability))  # and one the end_region state
+    # outfile.write(('  %s_end:  %.' + precision + 'f\n') % (region, end_probability))  # and one the end_region state
+    outfile.write('  END: 1\n')  # TODO figure out how to swap back to <region>_end in previous line
     outfile.write('EMISSION: NUKES: P(X)\n')
     outfile.write('  ORDER: 0\n')
     emission_label_string = '@'
@@ -84,14 +85,15 @@ def write_states(outfile):
                 nuke = germline_seqs[region][gene_name][inuke]
                 write_state(outfile, region, gene_name, germline_seqs[region][gene_name], inuke, nuke)
 
-    # write region end state
-    outfile.write('#############################################\n')
-    outfile.write('STATE:\n')
-    outfile.write('  NAME:        %s_end\n' % region)
-    outfile.write('  PATH_LABEL:  %s_end\n' % region)
-    outfile.write('  GFF_DESC:    %s_end\n' % region)
-    outfile.write('TRANSITION: STANDARD: P(X)\n')
-    outfile.write('   END: 1\n')
+    # TODO figure out how to swap back to <region>_end in previous line
+    # # write region end state
+    # outfile.write('#############################################\n')
+    # outfile.write('STATE:\n')
+    # outfile.write('  NAME:        %s_end\n' % region)
+    # outfile.write('  PATH_LABEL:  %s_end\n' % region)
+    # outfile.write('  GFF_DESC:    %s_end\n' % region)
+    # outfile.write('TRANSITION: STANDARD: P(X)\n')
+    # outfile.write('   END: 1\n')
 
     # outfile.write('  END:   1\n')  # TODO need to write the v_end state, and the END state. how to make v_end silent? did the way you tried *work*?
     outfile.write('#############################################\n')

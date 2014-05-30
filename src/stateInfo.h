@@ -14,17 +14,17 @@
 #include <vector>
 
 namespace StochHMM{
-	
-	
-	//!\struct stateInfo
-	//!\brief Contains state information for quick reference between states information
-	struct stateInfo{
-		std::map<std::string,size_t> stateIterByName; //Map string iterators by name
-		std::map<std::string,std::vector<size_t> > stateIterByGff; //Map states iterators by GFF tags
-		std::map<std::string,std::vector<size_t> > stateIterByLabel; //Map states iterators by Label tags
-	};
-	
-	
+        
+        
+  //!\struct stateInfo
+  //!\brief Contains state information for quick reference between states information
+  struct stateInfo{
+    std::map<std::string,size_t> stateIterByName; //Map string iterators by name
+    std::map<std::string,std::vector<size_t> > stateIterByGff; //Map states iterators by GFF tags
+    std::map<std::string,std::vector<size_t> > stateIterByLabel; //Map states iterators by Label tags
+  };
+        
+        
 }
 
 

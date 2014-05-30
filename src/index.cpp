@@ -29,223 +29,223 @@
 #include "index.h"
 namespace StochHMM{
 
-    //!Create an index
-    Index::Index(){
-        index=0;
-        amb=NULL;
-        ambiguous=false;
-    }
+  //!Create an index
+  Index::Index(){
+    index=0;
+    amb=NULL;
+    ambiguous=false;
+  }
     
-    //!Create an Index by copy
-    Index::Index(const Index& a){
-        index=a.index;
-        ambiguous=a.ambiguous;
+  //!Create an Index by copy
+  Index::Index(const Index& a){
+    index=a.index;
+    ambiguous=a.ambiguous;
         
-        if (amb!=NULL){
-            amb=new(std::nothrow) std::vector<size_t>(a.amb->size());
+    if (amb!=NULL){
+      amb=new(std::nothrow) std::vector<size_t>(a.amb->size());
             
-            if (amb==NULL){
-                std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                exit(1);
-            }
+      if (amb==NULL){
+	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	exit(1);
+      }
             
-            copy( a.amb->begin(), a.amb->end(), amb->begin());
-        }
+      copy( a.amb->begin(), a.amb->end(), amb->begin());
     }
+  }
     
-    //!Destroy Index
-    Index::~Index(){
-        delete amb;
-        amb=NULL;
-    }
+  //!Destroy Index
+  Index::~Index(){
+    delete amb;
+    amb=NULL;
+  }
 
 
 
-    //!Assign Index by copy
-    //!\param rhs
-    Index& Index::operator= (const Index& rhs){
-        index=rhs.index;
-        ambiguous=rhs.ambiguous;
+  //!Assign Index by copy
+  //!\param rhs
+  Index& Index::operator= (const Index& rhs){
+    index=rhs.index;
+    ambiguous=rhs.ambiguous;
         
-        if (amb!=NULL){
-            amb=new(std::nothrow) std::vector<size_t>(rhs.amb->size());
+    if (amb!=NULL){
+      amb=new(std::nothrow) std::vector<size_t>(rhs.amb->size());
             
-            if (amb==NULL){
-                std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                exit(1);
-            }
+      if (amb==NULL){
+	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	exit(1);
+      }
             
-            copy( rhs.amb->begin(), rhs.amb->end(), amb->begin());
-        }
-        return *this;
+      copy( rhs.amb->begin(), rhs.amb->end(), amb->begin());
     }
+    return *this;
+  }
     
-    //! Add indexes together
-    //! \param lhs
-    //! \return Index with values added
-    Index Index::operator+ (const Index& lhs){
-        Index temp;
-        temp.index=lhs.index + this->index;
-        if (ambiguous){
-            if (lhs.ambiguous){
-                temp.ambiguous=true;
-                temp.amb=new(std::nothrow) std::vector<size_t>;
+  //! Add indexes together
+  //! \param lhs
+  //! \return Index with values added
+  Index Index::operator+ (const Index& lhs){
+    Index temp;
+    temp.index=lhs.index + this->index;
+    if (ambiguous){
+      if (lhs.ambiguous){
+	temp.ambiguous=true;
+	temp.amb=new(std::nothrow) std::vector<size_t>;
                 
-                if (temp.amb==NULL){
-                    std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                    exit(1);
-                }
+	if (temp.amb==NULL){
+	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	  exit(1);
+	}
                 
-                addVectorCombinatorial(*temp.amb, *this->amb, *lhs.amb);
+	addVectorCombinatorial(*temp.amb, *this->amb, *lhs.amb);
                 
-            }
-            else{
-                temp.ambiguous=true;
-                temp.amb=new(std::nothrow) std::vector<size_t>(*this->amb);
+      }
+      else{
+	temp.ambiguous=true;
+	temp.amb=new(std::nothrow) std::vector<size_t>(*this->amb);
                 
-                if (temp.amb==NULL){
-                    std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                    exit(1);
-                }
+	if (temp.amb==NULL){
+	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	  exit(1);
+	}
                 
-                addValueToVector(*temp.amb, lhs.index);
-            }
-        }
-        else{
-            if (lhs.ambiguous){
-                temp.ambiguous=true;
-                temp.amb=new(std::nothrow) std::vector<size_t>(*lhs.amb);
-                
-                if (temp.amb==NULL){
-                    std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                    exit(1);
-                }
-                
-                addValueToVector(*temp.amb, this->index);
-            }
-        }
-        return temp;
+	addValueToVector(*temp.amb, lhs.index);
+      }
     }
-    
-    //!Add and Assign
-    
-    void Index::operator+= (const Index& lhs){
-        if (!ambiguous && !lhs.ambiguous){
-            index+=lhs.index;
-            return;
-        }
-        else if (ambiguous){
-            if (lhs.ambiguous){
-                std::vector<size_t>* temp = new(std::nothrow) std::vector<size_t>;
+    else{
+      if (lhs.ambiguous){
+	temp.ambiguous=true;
+	temp.amb=new(std::nothrow) std::vector<size_t>(*lhs.amb);
                 
-                if (temp==NULL){
-                    std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                    exit(1);
-                }
+	if (temp.amb==NULL){
+	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	  exit(1);
+	}
                 
-                addVectorCombinatorial(*temp, *(this->amb), *(lhs.amb));
-                delete amb;
-                amb=temp;
-            }
-            else{
-                addValueToVector(*this->amb, lhs.index);
-            }
-        }
-        else{
-            if (lhs.ambiguous){
-                amb=new(std::nothrow) std::vector<size_t>(*lhs.amb);
-				ambiguous = true;
-                
-                if (amb==NULL){
-                    std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-                    exit(1);
-                }
-                
-                addValueToVector(*amb, index);
-            }
-        }
-        return;
+	addValueToVector(*temp.amb, this->index);
+      }
     }
+    return temp;
+  }
+    
+  //!Add and Assign
+    
+  void Index::operator+= (const Index& lhs){
+    if (!ambiguous && !lhs.ambiguous){
+      index+=lhs.index;
+      return;
+    }
+    else if (ambiguous){
+      if (lhs.ambiguous){
+	std::vector<size_t>* temp = new(std::nothrow) std::vector<size_t>;
+                
+	if (temp==NULL){
+	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	  exit(1);
+	}
+                
+	addVectorCombinatorial(*temp, *(this->amb), *(lhs.amb));
+	delete amb;
+	amb=temp;
+      }
+      else{
+	addValueToVector(*this->amb, lhs.index);
+      }
+    }
+    else{
+      if (lhs.ambiguous){
+	amb=new(std::nothrow) std::vector<size_t>(*lhs.amb);
+	ambiguous = true;
+                
+	if (amb==NULL){
+	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+	  exit(1);
+	}
+                
+	addValueToVector(*amb, index);
+      }
+    }
+    return;
+  }
 
-    //!Add integer index to Index
-    //! \param lhs Integer index to add to Index
-    void Index::operator+= (const size_t lhs){
-        if (ambiguous){
-            addValueToVector(*amb, lhs);
-        }
-        else{
-            index+=lhs;
-        }
-        return;
+  //!Add integer index to Index
+  //! \param lhs Integer index to add to Index
+  void Index::operator+= (const size_t lhs){
+    if (ambiguous){
+      addValueToVector(*amb, lhs);
     }
+    else{
+      index+=lhs;
+    }
+    return;
+  }
 
-    //!Multiply Indices by integer
-    //! \param lhs Integer value
-    void Index::operator*= (const size_t lhs){
-        if (ambiguous){
-            multiplyValueToVector(*amb, lhs);
-        }
-        else{
-            index*=lhs;
-        }
-        return;
+  //!Multiply Indices by integer
+  //! \param lhs Integer value
+  void Index::operator*= (const size_t lhs){
+    if (ambiguous){
+      multiplyValueToVector(*amb, lhs);
     }
+    else{
+      index*=lhs;
+    }
+    return;
+  }
 
 
-    //!Multiply Indices by integer
-    Index Index::operator* (const size_t lhs){
-        Index temp;
-        if (ambiguous){
-            multiplyValueToVector(*amb, lhs);
-        }
-        else{
-            index*=lhs;
-        }
-        return temp;
+  //!Multiply Indices by integer
+  Index Index::operator* (const size_t lhs){
+    Index temp;
+    if (ambiguous){
+      multiplyValueToVector(*amb, lhs);
     }
-    
-    //!Get the number of indices in Index
-    size_t Index::size(){
-        if (ambiguous){
-            return amb->size();
-        }
-        else{
-            return 1;
-        }
+    else{
+      index*=lhs;
     }
+    return temp;
+  }
     
-    
-    //! Get the index at position in Index
-    //!\param iter Integer iterator of position
-    //!\return int Integer value of index
-    size_t Index::operator[](const size_t iter){
-        if (!ambiguous && iter==0){
-            return index;
-        }
-        else if (ambiguous){
-            return (*amb)[iter];
-        }
-        else{
-            std::cerr << "iterator: " << iter << " called on unambiguous value.   Can only access with Iterator = 0" << std::endl;
-            exit(5);
-        }
+  //!Get the number of indices in Index
+  size_t Index::size(){
+    if (ambiguous){
+      return amb->size();
     }
+    else{
+      return 1;
+    }
+  }
+    
+    
+  //! Get the index at position in Index
+  //!\param iter Integer iterator of position
+  //!\return int Integer value of index
+  size_t Index::operator[](const size_t iter){
+    if (!ambiguous && iter==0){
+      return index;
+    }
+    else if (ambiguous){
+      return (*amb)[iter];
+    }
+    else{
+      std::cerr << "iterator: " << iter << " called on unambiguous value.   Can only access with Iterator = 0" << std::endl;
+      exit(5);
+    }
+  }
 
         
-    /*! \fn void setAmbiguous(const std::vector<int>& vec)
-     \brief Sets the index class to ambiguous
-     \param vec vector of ints that correspond to multiple indices created by ambiguous characters
-    */
-    void Index::setAmbiguous(const std::vector<size_t>& vec){
-        amb=new(std::nothrow) std::vector<size_t>(vec);
+  /*! \fn void setAmbiguous(const std::vector<int>& vec)
+    \brief Sets the index class to ambiguous
+    \param vec vector of ints that correspond to multiple indices created by ambiguous characters
+  */
+  void Index::setAmbiguous(const std::vector<size_t>& vec){
+    amb=new(std::nothrow) std::vector<size_t>(vec);
         
-        if (amb==NULL){
-            std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-            exit(1);
-        }
-        
-        ambiguous = true;
-        return;
+    if (amb==NULL){
+      std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+      exit(1);
     }
+        
+    ambiguous = true;
+    return;
+  }
 
 }

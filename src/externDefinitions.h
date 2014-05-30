@@ -43,113 +43,113 @@ namespace StochHMM{
     
     
     
-    class ExDef;
-    class weightDef;
+  class ExDef;
+  class weightDef;
     
-    //! \class ExDefSequence
-    //! Contains external definitions for the sequence
-    //! An external definition is how a particular position of the sequence is either
-    //! weighted toward a state or in some cases is absolutely produced by a given state
-    //! Each position can contain an external definition either absolute or 
-    //! states weighted by some value;
-    class ExDefSequence{
-    public:
-        //Constructor
-		ExDefSequence(){};
-		
-		//!Creates an ExDefSequence
-		//! \param size amount of ExDef in the sequence
-		ExDefSequence(size_t size):defs(size){};
+  //! \class ExDefSequence
+  //! Contains external definitions for the sequence
+  //! An external definition is how a particular position of the sequence is either
+  //! weighted toward a state or in some cases is absolutely produced by a given state
+  //! Each position can contain an external definition either absolute or 
+  //! states weighted by some value;
+  class ExDefSequence{
+  public:
+    //Constructor
+    ExDefSequence(){};
+                
+    //!Creates an ExDefSequence
+    //! \param size amount of ExDef in the sequence
+    ExDefSequence(size_t size):defs(size){};
         
-        //Copy Constructor
-        //ExDefSequence(const ExDefSequence&);
+    //Copy Constructor
+    //ExDefSequence(const ExDefSequence&);
         
-        //Destructor
-        //~ExDefSequence();
+    //Destructor
+    //~ExDefSequence();
         
-        //Copy Operator
-        //ExDefSequence& operator=(const ExDefSequence&);
+    //Copy Operator
+    //ExDefSequence& operator=(const ExDefSequence&);
         
-        friend class sequences;
+    friend class sequences;
         
-        bool parse(std::ifstream&,stateInfo&);
+    bool parse(std::ifstream&,stateInfo&);
         
-        //bool getExDef(std::ifstream&,model*);
+    //bool getExDef(std::ifstream&,model*);
         
-        //ACCESSOR
-        bool defined(size_t); // Is ExDef defined at position
+    //ACCESSOR
+    bool defined(size_t); // Is ExDef defined at position
         
-        bool isAbsolute(size_t); // Is ExDef Absolute at position
-        size_t getAbsState(size_t); // Absolute State at position
+    bool isAbsolute(size_t); // Is ExDef Absolute at position
+    size_t getAbsState(size_t); // Absolute State at position
         
-        bool isWeighted(size_t); // Is position weighted
-        bool isWeighted(size_t,size_t); // Is position and state weighted
+    bool isWeighted(size_t); // Is position weighted
+    bool isWeighted(size_t,size_t); // Is position and state weighted
         
-        double getWeight(size_t,size_t); // Get Weighted Value for position and state
+    double getWeight(size_t,size_t); // Get Weighted Value for position and state
         
-        void print();  // print ExDefSequence to stdout
-        std::string stringify(); // Get string representation of ExDefSequence
+    void print();  // print ExDefSequence to stdout
+    std::string stringify(); // Get string representation of ExDefSequence
         
-    private:
-		sparseArray<ExDef*> defs;
-		//std::vector<ExDef*> defs;
+  private:
+    sparseArray<ExDef*> defs;
+    //std::vector<ExDef*> defs;
         
-		//bool enabled;
-        bool _parseAbsDef(stringList& ln,stateInfo&);
-        bool _parseWeightDef(stringList& ln,stateInfo&);
+    //bool enabled;
+    bool _parseAbsDef(stringList& ln,stateInfo&);
+    bool _parseWeightDef(stringList& ln,stateInfo&);
+  };
+
+
+  //! ExDef defines absolute external definition for model.   
+  //! The model must pass through this state
+  class ExDef{
+  public:
+        
+    //Constructor
+    ExDef();
+                
+    virtual ~ExDef(){};
+        
+    friend class ExDefSequence;
+        
+    inline size_t getState(){return weightedState;};
+    inline bool isAbsolute(){return absolute;};
+        
+    inline void setState(size_t stIter){absolute=true; weightedState=stIter;};
+    virtual inline void assignWeight(size_t stateIter,double val){weightedState=stateIter;absolute=true;};
+    virtual inline double getWeight(size_t stateIter){if ( stateIter == weightedState){ return 0;} else { return -INFINITY;}};
+    virtual std::string stringify();
+        
+  protected:
+    bool absolute; //is it absolute
+    //state* st;
+    size_t weightedState;  //index iterator to state
+  };
+
+
+  //! weightDef defines weighted external definitions.
+  //! Model weights the states at the position with a value
+  class weightDef:public ExDef{
+  public:
+    weightDef(size_t);
+        
+    ~weightDef(){};
+                
+    friend class ExDefSequence;
+        
+    inline double getWeight(size_t stateIter){
+      if (weights.defined(stateIter)){
+	return weights[stateIter];
+      }
+      return 0;
     };
 
-
-    //! ExDef defines absolute external definition for model.   
-    //! The model must pass through this state
-    class ExDef{
-    public:
-        
-        //Constructor
-        ExDef();
-		
-		virtual ~ExDef(){};
-        
-        friend class ExDefSequence;
-        
-        inline size_t getState(){return weightedState;};
-        inline bool isAbsolute(){return absolute;};
-        
-        inline void setState(size_t stIter){absolute=true; weightedState=stIter;};
-        virtual inline void assignWeight(size_t stateIter,double val){weightedState=stateIter;absolute=true;};
-        virtual inline double getWeight(size_t stateIter){if ( stateIter == weightedState){ return 0;} else { return -INFINITY;}};
-        virtual std::string stringify();
-        
-    protected:
-        bool absolute; //is it absolute
-        //state* st;
-        size_t weightedState;  //index iterator to state
-    };
-
-
-    //! weightDef defines weighted external definitions.
-    //! Model weights the states at the position with a value
-    class weightDef:public ExDef{
-    public:
-        weightDef(size_t);
-        
-		~weightDef(){};
-		
-        friend class ExDefSequence;
-        
-        inline double getWeight(size_t stateIter){
-			if (weights.defined(stateIter)){
-				return weights[stateIter];
-			}
-			return 0;
-		};
-
-        void assignWeight(size_t,double);
-        std::string stringify();
-    private:
-		sparseArray<double> weights;
-		//std::vector<double> weights;
-    };
+    void assignWeight(size_t,double);
+    std::string stringify();
+  private:
+    sparseArray<double> weights;
+    //std::vector<double> weights;
+  };
 
 }
 #endif

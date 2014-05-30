@@ -15,7 +15,7 @@ StochHMM - Stochastic Hidden Markov Model Framework (version 0.37) Date: Decembe
 Usage: StochHMM -model <model_file>  -seq <seq_file> [options]\n\
 \n\
 Command Line options:\n\
-\t-help or -h		print usage statement\n\
+\t-help or -h           print usage statement\n\
 \n\
 Files: reqires a sequence file and a model file\n\
 \t-model <model file>\t\timport model file\n\

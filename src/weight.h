@@ -37,33 +37,33 @@
 namespace StochHMM{
 
 
-bool compXval(const std::pair<double,double>&, const std::pair<double,double>&);
+  bool compXval(const std::pair<double,double>&, const std::pair<double,double>&);
 
-//!weight class contains scaling factors for external scores
+  //!weight class contains scaling factors for external scores
 
-//!weight class contains either an 
-//!1. Absolute scaling value: meaning the returned value multiplied by constant
-//!2. Score Mapping: x and y values describing the transformation from x=returned score
-//! to y the scaled score.  If the returned value isn't equal to a specific y the score 
-//! is interpolated or extrapolated.
-//! If the return score x<MIN then y=scaled MIN
-//! If the return score x>MAX then y=scaled MAX
-//! Scores provided to weight should be log(Prob)
-//! It will return a log(Prob) scaled score
+  //!weight class contains either an 
+  //!1. Absolute scaling value: meaning the returned value multiplied by constant
+  //!2. Score Mapping: x and y values describing the transformation from x=returned score
+  //! to y the scaled score.  If the returned value isn't equal to a specific y the score 
+  //! is interpolated or extrapolated.
+  //! If the return score x<MIN then y=scaled MIN
+  //! If the return score x>MAX then y=scaled MAX
+  //! Scores provided to weight should be log(Prob)
+  //! It will return a log(Prob) scaled score
 
 
-//Scaling weight given some score we map it to some probability or other weighed score
-class weight{
-public:
+  //Scaling weight given some score we map it to some probability or other weighed score
+  class weight{
+  public:
     weight();
     ~weight();
     
     //ACCESSORS
     
     /*!
-     Checks to see if weight is defined as a constant
-     \returns bool TRUE if weight is defined as a constant, else FALSE
-     */
+      Checks to see if weight is defined as a constant
+      \returns bool TRUE if weight is defined as a constant, else FALSE
+    */
     inline bool isAbsolute(){return absolute;};
     
     inline double getAbsolute(){ return absoluteValue;};
@@ -71,69 +71,69 @@ public:
     inline std::string& getName(){return name;};
     
     /*!
-     Returns F(x) given some score x
-     \param score The value returned by some function
-     \return double F(x) which interpolated or extrapolated as necessary
-     */
+      Returns F(x) given some score x
+      \param score The value returned by some function
+      \return double F(x) which interpolated or extrapolated as necessary
+    */
     double getWeightedScore(double); //!Given a score (x) it will map the score to F(x)
 
     /*!
-     Returns the number of mapped values = equal to size of xVals handed to setWeights(...)
-     \returns size_t value of vector size;
-     */
+      Returns the number of mapped values = equal to size of xVals handed to setWeights(...)
+      \returns size_t value of vector size;
+    */
     inline size_t size(){return vals->size();};
     
     /*!
-     Prints out the weight type to text. Includes the x and F(x) vectors and MIN and MAX
-     */
+      Prints out the weight type to text. Includes the x and F(x) vectors and MIN and MAX
+    */
     inline void print(){std::cout << stringify() << std::endl;};
     
     
     /*!
-     Converts weights to string
-     */
+      Converts weights to string
+    */
     std::string stringify();
     
     //MUTATORS
     
     /*!
-     Sets the scaling factor to a constant value
-     \param val double that is returned x->Constant
+      Sets the scaling factor to a constant value
+      \param val double that is returned x->Constant
     */
     inline void setAbsolute(double val){absoluteValue=val; absolute=true; return;};
     
     
     /*!
-     Setup the score mapping from x->F(x) 2 vectors of equal length
-     \param xVals vector of doubles that contains the scores for x
-     \param yVals vector of doubles that contains the corresponding scores F(x)
-     \param xMIN pair of doubles defines MIN x->F(x)
-     \param xMAX pair of doubles defines MAX x->F(x)
-     */
+      Setup the score mapping from x->F(x) 2 vectors of equal length
+      \param xVals vector of doubles that contains the scores for x
+      \param yVals vector of doubles that contains the corresponding scores F(x)
+      \param xMIN pair of doubles defines MIN x->F(x)
+      \param xMAX pair of doubles defines MAX x->F(x)
+    */
     void setWeights(std::vector<double>& ,std::vector<double>& ,std::pair<double,double>* , std::pair<double,double>* );
     
     
     /*!
-     Setup the score mapping from x->F(x) 2 vectors of equal length
-     \param xVals vector of doubles that contains the scores for x
-     \param yVals vector of doubles that contains the corresponding scores F(x)
-     */
+      Setup the score mapping from x->F(x) 2 vectors of equal length
+      \param xVals vector of doubles that contains the scores for x
+      \param yVals vector of doubles that contains the corresponding scores F(x)
+    */
     void setWeights(std::vector<double>&,std::vector<double>&);
     
     
     /*!
-     Sets the MAX value for x to MAX F(MAX(x));
-     \param x The MAX x value to allow
-     \param y The value to return for x>=MAX
-     */
+      Sets the MAX value for x to MAX F(MAX(x));
+      \param x The MAX x value to allow
+      \param y The value to return for x>=MAX
+    */
     void setMaxWeight(double&,double&);
     
     
     /*!
-     Sets the MIN value for x to F(MIN(x))
-     \param x The MIN x value to allow
-     \param y The value to return for x<=MIN
-     */
+      Sets the MIN value for x to F(MIN(x))
+      \param x The MIN x value to allow
+      \param y The value to return for x<=MIN
+    */
     void setMinWeight(double&,double&);
     
     inline void setName(std::string& nm){name=nm;};
@@ -142,7 +142,7 @@ public:
     //! Parse weight from string
     bool parse(const std::string&);
     
-private:
+  private:
     bool absolute; //! Stores whether Weight is a constant value
     double absoluteValue; //! Stores the constant value
     std::string name;
@@ -151,28 +151,28 @@ private:
     std::pair<double,double>* minValue; //!Stores the MIN value of x and the corresponding F(x)
     
     std::vector<std::pair<double,double> >* vals;  //!Values for mapping x->F(x)
-};
+  };
     
     
     
-    //!Weights class keeps track of multiple weight types
-    //!Each weight can be indexed by a name 
-    class weights{
-    public:
-        //MUTATORS
+  //!Weights class keeps track of multiple weight types
+  //!Each weight can be indexed by a name 
+  class weights{
+  public:
+    //MUTATORS
         
-        void addWeight(weight*);
+    void addWeight(weight*);
         
-        //ACCESSORS
-        weight* operator[](std::string&);
-        inline size_t count(std::string& name){return wts.count(name);};
+    //ACCESSORS
+    weight* operator[](std::string&);
+    inline size_t count(std::string& name){return wts.count(name);};
         
-        void print();
-        std::string stringify();
+    void print();
+    std::string stringify();
         
-    private:
-        std::map<std::string, weight*> wts;
-    };
+  private:
+    std::map<std::string, weight*> wts;
+  };
     
 
 

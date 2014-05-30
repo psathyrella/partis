@@ -20,22 +20,22 @@ using namespace StochHMM;
 
 int main(int argc, const char * argv[])
 {
-	PWM mat;
-	//mat.import("RSS23standard.txt");
-	mat.import("Heptamer.txt");
-	//std::cout << mat.stringify() << std::endl;
-	
-	sequences seqs;
-	seqs.getFastas("chr22.fa",mat.getTrack());
-	
-	mat.score(&seqs);
-	
-//	seqs.addSeq(sq, mat.getTrack());
-//	
-//	mat.score(&seqs);
-	
-	//mat.score(sq);
-	//std::cout << sq->getHeader() << std::endl;
-	
+  PWM mat;
+  //mat.import("RSS23standard.txt");
+  mat.import("Heptamer.txt");
+  //std::cout << mat.stringify() << std::endl;
+        
+  sequences seqs;
+  seqs.getFastas("chr22.fa",mat.getTrack());
+        
+  mat.score(&seqs);
+        
+  //      seqs.addSeq(sq, mat.getTrack());
+  //      
+  //      mat.score(&seqs);
+        
+  //mat.score(sq);
+  //std::cout << sq->getHeader() << std::endl;
+        
 }
 

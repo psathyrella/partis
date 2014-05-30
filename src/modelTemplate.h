@@ -39,53 +39,53 @@
 #include <stdlib.h>
 namespace StochHMM{
     
-    //!class stencil: contains individial model template and keeps track of coordinates for replacement
-    class stencil{
-    public:
-        stencil();
-        stencil(std::string&); //! Construct stencil from string
+  //!class stencil: contains individial model template and keeps track of coordinates for replacement
+  class stencil{
+  public:
+    stencil();
+    stencil(std::string&); //! Construct stencil from string
         
-        //MUTATORS
-        bool parse(std::string&);
+    //MUTATORS
+    bool parse(std::string&);
         
-        //ACCESSOR
-        std::string getTemplate(std::string&, std::string&, std::map<std::string,std::string>&); //!Returns the template with all user and identifiers filled out
-        std::string CheckParameter(std::string&);
+    //ACCESSOR
+    std::string getTemplate(std::string&, std::string&, std::map<std::string,std::string>&); //!Returns the template with all user and identifiers filled out
+    std::string CheckParameter(std::string&);
         
-        inline void print(){std::cout << stringify() <<std::endl;};//!Prints template string
-        inline std::string stringify(){return states;}; //!Returns template string
+    inline void print(){std::cout << stringify() <<std::endl;};//!Prints template string
+    inline std::string stringify(){return states;}; //!Returns template string
         
-    private:
-        std::string states; //!Template string
-        std::set<std::string> UserParameterKeys; //!All UserDefinedVariables in Model Template
-    };
+  private:
+    std::string states; //!Template string
+    std::set<std::string> UserParameterKeys; //!All UserDefinedVariables in Model Template
+  };
     
     
-    //!class templates: contains a map of all templates
-    /*!class templates: contains a map of all templates, each should have a different identifier.  */
-    class templates{
-    public:
-        templates();
-        templates(std::string&); //!Create templates from file
-        ~templates();
+  //!class templates: contains a map of all templates
+  /*!class templates: contains a map of all templates, each should have a different identifier.  */
+  class templates{
+  public:
+    templates();
+    templates(std::string&); //!Create templates from file
+    ~templates();
         
-        //MUTATOR
-        bool parse(std::string&); //!hand it a string with multiple stencles and have it parse out each one to be added to the templates
+    //MUTATOR
+    bool parse(std::string&); //!hand it a string with multiple stencles and have it parse out each one to be added to the templates
         
-        void addTemplate(std::string&);        
+    void addTemplate(std::string&);        
         
-        //ACCESSOR
-        inline void print(){std::cout << stringify() <<std::endl;};
-        std::string& stringify();
+    //ACCESSOR
+    inline void print(){std::cout << stringify() <<std::endl;};
+    std::string& stringify();
         
         
-        //!returns string representation of states with all parameters filled out
-        std::string getTemplate(std::string&, std::string&, std::map<std::string,std::string>&); 
-        //std::string returnAllFilledTemplates(std::string&,std::map<std::string,std::string>& UserVals);
-        //!returns all filled out templates for ID give
+    //!returns string representation of states with all parameters filled out
+    std::string getTemplate(std::string&, std::string&, std::map<std::string,std::string>&); 
+    //std::string returnAllFilledTemplates(std::string&,std::map<std::string,std::string>& UserVals);
+    //!returns all filled out templates for ID give
         
-    private:
-        std::map<std::string,stencil*> temps; //!Map of all stencils
-    };
+  private:
+    std::map<std::string,stencil*> temps; //!Map of all stencils
+  };
 }
 #endif

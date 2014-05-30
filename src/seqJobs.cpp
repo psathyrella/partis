@@ -29,22 +29,22 @@
 
 namespace StochHMM{
     
-    //!Create a seqJob
-    seqJob::seqJob(size_t sz){
-        decodingPerformed=false;
-        attrib=-INFINITY;
-        hmm=NULL;
-        set=new sequences(sz);
-        path=NULL;
-    }
+  //!Create a seqJob
+  seqJob::seqJob(size_t sz){
+    decodingPerformed=false;
+    attrib=-INFINITY;
+    hmm=NULL;
+    set=new sequences(sz);
+    path=NULL;
+  }
     
-    //!Destroy a seqJob
-    seqJob::~seqJob(){
-        hmm=NULL;
-        delete path;
-        delete set;
-        path=NULL;
-        set=NULL;
-    }
+  //!Destroy a seqJob
+  seqJob::~seqJob(){
+    hmm=NULL;
+    delete path;
+    delete set;
+    path=NULL;
+    set=NULL;
+  }
 
 }

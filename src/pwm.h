@@ -39,113 +39,113 @@
 #include "stochTypes.h"
 #include "emm.h"
 namespace StochHMM{
-	
-	
-	
-	
-	class matrixPosition;
-	
-	//Position Weight Matrix Class
-	//Before using we need to calculate the pValues for the matrix
-	class PWM{
-	public:
-		PWM();
-		void import(std::string& file);
-		void import(const char* file);
-		bool parse(const std::string& matrix);
-		
-		void score(sequences* seqs);
-		void scoreSimple(sequences* seqs);
-		void scoreUndefSpacer(sequences* seqs);
-		void scoreVariableSpacer(sequences* seqs);
-		
-		void score(sequence* seq);
-		void scoreSimple(sequence* seq);
-		void scoreUndefSpacer(sequence* seq);
-		void scoreVariableSpacer(sequence* seq);
-		
-		inline void setBackground(emm* bg){bgWeight = bg;}
-		inline void setTrack(track* tr){trk = tr;}
-		inline void setSimpleThreshold(float thresh){simpleThreshold = thresh;};
-		
-		inline void setCurrentThreshold(float* thresh){currentThreshold = thresh;}
-		inline track* getTrack(){return trk;}
+        
+        
+        
+        
+  class matrixPosition;
+        
+  //Position Weight Matrix Class
+  //Before using we need to calculate the pValues for the matrix
+  class PWM{
+  public:
+    PWM();
+    void import(std::string& file);
+    void import(const char* file);
+    bool parse(const std::string& matrix);
+                
+    void score(sequences* seqs);
+    void scoreSimple(sequences* seqs);
+    void scoreUndefSpacer(sequences* seqs);
+    void scoreVariableSpacer(sequences* seqs);
+                
+    void score(sequence* seq);
+    void scoreSimple(sequence* seq);
+    void scoreUndefSpacer(sequence* seq);
+    void scoreVariableSpacer(sequence* seq);
+                
+    inline void setBackground(emm* bg){bgWeight = bg;}
+    inline void setTrack(track* tr){trk = tr;}
+    inline void setSimpleThreshold(float thresh){simpleThreshold = thresh;};
+                
+    inline void setCurrentThreshold(float* thresh){currentThreshold = thresh;}
+    inline track* getTrack(){return trk;}
 
-		std::string stringify();
-		void print();
-	private:
-		
-		bool _parseTrack(std::string& txt);
-		bool _parseAmbiguous(std::string& txt);
-		bool _parsePositions(std::string& txt);
-		bool _parseThreshold(std::string& txt);
-		bool _parseBackground(std::string& txt);
-		bool _parseSpacer(std::string& txt);
-		bool _splitPositions(std::string& txt ,stringList& sts);
-		bool _getOrderedPositionNames(stringList& states, stringList& names);
-		void _finalizeTransitions();
-		float calculateBack(sequences *seqs, size_t position, float sum);
-		float calculateBack(sequence *seq, size_t position, float sum);
-		
-		track* trk;
-		valueType valType;
-		
-		bool simple;
-		bool variableSpacer;
-		bool undefinedSpacer;
-		float simpleThreshold;
-		float* currentThreshold;
-		
-		std::vector<matrixPosition*> weightMatrix;
-		std::map<std::string,size_t> positionNames;
-		
-		std::vector<matrixPosition*> frontWeightMatrix;
-		std::vector<matrixPosition*> backWeightMatrix;
-		std::list<float>* backScores;
-		std::bitset<1024>* backScored;
-		
-		std::vector<size_t> undefSpacerSizes;
-		std::vector<matrixPosition*> variableSpacerMatrix;
-		std::bitset<1024>* variableTransition;
-		std::string frontWeightName;
-		std::string backWeightName;
-		size_t min_spacer;
-		size_t max_spacer;
-		
-		emm* bgWeight; //Background weight
-	};
-	
-	
-	/*! \class matrixPosition
-	 Stores weight information for a position in the position weight matrix
-	 */
-	class matrixPosition{
-	public:
-		matrixPosition();
-		~matrixPosition();
-		bool parse(std::string& txt, track* trk, stringList& names);
-		float getEmissionValue(sequences*, size_t);
-		float getEmissionValue(sequence*, size_t);
-		inline emm* getEmission(){return positionMatrix;};
-		inline void addTransition(emm* trans){transitions.push_back(trans);}
-		inline std::vector<std::string>& getTransitionNames(){return transition_names;}
-		inline void setThreshold(float thresh){threshold = thresh;}
-		inline float* getThresholdPtr(){return &threshold;}
-		inline float getThreshold(){return threshold;}
-		inline size_t transitionsSize(){return transitions.size();}
-		inline bool isThresholdSet(){return thresholdSet;}
-		std::string stringify();
-		
-	private:
-		emm* positionMatrix;	//Weight information for position
-		bool thresholdSet;		//True if a threshold is set for this position(global threshold)
-		float threshold;		//Global threshold for position
-		std::vector<emm*> transitions;	//The next weights after this position (Transitions)
-		std::vector<std::string> transition_names; //Next weights after this position
-		std::string name;		//Name assigned to this position
-	};
+    std::string stringify();
+    void print();
+  private:
+                
+    bool _parseTrack(std::string& txt);
+    bool _parseAmbiguous(std::string& txt);
+    bool _parsePositions(std::string& txt);
+    bool _parseThreshold(std::string& txt);
+    bool _parseBackground(std::string& txt);
+    bool _parseSpacer(std::string& txt);
+    bool _splitPositions(std::string& txt ,stringList& sts);
+    bool _getOrderedPositionNames(stringList& states, stringList& names);
+    void _finalizeTransitions();
+    float calculateBack(sequences *seqs, size_t position, float sum);
+    float calculateBack(sequence *seq, size_t position, float sum);
+                
+    track* trk;
+    valueType valType;
+                
+    bool simple;
+    bool variableSpacer;
+    bool undefinedSpacer;
+    float simpleThreshold;
+    float* currentThreshold;
+                
+    std::vector<matrixPosition*> weightMatrix;
+    std::map<std::string,size_t> positionNames;
+                
+    std::vector<matrixPosition*> frontWeightMatrix;
+    std::vector<matrixPosition*> backWeightMatrix;
+    std::list<float>* backScores;
+    std::bitset<1024>* backScored;
+                
+    std::vector<size_t> undefSpacerSizes;
+    std::vector<matrixPosition*> variableSpacerMatrix;
+    std::bitset<1024>* variableTransition;
+    std::string frontWeightName;
+    std::string backWeightName;
+    size_t min_spacer;
+    size_t max_spacer;
+                
+    emm* bgWeight; //Background weight
+  };
+        
+        
+  /*! \class matrixPosition
+    Stores weight information for a position in the position weight matrix
+  */
+  class matrixPosition{
+  public:
+    matrixPosition();
+    ~matrixPosition();
+    bool parse(std::string& txt, track* trk, stringList& names);
+    float getEmissionValue(sequences*, size_t);
+    float getEmissionValue(sequence*, size_t);
+    inline emm* getEmission(){return positionMatrix;};
+    inline void addTransition(emm* trans){transitions.push_back(trans);}
+    inline std::vector<std::string>& getTransitionNames(){return transition_names;}
+    inline void setThreshold(float thresh){threshold = thresh;}
+    inline float* getThresholdPtr(){return &threshold;}
+    inline float getThreshold(){return threshold;}
+    inline size_t transitionsSize(){return transitions.size();}
+    inline bool isThresholdSet(){return thresholdSet;}
+    std::string stringify();
+                
+  private:
+    emm* positionMatrix;    //Weight information for position
+    bool thresholdSet;              //True if a threshold is set for this position(global threshold)
+    float threshold;                //Global threshold for position
+    std::vector<emm*> transitions;  //The next weights after this position (Transitions)
+    std::vector<std::string> transition_names; //Next weights after this position
+    std::string name;               //Name assigned to this position
+  };
 
-	
+        
 
     
 }

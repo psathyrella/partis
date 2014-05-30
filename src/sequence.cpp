@@ -50,8 +50,8 @@ namespace StochHMM{
       real=new(std::nothrow) std::vector<double>;
             
       if (real==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
             
       seq=NULL;
@@ -61,8 +61,8 @@ namespace StochHMM{
       seq=new(std::nothrow) std::vector<uint8_t>;
             
       if (seq==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     realSeq = realTrack;
@@ -163,8 +163,8 @@ namespace StochHMM{
     if (rhs.seq!=NULL){
       seq = new(std::nothrow) std::vector<uint8_t>(*rhs.seq);
       if (seq==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     else{
@@ -174,8 +174,8 @@ namespace StochHMM{
     if (rhs.real!=NULL){
       real = new(std::nothrow) std::vector<double>(*rhs.real);
       if (real==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     else{
@@ -185,68 +185,68 @@ namespace StochHMM{
     if (rhs.mask!=NULL){
       mask = new(std::nothrow) std::vector<int>(*rhs.mask);
       if (mask==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     else{
       mask = NULL;
     }
   }
-	
-	
+        
+        
   //Clear the sequence and header
   void sequence::clear(){
     header = "";
     undigitized="";
     max_mask = -1;
-		
+                
     if (mask!=NULL){
       delete mask;
       mask = NULL;
     }
-		
+                
     if (real!=NULL){
       real->clear();
     }
-		
+                
     if (seq!=NULL){
       seq->clear();
     }
-		
+                
     if (external!=NULL){
       delete external;
     }
-		
+                
     seqtrk = NULL;
     length = 0;
     attrib = -INFINITY;
-		
+                
   }
     
   sequence& sequence::operator= (const sequence& rhs){
-		
+                
     //Clean up if necessary 
     if (external != NULL){
       delete external;
       external = NULL;
     }
-		
+                
     if (seq!= NULL){
       delete seq;
       seq = NULL;
     }
-		
+                
     if (real!=NULL){
       delete real;
       seq = NULL;
     }
-		
+                
     if (mask!= NULL){
       delete mask;
       mask = NULL;
     }
-		
+                
     //Copy rhs over to this
     realSeq = rhs.realSeq;
     header  = rhs.header;
@@ -260,8 +260,8 @@ namespace StochHMM{
     if (rhs.seq!=NULL){
       seq = new(std::nothrow) std::vector<uint8_t>(*rhs.seq);
       if (seq==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     else{
@@ -271,8 +271,8 @@ namespace StochHMM{
     if (rhs.real!=NULL){
       real = new(std::nothrow) std::vector<double>(*rhs.real);
       if (real==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     else{
@@ -282,8 +282,8 @@ namespace StochHMM{
     if (rhs.mask!=NULL){
       mask = new(std::nothrow) std::vector<int>(*rhs.mask);
       if (mask==NULL){
-	std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	exit(1);
+        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+        exit(1);
       }
     }
     else{
@@ -300,11 +300,11 @@ namespace StochHMM{
   uint8_t sequence::seqValue (size_t position){
     if (!realSeq){
       if (seq!=NULL){
-	return (*seq)[position];
+        return (*seq)[position];
       }
       else{
-	std::cerr << "sequence has not been digitized. \n";
-	exit(1);
+        std::cerr << "sequence has not been digitized. \n";
+        exit(1);
       }
     }
         
@@ -319,11 +319,11 @@ namespace StochHMM{
   double sequence::realValue(size_t position){
     if (realSeq){
       if (real!=NULL){
-	return (*real)[position];
+        return (*real)[position];
       }
       else{
-	std::cerr << "Values have not been imported.\n";
-	exit(1);
+        std::cerr << "Values have not been imported.\n";
+        exit(1);
       }
                 
     }
@@ -347,12 +347,12 @@ namespace StochHMM{
         
     if (realSeq){
       for(size_t i=0;i<length;i++){
-	output+= double_to_string((*real)[i]) + " ";
+        output+= double_to_string((*real)[i]) + " ";
       }
     }
     else{
       for(size_t i=0;i<length;i++){
-	output+= int_to_string((int)(*seq)[i]) + " ";
+        output+= int_to_string((int)(*seq)[i]) + " ";
       }
     }
         
@@ -360,14 +360,14 @@ namespace StochHMM{
     if (mask){
       output += "\n";
       for(size_t i=0;i<length;i++){
-	output+= int_to_string((int)(*mask)[i]) + " ";
+        output+= int_to_string((int)(*mask)[i]) + " ";
       }
     }
                 
     output+="\n";
     return output;
   }
-	
+        
   //!Get std::string representation of the string
   //!If the string is a real track, then it will return a string of doubles
   //!If the string is a non-real track, then it will return a string of shorts, where the shorts are the digitized value of the sequence according to the track
@@ -381,12 +381,12 @@ namespace StochHMM{
         
     if (realSeq){
       for(size_t i=0;i<length;i++){
-	output+= double_to_string((*real)[i]) + " ";
+        output+= double_to_string((*real)[i]) + " ";
       }
     }
     else{
       for(size_t i=0;i<length;i++){
-	output+= int_to_string((int)(*seq)[i]) + " ";
+        output+= int_to_string((int)(*seq)[i]) + " ";
       }
     }
         
@@ -394,10 +394,10 @@ namespace StochHMM{
     if (mask){
       output += "\n";
       for(size_t i=0;i<length;i++){
-	output+= int_to_string((int)(*mask)[i]) + " ";
+        output+= int_to_string((int)(*mask)[i]) + " ";
       }
     }
-		
+                
     output+="\n";
     return output;
   }
@@ -414,20 +414,20 @@ namespace StochHMM{
     if (!seq){  //If the sequence is not digitized yet.  Return the undigitized version 
       return undigitized;
     }
-		
+                
     std::string output;
-    //		if (!header.empty()){
-    //			output+= header +"\n";
-    //		}
-		
+    //          if (!header.empty()){
+    //                  output+= header +"\n";
+    //          }
+                
     if (seqtrk!=NULL){
       size_t alphaMax = seqtrk->getAlphaMax();
             
       for (size_t i=0;i<length;i++){
-	output+=seqtrk->getAlpha((*seq)[i]);
-	if (alphaMax!=1){
-	  output+=" ";
-	}
+        output+=seqtrk->getAlpha((*seq)[i]);
+        if (alphaMax!=1){
+          output+=" ";
+        }
       }
     }
     else {
@@ -448,10 +448,10 @@ namespace StochHMM{
     if (seq!=NULL){
       this->clear();
     }
-		
+                
     seqtrk=trk;
 
-		
+                
         
     if (!file.good()){
       return false;
@@ -463,8 +463,8 @@ namespace StochHMM{
       getline(file,temp,'\n');
             
       if (!file.good()){
-	std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
-	return false;
+        std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
+        return false;
       }
     }
         
@@ -477,28 +477,28 @@ namespace StochHMM{
             
       char nl_peek=file.peek();  // see if we have new sequence header on the next line
       if (nl_peek=='>'){
-	success = _digitize();
-	break;
+        success = _digitize();
+        break;
       }
       else if (nl_peek=='['){
-	success = _digitize();
-	if (info == NULL){
-	  std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
-	  exit(2);
-	}
-	else{
-	  external= new (std::nothrow) ExDefSequence(seq->size());
-	  external->parse(file, *info);
-	}
+        success = _digitize();
+        if (info == NULL){
+          std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
+          exit(2);
+        }
+        else{
+          external= new (std::nothrow) ExDefSequence(seq->size());
+          external->parse(file, *info);
+        }
                 
       }
       else if (nl_peek==EOF){
-	getline(file,line,'\n');
-	success = _digitize();
-	break;
+        getline(file,line,'\n');
+        success = _digitize();
+        break;
       }
       else{
-	continue;
+        continue;
       }
     }
         
@@ -507,11 +507,11 @@ namespace StochHMM{
   }
     
   bool sequence::getMaskedFasta(std::ifstream& file, track* trk){
-		
+                
     if (seq!=NULL){
       this->clear();
     }
-		
+                
     seqtrk=trk;
         
     if (!file.good()){
@@ -524,8 +524,8 @@ namespace StochHMM{
       getline(file,temp,'\n');
             
       if (!file.good()){
-	std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
-	return false;
+        std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
+        return false;
       }
     }
         
@@ -550,19 +550,19 @@ namespace StochHMM{
             
       if (lst.size() == length) {
                 
-	if (mask!=NULL){
-	  delete mask;
-	}
+        if (mask!=NULL){
+          delete mask;
+        }
                 
-	mask=new(std::nothrow) std::vector<int>;
-	if (mask==NULL){
-	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-	  exit(1);
-	}
+        mask=new(std::nothrow) std::vector<int>;
+        if (mask==NULL){
+          std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
+          exit(1);
+        }
       }
       else {
-	std::cerr << "Mask length not equal to Sequence length." << std::endl;
-	return false;
+        std::cerr << "Mask length not equal to Sequence length." << std::endl;
+        return false;
       }
       //pass vector to lst.toVecInt
       lst.toVecInt(*mask);
@@ -583,54 +583,54 @@ namespace StochHMM{
       std::cerr << "Can't digitize sequence without a valid track defined\n";
       return false;
     }
-		
-		
+                
+                
         
     stringList lst;
     clear_whitespace(undigitized,"\n");
     if (seqtrk->getAlphaMax()>1){
       lst.splitString(undigitized, " ,\t");
-			
+                        
       if (seq == NULL){
-	seq = new std::vector<uint8_t>(lst.size());
+        seq = new std::vector<uint8_t>(lst.size());
       }
       else{
-	seq->assign(lst.size(),0);
+        seq->assign(lst.size(),0);
       }
-			
+                        
       for (size_t i=0;i<lst.size();i++){
-	uint8_t symbl = seqtrk->symbolIndex(lst[i]);
-				
-	//Check ambiguous here
-	//				if (!seqtrk->isAmbiguousSet()){
-	//					std::cerr << "Can't digitize ambiguous character without ambiguous characters being allowed in the model." << std::endl;
-	//					return false;
-	//				}
-				
-	(*seq)[i] = symbl;
+        uint8_t symbl = seqtrk->symbolIndex(lst[i]);
+                                
+        //Check ambiguous here
+        //                              if (!seqtrk->isAmbiguousSet()){
+        //                                      std::cerr << "Can't digitize ambiguous character without ambiguous characters being allowed in the model." << std::endl;
+        //                                      return false;
+        //                              }
+                                
+        (*seq)[i] = symbl;
       }
     }
     else{
       if (seq == NULL){
-	seq = new std::vector<uint8_t>(undigitized.size());
+        seq = new std::vector<uint8_t>(undigitized.size());
       }
       else{
-	seq->assign(undigitized.size(),0);
+        seq->assign(undigitized.size(),0);
       }
-			
+                        
       for (size_t i=0; i<undigitized.size();i++){
-	uint8_t symbl = seqtrk->symbolIndex(undigitized[i]);
-				
-				
-	//				//Check ambiguous here
-	//				if (!seqtrk->isAmbiguousSet()){
-	//					std::cerr << "Can't digitize ambiguous character without ambiguous characters being allowed in the model." << std::endl;
-	//					return false;
-	//				}
-	(*seq)[i] = symbl;
+        uint8_t symbl = seqtrk->symbolIndex(undigitized[i]);
+                                
+                                
+        //                              //Check ambiguous here
+        //                              if (!seqtrk->isAmbiguousSet()){
+        //                                      std::cerr << "Can't digitize ambiguous character without ambiguous characters being allowed in the model." << std::endl;
+        //                                      return false;
+        //                              }
+        (*seq)[i] = symbl;
       }
     }
-		
+                
     undigitized.clear();  //Once sequence is digitized we don't need the old seqeunce string
         
     return true;
@@ -647,11 +647,11 @@ namespace StochHMM{
   //! \param trk Track to used to digitize
   //! \return true if the sequence was successfully imported
   bool sequence::getFastq(std::ifstream& file, track* trk){
-		
+                
     if (seq!=NULL){
       this->clear();
     }
-		
+                
     seqtrk=trk;
             
     if (!file.good()){
@@ -679,18 +679,18 @@ namespace StochHMM{
     //Get sequence (Multiple Lines)
     if (file.good()){
       while(getline(file,sequence,'\n')){
-	undigitized+=sequence;
+        undigitized+=sequence;
 
-	char nl_peek=file.peek();  // see if we have new sequence header on the next line
-	if (nl_peek=='+'){  //If next line begins with + then we are at a 
-	  break;
-	}
-	else if (nl_peek==EOF){
-	  break;
-	}
-	else{
-	  continue;
-	}
+        char nl_peek=file.peek();  // see if we have new sequence header on the next line
+        if (nl_peek=='+'){  //If next line begins with + then we are at a 
+          break;
+        }
+        else if (nl_peek==EOF){
+          break;
+        }
+        else{
+          continue;
+        }
       }
     }
     else{
@@ -704,22 +704,22 @@ namespace StochHMM{
     //Get Quality String (Multiple Lines)
     if (file.good()){
       while(getline(file,sequence,'\n')){
-	quality_string+=sequence;
+        quality_string+=sequence;
                 
-	char nl_peek=file.peek();  // see if we have new sequence header on the next line
-	if (nl_peek=='@'){  //If next line begins with + then we are at a
-	  if (quality_string.size() < undigitized.size()){
-	    continue;
-	  }
+        char nl_peek=file.peek();  // see if we have new sequence header on the next line
+        if (nl_peek=='@'){  //If next line begins with + then we are at a
+          if (quality_string.size() < undigitized.size()){
+            continue;
+          }
                     
-	  break;
-	}
-	else if (nl_peek==EOF){
-	  break;
-	}
-	else{
-	  continue;
-	}
+          break;
+        }
+        else if (nl_peek==EOF){
+          break;
+        }
+        else{
+          continue;
+        }
       }
     }
     else{
@@ -737,13 +737,13 @@ namespace StochHMM{
   //! \param trk Track to used to digitize
   //! \return true if the sequence was successfully imported
   bool sequence::getReal(std::ifstream& file, track* trk, stateInfo* info){
-		
+                
     if (real!=NULL){
       this->clear();
     }
-		
+                
     seqtrk=trk;
-		
+                
     if (!file.good()){
       return false;
     }
@@ -753,14 +753,14 @@ namespace StochHMM{
       std::string temp;
       getline(file,temp,'\n');
       if (!file.good()){
-	if (!file.good()){
-	  std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
-	  return false;
-	}
+        if (!file.good()){
+          std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
+          return false;
+        }
       }
     }
         
-		
+                
     std::string sequence="";
     getline(file,sequence,'\n');
     header=sequence;
@@ -772,32 +772,32 @@ namespace StochHMM{
       lst.splitString(line,",\t ");
       std::vector<double> temp (lst.toVecDouble());
       for(size_t i=0;i<temp.size();i++){
-	real->push_back(temp[i]);
+        real->push_back(temp[i]);
       }
             
       char nl_peek=file.peek();  // see if we have new sequence header on the next line
       if (nl_peek=='>'){
-	_digitize();
-	break;
+        _digitize();
+        break;
       }
       else if (nl_peek=='['){
-	_digitize();
-	if (info == NULL){
-	  std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
-	  exit(2);
-	}
-	else{
-	  external= new (std::nothrow) ExDefSequence(seq->size());
-	  external->parse(file, *info);
-	}
+        _digitize();
+        if (info == NULL){
+          std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
+          exit(2);
+        }
+        else{
+          external= new (std::nothrow) ExDefSequence(seq->size());
+          external->parse(file, *info);
+        }
 
       }
       else if (nl_peek==EOF){
-	_digitize();
-	break;
+        _digitize();
+        break;
       }
       else{
-	continue;
+        continue;
       }
     }
         
@@ -810,11 +810,11 @@ namespace StochHMM{
         
     if (mask!=NULL){
       if (position < getLength()) {
-	return (*mask)[position];
+        return (*mask)[position];
       }
       else {
-	std::cerr << "Position exceeds sequence length.\n";
-	exit(1);
+        std::cerr << "Position exceeds sequence length.\n";
+        exit(1);
       }
     }
     else{
@@ -829,7 +829,7 @@ namespace StochHMM{
   void sequence::setSeq (std::string& sq, track* tr){
     realSeq= false;
     undigitized = sq;
-		
+                
     if (tr!= NULL){
       seqtrk = tr;
       _digitize();
@@ -838,7 +838,7 @@ namespace StochHMM{
     else{
       length = sq.size();
     }
-		
+                
     return;
   }
     
@@ -849,9 +849,9 @@ namespace StochHMM{
     seqtrk = tr;
     realSeq = true;
     real=rl;
-		
+                
     length = rl->size();
-		
+                
     return;
   }
     
@@ -920,15 +920,15 @@ namespace StochHMM{
   bool sequence::reverse(){
     if (realSeq){
       if (real!=NULL){
-	std::reverse(real->begin(), real->end());
-	return true;
+        std::reverse(real->begin(), real->end());
+        return true;
       }
     }
     else if (seq!=NULL){
       std::reverse(seq->begin(), seq->end());
             
       if (mask!=NULL){
-	std::reverse(mask->begin(), mask->end());
+        std::reverse(mask->begin(), mask->end());
       }
       return true;
     }
@@ -937,16 +937,16 @@ namespace StochHMM{
     if (seqtrk!=NULL){
       size_t max_size = seqtrk->getAlphaMax();
       if (max_size ==1){
-	if (undigitized.size()>0){
-	  std::reverse(undigitized.begin(),undigitized.end());
-	  return true;
-	}
-	else{
-	  std::cerr << "No sequence is defined to reverse\n";
-	}
+        if (undigitized.size()>0){
+          std::reverse(undigitized.begin(),undigitized.end());
+          return true;
+        }
+        else{
+          std::cerr << "No sequence is defined to reverse\n";
+        }
       }
       else{
-	std::cerr << "Reverse on undigitized sequence isn't defined for track alphabets that are more than one character\n";
+        std::cerr << "Reverse on undigitized sequence isn't defined for track alphabets that are more than one character\n";
       }
     }
         
@@ -966,7 +966,7 @@ namespace StochHMM{
     else if (seq!=NULL){
             
       for (size_t i = 0; i < seq->size(); i++) {
-	(*seq)[i] = seqtrk->getComplementIndex((*seq)[i]);
+        (*seq)[i] = seqtrk->getComplementIndex((*seq)[i]);
       }
             
       return true;
@@ -974,22 +974,22 @@ namespace StochHMM{
     else {
       size_t undigitized_size=undigitized.size();
       if (undigitized_size>0){
-	size_t max_size = seqtrk->getAlphaMax();
-	if (max_size ==1){
-	  for(size_t i=0;i<undigitized_size;i++){
-	    std::string character = seqtrk->getComplementSymbol(undigitized[i]);
-	    undigitized[i] = character[0];
-	  }
-	  return true;
+        size_t max_size = seqtrk->getAlphaMax();
+        if (max_size ==1){
+          for(size_t i=0;i<undigitized_size;i++){
+            std::string character = seqtrk->getComplementSymbol(undigitized[i]);
+            undigitized[i] = character[0];
+          }
+          return true;
                     
-	}
-	else{
-	  std::cerr << "Complement on undigitized sequence isn't defined for track alphabets that are more than one character\n";
-	}
+        }
+        else{
+          std::cerr << "Complement on undigitized sequence isn't defined for track alphabets that are more than one character\n";
+        }
                 
       }
       else{
-	std::cerr << "No sequence defined\n";
+        std::cerr << "No sequence defined\n";
       }
             
     }
@@ -1028,11 +1028,11 @@ namespace StochHMM{
     std::cerr << "No undigitized sequence exists to convert\n";
     return false;
   }
-	
-	
+        
+        
   //Shuffles the sequence
   void sequence::shuffle(){
-		
+                
     if (realSeq){
       std::random_shuffle(real->begin(), real->end());
     }
@@ -1044,8 +1044,8 @@ namespace StochHMM{
     }
     return;
   }
-	
-	
+        
+        
   //Randomly generate a sequence based on Probabilities of each character
   sequence random_sequence(std::vector<double>& freq, size_t length, track* tr){
     sequence random_seq;
@@ -1057,7 +1057,7 @@ namespace StochHMM{
         
     size_t alphaSize=tr->getAlphaSize();
     size_t freqSize=freq.size();
-		
+                
     if (alphaSize!=freqSize){
       std::cerr << "Frequency distribution size and Alphabet size must be the same." << std::endl;
       return random_seq;
@@ -1077,10 +1077,10 @@ namespace StochHMM{
     for(size_t j=0;j<length;++j){
       double val = ((double)rand()/((double)(RAND_MAX)+(double)(1))); //Generate random
       for (size_t m=0;m<freqSize;++m){ //Check to see which value is
-	if (cdf[m].first>=val){
-	  random_string+=cdf[m].second;
-	  break;
-	}
+        if (cdf[m].first>=val){
+          random_string+=cdf[m].second;
+          break;
+        }
       }
     }
         

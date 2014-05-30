@@ -425,66 +425,66 @@ namespace StochHMM{
 		void _addStateToFromTransition(state*); //!Processes each statea and defines definitions to state and from state for use
 												//!in banding the trellis decoding functions
 		
-		void checkBasicModel();	//!Checks to see if the model has basic transitions and emissions(no addtl functions)
-		void checkExplicitDurationStates();  //!Checks to see which states are explicit duration states
-		void _checkTopology(state* st, std::vector<uint16_t>& visited); //!Checks to see that all states are connected and there
-			
-		
-	};
-	
-	
-	//----------------------------------------------------------------------------//
-	//! models is a class to store multiple models.  This allows StochMM the ability, to
-	//! load multiple models, then select the model that appropriate for the sequence
-	//! based on a used-defined attribute.
-	
-	//! Stores multiple HMM models and contains the get functions for specific models
-	//!
-	//!
-	//----------------------------------------------------------------------------//
-	class models{
-	public:
-		//CONSTRUCTOR
-		
-		
-		//ACCESSOR
-		
-		//! Get model located at index
-		//! \param iter Index iterator for model
-		//! \return pointer to model
-		inline model* operator[](size_t iter){
-			if (iter>hmms.size()-1){
-				return NULL;
-			}
-			
-			return hmms[iter];
-		};
-		
-		//!Get the number of model
-		//! \return size_t
-		inline size_t size(){return hmms.size();};
-		
-		//FIXME: implement getModelByAttrib
-		//model* getModelByAttrib(float);
-		
-		model* getModel(size_t);
-		
-		//MUTATOR
-		void importModels(std::string&,StateFuncs*);
-		void addModel(model*);
-		
-	private:
-		std::vector<model*> hmms;
-		weights* scaling;
-		templates* modelTemplates;
-	};
-	
-	
-	//!Print 2D vector to std::cout
-	void print_vec (std::vector<std::vector<double> >&);
-	
-	//    void markov_length_distribution(model*);
-	//
-	//    void markov_generate_sequence(model*);
+	  void checkBasicModel(); //!Checks to see if the model has basic transitions and emissions(no addtl functions)
+	  void checkExplicitDurationStates();  //!Checks to see which states are explicit duration states
+	  void _checkTopology(state* st, std::vector<uint16_t>& visited); //!Checks to see that all states are connected and there
+                        
+                
+        };
+        
+        
+  //----------------------------------------------------------------------------//
+  //! models is a class to store multiple models.  This allows StochMM the ability, to
+  //! load multiple models, then select the model that appropriate for the sequence
+  //! based on a used-defined attribute.
+        
+  //! Stores multiple HMM models and contains the get functions for specific models
+  //!
+  //!
+  //----------------------------------------------------------------------------//
+  class models{
+  public:
+    //CONSTRUCTOR
+                
+                
+    //ACCESSOR
+                
+    //! Get model located at index
+    //! \param iter Index iterator for model
+    //! \return pointer to model
+    inline model* operator[](size_t iter){
+      if (iter>hmms.size()-1){
+	return NULL;
+      }
+                        
+      return hmms[iter];
+    };
+                
+    //!Get the number of model
+    //! \return size_t
+    inline size_t size(){return hmms.size();};
+                
+    //FIXME: implement getModelByAttrib
+    //model* getModelByAttrib(float);
+                
+    model* getModel(size_t);
+                
+    //MUTATOR
+    void importModels(std::string&,StateFuncs*);
+    void addModel(model*);
+                
+  private:
+    std::vector<model*> hmms;
+    weights* scaling;
+    templates* modelTemplates;
+  };
+        
+        
+  //!Print 2D vector to std::cout
+  void print_vec (std::vector<std::vector<double> >&);
+        
+  //    void markov_length_distribution(model*);
+  //
+  //    void markov_generate_sequence(model*);
 }
 #endif /*HMM_H*/

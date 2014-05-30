@@ -35,41 +35,41 @@
 #include "stochMath.h"
 namespace StochHMM{
 
-    /* \class Index 
+  /* \class Index 
      \brief Class used for calculating index of word in the emission and transitions
      This class is used to seemlessly work with ambiguious character and their index in the emission or lexical transition tables.  If there is no ambiguous characters the index can be calculated as a int.  However, if there is ambiguous character then it has multiple indices.  
-     */
-    class Index{
-    public:
-        Index();
-        Index(const Index&);
+  */
+  class Index{
+  public:
+    Index();
+    Index(const Index&);
         
-        ~Index();
+    ~Index();
         
-        /*! \fn bool isAmbiguous()
-         \brief Returns whether there is an ambiguous character
-         */
-        inline bool isAmbiguous(){return ambiguous;};
+    /*! \fn bool isAmbiguous()
+      \brief Returns whether there is an ambiguous character
+    */
+    inline bool isAmbiguous(){return ambiguous;};
         
         
-        void setAmbiguous(const std::vector<size_t>&); //! Set the Index as ambiguous
+    void setAmbiguous(const std::vector<size_t>&); //! Set the Index as ambiguous
        
         
-        Index& operator= (const Index&); //! Assign Index
-        Index operator+ (const Index&); //! Add Index
-        void operator += (const Index&); //! Add and assign Index
-        void operator += (const size_t); //!Add int to Index
-        void operator *= (const size_t); //!Multiply int to Index
-        Index operator* (const size_t); //!Multiply int to Index
-        size_t size();  //!Get Number of indices
+    Index& operator= (const Index&); //! Assign Index
+    Index operator+ (const Index&); //! Add Index
+    void operator += (const Index&); //! Add and assign Index
+    void operator += (const size_t); //!Add int to Index
+    void operator *= (const size_t); //!Multiply int to Index
+    Index operator* (const size_t); //!Multiply int to Index
+    size_t size();  //!Get Number of indices
         
-        size_t operator[](const size_t);
+    size_t operator[](const size_t);
         
-    private:
-        size_t index;
-        std::vector<size_t>* amb;
-        bool ambiguous;
-    };
+  private:
+    size_t index;
+    std::vector<size_t>* amb;
+    bool ambiguous;
+  };
 
 
 }

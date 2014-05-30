@@ -244,52 +244,52 @@ namespace StochHMM{
         //Constructor
         seqJob(size_t);
         
-        //Destructor
-        ~seqJob();
+      //Destructor
+      ~seqJob();
         
-        friend class seqTracks;
-        
-        
-        //MUTATORS
-        void evaluateFunctions();
+      friend class seqTracks;
         
         
-        //ACCESSORS
-        inline size_t size(){return set->getLength();};
-        
-        inline model* getModel(){return hmm;};
-        inline sequences* getSeqs(){return set;};
-        
-        inline std::string getHeader(){return set->getHeader();};
-        
-        inline bool evaluated(){return funcEvaluated;};
+      //MUTATORS
+      void evaluateFunctions();
         
         
-        inline void printModel(){if(hmm) hmm->print();};
+      //ACCESSORS
+      inline size_t size(){return set->getLength();};
         
-        inline void printSeq(){set->print();};
+      inline model* getModel(){return hmm;};
+      inline sequences* getSeqs(){return set;};
         
-        inline traceback_path* getPath(){if (decodingPerformed) return path;else return NULL;};
+      inline std::string getHeader(){return set->getHeader();};
         
-        double getSeqAttrib(){return attrib;};
+      inline bool evaluated(){return funcEvaluated;};
         
-        inline std::string getSeqFilename(size_t iter){return seqFilename[iter];};
-        inline void setSeqFilename(std::string& filename){seqFilename.push_back(filename); return;};
-        inline void printFilenames(){for(size_t i=0;i<seqFilename.size();i++){ std::cout << seqFilename[i] << std::endl;}};
+        
+      inline void printModel(){if(hmm) hmm->print();};
+        
+      inline void printSeq(){set->print();};
+        
+      inline traceback_path* getPath(){if (decodingPerformed) return path;else return NULL;};
+        
+      double getSeqAttrib(){return attrib;};
+        
+      inline std::string getSeqFilename(size_t iter){return seqFilename[iter];};
+      inline void setSeqFilename(std::string& filename){seqFilename.push_back(filename); return;};
+      inline void printFilenames(){for(size_t i=0;i<seqFilename.size();i++){ std::cout << seqFilename[i] << std::endl;}};
         
     private:
-        model* hmm;
-        sequences* set;
+      model* hmm;
+      sequences* set;
         
-        std::vector< std::string>  seqFilename;
+      std::vector< std::string>  seqFilename;
         
-        double attrib;
-        bool funcEvaluated;
+      double attrib;
+      bool funcEvaluated;
         
-        TrackFuncs* functions;
+      TrackFuncs* functions;
         
-        bool decodingPerformed;
-        traceback_path* path;
+      bool decodingPerformed;
+      traceback_path* path;
         
     };
 

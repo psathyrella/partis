@@ -32,73 +32,73 @@ class trainingEmission;
 
 class trainingSeq{
 public:
-    sequence(string&);
-    bool next();
-    void reverseComplement();
-    int operator[](int pos){return seq[pos];};
-    bool importMask();
-    int getMask(int i){return mask[i];};
-    inline size_t size(){return seq.size();};
-    inline string& getDNA(){return DNA;};
-    inline string& getHeader(){return header;};
-    inline vector<int8_t>& getSequence(){return seq;};
-    inline void setMasked(){masked=true;};
-    inline bool isMasked(){return masked;};
+  sequence(string&);
+  bool next();
+  void reverseComplement();
+  int operator[](int pos){return seq[pos];};
+  bool importMask();
+  int getMask(int i){return mask[i];};
+  inline size_t size(){return seq.size();};
+  inline string& getDNA(){return DNA;};
+  inline string& getHeader(){return header;};
+  inline vector<int8_t>& getSequence(){return seq;};
+  inline void setMasked(){masked=true;};
+  inline bool isMasked(){return masked;};
 private:
-    std::string header;
-    queue<int> seq;
+  std::string header;
+  queue<int> seq;
 };
 
 
 class trainingSeqs{
 public:
-    inline int fileCount(){return seqFiles.size();};
-    inline bool eof(size_t iter){return seqFiles[iter]->eof();}
-    inline bool good(size_t iter){return seqFiles[iter]->good();}
-    inline bool is_open(size_t iter){return seqFiles[iter]->is_open();}
+  inline int fileCount(){return seqFiles.size();};
+  inline bool eof(size_t iter){return seqFiles[iter]->eof();}
+  inline bool good(size_t iter){return seqFiles[iter]->good();}
+  inline bool is_open(size_t iter){return seqFiles[iter]->is_open();}
     
     
-    inline int queueSize(size_t iter){return seqs.size();}
-    bool openFiles(std::string&);
-    bool openFiles(char**);
+  inline int queueSize(size_t iter){return seqs.size();}
+  bool openFiles(std::string&);
+  bool openFiles(char**);
     
-    bool importMask(std::string&);
-    bool importMask(char**);
+  bool importMask(std::string&);
+  bool importMask(char**);
     
-    void determineAlphabet(size_t iter);
-    void setAlphabet(size_t, stringList&);
+  void determineAlphabet(size_t iter);
+  void setAlphabet(size_t, stringList&);
     
 private:
-    vector<std::ifstream*> seqFiles;
-    std::ifstream* maskFile;
+  vector<std::ifstream*> seqFiles;
+  std::ifstream* maskFile;
     
-    bool masked;
-    queue<int> stateMask;
+  bool masked;
+  queue<int> stateMask;
     
-    std::vector<std::map<std::string, int> > alphaIndex;
-    std::vector<std::vector<std::string> > indexAlpha;
+  std::vector<std::map<std::string, int> > alphaIndex;
+  std::vector<std::vector<std::string> > indexAlpha;
     
-    std::vector<stateInfo> stateEmm;
-    std::map<int,map<int,int> > transitions //from state <toState,count>
+  std::vector<stateInfo> stateEmm;
+  std::map<int,map<int,int> > transitions //from state <toState,count>
     
-    //State definitions of emission/order/joint emission
+  //State definitions of emission/order/joint emission
     
-    std::vector<trainingSeq> seqs;
+  std::vector<trainingSeq> seqs;
 };
 
 class stateInfo{
 public:
     
 private:
-    std::vector<trainingEmission> *emissions;
+  std::vector<trainingEmission> *emissions;
 };
 
 class trainingEmission{
 public:
     
 private:
-    std::set<std::pair<int,int> > seqTracks;  //Track and order information
-    //if more than one track then it is a joint
+  std::set<std::pair<int,int> > seqTracks;  //Track and order information
+  //if more than one track then it is a joint
 }
 
 
