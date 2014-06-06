@@ -718,7 +718,7 @@ namespace StochHMM{
 	  exit(1);
 	}
                 
-	if (fileType == SINGLE_TRACK){
+	if (fileType == SINGLE_TRACK){  // fileType is set based on whether length of importTracks > 1
 	  success = sq->getReal(*filehandles[i], (*modelTracks)[importTracks[i].first]);
 	}
 	else{

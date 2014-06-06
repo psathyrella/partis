@@ -111,22 +111,50 @@ namespace StochHMM{
     
   //Return emission probability of sequences
   double lexicalTable::getValue(sequences& seqs, size_t pos){
-        
+    std::cout << "subarray_sequence" << std::endl;
+    for (size_t is=0; is<subarray_sequence.size(); ++is) std::cout << "  " << subarray_sequence[is] << std::endl;
+    std::cout << "subarray_position" << std::endl;
+    for (size_t is=0; is<subarray_position.size(); ++is) std::cout << "  " << subarray_position[is] << std::endl;
+    std::cout << "subarray_value" << std::endl;
+    for (size_t is=0; is<subarray_value.size(); ++is) std::cout << "  " << subarray_value[is] << std::endl;
+    std::cout << " looking up pos " << pos;
+    for (size_t is=0; is<seqs.size(); ++is) {
+      std::cout << "." << seqs[is].undigitize()[pos];
+    }
+    std::cout << std::endl;        
+
     if (max_order>pos){
       return getReducedOrder(seqs, pos);
     }
                 
+    // for seqs[iseq][ipos],  <index> is the emission at ipos in the iseq^th sequence (translated from character/word to uint8_t)
+    //
+    // SO! maybe I get now
+    //   <seqs> is assumed to be a list of sequences in the case that we have *joint* emission of multiple sequences, to *different* tracks, from the
+    //   *same* state. So the way we specified the emission probs in the .hmm file was as an 'unrolled' line, e.g. for two tracks ACGT and TF (true/false)
+    //        @AT AF CT CF GT GF TT TF
+    //         x  x  x  x  x  x  x  x
+    //   Then when we pass in two seqs like so: [GCTTCGA, FFTFFTF] and want the emission at the zeroth position, the index of [G, F] in the log lookup
+    //   table
+    //
+    //   seqs[subarray_sequence[0]] [pos - subarray_position[0]] * subarray_value[0]
+    //   seqs[                    ] [                          ] * (               )
+    //
+    //   hrg. maybe not. in point of fact, I can't figure out if this is broken or not.
     size_t index(seqs[subarray_sequence[0]][pos - subarray_position[0]] * subarray_value[0]);
+    std::cout << "  index: " << index << std::endl;
                 
     for(size_t i=1;i<dimensions;i++){
       index += seqs[subarray_sequence[i]][pos - subarray_position[i]] * subarray_value[i];
     }
+    std::cout << "   --> " << index << std::endl;
                 
     if (index > array_size){
-      std::cerr << "Index is out of range of lookup table in lexicalTable" << std::endl;
+      std::cerr << "Index " << index << " is out of range (" << array_size << ") of lookup table in lexicalTable" << std::endl;
+      for (size_t ip=0; ip<array_size; ++ip) std::cout << ip << "  " << exp((*log_emission)[ip]) << std::endl;
       exit(2);
     }
-                
+    // reminder: log_emission stores the log prob for each emission
     return (*log_emission)[index];
   }
         
@@ -407,7 +435,7 @@ namespace StochHMM{
         
   void lexicalTable::init_table_dimension_values(){
     number_of_tracks = trcks.size();
-    y_dim = sumVector(order);
+    y_dim = sumVector(order);  // <order> is a vector containing the order of each track
                 
                 
     //Calculate subarray dimensions for logProb and new log_emission table (includes ambiguous character)
@@ -418,7 +446,7 @@ namespace StochHMM{
     for(size_t i=0;i<number_of_tracks;++i){
       size_t value(1);
       for(size_t j=i+1;j<number_of_tracks;++j){
-	value*=alphabets[j];
+	value*=alphabets[j];  // multiply by the size of this track's alphabet 
       }
       x_subarray[i]=value;
     }
@@ -450,7 +478,8 @@ namespace StochHMM{
         
         
   void lexicalTable::init_array_dimension_values(){
-    dimensions = y_dim + number_of_tracks;
+    dimensions = y_dim + number_of_tracks;  // so dimensions = number_of_tracks unless you have higher order emissions
+                                            // and NOTE that number_of_tracks > 0 only for joint emissions (as far as I can tell)
     subarray_sequence.resize(dimensions);
     subarray_value.resize(dimensions);
     subarray_value.resize(dimensions);
@@ -467,7 +496,7 @@ namespace StochHMM{
       //Get alphabet size and store it
       size_t alpha_size = trcks[i]->getTotalAlphabetSize();
       complete_alphabet_size.push_back(alpha_size);
-      array_size*=integerPower(alpha_size, (size_t) order[i]+1);
+      array_size*=integerPower(alpha_size, (size_t) order[i]+1);  // integerPower(base, exponent)
                         
       for(size_t j=0;j<=order[i];++j){
 	subarray_sequence[current_dim]=i;
@@ -534,10 +563,9 @@ namespace StochHMM{
     for(size_t i=0;i<dimensions;++i){
       decompose_sequence[i]=temp[i];
     }
-                
+
     return;
   }
-        
         
   //Transfer values from 2d table to array and also compute the ambiguous score
   void lexicalTable::transferValues(std::vector<bool>& transferred){

@@ -85,10 +85,10 @@ namespace StochHMM {
 	viterbi_temp = (*hmm)[st]->get_emission_prob(*seqs,0) + getTransition(init, st, 0);
                                 
 	if (viterbi_temp > -INFINITY){
-	  if ((*scoring_current)[st] < viterbi_temp){
+	  if ((*scoring_current)[st] < viterbi_temp){  // NOTE this is always true since all we've done to scoring_current so far is initialize it to -INFINITY
 	    (*scoring_current)[st] = viterbi_temp;
 	  }
-	  next_states |= (*(*hmm)[st]->getTo());
+	  next_states |= (*(*hmm)[st]->getTo());  // no effect right here, but leaves next_states set to the OR of all transitions out of all states
 	}
       }
     }
@@ -97,12 +97,12 @@ namespace StochHMM {
     for(size_t position = 1; position < seq_size ; ++position ){
                         
       //Swap current and previous viterbi scores
-      scoring_previous->assign(state_size,-INFINITY);
-      swap_ptr = scoring_previous;
-      scoring_previous = scoring_current;
+      scoring_previous->assign(state_size,-INFINITY);        // NOTE I think this can be replaced with
+      swap_ptr = scoring_previous;		             // scoring_previous = scoring_current;		
+      scoring_previous = scoring_current;	             // scoring_current->assign(state_size,-INFINITY); 
       scoring_current = swap_ptr;
                         
-      //Swap current_states and next states sets
+      //Swap current_states and next states sets. ie set current_states to the states which can be transitioned to from *any* of the previous states.
                         
       current_states.reset();
       current_states |= next_states;
@@ -115,7 +115,7 @@ namespace StochHMM {
       //Current states
       for (size_t st_current = 0; st_current < state_size; ++st_current){ //Current state that emits value
                                 
-	//Check to see if current state is valid
+	//Check to see if current state is valid. ie if transition to this state is allowed from *any* state which we passed through at the previous position
 	if (!current_states[st_current]){
 	  continue;
 	}

@@ -429,7 +429,7 @@ namespace StochHMM {
     }
     else{
       path.setScore(ending_viterbi_score);
-      path.push_back(ending_viterbi_tb);
+      path.push_back(ending_viterbi_tb);  // push back the state that led to END state
             
       int16_t pointer = ending_viterbi_tb;
                         

@@ -117,6 +117,9 @@ namespace StochHMM{
     size_t y_dim;
     size_t* x_subarray;
     size_t* y_subarray;
+    // NOTE these are initialized in emm.cpp
+    // first index: alphabet size
+    // second index: (emission order)^(alphabet size)
     std::vector<std::vector<double> >* prob;     //p(x)
     std::vector<std::vector<double> >* counts;   //counts
     std::vector<std::vector<double> >* logProb;  //log2(P(x))
@@ -131,7 +134,7 @@ namespace StochHMM{
     std::vector<size_t> decompose_values; //Values used to compose index from sequences AAAB(AB)
     std::vector<size_t> decompose_sequence;
                 
-    std::vector<double>* log_emission;              
+    std::vector<double>* log_emission;  // linearized version of logProb, i.e. (*log_emission)[index] = (*logProb)[row][column]
     std::vector<std::vector<double>* > low_order_emissions;
     std::vector<std::vector<std::pair<size_t,size_t>* > >low_order_info;
                 

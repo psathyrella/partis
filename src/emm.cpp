@@ -354,7 +354,7 @@ namespace StochHMM{
       size_t expectedRows(1);
       for(size_t i = 0; i<scores.getNumberOfAlphabets(); i++){
 	expectedColumns*=scores.getAlphaSize(i);
-	expectedRows*=POWER[scores.getOrder(i)][scores.getAlphaSize(i)-1];
+	expectedRows*=POWER[scores.getOrder(i)][scores.getAlphaSize(i)-1];  // POWER[b][a-1] = a**b
       }
             
       std::vector<std::vector<double> >* log_prob = scores.getLogProbabilityTable();
@@ -408,7 +408,7 @@ namespace StochHMM{
       }
             
       if (log_prob->size() != expectedRows){
-	std::cerr << " The Emission table doesn't contain enough rows.  Expected Rows: " << expectedRows << " \n Please check the Emission Table and formatting for " <<  txt << std::endl;
+	std::cerr << " The Emission table doesn't contain enough rows.  Found " << log_prob->size() << " but expected " << expectedRows << " \n Please check the Emission Table and formatting for " <<  txt << std::endl;
 	return false;
       }
                         
@@ -623,7 +623,7 @@ namespace StochHMM{
     }
                 
     if (log_prob->size() != expectedRows){
-      std::cerr << " The Emission table doesn't contain enough rows.  Expected Rows: " << expectedRows << " \n Please check the Emission Table and formatting for " <<  txt << std::endl;
+      std::cerr << " The Emission table doesn't contain enough rows.  Found " << log_prob->size() << " but expected " << expectedRows << " \n Please check the Emission Table and formatting for " <<  txt << std::endl;
       return false;
     }
                 

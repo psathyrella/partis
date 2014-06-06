@@ -588,7 +588,7 @@ namespace StochHMM{
         
     stringList lst;
     clear_whitespace(undigitized,"\n");
-    if (seqtrk->getAlphaMax()>1){
+    if (seqtrk->getAlphaMax()>1){  // we have words of length greater than one letter
       lst.splitString(undigitized, " ,\t");
                         
       if (seq == NULL){
