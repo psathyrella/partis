@@ -679,6 +679,11 @@ namespace StochHMM{
   //!\param iter Position within the sequences
   //!\return double log(prob) value of emission
   double emm::get_emission(sequences& seqs,size_t pos){
+    for (size_t ipos=0; ipos<6; ++ipos) {
+      double score = scores.getValue(seqs, ipos);
+      std::cout << "----- " << score << std::endl;
+    }
+    exit(2);
     double final_emission(-INFINITY);
         
     if (real_number){

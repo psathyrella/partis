@@ -9,12 +9,15 @@
 #ifndef StochHMM_Lexical_h
 #define StochHMM_Lexical_h
 #include <string>
+#include <iomanip>
 #include <vector>
+#include <cassert>
 #include <math.h>
 #include <ctype.h>
 #include <algorithm>
 #include <stdint.h>
 #include <stdlib.h>
+#include "Eigen/Dense"
 #include "track.h"
 #include "index.h"
 #include "externalFuncs.h"

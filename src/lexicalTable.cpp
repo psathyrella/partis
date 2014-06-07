@@ -111,18 +111,6 @@ namespace StochHMM{
     
   //Return emission probability of sequences
   double lexicalTable::getValue(sequences& seqs, size_t pos){
-    std::cout << "subarray_sequence" << std::endl;
-    for (size_t is=0; is<subarray_sequence.size(); ++is) std::cout << "  " << subarray_sequence[is] << std::endl;
-    std::cout << "subarray_position" << std::endl;
-    for (size_t is=0; is<subarray_position.size(); ++is) std::cout << "  " << subarray_position[is] << std::endl;
-    std::cout << "subarray_value" << std::endl;
-    for (size_t is=0; is<subarray_value.size(); ++is) std::cout << "  " << subarray_value[is] << std::endl;
-    std::cout << " looking up pos " << pos;
-    for (size_t is=0; is<seqs.size(); ++is) {
-      std::cout << "." << seqs[is].undigitize()[pos];
-    }
-    std::cout << std::endl;        
-
     if (max_order>pos){
       return getReducedOrder(seqs, pos);
     }
@@ -142,6 +130,14 @@ namespace StochHMM{
     //
     //   hrg. maybe not. in point of fact, I can't figure out if this is broken or not.
     size_t index(seqs[subarray_sequence[0]][pos - subarray_position[0]] * subarray_value[0]);
+    // subarray_value has to do with ambiguous character decomposition
+    // no fuckin idea why we multiply by it, though
+    std::cout << "subarray_sequence[0] " << subarray_sequence[0] << std::endl;
+    std::cout << "pos " << pos<< std::endl;
+    std::cout << "subarray_position[0] " << subarray_position[0] << std::endl;
+    std::cout << "subarray_value[0] " << subarray_value[0] << std::endl;
+    std::cout << "seqs[subarray_sequence[0]] " << seqs[subarray_sequence[0]].undigitize() << std::endl;
+    std::cout << "pos - subarray_position[0] " << (pos - subarray_position[0]) << std::endl;
     std::cout << "  index: " << index << std::endl;
                 
     for(size_t i=1;i<dimensions;i++){
@@ -434,6 +430,17 @@ namespace StochHMM{
         
         
   void lexicalTable::init_table_dimension_values(){
+    //
+    // initialize the arrays of size_t x_subarray and y_subarray
+    // for, e.g. this hmm:
+    //      track     order     alphabet (size)
+    //        0         2         AC (2)
+    //        1         1         GT (2)
+    //        2         1         MF (2)
+    // we have
+    //   x_subarray = [4, 2, 1]
+    //   y_subarray = [8, 4, 2, 1]
+
     number_of_tracks = trcks.size();
     y_dim = sumVector(order);  // <order> is a vector containing the order of each track
                 
@@ -452,13 +459,13 @@ namespace StochHMM{
     }
                 
     //Calcuate Old subarray y_dimension values
-    std::vector<size_t> index(order[0],alphabets[0]);
-    for(size_t i=1;i<order.size();i++){
+    std::vector<size_t> index(order[0],alphabets[0]);  // initialize <index> with a few entries
+    for(size_t i=1;i<order.size();i++){  // then push a few more onto the tail end of it
       for(size_t j=0;j<order[i];j++){
-	index.push_back(alphabets[i]);
+	index.push_back(alphabets[i]);  // so final length of <index> is y_dim = (sum of all orders for all emissions)
       }
     }
-                
+
     for (size_t i=0;i<y_dim;i++){
       size_t val = 1;
       for(size_t j=i+1;j<y_dim;j++){
@@ -478,33 +485,44 @@ namespace StochHMM{
         
         
   void lexicalTable::init_array_dimension_values(){
-    dimensions = y_dim + number_of_tracks;  // so dimensions = number_of_tracks unless you have higher order emissions
-                                            // and NOTE that number_of_tracks > 0 only for joint emissions (as far as I can tell)
-    subarray_sequence.resize(dimensions);
+    // 
+    //
+    //
+    //
+
+    // NOTE that number_of_tracks > 0 only for joint emissions (as far as I can tell)
+
+    // RECALL y_dim = (sum of the orders of each track)
+    dimensions = y_dim + number_of_tracks;
+                                            
+    subarray_sequence.resize(dimensions);  // EG for the model above <subarray_sequence> is [0 0 0 1 1 2 2]
     subarray_value.resize(dimensions);
-    subarray_value.resize(dimensions);
-                
+    subarray_value.resize(dimensions);  // NOTE I am pretty sure this second call does nothing
+
+    // NOTE these are only used when we have ambiguous characters
     decompose_values.resize(dimensions);
     decompose_sequence.resize(dimensions);
                 
     //Calculate total size of emission table needed with ambiguous characters
     array_size = 1;
     std::vector<size_t> complete_alphabet_size;
-    size_t current_dim(0);
+    size_t current_dim(0);  // index to keep track of how much we've filled up subarray_sequence
     for(size_t i=0;i<number_of_tracks;i++){
                         
       //Get alphabet size and store it
-      size_t alpha_size = trcks[i]->getTotalAlphabetSize();
+      size_t alpha_size = trcks[i]->getTotalAlphabetSize();  // NOTE <alpha_size> is always equal to alphabets[i] so I think we don't need this
       complete_alphabet_size.push_back(alpha_size);
-      array_size*=integerPower(alpha_size, (size_t) order[i]+1);  // integerPower(base, exponent)
+      assert(complete_alphabet_size[i] == alphabets[i]); // double check to make sure that complete_alphabet_size is redundant
+      array_size*=integerPower(alpha_size, (size_t) order[i]+1);  // multiply <array_size> by (alphabets[i])^(order[i]+1). NOTE integerPower(base, exponent) = base^exponent
                         
-      for(size_t j=0;j<=order[i];++j){
+      for(size_t j=0;j<=order[i];++j){  // NOTE the equals sign
 	subarray_sequence[current_dim]=i;
 	current_dim++;
       }
     }
                 
     //Calculate the Sequence positions
+    // EG for model above subarray_position = [2 1 0 1 0 1 0]
     for (size_t i=0;i<number_of_tracks;i++){
       for (size_t j=0;j<=order[i];++j){
 	subarray_position.push_back(order[i]-j);
@@ -547,6 +565,8 @@ namespace StochHMM{
       subarray_value[array_index] = decompose_values[dimensions-number_of_tracks-i];
       array_index++;
     }
+    std::cout << "---" << std::endl;
+    for (size_t i=0; i<subarray_value.size(); ++i) std::cout << "  " << i << " " << subarray_value[i] << std::endl;
                 
                 
     //Finalize decompose_sequence
@@ -571,15 +591,18 @@ namespace StochHMM{
   void lexicalTable::transferValues(std::vector<bool>& transferred){
                 
     //Transfer unambiguous scores
+    std::cout << "====" << std::endl;
     for(size_t row=0;row<logProb->size();++row){
       for(size_t column=0;column<(*logProb)[row].size();++column){
-	std::vector<uint8_t> alphabet;
-	decompose(row, column, alphabet);
+	std::vector<uint8_t> alphabet;  // vector which is used to calculate the index in the (linear) array <log_emission> which corresponds to the entry [row][column] in the table <logProb>
+	decompose(row, column, alphabet);  // push values into <alphabet>. *why* these particular values, you say? I don't know!
 	size_t index = calculateArrayIndex(alphabet);
-	(*log_emission)[index] = (*logProb)[row][column];
+	(*log_emission)[index] = (*logProb)[row][column];  // NOTE as far as I can tell, this sometimes maps *different* row:column pairs to the *same* index
+	std::cout << "  " << row << " " << column << " --> " << index << std::endl;
 	transferred[index] = true;
       }
     }
+    std::cout << "====" << std::endl;
                 
     //Compute all ambiguous scores
     for(size_t i=0;i<transferred.size();i++){
@@ -841,18 +864,34 @@ namespace StochHMM{
         
   size_t lexicalTable::calculateArrayIndex(std::vector<uint8_t>& kmer){
     size_t index(0);
-    for(size_t i=0;i<dimensions;++i){
+    for(size_t i=0;i<dimensions;++i){  // RECALL <dimensions> = (sum of orders) + <number_of_tracks>
       index += subarray_value[i] * kmer[i];
     }
     return index;
   }
-        
+  // using namespace std;
   void lexicalTable::decompose(size_t row, size_t column, std::vector<uint8_t>& letters){
+    // std::cout << "decomposing"
+    // 	      << " row " << row
+    // 	      << " column " << column
+    // 	      << std::endl;
+    // std::cout
+    //   << setw(12) << "i"
+    //   << setw(12) << "row"
+    //   << setw(18) << "y_subarray[i]"
+    //   << setw(12) << "val"
+    //   << std::endl;
     //Decompose the row into the preceding letters
-    for(size_t i=0;i<y_dim;++i){
+    for(size_t i=0;i<y_dim;++i){  // RECALL y_dim is the sum of the orders of each emission
       size_t val = floor(row/y_subarray[i]);
       row -= val*y_subarray[i];
       letters.push_back(val);
+      // std::cout
+      // 	<< setw(12) << i
+      // 	<< setw(12) << row
+      // 	<< setw(18) << y_subarray[i]
+      // 	<< setw(12) << val
+      // 	<< std::endl;
     }
                 
     //Decompose the column into the emitted letters
@@ -861,7 +900,10 @@ namespace StochHMM{
       column-=val*x_subarray[i];
       letters.push_back(val);
     }
-                
+
+    // std::cout << "returning letters ";
+    // for (size_t il=0; il<letters.size(); ++il) std::cout << " " << (int)(letters[il]);
+    // std::cout << "" << std::endl;
     return;
   }
         
