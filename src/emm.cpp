@@ -70,12 +70,12 @@ namespace StochHMM{
     if (!_processTags(txt,trks, wts, funcs)){
       return false;
     }
-        
-    stringList ln;
-    ln.splitString(txt,"\n");
-    size_t idx;
-    if (ln.contains("EMISSION")){
-      idx = ln.indexOf("EMISSION");
+
+    stringList lines;  // a list of the lines in <txt>, which specifies the entire emission
+    lines.splitString(txt,"\n");
+    size_t idx;  // set <idx> to start of emission definition
+    if (lines.contains("EMISSION")){
+      idx = lines.indexOf("EMISSION");
     }
     else{
       std::cerr << "Missing EMISSION tag from emission. Please check the formatting.   This is what was handed to the emission class:\n " <<  txt << std::endl;
@@ -83,7 +83,7 @@ namespace StochHMM{
     }
         
     stringList line;
-    line.splitString(ln[idx], "\t,: ");
+    line.splitString(lines[idx], "\t,: ");  // split lines[idx] (idx probably zero) using any of these delimineters, and store in <line>
         
     size_t typeBegin(0);
         
@@ -134,8 +134,10 @@ namespace StochHMM{
       //errorInfo(sCantParseLine, info.c_str());
     }
         
-        
-    //remaining tracks and Orders then set Track
+
+    // ----------------------------------------------------------------------------------------
+    // remaining tracks and Orders then set Track
+    // ----------------------------------------------------------------------------------------
     std::vector<track*> tempTracks;
     for(size_t i=1;i<typeBegin;i++){
       track* tk = trks.getTrack(line[i]);
@@ -148,9 +150,7 @@ namespace StochHMM{
       }
     }
         
-    //Real Number Emissions
-    if (real_number){
-
+    if (real_number){  // Real Number Emissions
       if (tempTracks.size()>1){
 	std::cerr << "Multiple tracks listed under Real Track Emission Definition\n";
 	return false;
@@ -159,8 +159,7 @@ namespace StochHMM{
       realTrack = tempTracks[0];
       return true;
     }
-    //Multivariate Continuous PDF emission
-    else if (multi_continuous){
+    else if (multi_continuous){  // Multivariate Continuous PDF emission
       if (tempTracks.size()==1){
 	std::cerr << "Only a single track listed under MULTI_CONTINUOUS\n\
                                 Use CONTINUOUS instead of MULTI-CONTINUOUS\n";
@@ -176,8 +175,8 @@ namespace StochHMM{
 	track_indices->push_back((*trcks)[i]->getIndex());
       }
                         
-      idx = ln.indexOf("PDF");
-      line.splitString(ln[idx],"\t:, ");
+      idx = lines.indexOf("PDF");
+      line.splitString(lines[idx],"\t:, ");
                         
       size_t function_idx = line.indexOf("PDF") + 1;
       multiPdfName = line[function_idx];
@@ -199,9 +198,7 @@ namespace StochHMM{
       return true;
                         
     }
-    //U
-    else if (continuous){
-                        
+    else if (continuous){  // continuous pdfs
       if (tempTracks.size()>1){
 	std::cerr << "Multiple tracks listed under CONTINUOUS Track Emission Definition\n\
                                 Must use MULTI_CONTINUOUS for multivariate emissions\n";
@@ -210,8 +207,8 @@ namespace StochHMM{
             
       realTrack = tempTracks[0];
                         
-      idx = ln.indexOf("PDF");
-      line.splitString(ln[idx],"\t:, ");
+      idx = lines.indexOf("PDF");
+      line.splitString(lines[idx],"\t:, ");
                         
       size_t function_idx = line.indexOf("PDF") + 1;
       pdfName = line[function_idx];
@@ -246,11 +243,9 @@ namespace StochHMM{
             
       return true;
     }
-    else{  //Traditional Lexcical Emission
-            
-            
-      if (ln.contains("ORDER")){
-	idx=ln.indexOf("ORDER");
+    else{  // Traditional Lexical Emission
+      if (lines.contains("ORDER")){
+	idx=lines.indexOf("ORDER");
       }
       else{
 	std::cerr << "Couldn't find ORDER in non-Real_Number emission.  Please check the formatting" << std::endl;
@@ -259,7 +254,8 @@ namespace StochHMM{
       }
             
       std::vector<int> tempOrder;
-      line.splitString(ln[idx],"\t:, ");
+      line.splitString(lines[idx],"\t:, ");  // split lines[idx] using any of chars "\t:, ", and store in <line>
+      // WAIT didn't we already do this?
             
       size_t orderIdx = line.indexOf("ORDER");
       orderIdx++;
@@ -348,10 +344,13 @@ namespace StochHMM{
 	  scores.setUnkScore(tempValue);
 	}
       }
-        
-      //Get Emission Tables
-      size_t expectedColumns(1);
-      size_t expectedRows(1);
+
+      // ----------------------------------------------------------------------------------------
+      // Get Emission Tables
+
+      // calculate emission matrix dimensions
+      size_t expectedColumns(1);  // product of the sizes of the alphabets for each track
+      size_t expectedRows(1);  // product of the factor (alphabet size)^(order) for each track
       for(size_t i = 0; i<scores.getNumberOfAlphabets(); i++){
 	expectedColumns*=scores.getAlphaSize(i);
 	expectedRows*=POWER[scores.getOrder(i)][scores.getAlphaSize(i)-1];  // POWER[b][a-1] = a**b
@@ -360,49 +359,45 @@ namespace StochHMM{
       std::vector<std::vector<double> >* log_prob = scores.getLogProbabilityTable();
       std::vector<std::vector<double> >* prob = scores.getProbabilityTable();
       std::vector<std::vector<double> >* counts = scores.getCountsTable();
+
             
-            
-      for (size_t iter = 2; iter< ln.size();iter++){
-                
-                
-	//If it's the first line check for a '#' indicating that the column header is present
-	if (iter==2 && ln[iter][0]=='@'){
+      for (size_t iter = 2; iter< lines.size();iter++){  // skip the first two lines of this emission, which specify tracks and order
+	if (iter==2 && lines[iter][0]=='@'){  // skip the first line if it starts with '@' (it's listing the state names)
 	  continue;
 	}
                 
-	line.splitString(ln[iter],"\t ");
-                
-	//Check for Row header
+	line.splitString(lines[iter],"\t ");  // reset <line> to a list consisting of lines[iter] split by white space
+
+	// remove the zeroth element of <line> (since it's a comment listing the state name)
 	if (line[0][0]=='@'){
 	  line.pop_ith(0);
 	}
-                
-                
-	std::vector<double> temp = line.toVecDouble();
-	if (temp.size() != expectedColumns){
-	  std::string info = "The following line couldn't be parsed into the required number of columns.   Expected Columns: " + int_to_string(expectedColumns) + "\n The line appears as: "  + ln[iter] ;
-                    
-	  std::cerr << info << std::endl;
+
+	// push this row of values onto the back of <log_prob> and <prob>
+	std::vector<double> tmp_vec = line.toVecDouble();
+	if (tmp_vec.size() != expectedColumns){
+	  std::cerr << "The following line with " << tmp_vec.size() << " columns couldn't be parsed into the required number of columns (" + int_to_string(expectedColumns) + ")\n"
+		    << lines[iter] << std::endl;
 	  return false;
 	  //errorInfo(sCantParseLine, info.c_str());
 	}
 	else{
 	  if (valtyp == PROBABILITY){
-	    prob->push_back(temp);
-	    logVector(temp);
-	    log_prob->push_back(temp);
+	    prob->push_back(tmp_vec);
+	    logVector(tmp_vec);
+	    log_prob->push_back(tmp_vec);
 	  }
 	  else if (valtyp == LOG_PROB){
-	    log_prob->push_back(temp);
-	    expVector(temp);
-	    prob->push_back(temp);
+	    log_prob->push_back(tmp_vec);
+	    expVector(tmp_vec);
+	    prob->push_back(tmp_vec);
 	  }
 	  else if (valtyp == COUNTS){
-	    counts->push_back(temp);
-	    probVector(temp);
-	    prob->push_back(temp);
-	    logVector(temp);
-	    log_prob->push_back(temp);
+	    counts->push_back(tmp_vec);
+	    probVector(tmp_vec);
+	    prob->push_back(tmp_vec);
+	    logVector(tmp_vec);
+	    log_prob->push_back(tmp_vec);
 	  }
 	}
       }
@@ -414,7 +409,7 @@ namespace StochHMM{
                         
       scores.initialize_emission_table();
                         
-    }
+    }  // end traditional lexical emission
         
     return true;
   }
@@ -426,11 +421,11 @@ namespace StochHMM{
   //!\param funcs State functions used by the model
   bool emm::parse(std::string& txt,track* trk){
         
-    stringList ln;
-    ln.splitString(txt,"\n");
+    stringList lines;
+    lines.splitString(txt,"\n");
     size_t idx;
-    if (ln.contains("EMISSION")){
-      idx = ln.indexOf("EMISSION");
+    if (lines.contains("EMISSION")){
+      idx = lines.indexOf("EMISSION");
     }
     else{
       std::cerr << "Missing EMISSION tag from emission. Please check the formatting.   This is what was handed to the emission class:\n " <<  txt << std::endl;
@@ -438,7 +433,7 @@ namespace StochHMM{
     }
         
     stringList line;
-    line.splitString(ln[idx], "\t,: ");
+    line.splitString(lines[idx], "\t,: ");
     //size_t typeBegin(0);
                 
     valueType  valtyp(PROBABILITY);
@@ -467,8 +462,8 @@ namespace StochHMM{
     temp_tracks.push_back(trk);
         
                 
-    if (ln.contains("ORDER")){
-      idx=ln.indexOf("ORDER");
+    if (lines.contains("ORDER")){
+      idx=lines.indexOf("ORDER");
     }
     else{
       std::cerr << "Couldn't find ORDER in non-Real_Number emission.  Please check the formatting" << std::endl;
@@ -477,7 +472,7 @@ namespace StochHMM{
     }
                 
     std::vector<int> temp_order;
-    line.splitString(ln[idx],"\t:,");
+    line.splitString(lines[idx],"\t:,");
                 
     size_t orderIdx = line.indexOf("ORDER");
     orderIdx++;
@@ -577,15 +572,15 @@ namespace StochHMM{
     std::vector<std::vector<double> >* counts = scores.getCountsTable();
                 
                 
-    for (size_t iter = 2; iter< ln.size();iter++){
+    for (size_t iter = 2; iter< lines.size();iter++){
                         
                         
       //If it's the first line check for a '#' indicating that the column header is present
-      if (iter==2 && ln[iter][0]=='@'){
+      if (iter==2 && lines[iter][0]=='@'){
 	continue;
       }
                         
-      line.splitString(ln[iter],"\t ");
+      line.splitString(lines[iter],"\t ");
                         
       //Check for Row header
       if (line[0][0]=='@'){
@@ -595,7 +590,7 @@ namespace StochHMM{
                         
       std::vector<double> temp = line.toVecDouble();
       if (temp.size() != expectedColumns){
-	std::string info = "The following line couldn't be parsed into the required number of columns.   Expected Columns: " + int_to_string(expectedColumns) + "\n The line appears as: "  + ln[iter] ;
+	std::string info = "The following line couldn't be parsed into the required number of columns.   Expected Columns: " + int_to_string(expectedColumns) + "\n The line appears as: "  + lines[iter] ;
                                 
 	std::cerr << info << std::endl;
 	return false;

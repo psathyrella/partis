@@ -73,7 +73,7 @@ namespace StochHMM{
   bool state::parse(std::string& txt, stringList& names,tracks& trks, weights* wts, StateFuncs* funcs){
     size_t stateHeaderInfo = txt.find("STATE:");
     size_t transitionsInfo = txt.find("TRANSITION:");
-    size_t emissionInfo    = txt.find("EMISSION:");
+    size_t emissionInfo    = txt.find("EMISSION:");  // location of start of first emission definition
     stringList lines;
         
     if (stateHeaderInfo==std::string::npos){
@@ -101,10 +101,10 @@ namespace StochHMM{
     }
         
         
-    //Check emissions existence  (only INIT state can have no emission)
+    //Check emission's existence  (only INIT state can have no emission)
     if (emissionInfo != std::string::npos){
       std::string emmis = txt.substr(emissionInfo);
-      if (!_parseEmission(emmis, names, trks, wts, funcs)){
+      if (!_parseEmissions(emmis, names, trks, wts, funcs)){  // parse all of the emissions
 	std::cerr << "Couldn't parse the emissions for state: " << name << std::endl;
 	return false;
       }
@@ -295,19 +295,19 @@ namespace StochHMM{
   }
     
     
-  //!Parses the emission for a state from a string
+  //!Parses the emissions for a state from a string
   //! \param txt String representation of emissions
   //! \param names stringList of all state names defined in the model
   //! \param trks Tracks defined in the model
   //! \param wts Weight defined of the model
   //! \param funcs StateFunction defined for the model
     
-  bool state::_parseEmission(std::string& txt, stringList& names, tracks& trks, weights* wts, StateFuncs* funcs){
+  bool state::_parseEmissions(std::string& txt, stringList& names, tracks& trks, weights* wts, StateFuncs* funcs){
     stringList lst;
     lst.splitND(txt,"EMISSION:");
     //lst.print();
         
-    for(size_t iter=0; iter<lst.size();iter++){
+    for(size_t iter=0; iter<lst.size();iter++){  // loop over each emission for this state
       emm* temp = new(std::nothrow) emm;
             
       if (temp==NULL){
@@ -318,7 +318,7 @@ namespace StochHMM{
       if (!temp->parse(lst[iter],trks,wts,funcs)){
 	return false;
       }
-      emission.push_back(temp);
+      emissions.push_back(temp);
     }
         
     return true;
@@ -418,8 +418,8 @@ namespace StochHMM{
         
         
     //Print Emissions
-    for(size_t i=0;i<emission.size();i++){
-      stateString+=emission[i]->stringify();
+    for(size_t i=0;i<emissions.size();i++){
+      stateString+=emissions[i]->stringify();
     }
         
     return stateString;
@@ -429,9 +429,9 @@ namespace StochHMM{
   //! \param seqs Sequences the model is analyzing
   //! \param iter Position in the sequence
   double state::get_emission_prob(sequences &seqs, size_t iter){
-    double value(emission[0]->get_emission(seqs,iter));
-    for(size_t i=1;i<emission.size();i++){
-      value+=emission[i]->get_emission(seqs,iter);  //Pass sequences type to get_emission for each emission in the state
+    double value(emissions[0]->get_emission(seqs,iter));
+    for(size_t i=1;i<emissions.size();i++){
+      value+=emissions[i]->get_emission(seqs,iter);  //Pass sequences type to get_emission for each emission in the state
     }
     return value;
   }
@@ -559,8 +559,8 @@ namespace StochHMM{
         
         
   bool state::hasComplexEmission(){
-    for(size_t i=0; i < emission.size() ; ++i){
-      if (emission[i]->isComplex()){
+    for(size_t i=0; i < emissions.size() ; ++i){
+      if (emissions[i]->isComplex()){
 	return true;
       }
     }

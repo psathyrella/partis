@@ -106,7 +106,7 @@ namespace StochHMM{
     //!Get the emission defined at index
     //!\param iter Index of emm to get
     //!\results emm* pointer to emission
-    inline emm* getEmission(size_t iter){return emission[iter];};
+    inline emm* getEmission(size_t iter){return emissions[iter];};
                 
     double get_emission_prob(sequences& seqs, size_t iter);  //get emission for given (position)
     double get_transition_prob(sequences& seqs, size_t to, size_t iter);  //get transition  (position,from or too)
@@ -128,7 +128,7 @@ namespace StochHMM{
                 
     //!Add emission to the state
     //!\param em Pointer to the emission to be added
-    inline void addEmission(emm* em){emission.push_back(em);};
+    inline void addEmission(emm* em){emissions.push_back(em);};
                 
     //!Set the name of the state
     //!\param txt Name of the state
@@ -170,7 +170,7 @@ namespace StochHMM{
     transition* endi;
                 
     // Track Emissions //
-    std::vector<emm*> emission;
+    std::vector<emm*> emissions;
                 
                 
     //Linking State Information (These are assigned at model finalization)
@@ -180,7 +180,7 @@ namespace StochHMM{
                 
     bool _parseHeader(std::string&);
     bool _parseTransition(std::string&,stringList&, tracks&, weights* , StateFuncs*);
-    bool _parseEmission(std::string&,stringList&, tracks&, weights*, StateFuncs*);
+    bool _parseEmissions(std::string&,stringList&, tracks&, weights*, StateFuncs*);
   };
         
 }

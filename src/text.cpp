@@ -49,8 +49,8 @@ namespace StochHMM{
   //! Searches for the string and returns bool if found or not
   //! \param txt String to search stringList
   bool stringList::contains(const std::string& txt){
-    for (size_t i=0;i<line.size();i++){
-      if (line[i].find(txt) != std::string::npos){
+    for (size_t i=0;i<lines.size();i++){
+      if (lines[i].find(txt) != std::string::npos){
 	return true;
       }
     }
@@ -58,8 +58,8 @@ namespace StochHMM{
   }
         
   bool stringList::containsExact(const std::string& txt){
-    for (size_t i=0;i<line.size();i++){
-      if (line[i].compare(txt) == 0){
+    for (size_t i=0;i<lines.size();i++){
+      if (lines[i].compare(txt) == 0){
 	return true;
       }
     }
@@ -69,8 +69,8 @@ namespace StochHMM{
   //! Searches the stringList for matching string and returns the index position of first match
   //! \param txt String to search stringList for
   size_t stringList::indexOf(const std::string&txt) {
-    for (size_t i=0;i<line.size();i++){
-      if (line[i].find(txt) != std::string::npos){
+    for (size_t i=0;i<lines.size();i++){
+      if (lines[i].find(txt) != std::string::npos){
 	return i;
       }
     }
@@ -81,8 +81,8 @@ namespace StochHMM{
   //! \param txt String to search stringList for
   //! \param pos Position to start search from
   size_t stringList::indexOf(const std::string&txt,size_t pos){
-    for (size_t i=pos;i<line.size();i++){
-      if (line[i].find(txt) != std::string::npos){
+    for (size_t i=pos;i<lines.size();i++){
+      if (lines[i].find(txt) != std::string::npos){
 	return i;
       }
     }
@@ -92,7 +92,7 @@ namespace StochHMM{
   //! Removes Comments, Removes Whitespace, and splits the string
   //! Whitespace and Split delimiters are required to be previously set in stringList
   void stringList::processString(std::string& txt){
-    line.clear();
+    lines.clear();
     comment.clear();
         
     //Extract Comments
@@ -108,14 +108,13 @@ namespace StochHMM{
     return;
   }
     
-  //! Split string using delimiter
-  //! Splits the string up according to character delimiters defined in stringList.
-  //! The char delimiters are deleted from the returned value.  Delimiters allows you supply multiple
-  //! delimiters in a single string.
+  //! Split string <txt> using member <delimiters> and store in member <lines>.
+  //! The char delimiters are deleted from the returned value. <delimiters> contains
+  //! one or more delimiters in a single string.
   //! \param txt String to be split
   void stringList::splitString(const std::string& txt){
         
-    line.clear();
+    lines.clear();
     comment.clear();
         
     size_t found  = SIZE_MAX;
@@ -128,7 +127,7 @@ namespace StochHMM{
       std::string st=txt.substr(initial,found-initial);
             
       if (st.size()>0){
-	line.push_back(st);
+	lines.push_back(st);
       }
             
     } while (found!=std::string::npos);
@@ -150,7 +149,7 @@ namespace StochHMM{
     
   void stringList::splitString(const std::string& txt,size_t charSize){
     for(size_t i=0;i<txt.size();i+=charSize){
-      line.push_back(txt.substr(i,charSize));
+      lines.push_back(txt.substr(i,charSize));
     }
     return;
   }
@@ -161,7 +160,7 @@ namespace StochHMM{
   //! \param txt  String to be split
   //! \param del  Delimiter string to use to split
   void stringList::splitND(const std::string& txt,const std::string& del){
-    line.clear();
+    lines.clear();
     comment.clear();
     size_t initial=txt.find(del);
         
@@ -170,7 +169,7 @@ namespace StochHMM{
       std::string st=txt.substr(initial,found-initial);
       initial=found;
       if (st.size()>0){
-	line.push_back(st);
+	lines.push_back(st);
       }
             
     } while (initial!=std::string::npos);
@@ -262,7 +261,7 @@ namespace StochHMM{
   //! Remove whitespace characters '\t' and then splits string by delimiters ':' or '\n'
   //! \param txt String to be split
   bool stringList::fromAlpha(const std::string& txt,size_t alpha){
-    line.clear();
+    lines.clear();
     comment.clear();
                 
     if (foundAlphaDelimiter(txt)){
@@ -344,12 +343,12 @@ namespace StochHMM{
     
     
   std::string stringList::pop_ith(size_t pos){
-    if (pos>=line.size()){
+    if (pos>=lines.size()){
       return "";
     }
         
-    std::string temp=line[pos];
-    line.erase(line.begin()+pos);
+    std::string temp=lines[pos];
+    lines.erase(lines.begin()+pos);  // erase the <pos>th element of the (member) vector <lines>
     return temp;
   }
     
@@ -357,11 +356,11 @@ namespace StochHMM{
   //! Returns the values in the stringList as std::vector of doubles
   std::vector<double> stringList::toVecDouble(){
     std::vector<double> temp;
-    for(size_t iter=0;iter<line.size();iter++){
+    for(size_t iter=0;iter<lines.size();iter++){
             
       double val;
             
-      stringToDouble(line[iter], val);
+      stringToDouble(lines[iter], val);
       temp.push_back(val);
     }
     return temp;
@@ -370,12 +369,12 @@ namespace StochHMM{
   //! Returns the values in the stringList as std::vector of integers
   void stringList::toVecInt(std::vector<int>& ret_val){
         
-    for(size_t iter=0;iter<line.size();iter++){
+    for(size_t iter=0;iter<lines.size();iter++){
             
       int val(0);
             
-      if (!stringToInt(line[iter], val)){
-	std::cerr << "Couldn't convert " << line[iter] << " to an integer\n";
+      if (!stringToInt(lines[iter], val)){
+	std::cerr << "Couldn't convert " << lines[iter] << " to an integer\n";
       }
       else{
 	ret_val.push_back(val);
@@ -388,10 +387,10 @@ namespace StochHMM{
 
     
     
-  //! Print each line to stdout
+  //! Print each lines to stdout
   void stringList::print(){
-    for(size_t i=0;i<line.size();i++){
-      std::cout << line[i] << std::endl;
+    for(size_t i=0;i<lines.size();i++){
+      std::cout << lines[i] << std::endl;
     }
     std::cout << "#" << comment << std::endl;
   }
@@ -400,7 +399,7 @@ namespace StochHMM{
   //! Joins the stringList into string using "\t" and return string
   //! \return string of stringList joined by "\\t"
   std::string stringList::stringify(){
-    std::string output=join(line,'\t');
+    std::string output=join(lines,'\t');
     if (comment.size()>0){
       output+="#"+ comment;
     }
@@ -412,8 +411,8 @@ namespace StochHMM{
   //!Parses out the comments and stores the comment delimited by "#" 
   //!Comment can be accessed by command getComment();
   void stringList::removeComments(){
-    for(size_t iter=0;iter<line.size();iter++){
-      comment+=parseComment(line[iter], '#');
+    for(size_t iter=0;iter<lines.size();iter++){
+      comment+=parseComment(lines[iter], '#');
     }
   }
     
@@ -711,16 +710,17 @@ namespace StochHMM{
     
     
   //! Splits a line into a vector of string using delimiters ' \",[space]\\n\\t'
-  //! \param line vector of strings to split input into
+  //! \param line_list vector of strings to split input into
   //! \param input String to be split using delimiters ' \",[space]\\n\\t'
-  void split_line(std::vector<std::string> &line,std::string &input){
-        
-    //split line accoring to delimiters;
+  void split_line(std::vector<std::string> &line_list,std::string &input){
+    // NOTE does not push back to member variable <lines>
+
+    //split line_list accoring to delimiters;
     size_t found=input.find_first_of("\", \n\t");
     while(found!=std::string::npos){
       if (found>0){
-	line.push_back(input.substr(0,found));
-	//cout << line.back() << endl;
+	line_list.push_back(input.substr(0,found));
+	//cout << line_list.back() << endl;
 	input=input.substr(found+1);
 	//cout << input << endl;
       }
@@ -732,7 +732,7 @@ namespace StochHMM{
       //cout <<input <<endl;
     }
     if (input.size()>0){
-      line.push_back(input);
+      line_list.push_back(input);
     }
     return;
   }

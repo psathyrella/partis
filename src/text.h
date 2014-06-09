@@ -83,7 +83,7 @@ namespace StochHMM{
     void removeComments();
         
     //! Clears all values from the stringList, including comments, whitespace, and delimiters
-    inline void clear(){line.clear();comment.clear();whitespace.clear();delimiters.clear();};
+    inline void clear(){lines.clear();comment.clear();whitespace.clear();delimiters.clear();};
         
     bool fromTable(std::string&);
     bool fromTable(std::istream&);
@@ -100,22 +100,22 @@ namespace StochHMM{
         
     //! Add string to StringList
     //! \param txt String to add to the stringList
-    inline void operator<< (std::string& txt){line.push_back(txt);};
+    inline void operator<< (std::string& txt){lines.push_back(txt);};
         
     //! Add string to StringList
     //! \param txt String to add to the stringList
-    inline void push_back  (std::string& txt){line.push_back(txt);};
+    inline void push_back  (std::string& txt){lines.push_back(txt);};
         
-    std::string pop_ith(size_t);
+    std::string pop_ith(size_t);  // erase the <pos>th 
         
     //! Copy StringList
     //! \param lst stringList to copy
-    inline void operator= (stringList& lst){line=lst.line; comment=lst.comment; whitespace=lst.whitespace; delimiters=lst.delimiters;};
+    inline void operator= (stringList& lst){lines=lst.lines; comment=lst.comment; whitespace=lst.whitespace; delimiters=lst.delimiters;};
         
     //ACCESSORS
     //! Access string at iterator 
     //! \param iter Position to return;
-    inline std::string& operator[](size_t iter){return line[iter];};
+    inline std::string& operator[](size_t iter){return lines[iter];};
         
     //! Return any comments parsed from the line
     inline std::string& getComment(){return comment;};
@@ -134,14 +134,14 @@ namespace StochHMM{
     std::string stringify();
         
     //! Return the amount of strings in the stringList 
-    inline size_t size(){return line.size();};
+    inline size_t size(){return lines.size();};
     
         
   private:
     void _splitIndividual(std::string&, size_t);
     bool foundAlphaDelimiter(const std::string&);
         
-    std::vector<std::string> line;
+    std::vector<std::string> lines;
     std::string comment;
         
     bool removeWS;

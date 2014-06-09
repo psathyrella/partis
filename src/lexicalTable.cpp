@@ -945,8 +945,8 @@ namespace StochHMM{
     //Transfer values to emission_table
     std::vector<bool> transferred (array_size,false);
     transferValues(transferred);
+
+    
+    
   }
-        
-    
-    
 }
