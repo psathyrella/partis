@@ -427,15 +427,14 @@ namespace StochHMM{
         
   //! Get the emission value from a state at a particular position in the sequence
   //! \param seqs Sequences the model is analyzing
-  //! \param iter Position in the sequence
+  //! \param iter Position in the sequences
   double state::get_emission_prob(sequences &seqs, size_t iter){
     double value(emissions[0]->get_emission(seqs,iter));
     for(size_t i=1;i<emissions.size();i++){
-      value+=emissions[i]->get_emission(seqs,iter);  //Pass sequences type to get_emission for each emission in the state
+      value += emissions[i]->get_emission(seqs,iter);  // add up the log probabilities for each emission in this state
     }
     return value;
   }
-    
     
   //! Get the transition value from a state at a particular position in the sequence
   //! \param seqs Sequences the model is analyzing

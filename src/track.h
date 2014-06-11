@@ -230,6 +230,8 @@ namespace StochHMM{
         
     std::string convertIndexToWord(size_t,size_t);
     void convertIndexToDigital(size_t,size_t,uint8_t*);
+    size_t convertAlphaWordToIndex(std::string);
+    size_t convertDigiWordToIndex(std::vector<uint8_t>);
                 
         
     //!Check if the TrackFunction is defined for this track

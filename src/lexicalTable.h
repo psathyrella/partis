@@ -112,6 +112,7 @@ namespace StochHMM{
                 
     size_t number_of_tracks;
     std::vector<track*> trcks;  //Pointer to tracks of interest
+    // NOTE it seems we could use track::getAlphaSize instead of keeping a separate vector
     std::vector<uint8_t> alphabets;  //alphabet sizes for each emission
     std::vector<uint8_t> max_unambiguous;
     std::vector<uint8_t> order;  //Orders for each emission
@@ -140,6 +141,18 @@ namespace StochHMM{
     std::vector<double>* log_emission;  // linearized version of logProb, i.e. (*log_emission)[index] = (*logProb)[row][column]
     std::vector<std::vector<double>* > low_order_emissions;
     std::vector<std::vector<std::pair<size_t,size_t>* > >low_order_info;
+
+    // ----------------------------------------------------------------------------------------
+    // n-dimensional matrix of pointers to n-dimensional matrices (where n = number of tracks). Each pointer leads to the emission
+    // log probability matrix for a given set of words. For instance an emission with two tracks (say, ACGT and 01), both second order, is represented as
+    //                           A C G T
+    // matrix_ptrs[AC][10] --> 0     x     Where x is the log prob of emitting a G and a 0 when the preceding words are AC and 10.
+    //                         1
+    // The size of each dimension on the left will be (alphabet size)^(order).
+    // NOTE for the moment I limit to *two* dimensions (tracks), since there doesn't seem to exist a good library for n-dim matrices with n unknown until runtime
+    Eigen::Matrix<Eigen::MatrixXd*, Eigen::Dynamic, Eigen::Dynamic> matrix_ptrs;
+    
+    // ----------------------------------------------------------------------------------------
                 
     void init_table_dimension_values();
     void init_array_dimension_values();

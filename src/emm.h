@@ -115,7 +115,7 @@ namespace StochHMM{
     bool multi_continuous;
     bool complement;
                 
-    track* realTrack;
+    track* realTrack; // pointer to the real track. Only used for real number and continuous emissions
                 
     //Lexical Scoring Tables
     lexicalTable scores;

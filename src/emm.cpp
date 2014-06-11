@@ -136,16 +136,15 @@ namespace StochHMM{
         
 
     // ----------------------------------------------------------------------------------------
-    // remaining tracks and Orders then set Track
+    // WHAT? remaining tracks and Orders then set Track
     // ----------------------------------------------------------------------------------------
-    std::vector<track*> tempTracks;
-    for(size_t i=1;i<typeBegin;i++){
+    std::vector<track*> tempTracks;  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
+    for(size_t i=1; i<typeBegin; i++){  // loop over the words in <line> from 1 to the start of the <valtype> specification (i.e. over what should be a list of all tracks for this emission)
       track* tk = trks.getTrack(line[i]);
-      if (tk==NULL){
+      if (tk==NULL) {
 	std::cerr << "Emissions tried to add a track named: " << line[i] << " . However, there isn't a matching track in the model.  Please check to model formatting.\n";
 	return false;
-      }
-      else{
+      } else {
 	tempTracks.push_back(tk);
       }
     }
@@ -156,10 +155,9 @@ namespace StochHMM{
 	return false;
       }
             
-      realTrack = tempTracks[0];
+      realTrack = tempTracks[0];  // NOTE real track is assumed to be the first one listed
       return true;
-    }
-    else if (multi_continuous){  // Multivariate Continuous PDF emission
+    } else if (multi_continuous) {  // Multivariate Continuous PDF emission
       if (tempTracks.size()==1){
 	std::cerr << "Only a single track listed under MULTI_CONTINUOUS\n\
                                 Use CONTINUOUS instead of MULTI-CONTINUOUS\n";
@@ -168,7 +166,7 @@ namespace StochHMM{
                         
       //Assign track information
       track_indices = new std::vector<size_t>;
-      trcks = new std::vector<track*> (tempTracks);
+      trcks = new std::vector<track*> (tempTracks);  // WARNING this is <trcks> with a 'c', *not* <trks>
       number_of_tracks = trcks->size();
       pass_values = new std::vector<double> (number_of_tracks,-INFINITY);
       for(size_t i = 0; i < number_of_tracks ; ++i){
@@ -197,15 +195,14 @@ namespace StochHMM{
                         
       return true;
                         
-    }
-    else if (continuous){  // continuous pdfs
+    } else if (continuous) {  // continuous pdfs
       if (tempTracks.size()>1){
 	std::cerr << "Multiple tracks listed under CONTINUOUS Track Emission Definition\n\
                                 Must use MULTI_CONTINUOUS for multivariate emissions\n";
 	return false;
       }
             
-      realTrack = tempTracks[0];
+      realTrack = tempTracks[0];  // NOTE real track is assumed to be the first one listed
                         
       idx = lines.indexOf("PDF");
       line.splitString(lines[idx],"\t:, ");
@@ -228,8 +225,7 @@ namespace StochHMM{
       pdf = funcs->getPDFFunction(pdfName);
             
       return true;
-    }
-    else if (function){
+    } else if (function) {
       //Get function name
       std::string& functionName = line[typeBegin+1];
                         
@@ -242,10 +238,9 @@ namespace StochHMM{
       }
             
       return true;
-    }
-    else{  // Traditional Lexical Emission
+    } else {  // Traditional Lexical Emission
       if (lines.contains("ORDER")){
-	idx=lines.indexOf("ORDER");
+	idx = lines.indexOf("ORDER");
       }
       else{
 	std::cerr << "Couldn't find ORDER in non-Real_Number emission.  Please check the formatting" << std::endl;
@@ -282,12 +277,11 @@ namespace StochHMM{
 	tempOrder.push_back(tempValue);
       }
             
-      if (tempOrder.size() == tempTracks.size()){
+      if (tempOrder.size() == tempTracks.size()) { // make sure that there was an order specified for each track in this emmission
 	for(size_t i=0;i<tempOrder.size();i++){
 	  scores.addTrack(tempTracks[i], tempOrder[i]);
 	}
-      }
-      else{
+      } else {
 	std::cerr << "Different number of tracks and orders parsed in Emission: " << txt << " Check the formatting of the Emission" << std::endl;
 	return false;
       }
@@ -665,8 +659,6 @@ namespace StochHMM{
     return true;
   }
 
-
-    
   //!Calculate the emission value given a position in the sequence
   //!If emission is a real number it will return the value from the real number track
   //!If emission is a sequence then it will get the value and return it
@@ -674,55 +666,37 @@ namespace StochHMM{
   //!\param iter Position within the sequences
   //!\return double log(prob) value of emission
   double emm::get_emission(sequences& seqs,size_t pos){
-    for (size_t ipos=0; ipos<6; ++ipos) {
-      double score = scores.getValue(seqs, ipos);
-      std::cout << "----- " << score << std::endl;
-    }
-    exit(2);
     double final_emission(-INFINITY);
-        
     if (real_number){
-            
-      final_emission=seqs.realValue(realTrack->getIndex(),pos);
+      final_emission = seqs.realValue(realTrack->getIndex(), pos);
       if (complement){
-	final_emission=log(1-exp(final_emission));
+	final_emission = log(1-exp(final_emission));
       }
-    }
-    else if (function){
-      final_emission=lexFunc->evaluate(seqs, pos);
-    }
-    else if (multi_continuous){
-      //Get all values from the tracks
-      for (size_t i = 0; i < number_of_tracks ; ++i){
+    } else if (function){
+      final_emission = lexFunc->evaluate(seqs, pos);
+    } else if (multi_continuous){
+      for (size_t i = 0; i < number_of_tracks; ++i){  // fill <pass_values> with the real values for each seq at this position
 	(*pass_values)[i] = seqs.realValue((*track_indices)[i], pos);
       }
-                        
-      final_emission = (*multiPdf)(pass_values, dist_parameters);
-                        
+      final_emission = (*multiPdf)(pass_values, dist_parameters);  // then pass the values to the multidimensional pdf
       if (complement){
-	final_emission=log(1-exp(final_emission));
+	final_emission = log(1-exp(final_emission));
       }
-    }
-    else if (continuous){
-                        
-      final_emission = (*pdf)(seqs.realValue(realTrack->getIndex(),pos),dist_parameters);
-                        
+    } else if (continuous){
+      final_emission = (*pdf)(seqs.realValue(realTrack->getIndex(), pos), dist_parameters);
       if (complement){
-	final_emission=log(1-exp(final_emission));
+	final_emission = log(1-exp(final_emission));
       }
-    }
-    else{
-      final_emission=scores.getValue(seqs, pos);
+    } else{
+      final_emission = scores.getValue(seqs, pos);
     }
         
-        
-    if (tagFunc!=NULL){
-      final_emission+=tagFunc->evaluate(seqs, pos);
+    if (tagFunc!=NULL){  // apply external function weighting (may not be implemented)
+      final_emission += tagFunc->evaluate(seqs, pos);
     }
         
     return final_emission;
   }
-        
         
   //!Calculate the emission value given a position in the sequence
   //!If emission is a real number it will return the value from the real number track
@@ -730,20 +704,16 @@ namespace StochHMM{
   //!\param seqs  Sequences to use
   //!\param iter Position within the sequences
   //!\return double log(prob) value of emission
-  double emm::get_emission(sequence& seq,size_t pos){
-    double final_emission;
-        
+  double emm::get_emission(sequence& seq, size_t pos){
+    double final_emission(-INFINITY);
     if (real_number){
-            
-      final_emission=seq.realValue(pos);
+      final_emission = seq.realValue(pos);
       if (complement){
-	final_emission=log(1-exp(final_emission));
+	final_emission = log(1-exp(final_emission));
       }
-    }
-    else if (function){
-      final_emission=lexFunc->evaluate(seq, pos);
-    }
-    else if (multi_continuous){
+    } else if (function){
+      final_emission = lexFunc->evaluate(seq, pos);
+    } else if (multi_continuous){
       //Get all values from the tracks
       for (size_t i = 0; i < number_of_tracks ; ++i){
 	(*pass_values)[i] = seq.realValue(pos);
@@ -752,30 +722,24 @@ namespace StochHMM{
       final_emission = (*multiPdf)(pass_values, dist_parameters);
                         
       if (complement){
-	final_emission=log(1-exp(final_emission));
+	final_emission = log(1-exp(final_emission));
       }
-    }
-    else if (continuous){
-                        
-      final_emission = (*pdf)(seq.realValue(pos),dist_parameters);
+    } else if (continuous){
+      final_emission = (*pdf)(seq.realValue(pos), dist_parameters);
                         
       if (complement){
-	final_emission=log(1-exp(final_emission));
+	final_emission = log(1-exp(final_emission));
       }
-    }
-    else{
-      final_emission=scores.getValue(seq, pos);
+    } else{  // simple lexical emission
+      final_emission = scores.getValue(seq, pos);
     }
         
-        
-    if (tagFunc!=NULL){
-      final_emission+=tagFunc->evaluate(seq, pos);
+    if (tagFunc!=NULL){  // apply external function weighting (may not be implemented)
+      final_emission += tagFunc->evaluate(seq, pos);
     }
         
     return final_emission;
   }
-
-    
     
   //!Is the emission from a real Number track
   //!\return true if track is real number track

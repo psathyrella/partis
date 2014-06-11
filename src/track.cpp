@@ -263,7 +263,7 @@ namespace StochHMM{
 	return defaultAmbiguous;
       }
       else{
-	std::cerr << "Encountered an ambiguous character in the sequence.  No ambiguous characters are allowed because they weren't set in the model.   To allow ambiguous characters, please add an \" Ambiguous Character Definition\" to the model" << std::endl;
+	std::cerr << "Encountered an ambiguous character (" << symbol << ") in the sequence.  No ambiguous characters are allowed because they weren't set in the model.   To allow ambiguous characters, please add an \" Ambiguous Character Definition\" to the model" << std::endl;
 	exit(1);
       }
     }
@@ -293,7 +293,7 @@ namespace StochHMM{
 	return defaultAmbiguous;
       }
       else{
-	std::cerr << "Encountered an ambiguous character in the sequence.  No ambiguous characters are allowed because they weren't set in the model.   To allow ambiguous characters, please add an \" Ambiguous Character Definition\" to the model" << std::endl;
+	std::cerr << "Encountered an ambiguous character (" << symbol << ") in the sequence.  No ambiguous characters are allowed because they weren't set in the model.   To allow ambiguous characters, please add an \" Ambiguous Character Definition\" to the model" << std::endl;
 	exit(1);
       }
     }
@@ -448,7 +448,33 @@ namespace StochHMM{
     return;
   }
     
-    
+
+  //! \param word String representation of a subsequence
+  //! \return unrolled index of this word
+  size_t track::convertAlphaWordToIndex(std::string word) {
+    size_t index(0);
+    uint64_t exponent(0);
+    uint64_t base(getAlphaSize());
+    for (int ichar=(int)word.size()-1; ichar>=0; --ichar) {
+      index += POWER[exponent][base-1] * symbolIndex(word[ichar]);  // POWER[b][a-1] = a**b
+      exponent++;
+    }
+    return index;
+  }
+
+  //! \param word String representation of a subsequence
+  //! \return unrolled index of this word
+  size_t track::convertDigiWordToIndex(std::vector<uint8_t> word) {
+    size_t index(0);
+    uint64_t exponent(0);
+    uint64_t base(getAlphaSize());
+    for (int ichar=(int)word.size()-1; ichar>=0; --ichar) {
+      index += POWER[exponent][base-1] * word[ichar];  // POWER[b][a-1] = a**b
+      exponent++;
+    }
+    return index;
+  }
+
   //FIXME: Change return value so only returns true if parse is OK
   //! Parse the ambiguous character definitions from model file
   //! \param txt String representation of ambiguous character definition as in model file

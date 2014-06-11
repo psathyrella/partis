@@ -180,7 +180,8 @@ namespace StochHMM{
     void shuffle();
                 
     inline std::vector<uint8_t>* getDigitalSeq(){return seq;}
-        
+    std::vector<uint8_t> getDigitalSubSeq(size_t istart, size_t istop);
+    
     inline uint8_t operator[](size_t index){return (*seq)[index];}
                 
     inline bool isRealSeq(){

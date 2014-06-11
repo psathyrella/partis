@@ -36,6 +36,13 @@ namespace StochHMM{
     delete log_emission;
     delete x_subarray;
     delete y_subarray;
+
+    assert(0);  // don't forget to delete all that new stuff you added, dude
+    // also TODO:
+    //    - two seqs on *different* emissions
+    //    - two seqs on same track (?)
+    //    - write print function for new matrices
+    //    - implement reduced order
         
     logProb=NULL;
     prob=NULL;
@@ -108,54 +115,65 @@ namespace StochHMM{
         
     return logProb;
   }
+
+  //! \return indices we need to average over (when pos < order)
+  vector<size_t> lexicalTable::getIndicesToAverage(sequence seq, size_t order, size_t pos, std::vector<uint8_t> pre_word) {
+    // build all possible words which end in <pre_word>
+    // eg if <pre_word> is CT and this is a third order track, we want [ACT, CCT, GCT, TCT]
+    // To do this construct a vector<vector> with all the posibilities for *individual* positions:
+    //    0 1 2 3
+    // 0  A C G T
+    // 1  C
+    // 2  T
+    // Then loop over this vector<vector> to push back all possibilities
+    vector<vector<size_t> > tmp_no_name_vector;  // no, I don't know what to fuckin call it
+    for (size_t iter=0; iter<order; ++it) {
+      tmp_no_name_vector.push_back(vector<size_t>());
+      if (iter < order-pos) {  // push back all the characters in the alphabet -- we need to average over all possible ones
+	for (size_t ichar=0; ichar<seq->track()->getAlphaSize(); ++ichar)
+	  tmp_no_name_vector[iter].push_back(ichar);
+      } else {  // just push back the actual sequence character
+	tmp_no_name_vector[iter].push_back(pre_word[iter-order+pos]);
+      }
+    }
+
+    for (size_t ipos=0; ipos<tmp_no_name_vector.size(); ++ipos) {
+      for (size_t ichar=0; ichar<tmp_no_name_vector[ipos].size(); ++ichar) {
+	std::cout << " " << tmp_no_name_vector[ipos][ichar];
+      }
+      std::cout << "" << std::endl;
+    }
+    return 
+  }
     
-  //Return emission probability of sequences
+  //! \return log emission probability
   double lexicalTable::getValue(sequences& seqs, size_t pos){
-    if (max_order>pos){
-      return getReducedOrder(seqs, pos);
+    assert(seqs.size() == trcks.size());
+    assert(pos <= seqs[0].size());  // could also make sure seqs are all the same length. And that seqs are in the order that we expect based on <trcks>
+    std::vector<std::vector<size_t> > iwords;  // indices of the words for each sequence (second dimension is for all the ones we have to average over when pos < order[iseq])
+    std::vector<std::vector<size_t> > iemissions;  // indices of the emissions for each sequence
+    for (size_t iseq=0; iseq<seqs.size(); ++iseq) {
+      assert(seqs[iseq].getTrack() == trcks[iseq]);
+      std::vector<size_t> tmp_words;
+      std::vector<size_t> tmp_emissions;
+      std::vector<uint8_t> pre_word = seqs[iseq].getDigitalSubSeq(max(pos-order[iseq], 0), pos);  // the preceding word, i.e. the part of the sequence on which this emission depends
+      if (pre_word.size() < order[iseq]) {  // still near the start of the sequence
+	assert(pos-order[iseq] < 0);  // don't need this check
+	
+	
+	// wait, wait -- average the probs, or the log probs?
+      size_t matrix_index = trcks[iseq]->convertDigiWordToIndex(pre_word);  // index of the matrix we want in matrix_ptrs
+
+      
+      iwords.push_back(matrix_index);
+      iemissions.push_back(seqs[iseq][pos]);
     }
-                
-    // for seqs[iseq][ipos],  <index> is the emission at ipos in the iseq^th sequence (translated from character/word to uint8_t)
-    //
-    // SO! maybe I get now
-    //   <seqs> is assumed to be a list of sequences in the case that we have *joint* emission of multiple sequences, to *different* tracks, from the
-    //   *same* state. So the way we specified the emission probs in the .hmm file was as an 'unrolled' line, e.g. for two tracks ACGT and TF (true/false)
-    //        @AT AF CT CF GT GF TT TF
-    //         x  x  x  x  x  x  x  x
-    //   Then when we pass in two seqs like so: [GCTTCGA, FFTFFTF] and want the emission at the zeroth position, the index of [G, F] in the log lookup
-    //   table
-    //
-    //   seqs[subarray_sequence[0]] [pos - subarray_position[0]] * subarray_value[0]
-    //   seqs[                    ] [                          ] * (               )
-    //
-    //   hrg. maybe not. in point of fact, I can't figure out if this is broken or not.
-    size_t index(seqs[subarray_sequence[0]][pos - subarray_position[0]] * subarray_value[0]);
-    // subarray_value has to do with ambiguous character decomposition
-    // no fuckin idea why we multiply by it, though
-    std::cout << "subarray_sequence[0] " << subarray_sequence[0] << std::endl;
-    std::cout << "pos " << pos<< std::endl;
-    std::cout << "subarray_position[0] " << subarray_position[0] << std::endl;
-    std::cout << "subarray_value[0] " << subarray_value[0] << std::endl;
-    std::cout << "seqs[subarray_sequence[0]] " << seqs[subarray_sequence[0]].undigitize() << std::endl;
-    std::cout << "pos - subarray_position[0] " << (pos - subarray_position[0]) << std::endl;
-    std::cout << "  index: " << index << std::endl;
-                
-    for(size_t i=1;i<dimensions;i++){
-      index += seqs[subarray_sequence[i]][pos - subarray_position[i]] * subarray_value[i];
-    }
-    std::cout << "   --> " << index << std::endl;
-                
-    if (index > array_size){
-      std::cerr << "Index " << index << " is out of range (" << array_size << ") of lookup table in lexicalTable" << std::endl;
-      for (size_t ip=0; ip<array_size; ++ip) std::cout << ip << "  " << exp((*log_emission)[ip]) << std::endl;
-      exit(2);
-    }
-    // reminder: log_emission stores the log prob for each emission
-    return (*log_emission)[index];
+    return (*matrix_ptrs(iwords[0], iwords[1]))(iemissions[0], iemissions[1]);
   }
         
   //Return emission probability of sequences
   double lexicalTable::getValue(sequence& seq, size_t pos){
+    assert(0); // not implemented with new matrix scheme
         
     if (max_order>pos){
       return getReducedOrder(seq, pos);
@@ -919,7 +937,7 @@ namespace StochHMM{
                 
     return;
   }
-        
+
   //Todo
   //Convert table to simpleNtable compatible format
   //with ambiguous characters
@@ -946,7 +964,55 @@ namespace StochHMM{
     std::vector<bool> transferred (array_size,false);
     transferValues(transferred);
 
-    
-    
+    // ----------------------------------------------------------------------------------------
+    assert(number_of_tracks == trcks.size());  // not sure why we need both of these
+    assert(number_of_tracks == 1 || number_of_tracks == 2);  // for the moment I limit to *two* dimensions (tracks), since there doesn't seem to exist a good library for n-dim matrices with n unknown until runtime
+    size_t n_rows = pow(alphabets[0], order[0]);
+    size_t n_columns = 1;
+    if (number_of_tracks == 2)
+      n_columns = POWER[order[1]][alphabets[1]-1];
+    assert(n_rows*n_columns == (*logProb).size());  // number or entries in matrix_ptrs should equal the number of rows in logProb
+    matrix_ptrs.resize(n_rows, n_columns);
+    std::cout << "init matrix with " << matrix_ptrs.rows() << " rows and " << matrix_ptrs.cols() << " columns" << std::endl;
+    for (size_t ir=0; ir<matrix_ptrs.rows(); ++ir) {  // loop over words (of length <order>) on track 1
+      std::string track_1_word = trcks[0]->convertIndexToWord(ir, order[0]);
+      assert(trcks[0]->convertAlphaWordToIndex(track_1_word) == ir);  // double check for closure
+      for (size_t ic=0; ic<matrix_ptrs.cols(); ++ic) {  // loop over words on track 2
+	std::string track_2_word = trcks[1]->convertIndexToWord(ic, order[1]);
+	assert(trcks[1]->convertAlphaWordToIndex(track_2_word) == ic);  // double check for closure
+	
+	matrix_ptrs(ir,ic) = new Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+	matrix_ptrs(ir,ic)->resize(alphabets[0], (number_of_tracks==1) ? 1 : alphabets[1]);
+	for (size_t isubrow=0; isubrow<matrix_ptrs(ir,ic)->rows(); ++isubrow) {  // loop over track 1 emissions for this word
+	  for (size_t isubcol=0; isubcol<matrix_ptrs(ir,ic)->cols(); ++isubcol) {  // loop over track 2 emissions for this word
+	    // ir: track 1 word, ic: track2 word, isubrow: track 1 emission, isubcol: track 2 emission
+	    // now convert from our four-index set to the indces in the 2d matrix logProb, eg for two tracks [HT] [01], both second order
+	    //     00 01 10 11
+	    //  HH                                                              0 1
+	    //  HT                                                           H
+	    //  TH    x          --> x is a pointer to the log probs here:   T
+	    //  TT
+	    //
+	    // whereas logProb represents this as
+	    //   emission: H0 H1 T0 T1
+	    //  word:
+	    //    HH,00
+	    //    HH,01
+	    //    HH,10
+	    //    HH,11
+	    //    HT,00
+	    //    ...
+	    // index of this word in track 2 (ic), plus the number of times we had to cycle through all words in track 1 (ir) to get here, times the number of possible track 1 words (matrix_ptrs.cols())
+	    size_t logProb_row = ic + ir*matrix_ptrs.cols();
+	    // index of this character (emission) in track 2 (isubcol), plus the number of times we had to cycle through all characters in track 1 (isubrow) to get here, times the size of the track 1 alphabet (matrix_ptrs(ir,ic)->cols())
+	    size_t logProb_col = isubcol + isubrow*matrix_ptrs(ir,ic)->cols();
+	    (*matrix_ptrs(ir,ic))(isubrow, isubcol) = (*logProb)[logProb_row][logProb_col];
+	    // NOTE perhaps I should just use logProb? it would effectively just move this index manipulation from here up to lexicalTable::getValue
+	    // hmm. I like it like this. Probably just move this code to the place where the text file gets parsed
+	  }
+	}
+      }
+    }
+    print();
   }
 }

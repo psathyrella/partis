@@ -1045,7 +1045,14 @@ namespace StochHMM{
     return;
   }
         
-        
+  //! \return subsequence from (and including) istart to (but excluding) istop
+  std::vector<uint8_t> sequence::getDigitalSubSeq(size_t istart, size_t istop) {
+    std::vector<uint8_t> subseq;
+    for (std::vector<uint8_t>::iterator it = seq->begin()+istart; it != seq->begin()+istop; ++it)
+      subseq.push_back(*it);
+    return subseq;
+  }
+
   //Randomly generate a sequence based on Probabilities of each character
   sequence random_sequence(std::vector<double>& freq, size_t length, track* tr){
     sequence random_seq;
