@@ -33,6 +33,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cassert>
 #include "text.h"
 #include "stochTypes.h"
 #include "userFunctions.h"
@@ -193,6 +194,8 @@ namespace StochHMM{
                 
     std::string getComplementSymbol(std::string& character);
     std::string getComplementSymbol(uint8_t value);
+
+    size_t get_n_seqs() { return n_seqs; };
         
     inline bool isComplementDefined(){return complementSet;}
         
@@ -252,6 +255,7 @@ namespace StochHMM{
     std::string name;       /* Track Name */
     std::string description;        /* Track Desc */
     size_t trackIndex;     /*track number*/
+    size_t n_seqs;  // number of sequences for this track (eg two for a pair hmm)
         
     trackType alpha_type;   /* Track Type 1=string, 2=real_number  0=uninitialized*/
         

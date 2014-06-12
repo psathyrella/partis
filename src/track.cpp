@@ -312,11 +312,17 @@ namespace StochHMM{
     stringList tag = extractTag(txt);
     size_t index;
         
-    lst.fromNext(txt);
+    lst.fromNext(txt);  // remove white space, and create the list using :, as delimiters
     setName(lst[0]);
-    setDescription(lst.getComment());
-        
-    if (lst[1].compare("REAL_NUMBER")==0){
+    setDescription(lst.getComment());  // use any comments that were found as a description
+    if (lst[1] == "pair") {  // pair hmm, i.e. we expect two seqs at a time for this track. Would be easy to make it work with more than two, but no point a.t.m.
+      n_seqs = 2;
+      lst.pop_ith(1);
+    } else {
+      n_seqs = 1;  // default to 1
+    }
+
+    if (lst[1].compare("REAL_NUMBER")==0) {
       setAlphaType(REAL);
       if (tag.size()>0){
 	if (tag.contains("FUNCTION")){
@@ -339,8 +345,7 @@ namespace StochHMM{
 	}
 	trackFunctionDefined=true;
       }
-    }
-    else{
+    } else {
       setAlphaType(ALPHA_NUM);
                         
       for(size_t i=1;i<lst.size();i++){

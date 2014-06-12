@@ -146,7 +146,7 @@ namespace StochHMM{
         
     models* hmms; //Models
     model* hmm; //Models
-    tracks* modelTracks; //Tracks defined by models
+    tracks* modelTracks; //Tracks defined by models (NOTE may include tracks which this seqTracks doesn't use)
         
     SeqFileFormat seqFormat;  //File format (Fasta or FastQ);
     SeqFilesType fileType;    //File Type (Single File or Multiple Files);

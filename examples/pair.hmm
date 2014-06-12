@@ -1,0 +1,46 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	CASINO DICE MODEL
+MODEL_DESCRIPTION:	Taken from CH3 Durbin/Eddy
+MODEL_CREATION_DATE:	August 28,2009
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+SEQ:pair:	A,C
+
+STATE DEFINITIONS
+#############################################
+STATE:	
+	NAME:	INIT
+TRANSITION:	STANDARD: P(X)
+	FAIR:	0.5
+	LOADED:	0.5
+#############################################
+STATE:	
+	NAME:	FAIR
+	PATH_LABEL:	F
+	GFF_DESC:	Fair
+TRANSITION:	STANDARD: P(X)
+	FAIR:	0.5
+	LOADED:	0.5
+	END:	1
+EMISSION:	SEQ: COUNTS
+	ORDER:	0
+@ A  C
+  5  1
+#############################################
+STATE:
+	NAME:	LOADED
+	PATH_LABEL:	L
+	GFF_DESC:	Loaded
+TRANSITION:	STANDARD: P(X)
+	FAIR:	0.5
+	LOADED:	0.5
+	END:	1
+EMISSION:	SEQ: COUNTS
+	ORDER:	0
+@ A  C
+  1  5
+#############################################
+//END

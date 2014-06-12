@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <math.h>
 #include <cassert>
 #include <fstream>

@@ -660,37 +660,8 @@ namespace StochHMM{
   //!\param seqs  Sequences to use
   //!\param iter Position within the sequences
   //!\return double log(prob) value of emission
-  double emm::get_emission(sequences& seqs,size_t pos){
-    double final_emission(-INFINITY);
-    if (real_number){
-      final_emission = seqs.realValue(realTrack->getIndex(), pos);
-      if (complement){
-	final_emission = log(1-exp(final_emission));
-      }
-    } else if (function){
-      final_emission = lexFunc->evaluate(seqs, pos);
-    } else if (multi_continuous){
-      for (size_t i = 0; i < trcks->size(); ++i){  // fill <pass_values> with the real values for each seq at this position
-	(*pass_values)[i] = seqs.realValue((*track_indices)[i], pos);
-      }
-      final_emission = (*multiPdf)(pass_values, dist_parameters);  // then pass the values to the multidimensional pdf
-      if (complement){
-	final_emission = log(1-exp(final_emission));
-      }
-    } else if (continuous){
-      final_emission = (*pdf)(seqs.realValue(realTrack->getIndex(), pos), dist_parameters);
-      if (complement){
-	final_emission = log(1-exp(final_emission));
-      }
-    } else {
-      final_emission = scores.getValue(seqs, pos);
-    }
-        
-    if (tagFunc!=NULL){  // apply external function weighting (may not be implemented)
-      final_emission += tagFunc->evaluate(seqs, pos);
-    }
-        
-    return final_emission;
+  double emm::get_emission(sequences& seqs,size_t pos) {
+    return scores.getValue(seqs, pos);
   }
         
   //!Calculate the emission value given a position in the sequence
@@ -699,41 +670,8 @@ namespace StochHMM{
   //!\param seqs  Sequences to use
   //!\param iter Position within the sequences
   //!\return double log(prob) value of emission
-  double emm::get_emission(sequence& seq, size_t pos){
-    double final_emission(-INFINITY);
-    if (real_number){
-      final_emission = seq.realValue(pos);
-      if (complement){
-	final_emission = log(1-exp(final_emission));
-      }
-    } else if (function){
-      final_emission = lexFunc->evaluate(seq, pos);
-    } else if (multi_continuous){
-      //Get all values from the tracks
-      for (size_t i = 0; i < trcks->size() ; ++i){
-	(*pass_values)[i] = seq.realValue(pos);
-      }
-                        
-      final_emission = (*multiPdf)(pass_values, dist_parameters);
-                        
-      if (complement){
-	final_emission = log(1-exp(final_emission));
-      }
-    } else if (continuous){
-      final_emission = (*pdf)(seq.realValue(pos), dist_parameters);
-                        
-      if (complement){
-	final_emission = log(1-exp(final_emission));
-      }
-    } else{  // simple lexical emission
-      final_emission = scores.getValue(seq, pos);
-    }
-        
-    if (tagFunc!=NULL){  // apply external function weighting (may not be implemented)
-      final_emission += tagFunc->evaluate(seq, pos);
-    }
-        
-    return final_emission;
+  double emm::get_emission(sequence& seq, size_t pos) {
+      return scores.getValue(seq, pos);
   }
     
   //!Is the emission from a real Number track

@@ -123,8 +123,6 @@ namespace StochHMM{
     while (good) {  // while we're not at eof
       getNext();
     }
-
-    std::cout << "init'd seqTracks with " << getNJobs() << " jobs" << std::endl;
   }
     
   // ----------------------------------------------------------------------------------------
@@ -194,43 +192,32 @@ namespace StochHMM{
     assert(temp_job); // a lot shorter, innit?
     bool valid=true;  // set to false if sequence import failed for some reason
     sequence* sq;
-    for(size_t i=0;i<importTracks.size();i++){  // push back a sequence (from the input file) for each track which was defined in the model
-      sq = new(std::nothrow) sequence(false);
-      assert(sq);
-      bool success;
-      size_t ifilehandle(0);  // a.t.m. we're limiting to one file at a time
-      if (importTracks[i].second == REAL) {
-	success = sq->getReal(*filehandles[ifilehandle], (*modelTracks)[importTracks[i].first]);
-      } else if (seqFormat == FASTA) { // AlphaNum and Fasta
-	success = sq->getFasta(*filehandles[ifilehandle], (*modelTracks)[importTracks[i].first], info);
-      } else {
-	success = sq->getFastq(*filehandles[ifilehandle], (*modelTracks)[importTracks[i].first]);
-      }
-      assert(success && sq);
-      good = filehandles[ifilehandle]->good(); 
+    for (size_t itrk=0; itrk<importTracks.size(); ++itrk) {  // push back a sequence (or more than one) from the input file for each track which was defined in the model
+      track *trk = (*modelTracks)[importTracks[itrk].first];
+      for (size_t iseq=0; iseq<trk->get_n_seqs(); ++iseq) {  // for eg pair hmm, we push back two seqs for each track
+	sq = new(std::nothrow) sequence(false);
+	assert(sq);
+	bool success;
+	size_t ifilehandle(0);  // a.t.m. we're limiting to one file at a time
+	if (importTracks[itrk].second == REAL) {
+	  success = sq->getReal(*filehandles[ifilehandle], trk);
+	} else if (seqFormat == FASTA) { // AlphaNum and Fasta
+	  success = sq->getFasta(*filehandles[ifilehandle], trk, info);
+	} else {
+	  success = sq->getFastq(*filehandles[ifilehandle], trk);
+	}
+	assert(success && sq);
+	good = filehandles[ifilehandle]->good(); 
 
-      if (sq->exDefDefined()) {  //If exDef is defined in sequence put it in sequences
-	temp_job->set->setExDef(sq->getExDef());
+	if (sq->exDefDefined()) {  //If exDef is defined in sequence put it in sequences
+	  temp_job->set->setExDef(sq->getExDef());
+	}
+	temp_job->set->addSeq(sq, importTracks[itrk].first);
+	temp_job->setSeqFilename(seqFilenames[ifilehandle]);
       }
-      temp_job->set->addSeq(sq, importTracks[i].first);
-      temp_job->setSeqFilename(seqFilenames[ifilehandle]);
     }
-        
-    // get sequences defined by external function
-    for (size_t i =0; i<postprocessTracks.size(); i++) {
-      std::vector<double>* rl = NULL;
-      if (postprocessTracks[i].func != NULL ){
-	rl = (*postprocessTracks[i].func)(temp_job->set->getUndigitized(postprocessTracks[i].trackToUse));
-      } else {
-	std::cerr << "Sequence external function not defined for track number: " << postprocessTracks[i].trackNumber << std::endl;
-	std::cerr << "Using Sequences from track: " << postprocessTracks[i].trackToUse << std::endl;
-	rl = new(std::nothrow) std::vector<double>;
-	assert(rl);
-      }
-      sequence* sq = new(std::nothrow) sequence(rl , (*modelTracks)[postprocessTracks[i].trackNumber]);
-      assert(sq);
-      temp_job->set->addSeq(sq,postprocessTracks[i].trackNumber);
-    }
+
+    assert(postprocessTracks.size() == 0);  // removed this functionality
 
     temp_job->hmm = hmm;
             

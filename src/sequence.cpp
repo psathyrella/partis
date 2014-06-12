@@ -450,6 +450,12 @@ namespace StochHMM{
     }
         
     getline(file, header, '\n');  // get header line
+    // make sure the track name in the fasta header matches that in the track we've been passed
+    std::stringstream ss(header);
+    std::string dummy_str,tmp_track_name;
+    ss >> dummy_str >> tmp_track_name;
+    assert(tmp_track_name == trk->getName());
+    
     bool success(false);
     //get sequence
     std::string line;
