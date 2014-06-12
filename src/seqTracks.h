@@ -108,7 +108,7 @@ namespace StochHMM{
 
     //ACCESSORS
     bool getNext();
-        
+    size_t getNJobs() { return n_jobs; };
     seqJob* getJob();
 
     sequence* getFasta(int);

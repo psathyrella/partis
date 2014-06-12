@@ -93,8 +93,8 @@ seqTracks jobs;
 //PDFs
 StateFuncs default_functions;
 
-int main(int argc, const char * argv[])
-{
+// ----------------------------------------------------------------------------------------
+int main(int argc, const char * argv[]) {
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);

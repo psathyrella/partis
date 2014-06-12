@@ -123,6 +123,8 @@ namespace StochHMM{
     while (good) {  // while we're not at eof
       getNext();
     }
+
+    std::cout << "init'd seqTracks with " << getNJobs() << " jobs" << std::endl;
   }
     
   // ----------------------------------------------------------------------------------------

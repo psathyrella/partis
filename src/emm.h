@@ -78,19 +78,14 @@ namespace StochHMM{
     void setLexicalFunction(emissionFunc*);
                 
     //ACCESSORS
-                
     bool isReal();
-                
-    //!Check to see if emission will return the complement (1-P) value of emission
-    inline bool isComplement(){return complement;};
-                
+    size_t get_n_tracks() { return trcks->size(); };
+    inline bool isComplement(){return complement;};  //!Check to see if emission will return the complement (1-P) value of emission
     double get_emission(sequences& , size_t );
     double get_emission(sequence&, size_t);
-                
     //! Get the external Functions defined for the emission
     //! \return externalFuncs*
     inline emissionFuncParam* getExtFunction(){return tagFunc;};
-                
     //! Print the string representation of the emission to stdout
     inline void print(){std::cout << stringify()<<std::endl;};
                 
@@ -136,7 +131,6 @@ namespace StochHMM{
     //Continuous Multivariate Distribution
     multiPdfFunc* multiPdf;                 //Pointer to multivariate function
     std::string multiPdfName;               //Name of function according to StateFuncs
-    size_t number_of_tracks;                //Number of tracks in multi-emission
     std::vector<track*>* trcks;             //Tracks used
     std::vector<size_t>* track_indices; //Indices of tracks used
     std::vector<double>* pass_values;  //Array to pass values to multivariate function

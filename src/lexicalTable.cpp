@@ -118,21 +118,23 @@ namespace StochHMM{
   }
 
   // ----------------------------------------------------------------------------------------
-  double lexicalTable::getValue(sequences& seqs, size_t pos){
+  double lexicalTable::getValue(sequences& seqs, size_t pos) {
     assert(seqs.size() == tracks.size());
+    assert(seqs.size() == 2);  // a.t.m. use this function only for two seqs, and the one below for one seq
     assert(pos <= seqs[0].size());  // could also make sure seqs are all the same length. And that seqs are in the order that we expect based on <tracks>
     for (size_t iseq=0; iseq<seqs.size(); ++iseq) {
       assert(seqs[iseq].getTrack() == tracks[iseq]);
-      assert(orders[iseq] == 0);
+      assert(orders[iseq] == 0);  // higher orders not implemented
     }
-    return log_prob_matrix(seqs[0][pos], seqs.size()==1 ? 0 : seqs[1][pos]);
+    return log_prob_matrix(seqs[0][pos], seqs[1][pos]);
   }
         
   // ----------------------------------------------------------------------------------------
-  double lexicalTable::getValue(sequence& seq, size_t pos){
-    assert(0); // not implemented with new matrix scheme
+  double lexicalTable::getValue(sequence& seq, size_t pos) {
+    return log_prob_matrix(seq[pos], 0);
   }
     
+  // ----------------------------------------------------------------------------------------
   //!Add a track to an emission
   //!\param trk Pointer to track
   //!\param orderValue order of emission from track

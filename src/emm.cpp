@@ -42,7 +42,6 @@ namespace StochHMM{
     dist_parameters         = NULL;
                 
     multiPdf                        = NULL;
-    number_of_tracks        = 0;
     trcks                           = NULL;
     pass_values                     = NULL;
     track_indices           = NULL;
@@ -55,39 +54,37 @@ namespace StochHMM{
   emm::~emm(){
     delete lexFunc;
     delete tagFunc;
+    if (trcks) delete trcks;
     function =      false;
-
     lexFunc =       NULL;
     tagFunc =       NULL;
+    trcks = NULL;
   }
     
   //!Parse an emission from text model file
   //!\param txt  String representation of emission
-  //!\param trks Tracks used by the model
+  //!\param model_tracks Tracks used by the model
   //!\param wts Weights used by the model
   //!\param funcs State functions used by the model
-  bool emm::parse(std::string& txt,tracks& trks, weights* wts, StateFuncs* funcs){
-    if (!_processTags(txt,trks, wts, funcs)){
+  bool emm::parse(std::string& txt,tracks& model_tracks, weights* wts, StateFuncs* funcs){
+    if (!_processTags(txt,model_tracks, wts, funcs)){
       return false;
     }
 
     stringList lines;  // a list of the lines in <txt>, which specifies the entire emission
     lines.splitString(txt,"\n");
     size_t idx;  // set <idx> to start of emission definition
-    if (lines.contains("EMISSION")){
+    if (lines.contains("EMISSION")) {
       idx = lines.indexOf("EMISSION");
-    }
-    else{
+    } else {
       std::cerr << "Missing EMISSION tag from emission. Please check the formatting.   This is what was handed to the emission class:\n " <<  txt << std::endl;
       return false;
     }
         
+    //Determine Emission Type and set appropriate flags
     stringList line;
     line.splitString(lines[idx], "\t,: ");  // split lines[idx] (idx probably zero) using any of these delimineters, and store in <line>
-        
     size_t typeBegin(0);
-        
-    //Determine Emission Type and set appropriate flags
     valueType  valtyp(PROBABILITY);
     if (line.contains("P(X)")){
       typeBegin = line.indexOf("P(X)");
@@ -140,16 +137,17 @@ namespace StochHMM{
     // ----------------------------------------------------------------------------------------
     std::vector<track*> tempTracks;  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
     for(size_t i=1; i<typeBegin; i++){  // loop over the words in <line> from 1 to the start of the <valtype> specification (i.e. over what should be a list of all tracks for this emission)
-      track* tk = trks.getTrack(line[i]);
+      track* tk = model_tracks.getTrack(line[i]);
       if (tk==NULL) {
-	std::cerr << "Emissions tried to add a track named: " << line[i] << " . However, there isn't a matching track in the model.  Please check to model formatting.\n";
+	std::cerr << "Emissions tried to add a track named: " << line[i] << " . However, there isn't a matching track in the model.  Please check model formatting.\n";
 	return false;
       } else {
 	tempTracks.push_back(tk);
       }
     }
+    trcks = new std::vector<track*> (tempTracks);
         
-    if (real_number){  // Real Number Emissions
+    if (real_number){  // Real Number Emissions ----------------------------------------------------------------------------------------
       if (tempTracks.size()>1){
 	std::cerr << "Multiple tracks listed under Real Track Emission Definition\n";
 	return false;
@@ -157,7 +155,7 @@ namespace StochHMM{
             
       realTrack = tempTracks[0];  // NOTE real track is assumed to be the first one listed
       return true;
-    } else if (multi_continuous) {  // Multivariate Continuous PDF emission
+    } else if (multi_continuous) {  // Multivariate Continuous PDF emission ----------------------------------------------------------------------------------------
       if (tempTracks.size()==1){
 	std::cerr << "Only a single track listed under MULTI_CONTINUOUS\n\
                                 Use CONTINUOUS instead of MULTI-CONTINUOUS\n";
@@ -166,10 +164,8 @@ namespace StochHMM{
                         
       //Assign track information
       track_indices = new std::vector<size_t>;
-      trcks = new std::vector<track*> (tempTracks);  // WARNING this is <trcks> with a 'c', *not* <trks>
-      number_of_tracks = trcks->size();
-      pass_values = new std::vector<double> (number_of_tracks,-INFINITY);
-      for(size_t i = 0; i < number_of_tracks ; ++i){
+      pass_values = new std::vector<double> (trcks->size(),-INFINITY);
+      for(size_t i = 0; i < trcks->size() ; ++i){
 	track_indices->push_back((*trcks)[i]->getIndex());
       }
                         
@@ -195,7 +191,7 @@ namespace StochHMM{
                         
       return true;
                         
-    } else if (continuous) {  // continuous pdfs
+    } else if (continuous) {  // continuous pdfs ----------------------------------------------------------------------------------------
       if (tempTracks.size()>1){
 	std::cerr << "Multiple tracks listed under CONTINUOUS Track Emission Definition\n\
                                 Must use MULTI_CONTINUOUS for multivariate emissions\n";
@@ -225,7 +221,7 @@ namespace StochHMM{
       pdf = funcs->getPDFFunction(pdfName);
             
       return true;
-    } else if (function) {
+    } else if (function) { // ----------------------------------------------------------------------------------------
       //Get function name
       std::string& functionName = line[typeBegin+1];
                         
@@ -238,7 +234,7 @@ namespace StochHMM{
       }
             
       return true;
-    } else {  // Traditional Lexical Emission
+    } else {  // Traditional Lexical Emission ----------------------------------------------------------------------------------------
       if (lines.contains("ORDER")){
 	idx = lines.indexOf("ORDER");
       }
@@ -410,7 +406,6 @@ namespace StochHMM{
         
   //!Parse an emission from text
   //!\param txt  String representation of emission
-  //!\param trks Tracks used by the model
   //!\param wts Weights used by the model
   //!\param funcs State functions used by the model
   bool emm::parse(std::string& txt,track* trk){
@@ -626,7 +621,7 @@ namespace StochHMM{
 
         
   //!Parses the Emission Function Tag information from the text model definition
-  bool emm::_processTags(std::string& txt, tracks& trks,weights* wts, StateFuncs* funcs){
+  bool emm::_processTags(std::string& txt, tracks& model_tracks,weights* wts, StateFuncs* funcs){
     stringList lst = extractTag(txt);
                 
     if (lst.size() == 0){
@@ -642,7 +637,7 @@ namespace StochHMM{
     }
         
         
-    if (!tagFunc->parse(lst, trks, wts,funcs)){
+    if (!tagFunc->parse(lst, model_tracks, wts,funcs)){
       std::cerr << "Couldn't parse Emission Tag: " << lst.stringify() << std::endl;
       return false;
     }
@@ -650,7 +645,7 @@ namespace StochHMM{
         
         
     //Don't need if we check in the parsing of emissionFuncParam....
-    if (!trks.isTrackDefined(trackName)){
+    if (!model_tracks.isTrackDefined(trackName)){
       std::cerr << "No Track defined with name:\t" << trackName << "\nEmission Tag:\n" << txt << std::endl;
       return false;
     }
@@ -675,7 +670,7 @@ namespace StochHMM{
     } else if (function){
       final_emission = lexFunc->evaluate(seqs, pos);
     } else if (multi_continuous){
-      for (size_t i = 0; i < number_of_tracks; ++i){  // fill <pass_values> with the real values for each seq at this position
+      for (size_t i = 0; i < trcks->size(); ++i){  // fill <pass_values> with the real values for each seq at this position
 	(*pass_values)[i] = seqs.realValue((*track_indices)[i], pos);
       }
       final_emission = (*multiPdf)(pass_values, dist_parameters);  // then pass the values to the multidimensional pdf
@@ -687,7 +682,7 @@ namespace StochHMM{
       if (complement){
 	final_emission = log(1-exp(final_emission));
       }
-    } else{
+    } else {
       final_emission = scores.getValue(seqs, pos);
     }
         
@@ -715,7 +710,7 @@ namespace StochHMM{
       final_emission = lexFunc->evaluate(seq, pos);
     } else if (multi_continuous){
       //Get all values from the tracks
-      for (size_t i = 0; i < number_of_tracks ; ++i){
+      for (size_t i = 0; i < trcks->size() ; ++i){
 	(*pass_values)[i] = seq.realValue(pos);
       }
                         
@@ -795,7 +790,7 @@ namespace StochHMM{
                         
     }
     else if (multi_continuous){
-      for (size_t i=0; i < number_of_tracks; i++) {
+      for (size_t i=0; i < trcks->size(); i++) {
 	if (i>0){
 	  emissionString+=",";
 	}

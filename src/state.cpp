@@ -429,10 +429,24 @@ namespace StochHMM{
   //! \param seqs Sequences the model is analyzing
   //! \param iter Position in the sequences
   double state::get_emission_prob(sequences &seqs, size_t iter){
-    double value(emissions[0]->get_emission(seqs,iter));
-    for(size_t i=1;i<emissions.size();i++){
-      value += emissions[i]->get_emission(seqs,iter);  // add up the log probabilities for each emission in this state
+    double value(-INFINITY);
+    for (size_t i=0; i<emissions.size(); i++) {
+      double tmp_val(-INFINITY);
+      if (emissions[i]->get_n_tracks() == 1) {
+	tmp_val = emissions[i]->get_emission(seqs[i], iter);
+      } else if (emissions[i]->get_n_tracks() == 2) {
+	tmp_val = emissions[i]->get_emission(seqs, iter);
+      } else {
+	std::cout << emissions[i]->get_n_tracks() << std::endl;
+	assert(0);  // not implemented a.t.m.
+      }
+
+      if (i==0)
+	value = tmp_val;
+      else
+	value += tmp_val;
     }
+
     return value;
   }
     
