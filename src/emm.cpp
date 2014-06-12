@@ -827,7 +827,7 @@ namespace StochHMM{
     }
     else{
             
-      for(size_t i=0;i<scores.trackSize();i++){
+      for(size_t i=0;i<scores.getNTracks();i++){
 	if (i>0){
 	  emissionString+=",";
 	}
@@ -847,7 +847,7 @@ namespace StochHMM{
             
       emissionString+="\n\tORDER:\t";
             
-      for(size_t i=0;i<scores.trackSize();i++){
+      for(size_t i=0;i<scores.getNTracks();i++){
 	if (i>0){
 	  emissionString+=",";
 	}

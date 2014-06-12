@@ -33,6 +33,7 @@
 #include <string>
 #include <iostream>
 #include <math.h>
+#include <cassert>
 #include <fstream>
 #include <algorithm>
 #include "text.h"

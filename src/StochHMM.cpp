@@ -93,155 +93,30 @@ seqTracks jobs;
 //PDFs
 StateFuncs default_functions;
 
-
 int main(int argc, const char * argv[])
 {
   srand(time(NULL));
-  //Parse commandline arguments defined
-  opt.set_parameters(commandline,opt_size,usage);
-        
-  //Get and parse command line options supplied by user
+  opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);
-    
-    
-  //Create a model
-  model hmm;
-        
-  //import the model
-  import_model(hmm);
-    
-        
-  //      if (opt.isFlagSet("-debug", "paths")){
-  //              hmm.writeGraphViz("Model_Path-debug.viz", true);
-  //      }
-        
-    
-  //Check and import sequence(s)
-  //These will be imported into seqTracks jobs
-  import_sequence(hmm);
-    
-  //Get the job (model and associated sequences)
-  seqJob *job=jobs.getJob();
-        
-        
-  //If filename is set for any of the following
-  //options we need to re-direct the stdout to the file
-  std::string filename;
-  if (opt.isSet("-posterior")){
-    opt.getopt("-posterior",filename);
-  }
-  else if (opt.isSet("-gff")){
-    opt.getopt("-gff", filename);
-  }
-  else if (opt.isSet("-path")){
-    opt.getopt("-path", filename);
-  }
-  else if (opt.isSet("-label")){
-    opt.getopt("-label", filename);
-  }
-        
-        
-  //Create file handle
-  std::ofstream file;
-        
-  //Create ptr to store STDOUT if we redirect 
-  std::streambuf* oldCoutStream(NULL);
-  bool file_open(false);
+  assert(opt.isSet("-model"));
+  assert(opt.isSet("-seq"));
 
-        
-  //If we defined a filename then redirect stdout
-  if (!filename.empty()){
-    oldCoutStream = std::cout.rdbuf();
-                
-    file.open(filename.c_str());
-    std::cout << std::setprecision(3);
-    std::cout << std::fixed;
-    if (!file.is_open()){
-      std::cerr << "Couldn't open file for posterior" << std::endl;
-      exit(1);
-    }
-    file_open = true;
-    std::cout.rdbuf(file.rdbuf());
-  }
-        
-        
-  // Fore each job(sequence) perform the analysis
-  while (job != NULL){
-                
-    //Print sequences if -debug seq option defined
-    if (opt.isFlagSet("-debug","seq")){
-      job->getSeqs()->print();
-    }
-                
-    //Perform posterior analysis
+  model hmm;
+  hmm.import(opt.sopt("-model"), &default_functions);
+  jobs.loadSeqs(hmm, opt.sopt("-seq"), FASTA);  // calls importJobs, which calls getNext() *once* but no more.
+
+  seqJob *job = jobs.getJob();  // job consists of a model and associated sequences
+  while (job) {  // For each job(sequence) perform the analysis
     if (opt.isSet("-posterior")){
       perform_posterior(&hmm, job->getSeqs());
-    }
-                
-    //Perform viterbi analysis
-    else if(opt.isSet("-viterbi")){
+    } else if(opt.isSet("-viterbi")){
       perform_viterbi_decoding(job->getModel(), job->getSeqs());
-    }
-                
-    //Perform nbest Viterbi decoding
-    else if (opt.isSet("-nbest")){
+    } else if (opt.isSet("-nbest")){
       perform_nbest_decoding(job->getModel(), job->getSeqs());
-    }
-                
-    //Perform stochastic decoding
-    else if (opt.isSet("-stochastic")){
+    } else if (opt.isSet("-stochastic")){
       perform_stochastic_decoding(job->getModel(), job->getSeqs());
     }
-                
-    //Get next job
-    job = jobs.getJob();
-  }
-        
-        
-  //Close file and redirect stdout to original place
-  if (file_open){
-    std::cout.rdbuf(oldCoutStream);
-    file.close();
-  }
-    
-  return 0;
-    
-}
-
-//Import the model from file
-void import_model(model& hmm){
-  if (!opt.isSet("-model")){
-    std::cerr <<"No model file provided.\n" << usage << std::endl;
-  }
-  else{
-
-        
-    //Import the model using string supplied from commandline
-    //Pass StateFuncs.   This will allow the user to define
-    //the functions within the model.
-    hmm.import(opt.sopt("-model"),&default_functions);
-  }
-    
-  //If -debug model is defined then print model to stdout;
-  if (opt.isFlagSet("-debug","model")){
-    hmm.print();
-  }
-}
-
-//Load sequences from file (Default FASTA)
-void import_sequence(model& hmm){
-    
-  if (!opt.isSet("-seq")){
-    std::cerr << "No sequence file provided.\n" << usage << std::endl;
-  }
-  else if (opt.isSet("-fastq")){
-    //Fastq import is still preliminary, it will only
-    //import the sequence, not the qualities
-    jobs.loadSeqs(hmm,opt.sopt("-seq"),FASTQ);
-  }
-  else{
-    //Import the sequence form fasta file
-    jobs.loadSeqs(hmm, opt.sopt("-seq"), FASTA);
+    job = jobs.getJob();  // get next job
   }
 }
 

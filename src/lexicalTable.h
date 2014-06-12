@@ -36,50 +36,40 @@ namespace StochHMM{
                 
                 
   public:
-        
     lexicalTable();
-        
     ~lexicalTable();
+    void initialize_emission_table();
+
+    // ----------------------------------------------------------------------------------------
+    // mutators
+    void addTrack(track*,int);
+    inline void setUnkScoreType(unknownCharScoringType type){unknownScoreType=type;};  // not used! only kept to maintain interface to emm
+    inline void setUnkScore(double val){unknownDefinedScore=val;};  // not used! only kept to maintain interface to emm
         
+    // ----------------------------------------------------------------------------------------
+    // accessors
+    inline unknownCharScoringType getAmbScoringType(){return unknownScoreType;}  // not used! only kept to maintain interface to emm
+    inline double getAmbDefinedScore(){return unknownDefinedScore;}  // not used! only kept to maintain interface to emm
+
     double getValue(sequences&, size_t);
     double getValue(sequence& , size_t);
-                
-    //!Initialize the final emission table with ambiguous characters
-    //Creates the log_emission simpleTable
-    void initialize_emission_table();
-    double getReducedOrder(sequences& seqs, size_t position);
-                
-    double getReducedOrder(sequence& seq, size_t position);
-                
     std::vector<std::vector<double> >* getCountsTable();
     std::vector<std::vector<double> >* getProbabilityTable();
     std::vector<std::vector<double> >* getLogProbabilityTable();
-        
-    void createTable(int rows, int columns, int pseudocount, valueType typ);
-        
-    void addTrack(track*,int);
-    void assignTable(std::vector<std::vector<double> >*, valueType);
-        
-    //!Set how the emission will deal with unknown alphabet
-    //! \param type enum UnknownCharScoringType
-    inline void setUnkScoreType(unknownCharScoringType type){unknownScoreType=type;};
-        
-    //!Set a given score to be returned for unknownCharScoringType
-    inline void setUnkScore(double val){unknownDefinedScore=val;};
-        
+
     //!Get pointer to track at index position of emission
     //!\param iter Index iterator of position
     //!\return track* Track in emission
-    inline track* getTrack(size_t iter){return trcks[iter];};
+    inline track* getTrack(size_t iter){return tracks[iter];};
         
     //!Get the number of tracks defined in emission
     //!\return size_t
-    inline size_t trackSize(){return trcks.size();};
+    inline size_t getNTracks(){return tracks.size();};
         
     //!Get Orders of lexical emission will use for all tracks
     //!\return std::vector<int>
-    inline std::vector<uint8_t>& getOrder(){return order;};
-    inline uint8_t getOrder(size_t i){return order[i];}
+    inline std::vector<uint8_t>& getOrders(){return orders;};
+    inline uint8_t getOrder(size_t i){return orders[i];}
         
     //! Get Log(prob) emission table
     //! \return std::vector<std::vector<double> >
@@ -87,12 +77,8 @@ namespace StochHMM{
         
     //! Get the alphabet sizes for all tracks used in emission
     //! \return std::vector<int>
-    inline std::vector<uint8_t>& getAlphaSize(){return alphabets;}
-    inline uint8_t getAlphaSize(size_t i){return alphabets[i];}
-    inline size_t getNumberOfAlphabets(){return alphabets.size();}
-        
-    inline unknownCharScoringType getAmbScoringType(){return unknownScoreType;}
-    inline double getAmbDefinedScore(){return unknownDefinedScore;}
+    inline uint8_t getAlphaSize(size_t i){return tracks[i]->getAlphaSize();}
+    inline size_t getNumberOfAlphabets(){return tracks.size();}
         
     //!Increment counts
     inline void incrementCounts(size_t word_index, size_t char_index) { if (counts != NULL) (*counts)[word_index][char_index]++; }
@@ -105,17 +91,14 @@ namespace StochHMM{
     std::string stringifyAmbig();
         
     void print();
-        
+
   private:
-    unknownCharScoringType unknownScoreType;  //! What type of score to use with unknown
-    double unknownDefinedScore;  //!Undefined character score
-                
-    size_t number_of_tracks;
-    std::vector<track*> trcks;  //Pointer to tracks of interest
-    // NOTE it seems we could use track::getAlphaSize instead of keeping a separate vector
-    std::vector<uint8_t> alphabets;  //alphabet sizes for each emission
+    unknownCharScoringType unknownScoreType;  // not used! only kept to maintain interface to emm
+    double unknownDefinedScore;  // not used! only kept to maintain interface to emm
+
+    std::vector<track*> tracks;  // tracks which are used by emissions in this table
     std::vector<uint8_t> max_unambiguous;
-    std::vector<uint8_t> order;  //Orders for each emission
+    std::vector<uint8_t> orders;  // orders for each emission
     uint8_t max_order;
                 
     size_t y_dim;
@@ -128,51 +111,7 @@ namespace StochHMM{
     std::vector<std::vector<double> >* counts;   //counts
     std::vector<std::vector<double> >* logProb;  //log2(P(x))
                 
-                
-    size_t array_size;
-    size_t dimensions;
-    std::vector<size_t> subarray_value;   //Values used to decompose index into sequenece AAA(A)B(B)
-    std::vector<size_t> subarray_sequence;
-    std::vector<size_t> subarray_position;
-
-    std::vector<size_t> decompose_values; //Values used to compose index from sequences AAAB(AB)
-    std::vector<size_t> decompose_sequence;
-                
-    std::vector<double>* log_emission;  // linearized version of logProb, i.e. (*log_emission)[index] = (*logProb)[row][column]
-    std::vector<std::vector<double>* > low_order_emissions;
-    std::vector<std::vector<std::pair<size_t,size_t>* > >low_order_info;
-
-    // ----------------------------------------------------------------------------------------
-    // n-dimensional matrix of pointers to n-dimensional matrices (where n = number of tracks). Each pointer leads to the emission
-    // log probability matrix for a given set of words. For instance an emission with two tracks (say, ACGT and 01), both second order, is represented as
-    //                           A C G T
-    // matrix_ptrs[AC][10] --> 0     x     Where x is the log prob of emitting a G and a 0 when the preceding words are AC and 10.
-    //                         1
-    // The size of each dimension on the left will be (alphabet size)^(order).
-    // NOTE for the moment I limit to *two* dimensions (tracks), since there doesn't seem to exist a good library for n-dim matrices with n unknown until runtime
-    Eigen::Matrix<Eigen::MatrixXd*, Eigen::Dynamic, Eigen::Dynamic> matrix_ptrs;
-    
-    // ----------------------------------------------------------------------------------------
-                
-    void init_table_dimension_values();
-    void init_array_dimension_values();
-    size_t convertIndex(size_t,size_t);
-                
-    void decompose(size_t row, size_t column, std::vector<uint8_t>& letters);
-    void decompose(size_t index, std::vector<uint8_t>& letters);
-                
-    void transferValues(std::vector<bool>& transferred);
-    size_t calculateArrayIndex(std::vector<uint8_t>& kmer);
-    void expand_ambiguous(std::vector<uint8_t>& letters, std::vector<double>& expanded);
-    std::vector<std::vector<uint8_t> >* expand_ambiguous(std::vector<std::vector<uint8_t> >* words, size_t letter);
-    size_t calculateIndexFromDecomposed(std::vector<uint8_t>& word);
-    double getAmbiguousScore(std::vector<uint8_t>& letters);
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> log_prob_matrix;
   };
-    
-        
-            
-    
 }
-
-
 #endif

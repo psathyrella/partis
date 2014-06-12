@@ -665,7 +665,7 @@ namespace StochHMM{
 	}
       }
       else{
-	for(size_t i=0;i<scoreTable.trackSize();i++){
+	for(size_t i=0;i<scoreTable.getNTracks();i++){
 	  if (i>0){
 	    transString+=",";
 	  }
@@ -679,7 +679,7 @@ namespace StochHMM{
                 
 	transString+="\n\t\tORDER:\t";
                 
-	for(size_t i=0;i<scoreTable.trackSize();i++){
+	for(size_t i=0;i<scoreTable.getNTracks();i++){
 	  if (i>0){
 	    transString+=",";
 	  }

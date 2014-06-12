@@ -337,25 +337,21 @@ namespace StochHMM{
   //! \return std::string String representation of the sequence
   std::string sequence::stringify(){
     std::string output;
-    if (!header.empty()){
-      output+= header +"\n";
-    }
+    if (!header.empty())
+      output += header + "\n";
         
-    if (!seq && !realSeq){
-      output+=undigitized;
-    }
+    if (!seq && !realSeq)
+      output += undigitized;
         
-    if (realSeq){
-      for(size_t i=0;i<length;i++){
-        output+= double_to_string((*real)[i]) + " ";
+    if (realSeq) {
+      for(size_t i=0; i<length; i++) {
+        output += double_to_string((*real)[i]) + " ";
+      }
+    } else {
+      for(size_t i=0; i<length; i++) {
+        output += int_to_string((int)(*seq)[i]) + " ";
       }
     }
-    else{
-      for(size_t i=0;i<length;i++){
-        output+= int_to_string((int)(*seq)[i]) + " ";
-      }
-    }
-        
         
     if (mask){
       output += "\n";
@@ -437,75 +433,55 @@ namespace StochHMM{
     return output;
   }
     
-    
-  //TODO: Fix return value to return false if no sequence was returned or parsed
   //!Extract sequence from a fasta file
   //! \param file File stream 
   //! \param trk Track to use for digitizing sequence
   //! \return true if function was able to get a sequence from the file
-  bool sequence::getFasta(std::ifstream& file, track* trk,stateInfo* info){
-        
-    if (seq!=NULL){
-      this->clear();
-    }
-                
-    seqtrk=trk;
+  bool sequence::getFasta(std::ifstream& file, track* trk,stateInfo* info) {
+    if (seq) this->clear();
+    seqtrk = trk;
+    assert(file.good());
 
-                
-        
-    if (!file.good()){
-      return false;
-    }
-        
     //Find next header mark 
-    while(file.peek() != '>'){
+    while (file.peek() != '>') {
       std::string temp;
-      getline(file,temp,'\n');
-            
-      if (!file.good()){
-        std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
-        return false;
-      }
+      getline(file, temp, '\n');
+      assert(file.good());  // Sequence doesn't contain a header
     }
         
-    getline(file,header,'\n');
+    getline(file, header, '\n');  // get header line
     bool success(false);
     //get sequence
     std::string line;
-    while(getline(file,line,'\n')){
-      undigitized+=line;
-            
-      char nl_peek=file.peek();  // see if we have new sequence header on the next line
-      if (nl_peek=='>'){
+    while(getline(file, line, '\n')){
+      undigitized += line;
+
+      char nl_peek = file.peek();
+      if (nl_peek=='>') {  // if there's a new sequence header on the next line, digitize what we have then break
         success = _digitize();
         break;
-      }
-      else if (nl_peek=='['){
+      } else if (nl_peek=='[') {  // if next line has external definitions, deal with them
         success = _digitize();
         if (info == NULL){
           std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
           exit(2);
-        }
-        else{
+        } else {
           external= new (std::nothrow) ExDefSequence(seq->size());
           external->parse(file, *info);
         }
-                
-      }
-      else if (nl_peek==EOF){
-        getline(file,line,'\n');
+      } else if (nl_peek==EOF) {  // if we're at the end of the file, digitize and break
+        getline(file, line, '\n');
         success = _digitize();
         break;
-      }
-      else{
+      } else {
         continue;
       }
     }
-        
-    length=seq->size();
+    length = seq->size();
     return success;
   }
     
+  // ----------------------------------------------------------------------------------------
   bool sequence::getMaskedFasta(std::ifstream& file, track* trk){
                 
     if (seq!=NULL){
@@ -576,67 +552,39 @@ namespace StochHMM{
         
   }
     
+  // ----------------------------------------------------------------------------------------
   //!Digitize the sequence 
-  bool sequence::_digitize(){
-        
-    if (seqtrk==NULL){
-      std::cerr << "Can't digitize sequence without a valid track defined\n";
-      return false;
-    }
-                
-                
+  bool sequence::_digitize() {
+    assert(seqtrk);
         
     stringList lst;
     clear_whitespace(undigitized,"\n");
     if (seqtrk->getAlphaMax()>1){  // we have words of length greater than one letter
       lst.splitString(undigitized, " ,\t");
-                        
-      if (seq == NULL){
-        seq = new std::vector<uint8_t>(lst.size());
+      if (!seq) {
+	seq = new std::vector<uint8_t>(lst.size());
+      } else {
+        seq->assign(lst.size(), 0);
       }
-      else{
-        seq->assign(lst.size(),0);
-      }
-                        
-      for (size_t i=0;i<lst.size();i++){
+      for (size_t i=0; i<lst.size(); i++) {
         uint8_t symbl = seqtrk->symbolIndex(lst[i]);
-                                
-        //Check ambiguous here
-        //                              if (!seqtrk->isAmbiguousSet()){
-        //                                      std::cerr << "Can't digitize ambiguous character without ambiguous characters being allowed in the model." << std::endl;
-        //                                      return false;
-        //                              }
-                                
         (*seq)[i] = symbl;
       }
-    }
-    else{
-      if (seq == NULL){
+    } else {
+      if (!seq) {
         seq = new std::vector<uint8_t>(undigitized.size());
-      }
-      else{
+      } else {
         seq->assign(undigitized.size(),0);
       }
-                        
-      for (size_t i=0; i<undigitized.size();i++){
+      for (size_t i=0; i<undigitized.size(); i++) {
         uint8_t symbl = seqtrk->symbolIndex(undigitized[i]);
-                                
-                                
-        //                              //Check ambiguous here
-        //                              if (!seqtrk->isAmbiguousSet()){
-        //                                      std::cerr << "Can't digitize ambiguous character without ambiguous characters being allowed in the model." << std::endl;
-        //                                      return false;
-        //                              }
         (*seq)[i] = symbl;
       }
     }
-                
     undigitized.clear();  //Once sequence is digitized we don't need the old seqeunce string
-        
     return true;
   }
     
-
   //! Import one fastq entry from the file
   //!FastQ format:
   //!Line 1: Start with @
