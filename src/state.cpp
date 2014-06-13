@@ -442,6 +442,7 @@ namespace StochHMM{
     for (size_t iseq=0; iseq<seqs.size(); ++iseq) {
       assert(seqs[iseq].getTrack()->getName() == first_track_name);  // make sure all seqs are on the same track
       double tmp_val = emission->get_emission(seqs[iseq], iter);  // get_emission should really be called get_emission_log_prob
+      
       if (iseq==0)
     	value = tmp_val;
       else

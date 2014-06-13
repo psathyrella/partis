@@ -30,6 +30,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <cassert>
 #include <math.h>
 #include <fstream>
 #include <stdlib.h>
@@ -173,16 +174,7 @@ namespace StochHMM {
         
     //MUTATOR
         
-    //inline void addSeq(sequence* sq){seq.push_back(sq);}; //Add sequence to sequences
-        
     void addSeq(sequence* sq);
-        
-    //! Add sequence in the track position
-    //! \param 
-    void addSeq(sequence*,size_t);
-        
-    //! Add sequence for track
-    void addSeq(sequence*,track*);
         
     //! Set Length of sequences
     void setLength(size_t len);

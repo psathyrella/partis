@@ -188,7 +188,7 @@ namespace StochHMM{
   //! job on the queue.
   bool seqTracks::getNext(){
     // create a new seqJob and add a sequence to it for each track defined in the model
-    seqJob* temp_job = new(std::nothrow) seqJob(trackCount);
+    seqJob* temp_job = new(std::nothrow) seqJob(0);
     assert(temp_job); // a lot shorter, innit?
     bool valid=true;  // set to false if sequence import failed for some reason
     sequence* sq;
@@ -212,7 +212,7 @@ namespace StochHMM{
 	if (sq->exDefDefined()) {  //If exDef is defined in sequence put it in sequences
 	  temp_job->set->setExDef(sq->getExDef());
 	}
-	temp_job->set->addSeq(sq, importTracks[itrk].first);
+	temp_job->set->addSeq(sq);
 	temp_job->setSeqFilename(seqFilenames[ifilehandle]);
       }
     }

@@ -259,88 +259,21 @@ namespace StochHMM {
   //!Sequence is added to a certain position based on the track used by the sequence
     
   //! \param sq Pointer to sequence
-  void sequences::addSeq(sequence* sq){
-    if (related_sequences){
-      track* trk = sq->getTrack();
-      seq[trk->getIndex()]=sq;
-      setLength(sq->getLength());
-      return;
-    }
-    else{
-      seq.push_back(sq);
-      setLength(sq->getLength());
-      num_of_sequences++;
-    }
-        
-  }
-    
-  //!Add a sequence to the sequences at a certain position
-  //!Sequence is added to a certain position based on the iterator
-  //! \param sq Pointer to sequence
-  //! \param iter Position in sequences to add sequence
-  void sequences::addSeq(sequence* sq, size_t iter){
-    if (seq.size()>iter){  //If position already exists just add it
-      seq[iter]=sq;
-    }
-    else{ //If the position doesn't exist extend the vector, then add
-      seq.resize(iter+1,NULL);
-      seq[iter]=sq;
-    }
-        
+  void sequences::addSeq(sequence* sq) {
+    seq.push_back(sq);
     setLength(sq->getLength());
-        
-    if (!related_sequences){
-      num_of_sequences=iter;
-    }
-        
-    return;
-  }
-    
-  //!Add a sequence to the sequences given a certain track
-  //!Sequence is added to a certain position based on the track
-  //! \param sq Pointer to sequence
-  //! \param tr Track to use when adding sequence
-  void sequences::addSeq(sequence* sq,track* tr){
-    if (tr!=NULL){
-      if (related_sequences){
-	size_t index = tr->getIndex();
-	addSeq(sq,index);
-      }
-      else{
-	addSeq(sq);
-      }
-    }
-    else{
-      if (related_sequences){
-	std::cerr << "Track is undefined for related sequences.  Unable to add related sequences if track is not defined\n";
-	exit(1);
-      }
-      else{
-	addSeq(sq);
-      }
-    }
-    return;
+    num_of_sequences++;
   }
     
   //! Set the length of the sequence(s) in sequence
   //! Because all the sequences should be the same size
   //! If there size differs when adding a sequence
   //! \exception sDifferentSizeSequences thrown if the sizes differ
-  void sequences::setLength(size_t len){
-    if (length == std::numeric_limits<size_t>::max()){
+  void sequences::setLength(size_t len) {
+    if (length == std::numeric_limits<size_t>::max())  // if length not previously set, set it
       length=len;
-    }
-        
-    if (len==length){
-      return;
-    }
-    else{
-      same_length=false;
-      if (related_sequences){
-	std::cerr << "Sequences have different lengths. Sequences should all have the same length because they are suppose to be related (from different datasets).  For multiple unrelated sequence types, use a different structure.\n";
-	exit(20);
-      }
-    }
+    else
+      assert(related_sequences && len==length);
     return;
   }
         
@@ -363,7 +296,8 @@ namespace StochHMM {
       if (!success){
 	delete sq;
       }
-      addSeq(sq,tr);
+      // addSeq(sq,tr);
+      exit(2); // removed this fcn
     }
     return;
   }
