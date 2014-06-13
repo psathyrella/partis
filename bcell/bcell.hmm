@@ -7,12 +7,12 @@ MODEL_CREATION_DATE:	today
 
 TRACK SYMBOL DEFINITIONS
 ======================================================
-NUKES:pair: A,C,G,T
+NUKES: A,C,G,T
 
 STATE DEFINITIONS
 #############################################
 STATE:
-  NAME: INIT
+  NAME:        INIT
 TRANSITION: STANDARD: P(X)
                                    v0_0: 0.50
                                    v1_0: 0.50
@@ -22,7 +22,7 @@ STATE:
   PATH_LABEL:  v0_0
   GFF_DESC:    v0_0
 TRANSITION: STANDARD: P(X)
-   v0_1:  1.00
+  v0_1:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -34,7 +34,7 @@ STATE:
   PATH_LABEL:  v0_1
   GFF_DESC:    v0_1
 TRANSITION: STANDARD: P(X)
-   v0_2:  1.00
+  v0_2:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -46,7 +46,7 @@ STATE:
   PATH_LABEL:  v0_2
   GFF_DESC:    v0_2
 TRANSITION: STANDARD: P(X)
-   v0_3:  1.00
+  v0_3:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -58,7 +58,7 @@ STATE:
   PATH_LABEL:  v0_3
   GFF_DESC:    v0_3
 TRANSITION: STANDARD: P(X)
-   v0_4:  1.00
+  v0_4:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -70,7 +70,7 @@ STATE:
   PATH_LABEL:  v0_4
   GFF_DESC:    v0_4
 TRANSITION: STANDARD: P(X)
-   v0_5:  1.00
+  v0_5:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -82,7 +82,7 @@ STATE:
   PATH_LABEL:  v0_5
   GFF_DESC:    v0_5
 TRANSITION: STANDARD: P(X)
-   v0_6:  1.00
+  v0_6:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -94,7 +94,8 @@ STATE:
   PATH_LABEL:  v0_6
   GFF_DESC:    v0_6
 TRANSITION: STANDARD: P(X)
-   v0_7:  1.00
+  v0_7:  0.80
+  insert:  0.20
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -106,7 +107,8 @@ STATE:
   PATH_LABEL:  v0_7
   GFF_DESC:    v0_7
 TRANSITION: STANDARD: P(X)
-   v0_8:  1.00
+  v0_8:  0.80
+  insert:  0.20
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -118,7 +120,7 @@ STATE:
   PATH_LABEL:  v0_8
   GFF_DESC:    v0_8
 TRANSITION: STANDARD: P(X)
-   v0_9:  1.00
+  insert:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -126,46 +128,35 @@ EMISSION: NUKES: P(X)
               0.02              0.02              0.94              0.02
 #############################################
 STATE:
-  NAME:        v0_9
-  PATH_LABEL:  v0_9
-  GFF_DESC:    v0_9
-TRANSITION: STANDARD: P(X)
-  END: 1
-EMISSION: NUKES: P(X)
-  ORDER: 0
-@                 A                 C                 G                 T
-              0.02              0.94              0.02              0.02
-#############################################
-STATE:
   NAME:        v1_0
   PATH_LABEL:  v1_0
   GFF_DESC:    v1_0
 TRANSITION: STANDARD: P(X)
-   v1_1:  1.00
+  v1_1:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
 @                 A                 C                 G                 T
-              0.02              0.94              0.02              0.02
+              0.02              0.02              0.02              0.94
 #############################################
 STATE:
   NAME:        v1_1
   PATH_LABEL:  v1_1
   GFF_DESC:    v1_1
 TRANSITION: STANDARD: P(X)
-   v1_2:  1.00
+  v1_2:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
 @                 A                 C                 G                 T
-              0.94              0.02              0.02              0.02
+              0.02              0.02              0.02              0.94
 #############################################
 STATE:
   NAME:        v1_2
   PATH_LABEL:  v1_2
   GFF_DESC:    v1_2
 TRANSITION: STANDARD: P(X)
-   v1_3:  1.00
+  v1_3:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -177,31 +168,31 @@ STATE:
   PATH_LABEL:  v1_3
   GFF_DESC:    v1_3
 TRANSITION: STANDARD: P(X)
-   v1_4:  1.00
+  v1_4:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
 @                 A                 C                 G                 T
-              0.02              0.94              0.02              0.02
+              0.02              0.02              0.94              0.02
 #############################################
 STATE:
   NAME:        v1_4
   PATH_LABEL:  v1_4
   GFF_DESC:    v1_4
 TRANSITION: STANDARD: P(X)
-   v1_5:  1.00
+  v1_5:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
 @                 A                 C                 G                 T
-              0.02              0.94              0.02              0.02
+              0.02              0.02              0.02              0.94
 #############################################
 STATE:
   NAME:        v1_5
   PATH_LABEL:  v1_5
   GFF_DESC:    v1_5
 TRANSITION: STANDARD: P(X)
-   v1_6:  1.00
+  v1_6:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -213,7 +204,8 @@ STATE:
   PATH_LABEL:  v1_6
   GFF_DESC:    v1_6
 TRANSITION: STANDARD: P(X)
-   v1_7:  1.00
+  v1_7:  0.80
+  insert:  0.20
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -225,7 +217,8 @@ STATE:
   PATH_LABEL:  v1_7
   GFF_DESC:    v1_7
 TRANSITION: STANDARD: P(X)
-   v1_8:  1.00
+  v1_8:  0.80
+  insert:  0.20
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -237,7 +230,7 @@ STATE:
   PATH_LABEL:  v1_8
   GFF_DESC:    v1_8
 TRANSITION: STANDARD: P(X)
-   v1_9:  1.00
+  insert:  1.00
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
@@ -245,14 +238,14 @@ EMISSION: NUKES: P(X)
               0.02              0.02              0.94              0.02
 #############################################
 STATE:
-  NAME:        v1_9
-  PATH_LABEL:  v1_9
-  GFF_DESC:    v1_9
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
 TRANSITION: STANDARD: P(X)
+ insert: 0.14
   END: 1
 EMISSION: NUKES: P(X)
   ORDER: 0
-@                 A                 C                 G                 T
-              0.02              0.94              0.02              0.02
+              0.25              0.25              0.25              0.25
 #############################################
 //END
