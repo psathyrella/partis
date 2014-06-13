@@ -429,6 +429,10 @@ namespace StochHMM{
   //! \param seqs Sequences the model is analyzing
   //! \param iter Position in the sequences
   double state::get_emission_prob(sequences &seqs, size_t iter){
+    // decided to put this in viterbi.cpp (and its analogues)
+    // if (emissions.size() == 0)  // silent state
+    //   return -INFINITY;
+
     double value(-INFINITY);
 
     // ----------------------------------------------------------------------------------------
