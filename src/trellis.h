@@ -109,35 +109,26 @@ namespace StochHMM{
     inline model* getModel(){return hmm;}
     inline sequences* getSeq(){return seqs;}
                 
-    /*-----------   Decoding Algorithms ------------*/
-                
-    //TODO: Fix these functions so that they evaluate the model and choose a
-    // a default algorithm based on the whether the model defines explicit duration
-    // states
-                
+    // ----------------------------------------------------------------------------------------
+    // decoding
     void viterbi();
     void viterbi(model* h, sequences* sqs);
     void posterior();
     void posterior(model* h, sequences* sqs);
     void stochastic_viterbi();
     void stochastic_viterbi(model* h, sequences* sqs);
-    /*---------   Standard Traceback Algorithms --------*/
-                                
+
+    // ----------------------------------------------------------------------------------------
+    // traceback
     void traceback(traceback_path& path);
     void traceback(traceback_path& path ,size_t position, size_t state);
     void traceback_nth(traceback_path& path, size_t n);
     void traceback_posterior(traceback_path& path);
-                
     void traceback_stoch_posterior(traceback_path& path);
     void traceback_stoch_posterior(multiTraceback& paths , size_t reps);
-                
-
-                
     void traceback_nth_viterbi(multiTraceback&);
-                
     void stochastic_traceback(traceback_path& path);
     void stochastic_traceback(multiTraceback&,size_t);
-                
                 
     inline bool store(){return store_values;}
     inline void store(bool val){store_values=val; return;}

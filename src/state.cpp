@@ -429,9 +429,10 @@ namespace StochHMM{
   //! \param seqs Sequences the model is analyzing
   //! \param iter Position in the sequences
   double state::get_emission_prob(sequences &seqs, size_t iter){
-    // decided to put this in viterbi.cpp (and its analogues)
-    // if (emissions.size() == 0)  // silent state
-    //   return -INFINITY;
+    if (emissions.size() == 0) { // silent state
+      assert(0);  // oh, wait, this is harder than I thought. I need to not advance one position in the sequence
+      return 0.0;
+    }
 
     double value(-INFINITY);
 
