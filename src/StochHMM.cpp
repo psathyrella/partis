@@ -1,28 +1,3 @@
-//Copyright (c) 2007-2012 Paul C Lott
-//University of California, Davis
-//Genome and Biomedical Sciences Facility
-//UC Davis Genome Center
-//Ian Korf Lab
-//Website: www.korflab.ucdavis.edu
-//Email: lottpaul@gmail.com
-//
-//Permission is hereby granted, free of charge, to any person obtaining a copy of
-//this software and associated documentation files (the "Software"), to deal in
-//the Software without restriction, including without limitation the rights to
-//use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-//the Software, and to permit persons to whom the Software is furnished to do so,
-//subject to the following conditions:
-//
-//The above copyright notice and this permission notice shall be included in all
-//copies or substantial portions of the Software.
-//
-//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-//FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-//COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-//IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-//CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,16 +12,14 @@ using namespace StochHMM;
 
 #define STATE_MAX 1024
 
-
-void import_model(model&);
-void import_sequence(model&);
-
+// ----------------------------------------------------------------------------------------
+void run_job(seqJob *job);
 void print_output(multiTraceback*, std::string&);
-void print_output(std::vector<traceback_path>&, std::string&);
+// void print_output(std::vector<traceback_path>&, std::string&);
 void print_output(traceback_path*, std::string&);
 void print_posterior(trellis&);
 
-// set command-line options
+// init command-line options
 opt_parameters commandline[]={
   {"-help:-h"     ,OPT_NONE       ,false  ,"",    {}},
   //Required
@@ -66,11 +39,10 @@ opt_parameters commandline[]={
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
 options opt;  //Global options for parsed command-line options
-seqTracks jobs;  //seqTracks stores multiple jobs(model and multiple sequences)
-StateFuncs default_functions;  // this will automatically initialize all the Univariate and Multivariate PDFs
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
+  seqTracks jobs;  //seqTracks stores multiple jobs(model and multiple sequences)
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);
@@ -78,82 +50,81 @@ int main(int argc, const char * argv[]) {
   assert(opt.isSet("-seq"));
 
   model hmm;
+  StateFuncs default_functions;  // this will automatically initialize all the Univariate and Multivariate PDFs
   hmm.import(opt.sopt("-model"), &default_functions);
   jobs.loadSeqs(hmm, opt.sopt("-seq"), FASTA);  // calls importJobs, which calls getNext() *once* but no more.
 
   seqJob *job = jobs.getJob();  // job consists of a model and associated sequences
   while (job) {  // For each job(sequence) perform the analysis
-    sequences *seqs(job->getSeqs());
-    trellis trell(&hmm, seqs);
-    if (opt.isSet("-posterior")) {
-      trell.posterior();
-      if (opt.isSet("-path") || opt.isSet("-label")) {  //If we need a posterior traceback b/c path,label,or GFF is defined
-	traceback_path path(&hmm);
-	trell.traceback_posterior(path);
-	print_output(&path, seqs->getHeader());
-      } else {
-	print_posterior(trell);
-      }
-    } else if (opt.isSet("-viterbi")) {
-      trell.viterbi();
-      traceback_path path(&hmm);
-      trell.traceback(path);
-      print_output(&path, seqs->getHeader());
-    } else if (opt.isSet("-stochastic")) {
-      assert(opt.isFlagSet("-stochastic", "viterbi"));  // removed the other ones for the time being
-      trell.stochastic_viterbi();
-      multiTraceback paths;
-      trell.stochastic_traceback(paths, opt.iopt("-rep"));
-      print_output(&paths, seqs->getHeader());
-    }
+    run_job(job);
     job = jobs.getJob();  // get next job
   }
 }
 
 // ----------------------------------------------------------------------------------------
-void print_output(multiTraceback* tb, std::string& header){
-    
+void run_job(seqJob *job) {
+  size_t k_v(7);//300);
+  size_t k_d(17);
+  sequences *seqs(job->getSeqs());
+  sequences subseqs(job->getSubSeqs(0,k_v));
+  seqs = &subseqs;
+  model *hmm(job->getModel());
+  trellis trell(hmm, seqs);
+  if (opt.isSet("-posterior")) {
+    trell.posterior();
+    if (opt.isSet("-path") || opt.isSet("-label")) {  //If we need a posterior traceback b/c path,label,or GFF is defined
+      traceback_path path(hmm);
+      trell.traceback_posterior(path);
+      print_output(&path, seqs->getHeader());
+    } else {
+      print_posterior(trell);
+    }
+  } else if (opt.isSet("-viterbi")) {
+    trell.viterbi();
+    traceback_path path(hmm);
+    trell.traceback(path);
+    print_output(&path, seqs->getHeader());
+  } else if (opt.isSet("-stochastic")) {
+    assert(opt.isFlagSet("-stochastic", "viterbi"));  // removed the other ones for the time being
+    trell.stochastic_viterbi();
+    multiTraceback paths;
+    trell.stochastic_traceback(paths, opt.iopt("-rep"));
+    print_output(&paths, seqs->getHeader());
+  }
+}
+// ----------------------------------------------------------------------------------------
+void print_output(multiTraceback* tb, std::string& header) {
   tb->finalize();
-    
   bool previous(true);
-    
   if (opt.isSet("-hits")){
     tb->print_hits();
     previous=false;
   }
-    
   if (opt.isSet("-label")){
     tb->print_label();
     previous=false;
   }
-    
-  //Print path by default if nothing else is set
-  if (opt.isSet("-path") || previous){
+  if (opt.isSet("-path") || previous) {  //Print path by default if nothing else is set
     tb->print_path();
   }
 }
 
 // ----------------------------------------------------------------------------------------
 void print_output(traceback_path* tb, std::string& header){
-    
   bool previous(true);
-    
-  if (opt.isSet("-label")){
+  if (opt.isSet("-label")) {
     std::cout << ">" << header ;
     std::cout << "\tScore: " << tb->getScore() << std::endl;
     tb->print_label();
     previous=false;
   }
-    
   if (opt.isSet("-path") || previous){
     std::cout << ">" << header ;
     std::cout << "\tScore: " << tb->getScore() << std::endl;
     tb->print_path();
   }
-    
   return;
 }
-
 
 // ----------------------------------------------------------------------------------------
 //Print the posterior probabilities for each state at each position

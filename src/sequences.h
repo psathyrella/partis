@@ -74,8 +74,8 @@ namespace StochHMM {
                 
     inline std::vector<double>* getRealSeq(size_t seq_num){
       if (seq_num < num_of_sequences){
-	if (seq[seq_num]->isRealSeq()){
-	  return seq[seq_num]->getRealSeq();
+	if (seqs[seq_num]->isRealSeq()){
+	  return seqs[seq_num]->getRealSeq();
 	}
       }
       return NULL;
@@ -87,8 +87,8 @@ namespace StochHMM {
     //! \param iter Sequence to get the attribute from
     //! \return double value of the attribute set for the sequence
     inline double getAttrib(size_t iter){
-      if (iter<num_of_sequences && seq[iter]!=NULL){
-	return seq[iter]->getAttrib();  //Returns attrib value for Track (i)
+      if (iter<num_of_sequences && seqs[iter]!=NULL){
+	return seqs[iter]->getAttrib();  //Returns attrib value for Track (i)
       }
       std::cerr << "No sequence defined at iterator " << iter << std::endl;
       exit(1);
@@ -98,8 +98,8 @@ namespace StochHMM {
     //! \return std::string& The header for the first sequence in sequences
     //!
     inline std::string& getHeader(){
-      if (num_of_sequences>0 && seq[0]!=NULL){
-	return seq[0]->header;
+      if (num_of_sequences>0 && seqs[0]!=NULL){
+	return seqs[0]->header;
       }
       std::cerr << "No sequence defined." << std::endl;
       exit(1);
@@ -111,8 +111,8 @@ namespace StochHMM {
     //! \return std::string& The header for the ith sequence
     inline std::string& getHeader(size_t iter){
       if (iter<num_of_sequences){
-	if (seq[iter]!=NULL){
-	  return seq[iter]->header;
+	if (seqs[iter]!=NULL){
+	  return seqs[iter]->header;
 	}
       }
       std::cerr << "No sequence defined at iterator " << iter << std::endl;
@@ -124,12 +124,12 @@ namespace StochHMM {
     //! \param iter  size_t iterator for ith sequence
     //! \return std::string of undigitized sequence at ith position
     inline std::string* getUndigitized(size_t iter){
-      if (iter>seq.size()){
+      if (iter>seqs.size()){
 	std::cerr << "getUndigitized(size_t iter) called where iter is out of range\n";
 	return NULL;
       }
       else{
-	return seq[iter]->getUndigitized();
+	return seqs[iter]->getUndigitized();
       }
     };
         
@@ -143,8 +143,8 @@ namespace StochHMM {
     //! \param iter size_t iterator
     //! \return size_t value of length of sequence at iter
     inline size_t getLength(size_t iter){
-      if (iter<num_of_sequences && seq[iter]!=NULL){
-	return seq[iter]->getLength(); //Get lenght of sequence in position (i)
+      if (iter<num_of_sequences && seqs[iter]!=NULL){
+	return seqs[iter]->getLength(); //Get lenght of sequence in position (i)
       }
       return 0;
     } 
@@ -159,7 +159,8 @@ namespace StochHMM {
       //            }
       //            return 0;
     };
-        
+
+    sequences getSubSequences(size_t pos, size_t len);
         
     bool exDefDefined(size_t); // Is External definition set for state(i)
     bool exDefDefined(size_t,size_t);// Is External definitiion set for state (i) and position (j);
@@ -187,7 +188,7 @@ namespace StochHMM {
       return same_length;
     }
                 
-    sequence& operator[](size_t index){return *seq[index];}
+    sequence& operator[](size_t index){return *seqs[index];}
                 
     void getFastas(const std::string& , track*);
         
@@ -195,7 +196,7 @@ namespace StochHMM {
     //EXTERNAL DEFINITIONS
     ExDefSequence* external;
         
-    std::vector<sequence*> seq; 
+    std::vector<sequence*> seqs; 
         
     size_t length;  //Length of the sequence(s)
     size_t num_of_sequences;

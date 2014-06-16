@@ -50,7 +50,7 @@ void trellis::viterbi() {
       }
     }
   }
-  
+
   // loop over the sequence
   for(size_t position=1; position<seq_size; ++position) {
     //Swap current and previous viterbi scores

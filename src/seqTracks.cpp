@@ -188,7 +188,7 @@ namespace StochHMM{
   //! job on the queue.
   bool seqTracks::getNext(){
     // create a new seqJob and add a sequence to it for each track defined in the model
-    seqJob* temp_job = new(std::nothrow) seqJob(0);
+    seqJob* temp_job = new(std::nothrow) seqJob(0); // init with *zero* sequences, because we push 'em back below
     assert(temp_job); // a lot shorter, innit?
     bool valid=true;  // set to false if sequence import failed for some reason
     sequence* sq;

@@ -67,6 +67,7 @@ namespace StochHMM{
     //Copy Constructors
     sequence(const sequence&);
     sequence& operator= (const sequence&);
+    sequence getSubSequence(size_t pos, size_t len);
         
     friend class sequences;
     friend class sequenceStream;
@@ -215,7 +216,7 @@ namespace StochHMM{
     double attrib; //Attribute value (Could be %GC or whatever user defines)
     size_t length; //Lenght of the Sequence
         
-    track* seqtrk; //Ptr to track describing alphabet and type
+    track* seqtrk; //Ptr to track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
         
     ExDefSequence* external; //External definitions
     //Stores defined states for given sequence 

@@ -65,12 +65,8 @@ namespace StochHMM{
   //!MULTI means that multiple sequences are required from multiple tracks
   enum SeqFilesType {SINGLE_TRACK, MULTI_TRACK};
     
-    
-	
   class seqJob;
-    
 
-    
   //!\struct ppTrack
   //!Stores what track is determined by a Track Function
   //!trackNumber is the index reference the derived track
@@ -190,7 +186,7 @@ namespace StochHMM{
   class seqJob{   //Could make a derivative of sequences
   public:
     //Constructor
-    seqJob(size_t);
+    seqJob(size_t);  // NOTE this initializes the sequence vector to size sz, so *don't* use this if you're later going to push back the sequences
         
     //Destructor
     ~seqJob();
@@ -207,6 +203,7 @@ namespace StochHMM{
         
     inline model* getModel(){return hmm;};
     inline sequences* getSeqs(){return set;};
+    inline sequences getSubSeqs(size_t pos, size_t len) { return set->getSubSequences(pos,len); }  // return a *new* set of (sub)sequences from <pos> of size <len>
         
     inline std::string getHeader(){return set->getHeader();};
         

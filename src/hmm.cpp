@@ -716,6 +716,7 @@ namespace StochHMM{
         stateByName[st->getName()]=st;
       }
       else{
+	assert(states.size() < STATE_MAX);
         states.push_back(st);
         stateByName[st->getName()]=st;
       }
@@ -733,6 +734,7 @@ namespace StochHMM{
   //!Add state to model
   //! \param st Pointer to state
   void model::addState(state* st){
+    assert(states.size() < STATE_MAX);
     states.push_back(st);
     stateByName[st->getName()]=st;
     return;

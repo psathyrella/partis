@@ -45,25 +45,15 @@ namespace StochHMM{
     
   //!Create a sequence data type
   //! \param realTrack  True if the sequence is a list of real numbers
-  sequence::sequence(bool realTrack):mask(NULL){
-    if (realTrack){
-      real=new(std::nothrow) std::vector<double>;
-            
-      if (real==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-            
-      seq=NULL;
-    }
-    else{
-      real=NULL;
-      seq=new(std::nothrow) std::vector<uint8_t>;
-            
-      if (seq==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
+  sequence::sequence(bool realTrack):mask(NULL) {
+    if (realTrack) {
+      real = new(std::nothrow) std::vector<double>;
+      assert(real);
+      seq = NULL;
+    } else {
+      seq = new(std::nothrow) std::vector<uint8_t>;
+      assert(seq);
+      real = NULL;
     }
     realSeq = realTrack;
     seqtrk  = NULL;
@@ -92,14 +82,9 @@ namespace StochHMM{
   sequence::sequence(char* sq, track* tr):mask(NULL){
     length  = 0;
     max_mask=-1;
-    real    = NULL;
-    seq     = new(std::nothrow) std::vector<uint8_t>;
-        
-    if (seq==NULL){
-      std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-      exit(1);
-    }
-        
+    real = NULL;
+    seq = new(std::nothrow) std::vector<uint8_t>;
+    assert(seq);
     external= NULL;
     attrib  = -INFINITY;
     realSeq = false;
@@ -109,21 +94,15 @@ namespace StochHMM{
     length=seq->size();
   }
     
-    
   //! Create a sequence type
   //! \param sq std::string string that represent sequence
   //! \param tr Track to be used to digitize sequence
   sequence::sequence(std::string& sq, track* tr):mask(NULL){
     length  = 0;
     max_mask=-1;
-    real    = NULL;
-    seq     = new(std::nothrow) std::vector<uint8_t>;
-        
-    if (seq==NULL){
-      std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-      exit(1);
-    }
-        
+    real = NULL;
+    seq = new(std::nothrow) std::vector<uint8_t>;
+    assert(seq);
     external= NULL;
     attrib  = -INFINITY;
     realSeq = false;
@@ -294,6 +273,14 @@ namespace StochHMM{
   }
     
     
+  // ----------------------------------------------------------------------------------------
+  //! \return a copy of the sequence from <pos> of size <len>
+  sequence sequence::getSubSequence(size_t pos, size_t len) {
+    std::string subseq_str = undigitized.substr(pos, len);
+    return sequence(subseq_str, seqtrk);
+  }
+
+  // ----------------------------------------------------------------------------------------
   //!Get digitized sequence value at a position
   //! \param position Position in the sequence to get the value for
   //! \return short integer value of symbol at positiion
@@ -565,7 +552,7 @@ namespace StochHMM{
         
     stringList lst;
     clear_whitespace(undigitized,"\n");
-    if (seqtrk->getAlphaMax()>1){  // we have words of length greater than one letter
+    if (seqtrk->getAlphaMax()>1) {  // we have words of length greater than one letter
       lst.splitString(undigitized, " ,\t");
       if (!seq) {
 	seq = new std::vector<uint8_t>(lst.size());
@@ -587,10 +574,10 @@ namespace StochHMM{
         (*seq)[i] = symbl;
       }
     }
-    undigitized.clear();  //Once sequence is digitized we don't need the old seqeunce string
     return true;
   }
     
+  // ----------------------------------------------------------------------------------------
   //! Import one fastq entry from the file
   //!FastQ format:
   //!Line 1: Start with @

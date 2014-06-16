@@ -29,7 +29,8 @@
 
 namespace StochHMM{
     
-  //!Create a seqJob
+  //!Create a seqJob, and init the sequence vector to length sz
+  //! \param sz number of sequences in <set>
   seqJob::seqJob(size_t sz){
     decodingPerformed=false;
     attrib=-INFINITY;

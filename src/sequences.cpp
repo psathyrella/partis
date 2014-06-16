@@ -29,10 +29,7 @@
 
 
 namespace StochHMM {
-        
-    
-    
-  sequences::sequences(){
+  sequences::sequences() {
     length=-1;
     external=NULL;
     related_sequences=false;
@@ -43,7 +40,7 @@ namespace StochHMM {
     
   //!Create an empty sequences
   //! \param sz Number of sequences
-  sequences::sequences(size_t sz):seq(sz,NULL){
+  sequences::sequences(size_t sz):seqs(sz,NULL){
     length=-1;
     external=NULL;
     related_sequences=true;
@@ -54,7 +51,7 @@ namespace StochHMM {
     
   //!Create a sequences data t
   //! \param sz Number of sequences
-  sequences::sequences(tracks* tr):seq(tr->size(),NULL){
+  sequences::sequences(tracks* tr):seqs(tr->size(),NULL){
     length=-1;
     external=NULL;
     related_sequences=true;
@@ -63,9 +60,9 @@ namespace StochHMM {
   }
     
     
+  // ----------------------------------------------------------------------------------------
   sequences::sequences(const sequences& rhs){
     external = (rhs.external==NULL) ? NULL : new(std::nothrow) ExDefSequence(*rhs.external);
-      
     if (rhs.external != NULL && external==NULL){
       std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
       exit(1);
@@ -76,17 +73,17 @@ namespace StochHMM {
     num_of_sequences=rhs.num_of_sequences;
     related_sequences=rhs.related_sequences;
         
-    for(size_t i=0;i<seq.size();i++){
+    for(size_t i=0;i<seqs.size();i++){
       sequence* temp=NULL;
-      if (rhs.seq[i]!=NULL){
-	temp = new(std::nothrow) sequence(*rhs.seq[i]);
+      if (rhs.seqs[i]!=NULL){
+	temp = new(std::nothrow) sequence(*rhs.seqs[i]);
                 
 	if (temp == NULL){
 	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
 	  exit(1);
 	}
       }            
-      seq.push_back(temp);
+      seqs.push_back(temp);
     }
         
   }
@@ -94,9 +91,9 @@ namespace StochHMM {
     
   //!Destroy sequences
   sequences::~sequences(){
-    for(size_t i=0;i<seq.size();i++){
-      delete seq[i];
-      seq[i]=NULL;
+    for(size_t i=0;i<seqs.size();i++){
+      delete seqs[i];
+      seqs[i]=NULL;
     }
     delete external;
     external = NULL;
@@ -117,17 +114,17 @@ namespace StochHMM {
     num_of_sequences=rhs.num_of_sequences;
     related_sequences=rhs.related_sequences;
         
-    for(size_t i=0;i<seq.size();i++){
+    for(size_t i=0;i<seqs.size();i++){
       sequence* temp=NULL;
-      if (rhs.seq[i]!=NULL){
-	temp = new(std::nothrow) sequence(*rhs.seq[i]);
+      if (rhs.seqs[i]!=NULL){
+	temp = new(std::nothrow) sequence(*rhs.seqs[i]);
                 
 	if (temp == NULL){
 	  std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
 	  exit(1);
 	}
       }            
-      seq.push_back(temp);
+      seqs.push_back(temp);
     }
         
     return *this;
@@ -139,8 +136,8 @@ namespace StochHMM {
   //! \param position Position in sequence to get value from
   //! \return double value of the real sequence at the position
   double sequences::realValue(int trck,size_t position){
-    if (seq[trck]->realSeq){
-      return seq[trck]->realValue(position);
+    if (seqs[trck]->realSeq){
+      return seqs[trck]->realValue(position);
     }
     return -INFINITY;
         
@@ -151,8 +148,8 @@ namespace StochHMM {
   //! \param position Position in sequence to get value from
   //! \return double value of the real sequence at the position
   double sequences::realValue(size_t trck,size_t position){
-    if (seq[trck]->realSeq){
-      return seq[trck]->realValue(position);
+    if (seqs[trck]->realSeq){
+      return seqs[trck]->realValue(position);
     }
     return -INFINITY;
         
@@ -164,7 +161,7 @@ namespace StochHMM {
   //! \param position Position in sequence to get the value from
   //! \return short digitized value of the sequence based on track type 
   short sequences::seqValue(int trck, size_t position){
-    return seq[trck]->seqValue(position);
+    return seqs[trck]->seqValue(position);
   }
     
   //!Get pointer to ith sequence from sequences
@@ -172,8 +169,8 @@ namespace StochHMM {
   //! \return sequence* pointer to sequence
   //! \return NULL if no sequence exists at iter
   sequence* sequences::getSeq(size_t iter){
-    if(iter<seq.size()){
-      return seq[iter];
+    if(iter<seqs.size()){
+      return seqs[iter];
     }
         
     return NULL;
@@ -184,16 +181,14 @@ namespace StochHMM {
   std::string sequences::stringify(){
     std::string tmp;
     for(size_t i=0; i<size(); i++){
-            
-            
-      if (seq[i]==NULL){
+      if (seqs[i]==NULL){
 	tmp+= ">TRACK: " + int_to_string(i) + ":\t" ;
 	tmp+= "<<EMPTY>>\n" ;
       }
       else{
-	track* trk = seq[i]->getTrack();
+	track* trk = seqs[i]->getTrack();
 	tmp+= ">" + trk->getName() + "\n";
-	tmp+= seq[i]->stringifyWOHeader();
+	tmp+= seqs[i]->stringifyWOHeader();
       }
     }
     return tmp;
@@ -204,14 +199,14 @@ namespace StochHMM {
   std::string sequences::undigitize(){
     std::string output;
     for(size_t i=0;i<size();i++){
-      if (seq[i]==NULL){
+      if (seqs[i]==NULL){
 	output+= ">TRACK: " + int_to_string(i) + ":\t" ;
 	output+= "<<EMPTY>>\n" ;
       }
       else{
-	track* trk = seq[i]->getTrack();
+	track* trk = seqs[i]->getTrack();
 	output+= ">" + trk->getName();
-	output+= seq[i]->undigitize();
+	output+= seqs[i]->undigitize();
       }
     }
     return output;
@@ -248,6 +243,20 @@ namespace StochHMM {
     return external;
   }
     
+  // ----------------------------------------------------------------------------------------
+  //! \return return the collection of subsequences from <pos> with size <len>
+  sequences sequences::getSubSequences(size_t pos, size_t len) {
+    sequences new_seqs((size_t)0);  // init with *zero* seqs because we push back below
+    for (size_t is=0; is<seqs.size(); is++) {
+      sequence *tmp_seq = new(std::nothrow) sequence(seqs[is]->getSubSequence(pos,len));
+      assert(tmp_seq);
+      new_seqs.addSeq(tmp_seq);
+    }
+
+    return new_seqs;
+  }    
+
+  // ----------------------------------------------------------------------------------------
   //!Get the weight for the state at a certain position in the sequence
   //! \param position Position with the sequence
   //! \param stateIter integer iterator of the state
@@ -260,7 +269,7 @@ namespace StochHMM {
     
   //! \param sq Pointer to sequence
   void sequences::addSeq(sequence* sq) {
-    seq.push_back(sq);
+    seqs.push_back(sq);
     setLength(sq->getLength());
     num_of_sequences++;
   }
@@ -277,6 +286,7 @@ namespace StochHMM {
     return;
   }
         
+  // ----------------------------------------------------------------------------------------
   void sequences::getFastas(const std::string& filename, track* tr){
     std::ifstream file;
     file.open(filename.c_str());
