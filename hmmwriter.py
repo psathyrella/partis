@@ -27,7 +27,13 @@ class HmmWriter(object):
     def write(self):
         self.add_header()
         self.add_states()
+        self.write_clear()
+
+    # ----------------------------------------------------------------------------------------
+    def write_clear(self):
+        """ write what's currently in <text>, and clear it """
         outfile.write(self.text)
+        self.text = ''
 
     # ----------------------------------------------------------------------------------------
     def add_region_entry_probs(self):
@@ -136,12 +142,16 @@ class HmmWriter(object):
     def add_states(self):
         self.text += '\nSTATE DEFINITIONS\n'
         self.add_init_state()
-    
+
         # write internal states
+        igene = 0
         for gene_name in self.germline_seqs[self.region]:
+            print '  %d / %d (%s)' % (igene, len(self.germline_seqs[self.region]), gene_name)
             for inuke in range(len(self.germline_seqs[self.region][gene_name])):
                 nuke = self.germline_seqs[self.region][gene_name][inuke]
                 self.add_internal_state(gene_name, self.germline_seqs[self.region][gene_name], inuke, nuke)
+            igene += 1
+            self.write_clear()  # this is *really* slow for the v genes if you don't write out periodically
     
         # for v and d regions add insert state to right-hand side of hmm
         if self.region == 'v' or self.region == 'd':
@@ -152,7 +162,7 @@ class HmmWriter(object):
         self.text += '//END\n'
     
 # ----------------------------------------------------------------------------------------
-region = 'd'
+region = 'v'
 outfname = 'bcell/' + region + '.hmm'
 with opener('w')(outfname) as outfile:
     writer = HmmWriter(outfile, region, '.')  #'/home/dralph/Dropbox/work/recombinator')

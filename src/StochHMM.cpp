@@ -64,8 +64,8 @@ int main(int argc, const char * argv[]) {
   JobHolder jh("bcell", regions, opt.sopt("-seq"));
   double best_score(-INFINITY);
   size_t best_k_v,best_k_d;
-  for (size_t k_v=295; k_v<297; ++k_v) {
-    for (size_t k_d=16; k_d<18; ++k_d) {
+  for (size_t k_v=295; k_v<298; ++k_v) {
+    for (size_t k_d=16; k_d<19; ++k_d) {
       // k_v = 296; k_d = 17;
       double score = run(jh, k_v, k_d);
       cout
@@ -110,7 +110,7 @@ double run(JobHolder &jh, size_t k_v, size_t k_d) {
   map<string,sequences> subseqs = jh.GetSubSeqs(k_v, k_d);
   for (auto &region : regions) {
     double tmp_score = run_region(jh.hmm(region), &subseqs[region]);
-    if (score==-INFINITY) {
+    if (score==-INFINITY) {  // TODO change this to an addLog analogue (*not* addLog)
       score = tmp_score;
     } else {
       score += tmp_score;
