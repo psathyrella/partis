@@ -15,6 +15,7 @@ using namespace std;
 
 #define STATE_MAX 1024
 
+void run_casino();
 double run(JobHolder &jh, size_t k_v, size_t k_d);
 double run_region(model *hmm, sequences *seqs);
 
@@ -32,7 +33,8 @@ opt_parameters commandline[]={
   {"-seq:-s:-track",OPT_STRING    ,true   ,"",    {}},
   //Non-Stochastic Decoding
   {"-viterbi"     ,OPT_NONE       ,false  ,"",    {}},
-  {"-posterior"   ,OPT_STRING         ,false  ,"",    {}},
+  {"-forward"     ,OPT_NONE       ,false  ,"",    {}},
+  {"-posterior"   ,OPT_NONE       ,false  ,"",    {}},
   //Stochastic Decoding
   {"-stochastic"  ,OPT_FLAG       ,false  ,"",    {"viterbi"}},
   {"-repetitions:-rep",OPT_INT    ,false  ,"1000",{}},
@@ -54,20 +56,52 @@ int main(int argc, const char * argv[]) {
   opt.parse_commandline(argc,argv);
   assert(opt.isSet("-seq"));
 
-  assert(!opt.isSet("-model"));
+  if (opt.isSet("-model")) {
+    assert(opt.sopt("-model") == "dice");
+    run_casino();
+    return 0;
+  }
   JobHolder jh("bcell", regions, opt.sopt("-seq"));
-  // size_t k_v(296);
-  // size_t k_d(17);
-  for (size_t k_v=290; k_v<300; ++k_v) {
-    for (size_t k_d=13; k_d<21; ++k_d) {
+  double best_score(-INFINITY);
+  size_t best_k_v,best_k_d;
+  for (size_t k_v=295; k_v<297; ++k_v) {
+    for (size_t k_d=16; k_d<18; ++k_d) {
+      // k_v = 296; k_d = 17;
       double score = run(jh, k_v, k_d);
       cout
 	<< setw(12) << k_v
 	<< setw(12) << k_d
 	<< setw(12) << score
 	<< endl;
+      if (score > best_score) {
+	best_score = score;
+	best_k_v = k_v;
+	best_k_d = k_d;
+      }
     }
   }
+  cout
+    << "best: "
+    << setw(12) << best_k_v
+    << setw(12) << best_k_d
+    << setw(12) << best_score
+    << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void run_casino() {
+  model hmm;
+  hmm.import("examples/Dice.hmm");
+  ifstream ifs("examples/Dice_short.fa");
+  assert(ifs.is_open());
+  while (!ifs.eof()) {
+    sequences seqs;
+    sequence *seq = new sequence;
+    seq->getFasta(ifs, hmm.getTrack((size_t)0));
+    seqs.addSeq(seq);
+    run_region(&hmm, &seqs);
+  }
+  ifs.close();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -89,27 +123,37 @@ double run(JobHolder &jh, size_t k_v, size_t k_d) {
 double run_region(model *hmm, sequences *seqs) {
   double score(-INFINITY);
   trellis trell(hmm, seqs);
-  if (opt.isSet("-posterior")) {
-    trell.posterior();
-    if (opt.isSet("-path") || opt.isSet("-label")) {  //If we need a posterior traceback b/c path,label,or GFF is defined
-      traceback_path path(hmm);
-      trell.traceback_posterior(path);
-      print_output(&path, seqs->getHeader());
-    } else {
-      print_posterior(trell);
-    }
-  } else if (opt.isSet("-viterbi")) {
+  if (opt.isSet("-viterbi")) {
     trell.viterbi();
     traceback_path path(hmm);
     trell.traceback(path);
-    // print_output(&path, seqs->getHeader());
+    print_output(&path, seqs->getHeader());
     score = path.getScore();
+  } else if (opt.isSet("-forward")) {
+    trell.forward();
+    score = trell.getForwardProbability();
+  } else if (opt.isSet("-posterior")) {
+    trell.posterior();
+    if (opt.isSet("-path") || opt.isSet("-label")) {  //If we need a posterior traceback b/c path or label is defined
+      traceback_path path(hmm);
+      trell.traceback_posterior(path);  // NOTE posterior score is not set with this option
+      print_output(&path, seqs->getHeader());
+    } else {
+      score = trell.getForwardProbability();
+      // std::cout << seqs->stringifyWOHeader();
+      // cout << "  fwd score: " << trell.getBackwardProbability() << endl;
+      // cout << "  bwd score: " << trell.getForwardProbability() << endl;
+      // print_posterior(trell);
+    }
   } else if (opt.isSet("-stochastic")) {
     assert(opt.isFlagSet("-stochastic", "viterbi"));  // removed the other ones for the time being
     trell.stochastic_viterbi();
     multiTraceback paths;
     trell.stochastic_traceback(paths, opt.iopt("-rep"));
     print_output(&paths, seqs->getHeader());
+  } else {
+    cout << "ERROR no option" << endl;
+    assert(0);
   }
   return score;
 }
@@ -152,53 +196,43 @@ void print_output(traceback_path* tb, string& header){
 //Print the posterior probabilities for each state at each position
 //Each state is in separate column
 //Each row is on different row
-void print_posterior(trellis& trell){
+void print_posterior(trellis& trell) {
   model* hmm = trell.getModel();
   double_2D* table = trell.getPosteriorTable();
   size_t state_size = hmm->state_size();
   char cstr[200];
-        
   string output;
-  output+="Posterior Probabilities Table\n";
-  output+="Model:\t" + hmm->getName() + "\n";
-  output+="Sequence:\t" + trell.getSeq()->getHeader() + "\n";
-  sprintf(cstr, "Probability of Sequence from Forward: Natural Log'd\t%f\n",trell.getForwardProbability());
-  output+= cstr;
-  sprintf(cstr, "Probability of Sequence from Backward:Natural Log'd\t%f\n",trell.getBackwardProbability());
-  output+= cstr;
+  output += "Posterior Probabilities Table\n";
+  output += "Model:\t" + hmm->getName() + "\n";
+  output += "Sequence:\t" + trell.getSeq()->getHeader() + "\n";
+  sprintf(cstr, "Probability of Sequence from Forward: Natural Log'd\t%f\n", trell.getForwardProbability());
+  output += cstr;
+  sprintf(cstr, "Probability of Sequence from Backward:Natural Log'd\t%f\n", trell.getBackwardProbability());
+  output += cstr;
   output+= "Position";
-  for(size_t i=0;i< state_size; ++i){
-    output+= "\t" + hmm->getStateName(i);
+  for(size_t i=0; i<state_size; ++i) { // print each state name
+    output += "\t" + hmm->getStateName(i);
   }
-  output+="\n";
-        
+  output += "\n";
   cout <<  output;
-        
 
-  for(size_t position = 0; position < table->size(); ++position){
+  for(size_t position=0; position<table->size(); ++position) {
     sprintf(cstr, "%ld", position+1);
-    output= cstr;
-    for (size_t st = 0 ; st < state_size ; st++){
-      float val  = exp((*table)[position][st]);
-      if (val<= 0.001){
-	output+="\t0";
-      }
-      else if (val == 1.0){
-	output+="\t1";
-      }
-      else{
+    output = cstr;
+    for (size_t st=0; st<state_size; st++) {
+      float val = exp((*table)[position][st]);
+      if (val <= 0.001){
+	output += "\t0";
+      } else if (val == 1.0) {
+	output += "\t1";
+      } else {
 	sprintf(cstr,"\t%.3f", exp((*table)[position][st]));
 	output+= cstr;
       }
-
     }
-    output+="\n";
+    output += "\n";
     cout << output;
   }
-
   cout << endl;
-        
   return;
-        
 }
-

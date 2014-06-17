@@ -35,6 +35,14 @@ std::string& sequences::getHeader(size_t iter) {
 }
 
 // ----------------------------------------------------------------------------------------
+std::string sequences::stringifyWOHeader() {
+  std::string tmp_str;
+  for(size_t i=0; i<size(); i++)
+    tmp_str += seqs[i]->stringifyWOHeader();
+  return tmp_str;
+}
+
+// ----------------------------------------------------------------------------------------
 std::string sequences::stringify() {
   std::string tmp_str;
   for(size_t i=0; i<size(); i++) {

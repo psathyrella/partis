@@ -149,7 +149,6 @@ namespace StochHMM{
     void setSeq(std::string&,track*);
     void setRealSeq(std::vector<double>*,track*);
                 
-    bool getFasta(std::string, track*);
     bool getFasta(std::ifstream&, track*);
         
                 

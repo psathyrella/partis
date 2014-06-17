@@ -172,7 +172,7 @@ namespace StochHMM{
   };
 
     
-  //! Takes two logd values and adds them together
+  //! Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
   //! \param first  log'd Double value
   //! \param second log'd Double value
   //! \return Log'd sum of two values

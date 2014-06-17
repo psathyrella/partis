@@ -411,15 +411,6 @@ namespace StochHMM{
     return output;
   }
     
-  // ----------------------------------------------------------------------------------------
-  bool sequence::getFasta(std::string fname, track* trk) {
-    std::ifstream ifs(fname);
-    assert(ifs.is_open());
-    bool success = getFasta(ifs, trk);
-    ifs.close();
-    return success;
-  }
-
   //!Extract sequence from a fasta file
   //! \param file File stream 
   //! \param trk Track to use for digitizing sequence

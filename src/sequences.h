@@ -56,6 +56,7 @@ public:
   bool exDefDefined() { return false; }  // removed this functionality
   bool exDefDefined(size_t) { return false; }  // removed this functionality
   
+  std::string stringifyWOHeader();  //! Get string of sequences
   std::string stringify();  //! Get string of sequences
   void print() { std::cout << stringify() << std::endl; }
   std::string undigitize(); //! Get sequence based on alphabet

@@ -72,7 +72,7 @@ libstochhmm_a_LIBADD =
 am_libstochhmm_a_OBJECTS = pwm.$(OBJEXT) PDF.$(OBJEXT) \
 	trellis.$(OBJEXT) viterbi.$(OBJEXT) stoch_viterbi.$(OBJEXT) \
 	stochTable.$(OBJEXT) \
-	posterior.$(OBJEXT) traceback_path.$(OBJEXT) \
+	forward.$(OBJEXT) posterior.$(OBJEXT) traceback_path.$(OBJEXT) \
 	externDefinitions.$(OBJEXT) index.$(OBJEXT) \
 	stochMath.$(OBJEXT) text.$(OBJEXT) userFunctions.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
@@ -195,6 +195,7 @@ libstochhmm_a_SOURCES = \
 	viterbi.cpp \
 	stoch_viterbi.cpp \
 	stochTable.cpp \
+	forward.cpp \
 	posterior.cpp \
 	traceback_path.cpp \
 	externDefinitions.cpp \
@@ -297,24 +298,19 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/PDF.Po
-include ./$(DEPDIR)/backward.Po
-include ./$(DEPDIR)/baum_welch.Po
 include ./$(DEPDIR)/bitwise_ops.Po
 include ./$(DEPDIR)/dynamic_bitset.Po
 include ./$(DEPDIR)/emm.Po
 include ./$(DEPDIR)/externDefinitions.Po
 include ./$(DEPDIR)/externalFuncs.Po
 include ./$(DEPDIR)/forward.Po
-include ./$(DEPDIR)/forward_viterbi.Po
 include ./$(DEPDIR)/hmm.Po
 include ./$(DEPDIR)/index.Po
 include ./$(DEPDIR)/lexicalTable.Po
 include ./$(DEPDIR)/modelTemplate.Po
-include ./$(DEPDIR)/nth_best.Po
 include ./$(DEPDIR)/options.Po
 include ./$(DEPDIR)/posterior.Po
 include ./$(DEPDIR)/pwm.Po
-#include ./$(DEPDIR)/job_holder.Po
 include ./$(DEPDIR)/sequence.Po
 include ./$(DEPDIR)/sequences.Po
 include ./$(DEPDIR)/state.Po

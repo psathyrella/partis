@@ -113,6 +113,8 @@ namespace StochHMM{
     // decoding
     void viterbi();
     void viterbi(model* h, sequences* sqs);
+    void forward();
+    void forward(model* h, sequences* sqs);
     void posterior();
     void posterior(model* h, sequences* sqs);
     void stochastic_viterbi();

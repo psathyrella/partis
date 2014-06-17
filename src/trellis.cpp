@@ -8,96 +8,94 @@
 
 #include "trellis.h"
 
-
 namespace StochHMM {
+  // ----------------------------------------------------------------------------------------
   trellis::trellis(){
-    hmm=NULL;
-    seqs=NULL;
-    nth_size=SIZE_MAX;
+    hmm = NULL;
+    seqs = NULL;
+    nth_size = SIZE_MAX;
                 
-    seq_size=0;
-    state_size=0;
+    seq_size = 0;
+    state_size = 0;
                 
     type = SIMPLE;
-    store_values=false;
-    exDef_defined=false;
+    store_values = false;
+    exDef_defined = false;
                 
-    traceback_table             = NULL;
-    stochastic_table    = NULL;
+    traceback_table = NULL;
+    stochastic_table = NULL;
 
-    viterbi_score               = NULL;
-    forward_score               = NULL;
-    backward_score              = NULL;
-    posterior_score             = NULL;
-    dbl_forward_score   = NULL;
-    dbl_viterbi_score   = NULL;
-    dbl_backward_score  = NULL;
+    viterbi_score = NULL;
+    forward_score = NULL;
+    backward_score = NULL;
+    posterior_score = NULL;
+    dbl_forward_score = NULL;
+    dbl_viterbi_score = NULL;
+    dbl_backward_score = NULL;
     dbl_posterior_score = NULL;
                 
     ending_viterbi_score = -INFINITY;
     ending_viterbi_tb = -1;
     //          ending_posterior = -INFINITY;
     ending_forward_prob = -INFINITY;
-    ending_backward_prob= -INFINITY;
+    ending_backward_prob = -INFINITY;
                 
-    naive_nth_scores    = NULL;
-    ending_nth_viterbi  = NULL;
+    naive_nth_scores = NULL;
+    ending_nth_viterbi = NULL;
     nth_traceback_table = NULL;
-    nth_scoring_previous= NULL;
+    nth_scoring_previous = NULL;
     nth_scoring_current = NULL;
                 
     scoring_current = NULL;
-    scoring_previous= NULL;
+    scoring_previous = NULL;
     alt_scoring_current = NULL;
     alt_scoring_previous = NULL;
   }
         
+  // ----------------------------------------------------------------------------------------
   trellis::trellis(model* h, sequences* sqs){
-    hmm=h;
-    seqs=sqs;
-    nth_size=SIZE_MAX;
+    hmm = h;
+    seqs = sqs;
+    nth_size = SIZE_MAX;
                 
-    seq_size            = seqs->getLength();
-    state_size          = hmm->state_size();
+    seq_size = seqs->getLength();
+    state_size = hmm->state_size();
                 
     type = SIMPLE;
     store_values=false;
-    exDef_defined       = seqs->exDefDefined();
+    exDef_defined = seqs->exDefDefined();
                 
-    traceback_table             = NULL;
-    stochastic_table    = NULL;
+    traceback_table = NULL;
+    stochastic_table = NULL;
     nth_traceback_table = NULL;
-    viterbi_score               = NULL;
-    forward_score               = NULL;
-    backward_score              = NULL;
-    posterior_score             = NULL;
-    dbl_forward_score   = NULL;
-    dbl_viterbi_score   = NULL;
-    dbl_backward_score  = NULL;
+    viterbi_score = NULL;
+    forward_score = NULL;
+    backward_score = NULL;
+    posterior_score = NULL;
+    dbl_forward_score = NULL;
+    dbl_viterbi_score = NULL;
+    dbl_backward_score = NULL;
     dbl_posterior_score = NULL;
                 
     ending_viterbi_score = -INFINITY;
     ending_viterbi_tb = -1;
     //          ending_posterior = -INFINITY;
     ending_forward_prob = -INFINITY;
-    ending_backward_prob= -INFINITY;
+    ending_backward_prob = -INFINITY;
                 
-    naive_nth_scores    = NULL;
-    ending_nth_viterbi  = NULL;
+    naive_nth_scores = NULL;
+    ending_nth_viterbi = NULL;
     nth_traceback_table = NULL;
-    nth_scoring_previous= NULL;
+    nth_scoring_previous = NULL;
     nth_scoring_current = NULL;
 
     scoring_current = NULL;
-    scoring_previous= NULL;
+    scoring_previous = NULL;
     alt_scoring_current = NULL;
     alt_scoring_previous = NULL;
-
   }
-        
-        
-        
-  trellis::~trellis(){
+  // ----------------------------------------------------------------------------------------
+  trellis::~trellis() {
     delete traceback_table;
     delete stochastic_table;
 
@@ -121,37 +119,38 @@ namespace StochHMM {
     delete alt_scoring_previous;
     delete alt_scoring_current;
                 
-    traceback_table             = NULL;
-    stochastic_table    = NULL;
+    traceback_table = NULL;
+    stochastic_table = NULL;
 
-    viterbi_score               = NULL;
-    forward_score               = NULL;
-    backward_score              = NULL;
-    posterior_score             = NULL;
-    dbl_forward_score   = NULL;
-    dbl_viterbi_score   = NULL;
-    dbl_backward_score  = NULL;
+    viterbi_score = NULL;
+    forward_score = NULL;
+    backward_score = NULL;
+    posterior_score = NULL;
+    dbl_forward_score = NULL;
+    dbl_viterbi_score = NULL;
+    dbl_backward_score = NULL;
     dbl_posterior_score = NULL;
                 
-    naive_nth_scores    = NULL;
-    ending_nth_viterbi  = NULL;
+    naive_nth_scores = NULL;
+    ending_nth_viterbi = NULL;
     nth_traceback_table = NULL;
-    nth_scoring_previous= NULL;
+    nth_scoring_previous = NULL;
     nth_scoring_current = NULL;
                 
-    scoring_previous    = NULL;
-    scoring_current             = NULL;
-    alt_scoring_previous= NULL;
+    scoring_previous = NULL;
+    scoring_current = NULL;
+    alt_scoring_previous = NULL;
     alt_scoring_current = NULL;
   }
         
-  void trellis::reset(){
-    hmm=NULL;
-    seqs=NULL;
-    nth_size=SIZE_MAX;
-    state_size=0;
-    seq_size=0;
-    type= SIMPLE;
+  // ----------------------------------------------------------------------------------------
+  void trellis::reset() {
+    hmm = NULL;
+    seqs = NULL;
+    nth_size = SIZE_MAX;
+    state_size = 0;
+    seq_size = 0;
+    type = SIMPLE;
     store_values = false;
     exDef_defined = false;
                 
@@ -180,51 +179,49 @@ namespace StochHMM {
     delete nth_scoring_current;
     delete nth_scoring_previous;
                 
-    traceback_table             = NULL;
-    stochastic_table    = NULL;
+    traceback_table = NULL;
+    stochastic_table = NULL;
     nth_traceback_table = NULL;
                 
-    viterbi_score               = NULL;
-    forward_score               = NULL;
-    backward_score              = NULL;
-    posterior_score             = NULL;
+    viterbi_score = NULL;
+    forward_score = NULL;
+    backward_score = NULL;
+    posterior_score = NULL;
                 
-    scoring_current             = NULL;
-    scoring_previous    = NULL;
+    scoring_current = NULL;
+    scoring_previous = NULL;
                 
     alt_scoring_current = NULL;
-    alt_scoring_previous= NULL;
+    alt_scoring_previous = NULL;
                 
-    dbl_forward_score   = NULL;
-    dbl_viterbi_score   = NULL;
-    dbl_backward_score  = NULL;
+    dbl_forward_score = NULL;
+    dbl_viterbi_score = NULL;
+    dbl_backward_score = NULL;
     dbl_posterior_score = NULL;
                 
-    naive_nth_scores    = NULL;
-    ending_nth_viterbi  = NULL;
+    naive_nth_scores = NULL;
+    ending_nth_viterbi = NULL;
     nth_traceback_table = NULL;
-    nth_scoring_previous= NULL;
+    nth_scoring_previous = NULL;
     nth_scoring_current = NULL;
                 
     ending_viterbi_score = -INFINITY;
     ending_viterbi_tb = -1;
     //          ending_posterior = -INFINITY;
     ending_forward_prob = -INFINITY;
-    ending_backward_prob= -INFINITY;
-                
-                
+    ending_backward_prob = -INFINITY;
   }
         
-        
+  // ----------------------------------------------------------------------------------------
   //TODO:  Fix getTransitions to work with all transition types
-  double trellis::getTransition(state* st, size_t trans_to_state, size_t sequencePosition){
+  double trellis::getTransition(state* st, size_t trans_to_state, size_t sequencePosition) {
     double transition_prob(-INFINITY);
     transition* trans = st->getTrans(trans_to_state);
-    if (trans==NULL){
+    if (trans==NULL) {
       return transition_prob;
     }
                                 
-    transType trans_type= trans->getTransitionType();
+    transType trans_type = trans->getTransitionType();
         
         
         
@@ -408,46 +405,38 @@ namespace StochHMM {
     return transitionValue;
   }
 
-        
-        
-        
-        
+  // ----------------------------------------------------------------------------------------
   //!Perform traceback through trellis
   //!\return path trackback_path
-  void trellis::traceback(traceback_path& path){
-                
-    if (seq_size==0 || traceback_table == NULL){
+  void trellis::traceback(traceback_path& path) {
+    if (seq_size==0 || traceback_table == NULL) {
       return;
     }
                 
-    if (path.getModel() == NULL){
+    if (path.getModel() == NULL) {
       path.setModel(hmm);
     }
                 
-    if (ending_viterbi_score == -INFINITY){
+    if (ending_viterbi_score == -INFINITY) {
       return;
-    }
-    else{
+    } else {
       path.setScore(ending_viterbi_score);
       path.push_back(ending_viterbi_tb);  // push back the state that led to END state
             
       int16_t pointer = ending_viterbi_tb;
-                        
-      for( size_t position = seq_size -1 ; position>0 ; position--){
+      for(size_t position=seq_size-1; position>0; position--) {
         pointer = (*traceback_table)[position][pointer];
-                                
         if (pointer == -1){
           std::cerr << "No valid path at Position: " << position << std::endl;
           return;
         }
-                                
         path.push_back(pointer);
       }
     }
     return;
   }
         
-        
+  // ----------------------------------------------------------------------------------------
   //!Perform a traceback starting at position and state given
   //! \param [out] traceback_path
   //! \param position Position to start traceback
