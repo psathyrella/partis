@@ -83,10 +83,6 @@ namespace StochHMM{
 	emission = (*hmm)[st_current]->get_emission_prob(*seqs, position);
                                 
                                 
-	if (exDef_defined && exDef_position){
-	  emission += seqs->getWeight(position, st_current);
-	}
-                                
 	if (emission == -INFINITY){
 	  continue;
 	}

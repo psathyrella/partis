@@ -39,9 +39,6 @@
 #include "sequences.h"
 #include <stdlib.h>
 
-
-
-
 namespace StochHMM{
     
         

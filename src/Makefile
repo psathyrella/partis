@@ -78,7 +78,7 @@ am_libstochhmm_a_OBJECTS = pwm.$(OBJEXT) PDF.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
 	track.$(OBJEXT) emm.$(OBJEXT) externalFuncs.$(OBJEXT) \
 	modelTemplate.$(OBJEXT) transitions.$(OBJEXT) weight.$(OBJEXT) \
-	options.$(OBJEXT) seqJobs.$(OBJEXT) seqTracks.$(OBJEXT) \
+	options.$(OBJEXT) job_holder.$(OBJEXT) \
 	sequence.$(OBJEXT) sequences.$(OBJEXT) bitwise_ops.$(OBJEXT) \
 	dynamic_bitset.$(OBJEXT)
 libstochhmm_a_OBJECTS = $(am_libstochhmm_a_OBJECTS)
@@ -109,7 +109,7 @@ CPP = gcc -E
 CPPFLAGS = 
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2
+CXXFLAGS = -g -O2 -std=c++0x
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -212,8 +212,7 @@ libstochhmm_a_SOURCES = \
 	transitions.cpp \
 	weight.cpp \
 	options.cpp \
-	seqJobs.cpp \
-	seqTracks.cpp \
+	job_holder.cpp \
 	sequence.cpp \
 	sequences.cpp \
 	bitwise_ops.cpp \
@@ -315,8 +314,7 @@ include ./$(DEPDIR)/nth_best.Po
 include ./$(DEPDIR)/options.Po
 include ./$(DEPDIR)/posterior.Po
 include ./$(DEPDIR)/pwm.Po
-include ./$(DEPDIR)/seqJobs.Po
-include ./$(DEPDIR)/seqTracks.Po
+#include ./$(DEPDIR)/job_holder.Po
 include ./$(DEPDIR)/sequence.Po
 include ./$(DEPDIR)/sequences.Po
 include ./$(DEPDIR)/state.Po

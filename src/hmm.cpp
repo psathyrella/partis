@@ -57,7 +57,8 @@ namespace StochHMM{
       }
             
       hmms.push_back(temp);
-      hmms[0]->import(modelFile,funcs);
+      assert(0); // removed this import function
+      // hmms[0]->import(modelFile,funcs);
     }
     else if (input.compare("#STOCHHMM MODELS")==0){
       std::vector<std::string> filenames;
@@ -89,7 +90,8 @@ namespace StochHMM{
       }
             
       for(size_t i=0;i<filenames.size();i++){
-	hmms[i]->import(filenames[i],funcs);
+	assert(0);  // removed this import function
+	// hmms[i]->import(filenames[i],funcs);
 	hmms[i]->print();
       }
     }
@@ -152,64 +154,27 @@ namespace StochHMM{
         
     
     
-  //!Create a model
-  model::model(){
-    ending=new(std::nothrow) state();
-        
-    if (ending==NULL){
-      std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-      exit(1);
-    }
+  // ----------------------------------------------------------------------------------------
+  model::model() {
+    ending = new(std::nothrow) state();
+    assert(ending);
         
     finalized=false;
     basicModel=true;
     attribTwo=false;
 
-    initial                                         = NULL;
-    scaling                                         = NULL;
-    templatedStates                         = NULL;
-    explicit_duration_states        = NULL;
-    complex_emission_states         = NULL;
-    complex_transition_states       = NULL;
+    initial = NULL;
+    scaling = NULL;
+    templatedStates = NULL;
+    explicit_duration_states = NULL;
+    complex_emission_states = NULL;
+    complex_transition_states = NULL;
                 
     range[0]=-INFINITY;
     range[1]=-INFINITY;
-        
-    return;
   }
     
-  //    //TODO: more model constructors based on additional templates and weights to pass to import/parse
-  //    //!Create a model file
-  //    //! \param modelFile Filename of model file
-  //    //! \param funcs  Pointer to State functions defined by programmer
-  //    model::model(std::string& modelFile, StateFuncs* funcs){
-  //        ending=new state();
-  //        finalized=false;
-  //        basicModel=true;
-  //        initial=NULL;
-  //        scaling=NULL;
-  //        templatedStates=NULL;
-  //        attribTwo=false;
-  //        import(modelFile,funcs);
-  //        return;
-  //    }
-    
-  //TODO: multiple import function for templates and weights...
-  //!Import the model file and parse it
-  //! \param modelFile Model filename
-  //! \param funcs  Pointer to State functions defined by programmer
-  bool model::import(std::string& modelFile, StateFuncs* funcs){
-    std::string modelString=slurpFile(modelFile);
-    return parse(modelString,funcs,NULL,NULL);
-  }
-    
-    
-  bool model::import(std::string& modelFile, StateFuncs* funcs, templates* tmpls, weights* scl){
-    std::string modelString=slurpFile(modelFile);
-    return parse(modelString, funcs, tmpls, scl);
-  }
-    
-  bool model::import(std::string& modelFile){
+  bool model::import(std::string modelFile){
     std::string modelString=slurpFile(modelFile);
     return parse(modelString,NULL,NULL,NULL);
   }

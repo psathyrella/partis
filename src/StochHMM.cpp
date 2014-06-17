@@ -2,28 +2,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <map>
 #include <iomanip>
 #include <time.h>
 #include <fstream>
 #include "StochHMMlib.h"
+#include "job_holder.h"
 
 #include "StochHMM_usage.h"
 using namespace StochHMM;
+using namespace std;
 
 #define STATE_MAX 1024
 
+double run(JobHolder &jh, size_t k_v, size_t k_d);
+double run_region(model *hmm, sequences *seqs);
+
 // ----------------------------------------------------------------------------------------
-void run_job(seqJob *job);
-void print_output(multiTraceback*, std::string&);
-// void print_output(std::vector<traceback_path>&, std::string&);
-void print_output(traceback_path*, std::string&);
+void print_output(multiTraceback*, string&);
+// void print_output(vector<traceback_path>&, string&);
+void print_output(traceback_path*, string&);
 void print_posterior(trellis&);
 
 // init command-line options
 opt_parameters commandline[]={
   {"-help:-h"     ,OPT_NONE       ,false  ,"",    {}},
   //Required
-  {"-model:-m"    ,OPT_STRING     ,true   ,"",    {}},
+  {"-model:-m"    ,OPT_STRING     ,false   ,"",    {}},
   {"-seq:-s:-track",OPT_STRING    ,true   ,"",    {}},
   //Non-Stochastic Decoding
   {"-viterbi"     ,OPT_NONE       ,false  ,"",    {}},
@@ -39,36 +44,50 @@ opt_parameters commandline[]={
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
 options opt;  //Global options for parsed command-line options
+StateFuncs default_functions;  // this will automatically initialize all the Univariate and Multivariate PDFs
+vector<string> regions{"v","d","j"};
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
-  seqTracks jobs;  //seqTracks stores multiple jobs(model and multiple sequences)
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);
-  assert(opt.isSet("-model"));
   assert(opt.isSet("-seq"));
 
-  model hmm;
-  StateFuncs default_functions;  // this will automatically initialize all the Univariate and Multivariate PDFs
-  hmm.import(opt.sopt("-model"), &default_functions);
-  jobs.loadSeqs(hmm, opt.sopt("-seq"), FASTA);  // calls importJobs, which calls getNext() *once* but no more.
-
-  seqJob *job = jobs.getJob();  // job consists of a model and associated sequences
-  while (job) {  // For each job(sequence) perform the analysis
-    run_job(job);
-    job = jobs.getJob();  // get next job
+  assert(!opt.isSet("-model"));
+  JobHolder jh("bcell", regions, opt.sopt("-seq"));
+  // size_t k_v(296);
+  // size_t k_d(17);
+  for (size_t k_v=290; k_v<300; ++k_v) {
+    for (size_t k_d=13; k_d<21; ++k_d) {
+      double score = run(jh, k_v, k_d);
+      cout
+	<< setw(12) << k_v
+	<< setw(12) << k_d
+	<< setw(12) << score
+	<< endl;
+    }
   }
 }
 
 // ----------------------------------------------------------------------------------------
-void run_job(seqJob *job) {
-  size_t k_v(7);//300);
-  size_t k_d(17);
-  sequences *seqs(job->getSeqs());
-  sequences subseqs(job->getSubSeqs(0,k_v));
-  seqs = &subseqs;
-  model *hmm(job->getModel());
+double run(JobHolder &jh, size_t k_v, size_t k_d) {
+  double score(-INFINITY);
+  map<string,sequences> subseqs = jh.GetSubSeqs(k_v, k_d);
+  for (auto &region : regions) {
+    double tmp_score = run_region(jh.hmm(region), &subseqs[region]);
+    if (score==-INFINITY) {
+      score = tmp_score;
+    } else {
+      score += tmp_score;
+    }
+  }
+  return score;
+}
+
+// ----------------------------------------------------------------------------------------
+double run_region(model *hmm, sequences *seqs) {
+  double score(-INFINITY);
   trellis trell(hmm, seqs);
   if (opt.isSet("-posterior")) {
     trell.posterior();
@@ -83,7 +102,8 @@ void run_job(seqJob *job) {
     trell.viterbi();
     traceback_path path(hmm);
     trell.traceback(path);
-    print_output(&path, seqs->getHeader());
+    // print_output(&path, seqs->getHeader());
+    score = path.getScore();
   } else if (opt.isSet("-stochastic")) {
     assert(opt.isFlagSet("-stochastic", "viterbi"));  // removed the other ones for the time being
     trell.stochastic_viterbi();
@@ -91,9 +111,11 @@ void run_job(seqJob *job) {
     trell.stochastic_traceback(paths, opt.iopt("-rep"));
     print_output(&paths, seqs->getHeader());
   }
+  return score;
 }
+
 // ----------------------------------------------------------------------------------------
-void print_output(multiTraceback* tb, std::string& header) {
+void print_output(multiTraceback* tb, string& header) {
   tb->finalize();
   bool previous(true);
   if (opt.isSet("-hits")){
@@ -110,17 +132,17 @@ void print_output(multiTraceback* tb, std::string& header) {
 }
 
 // ----------------------------------------------------------------------------------------
-void print_output(traceback_path* tb, std::string& header){
+void print_output(traceback_path* tb, string& header){
   bool previous(true);
   if (opt.isSet("-label")) {
-    std::cout << ">" << header ;
-    std::cout << "\tScore: " << tb->getScore() << std::endl;
+    cout << ">" << header ;
+    cout << "\tScore: " << tb->getScore() << endl;
     tb->print_label();
     previous=false;
   }
   if (opt.isSet("-path") || previous){
-    std::cout << ">" << header ;
-    std::cout << "\tScore: " << tb->getScore() << std::endl;
+    cout << ">" << header ;
+    cout << "\tScore: " << tb->getScore() << endl;
     tb->print_path();
   }
   return;
@@ -136,7 +158,7 @@ void print_posterior(trellis& trell){
   size_t state_size = hmm->state_size();
   char cstr[200];
         
-  std::string output;
+  string output;
   output+="Posterior Probabilities Table\n";
   output+="Model:\t" + hmm->getName() + "\n";
   output+="Sequence:\t" + trell.getSeq()->getHeader() + "\n";
@@ -150,7 +172,7 @@ void print_posterior(trellis& trell){
   }
   output+="\n";
         
-  std::cout <<  output;
+  cout <<  output;
         
 
   for(size_t position = 0; position < table->size(); ++position){
@@ -171,10 +193,10 @@ void print_posterior(trellis& trell){
 
     }
     output+="\n";
-    std::cout << output;
+    cout << output;
   }
 
-  std::cout << std::endl;
+  cout << endl;
         
   return;
         

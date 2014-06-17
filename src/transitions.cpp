@@ -738,10 +738,11 @@ namespace StochHMM{
       return value;
     }
     else if (transition_type == PDF){
-      if (pdfTrack==NULL){
-	return (*pdfFunction)(pos,NULL);
-      }
-      return  (*pdfFunction)(pos,seqs->getRealSeq(track_number));
+      assert(0);  // removed this functionality
+      // if (pdfTrack==NULL){
+      // 	return (*pdfFunction)(pos,NULL);
+      // }
+      // return  (*pdfFunction)(pos,seqs->getRealSeq(track_number));
     }
     else{
       return -INFINITY; 

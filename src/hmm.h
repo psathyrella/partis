@@ -46,14 +46,9 @@
 #include "text.h"
 #include "stochTypes.h"
 #include "weight.h"
-//#include "transInfoParse.h"   // Transitions Information Parsing
 #include "modelTemplate.h"
 #include "stateInfo.h"
 namespace StochHMM{
-	
-	
-	
-	
   /*! \class model
     Hidden Markov Model Class
     model class combines the States, and model information together in a single unit.
@@ -63,74 +58,26 @@ namespace StochHMM{
     Provides functions to import the model from a text file
 	 
     Model is used by trellis class to evaluates sequences.  
-	 
-	 
   */
   class model {
   public:
     model();
-		
     //    model(std::string&,StateFuncs*); //! Construct model from model file
     //    model(std::string&,std::string&,StateFuncs*); //!Construct model from model file and template file
     //    model(std::string&,StateFuncs*,templates*,weights*);
 		
-    //ACCESSOR FUNCTIONS
-		
-    //Model Information
-		
-    //!Get the Name of the Model
-    inline std::string& getName(){return name;} // Get name of model
-		
-    //! Get Description of model
+    inline std::string& getName(){return name;}
     inline std::string& getDescription(){return desc;}
-		
-    //! Get Date of model
     inline std::string& getDate(){return date;}
-		
-    //!Get Creation Command of model
     inline std::string& getCommand(){return command;}
-		
-    //! Get Author of model
     inline std::string& getAuthor(){return author;}
     //inline float getLowerRange(){return range[0];};
     //inline float getUpperRange(){return range[1];};
+    inline size_t state_size(){return states.size();}  //!Get the number of states that are defined in the model
 		
-		
-		
-    //-----------State Information-------------/
-		
-    //!Get the number of states that are defined in the model
-    inline size_t state_size(){return states.size();}
-		
-    //!Get the name of the state at index
-    //! \param iter Index of state
-    inline std::string& getStateName(size_t iter){
-      if (iter>= states.size()){
-	std::cerr << "Attempting to access State Name which is out of range\n";
-	exit(2);
-      }
-      return states[iter]->getName();
-    };
-		
-    //!Get the Label of the state at index
-    //! \param iter Index of state
-    inline std::string& getStateLabel(size_t iter){
-      if (iter>= states.size()){
-	std::cerr << "Attempting to access State Label which is out of range\n";
-	exit(2);
-      }
-      return states[iter]->getLabel();
-    }
-		
-    //!Get the GFF Tag of the state at index
-    //! \param iter Index of state
-    inline std::string& getStateGFF(size_t iter) {
-      if (iter>= states.size()){
-	std::cerr << "Attempting to access State GFF which is out of range\n";
-	exit(2);
-      }
-      return states[iter]->getGFF();
-    }
+    inline std::string& getStateName(size_t iter){ return states[iter]->getName(); }
+    inline std::string& getStateLabel(size_t iter){ return states[iter]->getLabel(); }
+    inline std::string& getStateGFF(size_t iter) { return states[iter]->getGFF(); }
 		
     //!Get pointer to the state at index
     //! \param iter Index of state
@@ -146,7 +93,6 @@ namespace StochHMM{
     //! \param const std::string  Name of state
     //! \return ptr_state Pointer to state
     state* getState(const std::string&);
-		
 		
     //!Get state by using iterator value
     inline state* operator[](size_t iter){
@@ -257,31 +203,11 @@ namespace StochHMM{
     //! Formatting is very basic and function may disappear.
     //void writeGraphViz(std::string,bool);
 
-		
-		
-    //MUTATORS
-    //!Import and Parse the model from text file
-    //!\param std::string Filename
-    //!\param StateFuncs ptr  Pointer to StateFuncts, if no State Functions
-    //! are (Univariate, Multivariate, Emission Functs, Transition Functions)
-    //! described then you can use NULL
-    //! \return true if import was successful
-    bool import(std::string&,StateFuncs*);
-		
     //!Import and Parse the model from text file
     //! \param std::string Filename
     //! \return true if import was successful
-    bool import(std::string&);
-		
-    //!Import and Parse the model from text file
-    //! \param std::string Filename
-    //! \param StateFuncs ptr  Pointer to StateFunctions
-    //! \param templates ptr Pointer to Templated State template
-    //! \param weight ptr  Pointer to weighting factors
-    //! \return true if import was successful
-    bool import(std::string&, StateFuncs*, templates*, weights*);
-		
-		
+    bool import(std::string);
+
     //!Import and parse the model from std::string
     //! \sa import(std::string&)
     bool importFromString(std::string&);

@@ -92,10 +92,6 @@ void trellis::posterior(){
               
       emission = (*hmm)[current]->get_emission_prob(*seqs, position);
                               
-      if (exDef_defined && exDef_position){
-        emission += seqs->getWeight(position, current);
-      }
-                              
       if (emission == -INFINITY){
         continue;
       }
@@ -209,10 +205,6 @@ void trellis::posterior(){
       }
 
       emission = (*hmm)[st_previous]->get_emission_prob(*seqs, position+1);
-
-      if (exDef_defined && exDef_position){
-        emission += seqs->getWeight(position+1, st_previous);
-      }
 
       if (emission == -INFINITY){
         continue;

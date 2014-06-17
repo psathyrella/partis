@@ -276,6 +276,7 @@ namespace StochHMM{
   // ----------------------------------------------------------------------------------------
   //! \return a copy of the sequence from <pos> of size <len>
   sequence sequence::getSubSequence(size_t pos, size_t len) {
+    assert(pos+len < undigitized.size());
     std::string subseq_str = undigitized.substr(pos, len);
     return sequence(subseq_str, seqtrk);
   }
@@ -355,24 +356,14 @@ namespace StochHMM{
   //!If the string is a real track, then it will return a string of doubles
   //!If the string is a non-real track, then it will return a string of shorts, where the shorts are the digitized value of the sequence according to the track
   //! \return std::string String representation of the sequence
-  std::string sequence::stringifyWOHeader(){
+  std::string sequence::stringifyWOHeader() {
     std::string output;
-        
-    if (!seq && !realSeq){
-      output+=undigitized;
-    }
-        
-    if (realSeq){
-      for(size_t i=0;i<length;i++){
-        output+= double_to_string((*real)[i]) + " ";
-      }
-    }
-    else{
-      for(size_t i=0;i<length;i++){
-        output+= int_to_string((int)(*seq)[i]) + " ";
-      }
-    }
-        
+    // if (!seq && !realSeq) {
+      output += undigitized;
+    // }
+    // for (size_t i=0; i<length; i++) {
+      // output += int_to_string((int)(*seq)[i]) + " ";
+    // }
         
     if (mask){
       output += "\n";
@@ -420,11 +411,20 @@ namespace StochHMM{
     return output;
   }
     
+  // ----------------------------------------------------------------------------------------
+  bool sequence::getFasta(std::string fname, track* trk) {
+    std::ifstream ifs(fname);
+    assert(ifs.is_open());
+    bool success = getFasta(ifs, trk);
+    ifs.close();
+    return success;
+  }
+
   //!Extract sequence from a fasta file
   //! \param file File stream 
   //! \param trk Track to use for digitizing sequence
   //! \return true if function was able to get a sequence from the file
-  bool sequence::getFasta(std::ifstream& file, track* trk,stateInfo* info) {
+  bool sequence::getFasta(std::ifstream& file, track* trk) {
     if (seq) this->clear();
     seqtrk = trk;
     assert(file.good());
@@ -453,15 +453,6 @@ namespace StochHMM{
       if (nl_peek=='>') {  // if there's a new sequence header on the next line, digitize what we have then break
         success = _digitize();
         break;
-      } else if (nl_peek=='[') {  // if next line has external definitions, deal with them
-        success = _digitize();
-        if (info == NULL){
-          std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
-          exit(2);
-        } else {
-          external= new (std::nothrow) ExDefSequence(seq->size());
-          external->parse(file, *info);
-        }
       } else if (nl_peek==EOF) {  // if we're at the end of the file, digitize and break
         getline(file, line, '\n');
         success = _digitize();
@@ -471,6 +462,7 @@ namespace StochHMM{
       }
     }
     length = seq->size();
+    assert(success);
     return success;
   }
     

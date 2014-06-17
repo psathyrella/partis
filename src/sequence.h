@@ -149,9 +149,8 @@ namespace StochHMM{
     void setSeq(std::string&,track*);
     void setRealSeq(std::vector<double>*,track*);
                 
-    inline bool getFasta(std::ifstream& file){return getFasta(file,NULL,NULL);}
-    inline bool getFasta(std::ifstream& file, track* trk){ return getFasta(file,trk,NULL);}
-    bool getFasta(std::ifstream&, track*, stateInfo*);
+    bool getFasta(std::string, track*);
+    bool getFasta(std::ifstream&, track*);
         
                 
     bool getMaskedFasta(std::ifstream&, track*);
