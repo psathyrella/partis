@@ -158,7 +158,7 @@ class HmmWriter(object):
         self.text += '//END\n'
     
 # ----------------------------------------------------------------------------------------
-germline_seqs = utils.read_germlines('.')  #'/home/dralph/Dropbox/work/recombinator')
+germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
 for region in utils.regions:  #= 'v'
     igene = 0
     for gene_name in germline_seqs[region]:

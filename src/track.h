@@ -47,39 +47,24 @@
 #endif
 
 namespace StochHMM{
-        
-        
   class track;
   class tracks;
-    
-    
-  /*! \class ambigCharacter
-    \brief Define the ambiguous characters symbol and index number for digitizing ambiguous characters in the sequence
-    For example in DNA N = [ACGT] = [0,1,2,3]
-         
-  */
-  class ambigCharacter{
+
+  // ----------------------------------------------------------------------------------------
+  // ! \class ambigCharacter
+  // !  \brief Define the ambiguous characters symbol and index number for digitizing ambiguous characters in the sequence
+  // !  For example in DNA N = [ACGT] = [0,1,2,3]
+  class ambigCharacter {
   public:
     ambigCharacter(track*, std::string&, std::vector<std::string>& ); //track, ambiguous character, unambiguous characters
-        
-        
-    //! Get Ambiguous String/Alphabet character symbol
-    //! \return std::string Symbol of character/word
     inline std::string getSymbol(){return symbol;};
-        
-        
-    //FIXME: should be vector of shorts unless I expand from 256 to larger int
-    //! Get the characters that the characters defines.
-    //! For example in DNA N = [ACGT] = [0,1,2,3]
-    //! \return std::vector<int> Digitized value of characters that are represented by the given symbol
     inline std::vector<size_t>& getDef(){return setDefinition;};
-        
   private:
     std::string symbol;  //Ambiguous character definition
     std::vector<size_t> setDefinition; //Set of letters by digital value that ambiguous character defines
   };
     
-        
+  // ----------------------------------------------------------------------------------------
   //! \class track
   //! Defines types of data (real-value, text-sequence) used in the model
   //! and the alphabet that a text-sequence uses.  Tracks are used to digitize
@@ -87,29 +72,17 @@ namespace StochHMM{
   class track {
   public:
     track();
-        
-    //TODO: Complete definition of constructor
     track(TrackFuncs*);
-    track(std::vector<std::string>&);
+    track(std::string, size_t, std::vector<std::string>&);
         
     friend class state;
     friend class model;
     friend class tracks;
         
-    //MUTATOR
     bool parse(std::string&);
     bool parseAmbiguous(std::string&);
-        
-    //!Set the name of the track
-    //! \param nm Name of the track
     inline void setName(std::string& nm){name=nm;};
-        
-    //!Set the Description of the track
-    //! \param desc Description of track
     inline void setDescription(std::string& desc){description=desc;};
-        
-    //!Set the integer index value of the track in tracks
-    //! \param indx  User defined index value;
     inline void setIndex(size_t indx){
       if (indx<std::numeric_limits<size_t>::max()){
 	trackIndex=indx;
@@ -118,12 +91,7 @@ namespace StochHMM{
       std::cerr << "Track index: " << indx << " is OUT_OF_RANGE\n";
       exit(1);
     }
-                
-        
-    //!Set the alphabet type of the track (Real or alphanum)
-    //! \param typ enum trackType
     inline void setAlphaType(trackType typ){alpha_type=typ;};
-        
                 
     bool addAlphabetChar(std::string&);
     bool addAlphabetChar(const char *);
@@ -195,8 +163,6 @@ namespace StochHMM{
     std::string getComplementSymbol(std::string& character);
     std::string getComplementSymbol(uint8_t value);
 
-    size_t get_n_seqs() { return n_seqs; };
-        
     inline bool isComplementDefined(){return complementSet;}
         
         
@@ -236,7 +202,8 @@ namespace StochHMM{
     size_t convertAlphaWordToIndex(std::string);
     size_t convertDigiWordToIndex(std::vector<uint8_t>);
                 
-        
+    size_t n_seqs;  // number of sequences for this track (eg two for a pair hmm)
+
     //!Check if the TrackFunction is defined for this track
     //!\return true if the track has a trackFunc defined
     inline bool isTrackFuncDefined(){return trackFunctionDefined;}
@@ -255,7 +222,6 @@ namespace StochHMM{
     std::string name;       /* Track Name */
     std::string description;        /* Track Desc */
     size_t trackIndex;     /*track number*/
-    size_t n_seqs;  // number of sequences for this track (eg two for a pair hmm)
         
     trackType alpha_type;   /* Track Type 1=string, 2=real_number  0=uninitialized*/
         

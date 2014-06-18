@@ -14,34 +14,29 @@ using namespace StochHMM;
 using namespace std;
 
 #define STATE_MAX 1024
-
 void run_casino();
-double run(JobHolder &jh, size_t k_v, size_t k_d);
-double run_region(model *hmm, sequences *seqs);
-
-// ----------------------------------------------------------------------------------------
+double run_job(model *hmm, sequences *seqs);
 void print_output(multiTraceback*, string&);
-// void print_output(vector<traceback_path>&, string&);
 void print_output(traceback_path*, string&);
 void print_posterior(trellis&);
 
 // init command-line options
-opt_parameters commandline[]={
-  {"-help:-h"     ,OPT_NONE       ,false  ,"",    {}},
-  //Required
-  {"-model:-m"    ,OPT_STRING     ,false   ,"",    {}},
-  {"-seq:-s:-track",OPT_STRING    ,true   ,"",    {}},
+opt_parameters commandline[] = {
+  {"-help:-h"      ,OPT_NONE       ,false  ,"",    {}},
+  {"-model:-m"     ,OPT_STRING     ,false  ,"",    {}},
+  {"-seq:-s:-track",OPT_STRING     ,false  ,"",    {}},
+  {"-hmmtype"      ,OPT_STRING    ,false  ,"single", {"single", "pair"}},
   //Non-Stochastic Decoding
-  {"-viterbi"     ,OPT_NONE       ,false  ,"",    {}},
-  {"-forward"     ,OPT_NONE       ,false  ,"",    {}},
-  {"-posterior"   ,OPT_NONE       ,false  ,"",    {}},
+  {"-viterbi"      ,OPT_NONE       ,false  ,"",    {}},
+  {"-forward"      ,OPT_NONE       ,false  ,"",    {}},
+  {"-posterior"    ,OPT_NONE       ,false  ,"",    {}},
   //Stochastic Decoding
-  {"-stochastic"  ,OPT_FLAG       ,false  ,"",    {"viterbi"}},
-  {"-repetitions:-rep",OPT_INT    ,false  ,"1000",{}},
+  {"-stochastic"   ,OPT_FLAG       ,false  ,"",    {"viterbi"}},
+  {"-repetitions:-rep",OPT_INT     ,false  ,"1000",{}},
   //Output Files and Formats
-  {"-path:-p"     ,OPT_STRING     ,false  ,"",    {}},
-  {"-label:-l"    ,OPT_STRING     ,false  ,"",    {}},
-  {"-hits"        ,OPT_STRING     ,false  ,"",    {}},
+  {"-path:-p"      ,OPT_STRING     ,false  ,"",    {}},
+  {"-label:-l"     ,OPT_STRING     ,false  ,"",    {}},
+  {"-hits"         ,OPT_STRING     ,false  ,"",    {}},
 };
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
@@ -54,38 +49,47 @@ int main(int argc, const char * argv[]) {
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);
-  assert(opt.isSet("-seq"));
 
   if (opt.isSet("-model")) {
     assert(opt.sopt("-model") == "dice");
     run_casino();
     return 0;
   }
-  JobHolder jh("bcell", regions, opt.sopt("-seq"));
-  double best_score(-INFINITY);
-  size_t best_k_v,best_k_d;
+  JobHolder jh("/home/dralph/Dropbox/work/recombinator/data", opt.sopt("-hmmtype"), "./bcell", regions, "bcell/seq.fa");
+  // double best_score(-INFINITY);
+  // size_t best_k_v,best_k_d;
   for (size_t k_v=295; k_v<298; ++k_v) {
     for (size_t k_d=16; k_d<19; ++k_d) {
       // k_v = 296; k_d = 17;
-      double score = run(jh, k_v, k_d);
       cout
-	<< setw(12) << k_v
-	<< setw(12) << k_d
-	<< setw(12) << score
-	<< endl;
-      if (score > best_score) {
-	best_score = score;
-	best_k_v = k_v;
-	best_k_d = k_d;
+	  << setw(12) << k_v
+	  << setw(12) << k_d
+	  << endl;
+      jh.InitJobs(k_v, k_d);
+      while (true) {
+	jh.GetNextHMM();
+	if(jh.finished_)
+	  break;
+	double score = run_job(&jh.current_hmm_, jh.current_seqs_);
+	cout
+	  << setw(12) << score
+	  << "   " << jh.current_seqs_->stringifyWOHeader()
+	  << endl;
       }
+      assert(0);
+      // if (score > best_score) {
+      // 	best_score = score;
+      // 	best_k_v = k_v;
+      // 	best_k_d = k_d;
+      // }
     }
   }
-  cout
-    << "best: "
-    << setw(12) << best_k_v
-    << setw(12) << best_k_d
-    << setw(12) << best_score
-    << endl;
+  // cout
+  //   << "best: "
+  //   << setw(12) << best_k_v
+  //   << setw(12) << best_k_d
+  //   << setw(12) << best_score
+  //   << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -99,28 +103,13 @@ void run_casino() {
     sequence *seq = new sequence;
     seq->getFasta(ifs, hmm.getTrack((size_t)0));
     seqs.addSeq(seq);
-    run_region(&hmm, &seqs);
+    run_job(&hmm, &seqs);
   }
   ifs.close();
 }
 
 // ----------------------------------------------------------------------------------------
-double run(JobHolder &jh, size_t k_v, size_t k_d) {
-  double score(-INFINITY);
-  map<string,sequences> subseqs = jh.GetSubSeqs(k_v, k_d);
-  for (auto &region : regions) {
-    double tmp_score = run_region(jh.hmm(region), &subseqs[region]);
-    if (score==-INFINITY) {  // TODO change this to an addLog analogue (*not* addLog)
-      score = tmp_score;
-    } else {
-      score += tmp_score;
-    }
-  }
-  return score;
-}
-
-// ----------------------------------------------------------------------------------------
-double run_region(model *hmm, sequences *seqs) {
+double run_job(model *hmm, sequences *seqs) {
   double score(-INFINITY);
   trellis trell(hmm, seqs);
   if (opt.isSet("-viterbi")) {
