@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import math
 import utils
 from opener import opener
@@ -18,50 +19,48 @@ TRACK SYMBOL DEFINITIONS
 NUKES: """
 
 class HmmWriter(object):
-    def __init__(self, outfile, region, data_dir):
+    def __init__(self, base_outdir, region, gene_name, germline_seq):
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this. I just have it at two for human readibility while debugging
+        self.outdir = base_outdir + '/' + region
         self.region = region
-        self.germline_seqs = utils.read_germlines(data_dir)
+        self.gene_name = gene_name
+        self.germline_seq = germline_seq
         self.text = ''  # text of the hmm description, to be written to file on completion
 
+    # ----------------------------------------------------------------------------------------
     def write(self):
         self.add_header()
         self.add_states()
-        self.write_clear()
-
-    # ----------------------------------------------------------------------------------------
-    def write_clear(self):
-        """ write what's currently in <text>, and clear it """
-        outfile.write(self.text)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
+        outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
+        with opener('w')(outfname) as outfile:
+            outfile.write(self.text)
         self.text = ''
 
     # ----------------------------------------------------------------------------------------
     def add_region_entry_probs(self):
-        """ Probabilities to enter <region> at point <inuke> in version <gene_name> """
+        """ Probabilities to enter germline gene at point <inuke> """
         # TODO use probs from data
         max_erosion = 7
-        n_genes = len(self.germline_seqs[self.region])
         total = 0.0
-        for gene,seq in self.germline_seqs[self.region].iteritems():
-            for inuke in range(max_erosion):  #len(seq)):
-                gene_prob = float(1./n_genes)  # prob of choosing this gene
-                erosion_prob = float(1./max_erosion)  # prob of entering this germline gene at this position, i.e. of eroding until here
-                probability = gene_prob * erosion_prob
-                total += probability
-                self.text += ('  %35s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(gene), inuke, probability)  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+        for inuke in range(max_erosion):  #len(seq)):
+            probability = float(1./max_erosion)  # prob of entering the germline gene at this position, i.e. of eroding until here (*left* side erosion)
+            total += probability
+            self.text += ('  %35s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probability)  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
         assert math.fabs(total - 1.0) < 1e-10  # make sure probs sum to one
 
     # ----------------------------------------------------------------------------------------
     def get_exit_probability(self, seq, inuke):
         """
         Prob of exiting the chain of states for this region and entering the insert state.
-        In other words, how much do we erode?
+        In other words, how much do we erode? (*right* side erosion)
         """
-        if self.region == 'j':  # no insert state to right of j -- we go until sequence ends, i.e. we get a transition to END
+        if self.region == 'j':  # no insert state to right of j -- we go until query sequence ends, i.e. until we get a transition to END
             return 0.0
         distance_to_end = len(seq) - inuke - 1
         decay_length = 7  # number of bases over which probability decays to 1/e of initial value (using a e^(-x) a.t.m.
-        return math.exp(-distance_to_end / decay_length)
+        return math.exp(-float(distance_to_end) / decay_length)  # TODO use probs from data
     
     # ----------------------------------------------------------------------------------------
     def add_header(self):
@@ -87,6 +86,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_emission_header(self):
         self.text += 'EMISSION: NUKES: P(X)\n'
+        self.text += '  ORDER: 0\n'
 
     # ----------------------------------------------------------------------------------------
     def add_init_state(self):
@@ -98,39 +98,40 @@ class HmmWriter(object):
     def add_insert_state(self):
         self.add_state_header('insert', 'i')
         self.add_transition_header()
-        insertion_length = 7
+        insertion_length = 7  # TODO use lengths from data
         self.text += (' insert: %.' + self.precision + 'f\n') % (1./insertion_length)
         self.text += '  END: 1\n'
         self.add_emission_header()
-        self.text += '  ORDER: 0\n'
         emission_probability_string = ''
         for nuke in utils.nukes:
-            emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))
+            emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))  # TODO use emission probs from data
         emission_probability_string = emission_probability_string.rstrip()
         self.text += emission_probability_string + '\n'
 
     # ----------------------------------------------------------------------------------------
-    def add_internal_state(self, gene_name, seq, inuke, germline_nuke):
-        saniname = utils.sanitize_name(gene_name)
+    def add_internal_state(self, seq, inuke, germline_nuke):
+        saniname = utils.sanitize_name(self.gene_name)
         self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke))
 
+        # transitions
         self.add_transition_header()
-        exit_probability = self.get_exit_probability(seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene. TODO use data
-        if inuke < len(seq) - 1:
-            self.text += ('  %s_%d:  %.' + self.precision + 'f\n') % (saniname, inuke+1, 1 - exit_probability)  # add a transition to next state
-        if exit_probability > 0.0:
+        exit_probability = self.get_exit_probability(seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene
+        if inuke < len(seq) - 1:  # if we're not at the end of this germline gene, add a transition to the next state
+            self.text += ('  %s_%d:  %.' + self.precision + 'f\n') % (saniname, inuke+1, 1 - exit_probability)
+        if exit_probability > 10**(-int(self.precision)+1):  # don't write transitions that have zero probability
             self.text += ('  insert:  %.' + self.precision + 'f\n') % exit_probability  # and one to the insert state
-        self.text += '  END: 1\n'
+        self.text += '  END: 1\n'  # TODO don't write this transition to END for states (e.g. the start of v) that have no real chance to transition to END)
+
+        # emissions
         self.add_emission_header()
-        self.text += '  ORDER: 0\n'
-        emission_label_string = '@'
+        emission_label_string = '@'  # add line with human-readable headers
         for nuke in utils.nukes:
             emission_label_string += ' %18s' % nuke
         self.text += emission_label_string + '\n'
-        emission_probability_string = ' '
+        emission_probability_string = ' '  # then add the line with actual probabilities
         for nuke in utils.nukes:
             prob = 0.0
-            if nuke == germline_nuke:  # TODO use real mute probs
+            if nuke == germline_nuke:  # TODO use data mute probs
                 prob = 0.94
             else:
                 prob = 0.02
@@ -144,14 +145,9 @@ class HmmWriter(object):
         self.add_init_state()
 
         # write internal states
-        igene = 0
-        for gene_name in self.germline_seqs[self.region]:
-            print '  %d / %d (%s)' % (igene, len(self.germline_seqs[self.region]), gene_name)
-            for inuke in range(len(self.germline_seqs[self.region][gene_name])):
-                nuke = self.germline_seqs[self.region][gene_name][inuke]
-                self.add_internal_state(gene_name, self.germline_seqs[self.region][gene_name], inuke, nuke)
-            igene += 1
-            self.write_clear()  # this is *really* slow for the v genes if you don't write out periodically
+        for inuke in range(len(self.germline_seq)):
+            nuke = self.germline_seq[inuke]
+            self.add_internal_state(self.germline_seq, inuke, nuke)
     
         # for v and d regions add insert state to right-hand side of hmm
         if self.region == 'v' or self.region == 'd':
@@ -162,8 +158,13 @@ class HmmWriter(object):
         self.text += '//END\n'
     
 # ----------------------------------------------------------------------------------------
-region = 'v'
-outfname = 'bcell/' + region + '.hmm'
-with opener('w')(outfname) as outfile:
-    writer = HmmWriter(outfile, region, '.')  #'/home/dralph/Dropbox/work/recombinator')
-    writer.write()
+germline_seqs = utils.read_germlines('.')  #'/home/dralph/Dropbox/work/recombinator')
+for region in utils.regions:  #= 'v'
+    igene = 0
+    for gene_name in germline_seqs[region]:
+        print '  %d / %d (%s)' % (igene, len(germline_seqs[region]), gene_name)
+        igene += 1
+        writer = HmmWriter('bcell', region, gene_name, germline_seqs[region][gene_name])
+        writer.write()
+ 
+
