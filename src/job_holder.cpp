@@ -1,10 +1,9 @@
 #include "job_holder.h"
 
 // ----------------------------------------------------------------------------------------
-JobHolder::JobHolder(string germline_dir, string hmmtype, string hmm_dir, vector<string> regions, string seqfname):
+JobHolder::JobHolder(string hmmtype, string hmm_dir, string seqfname):
   finished_(false),
-  hmm_dir_(hmm_dir),
-  regions_(regions)
+  hmm_dir_(hmm_dir)
 {
   vector<string> characters{"A","C","G","T"};
   track_ = track("NUKES", hmmtype == "single" ? 1 : 2, characters);
@@ -19,21 +18,6 @@ JobHolder::JobHolder(string germline_dir, string hmmtype, string hmm_dir, vector
     seqs_.addSeq(sq);
   }
   ifss.close();
-
-  // read germline names (so we know which .hmm files to later look for)
-  for (auto &region : regions_) {
-    germline_names_[region] = vector<string>();
-    ifstream ifsg(germline_dir + "/igh" + region + ".fasta");
-    assert(ifsg.is_open());
-    string line;
-    while (getline(ifsg,line)) {
-      if (line[0] != '>')  // only read the header lines
-	continue;
-      string gene_name = line.substr(1, line.find(" ") - 1);  // skip the '>', and run until the first blank. It *should* be the gene name. We'll find out later when we look for the file.
-      germline_names_[region].push_back(gene_name);
-    }
-    ifsg.close();
-  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -49,8 +33,8 @@ map<string,sequences> JobHolder::GetSubSeqs(size_t k_v, size_t k_d) {
 // chop up query sequences into subseqs in preparation for running them through each hmm
 void JobHolder::InitJobs(size_t k_v, size_t k_d) {
   subseqs_ = GetSubSeqs(k_v, k_d);
-  i_current_region_ = regions_.begin();
-  i_current_gene_ = germline_names_[*i_current_region_].begin();
+  i_current_region_ = gl_.regions_.begin();
+  i_current_gene_ = gl_.names_[*i_current_region_].begin();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -68,12 +52,12 @@ void JobHolder::GetNextHMM() {
 
   // set iterators to the *next* ones, or else set finished_ to true if we're done
   i_current_gene_++;
-  if (i_current_gene_ == germline_names_[*i_current_region_].end()) {
+  if (i_current_gene_ == gl_.names_[*i_current_region_].end()) {
      i_current_region_++;
-     if (i_current_region_ == regions_.end()) {
+     if (i_current_region_ == gl_.regions_.end()) {
        finished_ = true;
      } else {
-       i_current_gene_ = germline_names_[*i_current_region_].begin();
+       i_current_gene_ = gl_.names_[*i_current_region_].begin();
      }
   }
 }

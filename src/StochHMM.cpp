@@ -8,6 +8,7 @@
 #include <fstream>
 #include "StochHMMlib.h"
 #include "job_holder.h"
+#include "germlines.h"
 
 #include "StochHMM_usage.h"
 using namespace StochHMM;
@@ -41,11 +42,10 @@ opt_parameters commandline[] = {
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
 options opt;  //Global options for parsed command-line options
-StateFuncs default_functions;  // this will automatically initialize all the Univariate and Multivariate PDFs
-vector<string> regions{"v","d","j"};
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
+  GermLines gl;
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);
@@ -55,12 +55,12 @@ int main(int argc, const char * argv[]) {
     run_casino();
     return 0;
   }
-  JobHolder jh("/home/dralph/Dropbox/work/recombinator/data", opt.sopt("-hmmtype"), "./bcell", regions, "bcell/seq.fa");
+  JobHolder jh(opt.sopt("-hmmtype"), "./bcell", "bcell/seq.fa");
   // double best_score(-INFINITY);
   // size_t best_k_v,best_k_d;
   for (size_t k_v=295; k_v<298; ++k_v) {
     for (size_t k_d=16; k_d<19; ++k_d) {
-      // k_v = 296; k_d = 17;
+      k_v = 296; k_d = 17;
       cout
 	  << setw(12) << k_v
 	  << setw(12) << k_d

@@ -5,6 +5,7 @@
 #include <string>
 #include "hmm.h"
 #include "sequences.h"
+#include "germlines.h"
 
 using namespace std;
 using namespace StochHMM;
@@ -12,7 +13,7 @@ using namespace StochHMM;
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(string germline_dir, string hmmtype, string hmm_dir, vector<string> regions, string seqfname);
+  JobHolder(string hmmtype, string hmm_dir, string seqfname);
   void InitJobs(size_t k_v, size_t k_d);
   void GetNextHMM();
 
@@ -24,7 +25,7 @@ private:
   string sanitize_name(string gene_name);  // should put this somewhere else
 
   string hmm_dir_;  // location of .hmm files
-  map<string, vector<string> > germline_names_;
+  GermLines gl_;
   vector<string> regions_;
   track track_;
   sequences seqs_;
