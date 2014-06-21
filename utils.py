@@ -2,6 +2,7 @@
 require member variables. """
 
 import sys
+import collections
 
 from Bio import SeqIO
 
@@ -238,7 +239,7 @@ def unsanitize_name(name):
 def read_germlines(data_dir):
     germlines = {}
     for region in regions:
-        germlines[region] = {}
+        germlines[region] = collections.OrderedDict()
         for seq_record in SeqIO.parse(data_dir + '/data/igh'+region+'.fasta', "fasta"):
             germlines[region][seq_record.name] = str(seq_record.seq)
     return germlines

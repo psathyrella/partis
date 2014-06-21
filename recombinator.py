@@ -9,7 +9,7 @@ import os
 import re
 from subprocess import check_output
 
-from Bio import SeqIO
+#from Bio import SeqIO
 import dendropy
 
 from opener import opener
@@ -41,6 +41,7 @@ class Recombinator(object):
         # first read stuff that doesn't depend on which human we're looking at
         print '    reading vdj versions'
         for region in utils.regions:
+            assert False  # moved this to utils.py
             self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
         print '    reading cyst and tryp positions'
         with opener('r')('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
@@ -121,6 +122,7 @@ class Recombinator(object):
         return True
 
     def read_vdj_versions(self, region, fname):
+        assert False  # moved this to utils
         """ Read the various germline variants from file. """
         self.all_seqs[region] = {}
         for seq_record in SeqIO.parse(fname, "fasta"):
