@@ -21,7 +21,8 @@ NUKES: """
 class HmmWriter(object):
     def __init__(self, base_outdir, region, gene_name, germline_seq):
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this. I just have it at two for human readibility while debugging
-        self.outdir = base_outdir + '/' + region
+        self.v_right_length = 50  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
+        self.outdir = outdir
         self.region = region
         self.gene_name = gene_name
         self.germline_seq = germline_seq
@@ -31,8 +32,6 @@ class HmmWriter(object):
     def write(self):
         self.add_header()
         self.add_states()
-        if not os.path.exists(self.outdir):
-            os.makedirs(self.outdir)
         outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
         with opener('w')(outfname) as outfile:
             outfile.write(self.text)
@@ -44,7 +43,10 @@ class HmmWriter(object):
         # TODO use probs from data
         max_erosion = 7
         total = 0.0
-        for inuke in range(max_erosion):  #len(seq)):
+        istart = 0
+        if region == 'v' and self.v_right_length != -1:
+            istart = len(self.germline_seq) - self.v_right_length
+        for inuke in range(istart, istart+max_erosion):  #len(seq)):
             probability = float(1./max_erosion)  # prob of entering the germline gene at this position, i.e. of eroding until here (*left* side erosion)
             total += probability
             self.text += ('  %35s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probability)  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
@@ -145,7 +147,10 @@ class HmmWriter(object):
         self.add_init_state()
 
         # write internal states
-        for inuke in range(len(self.germline_seq)):
+        istart = 0
+        if self.region == 'v' and self.v_right_length != -1:  # chop off the left side of the v
+            istart = len(self.germline_seq) - self.v_right_length
+        for inuke in range(istart, len(self.germline_seq)):
             nuke = self.germline_seq[inuke]
             self.add_internal_state(self.germline_seq, inuke, nuke)
     
@@ -158,13 +163,25 @@ class HmmWriter(object):
         self.text += '//END\n'
     
 # ----------------------------------------------------------------------------------------
+
+n_max_versions = 5  # only look at the first n gene versions (speeds things up for testing)
 germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
-for region in utils.regions:  #= 'v'
+
+for region in utils.regions:
+    outdir = 'bcell/' + region
+    if os.path.exists(outdir):
+        for hmmfile in os.listdir(outdir):
+            if hmmfile.endswith(".hmm"):
+                os.remove(outdir + "/" + hmmfile)
+    else:
+        os.makedirs(outdir)
+    
     igene = 0
     for gene_name in germline_seqs[region]:
+        if igene >= n_max_versions:
+            print 'breaking after %d gene versions' % n_max_versions
+            break
         print '  %d / %d (%s)' % (igene, len(germline_seqs[region]), gene_name)
         igene += 1
         writer = HmmWriter('bcell', region, gene_name, germline_seqs[region][gene_name])
         writer.write()
- 
-

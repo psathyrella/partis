@@ -3,8 +3,8 @@
 
 #include <map>
 #include <string>
-#include "hmm.h"
-#include "sequences.h"
+#include "StochHMMlib.h"
+#include "StochHMM_usage.h"
 #include "germlines.h"
 
 using namespace std;
@@ -13,23 +13,20 @@ using namespace StochHMM;
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(string hmmtype, string hmm_dir, string seqfname);
-  void InitJobs(size_t k_v, size_t k_d);
-  void GetNextHMM();
+  JobHolder(string hmmtype, string hmm_dir, string seqfname, size_t n_max_versions=0);
+  void Run(size_t k_v, size_t k_d, string algorithm);
 
-  sequences *current_seqs_;
-  model current_hmm_;
-  bool finished_;
 private:
   map<string,sequences> GetSubSeqs(size_t k_v, size_t k_d);  // get the subsequences for the v, d, and j regions given a k_v and k_d
-  string sanitize_name(string gene_name);  // should put this somewhere else
+  size_t GetInsertLength(vector<string> labels);
+  size_t GetErosionLength(string side, vector<string> path_labels, string gene_name);
 
   string hmm_dir_;  // location of .hmm files
+  size_t n_max_versions_;    // only look at the first n gene versions (speeds things up for testing)
   GermLines gl_;
   vector<string> regions_;
   track track_;
   sequences seqs_;
-  map<string,sequences> subseqs_;
   vector<string>::iterator i_current_region_;  // region and position of the *next* job we will pass out with GetNextJob()
   vector<string>::iterator i_current_gene_;
 };

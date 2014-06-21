@@ -409,31 +409,23 @@ namespace StochHMM {
   //!Perform traceback through trellis
   //!\return path trackback_path
   void trellis::traceback(traceback_path& path) {
-    if (seq_size==0 || traceback_table == NULL) {
-      return;
-    }
-                
-    if (path.getModel() == NULL) {
+    assert(seq_size != 0);
+    assert(traceback_table);
+    if (path.getModel() == NULL)
       path.setModel(hmm);
-    }
-                
-    if (ending_viterbi_score == -INFINITY) {
-      return;
-    } else {
-      path.setScore(ending_viterbi_score);
-      path.push_back(ending_viterbi_tb);  // push back the state that led to END state
+    if(ending_viterbi_score == -INFINITY) return;  // no valid path through this hmm
+    path.setScore(ending_viterbi_score);
+    path.push_back(ending_viterbi_tb);  // push back the state that led to END state
             
-      int16_t pointer = ending_viterbi_tb;
-      for(size_t position=seq_size-1; position>0; position--) {
-        pointer = (*traceback_table)[position][pointer];
-        if (pointer == -1){
-          std::cerr << "No valid path at Position: " << position << std::endl;
-          return;
-        }
-        path.push_back(pointer);
+    int16_t pointer = ending_viterbi_tb;
+    for(size_t position=seq_size-1; position>0; position--) {
+      pointer = (*traceback_table)[position][pointer];
+      if (pointer == -1){
+	std::cerr << "No valid path at Position: " << position << std::endl;
+	return;
       }
+      path.push_back(pointer);
     }
-    return;
   }
         
   // ----------------------------------------------------------------------------------------

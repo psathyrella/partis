@@ -1,9 +1,9 @@
 #include "job_holder.h"
 
 // ----------------------------------------------------------------------------------------
-JobHolder::JobHolder(string hmmtype, string hmm_dir, string seqfname):
-  finished_(false),
-  hmm_dir_(hmm_dir)
+JobHolder::JobHolder(string hmmtype, string hmm_dir, string seqfname, size_t n_max_versions):
+  hmm_dir_(hmm_dir),
+  n_max_versions_(n_max_versions)
 {
   vector<string> characters{"A","C","G","T"};
   track_ = track("NUKES", hmmtype == "single" ? 1 : 2, characters);
@@ -30,48 +30,114 @@ map<string,sequences> JobHolder::GetSubSeqs(size_t k_v, size_t k_d) {
 }
 
 // ----------------------------------------------------------------------------------------
-// chop up query sequences into subseqs in preparation for running them through each hmm
-void JobHolder::InitJobs(size_t k_v, size_t k_d) {
-  subseqs_ = GetSubSeqs(k_v, k_d);
-  i_current_region_ = gl_.regions_.begin();
-  i_current_gene_ = gl_.names_[*i_current_region_].begin();
-}
+void JobHolder::Run(size_t k_v, size_t k_d, string algorithm) {
+  map<string,sequences> subseqs = GetSubSeqs(k_v, k_d);
+  double total_score(-INFINITY);
+  for (auto &region : gl_.regions_) {
+    double best_region_score(-INFINITY);
+    string best_gene;
+    size_t igene(0);
+    sequences *query_seqs(&subseqs[region]);
+    assert(query_seqs->size() == 1);  // testing stuff a.t.m. -- no pair hmms
+    string query_str((*query_seqs)[0].undigitize());
+    cout << "                query " << query_str << endl;
+    for (auto &gene : gl_.names_[region]) {
+      if (igene >= n_max_versions_)
+	break;
+      igene++;
+      assert(gl_.seqs_.find(gene) != gl_.seqs_.end());
+      string germline(gl_.seqs_[gene]);
+      model hmm;
+      hmm.import(hmm_dir_ + "/" + region + "/" + gl_.SanitizeName(gene) + ".hmm");
+      if (region=="j" && query_str.size()>germline.size())  // query sequence too long for this j version to make any sense
+	continue;
+      trellis trell(&hmm, query_seqs);
+      if (algorithm=="viterbi") {
+	// run viterbi
+	trell.viterbi();
+	// trace back the path
+	traceback_path path(&hmm);
+	trell.traceback(path);
+	vector<string> path_labels;
+	path.label(path_labels);
+	assert(path_labels.size() > 0);
+	if (path.getScore() > best_region_score) {
+	  best_region_score = path.getScore();
+	  best_gene = gene;
+	}
+	size_t insert_length = GetInsertLength(path_labels);
+	size_t left_erosion_length = GetErosionLength("left", path_labels, gene);
+	size_t right_erosion_length = GetErosionLength("right", path_labels, gene);
+	// assert(query_str
 
-// ----------------------------------------------------------------------------------------
-// get the next job to process, i.e. the next germline hmm through which to run the query sequence
-void JobHolder::GetNextHMM() {
-  assert(subseqs_.size() > 0);  // make sure InitJobs was run first
+	assert(query_str.size() == path_labels.size());
 
-  current_seqs_ = &subseqs_[*i_current_region_];
-  current_hmm_ = model();
-  current_hmm_.import(hmm_dir_ + "/" + (*i_current_region_) + "/" + sanitize_name(*i_current_gene_) + ".hmm");
-    
-  cout
-    << setw(12) << (*i_current_region_)
-    << setw(40) << (*i_current_gene_);
-
-  // set iterators to the *next* ones, or else set finished_ to true if we're done
-  i_current_gene_++;
-  if (i_current_gene_ == gl_.names_[*i_current_region_].end()) {
-     i_current_region_++;
-     if (i_current_region_ == gl_.regions_.end()) {
-       finished_ = true;
-     } else {
-       i_current_gene_ = gl_.names_[*i_current_region_].begin();
-     }
+	string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
+	// for (size_t i=0; i<left_erosion_length; ++i)
+	//   modified_seq = "i" + modified_seq;
+	for (size_t i=0; i<insert_length; ++i)
+	  modified_seq = modified_seq + "i";
+	assert(modified_seq.size() == query_str.size());
+	assert(germline.size() + insert_length - left_erosion_length - right_erosion_length == query_str.size());
+	cout << "                      " << modified_seq << "    " << gene << endl;
+      } else if (algorithm=="forward") {
+	trell.forward();
+	best_region_score = trell.getForwardProbability();
+      }
+    }
+    cout << "  " << setw(12) << best_region_score << setw(29) << best_gene << endl;
+    if (total_score == -INFINITY)
+      total_score = best_region_score;
+    else
+      total_score += best_region_score;
   }
+  cout << "  overall " << total_score << "  for k set " << k_v << " " << k_d << endl;
 }
 
 // ----------------------------------------------------------------------------------------
-// replace * with _star_ and / with _slash_
-string JobHolder::sanitize_name(string gene_name) {
-  size_t istar(gene_name.find("*"));
-  if (istar != string::npos)
-    gene_name.replace(istar, 1, "_star_");
+size_t JobHolder::GetInsertLength(vector<string> labels) {
+  size_t n_inserts(0);
+  for (auto &label : labels) {
+    if (label=="i")
+      n_inserts++;
+  }
+  return n_inserts;
+}
 
-  size_t islash(gene_name.find("/"));
-  if (islash != string::npos)
-    gene_name.replace(islash, 1, "_slash_");
+// ----------------------------------------------------------------------------------------
+size_t JobHolder::GetErosionLength(string side, vector<string> labels, string gene_name) {
+  // first find the index in <labels> up to which we eroded
+  size_t istate;
+  if (side=="left") { // to get left erosion length we look at the first state in the path
+    if (labels[0] == "i") return 0;  // eroded entire sequence
+    istate = 0;
+  } else if (side=="right") {  // and for the righthand one we need the last non-insert state
+    for (size_t il=labels.size()-1; il>=0; --il) {  // loop over each state from the right
+      if (labels[il] == "i") {  // skip any insert states on the right
+	continue;
+      } else {  // found the rightmost non-insert state -- that's the one we want
+	istate = il;
+	break;
+      }
+    }
+  } else {
+    assert(0);
+  }
 
-  return gene_name;
+  // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
+  assert(labels[istate].find("IGH") == 0);  // start of state label should be IGH[VDJ]
+  string state_index_str = labels[istate].substr(labels[istate].find_last_of("_") + 1);
+  size_t state_index = atoi(state_index_str.c_str());
+
+  size_t length(0);
+  if (side=="left") {
+    length = state_index;
+  } else if (side=="right") {
+    size_t germline_length = gl_.seqs_[gene_name].size();
+    length = germline_length - state_index - 1;
+  } else {
+    assert(0);
+  }
+
+  return length;
 }

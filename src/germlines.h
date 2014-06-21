@@ -11,6 +11,7 @@ using namespace std;
 // ----------------------------------------------------------------------------------------
 class GermLines {
  public:
+  // ----------------------------------------------------------------------------------------
   GermLines(string input_dir="/home/dralph/Dropbox/work/recombinator/data"):
     regions_{"v","d","j"}
     {
@@ -27,7 +28,7 @@ class GermLines {
 	  } else {
 	    // line.replace(line.find("\n"), 1, "");
 	    seq = (seq=="") ? line : seq + line;
-	    if (ifs.peek() == '>') {  // if we're done with this sequence, add it to the map
+	    if (ifs.peek()=='>' || ifs.peek()==EOF) {  // if we're done with this sequence, add it to the map
 	      seqs_[name] = seq;
 	      seq = "";
 	    }
@@ -37,6 +38,21 @@ class GermLines {
       }
     }
 
+  // ----------------------------------------------------------------------------------------
+  // replace * with _star_ and / with _slash_
+  string SanitizeName(string gene_name) {
+    size_t istar(gene_name.find("*"));
+    if (istar != string::npos)
+      gene_name.replace(istar, 1, "_star_");
+
+    size_t islash(gene_name.find("/"));
+    if (islash != string::npos)
+      gene_name.replace(islash, 1, "_slash_");
+
+    return gene_name;
+  }
+
+  // ----------------------------------------------------------------------------------------
   vector<string> regions_;
   map<string,vector<string> > names_;
   map<string,string> seqs_;
