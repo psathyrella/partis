@@ -79,7 +79,12 @@ void JobHolder::Run(size_t k_v, size_t k_d, string algorithm) {
 	  modified_seq = modified_seq + "i";
 	assert(modified_seq.size() == query_str.size());
 	assert(germline.size() + insert_length - left_erosion_length - right_erosion_length == query_str.size());
-	cout << "                      " << modified_seq << "    " << gene << endl;
+	TermColors tc;
+	cout
+	  << "                      " << tc.redify_mutants(query_str, modified_seq)
+	  << setw(12) << path.getScore()
+	  << setw(25) << gene
+	  << endl;
       } else if (algorithm=="forward") {
 	trell.forward();
 	best_region_score = trell.getForwardProbability();

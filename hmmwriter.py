@@ -62,7 +62,7 @@ class HmmWriter(object):
             return 0.0
         distance_to_end = len(seq) - inuke - 1
         decay_length = 7  # number of bases over which probability decays to 1/e of initial value (using a e^(-x) a.t.m.
-        return math.exp(-float(distance_to_end) / decay_length)  # TODO use probs from data
+        return math.exp(-float(distance_to_end + 5) / decay_length)  # TODO use probs from data
     
     # ----------------------------------------------------------------------------------------
     def add_header(self):

@@ -9,6 +9,46 @@
 using namespace std;
 
 // ----------------------------------------------------------------------------------------
+class TermColors {
+ public:
+  TermColors():
+    head_("\033[95m"),
+    blue_("\033[94m"),
+    green_("\033[92m"),
+    yellow_("\033[93m"),
+    red_("\033[91m"),
+    end_("\033[0m") {
+  }
+
+  string red(string seq) { return red_ + seq + end_; }  // return seq with the proper bash escape strings tacked on left and right so it prints as red
+  string yellow(string seq) { return yellow_ + seq + end_; }  // same for yellow
+  string redify_mutants(string germline, string seq) {  // return <seq> with mutant bases w.r.t. <germline> escaped to appear red (and 'i', inserts, yellow) in bash terminal
+    if (germline.size() != seq.size()) {
+      cout << "ERROR seqs not same length in redify_mutants: " << germline << endl
+	   << "                                              " << seq << endl;
+    }
+    string return_str;
+    for (size_t inuke=0; inuke<seq.size(); ++inuke) {
+      if (seq[inuke] == 'i') {
+	return_str += yellow(seq.substr(inuke,1));
+      } else if (seq[inuke] == germline[inuke]) {
+	return_str += seq[inuke];
+      } else {
+	return_str += red(seq.substr(inuke,1));
+      }
+    }
+    return return_str;
+  }
+
+  string head_;
+  string blue_;
+  string green_;
+  string yellow_;
+  string red_;
+  string end_;
+};
+
+// ----------------------------------------------------------------------------------------
 class GermLines {
  public:
   // ----------------------------------------------------------------------------------------
@@ -57,5 +97,4 @@ class GermLines {
   map<string,vector<string> > names_;
   map<string,string> seqs_;
 };
-
 #endif
