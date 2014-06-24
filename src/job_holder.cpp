@@ -1,9 +1,10 @@
 #include "job_holder.h"
 
 // ----------------------------------------------------------------------------------------
-JobHolder::JobHolder(string hmmtype, string hmm_dir, string seqfname, size_t n_max_versions):
+JobHolder::JobHolder(string hmmtype, string algorithm, string hmm_dir, string seqfname, size_t n_max_versions):
   hmm_dir_(hmm_dir),
-  n_max_versions_(n_max_versions)
+  n_max_versions_(n_max_versions),
+  algorithm_(algorithm)
 {
   vector<string> characters{"A","C","G","T"};
   track_ = track("NUKES", hmmtype == "single" ? 1 : 2, characters);
@@ -21,6 +22,16 @@ JobHolder::JobHolder(string hmmtype, string hmm_dir, string seqfname, size_t n_m
 }
 
 // ----------------------------------------------------------------------------------------
+JobHolder::~JobHolder() {
+  for (auto &gene_map: trellisi_) {
+    string gene(gene_map.first);
+    for (auto &query_str_map: gene_map.second) {
+      delete query_str_map.second;
+      delete paths_[gene][query_str_map.first];
+    }
+  }
+}
+// ----------------------------------------------------------------------------------------
 map<string,sequences> JobHolder::GetSubSeqs(size_t k_v, size_t k_d) {
   map<string,sequences> subseqs;
   subseqs["v"] = seqs_.getSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
@@ -30,73 +41,113 @@ map<string,sequences> JobHolder::GetSubSeqs(size_t k_v, size_t k_d) {
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::Run(size_t k_v, size_t k_d, string algorithm) {
-  map<string,sequences> subseqs = GetSubSeqs(k_v, k_d);
-  double total_score(-INFINITY);
+void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
+  double best_score(-INFINITY);
+  KSet best_kset;
+  for (size_t k_v=k_v_start; k_v<k_v_start+n_k_v; ++k_v) {
+    for (size_t k_d=k_d_start; k_d<k_d_start+n_k_d; ++k_d) {
+      // k_v = 296; k_d = 17;
+      KSet kset(k_v,k_d);
+      cout << "    " << kset.first << setw(4) << kset.second << " -------------------------" << endl;
+      RunKSet(kset);
+      if (scores_[kset] > best_score) {
+      	best_score = scores_[kset];
+      	best_kset = kset;
+      }
+    }
+  }
+  cout
+    << "best: "
+    << setw(12) << best_kset.first
+    << setw(12) << best_kset.second
+    << setw(12) << best_score
+    << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void JobHolder::FillTrellis(model *hmm, sequences *query_seqs, string region, string gene) {
+  assert(algorithm_=="viterbi");  // de-implemented the others for the moment
+  string query_str((*query_seqs)[0].undigitize());
+  if (trellisi_.find(gene) != trellisi_.end() &&
+      trellisi_[gene].find(query_str) != trellisi_[gene].end()) {  // if we already did this gene for this query sequence. NOTE if we have one gene for this query_str, we're always gonna have the rest of 'em too
+  } else {
+    if (trellisi_.find(gene) == trellisi_.end()) {
+      trellisi_[gene] = map<string,trellis*>();
+      paths_[gene] = map<string,traceback_path*>();
+    }
+    trellisi_[gene][query_str] = new trellis(hmm, query_seqs);
+    trellisi_[gene][query_str]->viterbi();
+    paths_[gene][query_str] = new traceback_path(hmm);
+    trellisi_[gene][query_str]->traceback(*paths_[gene][query_str]);
+    PrintPath(query_str, gene);
+  }
+  // } else if (algorithm_=="forward") {
+  // 	trellisi_[kset][gene]->forward();
+  // 	best_region_score = trellisi_[kset][gene]->getForwardProbability();
+  // }
+}
+
+// ----------------------------------------------------------------------------------------
+void JobHolder::PrintPath(string query_str, string gene) {
+  vector<string> path_labels;
+  paths_[gene][query_str]->label(path_labels);
+  assert(path_labels.size() > 0);
+  assert(path_labels.size() == query_str.size());
+  size_t insert_length = GetInsertLength(path_labels);
+  size_t left_erosion_length = GetErosionLength("left", path_labels, gene);
+  size_t right_erosion_length = GetErosionLength("right", path_labels, gene);
+
+  string germline(gl_.seqs_[gene]);
+  string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
+  for (size_t i=0; i<insert_length; ++i)
+    modified_seq = modified_seq + "i";
+  assert(modified_seq.size() == query_str.size());
+  assert(germline.size() + insert_length - left_erosion_length - right_erosion_length == query_str.size());
+  TermColors tc;
+  cout
+    << "                    " << (left_erosion_length>0 ? ".." : "  ") << tc.redify_mutants(query_str, modified_seq) << (right_erosion_length>0 ? ".." : "  ")
+    << setw(12) << paths_[gene][query_str]->getScore()
+    << setw(25) << gene
+    << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void JobHolder::RunKSet(KSet kset) {
+  map<string,sequences> subseqs = GetSubSeqs(kset.first, kset.second);
+  map<string,double> best_scores;
+  map<string,string> best_genes;
   for (auto &region : gl_.regions_) {
-    double best_region_score(-INFINITY);
-    string best_gene;
-    size_t igene(0);
     sequences *query_seqs(&subseqs[region]);
     assert(query_seqs->size() == 1);  // testing stuff a.t.m. -- no pair hmms
     string query_str((*query_seqs)[0].undigitize());
-    cout << "                query " << query_str << endl;
+    cout << "              " << region << " query " << query_str << endl;
+
+    best_scores[region] = -INFINITY;
+    size_t igene(0);
     for (auto &gene : gl_.names_[region]) {
       if (igene >= n_max_versions_)
 	break;
       igene++;
-      assert(gl_.seqs_.find(gene) != gl_.seqs_.end());
-      string germline(gl_.seqs_[gene]);
+      if (region=="j" && query_str.size()>gl_.seqs_[gene].size())  // query sequence too long for this j version to make any sense
+	continue;
       model hmm;
       hmm.import(hmm_dir_ + "/" + region + "/" + gl_.SanitizeName(gene) + ".hmm");
-      if (region=="j" && query_str.size()>germline.size())  // query sequence too long for this j version to make any sense
-	continue;
-      trellis trell(&hmm, query_seqs);
-      if (algorithm=="viterbi") {
-	// run viterbi
-	trell.viterbi();
-	// trace back the path
-	traceback_path path(&hmm);
-	trell.traceback(path);
-	vector<string> path_labels;
-	path.label(path_labels);
-	assert(path_labels.size() > 0);
-	if (path.getScore() > best_region_score) {
-	  best_region_score = path.getScore();
-	  best_gene = gene;
-	}
-	size_t insert_length = GetInsertLength(path_labels);
-	size_t left_erosion_length = GetErosionLength("left", path_labels, gene);
-	size_t right_erosion_length = GetErosionLength("right", path_labels, gene);
-	// assert(query_str
-
-	assert(query_str.size() == path_labels.size());
-
-	string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
-	// for (size_t i=0; i<left_erosion_length; ++i)
-	//   modified_seq = "i" + modified_seq;
-	for (size_t i=0; i<insert_length; ++i)
-	  modified_seq = modified_seq + "i";
-	assert(modified_seq.size() == query_str.size());
-	assert(germline.size() + insert_length - left_erosion_length - right_erosion_length == query_str.size());
-	TermColors tc;
-	cout
-	  << "                      " << tc.redify_mutants(query_str, modified_seq)
-	  << setw(12) << path.getScore()
-	  << setw(25) << gene
-	  << endl;
-      } else if (algorithm=="forward") {
-	trell.forward();
-	best_region_score = trell.getForwardProbability();
+      FillTrellis(&hmm, query_seqs, region, gene);
+      if (paths_[gene][query_str]->getScore() > best_scores[region]) {
+	best_scores[region] = paths_[gene][query_str]->getScore();
+	best_genes[region] = gene;
       }
     }
-    cout << "  " << setw(12) << best_region_score << setw(29) << best_gene << endl;
-    if (total_score == -INFINITY)
-      total_score = best_region_score;
-    else
-      total_score += best_region_score;
   }
-  cout << "  overall " << total_score << "  for k set " << k_v << " " << k_d << endl;
+  scores_[kset] = best_scores["v"] + best_scores["d"] + best_scores["j"];  // set total score for this kset
+  cout
+    << "        "
+    << " " << best_genes["v"]
+    << " " << best_genes["d"]
+    << " " << best_genes["j"]
+    << "  --> "
+    << best_scores["v"] + best_scores["d"] + best_scores["j"]
+    << endl;
 }
 
 // ----------------------------------------------------------------------------------------

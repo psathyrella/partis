@@ -56,30 +56,9 @@ int main(int argc, const char * argv[]) {
     return 0;
   }
   cout << "WARNING breaking after 5 gene versions " << endl;
-  JobHolder jh(opt.sopt("-hmmtype"), "./bcell", "bcell/seq.fa", 5);
-  // double best_score(-INFINITY);
-  // size_t best_k_v,best_k_d;
-  for (size_t k_v=50; k_v<53; ++k_v) {
-    for (size_t k_d=16; k_d<19; ++k_d) {
-      // k_v = 296; k_d = 17;
-      cout
-	  << setw(12) << k_v
-	  << setw(12) << k_d
-	  << endl;
-      jh.Run(k_v, k_d, "viterbi");
-      // if (score > best_score) {
-      // 	best_score = score;
-      // 	best_k_v = k_v; 
-     // 	best_k_d = k_d;
-      // }
-    }
-  }
-  // cout
-  //   << "best: "
-  //   << setw(12) << best_k_v
-  //   << setw(12) << best_k_d
-  //   << setw(12) << best_score
-  //   << endl;
+  JobHolder jh(opt.sopt("-hmmtype"), "viterbi", "./bcell", "bcell/seq.fa", 5);
+  jh.Run(50, 3, 16, 3);
+  return 0;
 }
 
 // ----------------------------------------------------------------------------------------

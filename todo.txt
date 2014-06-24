@@ -2,6 +2,9 @@ hmms
   - add assertion in text parser that emission and transition probs at to 1.0
   - add probability of choosing a gene as an additional factor
   - optimizations
+    - TODO in FillTrellis
+    - for k_v --> k_v + 1, don\'t recalculate the whole table
+    - use erick\'s idea for a smith-waterman cutoff for gene version plausibility
     - don\'t rerun the v region if you\'ve only changed k_d!
     - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences
     - even *within* one gene version\'s dp table, I\'m looping over a lot of states to which I can\'t transition. Does this matter? Can it be avoided?
