@@ -27,7 +27,7 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(string hmmtype, string algorithm, string seqfname, HMMHolder *hmms, size_t n_max_versions=0);
+  JobHolder(string hmmtype, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_max_versions=0);
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
   void FillTrellis(sequences *query_seqs, string region, string gene);
@@ -47,10 +47,9 @@ private:
   GermLines gl_;
   RecoEvent event_;
   vector<string> regions_;
-  track track_;
-  sequences seqs_;
   map<KSet,double> scores_;  // map from kset to total score for that kset
   map<KSet,map<string,string> > best_genes_;  // map from a kset to its corresponding triplet of best genes
+  sequences *seqs_;
   HMMHolder *hmms_;
   map<string, map<string,trellis*> > trellisi_;  // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"]
   map<string, map<string,traceback_path*> > paths_;  // collection of the paths. 

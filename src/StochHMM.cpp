@@ -44,6 +44,24 @@ int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of
 options opt;  //Global options for parsed command-line options
 
 // ----------------------------------------------------------------------------------------
+vector<sequences*> GetSeqs(string seqfname, track *trk) {
+  vector<sequences*> all_seqs;
+  ifstream ifs(seqfname);
+  assert(ifs.is_open());
+  while(!ifs.eof()) {
+    sequences *seqs = new sequences;
+    for (size_t iseq=0; iseq<trk->n_seqs; iseq++) {  // for pair hmm, we push back two seqs for each track
+      sequence *sq = new(nothrow) sequence(false);
+      assert(sq);
+      sq->getFasta(ifs, trk);
+      seqs->addSeq(sq);
+    }
+    all_seqs.push_back(seqs);
+  }
+  ifs.close();
+  return all_seqs;
+}
+// ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   GermLines gl;
   srand(time(NULL));
@@ -55,10 +73,18 @@ int main(int argc, const char * argv[]) {
     run_casino();
     return 0;
   }
-  cout << "WARNING breaking after 5 gene versions " << endl;
+
+  cout << "\nWARNING breaking after 5 gene versions " << endl;
+
+  size_t n_seqs_per_track(opt.sopt("-hmmtype")=="pair" ? 2 : 1);
+  vector<string> characters{"A","C","G","T"};
+  track trk("NUKES", n_seqs_per_track, characters);
+  vector<sequences*> seqs(GetSeqs("bcell/seq.fa", &trk));
   HMMHolder hmms("./bcell");
-  JobHolder jh(opt.sopt("-hmmtype"), "viterbi", "bcell/seq.fa", &hmms, 5);
-  jh.Run(47, 4, 14, 3);
+  for (size_t is=0; is<seqs.size(); is++) {
+    JobHolder jh(opt.sopt("-hmmtype"), "viterbi", seqs[is], &hmms, 5);
+    jh.Run(46, 8, 6, 20);
+  }
   return 0;
 }
 

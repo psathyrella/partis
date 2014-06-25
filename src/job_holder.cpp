@@ -16,25 +16,13 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(string hmmtype, string algorithm, string seqfname, HMMHolder *hmms, size_t n_max_versions):
+JobHolder::JobHolder(string hmmtype, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_max_versions):
   n_max_versions_(n_max_versions),
   algorithm_(algorithm),
+  seqs_(seqs),
   hmms_(hmms),
   debug_(false)
 {
-  vector<string> characters{"A","C","G","T"};
-  track_ = track("NUKES", hmmtype == "single" ? 1 : 2, characters);
-
-  // read sequences
-  ifstream ifss(seqfname);
-  assert(ifss.is_open());
-  for (size_t iseq=0; iseq<track_.n_seqs; ++iseq) {  // for pair hmm, we push back two seqs for each track
-    sequence *sq = new(nothrow) sequence(false);
-    assert(sq);
-    sq->getFasta(ifss, &track_);
-    seqs_.addSeq(sq);
-  }
-  ifss.close();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -51,9 +39,9 @@ JobHolder::~JobHolder() {
 map<string,sequences> JobHolder::GetSubSeqs(KSet kset) {
   size_t k_v(kset.first),k_d(kset.second);
   map<string,sequences> subseqs;
-  subseqs["v"] = seqs_.getSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
-  subseqs["d"] = seqs_.getSubSequences(k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
-  subseqs["j"] = seqs_.getSubSequences(k_v + k_d, seqs_.size() - k_v - k_d);  // j region runs from k_v + k_d to end
+  subseqs["v"] = seqs_->getSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
+  subseqs["d"] = seqs_->getSubSequences(k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
+  subseqs["j"] = seqs_->getSubSequences(k_v + k_d, seqs_->size() - k_v - k_d);  // j region runs from k_v + k_d to end
   return subseqs;
 }
 
@@ -61,11 +49,15 @@ map<string,sequences> JobHolder::GetSubSeqs(KSet kset) {
 void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
   double best_score(-INFINITY);
   KSet best_kset;
+  if (debug_)
+    cout
+      << "  k_v: " << k_v_start << "-" << k_v_start+n_k_v-1
+      << "  k_d: " << k_d_start << "-" << k_d_start+n_k_d-1
+      << endl;
   for (size_t k_v=k_v_start; k_v<k_v_start+n_k_v; ++k_v) {
     for (size_t k_d=k_d_start; k_d<k_d_start+n_k_d; ++k_d) {
       // k_v = 296; k_d = 17;
       KSet kset(k_v,k_d);
-      cout << "    " << kset.first << setw(4) << kset.second << " -------------------------" << endl;
       RunKSet(kset);
       if (scores_[kset] > best_score) {
       	best_score = scores_[kset];
@@ -73,15 +65,18 @@ void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k
       }
     }
   }
-  cout
-    << "best: "
-    << setw(12) << best_kset.first
-    << setw(12) << best_kset.second
-    << setw(12) << best_score
-    << endl;
+  if (debug_)
+    cout << "  best: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
   map<string,string> query_strs(GetQueryStrs(best_kset));
   FillRecoEvent(best_genes_[best_kset], query_strs);
-}
+  if (best_kset.first == k_v_start ||
+      best_kset.first == k_v_start+n_k_v-1 ||
+      best_kset.second == k_d_start ||
+      best_kset.second == k_d_start+n_k_d-1)
+    cout << "\nWARNING you're at the boundary of the specified k_v k_d space" << endl
+	 << "  k_v: " << best_kset.first << "(" << k_v_start << "-" << k_v_start+n_k_v-1 << ")" << endl
+	 << "  k_d: " << best_kset.second << "(" << k_d_start << "-" << k_d_start+n_k_d-1 << ")" << endl;
+ }
 
 // ----------------------------------------------------------------------------------------
 void JobHolder::FillTrellis(sequences *query_seqs, string region, string gene) {
@@ -196,8 +191,9 @@ void JobHolder::RunKSet(KSet kset) {
       }
     }
     if (best_genes_[kset].find(region) == best_genes_[kset].end()) {
-      cout << "        found no gene for " << region
-	   << " (" << n_short_j << " / " << min(n_max_versions_, gl_.names_["j"].size()) << " j versions were too short for the query sequence)" << endl;
+      if (debug_)
+	cout << "        found no gene for " << region
+	     << " (" << n_short_j << " / " << min(n_max_versions_, gl_.names_["j"].size()) << " j versions were too short for the query sequence)" << endl;
       scores_[kset] = -INFINITY;
       return;
     }

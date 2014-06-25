@@ -207,6 +207,8 @@ namespace StochHMM{
         
     //bool _checkSequence(); //!Check the sequence adheres to the track alphabet
 
+    std::string name_;
+
   private:
     bool realSeq; //If Real number sequence
     std::string header; // Header from the sequence
