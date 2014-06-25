@@ -21,10 +21,11 @@ public:
   void FillTrellis(sequences *query_seqs, string region, string gene);
   void PrintPath(string query_str, string gene);
   void FillRecoEvent(map<string,string> &best_genes, map<string,string> &query_strs);
+  map<string,string> GetQueryStrs(KSet kset);
   void RunKSet(KSet kset);
 
 private:
-  map<string,sequences> GetSubSeqs(size_t k_v, size_t k_d);  // get the subsequences for the v, d, and j regions given a k_v and k_d
+  map<string,sequences> GetSubSeqs(KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   size_t GetInsertLength(vector<string> labels);
   size_t GetErosionLength(string side, vector<string> path_labels, string gene_name);
 
@@ -37,6 +38,7 @@ private:
   track track_;
   sequences seqs_;
   map<KSet,double> scores_;  // map from kset to total score for that kset
+  map<KSet,map<string,string> > best_genes_;  // map from a kset to its corresponding triplet of best genes
   map<string, model*> hmms_;
   map<string, map<string,trellis*> > trellisi_;  // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"]
   map<string, map<string,traceback_path*> > paths_;  // collection of the paths. 

@@ -4,7 +4,8 @@
 JobHolder::JobHolder(string hmmtype, string algorithm, string hmm_dir, string seqfname, size_t n_max_versions):
   hmm_dir_(hmm_dir),
   n_max_versions_(n_max_versions),
-  algorithm_(algorithm)
+  algorithm_(algorithm),
+  debug_(false)
 {
   vector<string> characters{"A","C","G","T"};
   track_ = track("NUKES", hmmtype == "single" ? 1 : 2, characters);
@@ -34,7 +35,8 @@ JobHolder::~JobHolder() {
   }
 }
 // ----------------------------------------------------------------------------------------
-map<string,sequences> JobHolder::GetSubSeqs(size_t k_v, size_t k_d) {
+map<string,sequences> JobHolder::GetSubSeqs(KSet kset) {
+  size_t k_v(kset.first),k_d(kset.second);
   map<string,sequences> subseqs;
   subseqs["v"] = seqs_.getSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
   subseqs["d"] = seqs_.getSubSequences(k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
@@ -44,7 +46,6 @@ map<string,sequences> JobHolder::GetSubSeqs(size_t k_v, size_t k_d) {
 
 // ----------------------------------------------------------------------------------------
 void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
-  debug_ = true;
   double best_score(-INFINITY);
   KSet best_kset;
   for (size_t k_v=k_v_start; k_v<k_v_start+n_k_v; ++k_v) {
@@ -65,6 +66,8 @@ void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k
     << setw(12) << best_kset.second
     << setw(12) << best_score
     << endl;
+  map<string,string> query_strs(GetQueryStrs(best_kset));
+  FillRecoEvent(best_genes_[best_kset], query_strs);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -142,15 +145,23 @@ void JobHolder::FillRecoEvent(map<string,string> &best_genes, map<string,string>
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::RunKSet(KSet kset) {
-  map<string,sequences> subseqs = GetSubSeqs(kset.first, kset.second);
+map<string,string> JobHolder::GetQueryStrs(KSet kset) {
+  map<string,sequences> subseqs = GetSubSeqs(kset);
   map<string,string> query_strs;
+  for (auto &region: gl_.regions_) {
+    sequences *query_seqs(&subseqs[region]);
+    query_strs[region] = ((*query_seqs)[0].undigitize());
+  }
+  return query_strs;  
+}
+// ----------------------------------------------------------------------------------------
+void JobHolder::RunKSet(KSet kset) {
+  map<string,sequences> subseqs = GetSubSeqs(kset);
+  map<string,string> query_strs(GetQueryStrs(kset));
   map<string,double> best_scores;
-  map<string,string> best_genes;
   for (auto &region : gl_.regions_) {
     sequences *query_seqs(&subseqs[region]);
     assert(query_seqs->size() == 1);  // testing stuff a.t.m. -- no pair hmms
-    query_strs[region] = ((*query_seqs)[0].undigitize());
     if (debug_)
       cout << "              " << region << " query " << query_strs[region] << endl;
 
@@ -170,26 +181,28 @@ void JobHolder::RunKSet(KSet kset) {
       FillTrellis(query_seqs, region, gene);
       if (paths_[gene][query_strs[region]]->getScore() > best_scores[region]) {
 	best_scores[region] = paths_[gene][query_strs[region]]->getScore();
-	best_genes[region] = gene;
+	best_genes_[kset][region] = gene;
       }
     }
-    if (best_genes.find(region) == best_genes.end()) {
-      cout << "        found no gene for " << region << endl;
-      cout << "          " << n_short_j << " / " << min(n_max_versions_, gl_.names_["j"].size()) << " j versions were too short for the query sequence" << endl;
+    if (best_genes_[kset].find(region) == best_genes_[kset].end()) {
+      cout << "        found no gene for " << region
+	   << " (" << n_short_j << " / " << min(n_max_versions_, gl_.names_["j"].size()) << " j versions were too short for the query sequence)" << endl;
       scores_[kset] = -INFINITY;
       return;
     }
   }
-  FillRecoEvent(best_genes, query_strs);
+  if (debug_)
+    FillRecoEvent(best_genes_[kset], query_strs);
   scores_[kset] = best_scores["v"] + best_scores["d"] + best_scores["j"];  // set total score for this kset
-  cout
-    << "        "
-    << " " << best_genes["v"]
-    << " " << best_genes["d"]
-    << " " << best_genes["j"]
-    << "  --> "
-    << best_scores["v"] + best_scores["d"] + best_scores["j"]
-    << endl;
+  if (debug_)
+    cout
+      << "        "
+      << " " << best_genes_[kset]["v"]
+      << " " << best_genes_[kset]["d"]
+      << " " << best_genes_[kset]["j"]
+      << "  --> "
+      << best_scores["v"] + best_scores["d"] + best_scores["j"]
+      << endl;
 }
 
 // // ----------------------------------------------------------------------------------------
