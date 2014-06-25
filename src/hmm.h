@@ -83,9 +83,7 @@ namespace StochHMM{
     //! \param iter Index of state
     //! \return ptr_state Pointer to state
     inline state*  getState(size_t iter){
-      if (iter>= states.size()){
-	return NULL;
-      }
+      assert(iter < states.size());
       return states[iter];
     }
 		

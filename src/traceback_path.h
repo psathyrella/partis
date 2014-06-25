@@ -159,6 +159,7 @@ namespace StochHMM{
     double score;
   };
 
+  // ----------------------------------------------------------------------------------------
   //Rows are the Sequence Position
   //Columns are the States
   //! \def std::vector<std::vector<int> > heatTable;

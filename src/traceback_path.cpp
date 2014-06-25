@@ -63,7 +63,6 @@ namespace StochHMM{
   //TODO: change assignment to lhs
   //! Get the label of the traceback_path and assigns to vector<string> ref
   void traceback_path::label(std::vector<std::string>& pth){
-        
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
       state* st = hmm->getState(trace_path[k]);
       pth.push_back(st->getLabel());
@@ -263,22 +262,11 @@ namespace StochHMM{
 
   //!Print traceback_path labels to stdout
   void traceback_path::print_label() const {
-    int line=0;
-                
-    if ( hmm==NULL ){
-      std::cerr << "Model is NULL.  traceback::print_label() must have valid HMM model defined.\n";
-      exit(2);
-    }
-                
-    for(size_t k = trace_path.size()-1;k != SIZE_MAX;k--){
-      // for (size_t k=0; k<trace_path.size(); k++) { // REVERSE
-      // if(line==WID && WID>0){
-      //     std::cout<< std::endl;
-      //     line=0;
-      // }
+    assert(hmm);
+    for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--) {
       state* st = hmm->getState(trace_path[k]);
       std::cout << st->getLabel() << " ";
-      line++;
+      std::cout.flush();
     }
     std::cout << std::endl;
   }
