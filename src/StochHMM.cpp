@@ -56,7 +56,8 @@ int main(int argc, const char * argv[]) {
     return 0;
   }
   cout << "WARNING breaking after 5 gene versions " << endl;
-  JobHolder jh(opt.sopt("-hmmtype"), "viterbi", "./bcell", "bcell/seq.fa", 5);
+  HMMHolder hmms("./bcell");
+  JobHolder jh(opt.sopt("-hmmtype"), "viterbi", "bcell/seq.fa", &hmms, 5);
   jh.Run(47, 4, 14, 3);
   return 0;
 }

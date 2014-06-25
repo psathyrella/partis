@@ -1,10 +1,25 @@
 #include "job_holder.h"
 
 // ----------------------------------------------------------------------------------------
-JobHolder::JobHolder(string hmmtype, string algorithm, string hmm_dir, string seqfname, size_t n_max_versions):
-  hmm_dir_(hmm_dir),
+model *HMMHolder::Get(string gene) {
+  if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
+    hmms_[gene] = new model;
+    hmms_[gene]->import(hmm_dir_ + "/" + gl_.GetRegion(gene) + "/" + gl_.SanitizeName(gene) + ".hmm");
+  }
+  return hmms_[gene];
+}  
+
+// ----------------------------------------------------------------------------------------
+HMMHolder::~HMMHolder() {
+  for (auto &entry: hmms_)
+    delete entry.second;
+}
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+JobHolder::JobHolder(string hmmtype, string algorithm, string seqfname, HMMHolder *hmms, size_t n_max_versions):
   n_max_versions_(n_max_versions),
   algorithm_(algorithm),
+  hmms_(hmms),
   debug_(false)
 {
   vector<string> characters{"A","C","G","T"};
@@ -26,8 +41,6 @@ JobHolder::JobHolder(string hmmtype, string algorithm, string hmm_dir, string se
 JobHolder::~JobHolder() {
   for (auto &gene_map: trellisi_) {
     string gene(gene_map.first);
-    assert(hmms_.find(gene) != hmms_.end());
-    delete hmms_[gene];
     for (auto &query_str_map: gene_map.second) {
       delete query_str_map.second;
       delete paths_[gene][query_str_map.first];
@@ -81,9 +94,9 @@ void JobHolder::FillTrellis(sequences *query_seqs, string region, string gene) {
       trellisi_[gene] = map<string,trellis*>();
       paths_[gene] = map<string,traceback_path*>();
     }
-    trellisi_[gene][query_str] = new trellis(hmms_[gene], query_seqs);
+    trellisi_[gene][query_str] = new trellis(hmms_->Get(gene), query_seqs);
     trellisi_[gene][query_str]->viterbi();
-    paths_[gene][query_str] = new traceback_path(hmms_[gene]);
+    paths_[gene][query_str] = new traceback_path(hmms_->Get(gene));
     trellisi_[gene][query_str]->traceback(*paths_[gene][query_str]);
     if (debug_)
       PrintPath(query_str, gene);
@@ -176,8 +189,6 @@ void JobHolder::RunKSet(KSet kset) {
 	n_short_j++;
 	continue;
       }
-      hmms_[gene] = new model;
-      hmms_[gene]->import(hmm_dir_ + "/" + region + "/" + gl_.SanitizeName(gene) + ".hmm");
       FillTrellis(query_seqs, region, gene);
       if (paths_[gene][query_strs[region]]->getScore() > best_scores[region]) {
 	best_scores[region] = paths_[gene][query_strs[region]]->getScore();

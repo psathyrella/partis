@@ -99,6 +99,16 @@ class GermLines {
   }
 
   // ----------------------------------------------------------------------------------------
+  // get region from gene name, e.g. IGHD1-1*01 --> d
+  string GetRegion(string gene) {
+    assert(gene.find("IGH") != string::npos);
+    char region_char(tolower(gene[3]));
+    string region(1, region_char);
+    assert(region=="v" || region=="d" || region=="j");
+    return region;
+  }
+
+  // ----------------------------------------------------------------------------------------
   vector<string> regions_;
   map<string,vector<string> > names_;
   map<string,string> seqs_;
