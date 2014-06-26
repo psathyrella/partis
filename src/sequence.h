@@ -59,7 +59,7 @@ namespace StochHMM{
     sequence(bool);  //True if Real number track, False if alpha
     //sequence(trackType);
     sequence(std::vector<double>*,track*);
-    sequence(std::string&, track*);
+    sequence(std::string& seq_str, track* trk, std::string name);
     sequence(char* , track*);
                 
     ~sequence();

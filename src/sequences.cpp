@@ -86,7 +86,8 @@ void sequences::addSeq(sequence* sq) {
   seqs.push_back(sq);  // NOTE we now own this sequence, i.e. we will delete it when we die
   if (seqs.size() == 2) {  // for pair hmm, make sure names obey convention >seq_1, >seq_2 (ensures that when you write the .fa file you *meant* it to be a pair hmm, not two seqs sequentially passed to a plain hmm)
     for (size_t iseq=0; iseq<seqs.size(); iseq++) {
-      assert(atoi(sq->name_.substr(sq->name_.find_last_of("_")+1).c_str()) == iseq+1);
+      sequence *tmpseq(seqs[iseq]);
+      assert(atoi(tmpseq->name_.substr(tmpseq->name_.find_last_of("_")+1).c_str()) == iseq+1);
     }
   } else {
     assert(seqs.size() == 1);  // other sizes not implemented a.t.m.

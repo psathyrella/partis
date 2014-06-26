@@ -11,47 +11,57 @@ using namespace std;
 // ----------------------------------------------------------------------------------------
 class TermColors {
  public:
-  TermColors():
-    head_("\033[95m"),
-    blue_("\033[94m"),
-    green_("\033[92m"),
-    yellow_("\033[93m"),
-    red_("\033[91m"),
-    end_("\033[0m") {
+  TermColors() {
+    codes_["bold"] = "\033[1m";
+    codes_["reverse"] = "\033[7m";
+    codes_["purple"] = "\033[95m";
+    codes_["blue"] = "\033[94m";
+    codes_["green"] = "\033[92m";
+    codes_["yellow"] = "\033[93m";
+    codes_["red"] = "\033[91m";
+    codes_["end"] = "\033[0m";
   }
 
-  string red(string seq) { return red_ + seq + end_; }  // return seq with the proper bash escape strings tacked on left and right so it prints as red
-  string yellow(string seq) { return yellow_ + seq + end_; }  // same for yellow
-  string redify_if_muted(char germline_nuke, char nuke) {
+  // ----------------------------------------------------------------------------------------
+  string Color(string col, string seq) {  // a verb! it's a verb!
+    assert(codes_.find(col) != codes_.end());
+    return codes_[col] + seq + codes_["end"];
+  }
+  // ----------------------------------------------------------------------------------------
+  string RedifyIfMuted(char germline_nuke, char nuke) {
     if (nuke==germline_nuke)
       return string(1,nuke);
     else
-      return red(string(1,nuke));
+      return Color("red", string(1,nuke));
   }
-  string redify_mutants(string germline, string seq) {  // return <seq> with mutant bases w.r.t. <germline> escaped to appear red (and 'i', inserts, yellow) in bash terminal
-    if (germline.size() != seq.size()) {
-      cout << "ERROR seqs not same length in redify_mutants: " << germline << endl
+  // ----------------------------------------------------------------------------------------
+  string ColorMutants(string color, string ref_1, string seq, string ref_2="") {  // return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal
+    if (ref_1.size() == 0)
+      return seq;
+    if (ref_1.size() != seq.size()) {
+      cout << "ERROR seqs not same length in color_mutants: " << ref_1 << endl
 	   << "                                              " << seq << endl;
     }
     string return_str;
     for (size_t inuke=0; inuke<seq.size(); ++inuke) {
       if (seq[inuke] == 'i') {
-	return_str += yellow(seq.substr(inuke,1));
-      } else if (seq[inuke] == germline[inuke]) {
-	return_str += seq[inuke];
-      } else {
-	return_str += red(seq.substr(inuke,1));
+	return_str += Color("yellow", seq.substr(inuke,1));
+      } else if (seq[inuke] == ref_1[inuke]) {  // nuke same as ref 1 
+	if (ref_2.size()==0 || seq[inuke]==ref_2[inuke])
+	  return_str += seq[inuke];
+	else
+	  return_str += Color(color, seq.substr(inuke,1));
+      } else {  // nuke different to ref 1
+	if (ref_2.size()==0 || seq[inuke]==ref_2[inuke])
+	  return_str += Color(color, seq.substr(inuke,1));
+	else
+	  return_str += Color("reverse", Color(color, seq.substr(inuke,1)));
       }
     }
     return return_str;
   }
 
-  string head_;
-  string blue_;
-  string green_;
-  string yellow_;
-  string red_;
-  string end_;
+  map<string,string> codes_;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -169,22 +179,22 @@ public:
       size_t ilocal = inuke;
       string new_nuke;
       if (ilocal < v_length) {
-	new_nuke = tc.redify_if_muted(eroded_seqs["v"][ilocal], seq_[inuke]);
+	new_nuke = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], seq_[inuke]);
       } else {
 	ilocal -= v_length;
 	if (ilocal < insertions_["vd"].size()) {
-	  new_nuke = tc.redify_if_muted(insertions_["vd"][ilocal], seq_[inuke]);
+	  new_nuke = tc.RedifyIfMuted(insertions_["vd"][ilocal], seq_[inuke]);
         } else {
 	  ilocal -= insertions_["vd"].size();
 	  if (ilocal < d_length) {
-	    new_nuke = tc.redify_if_muted(eroded_seqs["d"][ilocal], seq_[inuke]);
+	    new_nuke = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], seq_[inuke]);
 	  } else {
 	    ilocal -= d_length;
 	    if (ilocal < insertions_["dj"].size()) {
-	      new_nuke = tc.redify_if_muted(insertions_["dj"][ilocal], seq_[inuke]);
+	      new_nuke = tc.RedifyIfMuted(insertions_["dj"][ilocal], seq_[inuke]);
 	    } else {
 	      ilocal -= insertions_["dj"].size();
-	      new_nuke = tc.redify_if_muted(eroded_seqs["j"][ilocal], seq_[inuke]);
+	      new_nuke = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], seq_[inuke]);
 	    }
 	  }
 	}

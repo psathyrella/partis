@@ -155,7 +155,7 @@ namespace StochHMM{
     
     
   // ----------------------------------------------------------------------------------------
-  model::model() {
+  model::model():n_seqs_per_track_(0) {
     ending = new(std::nothrow) state();
     assert(ending);
         
@@ -555,6 +555,7 @@ namespace StochHMM{
       }
             
       if (trk->parse(lst[i])){
+	if (n_seqs_per_track_ != 0) trk->n_seqs = n_seqs_per_track_;  // if n_seqs_per_track_ was set explicitly in the hmm constructor, pass this on to each track (and override whatever the text file says)
         trk->setIndex(trcks.size());
         trcks.push_back(trk);
       }

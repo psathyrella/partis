@@ -289,6 +289,8 @@ namespace StochHMM{
       return false;
     }
 		
+    size_t n_seqs_per_track_;
+
   private:
     //!Flag set to tell whether the transitions bitsets have been set foreach
     //!state.  Model is also checked for correct order of states
@@ -313,7 +315,7 @@ namespace StochHMM{
 
     std::map<std::string,state*> stateByName; //Ptr to state stored by State name;
     stateInfo info;
-		
+    
 		
     state* initial; //!Initial state q0
     state* ending;	//!Ending state

@@ -67,6 +67,11 @@ int main(int argc, const char * argv[]) {
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
   opt.parse_commandline(argc,argv);
+  string algorithm;
+  if (opt.isSet("-viterbi"))
+    algorithm = "viterbi";
+  else if (opt.isSet("-forward"))
+    algorithm = "forward";
 
   if (opt.isSet("-model")) {
     assert(opt.sopt("-model") == "dice");
@@ -80,10 +85,11 @@ int main(int argc, const char * argv[]) {
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);
   vector<sequences*> seqs(GetSeqs("bcell/seq.fa", &trk));
-  HMMHolder hmms("./bcell");
+  HMMHolder hmms("./bcell", n_seqs_per_track);
   for (size_t is=0; is<seqs.size(); is++) {
-    JobHolder jh(opt.sopt("-hmmtype"), "viterbi", seqs[is], &hmms, 5);
-    jh.Run(46, 8, 6, 20);
+    JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, 5);
+    // jh.Run(46, 12, 1, 20);
+    jh.Run(49, 5, 14, 12);
   }
   return 0;
 }

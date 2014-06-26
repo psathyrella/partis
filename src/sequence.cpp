@@ -97,7 +97,7 @@ namespace StochHMM{
   //! Create a sequence type
   //! \param sq std::string string that represent sequence
   //! \param tr Track to be used to digitize sequence
-  sequence::sequence(std::string& sq, track* tr):mask(NULL){
+  sequence::sequence(std::string& seq_str, track* trk, std::string name):mask(NULL),name_(name){
     length  = 0;
     max_mask=-1;
     real = NULL;
@@ -106,8 +106,8 @@ namespace StochHMM{
     external= NULL;
     attrib  = -INFINITY;
     realSeq = false;
-    seqtrk  = tr;
-    undigitized = sq;
+    seqtrk  = trk;
+    undigitized = seq_str;
     _digitize();
     length=seq->size();
   }
@@ -278,7 +278,7 @@ namespace StochHMM{
   sequence sequence::getSubSequence(size_t pos, size_t len) {
     assert(pos+len < undigitized.size());
     std::string subseq_str = undigitized.substr(pos, len);
-    return sequence(subseq_str, seqtrk);
+    return sequence(subseq_str, seqtrk, name_);
   }
 
   // ----------------------------------------------------------------------------------------
