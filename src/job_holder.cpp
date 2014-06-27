@@ -17,14 +17,20 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_max_versions):
+JobHolder::JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, string only_genes):
   n_seqs_per_track_(n_seqs_per_track),
-  n_max_versions_(n_max_versions),
   algorithm_(algorithm),
   seqs_(seqs),
   hmms_(hmms),
-  debug_(false)
+  debug_(true)
 {
+  while (true) {
+    size_t i_next_colon(only_genes.find(":"));
+    if (i_next_colon == string::npos)
+      break;
+    only_genes_.insert(only_genes.substr(0,i_next_colon));  // get the next gene name
+    only_genes = only_genes.substr(i_next_colon+1);  // then excise it from only_genes
+  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -234,8 +240,8 @@ void JobHolder::RunKSet(KSet kset) {
     regional_total_scores[region] = -INFINITY;
     size_t igene(0),n_short_j(0);
     for (auto &gene : gl_.names_[region]) {
-      if (igene >= n_max_versions_)
-	break;
+      if (only_genes_.size()>0 and only_genes_.find(gene)==only_genes_.end())
+	continue;
       igene++;
       if (region=="j" && query_strs.first.size()>gl_.seqs_[gene].size()) {  // query sequence too long for this j version to make any sense
 	if (debug_) cout << "                     " << gene << " too short" << endl;
@@ -253,7 +259,7 @@ void JobHolder::RunKSet(KSet kset) {
     if (best_genes_[kset].find(region) == best_genes_[kset].end()) {
       if (debug_)
 	cout << "                  found no gene for " << region
-	     << " (" << n_short_j << " / " << min(n_max_versions_, gl_.names_["j"].size()) << " j versions were too short for the query sequence)" << endl;
+	     << " (" << n_short_j << " / " << igene << " j versions were too short for the query sequence)" << endl;
       return;
     }
   }

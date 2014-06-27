@@ -21,7 +21,7 @@ NUKES: """
 class HmmWriter(object):
     def __init__(self, base_outdir, region, gene_name, germline_seq):
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this. I just have it at two for human readibility while debugging
-        self.v_right_length = 50  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
+        self.v_right_length = 85  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.outdir = outdir
         self.region = region
         self.gene_name = gene_name
@@ -164,7 +164,8 @@ class HmmWriter(object):
     
 # ----------------------------------------------------------------------------------------
 
-n_max_versions = 5  # only look at the first n gene versions (speeds things up for testing)
+n_max_versions = 0  # only look at the first n gene versions (speeds things up for testing)
+only_genes = 'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F'.split(':')
 germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
 
 for region in utils.regions:
@@ -178,9 +179,11 @@ for region in utils.regions:
     
     igene = 0
     for gene_name in germline_seqs[region]:
-        if igene >= n_max_versions:
+        if n_max_versions != 0 and igene >= n_max_versions:
             print 'breaking after %d gene versions' % n_max_versions
             break
+        if only_genes != '' and gene_name not in only_genes:
+            continue
         print '  %d / %d (%s)' % (igene, len(germline_seqs[region]), gene_name)
         igene += 1
         writer = HmmWriter('bcell', region, gene_name, germline_seqs[region][gene_name])

@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <set>
 #include "StochHMMlib.h"
 #include "StochHMM_usage.h"
 #include "germlines.h"
@@ -29,7 +30,7 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_max_versions=0);
+  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, string only_genes="");
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
   void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
@@ -47,7 +48,7 @@ private:
 
   string hmm_dir_;  // location of .hmm files
   size_t n_seqs_per_track_;  // 1 for plain hmms, 2 for pair hmms
-  size_t n_max_versions_;    // only look at the first n gene versions (speeds things up for testing)
+  set<string> only_genes_;
   string algorithm_;
   GermLines gl_;
   RecoEvent event_;
