@@ -69,7 +69,7 @@ void trellis::forward() {
 	    (*scoring_current)[st_current] = forward_temp;
 	    (*forward_score)[position][st_current] = forward_temp;
 	  } else {
-	    (*scoring_current)[st_current] = addLog(forward_temp, (*scoring_current)[st_current]);
+	    (*scoring_current)[st_current] = AddInLogSpace(forward_temp, (*scoring_current)[st_current]);
 	    (*forward_score)[position][st_current] = (*scoring_current)[st_current];
 	  }
 	  next_states |= (*(*hmm)[st_current]->getTo());
@@ -92,7 +92,7 @@ void trellis::forward() {
 	if (ending_forward_prob == -INFINITY){
 	  ending_forward_prob = forward_temp;
 	} else {
-	  ending_forward_prob = addLog(ending_forward_prob,forward_temp);
+	  ending_forward_prob = AddInLogSpace(ending_forward_prob,forward_temp);
 	}
       }
     }

@@ -92,7 +92,7 @@ namespace StochHMM {
 	  state_start = j;
 	}
 	else{
-	  sum = addLog(sum,(double) (*state_val)[j].prob);
+	  sum = AddInLogSpace(sum,(double) (*state_val)[j].prob);
 	}
       }
                         
@@ -112,7 +112,7 @@ namespace StochHMM {
     //Calculate ending state sum
     sum = -INFINITY;
     for (size_t j=state_start; j < state_val->size();j++){
-      sum=addLog(sum,(double)(*state_val)[j].prob);
+      sum=AddInLogSpace(sum,(double)(*state_val)[j].prob);
     }
                 
     //Normalize the ending cell probability
@@ -304,7 +304,7 @@ namespace StochHMM {
   //                              if ((*table)[state].defined(position)){
   //                                      sum = -INFINITY;
   //                                      for(size_t value=0; value < (*table)[state][position].size();value++){
-  //                                              sum = addLog(sum,(double) (*table)[state][position][value].prob);
+  //                                              sum = AddInLogSpace(sum,(double) (*table)[state][position][value].prob);
   //                                      }
   //                                      
   //                                      for(size_t value=0; value < (*table)[state][position].size();value++){
@@ -316,7 +316,7 @@ namespace StochHMM {
   //              
   //              sum = -INFINITY;
   //              for(size_t i=0;i<ending.size();i++){
-  //                      sum = addLog(sum,(double) ending[i].prob);
+  //                      sum = AddInLogSpace(sum,(double) ending[i].prob);
   //              }
   //              
   //              for(size_t i=0;i<ending.size();i++){
@@ -385,7 +385,7 @@ namespace StochHMM {
 	if ((*table)[position][state].size() > 0 ){
 	  sum = -INFINITY;
 	  for(size_t value=0; value < (*table)[position][state].size(); value++){
-	    sum = addLog(sum,(double) (*table)[position][state][value].prob);
+	    sum = AddInLogSpace(sum,(double) (*table)[position][state][value].prob);
 	  }
                                         
 	  for(size_t value=0; value < (*table)[position][state].size();value++){
@@ -397,7 +397,7 @@ namespace StochHMM {
                 
     sum = -INFINITY;
     for(size_t i=0;i<ending.size();i++){
-      sum = addLog(sum,(double) ending[i].prob);
+      sum = AddInLogSpace(sum,(double) ending[i].prob);
     }
                 
     for(size_t i=0;i<ending.size();i++){

@@ -60,7 +60,7 @@ map<string,sequences> JobHolder::GetSubSeqs(KSet kset) {
 
 // ----------------------------------------------------------------------------------------
 void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
-  double best_score(-INFINITY);
+  double best_score(-INFINITY),total_score(-INFINITY);
   KSet best_kset;
   if (debug_)
     cout
@@ -72,15 +72,22 @@ void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k
       // k_v = 296; k_d = 17;
       KSet kset(k_v,k_d);
       RunKSet(kset);
-      if (scores_[kset] > best_score) {
-      	best_score = scores_[kset];
+      total_score = AddInLogSpace(total_scores_[kset], total_score);  // sum up the probabilities for each kset, log P_tot = log \sum_i P_k_i
+      if (best_scores_[kset] > best_score) {
+      	best_score = best_scores_[kset];
       	best_kset = kset;
       }
     }
   }
   if (debug_)
-    cout << "  best: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
-  FillRecoEvent(best_kset, best_genes_[best_kset]);
+    if (algorithm_=="viterbi")
+      cout << "  best: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
+    else
+      cout << "  total: " << total_score << endl;
+  if (algorithm_ == "viterbi")
+    FillRecoEvent(best_kset, best_genes_[best_kset]);
+  else
+    cout << "score " << best_score << endl;
   if (best_kset.first == k_v_start ||
       best_kset.first == k_v_start+n_k_v-1 ||
       best_kset.second == k_d_start ||
@@ -91,26 +98,37 @@ void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string gene) {
+void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score) {
   if (trellisi_.find(gene) != trellisi_.end() &&
       trellisi_[gene].find(query_strs) != trellisi_[gene].end()) {  // if we already did this gene for this query sequence. NOTE if we have one gene for this <query_strs>, we're always gonna have the rest of 'em too
     // um, don't do anything a.t.m.
+    if (algorithm_=="viterbi")
+      *score = paths_[gene][query_strs]->getScore();
+    else if (algorithm_=="forward")
+      *score = trellisi_[gene][query_strs]->getForwardProbability();
+    else
+      assert(0);
   } else {
     if (trellisi_.find(gene) == trellisi_.end()) {
       trellisi_[gene] = map<StrPair,trellis*>();
       paths_[gene] = map<StrPair,traceback_path*>();
     }
     trellisi_[gene][query_strs] = new trellis(hmms_->Get(gene), query_seqs);
-    trellisi_[gene][query_strs]->viterbi();
-    paths_[gene][query_strs] = new traceback_path(hmms_->Get(gene));
-    trellisi_[gene][query_strs]->traceback(*paths_[gene][query_strs]);
-    if (debug_)
-      PrintPath(query_strs, gene);
+    if (algorithm_=="viterbi") {
+      trellisi_[gene][query_strs]->viterbi();
+      paths_[gene][query_strs] = new traceback_path(hmms_->Get(gene));
+      trellisi_[gene][query_strs]->traceback(*paths_[gene][query_strs]);
+      *score = paths_[gene][query_strs]->getScore();
+      if (debug_)
+	PrintPath(query_strs, gene);
+    } else if (algorithm_=="forward") {
+      trellisi_[gene][query_strs]->forward();
+      paths_[gene][query_strs] = nullptr;  // avoids violating the assumption that paths_ and trellisi_ have the same entries
+      *score = trellisi_[gene][query_strs]->getForwardProbability();
+    } else {
+      assert(0);
+    }
   }
-  // } else if (algorithm_=="forward") {
-  // 	trellisi_[kset][gene]->forward();
-  // 	best_region_score = trellisi_[kset][gene]->getForwardProbability();
-  // }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -181,10 +199,28 @@ StrPair JobHolder::GetQueryStrs(KSet kset, string region) {
   }
   return query_strs;  
 }
+    
+        
+// ----------------------------------------------------------------------------------------
+// add two numbers, treating -INFINITY as zero, i.e. calculates log a*b = log a + log b
+double JobHolder::AddWithMinusInfinities(double first, double second) {
+  if (first == -INFINITY)
+    return second;
+  else if(second == -INFINITY)
+    return first;
+  else
+    return first + second;
+}
+
 // ----------------------------------------------------------------------------------------
 void JobHolder::RunKSet(KSet kset) {
   map<string,sequences> subseqs(GetSubSeqs(kset));
-  map<string,double> best_scores;
+  best_scores_[kset] = -INFINITY;
+  total_scores_[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
+  map<string,double> regional_best_scores;  // the best score for each region
+  map<string,double> regional_total_scores;  // the total score for each region, i.e. log P_v
+  if (debug_)
+    cout << "            " << kset.first << " " << kset.second << " -------------------" << endl;
   for (auto &region : gl_.regions_) {
     StrPair query_strs(GetQueryStrs(kset, region));
     TermColors tc;
@@ -194,7 +230,8 @@ void JobHolder::RunKSet(KSet kset) {
 	cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.first, query_strs.second) << endl;
     }
 
-    best_scores[region] = -INFINITY;
+    regional_best_scores[region] = -INFINITY;
+    regional_total_scores[region] = -INFINITY;
     size_t igene(0),n_short_j(0);
     for (auto &gene : gl_.names_[region]) {
       if (igene >= n_max_versions_)
@@ -205,23 +242,25 @@ void JobHolder::RunKSet(KSet kset) {
 	n_short_j++;
 	continue;
       }
-      FillTrellis(&subseqs[region], query_strs, gene);
-      if (paths_[gene][query_strs]->getScore() > best_scores[region]) {
-	best_scores[region] = paths_[gene][query_strs]->getScore();
+      double gene_score(-INFINITY);
+      FillTrellis(&subseqs[region], query_strs, gene, &gene_score);
+      regional_total_scores[region] = AddInLogSpace(gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space
+      if (gene_score > regional_best_scores[region]) {
+	regional_best_scores[region] = gene_score;
 	best_genes_[kset][region] = gene;
       }
     }
     if (best_genes_[kset].find(region) == best_genes_[kset].end()) {
       if (debug_)
-	cout << "        found no gene for " << region
+	cout << "                  found no gene for " << region
 	     << " (" << n_short_j << " / " << min(n_max_versions_, gl_.names_["j"].size()) << " j versions were too short for the query sequence)" << endl;
-      scores_[kset] = -INFINITY;
       return;
     }
   }
-  if (debug_)
+  if (debug_ && algorithm_=="viterbi")
     FillRecoEvent(kset, best_genes_[kset]);
-  scores_[kset] = best_scores["v"] + best_scores["d"] + best_scores["j"];  // set total score for this kset
+  best_scores_[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob
+  total_scores_[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
   if (debug_)
     cout
       << "        "
@@ -229,7 +268,7 @@ void JobHolder::RunKSet(KSet kset) {
       << " " << best_genes_[kset]["d"]
       << " " << best_genes_[kset]["j"]
       << "  --> "
-      << best_scores["v"] + best_scores["d"] + best_scores["j"]
+      << AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]))
       << endl;
 }
 

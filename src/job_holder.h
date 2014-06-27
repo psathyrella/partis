@@ -32,7 +32,7 @@ public:
   JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_max_versions=0);
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
-  void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene);
+  void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
   void FillRecoEvent(KSet kset, map<string,string> &best_genes);
   StrPair GetQueryStrs(KSet kset, string region);
   void RunKSet(KSet kset);
@@ -43,6 +43,7 @@ private:
   map<string,sequences> GetSubSeqs(KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   size_t GetInsertLength(vector<string> labels);
   size_t GetErosionLength(string side, vector<string> path_labels, string gene_name);
+  double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files
   size_t n_seqs_per_track_;  // 1 for plain hmms, 2 for pair hmms
@@ -50,7 +51,8 @@ private:
   string algorithm_;
   GermLines gl_;
   RecoEvent event_;
-  map<KSet,double> scores_;  // map from kset to total score for that kset
+  map<KSet,double> best_scores_;  // map from kset to best score for that kset (summed over regions)
+  map<KSet,double> total_scores_;  // map from kset to total score for that kset (summed over regions)
   map<KSet,map<string,string> > best_genes_;  // map from a kset to its corresponding triplet of best genes
   sequences *seqs_;
   HMMHolder *hmms_;

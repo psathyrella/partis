@@ -89,10 +89,10 @@ void trellis::posterior() {
         if ((*scoring_previous)[previous] != -INFINITY) {
           forward_temp = (*scoring_previous)[previous] + emission + getTransition((*hmm)[previous], current , position);
                                               
-          if ((*scoring_current)[current] == -INFINITY) {  // wait, doesn't addLog accomplish this?
+          if ((*scoring_current)[current] == -INFINITY) {
             (*scoring_current)[current] = forward_temp;
           } else {
-            (*scoring_current)[current] = addLog(forward_temp, (*scoring_current)[current]);  // add the unloged vals and relog, i.e. use OR
+            (*scoring_current)[current] = AddInLogSpace(forward_temp, (*scoring_current)[current]);  // add the unloged vals and relog, i.e. use OR
           }
           next_states |= (*(*hmm)[current]->getTo());
         }
@@ -117,7 +117,7 @@ void trellis::posterior() {
         if (ending_forward_prob == -INFINITY) {
           ending_forward_prob = forward_temp;
         } else {
-          ending_forward_prob = addLog(forward_temp, ending_forward_prob);
+          ending_forward_prob = AddInLogSpace(forward_temp, ending_forward_prob);
         }
       }
     }
@@ -151,7 +151,7 @@ void trellis::posterior() {
       if ((*posterior_score)[position+1][i] != -INFINITY && (*scoring_current)[i]!= -INFINITY) {
         (*posterior_score)[position+1][i] = ((double)(*posterior_score)[position+1][i] + (double)(*scoring_current)[i]) - ending_forward_prob;
         if ((*posterior_score)[position+1][i] > -7.6009) {  //Above significant value;
-          posterior_sum[position+1] = addLog(posterior_sum[position+1], (*posterior_score)[position+1][i]);
+          posterior_sum[position+1] = AddInLogSpace(posterior_sum[position+1], (*posterior_score)[position+1][i]);
         }
       }
     }
@@ -177,10 +177,10 @@ void trellis::posterior() {
 
         if ((*scoring_previous)[st_previous] != -INFINITY) {
           backward_temp = (*scoring_previous)[st_previous] + emission + getTransition((*hmm)[st_current], st_previous , position+1);
-          if ((*scoring_current)[st_current] == -INFINITY) {  // doesn't addLog do the same thing?
+          if ((*scoring_current)[st_current] == -INFINITY) {
             (*scoring_current)[st_current] = backward_temp;
           } else {
-            (*scoring_current)[st_current] = addLog(backward_temp, (*scoring_current)[st_current]);
+            (*scoring_current)[st_current] = AddInLogSpace(backward_temp, (*scoring_current)[st_current]);
           }
           next_states[st_current] = 1;
         }
@@ -190,7 +190,7 @@ void trellis::posterior() {
 
   for (size_t i=0; i<state_size; ++i) {
     (*posterior_score)[0][i] = ((double)(*posterior_score)[0][i] + (double)(*scoring_current)[i]) - ending_forward_prob;
-    posterior_sum[0] = addLog(posterior_sum[0], (*posterior_score)[0][i]);
+    posterior_sum[0] = AddInLogSpace(posterior_sum[0], (*posterior_score)[0][i]);
   }
 
   ending_backward_prob = -INFINITY;
@@ -202,7 +202,7 @@ void trellis::posterior() {
         if (ending_backward_prob == -INFINITY) {
           ending_backward_prob = backward_temp;
         } else {
-          ending_backward_prob = addLog(backward_temp, ending_backward_prob);
+          ending_backward_prob = AddInLogSpace(backward_temp, ending_backward_prob);
         }
       }
     }
