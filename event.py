@@ -84,7 +84,7 @@ class RecombinationEvent(object):
         assert final_cdr3_length == int(self.cdr3_length)
 
 
-    def write_event(self, outfile):
+    def write_event(self, outfile, total_length_from_right=0):
         """ Write out all info to csv file. """
         columns = ('unique_id', 'reco_id', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'vd_insertion', 'dj_insertion', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'seq')
         mode = ''
@@ -116,6 +116,8 @@ class RecombinationEvent(object):
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
                 row['seq'] = self.final_seqs[imute]
+                if total_length_from_right > 0:
+                    row['seq'] = row['seq'][len(row['seq'])-total_length_from_right : ]
                 unique_id = ''  # Hash to uniquely identify the sequence.
                 for column in row:
                     unique_id += str(row[column])
@@ -123,7 +125,7 @@ class RecombinationEvent(object):
                 row['unique_id'] = hash(unique_id)
                 writer.writerow(row)
 
-    def print_event(self):
+    def print_event(self, total_length_from_right=0):
         line = {}  # collect some information into a form that print_reco_event understands
         line['cdr3_length'] = self.cdr3_length
         for region in utils.regions:
@@ -134,4 +136,7 @@ class RecombinationEvent(object):
             line[erosion_location + '_del'] = self.erosions[erosion_location]
         for imute in range(len(self.final_seqs)):
             line['seq'] = self.final_seqs[imute]
+            if total_length_from_right > 0:
+                line['v_5p_del'] = len(line['seq']) - total_length_from_right
+                line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
             utils.print_reco_event(self.germlines, line, self.cyst_position, self.final_tryp_position, one_line=(imute!=0))

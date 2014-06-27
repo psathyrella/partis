@@ -19,7 +19,7 @@ from event import RecombinationEvent
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, datadir, human, naivety):  # yes, with a y! motherfucker
+    def __init__(self, datadir, human, naivety, only_genes='', total_length_from_right=0):  # yes, with a y!
         self.tmpdir = os.getenv('PWD') + '/tmp'
         self.datadir = datadir
         self.human = human
@@ -27,6 +27,8 @@ class Recombinator(object):
         # parameters that control recombination, erosion, and whatnot
         self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
         self.do_not_mutate = True
+        self.only_genes = []
+        self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
     
         self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
@@ -62,6 +64,9 @@ class Recombinator(object):
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
 
+        if only_genes != '':
+            print '    restricting to: %s' % only_genes
+            self.restrict_gene_choices(only_genes)
         print '    reading version freqs from %s' % (self.datadir + '/' + self.human + '/' + self.naivety + '/probs.csv.bz2')
         self.read_vdj_version_freqs(self.datadir + '/' + self.human + '/' + self.naivety + '/probs.csv.bz2')
         print '    reading tree file'
@@ -107,7 +112,7 @@ class Recombinator(object):
         else:
             self.add_mutants(reco_event)  # toss a bunch of clones: add point mutations
 
-        reco_event.print_event()
+        reco_event.print_event(self.total_length_from_right)
 
         # write some stuff that can be used by hmmer for training profiles
         # NOTE at the moment I have this *appending* to the files
@@ -120,9 +125,14 @@ class Recombinator(object):
             else:
                 assert mode == 'append'
             print '  writing'
-            reco_event.write_event(outfile)
+            reco_event.write_event(outfile, self.total_length_from_right)
         return True
 
+    def restrict_gene_choices(self, genes):
+        """ Only use the listed (colon-separated list) of genes """
+        assert len(self.version_freq_table) == 0  # make sure this gets set *before* we read the freqs from file
+        self.only_genes = genes.split(':')
+        
     def read_vdj_version_freqs(self, fname):
         """ Read the frequencies at which various VDJ combinations appeared
         in data. This file was created with versioncounter.py
@@ -131,11 +141,22 @@ class Recombinator(object):
             in_data = csv.DictReader(infile)
             total = 0.0  # check that the probs sum to 1.0
             for line in in_data:
+                if len(self.only_genes) > 0:  # are we restricting ourselves to a subset of genes?
+                    if line['v_gene'] not in self.only_genes: continue
+                    if line['d_gene'] not in self.only_genes: continue
+                    if line['j_gene'] not in self.only_genes: continue
                 total += float(line['prob'])
                 index = tuple(line[column] for column in utils.index_columns)
                 assert index not in self.version_freq_table
                 self.version_freq_table[index] = float(line['prob'])
-            assert math.fabs(total - 1.0) < 1e-8
+            if len(self.only_genes) > 0:  # renormalize if we are restricted to a subset of gene versions
+                new_total = 0.0
+                for index in self.version_freq_table:
+                    self.version_freq_table[index] /= total
+                    new_total += self.version_freq_table[index]
+                assert math.fabs(new_total - 1.0) < 1e-8
+            else:
+                assert math.fabs(total - 1.0) < 1e-8
 
     def choose_vdj_combo(self, reco_event):
         """ Choose which combination germline variants to use """

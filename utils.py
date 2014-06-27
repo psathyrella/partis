@@ -176,6 +176,14 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     germline_d_end = germline_d_start + len(original_seqs['d'])
     germline_j_start = germline_d_end + 1 - int(line['d_3p_del']) + len(line['dj_insertion']) - int(line['j_5p_del'])
 
+    # see if we've "eroded" left side of v or right side of j, and if so add some more dots
+    if 'v_5p_del' in line:
+        for _ in range(int(line["v_5p_del"])):
+            line['seq'] = '.' + line['seq']  # NOTE this is kinda inefficient
+    if 'j_3p_del' in line:
+        for _ in range(int(line['j_3p_del'])):
+            line['seq'] += '.'
+
     final_seq = ''
     for inuke in range(len(line['seq'])):
         ilocal = inuke
