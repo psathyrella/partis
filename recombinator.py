@@ -26,6 +26,7 @@ class Recombinator(object):
         self.naivety = naivety
         # parameters that control recombination, erosion, and whatnot
         self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
+        self.do_not_mutate = True
     
         self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
@@ -40,9 +41,7 @@ class Recombinator(object):
         # ----------------------------------------------------------------------------------------
         # first read stuff that doesn't depend on which human we're looking at
         print '    reading vdj versions'
-        for region in utils.regions:
-            assert False  # moved this to utils.py
-            self.read_vdj_versions(region, 'data/igh'+region+'.fasta')
+        self.all_seqs = utils.read_germlines('.')
         print '    reading cyst and tryp positions'
         with opener('r')('data/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -103,8 +102,11 @@ class Recombinator(object):
         reco_event.recombined_seq = reco_event.seqs['v'] + reco_event.insertions['vd'] + reco_event.seqs['d'] + reco_event.insertions['dj'] + reco_event.seqs['j']
         reco_event.set_final_tryp_position()
 
-        # toss a bunch of clones: add point mutations
-        self.add_mutants(reco_event)
+        if self.do_not_mutate:
+            reco_event.final_seqs.append(reco_event.recombined_seq)
+        else:
+            self.add_mutants(reco_event)  # toss a bunch of clones: add point mutations
+
         reco_event.print_event()
 
         # write some stuff that can be used by hmmer for training profiles
@@ -120,16 +122,6 @@ class Recombinator(object):
             print '  writing'
             reco_event.write_event(outfile)
         return True
-
-    def read_vdj_versions(self, region, fname):
-        assert False  # moved this to utils
-        """ Read the various germline variants from file. """
-        self.all_seqs[region] = {}
-        for seq_record in SeqIO.parse(fname, "fasta"):
-            # This line works equally well without the string conversion
-            # ... er, but it seems simpler to not use the fancy class if'n
-            # I don't need it? It's the same speed both ways.
-            self.all_seqs[region][seq_record.name] = str(seq_record.seq)
 
     def read_vdj_version_freqs(self, fname):
         """ Read the frequencies at which various VDJ combinations appeared
