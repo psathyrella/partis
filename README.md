@@ -35,8 +35,7 @@ The alignment process is simple: each sequence is aligned to all IGHV genes, kee
 
 Alignment is multithreaded, and SSE3 accelerated using the excellent Smith-Waterman implementation from [klib](https://github.com/attractivechaos/klib).
 
-The remainder of the sequence is aligned against all IGHD and IGHJ genes.
-Note that overlaps are possible between the IGHD and IGHJ sections.
+The remainder of the sequence is aligned against IGHJ genes; then the remainder from the best IGHJ hit against IGHD genes.
 
 The resulting alignments are stored in BAM format.
 
