@@ -51,3 +51,9 @@ Remaining post-processing uses subcommands of the JVM interface.
 * `ighutil reset-primary` randomly assigns a primary alignment among ties for each segment, and attempts to filter out alleles not present in the data.
 * `ighutil calculate-match-probability` calculates the expectation that each aligned base matches germline, treating all maximally scoring alignmnets as equiprobable.
 * `samtools view -F 260` will subset to primary alignments only.
+
+## Annotating sequences
+
+Annotate sequences with V/D/J gene assignment, productivity status, and more using:
+
+    ighutil annotate-vdj -i <BAM_FILE> -o <CSV_FILE>
