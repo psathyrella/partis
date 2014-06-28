@@ -6,14 +6,16 @@
             [ighutil.gff3 :as gff3]
             [ighutil.imgt :as imgt]
             [ighutil.io :as zio]
-            [ighutil.sam :as sam])
-  (:import [net.sf.samtools SAMRecord]
+            [ighutil.sam :as sam]
+            [lonocloud.synthread :as ->])
+  (:import [net.sf.samtools AlignmentBlock SAMRecord]
            [net.sf.picard.util IntervalTreeMap]
            [io.github.cmccoy.sam SAMUtils AlignedPair
             AlignedPair$MatchesReference]
            [io.github.cmccoy.dna Codons]
            [io.github.cmccoy.sam VDJAnnotator
-            VDJAnnotator$RegionAnnotation]))
+            VDJAnnotator$RegionAnnotation]
+           [java.util Arrays]))
 
 (defn- translate-read
   "Translate read sequence"
@@ -23,9 +25,15 @@
       (Codons/translateSequence (+ (int frame) (int start)))
       (String.)))
 
-(defn- annotate-read
-  "Annotate a read, returning a map from region to annotations for the region"
-  [^SAMRecord read ^IntervalTreeMap tree]
+(defn- aligned-boundaries [^SAMRecord read]
+  (let [ap (.getAlignmentBlocks read)
+        ^AlignmentBlock f (first ap)
+        ^AlignmentBlock l (last ap)
+        start (.getReadStart f)
+        end (+ (.getReadStart l) (.getLength l))]
+    [start end]))
+
+(defn- annotate-read [^SAMRecord read ^IntervalTreeMap tree]
   (let [annot (.annotateVDJ (VDJAnnotator. read tree))
         to-map (fn [^VDJAnnotator$RegionAnnotation r]
                  {:reference (.name r)
@@ -33,12 +41,38 @@
                   :eroded5p (.eroded5P r)
                   :eroded3p (.eroded3P r)
                   :mismatch (.mismatch r)
-                  :minqpos (.minqpos r)
-                  :maxqpos (.maxqpos r)
+                  :qstart (.qstart r)
+                  :qend (inc (.qend r))
                   :alignment-score (.alignmentScore r)
                   :ties (.getAttribute read sam/TAG-TIES)
                   :nm (.nm r)})]
     (map-vals to-map annot)))
+
+(defn- identify-insertions [reads]
+  (let [boundaries (into
+                    {}
+                    (for [^SAMRecord r reads]
+                      [(sam/ig-segment r)
+                       (aligned-boundaries r)]))
+        read-bases (.getReadBases ^SAMRecord (first reads))
+        v-end (get-in boundaries [\V 1])
+        d-start (get-in boundaries [\D 0])
+        d-end (get-in boundaries [\D 1])
+        j-start (get-in boundaries [\J 0])
+        nnil? (complement nil?)]
+    (-> {}
+        (->/when (and (nnil? v-end) (nnil? d-start) (>= d-start v-end))
+          (assoc :vd
+            (String. (Arrays/copyOfRange
+                      read-bases
+                      (int v-end)
+                      (int d-start)))))
+        (->/when (and (nnil? d-end) (nnil? j-start) (>= j-start d-end))
+          (assoc :dj
+            (String. (Arrays/copyOfRange
+                      read-bases
+                      (int d-end)
+                      (int j-start))))))))
 
 (defn- annotate-reads
   "Annotate read using (possibly) multiple alignment segments"
@@ -47,10 +81,10 @@
         annotations (->> reads
                          (map #(annotate-read % tree))
                          (apply merge))
-        v-start (get-in annotations ["V" :minqpos])
-        cys-start (get-in annotations ["Cys" :minqpos])
-        tryp-start (get-in annotations ["J_Tryp" :minqpos])
-        tryp-end (get-in annotations ["J_Tryp" :maxqpos])
+        v-start (get-in annotations ["V" :qstart])
+        cys-start (get-in annotations ["Cys" :qstart])
+        tryp-start (get-in annotations ["J_Tryp" :qstart])
+        tryp-end (get-in annotations ["J_Tryp" :qend])
         in-frame (when (not (some nil? [cys-start tryp-start]))
                    (= (mod (int cys-start) 3) (mod (int tryp-start) 3)))
         frame (when (not (some nil? [cys-start tryp-end]))
@@ -61,14 +95,17 @@
                       (if full-translation
                         (translate-read f (mod cys-start 3) 0)
                         (translate-read f frame v-start)))]
-    {:name (sam/read-name f)
-     :cdr3-length cdr3-length
-     :frame frame
-     :has-stop (when (not (nil? translation))
-                 (.contains ^String translation "*"))
-     :translation translation
-     :in-frame in-frame
-     :annotations annotations}))
+    (merge
+     {:name (sam/read-name f)
+      :cdr3-length cdr3-length
+      :frame frame
+      :read-bases (String. (.getReadBases f))
+      :has-stop (when (not (nil? translation))
+                  (.contains ^String translation "*"))
+      :translation translation
+      :in-frame in-frame
+      :annotations annotations}
+     (identify-insertions reads))))
 
 (defn- features-for-references [reference-names
                                 ^IntervalTreeMap tm]
@@ -79,7 +116,7 @@
          (into #{}))))
 
 (defn- keys-for-feature [feature-name]
-  (let [k [:aligned :mismatch :minqpos :maxqpos]]
+  (let [k [:aligned :mismatch :qstart :qend]]
     (if (#{"V" "D" "J"} feature-name)
       (conj k :reference :alignment-score :nm :ties :eroded5p :eroded3p)
       k)))
@@ -95,17 +132,17 @@
   (->> feature-names
        (map names-for-feature)
        (apply concat ["read_name" "cdr3_length" "frame" "in_frame"
-                      "has_stop" "translation"])))
+                      "has_stop" "read-bases" "translation" "vd" "dj"])))
 
 (defn- to-row
   "Convert the results of annotate-reads to a row for CSV output"
   [{:keys [name cdr3-length in-frame frame
-                       has-stop annotations translation] :as m}
-               feature-names]
+           has-stop annotations read-bases translation vd dj] :as m}
+   feature-names]
   (->> feature-names
        (map (fn [x] (for [k (keys-for-feature x)]
                       (get-in annotations [x k]))))
-       (apply concat [name cdr3-length frame in-frame has-stop translation])))
+       (apply concat [name cdr3-length frame in-frame has-stop read-bases translation vd dj])))
 
 (defcommand annotate-vdj
   "Annotate VDJ alignments"

@@ -58,8 +58,8 @@ public final class VDJAnnotator {
                 }
 
                 annot.aligned++;
-                annot.minqpos = Math.min(qpos, annot.minqpos);
-                annot.maxqpos = Math.max(qpos, annot.minqpos);
+                annot.qstart = Math.min(qpos, annot.qstart);
+                annot.qend = Math.max(qpos, annot.qstart);
                 if(isMutation) {
                     annot.mismatch++;
                 }
@@ -76,8 +76,8 @@ public final class VDJAnnotator {
 
       public int aligned;
       public int mismatch;
-      public int minqpos;
-      public int maxqpos;
+      public int qstart;
+      public int qend;
       public int alignmentScore;
       public int nm;
 
@@ -88,10 +88,24 @@ public final class VDJAnnotator {
           this.eroded3P = eroded3P;
           this.mismatch = 0;
           this.aligned = 0;
-          this.minqpos = qpos;
-          this.maxqpos = qpos;
+          this.qstart = qpos;
+          this.qend = qpos;
           this.alignmentScore = alignmentScore;
           this.nm = nm;
+      }
+
+      @Override
+      public int hashCode() {
+        return java.util.Objects.hash(
+            name,
+            eroded5P,
+            eroded3P,
+            mismatch,
+            aligned,
+            qstart,
+            qend,
+            alignmentScore,
+            nm);
       }
     }
 }
