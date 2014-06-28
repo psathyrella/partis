@@ -67,6 +67,7 @@ debs/vdjalign_$(VERSION)_$(ARCH).deb:
 		-n vdjalign \
 		-s python \
 		-t deb \
+		-d 'samtools' \
 		--license GPLv3 \
 		--maintainer "Connor McCoy <cmccoy@fhcrc.org>" \
 		--description "Align IGHV gene sequences. sha: $(GIT_DESCRIBE)" \
