@@ -1,8 +1,8 @@
 VERSION ?= 0.1.0
 ARCH ?= amd64
 
-PYSAM_VERSION ?= 0.7.7
-NETWORKX_VERSION ?= 1.8.1
+PYSAM_VERSION ?= 0.7.8
+NETWORKX_VERSION ?= 1.9
 
 GIT_DESCRIBE = $(shell git describe --always)
 
