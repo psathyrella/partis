@@ -26,6 +26,11 @@ Packages are signed with key `3AA09EC1`. Add with:
 
     sudo apt-key adv --keyserver pgp.mit.edu --recv-keys 3AA09EC1
 
+Then:
+
+    sudo apt-get update
+    sudo apt-get install -y ighutil vdjalign
+
 # Workflow
 
 ## Alignment
