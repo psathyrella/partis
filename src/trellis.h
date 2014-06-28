@@ -102,6 +102,7 @@ namespace StochHMM{
    */
   class trellis{
   public:
+    double  ending_viterbi_score;
     trellis();
     trellis(model* h , sequences* sqs);
     ~trellis();
@@ -205,7 +206,6 @@ namespace StochHMM{
     std::vector<nthTrace>*  nth_traceback_table;
                 
     //Ending Cells
-    double  ending_viterbi_score;
     int16_t ending_viterbi_tb;
     double  ending_forward_prob;
     double  ending_backward_prob;

@@ -30,7 +30,7 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, string only_genes="");
+  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, bool debug=false, string only_genes="");
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
   void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);

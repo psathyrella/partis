@@ -243,8 +243,8 @@ public:
 
     if (!one_line) {
       cout << "    " << insertion_str << "   inserts" << endl;
-      cout <<  "    " << d_str << "   ighd" << endl;
-      cout << "    " << vj_str << "   ighv,ighj\n" << endl;
+      cout <<  "    " << d_str << "   " << genes_["d"] << endl;
+      cout << "    " << vj_str << "   " << genes_["v"] << "," << genes_["j"] << "\n" << endl;
     }
     cout << "    " << final_seq << endl;
   }

@@ -20,8 +20,8 @@ NUKES: """
 
 class HmmWriter(object):
     def __init__(self, base_outdir, region, gene_name, germline_seq):
-        self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this. I just have it at two for human readibility while debugging
-        self.v_right_length = 85  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
+        self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
+        self.v_right_length = 100  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.outdir = outdir
         self.region = region
         self.gene_name = gene_name
@@ -41,11 +41,13 @@ class HmmWriter(object):
     def add_region_entry_probs(self):
         """ Probabilities to enter germline gene at point <inuke> """
         # TODO use probs from data
-        max_erosion = 7
+        max_erosion = 15
         total = 0.0
         istart = 0
-        if region == 'v' and self.v_right_length != -1:
-            istart = len(self.germline_seq) - self.v_right_length
+        if region == 'v':
+            max_erosion = 20
+            if self.v_right_length != -1:
+                istart = len(self.germline_seq) - self.v_right_length
         for inuke in range(istart, istart+max_erosion):  #len(seq)):
             probability = float(1./max_erosion)  # prob of entering the germline gene at this position, i.e. of eroding until here (*left* side erosion)
             total += probability
@@ -56,7 +58,8 @@ class HmmWriter(object):
     def get_exit_probability(self, seq, inuke):
         """
         Prob of exiting the chain of states for this region and entering the insert state.
-        In other words, how much do we erode? (*right* side erosion)
+        In other words, how much do we erode? (*right* side erosion).
+        NOTE this is *independent* of transitions to END state
         """
         if self.region == 'j':  # no insert state to right of j -- we go until query sequence ends, i.e. until we get a transition to END
             return 0.0
@@ -122,7 +125,10 @@ class HmmWriter(object):
             self.text += ('  %s_%d:  %.' + self.precision + 'f\n') % (saniname, inuke+1, 1 - exit_probability)
         if exit_probability > 10**(-int(self.precision)+1):  # don't write transitions that have zero probability
             self.text += ('  insert:  %.' + self.precision + 'f\n') % exit_probability  # and one to the insert state
-        self.text += '  END: 1\n'  # TODO don't write this transition to END for states (e.g. the start of v) that have no real chance to transition to END)
+            # don't write transition the END unless exit prob great than zero. TODO is this really what I want to do?
+        distance_to_end = len(seq) - inuke - 1
+        if region != 'j' or distance_to_end == 0:  # non-j: allow transitions to END from anywhere. j: only allow them from the last state
+            self.text += '  END: 1\n'  # TODO don't write this transition to END for states (e.g. the start of v) that have no real chance to transition to END)
 
         # emissions
         self.add_emission_header()

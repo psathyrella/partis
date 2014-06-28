@@ -17,12 +17,12 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, string only_genes):
+JobHolder::JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, bool debug, string only_genes):
   n_seqs_per_track_(n_seqs_per_track),
   algorithm_(algorithm),
   seqs_(seqs),
   hmms_(hmms),
-  debug_(true)
+  debug_(debug)
 {
   while (true) {
     size_t i_next_colon(only_genes.find(":"));
@@ -125,6 +125,7 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
       paths_[gene][query_strs] = new traceback_path(hmms_->Get(gene));
       trellisi_[gene][query_strs]->traceback(*paths_[gene][query_strs]);
       *score = paths_[gene][query_strs]->getScore();
+      if (trellisi_[gene][query_strs]->ending_viterbi_score == -INFINITY) *score = -INFINITY;  // no valid path through hmm. TODO fix this in a more general way
       if (debug_)
 	PrintPath(query_strs, gene);
     } else if (algorithm_=="forward") {
@@ -141,7 +142,11 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
 void JobHolder::PrintPath(StrPair query_strs, string gene) {  // NOTE query_str is seq1xseq2 for pair hmm
   vector<string> path_labels;
   paths_[gene][query_strs]->label(path_labels);
-  assert(path_labels.size() > 0);
+  if (path_labels.size() == 0) {
+    if (debug_) cout << "                     " << gene << " has no valid path" << endl;
+    return; // TODO fix this upstream. well, it isn't *broken*, but, you know, whatever
+  }
+  assert(path_labels.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
   assert(path_labels.size() == query_strs.first.size());
   size_t insert_length = GetInsertLength(path_labels);
   size_t left_erosion_length = GetErosionLength("left", path_labels, gene);
@@ -171,6 +176,10 @@ void JobHolder::FillRecoEvent(KSet kset, map<string,string> &best_genes) {
     string gene(best_genes[region]);
     vector<string> path_labels;
     paths_[gene][query_strs]->label(path_labels);
+    if (path_labels.size() == 0) {
+      if (debug_) cout << "                     " << gene << " has no valid path" << endl;
+      return; // TODO fix this upstream. well, it isn't *broken*, but, you know, whatever
+    }
     assert(path_labels.size() > 0);
     assert(path_labels.size() == query_strs.first.size());
     event_.SetGene(region, gene);
