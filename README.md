@@ -18,6 +18,14 @@ The project is divided into two sections: a python module for aligning sequences
 * Run `make -C clj` - creates `clj/bin/ighutil`
 * Run `pip install ./python` - installs `vdjalign` Python tool.
 
+Alternatively, Debian packages `ighutil` and `vdjalign` can be installed from this repository:
+
+    deb     https://s3.amazonaws.com/cmccoy-debian-repo/ stable main
+
+Packages are signed with key `3AA09EC1`. Add with:
+
+    sudo apt-key adv --keyserver pgp.mit.edu --recv-keys 3AA09EC1
+
 # Workflow
 
 ## Alignment

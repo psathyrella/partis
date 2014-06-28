@@ -7,7 +7,7 @@ all: $(IGHUTIL)
 
 $(IGHUTIL): $(CLJ) project.clj
 	rm -f target/*.jar
-	lein uberjar
+	dev/lein uberjar
 	cat bin/ighutil.template target/*-standalone.jar > bin/ighutil
 	chmod +x bin/ighutil
 
