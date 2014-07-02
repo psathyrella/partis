@@ -53,8 +53,10 @@ def fill_targets_alignment_options(p):
                       opening penalty [default: %(default)d]""")
     agrp.add_argument('-e', '--gap-extend', default=1, type=int, help="""Gap
                       extension penalty [default: %(default)d]""")
-    agrp.add_argument('--max-drop', default=0, type=int, help="""Maximum
-                      alignment score drop [default: %(default)d]""")
+    agrp.add_argument('--max-drop', default=0, type=int, help="""Only output
+                      alignments with scores within MAX_DROP of the best
+                      scoring alignment for each segment [default:
+                      %(default)d]""")
     agrp.add_argument('--min-score', default=0, type=int, help="""Minimum (V)
                       alignment score [default: %(default)d]""")
     agrp.add_argument('--bandwidth', default=150, type=int, help="""Bandwidth
