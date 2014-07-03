@@ -9,7 +9,7 @@ import os
 import re
 from subprocess import check_output
 
-#from Bio import SeqIO
+from Bio import SeqIO
 import dendropy
 
 from opener import opener
@@ -26,7 +26,7 @@ class Recombinator(object):
         self.naivety = naivety
         # parameters that control recombination, erosion, and whatnot
         self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
-        self.do_not_mutate = True
+        self.do_not_mutate = False
         self.only_genes = []
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
     
@@ -246,14 +246,77 @@ class Recombinator(object):
         # then insert
         for boundary in utils.boundaries:
             self.set_insertion(boundary, reco_event)
-        
-    def run_bppseqgen(self, seq, region, chosen_tree, gene_name, reco_event):
+
+    def write_mute_freqs(self, region, gene_name, seq, reco_event, reco_seq_fname):
+        mute_freqs = {}
+        # TODO this mean calculation could use some thought. Say, should it include positions that we have hardly any information for?
+        mean_freq = 0.0  # calculate the mean mutation frequency. we'll use it for positions where we don't believe the actual number (eg too few alignments)
+        if 'insert' in gene_name:
+            mean_freq = 0.1  # TODO don't pull this number outta yo ass
+        else:
+            # read mutation frequencies from disk. TODO this could be cached in memory to speed things up
+            mutefname = self.datadir + '/' + self.human + '/' + self.naivety + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
+            with opener('r')(mutefname) as mutefile:
+                reader = csv.DictReader(mutefile)
+                for line in reader:  # NOTE these positions are *zero* indexed
+                    mute_freqs[int(line['position'])] = float(line['mute_freq'])
+                    mean_freq += float(line['mute_freq'])
+                mean_freq /= len(mute_freqs)
+    
+        # calculate mute freqs for the positions in <seq>
+        rates = []
+        total = 0.0
+        # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
+        # TODO still, it'd be nice to have *some* way to make sure the position indices agree between mute_freqs and seq
+        for inuke in range(len(seq)):  # append a freq for each nuke
+            # NOTE be careful here! seqs are already eroded
+            position = inuke
+            if region == 'd':
+                position += reco_event.erosions['d_5p']
+            elif region == 'j':
+                position += reco_event.erosions['j_5p']
+
+            freq = 0.0
+            if position in mute_freqs:
+                freq = mute_freqs[position]
+            else:  # NOTE this will happen a lot (all?) of the time for the insertions... which is ok
+                freq = mean_freq
+
+            if region == 'v' and position < 200:  # don't really have any information here
+                freq = mean_freq
+            # TODO add some criterion to remove positions with really large uncertainties
+            rates.append(freq)
+            total += freq
+        if total == 0.0:  # I am not yet hip enough to divide by zero
+            print 'ERROR zero total frequency in %s (probably really an insert)' % mutefname
+            assert False
+        for inuke in range(len(seq)):  # normalize to the number of sites
+            rates[inuke] *= float(len(seq)) / total
+        total = 0.0
+        for inuke in range(len(seq)):  # and... double check it, just for shits and giggles
+            total += rates[inuke]
+        assert math.fabs(total / float(len(seq)) - 1.0) < 1e-10
+        assert len(rates) == len(seq)
+
+        # write the input file for bppseqgen, one base per line
+        with opener('w')(reco_seq_fname) as reco_seq_file:
+            reco_seq_file.write('state\trate\n')
+            for inuke in range(len(seq)):
+                reco_seq_file.write('%s\t%.15f\n' % (seq[inuke], rates[inuke]))
+                
+        # TODO I need to find a tool to give me the total branch length of the chosen tree, so I can compare to the number of mutations I see
+        # assert False  # TODO this whole mutation frequency section kinda needs to be reread through and add a few checks
+
+    def run_bppseqgen(self, seq, chosen_tree, gene_name, reco_event):
         """ Run bppseqgen on sequence
 
         Note that this is in general a piece of the full sequence (say, the V region), since
         we have different mutation models for different regions. Returns a list of mutated
         sequences.
         """
+        region = 'v'  # TODO don't just use v for inserts
+        if 'insert' not in gene_name :
+             region = utils.get_region(gene_name)
 
         if len(seq) == 0:  # zero length insertion (or d)
             treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
@@ -264,62 +327,9 @@ class Recombinator(object):
         treefname = self.tmpdir + '/tree.tre'
         with opener('w')(treefname) as treefile:
             treefile.write(chosen_tree)
-        
-        # read mutation frequencies from disk
-        mutefname = self.datadir + '/' + self.human + '/' + self.naivety + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
-        mute_freqs = {}
-        # TODO this mean calculation could use some thought. Say, should it include positions that we have hardly any information for?
-        mean_freq = 0.0  # calculate the mean mutation frequency. we'll use it for positions where we don't believe the actual number (eg too few alignments)
-        with opener('r')(mutefname) as mutefile:
-            reader = csv.DictReader(mutefile)
-            for line in reader:  # NOTE these positions are *zero* indexed
-                mute_freqs[int(line['position'])] = float(line['mute_freq'])
-                mean_freq += float(line['mute_freq'])
-            mean_freq /= len(mute_freqs)
 
-        # write the input file for bppseqgen, one base per line
         reco_seq_fname = self.tmpdir + '/start_seq.txt'
-        with opener('w')(reco_seq_fname) as reco_seq_file:
-            reco_seq_file.write('state\trate\n')
-            rates = []
-            total = 0.0
-            # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
-            # TODO still, it'd be nice to have *some* way to make sure the position indices agree between mute_freqs and seq
-            for inuke in range(len(seq)):
-                # NOTE be careful here! seqs are already eroded
-                position = inuke
-                if region == 'd':
-                    position += reco_event.erosions['d_5p']
-                elif region == 'j':
-                    position += reco_event.erosions['j_5p']
-
-                freq = 0.0
-                if position in mute_freqs:
-                    freq = mute_freqs[position]
-                else:  # NOTE this will happen a lot of the time for the insertions... which is ok
-                    freq = mean_freq
-                if region == 'v' and position < 200:  # don't really have any information here
-                    freq = mean_freq
-                # TODO add some criterion to remove positions with really large uncertainties
-                rates.append(freq)
-                total += freq
-            if total == 0.0:
-                print 'ERROR zero total frequency in ',mutefname
-                assert False
-            for inuke in range(len(seq)):  # normalize to the number of sites
-                rates[inuke] *= float(len(seq)) / total
-            total = 0.0
-            for inuke in range(len(seq)):  # and... double check it, just for shits and giggles
-                total += rates[inuke]
-            assert math.fabs(total / float(len(seq)) - 1.0) < 1e-10
-            assert len(rates) == len(seq)
-            print region,'----------------------------------------------------------------------------------------'
-            for inuke in range(len(seq)):
-                print seq[inuke],rates[inuke]
-                reco_seq_file.write('%s\t%.15f\n' % (seq[inuke], rates[inuke]))
-                
-        # TODO I need to find a tool to give me the total branch length of the chosen tree, so I can compare to the number of mutations I see
-        assert False  # TODO this whole mutation frequency section kinda needs to be reread through and add a few checks
+        self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname)
 
         leaf_seq_fname = self.tmpdir + '/leaf-seqs.fa'
         bpp_dir = '/home/matsengrp/local/encap/bpp-master-20140414'  # on lemur: $HOME/Dropbox/work/bpp-master-20140414
@@ -361,11 +371,11 @@ class Recombinator(object):
     def add_mutants(self, reco_event):
         chosen_tree = self.trees[random.randint(0, len(self.trees))]
         print '  generating mutations (seed %d) with tree %s' % (os.getpid(), chosen_tree)  # TODO make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-        v_mutes = self.run_bppseqgen(reco_event.seqs['v'], 'v', chosen_tree, reco_event.gene_names['v'], reco_event)
-        d_mutes = self.run_bppseqgen(reco_event.seqs['d'], 'd', chosen_tree, reco_event.gene_names['d'], reco_event)
-        j_mutes = self.run_bppseqgen(reco_event.seqs['j'], 'j', chosen_tree, reco_event.gene_names['j'], reco_event)
-        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], 'v', chosen_tree, reco_event.gene_names['d'], reco_event)  # TODO use a better mutation model for the insertions
-        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], 'd', chosen_tree, reco_event.gene_names['d'], reco_event)
+        v_mutes = self.run_bppseqgen(reco_event.seqs['v'], chosen_tree, reco_event.gene_names['v'], reco_event)
+        d_mutes = self.run_bppseqgen(reco_event.seqs['d'], chosen_tree, reco_event.gene_names['d'], reco_event)
+        j_mutes = self.run_bppseqgen(reco_event.seqs['j'], chosen_tree, reco_event.gene_names['j'], reco_event)
+        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event)  # TODO use a better mutation model for the insertions
+        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event)
 
         assert len(reco_event.final_seqs) == 0  # don't really need this, but it makes me feel warm and fuzzy
         for iseq in range(len(v_mutes)):

@@ -135,6 +135,7 @@ def find_tryp_in_joined_seq(tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_i
 #    print '    result = tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (tryp_position_in_j, j_erosion, length_to_left_of_j, tryp_position_in_j - j_erosion + length_to_left_of_j)
     return tryp_position_in_j - j_erosion + length_to_left_of_j
 
+# ----------------------------------------------------------------------------------------
 class Colors:
     head = '\033[95m'
     blue = '\033[94m'
@@ -145,6 +146,22 @@ class Colors:
 
 def red(seq):
     return Colors.red + seq + Colors.end
+
+# ----------------------------------------------------------------------------------------
+def color_mutants(ref_seq, seq, print_result=False):
+    # assert len(ref_seq) == len(seq)
+    return_str = ''
+    for inuke in range(len(seq)):
+        if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
+            return_str += seq[inuke]
+        else:
+            return_str += red(seq[inuke])
+    if print_result:
+        print '%75s %s' % ('', ref_seq)
+        print '%75s %s' % ('', return_str)
+    return return_str
+
+# ----------------------------------------------------------------------------------------
 
 def is_mutated(original, final):
     if original == final:
@@ -244,13 +261,25 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir):
+def read_germlines(data_dir='/home/dralph/Dropbox/work/recombinator', remove_fp=False):
+    """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     germlines = {}
     for region in regions:
         germlines[region] = collections.OrderedDict()
         for seq_record in SeqIO.parse(data_dir + '/data/igh'+region+'.fasta', "fasta"):
-            germlines[region][seq_record.name] = str(seq_record.seq)
+            gene_name = seq_record.name
+            if remove_fp and region == 'j':
+                gene_name = gene_name[:-2]
+            germlines[region][gene_name] = str(seq_record.seq)
     return germlines
+
+# ----------------------------------------------------------------------------------------
+def get_region(gene_name):
+    """ return v, d, or j of gene"""
+    assert 'IGH' in gene_name
+    region = gene_name[3:4].lower()
+    assert region in regions
+    return region
 
 # ----------------------------------------------------------------------------------------
 def maturity_to_naivety(maturity):

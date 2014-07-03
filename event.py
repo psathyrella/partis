@@ -22,7 +22,7 @@ class RecombinationEvent(object):
         self.final_tryp_position = -1  # while *this* is the tryp position in the final recombined sequence
         self.erosions = {}  # erosion lengths for the event
         self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
-        self.current_cdr3_length = 0  # while this is the lenght beforehand
+        self.current_cdr3_length = 0  # while this is the length beforehand
         self.net_length_change = 0  # and this is the difference between the two
         self.total_deletion_length = 0
         self.insertion_lengths = {}
