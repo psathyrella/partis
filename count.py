@@ -20,6 +20,6 @@ for crypt in cryptic_strings:
     human = crypt_split[1]
     stage = crypt_split[2].rstrip('1').rstrip('2')
     fnames = list(indir + '/' + human + '/' + subcrypt + '_filtered_train.vdjcdr3.csv.bz2' for subcrypt in crypt)
-    for column_dependency in utils.column_dependencies:
+    for column_dependency in utils.column_dependency_tuples:
         vc = VersionCounter(fnames, 'data/human-beings/' + human + '/' + stage, min_counts=3, index_columns=column_dependency)
         vc.count()

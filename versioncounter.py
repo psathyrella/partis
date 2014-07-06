@@ -28,10 +28,7 @@ class VersionCounter(object):
         self.index_columns = index_columns  # By default, use all the columns that are needed to specify a recombination event.
                                             # If you just want, say, the frequency distribution of d_gene choices you want index_columns='d_gene'.
                                             # For the d right-hand erosion length, because of correlations, you'd need (d_gene, d_5p_del, d_3p_del)
-        self.outfname = 'probs.csv.bz2'
-        for ic in self.index_columns:
-            self.outfname = ic + '-' + self.outfname
-        self.outfname = self.base_outdir + '/' + self.outfname
+        self.outfname = self.base_outdir + '/' + utils.get_prob_fname(self.index_columns)
 
         self.all_seqs = {}
         if 'vd_insertion' in self.index_columns or 'dj_insertion' in self.index_columns:  # the insertions aren't listed in the input file, so we need to calculate them

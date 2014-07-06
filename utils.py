@@ -21,22 +21,35 @@ index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
 
-# correlations are taken from figure in the bcellap repo
-# first entry is the column of interest, and it depends upon the following entries
-column_dependencies = []
-column_dependencies.append(('v_gene',))  # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
-column_dependencies.append(('v_3p_del',      'v_gene'))
-column_dependencies.append(('d_gene',        'd_5p_del', 'd_3p_del'))
-column_dependencies.append(('d_5p_del',      'd_3p_del', 'd_gene'))
-column_dependencies.append(('d_3p_del',      'd_5p_del', 'd_gene'))
-column_dependencies.append(('j_5p_del',))  # strange but seemingly true: does not depend on j choice
-column_dependencies.append(('vd_insertion',))
-column_dependencies.append(('dj_insertion',  'j_gene'))
-column_dependencies.append(index_columns)
+# ----------------------------------------------------------------------------------------
+# correlation stuff
 
-all_column_fname = 'probs.csv.bz2'
-for ic in index_columns:
-    all_column_fname = ic + '-' + all_column_fname
+# correlations are taken from figure in the bcellap repo
+column_dependencies = {}
+column_dependencies['v_gene'] = [] # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
+column_dependencies['v_3p_del'] = ['v_gene']
+column_dependencies['d_gene'] = ['d_5p_del', 'd_3p_del']
+column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']
+column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']
+column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice
+column_dependencies['vd_insertion'] = []
+column_dependencies['dj_insertion'] = ['j_gene']
+
+# first entry is the column of interest, and it depends upon the following entries
+column_dependency_tuples = []
+for column,deps in column_dependencies.iteritems():
+    tmp_list = [column]
+    tmp_list.extend(deps)
+    column_dependency_tuples.append(tuple(tmp_list))
+column_dependency_tuples.append(index_columns)
+
+def get_prob_fname(columns):
+    outfname = 'probs.csv.bz2'
+    for ic in columns:
+        outfname = ic + '-' + outfname
+    return outfname
+
+all_column_fname = get_prob_fname(index_columns)
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
