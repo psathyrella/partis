@@ -141,6 +141,7 @@ class Recombinator(object):
             in_data = csv.DictReader(infile)
             total = 0.0  # check that the probs sum to 1.0
             for line in in_data:
+                # NOTE do *not* assume the file is sorted
                 if len(self.only_genes) > 0:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.only_genes: continue
                     if line['d_gene'] not in self.only_genes: continue

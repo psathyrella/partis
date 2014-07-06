@@ -32,7 +32,7 @@ class RecombinationEvent(object):
         self.original_cyst_word = ''
         self.original_tryp_word = ''
 
-    def set_vdj_combo(self, vdj_combo_label, cyst_position, tryp_position, all_seqs):
+    def set_vdj_combo(self, vdj_combo_label, cyst_position, tryp_position, all_seqs):  # TODO it's kinda wasteful to pass all_seqs through this call so many times
         """ Set the label which labels the gene/length choice (a tuple of strings)
         as well as it's constituent parts. """
         self.vdj_combo_label = vdj_combo_label
@@ -131,6 +131,9 @@ class RecombinationEvent(object):
         for region in utils.regions:
             line[region + '_gene'] = self.gene_names[region]
         for boundary in utils.boundaries:
+            # assert boundary in self.insertions
+            if boundary not in self.insertions:  # if the insertion isn't set, but the length is set, just fill it with Xs. TODO fix that shit
+                self.insertions[boundary] = self.insertion_lengths[boundary] * 'X'
             line[boundary + '_insertion'] = self.insertions[boundary]
         for erosion_location in utils.erosions:
             line[erosion_location + '_del'] = self.erosions[erosion_location]
