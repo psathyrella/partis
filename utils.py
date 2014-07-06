@@ -21,6 +21,23 @@ index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
 
+# correlations are taken from figure in the bcellap repo
+# first entry is the column of interest, and it depends upon the following entries
+column_dependencies = []
+column_dependencies.append(('v_gene',))  # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
+column_dependencies.append(('v_3p_del',      'v_gene'))
+column_dependencies.append(('d_gene',        'd_5p_del', 'd_3p_del'))
+column_dependencies.append(('d_5p_del',      'd_3p_del', 'd_gene'))
+column_dependencies.append(('d_3p_del',      'd_5p_del', 'd_gene'))
+column_dependencies.append(('j_5p_del',))  # strange but seemingly true: does not depend on j choice
+column_dependencies.append(('vd_insertion',))
+column_dependencies.append(('dj_insertion',  'j_gene'))
+column_dependencies.append(index_columns)
+
+all_column_fname = 'probs.csv.bz2'
+for ic in index_columns:
+    all_column_fname = ic + '-' + all_column_fname
+
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
     """ Convert between (0,1,2,3) and (A,C,G,T) """
@@ -41,13 +58,13 @@ def check_conserved_cysteine(seq, cyst_position):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
-        print 'ERROR cysteine in V is messed up: %s' % cyst_word
+        # print 'ERROR cysteine in V is messed up: %s' % cyst_word
         assert False
 def check_conserved_tryptophan(seq, tryp_position):
     """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
-        print 'ERROR tryptophan in J is messed up: %s' % tryp_word
+        # print 'ERROR tryptophan in J is messed up: %s' % tryp_word
         assert False
 def check_conserved_codons(seq, cyst_position, tryp_position):
     """ Double check that we conserved the cysteine and the tryptophan. """

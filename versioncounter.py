@@ -28,11 +28,10 @@ class VersionCounter(object):
         self.index_columns = index_columns  # By default, use all the columns that are needed to specify a recombination event.
                                             # If you just want, say, the frequency distribution of d_gene choices you want index_columns='d_gene'.
                                             # For the d right-hand erosion length, because of correlations, you'd need (d_gene, d_5p_del, d_3p_del)
-        self.outfname = self.base_outdir + '/'
+        self.outfname = 'probs.csv.bz2'
         for ic in self.index_columns:
-            self.outfname += ic + '-'
-        self.outfname = self.outfname.rstrip('-')
-        self.outfname += '-probs.csv.bz2'
+            self.outfname = ic + '-' + self.outfname
+        self.outfname = self.base_outdir + '/' + self.outfname
 
         self.all_seqs = {}
         if 'vd_insertion' in self.index_columns or 'dj_insertion' in self.index_columns:  # the insertions aren't listed in the input file, so we need to calculate them
@@ -80,7 +79,6 @@ class VersionCounter(object):
                                                 int(self.tryp_positions[full_event_index[utils.index_keys['j_gene']]]),
                                                 self.all_seqs)
                         except AssertionError:  # conserved codons screwed up. TODO fix that shit
-                            print 'hrg'
                             continue
                         total_insertion_length = event.total_deletion_length + event.net_length_change  # TODO get this written in the original freq file, don't infer it
                         if total_insertion_length < 0:  # hrg. see comments in recombinator. TODO needs to be fixed, for reals this time
