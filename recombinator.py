@@ -140,25 +140,23 @@ class Recombinator(object):
         """
         with opener('r')(fname) as infile:
             in_data = csv.DictReader(infile)
-            total = 0.0  # check that the probs sum to 1.0
+            total = 0.0
             for line in in_data:
                 # NOTE do *not* assume the file is sorted
                 if len(self.only_genes) > 0:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.only_genes: continue
                     if line['d_gene'] not in self.only_genes: continue
                     if line['j_gene'] not in self.only_genes: continue
-                total += float(line['prob'])
+                total += float(line['count'])
                 index = tuple(line[column] for column in utils.index_columns)
                 assert index not in self.version_freq_table
-                self.version_freq_table[index] = float(line['prob'])
-            if len(self.only_genes) > 0:  # renormalize if we are restricted to a subset of gene versions
-                new_total = 0.0
-                for index in self.version_freq_table:
-                    self.version_freq_table[index] /= total
-                    new_total += self.version_freq_table[index]
-                assert math.fabs(new_total - 1.0) < 1e-8
-            else:
-                assert math.fabs(total - 1.0) < 1e-8
+                self.version_freq_table[index] = float(line['count'])
+            # then normalize
+            test_total = 0.0
+            for index in self.version_freq_table:
+                self.version_freq_table[index] /= total
+                test_total += self.version_freq_table[index]
+            assert math.fabs(test_total - 1.0) < 1e-8
 
     def choose_vdj_combo(self, reco_event):
         """ Choose which combination germline variants to use """

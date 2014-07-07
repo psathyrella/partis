@@ -2,11 +2,17 @@
 require member variables. """
 
 import sys
+import math
 import collections
 
 from Bio import SeqIO
 
 #----------------------------------------------------------------------------------------
+eps = 1.e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
+def is_normed(prob):
+    return math.fabs(prob - 1.0) < eps
+
+# ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 boundaries = ('vd', 'dj')
@@ -43,13 +49,18 @@ for column,deps in column_dependencies.iteritems():
     column_dependency_tuples.append(tuple(tmp_list))
 column_dependency_tuples.append(index_columns)
 
-def get_prob_fname(columns):
+def get_prob_fname_tuple(columns):
     outfname = 'probs.csv.bz2'
     for ic in columns:
         outfname = ic + '-' + outfname
     return outfname
 
-all_column_fname = get_prob_fname(index_columns)
+def get_prob_fname_key_val(column, dependencies):
+    tmp_list = [column]
+    tmp_list.extend(dependencies)
+    return get_prob_fname_tuple(tuple(tmp_list))
+
+all_column_fname = get_prob_fname_tuple(index_columns)
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):

@@ -28,7 +28,7 @@ class VersionCounter(object):
         self.index_columns = index_columns  # By default, use all the columns that are needed to specify a recombination event.
                                             # If you just want, say, the frequency distribution of d_gene choices you want index_columns='d_gene'.
                                             # For the d right-hand erosion length, because of correlations, you'd need (d_gene, d_5p_del, d_3p_del)
-        self.outfname = self.base_outdir + '/' + utils.get_prob_fname(self.index_columns)
+        self.outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(self.index_columns)
 
         self.all_seqs = {}
         if 'vd_insertion' in self.index_columns or 'dj_insertion' in self.index_columns:  # the insertions aren't listed in the input file, so we need to calculate them
@@ -98,7 +98,7 @@ class VersionCounter(object):
         return total
     
     # ----------------------------------------------------------------------------------------
-    def write_gene_choice_probs(self, total):
+    def write_gene_choice_probs(self, total):  # NOTE writing counts instead of probabilities a.t.m. for a plethora of fantastic reasons
         """ Write vdj combo freqs to file. """
         print '      writing gene choice probabilities to %s' % self.outfname
         if os.path.isfile(self.outfname):
@@ -107,17 +107,13 @@ class VersionCounter(object):
             os.makedirs(self.base_outdir)
         with opener('w')(self.outfname) as outfile:
             out_fieldnames = list(self.index_columns)
-            out_fieldnames.append('prob')
+            out_fieldnames.append('count')
             out_data = csv.DictWriter(outfile, out_fieldnames)
             out_data.writeheader()
             # NOTE this will in general not be sorted
-            tmp_total = 0.0  # neurotic double check
             for index,count in self.version_freqs.iteritems():
                 line = {}
                 for ic in range(len(index)):
                     line[self.index_columns[ic]] = index[ic]
-                prob = float(count) / total
-                tmp_total += prob
-                line['prob'] = prob
+                line['count'] = count
                 out_data.writerow(line)
-            assert math.fabs(tmp_total - 1.0) < 1e-8
