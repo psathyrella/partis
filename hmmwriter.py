@@ -3,6 +3,8 @@
 import sys
 import os
 import math
+from scipy.stats import norm
+import csv
 import utils
 from opener import opener
 
@@ -19,15 +21,83 @@ TRACK SYMBOL DEFINITIONS
 NUKES: """
 
 class HmmWriter(object):
-    def __init__(self, base_outdir, region, gene_name, germline_seq):
+    def __init__(self, base_indir, base_outdir, region, gene_name, germline_seq):
+        self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.v_right_length = 100  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
-        self.outdir = outdir
+        self.fuzz_around_v_left_edge = 5.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side
+        self.outdir = base_outdir + '/' + region
         self.region = region
         self.gene_name = gene_name
         self.germline_seq = germline_seq
+        self.insertion = ''
+        if self.region == 'd':
+            self.insertion = 'vd'
+        elif self.region == 'j':
+            self.insertion = 'dj'
         self.text = ''  # text of the hmm description, to be written to file on completion
+        self.erosion_probs = {}
+        self.read_erosion_probs()
+        self.insertion_probs = {}
+        if self.region != 'v':
+            self.read_insertion_probs()
 
+    # # ----------------------------------------------------------------------------------------
+    # def get_erosion_key(erosion, line):
+    #     key = [line[erosion + '_del']]
+    #     for dep in deps:
+    #         key.append(line[dep])
+    #     return tuple(key)
+
+    # ----------------------------------------------------------------------------------------
+    def read_erosion_probs(self):
+        for erosion in utils.erosions:
+            if erosion[0] != self.region:
+                continue
+            self.erosion_probs[erosion] = {}
+            deps = utils.column_dependencies[erosion + '_del']
+            with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(erosion + '_del', deps)) as infile:
+                reader = csv.DictReader(infile)
+                total = 0.0
+                for line in reader:
+                    if self.region != 'j' and line[self.region + '_gene'] != self.gene_name:  # skip other genes (j erosion doesn't depend on gene choice)
+                        continue
+                    n_eroded = line[erosion + '_del']  # NOTE n_eroded is a string
+                    if n_eroded not in self.erosion_probs[erosion]:  # d erosion lengths depend on each other, but with the current hmm structure we cannot model this, so for the time being we integrate over the erosion on the other side. TODO fix that (well... maybe. it's kinda probably really not a big deal)
+                        self.erosion_probs[erosion][n_eroded] = 0.0
+                    self.erosion_probs[erosion][n_eroded] += float(line['count'])
+                    total += float(line['count'])
+
+                test_total = 0.0
+                for n_eroded in self.erosion_probs[erosion]:  # then normalize
+                    self.erosion_probs[erosion][n_eroded] /= total
+                    test_total += self.erosion_probs[erosion][n_eroded]
+                assert utils.is_normed(test_total)
+
+    # ----------------------------------------------------------------------------------------
+    def read_insertion_probs(self):
+
+        self.insertion_probs[self.insertion] = {}
+        deps = utils.column_dependencies[self.insertion + '_insertion']
+        with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(self.insertion + '_insertion', deps)) as infile:
+            reader = csv.DictReader(infile)
+            total = 0.0
+            for line in reader:
+                if self.region == 'j' and line['j_gene'] != self.gene_name:  # for dj insertion, skip rows for genes other than the current one
+                    assert self.insertion == 'dj'  # neuroticism is a positive personality trait
+                    continue
+                n_inserted = line[self.insertion + '_insertion']  # NOTE n_inserted is a string
+                if n_inserted not in self.insertion_probs[self.insertion]:
+                    self.insertion_probs[self.insertion][n_inserted] = 0.0
+                self.insertion_probs[self.insertion][n_inserted] += float(line['count'])
+                total += float(line['count'])
+
+            test_total = 0.0
+            for n_inserted in self.insertion_probs[self.insertion]:  # then normalize
+                self.insertion_probs[self.insertion][n_inserted] /= total
+                test_total += self.insertion_probs[self.insertion][n_inserted]
+            assert utils.is_normed(test_total)
+        
     # ----------------------------------------------------------------------------------------
     def write(self):
         self.add_header()
@@ -37,35 +107,95 @@ class HmmWriter(object):
             outfile.write(self.text)
         self.text = ''
 
+    # # ----------------------------------------------------------------------------------------
+    # def get_erosion_prob(self):  
+    #     for inuke in range(len(self.germline_seq)):
+    #         erosion_length = 0
+    #         if '5p' in erosion:  
+    #             erosion_length = inuke
+    #         else:  # right erosions: prob to *leave* the region *after* inuke, i.e. to erode the bases to the rigth of inuke
+    #             assert '3p' in erosion
+    #             erosion_length = len(self.germline_seq) - inuke -1
+    #         if str(erosion_length) in self.erosion_probs[erosion]:
+    #             print '  %4d%4d%10f' % (inuke, erosion_length, self.erosion_probs[erosion][str(erosion_length)])
+    #         else:
+    #             continue
+    #             print '  %4d%4d  hrg' % (inuke, erosion_length)
+                        
     # ----------------------------------------------------------------------------------------
     def add_region_entry_probs(self):
-        """ Probabilities to enter germline gene at point <inuke> """
-        # TODO use probs from data
-        max_erosion = 15
-        total = 0.0
-        istart = 0
-        if region == 'v':
-            max_erosion = 20
+        """
+        Probabilities to enter germline gene at point <inuke>.
+        In the hmm file they appear as lines with the prob to go from INIT to the <inuke> state.
+        For v, this is (mostly) the prob that our reads stop after <inuke> (going from right to left).
+        For d and j, this is (mostly) the prob to *erode* up to (but not including) inuke.
+        The two <mostly>s are there because in both cases, we're starting from *approximate* smith-waterman alignments, so we need to add some fuzz in case the s-w is off.
+        """
+
+        # prob for non-zero-length insertion (i.e. prob to *not* go directly into the region
+        if self.region != 'v':  # no insertion state in v hmm
+            prob = 1.0
+            if '0' in self.insertion_probs[self.insertion]:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0       *giggle*
+                assert '1' in self.insertion_probs[self.insertion] or '2' in self.insertion_probs[self.insertion] or '3' in self.insertion_probs[self.insertion] # this is kind of weird, but it's just to make sure I don't switch to indexing by integers instead of strings
+                prob -= self.insertion_probs[self.insertion]['0']
+            self.text += (' insert: %.' + self.precision + 'f\n') % prob
+
+        assert False  # arg, just realized I can't use the insertion length probs like this. It's an *hmm*, after all.
+                      # Well, looking at the distributions I made before... it's not a *horrible* approximation to use a geometric distribution or whatever the hell I get if I just use 1./<mean length>
+                      # TBD
+
+        # prob to actually enter region
+        if self.region == 'v':
+            istart = 0
             if self.v_right_length != -1:
                 istart = len(self.germline_seq) - self.v_right_length
-        for inuke in range(istart, istart+max_erosion):  #len(seq)):
-            probability = float(1./max_erosion)  # prob of entering the germline gene at this position, i.e. of eroding until here (*left* side erosion)
-            total += probability
-            self.text += ('  %35s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probability)  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
-        assert math.fabs(total - 1.0) < 1e-10  # make sure probs sum to one
+            probs = {}
+            total = 0.0
+            for inuke in range(len(self.germline_seq)):  # start at far left side of v, but only write out probs that are greater than utils.eps (so will only write out probs near to 'location of' v_right_length
+                tmp_prob = norm.pdf(float(inuke), float(istart), self.fuzz_around_v_left_edge)  # NOTE not yet normalized
+                if tmp_prob < utils.eps:  # TODO this really probably goes further out into the tails than we need to, so probably slows us down quite a bit
+                    continue
+                probs[inuke] = tmp_prob  # normal distribution centered around istart
+                total += tmp_prob
+            test_total = 0.0
+            for inuke in probs:  # normalize and check
+                probs[inuke] /= total
+                test_total += probs[inuke]
+            assert utils.is_normed(test_total)
+            for inuke in probs:  # add to text
+                self.text += ('  %35s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke])  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+        else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
+            total = 0.0
+            for inuke in range(len(self.germline_seq)):
+                erosion = self.region + '_5p'
+                erosion_length = inuke
+                if str(erosion_length) in self.erosion_probs[erosion]:
+                    prob = self.erosion_probs[erosion][str(erosion_length)]
+                    if prob < utils.eps:
+                        continue
+                    total += prob
+                    self.text += ('  %35s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob)  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+            assert utils.is_normed(total)
 
     # ----------------------------------------------------------------------------------------
     def get_exit_probability(self, seq, inuke):
         """
-        Prob of exiting the chain of states for this region and entering the insert state.
-        In other words, how much do we erode? (*right* side erosion).
-        NOTE this is *independent* of transitions to END state
+        Prob of exiting the chain of states for this region.
+        In other words, what is the prob that we will erode all the bases to the right of <inuke>.
         """
-        if self.region == 'j':  # no insert state to right of j -- we go until query sequence ends, i.e. until we get a transition to END
+        # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
+        if self.region == 'j':  # always go to end of germline j region
             return 0.0
-        distance_to_end = len(seq) - inuke - 1
-        decay_length = 7  # number of bases over which probability decays to 1/e of initial value (using a e^(-x) a.t.m.
-        return math.exp(-float(distance_to_end + 5) / decay_length)  # TODO use probs from data
+        erosion = self.region + '_3p'
+        erosion_length = len(self.germline_seq) - inuke -1
+        if str(erosion_length) in self.erosion_probs[erosion]:
+            prob = self.erosion_probs[erosion][str(erosion_length)]
+            if prob > utils.eps:
+                return prob
+            else:
+                return 0.0
+        else:
+            return 0.0
     
     # ----------------------------------------------------------------------------------------
     def add_header(self):
@@ -115,6 +245,9 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, seq, inuke, germline_nuke):
+        # TODO unify utils.eps and self.precision
+        # TODO the transition probs out of a state should add to one. But should this sum include the transitions to END, which stochhm requires to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?
+
         saniname = utils.sanitize_name(self.gene_name)
         self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke))
 
@@ -123,12 +256,11 @@ class HmmWriter(object):
         exit_probability = self.get_exit_probability(seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene
         if inuke < len(seq) - 1:  # if we're not at the end of this germline gene, add a transition to the next state
             self.text += ('  %s_%d:  %.' + self.precision + 'f\n') % (saniname, inuke+1, 1 - exit_probability)
-        if exit_probability > 10**(-int(self.precision)+1):  # don't write transitions that have zero probability
+        if exit_probability >= utils.eps:  #10**(-int(self.precision)+1):  # don't write transitions that have zero probability
             self.text += ('  insert:  %.' + self.precision + 'f\n') % exit_probability  # and one to the insert state
-            # don't write transition the END unless exit prob great than zero. TODO is this really what I want to do?
         distance_to_end = len(seq) - inuke - 1
-        if region != 'j' or distance_to_end == 0:  # non-j: allow transitions to END from anywhere. j: only allow them from the last state
-            self.text += '  END: 1\n'  # TODO don't write this transition to END for states (e.g. the start of v) that have no real chance to transition to END)
+        if exit_probability >= utils.eps or distance_to_end == 0:
+            self.text += '  END: 1\n'
 
         # emissions
         self.add_emission_header()
@@ -167,30 +299,3 @@ class HmmWriter(object):
         # finish up
         self.text += '#############################################\n'
         self.text += '//END\n'
-    
-# ----------------------------------------------------------------------------------------
-
-n_max_versions = 0  # only look at the first n gene versions (speeds things up for testing)
-only_genes = 'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F'.split(':')
-germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
-
-for region in utils.regions:
-    outdir = 'bcell/' + region
-    if os.path.exists(outdir):
-        for hmmfile in os.listdir(outdir):
-            if hmmfile.endswith(".hmm"):
-                os.remove(outdir + "/" + hmmfile)
-    else:
-        os.makedirs(outdir)
-    
-    igene = 0
-    for gene_name in germline_seqs[region]:
-        if n_max_versions != 0 and igene >= n_max_versions:
-            print 'breaking after %d gene versions' % n_max_versions
-            break
-        if only_genes != '' and gene_name not in only_genes:
-            continue
-        print '  %d / %d (%s)' % (igene, len(germline_seqs[region]), gene_name)
-        igene += 1
-        writer = HmmWriter('bcell', region, gene_name, germline_seqs[region][gene_name])
-        writer.write()
