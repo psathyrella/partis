@@ -28,5 +28,5 @@ for region in utils.regions:
             continue
         print '  %d / %d (%s)' % (igene, len(germline_seqs[region]), gene_name)
         igene += 1
-        writer = HmmWriter('/home/dralph/Dropbox/work/recombinator/data/human-beings/' + human + '/' + naivety, 'bcell', region, gene_name, germline_seqs[region][gene_name])
+        writer = HmmWriter('/home/dralph/Dropbox/work/recombinator/data/human-beings/' + human + '/' + naivety, 'bcell', region, gene_name, naivety, germline_seqs[region][gene_name])
         writer.write()
