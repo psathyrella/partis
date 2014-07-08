@@ -3,6 +3,7 @@
 from subprocess import check_output
 import utils
 
+"IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F"
 output = check_output('./stochhmm -seq bcell/seq.fa -model bcell/d.hmm -viterbi -label', shell=True)
 for line in output.splitlines():
     if line.find('>>') == 0:  # header line

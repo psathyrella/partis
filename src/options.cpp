@@ -144,7 +144,7 @@ namespace StochHMM{
             
       //Assign the possible tags to map. Linked to pointer to opt_data
       for(size_t j=0; j<tags.size();j++){
-	//cout << tags[j] << endl;
+	// std::cout << tags[j] << std::endl;
 	opts[tags[j]]=tp;
 	alternatives[tags[j]]=tags[0];
       }
@@ -301,17 +301,15 @@ namespace StochHMM{
   //!\return true if option existed and is returned
   //!\return false if option does not exist
   bool options::getopt(const char* param,int &value){
-    if (opts.count(param)){
+    if (opts.count(param)) {
       if (opts[param]->set && opts[param]->type==OPT_INT){
 	value=opts[param]->data.i;
 	return true;
-      }
-      else{
+      } else {
 	std::cerr << "Option: " << param << " not set or not of type OPT_INT\n";
 	return false;
       }
-    }
-    else{
+    } else {
       std::cerr << "Option: " << param <<" type doesn't exist\n";
       return false;
     }

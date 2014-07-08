@@ -26,7 +26,10 @@ opt_parameters commandline[] = {
   {"-debug"        ,OPT_NONE       ,false  ,"",    {}},
   {"-model:-m"     ,OPT_STRING     ,false  ,"",    {}},
   {"-seq:-s:-track",OPT_STRING     ,false  ,"",    {}},
-  {"-hmmtype"      ,OPT_STRING    ,false  ,"single", {"single", "pair"}},
+  {"-hmmtype"      ,OPT_STRING     ,false  ,"single", {"single", "pair"}},
+  {"-only_genes"   ,OPT_STRING     ,false  ,"",   {}},
+  {"-k_v_guess"    ,OPT_INT        ,true  ,"",    {}},
+  {"-k_d_guess"    ,OPT_INT        ,true  ,"",    {}},
   //Non-Stochastic Decoding
   {"-viterbi"      ,OPT_NONE       ,false  ,"",    {}},
   {"-forward"      ,OPT_NONE       ,false  ,"",    {}},
@@ -79,15 +82,21 @@ int main(int argc, const char * argv[]) {
     return 0;
   }
 
+  int k_v_guess,k_d_guess;
+  opt.getopt("-k_v_guess", k_v_guess);
+  opt.getopt("-k_d_guess", k_d_guess);
+
   size_t n_seqs_per_track(opt.sopt("-hmmtype")=="pair" ? 2 : 1);
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);
   vector<sequences*> seqs(GetSeqs("bcell/seq.fa", &trk));
   HMMHolder hmms("./bcell", n_seqs_per_track);
   for (size_t is=0; is<seqs.size(); is++) {
-    JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), "IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F");
-    // jh.Run(46, 12, 1, 20);
-    jh.Run(90, 2, 15, 2);
+    // JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), "IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F");
+    JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), opt.isSet("-only_genes") ? opt.sopt("-only_genes") : "");
+    // jh.Run(90, 2, 15, 2);
+    int v_fuzz(3),d_fuzz(3);  // half-width of search region
+    jh.Run(k_v_guess - v_fuzz, 2*v_fuzz, k_d_guess, 2*d_fuzz);
   }
   return 0;
 }

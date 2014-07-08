@@ -33,6 +33,7 @@ class HmmWriter(object):
         self.naivety = naivety
         self.germline_seq = germline_seq
         self.insertion = ''
+        self.smallest_entry_index = -1
         if self.region == 'd':
             self.insertion = 'vd'
         elif self.region == 'j':
@@ -178,6 +179,8 @@ class HmmWriter(object):
                     continue
                 probs[inuke] = tmp_prob  # normal distribution centered around istart
                 total += tmp_prob
+                if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # keep track of the first state that has a chance of being entered from INIT -- we want to start writing (with add_internal_state) from there
+                    self.smallest_entry_index = inuke
             test_total = 0.0
             for inuke in probs:  # normalize and check
                 probs[inuke] /= total
@@ -186,6 +189,7 @@ class HmmWriter(object):
             for inuke in probs:  # add to text
                 self.text += ('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke])  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
         else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
+            self.smallest_entry_index = 0
             total = 0.0
             for inuke in range(len(self.germline_seq)):
                 erosion = self.region + '_5p'
@@ -324,10 +328,10 @@ class HmmWriter(object):
             self.add_insert_state()
 
         # write internal states
-        istart = 0
-        if self.region == 'v' and self.v_right_length != -1:  # chop off the left side of the v
-            istart = len(self.germline_seq) - self.v_right_length
-        for inuke in range(istart, len(self.germline_seq)):
+        # istart = 0
+        # if self.region == 'v' and self.v_right_length != -1:  # chop off the left side of the v
+        #     istart = len(self.germline_seq) - self.v_right_length
+        for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             nuke = self.germline_seq[inuke]
             self.add_internal_state(self.germline_seq, inuke, nuke)
     
