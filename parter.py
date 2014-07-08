@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 
-from subprocess import check_output
+from subprocess import check_output,check_call
 import utils
 
-"IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F"
+# "IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F"
+# v: CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGTTACACCTTTACCAGCTATGGTATCAGCTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAGCGCTTACAATGGTAACACAAACTATGCACAGAAGCTCCAGGGCAGAGTCACCATGACCACAGACACATCCACGAGCACAGCCTACATGGAGCTGAGGAGCCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGA
+# d: GTATTACTATGGTTCGGGGAGTTATTATAAC
+# j: ACTACTTTGACTACTGGGGCCAGGGA
+try:
+    check_call('./stochhmm -viterbi -hmmtype single -debug -k_v_guess 100 -k_d_guess 15 -only_genes \'IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F\'', shell=True)
+except:
+    print 'hrg'
+sys.exit()
 output = check_output('./stochhmm -seq bcell/seq.fa -model bcell/d.hmm -viterbi -label', shell=True)
 for line in output.splitlines():
     if line.find('>>') == 0:  # header line

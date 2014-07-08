@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <math.h>
 #include <set>
 #include "StochHMMlib.h"
 #include "StochHMM_usage.h"

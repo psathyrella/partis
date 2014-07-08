@@ -155,7 +155,7 @@ void JobHolder::PrintPath(StrPair query_strs, string gene) {  // NOTE query_str 
   string germline(gl_.seqs_[gene]);
   string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
   for (size_t i=0; i<insert_length; ++i)
-    modified_seq = modified_seq + "i";
+    modified_seq = "i" + modified_seq;
   assert(modified_seq.size() == query_strs.first.size());
   assert(germline.size() + insert_length - left_erosion_length - right_erosion_length == query_strs.first.size());
   TermColors tc;
@@ -316,20 +316,23 @@ size_t JobHolder::GetInsertLength(vector<string> labels) {
 
 // ----------------------------------------------------------------------------------------
 size_t JobHolder::GetErosionLength(string side, vector<string> labels, string gene_name) {
+  string germline(gl_.seqs_[gene_name]);
   // first find the index in <labels> up to which we eroded
-  size_t istate;
-  if (side=="left") { // to get left erosion length we look at the first state in the path
-    if (labels[0] == "i") return 0;  // eroded entire sequence
-    istate = 0;
-  } else if (side=="right") {  // and for the righthand one we need the last non-insert state
-    for (size_t il=labels.size()-1; il>=0; --il) {  // loop over each state from the right
-      if (labels[il] == "i") {  // skip any insert states on the right
+  size_t istate(0);  // index (in path) of first non-eroded state
+  if (side=="left") { // to get left erosion length we look at the first non-insert state in the path
+    if (labels[labels.size()-1] == "i") return floor(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
+                                                                                   // TODO here (*and* below) do something better than floor/ceil to divide it up.
+    for (size_t il=0; il<labels.size(); ++il) {  // loop over each state from left to right
+      if (labels[il] == "i") {  // skip any insert states on the left
 	continue;
-      } else {  // found the rightmost non-insert state -- that's the one we want
+      } else {  // found the leftmost non-insert state -- that's the one we want
 	istate = il;
 	break;
       }
     }
+  } else if (side=="right") {  // and for the righthand one we need the last non-insert state
+    if (labels[labels.size()-1] == "i") return ceil(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
+    istate = labels.size()-1;
   } else {
     assert(0);
   }
