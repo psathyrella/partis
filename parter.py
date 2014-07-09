@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import sys
 from subprocess import check_output,check_call
 import utils
 
@@ -8,7 +8,7 @@ import utils
 # d: GTATTACTATGGTTCGGGGAGTTATTATAAC
 # j: ACTACTTTGACTACTGGGGCCAGGGA
 try:
-    check_call('./stochhmm -viterbi -hmmtype single -debug -k_v_guess 100 -k_d_guess 15 -only_genes \'IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F\'', shell=True)
+    check_call('./stochhmm -viterbi -hmmtype single -debug -k_v_guess 100 -k_d_guess 32 -v_fuzz 1 -d_fuzz 1 -only_genes \'IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F\'', shell=True)
 except:
     print 'hrg'
 sys.exit()

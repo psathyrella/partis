@@ -40,7 +40,7 @@ public:
   void RunKSet(KSet kset);
 
 private:
-  void PrintPath(StrPair query_strs, string gene);
+  void PrintPath(StrPair query_strs, string gene, string extra_str="");
   sequences GetSubSeqs(KSet kset, string region);
   map<string,sequences> GetSubSeqs(KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   size_t GetInsertLength(vector<string> labels);

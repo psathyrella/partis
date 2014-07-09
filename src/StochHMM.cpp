@@ -13,7 +13,7 @@
 #include "StochHMM_usage.h"
 using namespace StochHMM;
 using namespace std;
-
+// NOTE use this to compile: export CPLUS_INCLUDE_PATH=/home/dralph/Dropbox/include/eigen-eigen-6b38706d90a9; make
 #define STATE_MAX 1024
 void run_casino();
 double run_job(model *hmm, sequences *seqs);
@@ -30,6 +30,8 @@ opt_parameters commandline[] = {
   {"-only_genes"   ,OPT_STRING     ,false  ,"",   {}},
   {"-k_v_guess"    ,OPT_INT        ,true  ,"",    {}},
   {"-k_d_guess"    ,OPT_INT        ,true  ,"",    {}},
+  {"-v_fuzz"       ,OPT_INT        ,false ,"3",    {}},
+  {"-d_fuzz"       ,OPT_INT        ,false ,"3",    {}},
   //Non-Stochastic Decoding
   {"-viterbi"      ,OPT_NONE       ,false  ,"",    {}},
   {"-forward"      ,OPT_NONE       ,false  ,"",    {}},
@@ -66,6 +68,21 @@ vector<sequences*> GetSeqs(string seqfname, track *trk) {
 }
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
+  float tfloatp(INFINITY),tfloatm(-INFINITY);
+  double tdoublep(INFINITY),tdoublem(-INFINITY);
+  double tfsck(tfloatm);
+  // cout << tfsck << endl;
+  // cout
+  //   << setw(12) << -INFINITY
+  //   << setw(12) << tfloatm
+  //   << setw(12) << tdoublem
+  //   << endl;
+  // cout
+  //   << setw(12) << INFINITY
+  //   << setw(12) << tfloatp
+  //   << setw(12) << tdoublep
+  //   << endl;
+  // assert(0);
   GermLines gl;
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, usage);
@@ -95,8 +112,12 @@ int main(int argc, const char * argv[]) {
     // JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), "IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F");
     JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), opt.isSet("-only_genes") ? opt.sopt("-only_genes") : "");
     // jh.Run(90, 2, 15, 2);
-    int v_fuzz(3),d_fuzz(3);  // half-width of search region
-    jh.Run(k_v_guess - v_fuzz, 2*v_fuzz, k_d_guess, 2*d_fuzz);
+    int v_fuzz(3),d_fuzz(3);
+    if (opt.isSet("-v_fuzz")) {
+	opt.getopt("-v_fuzz", v_fuzz);
+	opt.getopt("-d_fuzz", d_fuzz);  // half-width of search region
+      }
+    jh.Run(k_v_guess - v_fuzz, 2*v_fuzz, k_d_guess - d_fuzz, 2*d_fuzz);
   }
   return 0;
 }
