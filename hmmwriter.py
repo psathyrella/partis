@@ -209,6 +209,8 @@ class HmmWriter(object):
         In other words, what is the prob that we will erode all the bases to the right of <inuke>.
         """
         # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
+        if inuke == len(seq) - 1:  # last state has to go to END
+            return 1.0
         if self.region == 'j':  # always go to end of germline j region
             return 0.0
         erosion = self.region + '_3p'
@@ -267,10 +269,9 @@ class HmmWriter(object):
         self.add_state_header('insert', 'i')
         self.add_transition_header()
         self.add_region_entry_probs(True)
-        # insertion_length = self.get_mean_insert_length()
-        # self.text += (' insert: %.' + self.precision + 'f\n') % (arg should have been one minus this. 1./insertion_length)
-        if self.region == 'd':  # allow erosion of entire d region
-            self.text += '  END: 1\n'
+        # TODO allow d region to be entirely eroded. Um, I don't think I have any probabilities for how frequentlyt his happens
+        # if self.region == 'd':  # allow erosion of entire d region
+        #     self.text += '  END: 1\n'
         self.add_emission_header()
         emission_probability_string = ''
         for nuke in utils.nukes:
@@ -296,7 +297,7 @@ class HmmWriter(object):
         #     self.text += ('  insert:  %.' + self.precision + 'f\n') % exit_probability  # and one to the insert state
         distance_to_end = len(seq) - inuke - 1
         if exit_probability >= utils.eps or distance_to_end == 0:
-            self.text += '  END: 1\n'
+            self.text += ('  END: %.' + self.precision + 'f\n') % exit_probability
 
         # emissions
         self.add_emission_header()
