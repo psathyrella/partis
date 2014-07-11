@@ -22,13 +22,13 @@ TRACK SYMBOL DEFINITIONS
 NUKES: """
 
 class HmmWriter(object):
-    def __init__(self, base_indir, base_outdir, region, gene_name, naivety, germline_seq):
+    def __init__(self, base_indir, base_outdir, gene_name, naivety, germline_seq):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.v_right_length = 100  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.fuzz_around_v_left_edge = 5.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
-        self.outdir = base_outdir + '/' + region
-        self.region = region
+        self.outdir = base_outdir  # + '/' + region
+        self.region = utils.get_region(gene_name)
         self.gene_name = gene_name
         self.naivety = naivety
         self.germline_seq = germline_seq
@@ -115,13 +115,16 @@ class HmmWriter(object):
                 self.mute_freqs[int(line['position'])] = float(line['mute_freq'])  # TODO is there some way to incorporate the uncertainty on this?
 
     # ----------------------------------------------------------------------------------------
-    def write(self):
+    def write(self, outfname='', remove=False):
         self.add_header()
         self.add_states()
-        outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
+        if outfname == '':
+            outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
         with opener('w')(outfname) as outfile:
             outfile.write(self.text)
         self.text = ''
+        if remove:  # if using mkfifo, remove afterwards
+            os.remove(outfname)
 
     # # ----------------------------------------------------------------------------------------
     # def get_erosion_prob(self):  

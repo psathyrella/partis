@@ -1,17 +1,41 @@
 #!/usr/bin/env python
 import sys
+import os
+import thread
 from subprocess import check_output,check_call
 import utils
+from hmmwriter import HmmWriter
 
 # "IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F"
 # v: CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGTTACACCTTTACCAGCTATGGTATCAGCTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAGCGCTTACAATGGTAACACAAACTATGCACAGAAGCTCCAGGGCAGAGTCACCATGACCACAGACACATCCACGAGCACAGCCTACATGGAGCTGAGGAGCCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGA
 # d: GTATTACTATGGTTCGGGGAGTTATTATAAC
 # j: ACTACTTTGACTACTGGGGCCAGGGA
+
+human = 'A'
+naivety = 'M'
+germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
+gene_set = ['IGHV1-18*01','IGHD3-10*01','IGHJ4*02_F']
+tmp_hmmdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())
+if not os.path.exists(tmp_hmmdir):  # use a tmp dir specific to this process for the hmm file fifos
+    os.makedirs(tmp_hmmdir)
+for gene in gene_set:
+    writer = HmmWriter('/home/dralph/Dropbox/work/recombinator/data/human-beings/' + human + '/' + naivety, 'bcell', gene, naivety, germline_seqs[utils.get_region(gene)][gene])
+    outfname = tmp_hmmdir + '/' + utils.sanitize_name(gene) + '.hmm'
+    if os.path.exists(outfname):
+        os.remove(outfname)
+    os.mkfifo(outfname)
+    thread.start_new_thread(writer.write, (outfname,))  # start a new thread so the fifo doesn't block
+
 try:
-    check_call('./stochhmm -viterbi -hmmtype single -debug -k_v_guess 100 -k_d_guess 32 -v_fuzz 1 -d_fuzz 1 -only_genes \'IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F\'', shell=True)
+    check_call('./stochhmm -viterbi -hmmtype single -k_v_guess 100 -k_d_guess 32 -v_fuzz 3 -d_fuzz 3 -only_genes \'' + ':'.join(gene_set) + '\' -hmmdir ' + tmp_hmmdir + '', shell=True)
 except:
     print 'hrg'
+for fname in os.listdir(tmp_hmmdir):
+    if fname.endswith(".hmm"):
+        os.remove(tmp_hmmdir + "/" + fname)
+os.rmdir(tmp_hmmdir)
 sys.exit()
+
 output = check_output('./stochhmm -seq bcell/seq.fa -model bcell/d.hmm -viterbi -label', shell=True)
 for line in output.splitlines():
     if line.find('>>') == 0:  # header line

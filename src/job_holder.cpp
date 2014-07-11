@@ -4,7 +4,7 @@
 model *HMMHolder::Get(string gene) {
   if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
     hmms_[gene] = new model;
-    hmms_[gene]->import(hmm_dir_ + "/" + gl_.GetRegion(gene) + "/" + gl_.SanitizeName(gene) + ".hmm");
+    hmms_[gene]->import(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".hmm");
     hmms_[gene]->n_seqs_per_track_ = n_seqs_per_track_;
   }
   return hmms_[gene];
