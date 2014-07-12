@@ -34,6 +34,17 @@ class TermColors {
     else
       return Color("red", string(1,nuke));
   }
+
+  // ----------------------------------------------------------------------------------------
+  // get region from gene name, e.g. IGHD1-1*01 --> d
+  // TODO don't have this in two places, idiot boy
+  string GetRegion(string gene) {
+    assert(gene.find("IGH") != string::npos);
+    char region_char(tolower(gene[3]));
+    string region(1, region_char);
+    assert(region=="v" || region=="d" || region=="j");
+    return region;
+  }
   // ----------------------------------------------------------------------------------------
   string ColorMutants(string color, string ref_1, string seq, string ref_2="") {  // return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal
     if (ref_1.size() == 0)
@@ -60,7 +71,26 @@ class TermColors {
     }
     return return_str;
   }
+  // ----------------------------------------------------------------------------------------
+  string ColorGene(string gene) {
+    string return_str = gene.substr(0,3) + Color("purple", gene.substr(3,1));
+    string n_version = gene.substr(4, gene.find("-") - 4);
+    string n_subversion = gene.substr(gene.find("-") + 1, gene.find("*") - gene.find("-") - 1);
+    if (GetRegion(gene) == "j") {
+        n_version = gene.substr(4, gene.find("*") - 4);
+        n_subversion = "";
+        return_str += Color("red", n_version);
+    } else {
+      return_str += Color("red", n_version) + "-" + Color("red", n_subversion);
+    }
+    string allele = gene.substr(gene.find("*") + 1, gene.find("_") - gene.find("*") - 1);
+    return_str += "*" + Color("yellow", allele);
+    if (gene.find("_") != string::npos)  // _F or _P in j gene names
+      return_str += gene.substr(gene.find("_"));
+    return return_str;
+  }
 
+  // ----------------------------------------------------------------------------------------
   map<string,string> codes_;
 };
 
@@ -127,16 +157,19 @@ class GermLines {
 // ----------------------------------------------------------------------------------------
 class RecoEvent {  // class to keep track of recombination event. Initially, just to allow printing. Translation of print_reco_event in utils.py
 public:
+  RecoEvent() { score_ = 999; }
   map<string,string> genes_;
   map<string,size_t> deletions_;
   map<string,string> insertions_;
   string seq_;
+  float score_;
 
   void SetGenes(string vgene, string dgene, string jgene) { genes_["v"] = vgene; genes_["d"] = dgene; genes_["j"] = jgene; }
   void SetGene(string region, string gene) { genes_[region] = gene; }
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
   void SetSeq(string seq) { seq_ = seq; }
+  void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
   void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false) {
     // make sure we remembered to fill all the necessary information
@@ -243,10 +276,10 @@ public:
 
     if (!one_line) {
       cout << "    " << insertion_str << "   inserts" << endl;
-      cout <<  "    " << d_str << "   " << genes_["d"] << endl;
-      cout << "    " << vj_str << "   " << genes_["v"] << "," << genes_["j"] << "\n" << endl;
+      cout <<  "    " << d_str << "   " << tc.ColorGene(genes_["d"]) << endl;
+      cout << "    " << vj_str << "   " << tc.ColorGene(genes_["v"]) << "," << tc.ColorGene(genes_["j"]) << endl;
     }
-    cout << "    " << final_seq << endl;
+    cout << "    " << final_seq << "   " << score_ << endl;
   }
 };
 #endif

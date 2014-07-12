@@ -35,7 +35,7 @@ public:
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
   void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
-  void FillRecoEvent(KSet kset, map<string,string> &best_genes);
+  void FillRecoEvent(KSet kset, map<string,string> &best_genes, double score);
   StrPair GetQueryStrs(KSet kset, string region);
   void RunKSet(KSet kset);
 

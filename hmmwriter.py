@@ -22,10 +22,10 @@ TRACK SYMBOL DEFINITIONS
 NUKES: """
 
 class HmmWriter(object):
-    def __init__(self, base_indir, base_outdir, gene_name, naivety, germline_seq):
+    def __init__(self, base_indir, base_outdir, gene_name, naivety, germline_seq, v_right_length=-1):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
-        self.v_right_length = 100  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
+        self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.fuzz_around_v_left_edge = 5.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
         self.outdir = base_outdir  # + '/' + region
         self.region = utils.get_region(gene_name)
@@ -43,7 +43,10 @@ class HmmWriter(object):
         self.read_erosion_probs()
         self.insertion_probs = {}
         if self.region != 'v':
-            self.read_insertion_probs()
+            try:
+                self.read_insertion_probs(False)
+            except:
+                self.read_insertion_probs(True)  # try again using all the alleles for this gene. TODO do something better
         self.mute_freqs = {}
         if self.naivety == 'M':  # mutate if not naive
             self.read_mute_freqs()
@@ -77,6 +80,7 @@ class HmmWriter(object):
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
                     total += float(line['count'])
 
+                assert len(self.erosion_probs[erosion]) != 0
                 test_total = 0.0
                 for n_eroded in self.erosion_probs[erosion]:  # then normalize
                     self.erosion_probs[erosion][n_eroded] /= total
@@ -84,21 +88,26 @@ class HmmWriter(object):
                 assert utils.is_normed(test_total)
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_probs(self):
+    def read_insertion_probs(self, use_other_alleles=False):
         self.insertion_probs[self.insertion] = {}
         deps = utils.column_dependencies[self.insertion + '_insertion']
         with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(self.insertion + '_insertion', deps)) as infile:
             reader = csv.DictReader(infile)
             total = 0.0
             for line in reader:
-                if self.region == 'j' and line['j_gene'] != self.gene_name:  # for dj insertion, skip rows for genes other than the current one
+                if self.region == 'j':  # for dj insertion, skip rows for genes other than the current one
                     assert self.insertion == 'dj'  # neuroticism is a positive personality trait
-                    continue
+                    if use_other_alleles and not utils.are_alleles(line['j_gene'], self.gene_name):
+                        continue
+                    if not use_other_alleles and line['j_gene'] != self.gene_name:
+                        continue
                 n_inserted = int(line[self.insertion + '_insertion'])
                 if n_inserted not in self.insertion_probs[self.insertion]:
                     self.insertion_probs[self.insertion][n_inserted] = 0.0
                 self.insertion_probs[self.insertion][n_inserted] += float(line['count'])
                 total += float(line['count'])
+
+            assert len(self.insertion_probs[self.insertion]) != 0  # designed to fail
 
             test_total = 0.0
             for n_inserted in self.insertion_probs[self.insertion]:  # then normalize
@@ -162,6 +171,8 @@ class HmmWriter(object):
             else:
                 if 0 in self.insertion_probs[self.insertion]:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0       *giggle*
                     non_zero_insertion_prob -= self.insertion_probs[self.insertion][0]
+                else:
+                    pass  # TODO think of something to check here
                 self.text += (' insert: %.' + self.precision + 'f\n') % non_zero_insertion_prob
 
         # assert False  # arg, just realized I can't use the insertion length probs like this. It's an *hmm*, after all.
@@ -202,8 +213,9 @@ class HmmWriter(object):
                     if prob < utils.eps:
                         continue
                     total += prob * (1.0 - non_zero_insertion_prob)
-                    self.text += ('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob))  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
-            assert utils.is_normed(total / (1.0 - non_zero_insertion_prob))
+                    if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
+                        self.text += ('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob))  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+            assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))
 
     # ----------------------------------------------------------------------------------------
     def get_exit_probability(self, seq, inuke):

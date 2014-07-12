@@ -67,7 +67,7 @@ map<string,sequences> JobHolder::GetSubSeqs(KSet kset) {
 // ----------------------------------------------------------------------------------------
 void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
   double best_score(-INFINITY),total_score(-INFINITY);
-  KSet best_kset;
+  KSet best_kset(make_pair(0,0));
   if (debug_)
     cout
       << "  k_v: " << k_v_start << "-" << k_v_start+n_k_v-1
@@ -85,22 +85,29 @@ void JobHolder::Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k
       }
     }
   }
+  if (best_kset.first == 0) {
+    if (debug_)
+      cout << "  nothing sensical" << endl;
+    return;
+  }
   if (debug_)
     if (algorithm_=="viterbi")
       cout << "  best: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
     else
       cout << "  total: " << total_score << endl;
-  if (algorithm_ == "viterbi")
-    FillRecoEvent(best_kset, best_genes_[best_kset]);
-  else
-    cout << "score " << best_score << endl;
+  if (algorithm_ == "viterbi") {
+    FillRecoEvent(best_kset, best_genes_[best_kset], best_score);
+  }
   if (best_kset.first == k_v_start ||
       best_kset.first == k_v_start+n_k_v-1 ||
       best_kset.second == k_d_start ||
-      best_kset.second == k_d_start+n_k_d-1)
-    cout << "\nWARNING you're at the boundary of the specified k_v k_d space" << endl
-	 << "  k_v: " << best_kset.first << "(" << k_v_start << "-" << k_v_start+n_k_v-1 << ")" << endl
+      best_kset.second == k_d_start+n_k_d-1) {
+    cout << "    WARNING maximum at boundary"
+	 << "  k_v: " << best_kset.first << "(" << k_v_start << "-" << k_v_start+n_k_v-1 << ")"
 	 << "  k_d: " << best_kset.second << "(" << k_d_start << "-" << k_d_start+n_k_d-1 << ")" << endl;
+  }
+
+  // cout << "  score " << best_score << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -177,11 +184,19 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, string extra_str) {  
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillRecoEvent(KSet kset, map<string,string> &best_genes) {
+void JobHolder::FillRecoEvent(KSet kset, map<string,string> &best_genes, double score) {
   event_.Clear();
   StrPair seqs;
   for (auto &region: gl_.regions_) {
     StrPair query_strs(GetQueryStrs(kset, region));
+    // if (best_genes.find(region) == best_genes.end()) {
+    //   for (auto &region : gl_.regions_) {
+    // 	cout << "REG " << region << endl;
+    // 	if (best_genes.find(region) != best_genes.end()) {
+    // 	  cout << best_genes[region] << endl;
+    // 	}
+    //   }
+    // }
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
     vector<string> path_labels;
@@ -206,6 +221,7 @@ void JobHolder::FillRecoEvent(KSet kset, map<string,string> &best_genes) {
     seqs.second += query_strs.second;
   }
   event_.SetSeq(seqs.first);
+  event_.SetScore(score);
   event_.Print(gl_);
   if (n_seqs_per_track_ == 2) {
     event_.SetSeq(seqs.second);
@@ -287,11 +303,11 @@ void JobHolder::RunKSet(KSet kset) {
       return;
     }
   }
-  if (debug_ && algorithm_=="viterbi")
-    FillRecoEvent(kset, best_genes_[kset]);
   best_scores_[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob
   total_scores_[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
-  if (debug_)
+  if (debug_) {
+    if (algorithm_=="viterbi")
+      FillRecoEvent(kset, best_genes_[kset], best_scores_[kset]);
     cout
       << "        "
       << " " << best_genes_[kset]["v"]
@@ -304,6 +320,7 @@ void JobHolder::RunKSet(KSet kset) {
       << " = "
       << AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]))
       << endl;
+  }
 }
 
 // // ----------------------------------------------------------------------------------------
