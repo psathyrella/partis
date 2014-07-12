@@ -10,7 +10,7 @@ from Bio import SeqIO
 #----------------------------------------------------------------------------------------
 eps = 1.e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
 def is_normed(prob):
-    return math.fabs(prob - 1.0) < eps
+    return math.fabs(prob - 1.0) < eps  #*1000000000
 
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
@@ -37,7 +37,7 @@ column_dependencies['v_3p_del'] = ['v_gene']
 column_dependencies['d_gene'] = ['d_5p_del', 'd_3p_del']
 column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']
 column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']
-column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice
+column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice. NOTE this makes normalization kinda fun when you read these out
 column_dependencies['vd_insertion'] = []
 column_dependencies['dj_insertion'] = ['j_gene']
 
@@ -177,16 +177,18 @@ def find_tryp_in_joined_seq(tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_i
     return tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
-class Colors:
-    head = '\033[95m'
-    blue = '\033[94m'
-    green = '\033[92m'
-    yellow = '\033[93m'
-    red = '\033[91m'
-    end = '\033[0m'
+Colors = {}
+Colors['head'] = '\033[95m'
+Colors["purple"] = '\033[95m'
+Colors['blue'] = '\033[94m'
+Colors['green'] = '\033[92m'
+Colors['yellow'] = '\033[93m'
+Colors['red'] = '\033[91m'
+Colors['end'] = '\033[0m'
 
-def red(seq):
-    return Colors.red + seq + Colors.end
+def color(col, seq):
+    assert col in Colors
+    return Colors[col] + seq + Colors['end']
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False):
@@ -196,19 +198,35 @@ def color_mutants(ref_seq, seq, print_result=False):
         if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
             return_str += seq[inuke]
         else:
-            return_str += red(seq[inuke])
+            return_str += color('red', seq[inuke])
     if print_result:
         print '%75s %s' % ('', ref_seq)
         print '%75s %s' % ('', return_str)
     return return_str
 
 # ----------------------------------------------------------------------------------------
+def color_gene(gene):
+    return_str = gene[:3] + color('purple', gene[3])
+    n_version = gene[4 : gene.find('-')]
+    n_subversion = gene[gene.find('-')+1 : gene.find('*')]
+    if get_region(gene) == 'j':
+        n_version = gene[4 : gene.find('*')]
+        n_subversion = ''
+        return_str += color('red', n_version)
+    else:
+        return_str += color('red', n_version) + '-' + color('red', n_subversion)
+    allele = gene[gene.find('*')+1 : gene.find('_')]
+    return_str += '*' + color('yellow', allele)
+    if '_' in gene:  # _F or _P in j gene names
+        return_str += gene[gene.find('_') :]
+    return return_str
 
+# ----------------------------------------------------------------------------------------
 def is_mutated(original, final):
     if original == final:
         return final
     else:
-        return red(final)
+        return color('red', final)
 
 def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False):
     """ Print ascii summary of recombination event and mutation.
@@ -235,9 +253,15 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     germline_j_start = germline_d_end + 1 - int(line['d_3p_del']) + len(line['dj_insertion']) - int(line['j_5p_del'])
 
     # see if we've "eroded" left side of v or right side of j, and if so add some more dots
+    if 'v_5p_del' not in line:  # try to infer the left-hand v 'deletion'
+        line['v_5p_del'] = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j']) \
+                           - int(line['v_3p_del']) - int(line['d_5p_del']) - int(line['d_3p_del']) - int(line['j_5p_del']) \
+                           + len(line['vd_insertion']) + len(line['dj_insertion']) \
+                           - len(line['seq'])
     if 'v_5p_del' in line:
         for _ in range(int(line["v_5p_del"])):
             line['seq'] = '.' + line['seq']  # NOTE this is kinda inefficient
+        
     if 'j_3p_del' in line:
         for _ in range(int(line['j_3p_del'])):
             line['seq'] += '.'
@@ -280,11 +304,15 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     d = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - int(line['j_5p_del']) + len(line['dj_insertion']) - int(line['d_3p_del'])) * ' '
     vj = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
 
+    if 'score' not in line:
+        line['score'] = ''
     if not one_line:
         print '    %s   inserts' % insertions
-        print '    %s   ighd' % d
-        print '    %s   ighv,ighj\n' % vj
+        print '    %s   %s' % (d, color_gene(line['d_gene']))
+        print '    %s   %s,%s %s' % (vj, color_gene(line['v_gene']), color_gene(line['j_gene']), str(line['score']))
     print '    %s' % final_seq
+
+    line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
 
 #----------------------------------------------------------------------------------------
@@ -330,3 +358,12 @@ def maturity_to_naivety(maturity):
         return 'N'
     else:
         assert False
+
+# ----------------------------------------------------------------------------------------
+def are_alleles(gene1, gene2):
+    """ Return true if gene1 and gene2 are alleles of the same gene version """
+    left_str_1 = gene1[0 : gene1.find('*')]
+    left_str_2 = gene2[0 : gene1.find('*')]
+    right_str_1 = gene1[gene1.find('*')+3 :]
+    right_str_2 = gene2[gene1.find('*')+3 :]
+    return left_str_1 == left_str_2 and right_str_1 == right_str_2
