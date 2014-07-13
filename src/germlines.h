@@ -125,7 +125,7 @@ class GermLines {
     }
 
   // ----------------------------------------------------------------------------------------
-  // replace * with _star_ and / with _slash_
+  // replace * with _star_ and /OR15 with _slash_
   string SanitizeName(string gene_name) {
     size_t istar(gene_name.find("*"));
     if (istar != string::npos)
@@ -267,10 +267,18 @@ public:
     for (size_t ig=0; ig<germline_d_start; ++ig)
       d_str += " ";
     d_str += eroded_seqs["d"];
-    for (size_t ij=0; ij<(original_seqs["j"].size() - deletions_["j_5p"] + insertions_["dj"].size() - deletions_["d_3p"]); ++ij)
+    int ij_max = original_seqs["j"].size() - deletions_["j_5p"] + insertions_["dj"].size() - deletions_["d_3p"];
+    // assert(ij_max>=0);
+    if (ij_max < 0)  // TODO fix this somewhat more permanently
+      ij_max = 0;
+    for (size_t ij=0; ij<ij_max; ++ij)
       d_str += " ";
     string vj_str(eroded_seqs["v"]);
-    for (size_t ivj=0; ivj<(germline_j_start - germline_v_end - 2); ++ivj)
+    int ivj_max = germline_j_start - germline_v_end - 2;
+    // assert(ivj_max >= 0);
+    if (ivj_max < 0)  // TODO fix this somewhat more permanently
+      ivj_max = 0;
+    for (size_t ivj=0; ivj<ivj_max; ++ivj)
       vj_str += " ";
     vj_str += eroded_seqs["j"];
 

@@ -19,13 +19,14 @@ from hmmwriter import HmmWriter
 
 # ----------------------------------------------------------------------------------------
 human = 'A'
-naivety = 'N'
+naivety = 'M'
 germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
 
 seqfname = 'bcell/seq.fa'
 bamfile = seqfname.replace('.fa', '.bam')
 
-def run_gene_set(gene_set, k_v, k_d, v_right_length):
+# ----------------------------------------------------------------------------------------
+def run_gene_set(gene_set, k_v, k_d, v_right_length, best_j):
     tmp_hmmdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())
     if not os.path.exists(tmp_hmmdir):  # use a tmp dir specific to this process for the hmm file fifos
         os.makedirs(tmp_hmmdir)
@@ -36,10 +37,15 @@ def run_gene_set(gene_set, k_v, k_d, v_right_length):
         outfname = tmp_hmmdir + '/' + utils.sanitize_name(gene) + '.hmm'
         if os.path.exists(outfname):
             os.remove(outfname)
-        os.mkfifo(outfname)
-        thread.start_new_thread(writer.write, (outfname,))  # start a new thread so the fifo doesn't block
-    
-    check_call('./stochhmm -viterbi -hmmtype single -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d) + ' -v_fuzz 3 -d_fuzz 3 -only_genes \'' + ':'.join(gene_set) + '\' -hmmdir ' + tmp_hmmdir + '', shell=True)
+        # os.mkfifo(outfname)
+        # thread.start_new_thread(writer.write, (outfname,))  # start a new thread so the fifo doesn't block
+        writer.write(outfname)
+
+
+    d_fuzz = 5
+    if 'IGHJ4*' in best_j and germline_seqs['d'][gene_set[1]][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
+        d_fuzz = 10
+    check_call('./stochhmm -viterbi -hmmtype single -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d) + ' -v_fuzz 3 -d_fuzz ' + str(d_fuzz) + ' -only_genes \'' + ':'.join(gene_set) + '\' -hmmdir ' + tmp_hmmdir + '', shell=True)
 
     # remove hmm fifos
     for fname in os.listdir(tmp_hmmdir):
@@ -50,7 +56,6 @@ def run_gene_set(gene_set, k_v, k_d, v_right_length):
 # ----------------------------------------------------------------------------------------
 def run():
     check_call('/home/dralph/.local/bin/vdjalign align-fastq --j-subset adaptive --max-drop 5 --min-score 5 ' + seqfname + ' ' + bamfile + ' 2>/dev/null', shell=True)
-    # germline_strs, query_match_strs = {}, {}
     match_names = {}
     query_bounds, germline_bounds = {}, {}
     with contextlib.closing(pysam.Samfile(bamfile)) as bam:
@@ -59,10 +64,16 @@ def run():
             reads = list(reads)
             primary = next((r for r in reads if not r.is_secondary), None)
             query_seq = primary.seq
+            best_j = ''
             for read in reads:
                 read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
                 gene = bam.references[read.tid]
                 region = utils.get_region(gene)
+                if region == 'j' and best_j == '':  # keep track of the primary j, since it is excised before aligning the ds, which complicates things a bit when choosing d_fuzz
+                    assert 'J1P' not in gene  # I think we can remove this version (never see it), but I'm putting a check in here just in case
+                    best_j = gene
+                if 'J1P' in gene or 'J3P' in gene:
+                    continue
                 # TODO I think connor's code excises the *best* v match, so this isn't right
                 if region not in match_names:
                     match_names[region] = []
@@ -70,24 +81,32 @@ def run():
                 query_bounds[gene] = (read.qstart, read.qend)
                 germline_bounds[gene] = (read.pos, read.aend)
                 # score = read.tags[0][1]
-                # germline_strs[region] = germline_seqs[region][gene][read.pos:read.aend]
-                # query_match_strs[region] = query_seq[read.qstart:read.qend]
+                # print gene,score
+                # print '  %4d%4d  %s' % (read.qstart, read.qend, germline_seqs[region][gene][read.pos:read.aend])
+                # print '  %4d%4d  %s' % (read.pos, read.aend, query_seq[read.qstart:read.qend])
 
     icombo = 0
     for gene_set in itertools.product(match_names['v'], match_names['d'], match_names['j']):
-        if icombo > 5:
+        if icombo > 5:  # TODO why stop at five? maybe more?
             break
         k_v = query_bounds[gene_set[0]][1]  # end of v match  combo[0][2]
         k_d = query_bounds[gene_set[1]][1] - query_bounds[gene_set[0]][1]  # end of d minus end of v  combo[1][2] - combo[0][2]
+        # print '  ',gene_set,k_v,k_d
         v_right_length = len(germline_seqs['v'][gene_set[0]]) - germline_bounds[gene_set[0]][0]  # germline v length minus (germline) start of v match
-        run_gene_set(gene_set, k_v, k_d, v_right_length)
+        run_gene_set(gene_set, k_v, k_d, v_right_length, best_j)
         icombo += 1
 
-# run()
-# sys.exit()
+if len(sys.argv) > 1 and sys.argv[1] == 'single':
+    run()
+    sys.exit()
+
 with opener('r')('/home/dralph/Dropbox/work/recombinator/output/' + human + '/' + naivety + '/simu.csv') as simfile:
     reader = csv.DictReader(simfile)
+    last_reco_id = -1
     for line in reader:
+        if line['reco_id'] == last_reco_id:
+            continue
+        last_reco_id = line['reco_id']
         print '\n\n'
         print 'true:'
         utils.print_reco_event(germline_seqs, line, 0, 0)

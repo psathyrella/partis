@@ -2,6 +2,7 @@
 
 import sys
 import os
+import re
 import math
 import collections
 from scipy.stats import norm
@@ -39,15 +40,20 @@ class HmmWriter(object):
         elif self.region == 'j':
             self.insertion = 'dj'
         self.text = ''  # text of the hmm description, to be written to file on completion
+
         self.erosion_probs = {}
-        self.read_erosion_probs()
+        try:
+            self.read_erosion_probs(False)
+        except:
+            self.read_erosion_probs(True)
+
         self.insertion_probs = {}
         if self.region != 'v':
             try:
                 self.read_insertion_probs(False)
             except:
                 self.read_insertion_probs(True)  # try again using all the alleles for this gene. TODO do something better
-        self.mute_freqs = {}
+        self.mute_freqs = {}  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
         if self.naivety == 'M':  # mutate if not naive
             self.read_mute_freqs()
 
@@ -59,7 +65,8 @@ class HmmWriter(object):
     #     return tuple(key)
 
     # ----------------------------------------------------------------------------------------
-    def read_erosion_probs(self):
+    def read_erosion_probs(self, use_other_alleles=False):
+        # TODO in cases where the bases which are eroded are the same as those inserted (i.e. cases that *suck*) I seem to *always* decide on the choice with the shorter insertion. not good!
         for erosion in utils.erosions:
             if erosion[0] != self.region:
                 continue
@@ -69,8 +76,12 @@ class HmmWriter(object):
                 reader = csv.DictReader(infile)
                 total = 0.0
                 for line in reader:
-                    if self.region != 'j' and line[self.region + '_gene'] != self.gene_name:  # skip other genes (j erosion doesn't depend on gene choice)
-                        continue
+                    if self.region != 'j':
+                        if use_other_alleles:
+                            if not utils.are_alleles(line[self.region + '_gene'], self.gene_name):  # TODO check that I'm actually using the right lines here. Same thing below in read_insertion_probs
+                                continue
+                        elif line[self.region + '_gene'] != self.gene_name:  # skip other genes (j erosion doesn't depend on gene choice)
+                            continue
                     if int(line[erosion + '_del']) >= len(self.germline_seq):  # j erosion lengths don't depend on j gene, so we have to skip the ones that're too long
                         assert self.region == 'j'
                         continue
@@ -95,11 +106,12 @@ class HmmWriter(object):
             reader = csv.DictReader(infile)
             total = 0.0
             for line in reader:
-                if self.region == 'j':  # for dj insertion, skip rows for genes other than the current one
+                if self.region == 'j':  # for dj insertion, skip rows for genes other than the current one (vd insertion doesn't depend on gene choice, so use everything for it)
                     assert self.insertion == 'dj'  # neuroticism is a positive personality trait
-                    if use_other_alleles and not utils.are_alleles(line['j_gene'], self.gene_name):
-                        continue
-                    if not use_other_alleles and line['j_gene'] != self.gene_name:
+                    if use_other_alleles:
+                        if not utils.are_alleles(line['j_gene'], self.gene_name):
+                            continue
+                    elif line['j_gene'] != self.gene_name:
                         continue
                 n_inserted = int(line[self.insertion + '_insertion'])
                 if n_inserted not in self.insertion_probs[self.insertion]:
@@ -118,13 +130,22 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_mute_freqs(self):
         mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(self.gene_name) + '.csv'
+        while not os.path.exists(mutefname):  # loop through other possible alleles
+            allele_id = re.findall('_star_[0-9][0-9]*', mutefname)
+            assert len(allele_id) == 1
+            allele_id = allele_id[0]
+            allele_number = int(allele_id.replace('_star_', ''))
+            allele_number += 1
+            mutefname = mutefname.replace(allele_id, '_star_%02d' % allele_number)
+        # if self.gene_name == 'IGHV3-30*01':  IGHV3-30_star_11.
+        #     mutefname = mutefname.replace('_star_01', '_star_02')  # don't really have any info on this allele. TODO see about just removing it?
         with opener('r')(mutefname) as mutefile:
             reader = csv.DictReader(mutefile)
             for line in reader:
                 self.mute_freqs[int(line['position'])] = float(line['mute_freq'])  # TODO is there some way to incorporate the uncertainty on this?
 
     # ----------------------------------------------------------------------------------------
-    def write(self, outfname='', remove=False):
+    def write(self, outfname='', remove=False):  # TODO wait, I have 'removes' here and in parter.py
         self.add_header()
         self.add_states()
         if outfname == '':
@@ -203,7 +224,7 @@ class HmmWriter(object):
             for inuke in probs:  # add to text
                 self.text += ('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke])  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
         else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
-            self.smallest_entry_index = 0
+            # self.smallest_entry_index = 0
             total = 0.0
             for inuke in range(len(self.germline_seq)):
                 erosion = self.region + '_5p'
@@ -215,6 +236,8 @@ class HmmWriter(object):
                     total += prob * (1.0 - non_zero_insertion_prob)
                     if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
                         self.text += ('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob))  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+                        if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # keep track of the first state that has a chance of being entered from INIT -- we want to start writing (with add_internal_state) from there
+                            self.smallest_entry_index = inuke
             assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))
 
     # ----------------------------------------------------------------------------------------

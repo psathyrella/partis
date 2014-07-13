@@ -116,8 +116,11 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
       trellisi_[gene].find(query_strs) != trellisi_[gene].end()) {  // if we already did this gene for this query sequence. NOTE if we have one gene for this <query_strs>, we're always gonna have the rest of 'em too
     if (algorithm_=="viterbi") {
       *score = paths_[gene][query_strs] ? paths_[gene][query_strs]->getScore() : -INFINITY;  // it's set to nullptr if no valid path through hmm
-      if (debug_ && *score != -INFINITY)
-	PrintPath(query_strs, gene, "(cached)");
+      if (debug_)
+	if (*score == -INFINITY)
+	  cout << "                    " << gene << " " << *score << endl;
+	else
+	  PrintPath(query_strs, gene, "(cached)");
     } else if (algorithm_=="forward") {
       *score = trellisi_[gene][query_strs]->getForwardProbability();
     } else {
@@ -140,6 +143,8 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
       } else {  // no valid path through hmm. TODO fix this in a more general way
 	*score = -INFINITY;
 	paths_[gene][query_strs] = nullptr;
+	if (debug_)
+	  cout << "                    " << gene << " " << *score << endl;
       }
       assert(fabs(*score) > 1e-200);
       assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);

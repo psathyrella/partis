@@ -114,12 +114,12 @@ int main(int argc, const char * argv[]) {
     // JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), "IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F");
     JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-debug"), opt.isSet("-only_genes") ? opt.sopt("-only_genes") : "");
     // jh.Run(90, 2, 15, 2);
-    int v_fuzz(3),d_fuzz(3);
+    int v_fuzz(3),d_fuzz(6);
     if (opt.isSet("-v_fuzz")) {
 	opt.getopt("-v_fuzz", v_fuzz);
 	opt.getopt("-d_fuzz", d_fuzz);  // half-width of search region
       }
-    jh.Run(k_v_guess - v_fuzz, 2*v_fuzz, k_d_guess - d_fuzz, 2*d_fuzz);
+    jh.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);
   }
   return 0;
 }
