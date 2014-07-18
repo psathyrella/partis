@@ -31,11 +31,14 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, bool debug=false, string only_genes="");
+  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, string only_genes="");
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
+  void SetDebug(int debug) { debug_ = debug; };
   void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
-  void FillRecoEvent(KSet kset, map<string,string> &best_genes, double score);
+  void PushBackRecoEvent(KSet kset, map<string,string> &best_genes, double score);
+  RecoEvent FillRecoEvent(KSet kset, map<string,string> &best_genes, double score);
+  void StreamOutput();  // print csv event info to stderr
   StrPair GetQueryStrs(KSet kset, string region);
   void RunKSet(KSet kset);
 
@@ -49,10 +52,10 @@ private:
 
   string hmm_dir_;  // location of .hmm files
   size_t n_seqs_per_track_;  // 1 for plain hmms, 2 for pair hmms
-  set<string> only_genes_;
+  map<string, set<string> > only_genes_;
   string algorithm_;
   GermLines gl_;
-  RecoEvent event_;
+  vector<RecoEvent> events_;
   map<KSet,double> best_scores_;  // map from kset to best score for that kset (summed over regions)
   map<KSet,double> total_scores_;  // map from kset to total score for that kset (summed over regions)
   map<KSet,map<string,string> > best_genes_;  // map from a kset to its corresponding triplet of best genes
@@ -62,6 +65,7 @@ private:
   map<string, map<StrPair,traceback_path*> > paths_;  // collection of the paths. 
   vector<string>::iterator i_current_region_;  // region and position of the *next* job we will pass out with GetNextJob()
   vector<string>::iterator i_current_gene_;
-  bool debug_;
+  int debug_;
+  size_t n_best_events_; // print and return this many events
 };
 #endif

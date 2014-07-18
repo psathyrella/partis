@@ -161,17 +161,25 @@ public:
   map<string,string> genes_;
   map<string,size_t> deletions_;
   map<string,string> insertions_;
+  string seq_name_;
   string seq_;
+  string second_seq_;
   float score_;
 
+  bool operator < (const RecoEvent& rhs) const { return (score_ < rhs.score_); }  // return true if this event is more likely than the rhs event
   void SetGenes(string vgene, string dgene, string jgene) { genes_["v"] = vgene; genes_["d"] = dgene; genes_["j"] = jgene; }
   void SetGene(string region, string gene) { genes_[region] = gene; }
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
-  void SetSeq(string seq) { seq_ = seq; }
+  void SetSeq(string seq_name, string seq) { seq_name_ = seq_name; seq_ = seq; }
+  void SetSecondSeq(string seq) { second_seq_ = seq; }
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
-  void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false) {
+  void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false, string extra_indent="") {
+    if (score_ == -INFINITY) {
+      cout << "    " << extra_indent << score_ << endl;
+      return;
+    }
     // make sure we remembered to fill all the necessary information
     vector<string> deletion_names{"v_3p", "d_5p", "d_3p", "j_5p"};
     vector<string> insertion_names{"vd", "dj"};
@@ -183,9 +191,18 @@ public:
     map<string,string> original_seqs;
     for (auto &region: germlines.regions_)
       original_seqs[region] = germlines.seqs_[genes_[region]];
+
+    if (deletions_.find("v_5p") == deletions_.end()) { // try to infer the left-hand v "deletion"
+      deletions_["v_5p"] = original_seqs["v"].size() + original_seqs["d"].size() + original_seqs["j"].size()
+	- deletions_["v_3p"] - deletions_["d_5p"] - deletions_["d_3p"] - deletions_["j_5p"]
+	+ insertions_["vd"].size() + insertions_["dj"].size() - seq_.size();
+    }
+    original_seqs["v"] = original_seqs["v"].substr(deletions_["v_5p"]);
+
     size_t v_length = original_seqs["v"].size() - deletions_["v_3p"];
     size_t d_length = original_seqs["d"].size() - deletions_["d_5p"] - deletions_["d_3p"];
     size_t j_length = original_seqs["j"].size() - deletions_["j_5p"];
+
     map<string,string> eroded_seqs;
     eroded_seqs["v"] = original_seqs["v"].substr(0, original_seqs["v"].size() - deletions_["v_3p"]);
     eroded_seqs["d"] = original_seqs["d"].substr(deletions_["d_5p"], original_seqs["d"].size() - deletions_["d_3p"] - deletions_["d_5p"]);
@@ -197,10 +214,10 @@ public:
     size_t germline_j_start = germline_d_end + 1 - deletions_["d_3p"] + insertions_["dj"].size() - deletions_["j_5p"];
 
     // see if we've "eroded" left side of v or right side of j, and if so add some more dots
-    if (deletions_.find("v_5p") != deletions_.end()) {
-      for (size_t i=0; i<deletions_["v_5p"]; ++i)
-	seq_ = "." + seq_;
-    }
+    // if (deletions_.find("v_5p") != deletions_.end()) {  // truncating this part for the moment
+    //   for (size_t i=0; i<deletions_["v_5p"]; ++i)
+    // 	seq_ = "." + seq_;
+    // }
     if (deletions_.find("j_3p") != deletions_.end()) {
       for (size_t i=0; i<deletions_["j_3p"]; ++i)
 	seq_ += ".";
@@ -283,11 +300,11 @@ public:
     vj_str += eroded_seqs["j"];
 
     if (!one_line) {
-      cout << "    " << insertion_str << "   inserts" << endl;
-      cout <<  "    " << d_str << "   " << tc.ColorGene(genes_["d"]) << endl;
-      cout << "    " << vj_str << "   " << tc.ColorGene(genes_["v"]) << "," << tc.ColorGene(genes_["j"]) << endl;
+      cout << extra_indent << "    " << insertion_str << "   inserts" << endl;
+      cout << extra_indent <<  "    " << d_str << "   " << tc.ColorGene(genes_["d"]) << endl;
+      cout << extra_indent << "    " << vj_str << "   " << tc.ColorGene(genes_["v"]) << "," << tc.ColorGene(genes_["j"]) << endl;
     }
-    cout << "    " << final_seq << "   " << score_ << endl;
+    cout << extra_indent << "    " << final_seq << "   " << score_ << endl;
   }
 };
 #endif
