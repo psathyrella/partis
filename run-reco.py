@@ -7,7 +7,7 @@ import utils
 #----------------------------------------------------------------------------------------
 #assert len(sys.argv) == 2
 #human = sys.argv[1]  #'C'
-naivety = 'N'
+naivety = 'M'
 for human in utils.humans:
     reco = Recombinator('data/human-beings', human, naivety,
                         only_genes='IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F',

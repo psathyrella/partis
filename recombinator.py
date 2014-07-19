@@ -25,7 +25,6 @@ class Recombinator(object):
         self.human = human
         self.naivety = naivety
         # parameters that control recombination, erosion, and whatnot
-        self.mean_n_clones = 5  # mean number of sequences to toss from each rearrangement event
         self.apply_shm = apply_shm
         self.only_genes = []
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)

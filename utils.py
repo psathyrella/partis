@@ -4,6 +4,8 @@ require member variables. """
 import sys
 import math
 import collections
+import csv
+from opener import opener
 
 from Bio import SeqIO
 
@@ -34,9 +36,10 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 column_dependencies = {}
 column_dependencies['v_gene'] = [] # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
 column_dependencies['v_3p_del'] = ['v_gene']
-column_dependencies['d_gene'] = ['d_5p_del', 'd_3p_del']
+column_dependencies['d_gene'] = []  # ['d_5p_del', 'd_3p_del'] TODO stop ignoring this correlation. Well, maybe. See note in hmmwriter.py
 column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']
 column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']
+column_dependencies['j_gene'] = []  # ['dj_insertion']  TODO see note above
 column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice. NOTE this makes normalization kinda fun when you read these out
 column_dependencies['vd_insertion'] = []
 column_dependencies['dj_insertion'] = ['j_gene']
@@ -215,7 +218,11 @@ def color_gene(gene):
         return_str += color('red', n_version)
     else:
         return_str += color('red', n_version) + '-' + color('red', n_subversion)
-    allele = gene[gene.find('*')+1 : gene.find('_')]
+
+    allele_end = gene.find('_')
+    if allele_end < 0:
+        allele_end = len(gene)
+    allele = gene[gene.find('*')+1 : allele_end]
     return_str += '*' + color('yellow', allele)
     if '_' in gene:  # _F or _P in j gene names
         return_str += gene[gene.find('_') :]
@@ -236,11 +243,15 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     original_seqs = {}
     for region in regions:
         original_seqs[region] = germlines[region][line[region+'_gene']]
-#    v_start = 0
+    if 'v_5p_del' not in line:  # try to infer the left-hand v 'deletion'
+        line['v_5p_del'] = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j']) \
+                           - int(line['v_3p_del']) - int(line['d_5p_del']) - int(line['d_3p_del']) - int(line['j_5p_del']) \
+                           + len(line['vd_insertion']) + len(line['dj_insertion']) \
+                           - len(line['seq'])
+    original_seqs['v'] = original_seqs['v'][line['v_5p_del']:]
+
     v_length = len(original_seqs['v']) - int(line['v_3p_del'])
-#    d_start = v_length + len(line['vd_insertion'])
     d_length = len(original_seqs['d']) - int(line['d_5p_del']) - int(line['d_3p_del'])
-#    j_start = v_length + len(line['vd_insertion']) + d_length + len(line['dj_insertion'])
     j_length = len(original_seqs['j']) - int(line['j_5p_del'])
     eroded_seqs = {}
     eroded_seqs['v'] = original_seqs['v'][:len(original_seqs['v'])-int(line['v_3p_del'])]
@@ -252,15 +263,10 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     germline_d_end = germline_d_start + len(original_seqs['d'])
     germline_j_start = germline_d_end + 1 - int(line['d_3p_del']) + len(line['dj_insertion']) - int(line['j_5p_del'])
 
-    # see if we've "eroded" left side of v or right side of j, and if so add some more dots
-    if 'v_5p_del' not in line:  # try to infer the left-hand v 'deletion'
-        line['v_5p_del'] = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j']) \
-                           - int(line['v_3p_del']) - int(line['d_5p_del']) - int(line['d_3p_del']) - int(line['j_5p_del']) \
-                           + len(line['vd_insertion']) + len(line['dj_insertion']) \
-                           - len(line['seq'])
-    if 'v_5p_del' in line:
-        for _ in range(int(line["v_5p_del"])):
-            line['seq'] = '.' + line['seq']  # NOTE this is kinda inefficient
+    # took this out for the moment... I'm liking the truncation better
+    # if 'v_5p_del' in line:
+    #     for _ in range(int(line["v_5p_del"])):
+    #         line['seq'] = '.' + line['seq']  # NOTE this is kinda inefficient
         
     if 'j_3p_del' in line:
         for _ in range(int(line['j_3p_del'])):
@@ -309,8 +315,8 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     if not one_line:
         print '    %s   inserts' % insertions
         print '    %s   %s' % (d, color_gene(line['d_gene']))
-        print '    %s   %s,%s %s' % (vj, color_gene(line['v_gene']), color_gene(line['j_gene']), str(line['score']))
-    print '    %s' % final_seq
+        print '    %s   %s,%s' % (vj, color_gene(line['v_gene']), color_gene(line['j_gene']))
+    print '    %s   %s' % (final_seq, line['score'])
 
     line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
@@ -367,3 +373,39 @@ def are_alleles(gene1, gene2):
     right_str_1 = gene1[gene1.find('*')+3 :]
     right_str_2 = gene2[gene1.find('*')+3 :]
     return left_str_1 == left_str_2 and right_str_1 == right_str_2
+
+# ----------------------------------------------------------------------------------------
+def read_overall_gene_prob(indir, only_region='', only_gene=''):
+    counts = {}
+    for region in regions:
+        if only_region != '' and region != only_region:
+            continue
+        counts[region] = {}
+        total = 0
+        smallest_count = -1  # if we don't find the gene we're looking for, assume it occurs at the lowest rate at which we see any gene
+        with opener('r')(indir + '/' + region + '_gene-probs.csv.bz2') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+            reader = csv.DictReader(infile)
+            for line in reader:
+                line_count = int(line['count'])
+                gene = line[region + '_gene']
+                total += line_count
+                if line_count < smallest_count or smallest_count == -1:
+                    smallest_count = line_count
+                if gene not in counts[region]:
+                    counts[region][gene] = 0
+                counts[region][gene] += line_count
+        if only_gene != '' and only_gene not in counts[region]:  # didn't find this gene
+            counts[region][only_gene] = smallest_count
+        # if region == 'v':
+        #     for gene in ['IGHV3-30*12', 'IGHV3-30*07', 'IGHV3-30*03', 'IGHV3-30*10', 'IGHV3-30*11', 'IGHV3-30*06', 'IGHV3-30*19', 'IGHV3-30*17']:  # list of genes for which we don't have info
+        #         print gene
+        #         assert gene not in counts[get_region(gene)]
+        #         counts[get_region(gene)][gene] = smallest_count
+        for gene in counts[region]:
+            counts[region][gene] /= float(total)
+    # print 'return: %d / %d = %f' % (this_count, total, float(this_count) / total)
+    if only_gene == '':
+        return counts  # oops, now they're probs, not counts. *sigh*
+    else:
+        return counts[only_region][only_gene]
+
