@@ -423,9 +423,9 @@ namespace StochHMM{
         if (index+1 < lst.size()){
           index++;
           (*head[i])=lst[index];
-                    
-        }
-        else{
+	  if (headers[i] == "DESCRIPTION")
+	    overall_gene_prob_ = atof(lst[index].c_str());
+        } else {
           std::cerr << "Couldn't parse " << headers[i] << " from \"MODEL INFORMATION\" section." << std::endl;
           return false;
         }

@@ -309,7 +309,7 @@ StrPair JobHolder::GetQueryStrs(KSet kset, string region) {
     
         
 // ----------------------------------------------------------------------------------------
-// add two numbers, treating -INFINITY as zero, i.e. calculates log a*b = log a + log b
+// add two numbers, treating -INFINITY as zero, i.e. calculates log a*b = log a + log b, i.e. a *and* b
 double JobHolder::AddWithMinusInfinities(double first, double second) {
   if (first == -INFINITY || second == -INFINITY)
     return -INFINITY;
@@ -353,7 +353,9 @@ void JobHolder::RunKSet(KSet kset) {
 	
       double gene_score(-INFINITY);
       FillTrellis(&subseqs[region], query_strs, gene, &gene_score);
-      regional_total_scores[region] = AddInLogSpace(gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space
+      double gene_choice_score = log(hmms_->Get(gene)->overall_gene_prob_);  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
+      gene_score = AddWithMinusInfinities(gene_score, gene_choice_score);
+      regional_total_scores[region] = AddInLogSpace(gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
       if (gene_score > regional_best_scores[region]) {
 	regional_best_scores[region] = gene_score;
 	best_genes_[kset][region] = gene;
@@ -362,6 +364,7 @@ void JobHolder::RunKSet(KSet kset) {
 
     // return if we didn't find a valid path for this region
     if (best_genes_[kset].find(region) == best_genes_[kset].end()) {
+      assert(n_long_erosions == 0);  // adding assert because if it happens, that means my v_right_length was screwed up
       if (debug_ == 2) {
 	cout << "                  found no gene for " << region << " so skip"
 	     << " (" << n_short_v << "/" << igene << " v germlines too short, " << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
@@ -371,7 +374,7 @@ void JobHolder::RunKSet(KSet kset) {
     
   }  // over regions
 
-  best_scores_[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob
+  best_scores_[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob, v *and* d *and* j
   total_scores_[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
   if (algorithm_=="viterbi")
     PushBackRecoEvent(kset, best_genes_[kset], best_scores_[kset]);

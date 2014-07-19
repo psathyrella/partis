@@ -290,6 +290,7 @@ namespace StochHMM{
     }
 		
     size_t n_seqs_per_track_;
+    double overall_gene_prob_;  // prob to select this gene
 
   private:
     //!Flag set to tell whether the transitions bitsets have been set foreach

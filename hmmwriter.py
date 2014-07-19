@@ -15,7 +15,7 @@ header_base_text = """#STOCHHMM MODEL FILE
 MODEL INFORMATION
 ======================================================
 MODEL_NAME:	bcell
-MODEL_DESCRIPTION:  maturation model
+MODEL_DESCRIPTION:  TOTAL_PROB
 MODEL_CREATION_DATE:	today
 
 TRACK SYMBOL DEFINITIONS
@@ -43,9 +43,9 @@ class HmmWriter(object):
 
         self.erosion_probs = {}
         try:
-            self.read_erosion_probs(False)
+            self.read_erosion_probs(False)  # try this exact gene, but...
         except:
-            self.read_erosion_probs(True)
+            self.read_erosion_probs(True)  # ...if we don't have info for it use other alleles
 
         self.insertion_probs = {}
         if self.region != 'v':
@@ -58,11 +58,24 @@ class HmmWriter(object):
             self.read_mute_freqs()
 
     # # ----------------------------------------------------------------------------------------
-    # def get_erosion_key(erosion, line):
-    #     key = [line[erosion + '_del']]
-    #     for dep in deps:
-    #         key.append(line[dep])
-    #     return tuple(key)
+    # def read_overall_gene_prob(self):
+    #     """ Get the probability of choosing this gene version """
+    #     with opener('r')(self.indir + '/' + self.region + '_gene-probs.csv.bz2') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+    #         reader = csv.DictReader(infile)
+    #         total = 0.0
+    #         smallest_count = -1  # if we don't find the gene we're looking for, assume it occurs at the lowest rate at which we see any gene
+    #         this_count = -1
+    #         for line in reader:
+    #             line_count = int(line['count'])
+    #             total += line_count
+    #             if line_count < smallest_count or smallest_count == -1:
+    #                 smallest_count = line_count
+    #             if line[self.region + '_gene'] == self.gene_name:
+    #                 this_count = line_count
+    #     if this_count == -1:  # didn't find this gene
+    #         this_count = smallest_count
+    #     print 'return: %d / %d = %f' % (this_count, total, float(this_count) / total)
+    #     return float(this_count) / total
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_probs(self, use_other_alleles=False):
@@ -264,7 +277,7 @@ class HmmWriter(object):
     
     # ----------------------------------------------------------------------------------------
     def add_header(self):
-        header_string = header_base_text
+        header_string = header_base_text.replace('TOTAL_PROB', str(utils.read_overall_gene_prob(self.indir, self.region, self.gene_name)))
         for nuke in utils.nukes:
             header_string += nuke + ','
         header_string = header_string.rstrip(',')
