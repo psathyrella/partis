@@ -25,8 +25,10 @@ print 'import time: %.3f' % (time.time() - import_start)
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--simfile')  #, default='/home/dralph/Dropbox/work/recombinator/output/' + human + '/' + naivety + '/simu.csv')
+parser.add_argument('--algorithm', default='viterbi', choices=['viterbi', 'forward'])
+parser.add_argument('--n_max_per_region', type=int, default=5)
 parser.add_argument('--debug', type=int, default=0)
-# parser.add_argument('--seq')
+parser.add_argument('--pair', action='store_true')
 args = parser.parse_args()
 
 human = 'A'
@@ -34,10 +36,36 @@ naivety = 'M'
 germline_seqs = utils.read_germlines('/home/dralph/Dropbox/work/recombinator')
 datadir = '/home/dralph/Dropbox/work/recombinator/data'
 
-# ----------------------------------------------------------------------------------------
-def run_hmm(hmm_seqfname, tmp_hmmdir, match_names, best_gene, k_v, k_d, v_right_length):
-    start = time.time()
+tmp_hmmdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())
+sw_outfname = tmp_hmmdir + '/sw_out.csv'
 
+hmm_seqfname = tmp_hmmdir + '/seq.fa'
+
+
+# ----------------------------------------------------------------------------------------
+# def run_hmm(hmm_seqfname, tmp_hmmdir, match_names, best_gene, k_v, k_d, v_fuzz, v_right_length):
+def run_hmm():
+    start = time.time()
+    # read info from s-w
+    seq_name =  ''
+    all_gene_str = ''
+    best_genes = {}
+    k_v, k_d, v_fuzz, v_right_length = 0, 0, 0, 0
+    with opener('r')(sw_outfname) as sw_outfile:
+        reader = csv.DictReader(sw_outfile)
+        for line in reader:
+            seq_name = line['unique_id']
+            k_v = line['k_v']
+            k_d = line['k_d']
+            v_fuzz = line['v_fuzz']
+            v_right_length = line['v_right_length']
+            for region in utils.regions:
+                best_genes[region] = line['best_' + region]
+            print best_genes['v']
+            sys.exit()
+            all_gene_str = line['all']
+            
+            
     # write hmm files
     all_genes = match_names['v'] + match_names['d'] + match_names['j']
     for gene in all_genes:  # TODO note that this takes more time than actually running the hmm
@@ -60,21 +88,40 @@ def run_hmm(hmm_seqfname, tmp_hmmdir, match_names, best_gene, k_v, k_d, v_right_
         d_fuzz = 10
     # TODO since the s-w stuff excises the *best* v and *best* j, these k_v and k_d can be quite far off. Nonetheless seems ok a.t.m.
     # NOTE this call costs about 0.01-0.02 seconds if StochHMM.cpp does more or less nothing
-    hmm_proc = Popen('./stochhmm -viterbi -hmmtype single -debug ' + str(args.debug) + ' -seq ' + hmm_seqfname + ' -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d) + ' -v_fuzz 4 -d_fuzz ' + str(d_fuzz) \
-                     + ' -only_genes \'' + ':'.join(all_genes) + '\' -hmmdir ' + tmp_hmmdir, shell=True, stdout=PIPE, stderr=PIPE)
+    cmd_str = './stochhmm'
+    cmd_str += ' -' + args.algorithm
+    if args.pair:
+        cmd_str += ' -hmmtype pair'
+    else:
+        cmd_str += ' -hmmtype single'
+    cmd_str += ' -debug ' + str(args.debug)
+    cmd_str += ' -seq ' + hmm_seqfname
+    cmd_str += ' -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d)
+    cmd_str += ' -v_fuzz ' + str(v_fuzz) + ' -d_fuzz ' + str(d_fuzz)
+    cmd_str += ' -only_genes \'' + ':'.join(all_genes) + '\''  # hm, wait, do I need these escaped quotes?
+    cmd_str += ' -hmmdir ' + tmp_hmmdir
+    hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
+    # hmm_proc = check_call(cmd_str, shell=True)
     hmm_proc.wait()
-
     run_time = time.time()
     print 'hmm run time: %.3f' % (run_time - write_stop)
 
     print '\ninferred:'
     hmm_out, hmm_err = hmm_proc.communicate()
-    if True:  #args.debug:
+    if args.debug:
         print 'OUT\n',hmm_out
 
-    hmmreader = csv.DictReader(StringIO.StringIO(hmm_err))
-    for hmmline in hmmreader:
-        utils.print_reco_event(germline_seqs, hmmline, 0, 0)
+    try:  # most likely reason for failure is something got kicked into stderr besides the csv info
+        if args.algorithm == 'viterbi':
+            hmmreader = csv.DictReader(StringIO.StringIO(hmm_err))
+            for hmmline in hmmreader:
+                utils.print_reco_event(germline_seqs, hmmline, 0, 0)
+        elif args.algorithm == 'forward':
+            total_score = float(hmm_err)
+            assert total_score < 0.0 and total_score > -9999999.9
+    except:
+        print 'ERR\n',hmm_err
+        sys.exit()
 
     # remove hmm fifos
     for fname in os.listdir(tmp_hmmdir):
@@ -82,17 +129,17 @@ def run_hmm(hmm_seqfname, tmp_hmmdir, match_names, best_gene, k_v, k_d, v_right_
             os.remove(tmp_hmmdir + "/" + fname)
 
 # ----------------------------------------------------------------------------------------
-def run(reco_info_local, seqfname):
+def run_smith_waterman(reco_info_local, swseqfname):
     """
-    Run smith-waterman alignment on the seqs in <seqfname>, and toss all the top matches into <bamfname>.
+    Run smith-waterman alignment on the seqs in <swseqfname>, and toss all the top matches into <bamfname>.
     Then run through <bamfname> to get the top hits and their locations to pass to the hmm.
     Then run the hmm on each gene set.
     """
     start = time.time()
-    bamfname = seqfname.replace('.fa', '.bam')
+    bamfname = swseqfname.replace('.fa', '.bam')
     # large gap-opening penalty: we want *no* gaps in the middle of the alignments
     # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-    check_call('/home/dralph/.local/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 3 --mismatch 1 --gap-open 100 ' + seqfname + ' ' + bamfname + ' 2>/dev/null', shell=True)
+    check_call('/home/dralph/.local/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 3 --mismatch 1 --gap-open 100 ' + swseqfname + ' ' + bamfname + ' 2>/dev/null', shell=True)
     print 's-w time: %.3f' % (time.time()-start)
     gene_choice_probs = utils.read_overall_gene_prob(datadir + '/human-beings/' + human + '/' + naivety)
     with contextlib.closing(pysam.Samfile(bamfname)) as bam:
@@ -144,7 +191,7 @@ def run(reco_info_local, seqfname):
             for region in utils.regions:
                 for score,gene in all_match_names[region]:
                     n_matches[region] += 1
-                    if n_matches[region] > 5:  # only take the top few from each region
+                    if n_matches[region] > args.n_max_per_region:  # only take the top few from each region
                         # TODO should use *lots* of d matches, but fewer vs and js
                         # assert False  # TODO also should loop over *way* more k_d than k_v
                         # TODO also need to assert that subleading matches have k_v k_d consistent with leading k_v k_d and fuzzes
@@ -168,6 +215,7 @@ def run(reco_info_local, seqfname):
                         print ' %4d%4d   %s' % (glbounds[0], glbounds[1], germline_seqs[region][gene][glbounds[0]:glbounds[1]])
                         print '%31s  %4d%4d   %s' % ('', qrbounds[0], qrbounds[1], utils.color_mutants(germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]))
                             
+            # print how many of the available matches we used
             print '  used',
             for region in utils.regions:
                 if region != 'v':
@@ -178,41 +226,55 @@ def run(reco_info_local, seqfname):
             utils.print_reco_event(germline_seqs, reco_info_local[query_name], 0, 0)
 
             # write seq to file for stochhmm to read
-            tmp_hmmdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())
             if not os.path.exists(tmp_hmmdir):  # use a tmp dir specific to this process for the hmm file fifos
                 os.makedirs(tmp_hmmdir)
-            hmm_seqfname = tmp_hmmdir + '/seq.fa'
             with opener('w')(hmm_seqfname) as hmm_seqfile:
                 hmm_seqfile.write('>' + reco_info_local[query_name]['unique_id'] + ' NUKES\n')
                 hmm_seqfile.write(reco_info_local[query_name]['seq'] + '\n')
+                if args.pair:
+                    hmm_seqfile.write('>TEST NUKES\n')
+                    hmm_seqfile.write('CACCATTTCCAGAGACAACTCCATGAGCTCCCTGTCTCTTCAAATGAACAGTCTGAGAGCCGAGGTCACGTCTGTGTATTACTGTGCGTTAGACAGTGGCCGGTTCTGCAGAGGCTCCTGGTTCCAGGGA\n')
 
             k_v = all_query_bounds[best['v']][1]  # end of v match
             k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
             v_right_length = len(germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
-            # TODO add checks that none of the matches have k_v k_d v_right_length very different from the first one
-            # for gene_set in itertools.product(match_names['v'], match_names['d'], match_names['j']):  #get_gene_set(match_names['v'], match_names['d'], match_names['j'])):
             start = time.time()
-            run_hmm(hmm_seqfname, tmp_hmmdir, match_names, best, k_v, k_d, v_right_length)
-            print 'hmm time: %.3f' % (time.time()-start)
+            with opener('w')(sw_outfname) as sw_outfile:
+                columns = ('unique_id', 'k_v', 'k_d', 'v_fuzz', 'v_right_length', 'best_v', 'best_d', 'best_j', 'all')
+                writer = csv.DictWriter(sw_outfile, columns)
+                writer.writeheader()
+                row = {}
+                row['unique_id'] = query_name
+                row['k_v'] = k_v
+                row['k_d'] = k_d
+                row['v_fuzz'] = v_fuzz
+                row['v_right_length'] = v_right_length
+                for region in utils.regions:
+                    row['best_' + region] = best[region]
+                row['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
+                writer.writerow(row)
+            # sys.exit()
+            # run_hmm(hmm_seqfname, tmp_hmmdir, match_names, best, k_v, k_d, v_fuzz, v_right_length)
+            run_hmm()
+            # print 'hmm time: %.3f' % (time.time()-start)
 
-            os.remove(hmm_seqfname)
-            os.rmdir(tmp_hmmdir)
+            # os.remove(hmm_seqfname)
+            # os.rmdir(tmp_hmmdir)
 
-if args.simfile != None:
-    print 'read infile'
-    with opener('r')(args.simfile) as simfile:
-        reader = csv.DictReader(simfile)
-        reco_info = {}
-        last_reco_id = -1  # only run on the first seq in each reco event. they're all pretty similar
-        tmpseqfname = 'bcell/seq.fa'  # file for input to s-w step
-        with opener('w')(tmpseqfname) as seqfile:
-            for line in reader:
-                if line['reco_id'] == last_reco_id:
-                    continue
-                reco_info[line['unique_id']] = line
-                last_reco_id = line['reco_id']
-                seqfile.write('>' + line['unique_id'] + ' NUKES\n')
-                seqfile.write(line['seq'] + '\n')
+print 'read infile'
+with opener('r')(args.simfile) as simfile:
+    reader = csv.DictReader(simfile)
+    reco_info = {}
+    last_reco_id = -1  # only run on the first seq in each reco event. they're all pretty similar
+    swseqfname = 'bcell/seq.fa'  # file for input to s-w step
+    with opener('w')(swseqfname) as seqfile:  # write *all* the input seqs to file, i.e. run s-w on all of 'em at once
+        for line in reader:
+            if line['reco_id'] == last_reco_id:
+                continue
+            reco_info[line['unique_id']] = line
+            last_reco_id = line['reco_id']
+            seqfile.write('>' + line['unique_id'] + ' NUKES\n')
+            seqfile.write(line['seq'] + '\n')
 
-        print '  done'
-        run(reco_info, tmpseqfname)
+    print '  done'
+    run_smith_waterman(reco_info, swseqfname)

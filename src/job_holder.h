@@ -38,12 +38,12 @@ public:
   void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
   void PushBackRecoEvent(KSet kset, map<string,string> &best_genes, double score);
   RecoEvent FillRecoEvent(KSet kset, map<string,string> &best_genes, double score);
-  void StreamOutput();  // print csv event info to stderr
+  void StreamOutput(double test);  // print csv event info to stderr
   StrPair GetQueryStrs(KSet kset, string region);
   void RunKSet(KSet kset);
 
 private:
-  void PrintPath(StrPair query_strs, string gene, string extra_str="");
+  void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
   sequences GetSubSeqs(KSet kset, string region);
   map<string,sequences> GetSubSeqs(KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   size_t GetInsertLength(vector<string> labels);
@@ -58,6 +58,7 @@ private:
   vector<RecoEvent> events_;
   map<KSet,double> best_scores_;  // map from kset to best score for that kset (summed over regions)
   map<KSet,double> total_scores_;  // map from kset to total score for that kset (summed over regions)
+  double total_score_;  // total total total over everything score for forward algorithm
   map<KSet,map<string,string> > best_genes_;  // map from a kset to its corresponding triplet of best genes
   sequences *seqs_;
   HMMHolder *hmms_;

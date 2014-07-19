@@ -163,6 +163,7 @@ public:
   map<string,string> insertions_;
   string seq_name_;
   string seq_;
+  string second_seq_name_;
   string second_seq_;
   float score_;
 
@@ -172,10 +173,19 @@ public:
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
   void SetSeq(string seq_name, string seq) { seq_name_ = seq_name; seq_ = seq; }
-  void SetSecondSeq(string seq) { second_seq_ = seq; }
+  void SetSecondSeq(string seq_name, string seq) {
+    assert(seq.size() == seq_.size());  // make sure we already have a first seq, and also that the new seq is the same size
+    second_seq_name_ = seq_name;
+    second_seq_ = seq;
+  }
+
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
-  void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false, string extra_indent="") {
+  void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false, bool print_second_seq=false, string extra_indent="") {
+    string print_seq = seq_;
+    if (print_second_seq)
+      print_seq = second_seq_;
+
     if (score_ == -INFINITY) {
       cout << "    " << extra_indent << score_ << endl;
       return;
@@ -186,7 +196,7 @@ public:
     for (auto &region: germlines.regions_) assert(genes_.find(region) != genes_.end());
     for (auto &name: deletion_names) assert(deletions_.find(name) != deletions_.end());
     for (auto &name: insertion_names) assert(insertions_.find(name) != insertions_.end());
-    assert(seq_.size() > 0);
+    assert(print_seq.size() > 0);
 
     map<string,string> original_seqs;
     for (auto &region: germlines.regions_)
@@ -195,7 +205,7 @@ public:
     if (deletions_.find("v_5p") == deletions_.end()) { // try to infer the left-hand v "deletion"
       deletions_["v_5p"] = original_seqs["v"].size() + original_seqs["d"].size() + original_seqs["j"].size()
 	- deletions_["v_3p"] - deletions_["d_5p"] - deletions_["d_3p"] - deletions_["j_5p"]
-	+ insertions_["vd"].size() + insertions_["dj"].size() - seq_.size();
+	+ insertions_["vd"].size() + insertions_["dj"].size() - print_seq.size();
     }
     original_seqs["v"] = original_seqs["v"].substr(deletions_["v_5p"]);
 
@@ -216,35 +226,35 @@ public:
     // see if we've "eroded" left side of v or right side of j, and if so add some more dots
     // if (deletions_.find("v_5p") != deletions_.end()) {  // truncating this part for the moment
     //   for (size_t i=0; i<deletions_["v_5p"]; ++i)
-    // 	seq_ = "." + seq_;
+    // 	print_seq = "." + print_seq;
     // }
     if (deletions_.find("j_3p") != deletions_.end()) {
       for (size_t i=0; i<deletions_["j_3p"]; ++i)
-	seq_ += ".";
+	print_seq += ".";
     }
     
     string final_seq;
     TermColors tc;
-    for (size_t inuke=0; inuke<seq_.size(); ++inuke) {
+    for (size_t inuke=0; inuke<print_seq.size(); ++inuke) {
       size_t ilocal = inuke;
       string new_nuke;
       if (ilocal < v_length) {
-	new_nuke = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], seq_[inuke]);
+	new_nuke = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], print_seq[inuke]);
       } else {
 	ilocal -= v_length;
 	if (ilocal < insertions_["vd"].size()) {
-	  new_nuke = tc.RedifyIfMuted(insertions_["vd"][ilocal], seq_[inuke]);
+	  new_nuke = tc.RedifyIfMuted(insertions_["vd"][ilocal], print_seq[inuke]);
         } else {
 	  ilocal -= insertions_["vd"].size();
 	  if (ilocal < d_length) {
-	    new_nuke = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], seq_[inuke]);
+	    new_nuke = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], print_seq[inuke]);
 	  } else {
 	    ilocal -= d_length;
 	    if (ilocal < insertions_["dj"].size()) {
-	      new_nuke = tc.RedifyIfMuted(insertions_["dj"][ilocal], seq_[inuke]);
+	      new_nuke = tc.RedifyIfMuted(insertions_["dj"][ilocal], print_seq[inuke]);
 	    } else {
 	      ilocal -= insertions_["dj"].size();
-	      new_nuke = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], seq_[inuke]);
+	      new_nuke = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], print_seq[inuke]);
 	    }
 	  }
 	}

@@ -432,6 +432,7 @@ namespace StochHMM{
     std::stringstream ss(header);
     std::string name,tmp_track_name;
     ss >> name >> tmp_track_name;
+    assert(name != ">");  // make sure there wasn't a space after the '>'. yeah, I know, I should rewrite this
     name_ = name.substr(1);  // first char is the '>' marking this as a header line
     assert(tmp_track_name == trk->getName());
     
