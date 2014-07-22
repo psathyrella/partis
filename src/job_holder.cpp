@@ -159,7 +159,7 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
       if (trellisi_[gene][query_strs]->ending_viterbi_score == -INFINITY) {  // no valid path through hmm. TODO fix this in a more general way
 	*score = -INFINITY;
 	paths_[gene][query_strs] = nullptr;
-	if (debug_) cout << "                    " << gene << " " << *score << endl;
+	if (debug_ == 2) cout << "                    " << gene << " " << *score << endl;
       } else {
 	paths_[gene][query_strs] = new traceback_path(hmms_->Get(gene));
 	trellisi_[gene][query_strs]->traceback(*paths_[gene][query_strs]);
