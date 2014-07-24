@@ -235,6 +235,7 @@ def is_mutated(original, final):
     else:
         return color('red', final)
 
+# ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False):
     """ Print ascii summary of recombination event and mutation.
 
@@ -367,12 +368,25 @@ def maturity_to_naivety(maturity):
 
 # ----------------------------------------------------------------------------------------
 def are_alleles(gene1, gene2):
-    """ Return true if gene1 and gene2 are alleles of the same gene version """
+    """
+    Return true if gene1 and gene2 are alleles of the same gene version.
+    Assumes they're alleles if everything left of the asterisk is the same, and everything more than two to the right of the asterisk is the same.
+    """
     left_str_1 = gene1[0 : gene1.find('*')]
     left_str_2 = gene2[0 : gene1.find('*')]
     right_str_1 = gene1[gene1.find('*')+3 :]
     right_str_2 = gene2[gene1.find('*')+3 :]
     return left_str_1 == left_str_2 and right_str_1 == right_str_2
+
+# ----------------------------------------------------------------------------------------
+def are_same_primary_version(gene1, gene2):
+    """
+    Return true if the bit up to the dash is the same.
+    There's probably a real name for that bit.
+    """
+    str_1 = gene1[0 : gene1.find('-')]
+    str_2 = gene2[0 : gene2.find('-')]
+    return str_1 == str_2
 
 # ----------------------------------------------------------------------------------------
 def read_overall_gene_prob(indir, only_region='', only_gene=''):
