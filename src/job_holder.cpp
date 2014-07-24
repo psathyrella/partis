@@ -263,7 +263,7 @@ RecoEvent JobHolder::FillRecoEvent(KSet kset, map<string,string> &best_genes, do
 // ----------------------------------------------------------------------------------------
 void JobHolder::StreamOutput(double score) {
   if (algorithm_ == "viterbi") {
-    cerr << "unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq" << endl;
+    cerr << "unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq" << endl;
     for (size_t ievt=0; ievt<n_best_events_; ++ievt) {
       RecoEvent *event = &events_[ievt];
       cerr
@@ -279,7 +279,10 @@ void JobHolder::StreamOutput(double score) {
 	<< "," << event->deletions_["j_5p"]
 	<< "," << event->score_
 	<< "," << event->seq_
-	<< endl;
+	<< ",";
+      if (n_seqs_per_track_ == 2)
+	cerr << event->second_seq_;
+      cerr << endl;
     }
   } else {
     // cerr << total_score_ << endl;  // TODO seriously, wtf? this doesn't work, i.e. total_score_ is set before and after the call the StreamOutput, but is magically unset inside here

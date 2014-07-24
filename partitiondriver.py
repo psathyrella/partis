@@ -34,39 +34,86 @@ class PartitionDriver(object):
         self.pair_scores = {}
         self.default_v_fuzz = 4
         self.default_d_fuzz = 5
+        self.pairscorefname = 'pairwise-scores.csv'
+        self.sw_info = {}
+
+        self.fracs_in_common = {}
+        self.fracs_in_common['v'] = 0.0
+        self.fracs_in_common['d'] = 0.0
+        self.fracs_in_common['j'] = 0.0
+        self.delta_k_v = 0
+        self.delta_k_d = 0
+        self.n_pairs = 0
     
     # ----------------------------------------------------------------------------------------
     def run(self):
+        with opener('w')(self.pairscorefname) as pairscorefile:
+            pairscorefile.write('unique_id_1,unique_id_2,score\n')
         swinfname = self.workdir + '/seq.fa'  # file for input to s-w step
         swoutfname = swinfname.replace('.fa', '.bam')
         print 's-w'
         self.run_smith_waterman(swinfname, swoutfname)
-        sw_csv_fname = self.workdir + '/sw_out.csv'  # csv file with info from sw step
-        self.read_smith_waterman(swoutfname, sw_csv_fname)  # read sw bam output, collate it, and write to csv for hmm input
+        self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
         hmm_seqfname = self.workdir + '/seq.fa'
         for query_name in self.reco_info:  # loop over query seqs, running hmm for each
             if not self.args.pair:
-                print 'true:'
-                utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0)
                 if self.args.algorithm == 'viterbi':
+                    print 'true:'
+                    utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0)
                     self.write_hmm_seqfile(hmm_seqfname, query_name, '')
-                    self.run_hmm(hmm_seqfname, sw_csv_fname, query_name, '')
+                    self.run_hmm(hmm_seqfname, query_name, '')
             else:
                 for second_query_name in self.reco_info:
                     if second_query_name == query_name:
                         continue
                     if int(query_name) + int(second_query_name) in self.pair_scores:  # already did this pair
                         continue
-                    print '%20s %20s   %d' % (query_name, second_query_name, self.reco_info[query_name]['reco_id'] == self.reco_info[second_query_name]['reco_id'])
+                    from_same_event = self.reco_info[query_name]['reco_id'] == self.reco_info[second_query_name]['reco_id']
+                    if from_same_event:
+                        continue
+                    if self.have_different_gene_matches(query_name, second_query_name):
+                        continue
+                    print '%20s %20s   %d' % (query_name, second_query_name, from_same_event)
+                    continue
+                    if self.args.algorithm == 'viterbi':
+                        print 'true:'
+                        utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0)
+                        print '  and maybe'
+                        utils.print_reco_event(self.germline_seqs, self.reco_info[second_query_name], 0, 0, True)
                     self.write_hmm_seqfile(hmm_seqfname, query_name, second_query_name)
-                    self.run_hmm(hmm_seqfname, sw_csv_fname, query_name, second_query_name)
+                    self.run_hmm(hmm_seqfname, query_name, second_query_name)
 
         os.remove(swoutfname)
-        os.remove(sw_csv_fname)
         os.remove(hmm_seqfname)
         os.rmdir(self.workdir)
+        print self.fracs_in_common['v'] / self.n_pairs
+        print self.fracs_in_common['d'] / self.n_pairs
+        print self.fracs_in_common['j'] / self.n_pairs
+        print float(self.delta_k_v) / self.n_pairs
+        print float(self.delta_k_d) / self.n_pairs
                 
-    
+    # ----------------------------------------------------------------------------------------
+    def have_different_gene_matches(self, query_name, second_query_name):
+        first_info = self.sw_info[query_name]
+        second_info = self.sw_info[second_query_name]
+        for region in utils.regions:
+            matches = list((gene for gene in first_info['all'].split(':') if ('IGH' + region.upper()) in gene))
+            second_matches = list((gene for gene in second_info['all'].split(':') if ('IGH' + region.upper()) in gene))
+            denominator = min(len(matches), len(second_matches))
+            n_in_common = len(set(matches).intersection(set(second_matches)))
+            frac_in_common = float(n_in_common) / denominator
+            self.fracs_in_common[region] += frac_in_common
+            print '   %s %d/%d = %.2f' % (region, n_in_common, denominator, frac_in_common),
+            if frac_in_common < 0.5:  # if, for any single region, the two queries share fewer than half of the matches, don't bother to run the hmm
+                return True
+        print '   %4d%4d' % (first_info['k_v'],second_info['k_v']),
+        print '   %4d%4d' % (first_info['k_d'],second_info['k_d']),
+        self.delta_k_v += abs(first_info['k_v'] - second_info['k_v'])
+        self.delta_k_d += abs(first_info['k_d'] - second_info['k_d'])
+        self.n_pairs += 1
+        print '   ',
+        return False
+            
     # ----------------------------------------------------------------------------------------
     def read_sim_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
@@ -87,6 +134,7 @@ class PartitionDriver(object):
     
         if self.args.debug == 2:  # not sure why, but popen thing hangs with debug 2
             check_call(cmd_str, shell=True)
+            sys.exit()  # um, not sure which I want here, but it doesn't really matter. TODO kinda
             return matchlist
     
         hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
@@ -97,43 +145,38 @@ class PartitionDriver(object):
         # run_time = time.time()
         # print 'hmm run time: %.3f' % (run_time - write_stop)
     
-        try:  # most likely reason for failure is something got kicked into stderr besides the csv info
-            if self.args.algorithm == 'viterbi':
+        if self.args.algorithm == 'viterbi':
+            try:  # most likely reason for failure is something got kicked into stderr besides the csv info
                 hmmreader = csv.DictReader(StringIO.StringIO(hmm_err))
                 for hmmline in hmmreader:
                     matchlist.append(hmmline)
-            elif self.args.algorithm == 'forward':
-                total_score = float(hmm_err)
-                print '    total score: ',total_score
-                assert total_score < 0.0 and total_score > -9999999.9
-                self.pair_scores[int(query_name) + int(second_query_name)] = total_score  # is that a hacky way to hash it so I can reverse the order and get the same entry? seems ok, I guess
-            return matchlist
-        except:
-            print 'ERR\n',hmm_err
-            sys.exit()
+                self.pair_scores[int(query_name) + int(second_query_name)] = 0  # just to keep track of that we did it already
+            except:
+                print 'ERR\n',hmm_err
+                sys.exit()
+        elif self.args.algorithm == 'forward':
+            total_score = float(hmm_err)  # TODO oh, right, I need to divide by the total prob of each individual sequence
+            print '    total score: ',total_score
+            assert total_score < 0.0 and total_score > -9999999.9
+            self.pair_scores[int(query_name) + int(second_query_name)] = total_score  # is that a hacky way to hash it so I can reverse the order and get the same entry? seems ok, I guess
+            with opener('a')(self.pairscorefname) as pairscorefile:
+                pairscorefile.write('%s,%s,%f\n' % (query_name, second_query_name, total_score))
+
+        return matchlist
     
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, seqfname, sw_csv_fname, query_name, second_query_name):
+    def run_hmm(self, seqfname, query_name, second_query_name):
         # start = time.time()
         # read info from s-w
-        all_gene_str = ''
-        best_genes = {}
-        k_v, k_d, v_fuzz, d_fuzz, v_right_length = 0, 0, 0, 0, 0
-        with opener('r')(sw_csv_fname) as sw_outfile:
-            reader = csv.DictReader(sw_outfile)
-            for line in reader:
-                if line['unique_id'] != query_name:  # TODO note that I'm only using the s-w info for the *first* sequence. I *need* to add in the info from the second
-                    continue
-                k_v = int(line['k_v'])
-                k_d = int(line['k_d'])
-                v_fuzz = int(line['v_fuzz'])
-                d_fuzz = int(line['d_fuzz'])
-                v_right_length = int(line['v_right_length'])
-                assert k_v > 0 and k_d > 0 and v_fuzz > 0 and d_fuzz > 0 and v_right_length > 0
-                for region in utils.regions:
-                    best_genes[region] = line['best_' + region]
-                all_gene_str = line['all']
                 
+        all_gene_str = self.sw_info[query_name]['all']
+        best_genes = self.sw_info[query_name]['best']
+        k_v = self.sw_info[query_name]['k_v']
+        k_d = self.sw_info[query_name]['k_d']
+        v_fuzz = self.sw_info[query_name]['v_fuzz']
+        d_fuzz = self.sw_info[query_name]['d_fuzz']
+        v_right_length = self.sw_info[query_name]['v_right_length']
+
         # write hmm files
         for gene in all_gene_str.split(':'):  # TODO note that this takes more time than actually running the hmm
             writer = HmmWriter(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
@@ -170,11 +213,13 @@ class PartitionDriver(object):
 
         matchlist = self.run_stochhmm(cmd_str, query_name, second_query_name)
 
-        for matchline in matchlist:
+        for matchline in matchlist:  # will be empty list if not viterbi
             utils.print_reco_event(self.germline_seqs, matchline, 0, 0)
             if self.args.pair:
-                matchline['seq'] = 'CACCATTTCCAGAGACAACTCCATGAGCTCCCTGTCTCTTCAAATGAACAGTCTGAGAGCCGAGGTCACGTCTGTGTATTACTGTGCGTTAGACAGTGGCCGGTTCTGCAGAGGCTCCTGGTTCCAGGGA'
+                tmpseq = matchline['seq']  # TODO oh, man, that's a cludge
+                matchline['seq'] = matchline['second_seq']
                 utils.print_reco_event(self.germline_seqs, matchline, 0, 0, True)
+                matchline['seq'] = tmpseq
                 
     
         # remove hmm model files
@@ -210,109 +255,106 @@ class PartitionDriver(object):
         # print 's-w time: %.3f' % (time.time()-start)
     
     # ----------------------------------------------------------------------------------------
-    def read_smith_waterman(self, infname, outfname):
+    def read_smith_waterman(self, infname):
+        """
+        Read bamfile output by s-w step, and write the info (after a bit of collation) to a csv.
+        Note that the only reason to bother writing the csv is so you can avoid rerunning the s-w step every time you run the hmm.
+        """
         gene_choice_probs = utils.read_overall_gene_prob(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety)
         with contextlib.closing(pysam.Samfile(infname)) as bam:
             grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
-
-            with opener('w')(outfname) as outfile:
-                columns = ('unique_id', 'k_v', 'k_d', 'v_fuzz', 'd_fuzz', 'v_right_length', 'best_v', 'best_d', 'best_j', 'all')
-                writer = csv.DictWriter(outfile, columns)
-                writer.writeheader()
-
-                for _, reads in grouped:  # loop over query sequences
-                    reads = list(reads)
-                    primary = next((r for r in reads if not r.is_secondary), None)
-                    query_seq = primary.seq
-                    query_name = primary.qname
-                    raw_best = {}
-                    all_match_names = {}
-                    for region in utils.regions:
-                        all_match_names[region] = []
-                    all_query_bounds, all_germline_bounds = {}, {}
-                    for read in reads:  # loop over the matches found for each query sequence
-                        read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
-                        gene = bam.references[read.tid]
-                        region = utils.get_region(gene)
-        
-                        if region not in raw_best:  # best v, d, and j before multiplying by gene choice probs. needed 'cause *these* are the v and j that get excised
-                            raw_best[region] = gene
-        
-                        if 'J1P' in gene or 'J3P' in gene:
+            for _, reads in grouped:  # loop over query sequences
+                reads = list(reads)
+                primary = next((r for r in reads if not r.is_secondary), None)
+                query_seq = primary.seq
+                query_name = primary.qname
+                raw_best = {}
+                all_match_names = {}
+                for region in utils.regions:
+                    all_match_names[region] = []
+                all_query_bounds, all_germline_bounds = {}, {}
+                for read in reads:  # loop over the matches found for each query sequence
+                    read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
+                    gene = bam.references[read.tid]
+                    region = utils.get_region(gene)
+    
+                    if region not in raw_best:  # best v, d, and j before multiplying by gene choice probs. needed 'cause *these* are the v and j that get excised
+                        raw_best[region] = gene
+    
+                    if 'J1P' in gene or 'J3P' in gene:
+                        continue
+    
+                    raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
+                    choice_prob = 0.0  # set to zero if we didn't see it in data. kinda hacky, I suppose
+                    if gene in gene_choice_probs[region]:
+                        choice_prob = gene_choice_probs[region][gene]
+                    score = choice_prob * raw_score  # multiply by the probability to choose this gene
+                    all_match_names[region].append((score,gene))
+                    all_query_bounds[gene] = (read.qstart, read.qend)
+                    all_germline_bounds[gene] = (read.pos, read.aend)
+    
+                # append the best matches to match_names and work out how much v_fuzz we need
+                best = {}
+                match_names = {}
+                n_matches = {'v':0, 'd':0, 'j':0}
+                n_used = {'v':0, 'd':0, 'j':0}
+                v_fuzz = self.default_v_fuzz  # TODO I have the defaults adjusted in two places at the moment
+                d_fuzz = self.default_d_fuzz
+                for region in utils.regions:
+                    all_match_names[region] = sorted(all_match_names[region], reverse=True)
+                    match_names[region] = []
+                for region in utils.regions:
+                    for score,gene in all_match_names[region]:
+                        n_matches[region] += 1
+                        if n_matches[region] > self.args.n_max_per_region:  # only take the top few from each region
+                            # TODO should use *lots* of d matches, but fewer vs and js
+                            # assert False  # TODO also should loop over *way* more k_d than k_v
                             continue
-        
-                        raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
-                        choice_prob = 0.0  # set to zero if we didn't see it in data. kinda hacky, I suppose
-                        if gene in gene_choice_probs[region]:
-                            choice_prob = gene_choice_probs[region][gene]
-                        score = choice_prob * raw_score  # multiply by the probability to choose this gene
-                        all_match_names[region].append((score,gene))
-                        all_query_bounds[gene] = (read.qstart, read.qend)
-                        all_germline_bounds[gene] = (read.pos, read.aend)
-        
-                    # append the best matches to match_names and work out how much v_fuzz we need
-                    best = {}
-                    match_names = {}
-                    n_matches = {'v':0, 'd':0, 'j':0}
-                    n_used = {'v':0, 'd':0, 'j':0}
-                    v_fuzz = self.default_v_fuzz  # TODO I have the defaults adjusted in two places at the moment
-                    d_fuzz = self.default_d_fuzz
+                        n_used[region] += 1
+                        match_names[region].append(gene)
+    
+                        # check consistency with best match (since the best match is excised in s-w code, and because stochhmm is run with *one* k_v k_d set)
+                        if region not in best:
+                            best[region] = gene
+                        else:
+                            if region == 'v':
+                                necessary_fuzz = abs(all_query_bounds[gene][1] - all_query_bounds[raw_best[region]][1])
+                                if necessary_fuzz > v_fuzz-1:  # if this v match ends at a wildly different position than did the best v match, expand v_fuzz accordingly
+                                    v_fuzz = necessary_fuzz + 1
+    
+                        if self.args.debug:
+                            buff_str = (17 - len(gene)) * ' '
+                            print '%8s%s%s%6.1f' % (' ', utils.color_gene(gene), buff_str, score),
+                            glbounds = all_germline_bounds[gene]
+                            qrbounds = all_query_bounds[gene]
+                            print ' %4d%4d   %s' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
+                            print '%31s  %4d%4d   %s' % ('', qrbounds[0], qrbounds[1], utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]))
+                                
+                # print how many of the available matches we used
+                if self.args.debug:
+                    print '  used',
                     for region in utils.regions:
-                        all_match_names[region] = sorted(all_match_names[region], reverse=True)
-                        match_names[region] = []
-                    for region in utils.regions:
-                        for score,gene in all_match_names[region]:
-                            n_matches[region] += 1
-                            if n_matches[region] > self.args.n_max_per_region:  # only take the top few from each region
-                                # TODO should use *lots* of d matches, but fewer vs and js
-                                # assert False  # TODO also should loop over *way* more k_d than k_v
-                                continue
-                            n_used[region] += 1
-                            match_names[region].append(gene)
-        
-                            # check consistency with best match (since the best match is excised in s-w code, and because stochhmm is run with *one* k_v k_d set)
-                            if region not in best:
-                                best[region] = gene
-                            else:
-                                if region == 'v':
-                                    necessary_fuzz = abs(all_query_bounds[gene][1] - all_query_bounds[raw_best[region]][1])
-                                    if necessary_fuzz > v_fuzz-1:  # if this v match ends at a wildly different position than did the best v match, expand v_fuzz accordingly
-                                        v_fuzz = necessary_fuzz + 1
-        
-                            if self.args.debug:
-                                buff_str = (17 - len(gene)) * ' '
-                                print '%8s%s%s%6.1f' % (' ', utils.color_gene(gene), buff_str, score),
-                                glbounds = all_germline_bounds[gene]
-                                qrbounds = all_query_bounds[gene]
-                                print ' %4d%4d   %s' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
-                                print '%31s  %4d%4d   %s' % ('', qrbounds[0], qrbounds[1], utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]))
-                                    
-                    # print how many of the available matches we used
-                    if self.args.debug:
-                        print '  used',
-                        for region in utils.regions:
-                            if region != 'v':
-                                print '      ',
-                            print ' %d / %d in %s' % (n_used[region], n_matches[region], region)
-        
-                    # write sw info to file for hmm
-                    k_v = all_query_bounds[best['v']][1]  # end of v match
-                    k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
-                    if k_d < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment. 
-                        k_d = max(5, k_d)
-                        d_fuzz = max(d_fuzz, 10)
-                        
-                    v_right_length = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
+                        if region != 'v':
+                            print '      ',
+                        print ' %d / %d in %s' % (n_used[region], n_matches[region], region)
+    
+                # write sw info to file for hmm
+                k_v = all_query_bounds[best['v']][1]  # end of v match
+                k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
+                if k_d < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment. 
+                    k_d = max(5, k_d)
+                    d_fuzz = max(d_fuzz, 10)
+                    
+                v_right_length = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
 
+                assert query_name not in self.sw_info
+                self.sw_info[query_name] = {}
+                self.sw_info[query_name]['k_v'] = k_v
+                self.sw_info[query_name]['k_d'] = k_d
+                self.sw_info[query_name]['v_fuzz'] = v_fuzz
+                self.sw_info[query_name]['d_fuzz'] = d_fuzz
+                self.sw_info[query_name]['v_right_length'] = v_right_length
+                self.sw_info[query_name]['best'] = best
+                self.sw_info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
-                    row = {}
-                    row['unique_id'] = query_name
-                    row['k_v'] = k_v
-                    row['k_d'] = k_d
-                    row['v_fuzz'] = v_fuzz
-                    row['d_fuzz'] = d_fuzz
-                    row['v_right_length'] = v_right_length
-                    for region in utils.regions:
-                        row['best_' + region] = best[region]
-                    row['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
-                    writer.writerow(row)
+                assert k_v > 0 and k_d > 0 and v_fuzz > 0 and d_fuzz > 0 and v_right_length > 0

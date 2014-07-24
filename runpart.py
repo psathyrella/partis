@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
 import argparse
+import sys
 from partitiondriver import PartitionDriver    
 
+# from clusterer import Clusterer
+# clust = Clusterer()
+# clust.cluster('pairwise-scores.csv')
+# sys.exit()
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
