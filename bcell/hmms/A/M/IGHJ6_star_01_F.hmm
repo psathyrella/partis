@@ -1,0 +1,546 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.000159535895577
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.6923076923076923
+     IGHJ6_star_01_F_0: 0.0460953868466559
+     IGHJ6_star_01_F_1: 0.0199930830590729
+     IGHJ6_star_01_F_2: 0.0259648574775478
+     IGHJ6_star_01_F_3: 0.0211613766943716
+     IGHJ6_star_01_F_4: 0.0365535784012941
+     IGHJ6_star_01_F_5: 0.0332834272326658
+     IGHJ6_star_01_F_6: 0.0308245662966475
+     IGHJ6_star_01_F_7: 0.0213621911083840
+     IGHJ6_star_01_F_8: 0.0175377921570815
+     IGHJ6_star_01_F_9: 0.0062279243599041
+     IGHJ6_star_01_F_10: 0.0121711385061639
+     IGHJ6_star_01_F_11: 0.0070650973392090
+     IGHJ6_star_01_F_12: 0.0070151168628326
+     IGHJ6_star_01_F_13: 0.0037092653539354
+     IGHJ6_star_01_F_14: 0.0042831483237575
+     IGHJ6_star_01_F_15: 0.0041760473029509
+     IGHJ6_star_01_F_16: 0.0026668154180845
+     IGHJ6_star_01_F_17: 0.0032621185920678
+     IGHJ6_star_01_F_18: 0.0008585931834663
+     IGHJ6_star_01_F_19: 0.0015244045294807
+     IGHJ6_star_01_F_20: 0.0007086517543370
+     IGHJ6_star_01_F_21: 0.0004801695766163
+     IGHJ6_star_01_F_22: 0.0003641434707425
+     IGHJ6_star_01_F_23: 0.0001481564121158
+     IGHJ6_star_01_F_24: 0.0000589055614436
+     IGHJ6_star_01_F_25: 0.0000847883081386
+     IGHJ6_star_01_F_26: 0.0000294527807218
+     IGHJ6_star_01_F_27: 0.0000321303062420
+     IGHJ6_star_01_F_28: 0.0000205276956546
+     IGHJ6_star_01_F_29: 0.0000151726446143
+     IGHJ6_star_01_F_30: 0.0000026775255202
+     IGHJ6_star_01_F_33: 0.0000053550510403
+     IGHJ6_star_01_F_34: 0.0000062475595471
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+TRANSITION: STANDARD: P(X)
+ insert: 0.3809523809523808
+     IGHJ6_star_01_F_0: 0.0927395282986291
+     IGHJ6_star_01_F_1: 0.0402241790117062
+     IGHJ6_star_01_F_2: 0.0522388204012570
+     IGHJ6_star_01_F_3: 0.0425746745398667
+     IGHJ6_star_01_F_4: 0.0735423184502227
+     IGHJ6_star_01_F_5: 0.0669630857419110
+     IGHJ6_star_01_F_6: 0.0620160917158742
+     IGHJ6_star_01_F_7: 0.0429786940156773
+     IGHJ6_star_01_F_8: 0.0352843675541283
+     IGHJ6_star_01_F_9: 0.0125299906764736
+     IGHJ6_star_01_F_10: 0.0244871715183535
+     IGHJ6_star_01_F_11: 0.0142143029800753
+     IGHJ6_star_01_F_12: 0.0141137470216513
+     IGHJ6_star_01_F_13: 0.0074626886287510
+     IGHJ6_star_01_F_14: 0.0086172865085120
+     IGHJ6_star_01_F_15: 0.0084018094547464
+     IGHJ6_star_01_F_16: 0.0053653786387652
+     IGHJ6_star_01_F_17: 0.0065630719292793
+     IGHJ6_star_01_F_18: 0.0017274077143548
+     IGHJ6_star_01_F_19: 0.0030669567319314
+     IGHJ6_star_01_F_20: 0.0014257398390828
+     IGHJ6_star_01_F_21: 0.0009660554577161
+     IGHJ6_star_01_F_22: 0.0007326219828033
+     IGHJ6_star_01_F_23: 0.0002980765910425
+     IGHJ6_star_01_F_24: 0.0001185123795711
+     IGHJ6_star_01_F_25: 0.0001705860008978
+     IGHJ6_star_01_F_26: 0.0000592561897856
+     IGHJ6_star_01_F_27: 0.0000646431161297
+     IGHJ6_star_01_F_28: 0.0000412997686384
+     IGHJ6_star_01_F_29: 0.0000305259159501
+     IGHJ6_star_01_F_30: 0.0000053869263441
+     IGHJ6_star_01_F_33: 0.0000107738526883
+     IGHJ6_star_01_F_34: 0.0000125694948030
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_0
+  PATH_LABEL:  IGHJ6_star_01_F_0
+  GFF_DESC:    IGHJ6_star_01_F_0
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_1
+  PATH_LABEL:  IGHJ6_star_01_F_1
+  GFF_DESC:    IGHJ6_star_01_F_1
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_2
+  PATH_LABEL:  IGHJ6_star_01_F_2
+  GFF_DESC:    IGHJ6_star_01_F_2
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0543070000000000 0.0543070000000000 0.0543070000000000 0.8370790000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_3
+  PATH_LABEL:  IGHJ6_star_01_F_3
+  GFF_DESC:    IGHJ6_star_01_F_3
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9067160000000000 0.0310946666666667 0.0310946666666667 0.0310946666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_4
+  PATH_LABEL:  IGHJ6_star_01_F_4
+  GFF_DESC:    IGHJ6_star_01_F_4
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0372210000000000 0.8883370000000000 0.0372210000000000 0.0372210000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_5
+  PATH_LABEL:  IGHJ6_star_01_F_5
+  GFF_DESC:    IGHJ6_star_01_F_5
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0365206666666667 0.0365206666666667 0.0365206666666667 0.8904380000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_6
+  PATH_LABEL:  IGHJ6_star_01_F_6
+  GFF_DESC:    IGHJ6_star_01_F_6
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_7:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8396690000000000 0.0534436666666667 0.0534436666666667 0.0534436666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_7
+  PATH_LABEL:  IGHJ6_star_01_F_7
+  GFF_DESC:    IGHJ6_star_01_F_7
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_8:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0385553333333333 0.8843340000000000 0.0385553333333333 0.0385553333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_8
+  PATH_LABEL:  IGHJ6_star_01_F_8
+  GFF_DESC:    IGHJ6_star_01_F_8
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_9:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0376003333333333 0.0376003333333333 0.0376003333333333 0.8871990000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_9
+  PATH_LABEL:  IGHJ6_star_01_F_9
+  GFF_DESC:    IGHJ6_star_01_F_9
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_10:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8708240000000000 0.0430586666666667 0.0430586666666667 0.0430586666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_10
+  PATH_LABEL:  IGHJ6_star_01_F_10
+  GFF_DESC:    IGHJ6_star_01_F_10
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_11:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0462870000000000 0.8611390000000000 0.0462870000000000 0.0462870000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_11
+  PATH_LABEL:  IGHJ6_star_01_F_11
+  GFF_DESC:    IGHJ6_star_01_F_11
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_12:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0456496666666667 0.0456496666666667 0.0456496666666667 0.8630510000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_12
+  PATH_LABEL:  IGHJ6_star_01_F_12
+  GFF_DESC:    IGHJ6_star_01_F_12
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_13:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8492420000000001 0.0502526666666667 0.0502526666666667 0.0502526666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_13
+  PATH_LABEL:  IGHJ6_star_01_F_13
+  GFF_DESC:    IGHJ6_star_01_F_13
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_14:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0473483333333333 0.8579550000000000 0.0473483333333333 0.0473483333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_14
+  PATH_LABEL:  IGHJ6_star_01_F_14
+  GFF_DESC:    IGHJ6_star_01_F_14
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_15:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0314803333333333 0.0314803333333333 0.0314803333333333 0.9055590000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_15
+  PATH_LABEL:  IGHJ6_star_01_F_15
+  GFF_DESC:    IGHJ6_star_01_F_15
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_16:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8006330000000000 0.0664556666666667 0.0664556666666667 0.0664556666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_16
+  PATH_LABEL:  IGHJ6_star_01_F_16
+  GFF_DESC:    IGHJ6_star_01_F_16
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_17:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0381816666666667 0.8854550000000000 0.0381816666666667 0.0381816666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_17
+  PATH_LABEL:  IGHJ6_star_01_F_17
+  GFF_DESC:    IGHJ6_star_01_F_17
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_18:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0319453333333333 0.0319453333333333 0.9041640000000000 0.0319453333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_18
+  PATH_LABEL:  IGHJ6_star_01_F_18
+  GFF_DESC:    IGHJ6_star_01_F_18
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_19:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0994743333333333 0.0994743333333333 0.7015770000000000 0.0994743333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_19
+  PATH_LABEL:  IGHJ6_star_01_F_19
+  GFF_DESC:    IGHJ6_star_01_F_19
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_20:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0772556666666667 0.0772556666666667 0.0772556666666667 0.7682329999999999
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_20
+  PATH_LABEL:  IGHJ6_star_01_F_20
+  GFF_DESC:    IGHJ6_star_01_F_20
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_21:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.7299000000000000 0.0900333333333333 0.0900333333333333 0.0900333333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_21
+  PATH_LABEL:  IGHJ6_star_01_F_21
+  GFF_DESC:    IGHJ6_star_01_F_21
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_22:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0271906666666667 0.0271906666666667 0.0271906666666667 0.9184280000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_22
+  PATH_LABEL:  IGHJ6_star_01_F_22
+  GFF_DESC:    IGHJ6_star_01_F_22
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_23:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0321413333333333 0.0321413333333333 0.9035760000000000 0.0321413333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_23
+  PATH_LABEL:  IGHJ6_star_01_F_23
+  GFF_DESC:    IGHJ6_star_01_F_23
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_24:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0153106666666667 0.0153106666666667 0.9540680000000000 0.0153106666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_24
+  PATH_LABEL:  IGHJ6_star_01_F_24
+  GFF_DESC:    IGHJ6_star_01_F_24
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_25:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8685290000000000 0.0438236666666667 0.0438236666666667 0.0438236666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_25
+  PATH_LABEL:  IGHJ6_star_01_F_25
+  GFF_DESC:    IGHJ6_star_01_F_25
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_26:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0456183333333333 0.8631450000000001 0.0456183333333333 0.0456183333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_26
+  PATH_LABEL:  IGHJ6_star_01_F_26
+  GFF_DESC:    IGHJ6_star_01_F_26
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_27:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0778683333333333 0.0778683333333333 0.7663949999999999 0.0778683333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_27
+  PATH_LABEL:  IGHJ6_star_01_F_27
+  GFF_DESC:    IGHJ6_star_01_F_27
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_28:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0270270000000000 0.0270270000000000 0.0270270000000000 0.9189190000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_28
+  PATH_LABEL:  IGHJ6_star_01_F_28
+  GFF_DESC:    IGHJ6_star_01_F_28
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_29:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0461653333333333 0.8615040000000000 0.0461653333333333 0.0461653333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_29
+  PATH_LABEL:  IGHJ6_star_01_F_29
+  GFF_DESC:    IGHJ6_star_01_F_29
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_30:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0572953333333333 0.0572953333333333 0.0572953333333333 0.8281140000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_30
+  PATH_LABEL:  IGHJ6_star_01_F_30
+  GFF_DESC:    IGHJ6_star_01_F_30
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_31:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0353973333333333 0.0353973333333333 0.8938080000000000 0.0353973333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_31
+  PATH_LABEL:  IGHJ6_star_01_F_31
+  GFF_DESC:    IGHJ6_star_01_F_31
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_32:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0224600000000000 0.0224600000000000 0.9326200000000000 0.0224600000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_32
+  PATH_LABEL:  IGHJ6_star_01_F_32
+  GFF_DESC:    IGHJ6_star_01_F_32
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_33:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0109423333333333 0.0109423333333333 0.9671729999999999 0.0109423333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_33
+  PATH_LABEL:  IGHJ6_star_01_F_33
+  GFF_DESC:    IGHJ6_star_01_F_33
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_34:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0053093333333333 0.0053093333333333 0.9840719999999999 0.0053093333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_34
+  PATH_LABEL:  IGHJ6_star_01_F_34
+  GFF_DESC:    IGHJ6_star_01_F_34
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_35:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_35
+  PATH_LABEL:  IGHJ6_star_01_F_35
+  GFF_DESC:    IGHJ6_star_01_F_35
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_36:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0073940000000000 0.9778180000000000 0.0073940000000000 0.0073940000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_36
+  PATH_LABEL:  IGHJ6_star_01_F_36
+  GFF_DESC:    IGHJ6_star_01_F_36
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_37:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.6903060000000000 0.1032313333333333 0.1032313333333333 0.1032313333333333
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_37
+  PATH_LABEL:  IGHJ6_star_01_F_37
+  GFF_DESC:    IGHJ6_star_01_F_37
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_38:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8616500000000000 0.0461166666666667 0.0461166666666667 0.0461166666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_38
+  PATH_LABEL:  IGHJ6_star_01_F_38
+  GFF_DESC:    IGHJ6_star_01_F_38
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_39:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0132266666666667 0.0132266666666667 0.9603200000000000 0.0132266666666667
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_39
+  PATH_LABEL:  IGHJ6_star_01_F_39
+  GFF_DESC:    IGHJ6_star_01_F_39
+TRANSITION: STANDARD: P(X)
+  IGHJ6_star_01_F_40:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHJ6_star_01_F_40
+  PATH_LABEL:  IGHJ6_star_01_F_40
+  GFF_DESC:    IGHJ6_star_01_F_40
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+//END

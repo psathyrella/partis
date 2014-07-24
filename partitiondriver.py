@@ -3,6 +3,7 @@ import time
 import sys
 import os
 import csv
+import re
 import itertools
 import StringIO
 import operator
@@ -23,7 +24,7 @@ from hmmwriter import HmmWriter
 # ----------------------------------------------------------------------------------------
 
 class PartitionDriver(object):
-    def __init__(self, datadir, args):
+    def __init__(self, datadir, args, default_v_right_length=90):
         self.datadir = datadir
         self.args = args
         self.germline_seqs = utils.read_germlines()
@@ -33,17 +34,19 @@ class PartitionDriver(object):
         self.reco_info = self.read_sim_file()  # read simulation info and write sw input file
         self.pair_scores = {}
         self.default_v_fuzz = 4
-        self.default_d_fuzz = 5
+        self.default_d_fuzz = 10  # note that the k_d guess can be almost worthless, since the s-w step tends to expand the j match over a lot of the d
         self.pairscorefname = 'pairwise-scores.csv'
+        self.default_hmm_dir = 'bcell/hmms/' + self.args.human + '/' + self.args.naivety
+        self.default_v_right_length = default_v_right_length
         self.sw_info = {}
 
-        self.fracs_in_common = {}
-        self.fracs_in_common['v'] = 0.0
-        self.fracs_in_common['d'] = 0.0
-        self.fracs_in_common['j'] = 0.0
-        self.delta_k_v = 0
-        self.delta_k_d = 0
-        self.n_pairs = 0
+        # self.fracs_in_common = {}
+        # self.fracs_in_common['v'] = 0.0
+        # self.fracs_in_common['d'] = 0.0
+        # self.fracs_in_common['j'] = 0.0
+        # self.delta_k_v = 0
+        # self.delta_k_d = 0
+        # self.n_pairs = 0
     
     # ----------------------------------------------------------------------------------------
     def run(self):
@@ -51,8 +54,11 @@ class PartitionDriver(object):
             pairscorefile.write('unique_id_1,unique_id_2,score\n')
         swinfname = self.workdir + '/seq.fa'  # file for input to s-w step
         swoutfname = swinfname.replace('.fa', '.bam')
-        print 's-w'
-        self.run_smith_waterman(swinfname, swoutfname)
+        if self.args.run_sw:
+            print 's-w...',
+            sys.stdout.flush()
+            self.run_smith_waterman(swinfname, swoutfname)
+            print 'done'
         self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
         hmm_seqfname = self.workdir + '/seq.fa'
         for query_name in self.reco_info:  # loop over query seqs, running hmm for each
@@ -63,18 +69,15 @@ class PartitionDriver(object):
                     self.write_hmm_seqfile(hmm_seqfname, query_name, '')
                     self.run_hmm(hmm_seqfname, query_name, '')
             else:
-                for second_query_name in self.reco_info:
+                for second_query_name in self.reco_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
                     if second_query_name == query_name:
                         continue
-                    if int(query_name) + int(second_query_name) in self.pair_scores:  # already did this pair
+                    if self.get_score_index(query_name, second_query_name) in self.pair_scores:  # already did this pair
                         continue
                     from_same_event = self.reco_info[query_name]['reco_id'] == self.reco_info[second_query_name]['reco_id']
-                    if from_same_event:
-                        continue
-                    if self.have_different_gene_matches(query_name, second_query_name):
-                        continue
+                    # if self.have_different_gene_matches(query_name, second_query_name):
+                    #     continue
                     print '%20s %20s   %d' % (query_name, second_query_name, from_same_event)
-                    continue
                     if self.args.algorithm == 'viterbi':
                         print 'true:'
                         utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0)
@@ -86,34 +89,50 @@ class PartitionDriver(object):
         os.remove(swoutfname)
         os.remove(hmm_seqfname)
         os.rmdir(self.workdir)
-        print self.fracs_in_common['v'] / self.n_pairs
-        print self.fracs_in_common['d'] / self.n_pairs
-        print self.fracs_in_common['j'] / self.n_pairs
-        print float(self.delta_k_v) / self.n_pairs
-        print float(self.delta_k_d) / self.n_pairs
+        # print self.fracs_in_common['v'] / self.n_pairs
+        # print self.fracs_in_common['d'] / self.n_pairs
+        # print self.fracs_in_common['j'] / self.n_pairs
+        # print float(self.delta_k_v) / self.n_pairs
+        # print float(self.delta_k_d) / self.n_pairs
                 
-    # ----------------------------------------------------------------------------------------
-    def have_different_gene_matches(self, query_name, second_query_name):
-        first_info = self.sw_info[query_name]
-        second_info = self.sw_info[second_query_name]
-        for region in utils.regions:
-            matches = list((gene for gene in first_info['all'].split(':') if ('IGH' + region.upper()) in gene))
-            second_matches = list((gene for gene in second_info['all'].split(':') if ('IGH' + region.upper()) in gene))
-            denominator = min(len(matches), len(second_matches))
-            n_in_common = len(set(matches).intersection(set(second_matches)))
-            frac_in_common = float(n_in_common) / denominator
-            self.fracs_in_common[region] += frac_in_common
-            print '   %s %d/%d = %.2f' % (region, n_in_common, denominator, frac_in_common),
-            if frac_in_common < 0.5:  # if, for any single region, the two queries share fewer than half of the matches, don't bother to run the hmm
-                return True
-        print '   %4d%4d' % (first_info['k_v'],second_info['k_v']),
-        print '   %4d%4d' % (first_info['k_d'],second_info['k_d']),
-        self.delta_k_v += abs(first_info['k_v'] - second_info['k_v'])
-        self.delta_k_d += abs(first_info['k_d'] - second_info['k_d'])
-        self.n_pairs += 1
-        print '   ',
-        return False
+    # # ----------------------------------------------------------------------------------------
+    # def have_different_gene_matches(self, query_name, second_query_name):
+    #     first_info = self.sw_info[query_name]
+    #     second_info = self.sw_info[second_query_name]
+    #     for region in utils.regions:
+    #         matches = list((gene for gene in first_info['all'].split(':') if ('IGH' + region.upper()) in gene))
+    #         second_matches = list((gene for gene in second_info['all'].split(':') if ('IGH' + region.upper()) in gene))
+    #         print region,
+    #         for im in range(min(len(matches), len(second_matches))):
+    #             if matches[im] == second_matches[im]:
+    #                 print '1',
+    #             else:
+    #                 print '0',
+    #         denominator = min(len(matches), len(second_matches))
+    #         n_in_common = len(set(matches).intersection(set(second_matches)))
+    #         frac_in_common = float(n_in_common) / denominator
+    #         self.fracs_in_common[region] += frac_in_common
+    #         # print '   %s %d/%d = %.2f' % (region, n_in_common, denominator, frac_in_common),
+    #         # if frac_in_common < 0.5:  # if, for any single region, the two queries share fewer than half of the matches, don't bother to run the hmm
+    #         #     return True
+    #     print '   %4d%4d' % (first_info['k_v'],second_info['k_v']),
+    #     print '   %4d%4d' % (first_info['k_d'],second_info['k_d']),
+    #     self.delta_k_v += abs(first_info['k_v'] - second_info['k_v'])
+    #     self.delta_k_d += abs(first_info['k_d'] - second_info['k_d'])
+    #     self.n_pairs += 1
+    #     print '   ',
+    #     return False
             
+    # ----------------------------------------------------------------------------------------
+    def get_score_index(self, query_name, second_query_name):
+        """
+        Return a hashable combination of the two query names that's the same if we reverse their order.
+        At the moment, just add 'em up.
+        """
+        if second_query_name == '':
+            second_query_name = '0'
+        return int(query_name) + int(second_query_name)
+
     # ----------------------------------------------------------------------------------------
     def read_sim_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
@@ -146,29 +165,44 @@ class PartitionDriver(object):
         # print 'hmm run time: %.3f' % (run_time - write_stop)
     
         if self.args.algorithm == 'viterbi':
-            try:  # most likely reason for failure is something got kicked into stderr besides the csv info
-                hmmreader = csv.DictReader(StringIO.StringIO(hmm_err))
-                for hmmline in hmmreader:
-                    matchlist.append(hmmline)
-                self.pair_scores[int(query_name) + int(second_query_name)] = 0  # just to keep track of that we did it already
-            except:
-                print 'ERR\n',hmm_err
-                sys.exit()
+            # try:  # most likely reason for failure is something got kicked into stderr besides the csv info
+            hmmreader = csv.DictReader(StringIO.StringIO(hmm_err))
+            for hmmline in hmmreader:
+                matchlist.append(hmmline)
+            self.pair_scores[self.get_score_index(query_name, second_query_name)] = 0  # just to keep track of the fact that we did it already
+            # except:
+            #     print 'ERR\n',hmm_err
+            #     sys.exit()
         elif self.args.algorithm == 'forward':
             total_score = float(hmm_err)  # TODO oh, right, I need to divide by the total prob of each individual sequence
             print '    total score: ',total_score
             assert total_score < 0.0 and total_score > -9999999.9
-            self.pair_scores[int(query_name) + int(second_query_name)] = total_score  # is that a hacky way to hash it so I can reverse the order and get the same entry? seems ok, I guess
+            self.pair_scores[self.get_score_index(query_name, second_query_name)] = total_score  # is that a hacky way to hash it so I can reverse the order and get the same entry? seems ok, I guess
             with opener('a')(self.pairscorefname) as pairscorefile:
                 pairscorefile.write('%s,%s,%f\n' % (query_name, second_query_name, total_score))
 
         return matchlist
     
     # ----------------------------------------------------------------------------------------
+    def write_specified_hmms(self, hmmdir, gene_list, v_right_length):
+        for gene in gene_list:
+            if len(re.findall('J[123]P', gene)) > 0:  # pretty sure these are crap
+                print '  poof'
+                continue
+            writer = HmmWriter(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
+                               hmmdir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
+            writer.write()
+
+    # ----------------------------------------------------------------------------------------
+    def write_all_hmms(self, v_right_length):
+        if not os.path.exists(self.default_hmm_dir):
+            os.makedirs(self.default_hmm_dir)
+        for region in utils.regions:
+            self.write_specified_hmms(self.default_hmm_dir, self.germline_seqs[region], v_right_length)
+
+    # ----------------------------------------------------------------------------------------
     def run_hmm(self, seqfname, query_name, second_query_name):
-        # start = time.time()
-        # read info from s-w
-                
+        # TODO dammit I'm still only using info from the first query
         all_gene_str = self.sw_info[query_name]['all']
         best_genes = self.sw_info[query_name]['best']
         k_v = self.sw_info[query_name]['k_v']
@@ -177,19 +211,14 @@ class PartitionDriver(object):
         d_fuzz = self.sw_info[query_name]['d_fuzz']
         v_right_length = self.sw_info[query_name]['v_right_length']
 
+        assert abs(v_right_length - self.default_v_right_length) < 5  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
+
+        hmmdir = self.default_hmm_dir
         # write hmm files
-        for gene in all_gene_str.split(':'):  # TODO note that this takes more time than actually running the hmm
-            writer = HmmWriter(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
-                               'bcell', gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
-            outfname = self.workdir + '/' + utils.sanitize_name(gene) + '.hmm'
-            if os.path.exists(outfname):
-                os.remove(outfname)
-            # os.mkfifo(outfname)  # what the hell? This is actually almost *twice* as *slow* with fifos instead of files
-            # thread.start_new_thread(writer.write, (outfname,))  # start a new thread so the fifo doesn't block
-            writer.write(outfname)
+        if self.args.write_hmms_on_fly:
+            hmmdir = self.workdir
+            self.write_specified_hmms(hmmdir, all_gene_str.split(':'), v_right_length)  # TODO note that this takes more time than actually running the hmm
     
-        # write_stop = time.time()
-        # print 'hmm write time: %.3f' % (write_stop - start)
         if self.args.algorithm == 'viterbi':
             print '\ninferred:'
     
@@ -209,7 +238,7 @@ class PartitionDriver(object):
         cmd_str += ' -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d)
         cmd_str += ' -v_fuzz ' + str(v_fuzz) + ' -d_fuzz ' + str(d_fuzz)
         cmd_str += ' -only_genes \'' + all_gene_str + '\''  # hm, wait, do I need these escaped quotes?
-        cmd_str += ' -hmmdir ' + self.workdir
+        cmd_str += ' -hmmdir ' + hmmdir
 
         matchlist = self.run_stochhmm(cmd_str, query_name, second_query_name)
 
@@ -346,6 +375,7 @@ class PartitionDriver(object):
                     d_fuzz = max(d_fuzz, 10)
                     
                 v_right_length = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
+                print v_right_length
 
                 assert query_name not in self.sw_info
                 self.sw_info[query_name] = {}

@@ -1,0 +1,1417 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.000246555474982
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+    IGHV4-59_star_03_167: 0.0000000001017628
+    IGHV4-59_star_03_168: 0.0000000003587568
+    IGHV4-59_star_03_169: 0.0000000012151766
+    IGHV4-59_star_03_170: 0.0000000039546393
+    IGHV4-59_star_03_171: 0.0000000123652410
+    IGHV4-59_star_03_172: 0.0000000371472369
+    IGHV4-59_star_03_173: 0.0000001072207069
+    IGHV4-59_star_03_174: 0.0000002973439030
+    IGHV4-59_star_03_175: 0.0000007922598183
+    IGHV4-59_star_03_176: 0.0000020281704132
+    IGHV4-59_star_03_177: 0.0000049884942584
+    IGHV4-59_star_03_178: 0.0000117886135522
+    IGHV4-59_star_03_179: 0.0000267660451550
+    IGHV4-59_star_03_180: 0.0000583893851627
+    IGHV4-59_star_03_181: 0.0001223803860319
+    IGHV4-59_star_03_182: 0.0002464438337130
+    IGHV4-59_star_03_183: 0.0004768176403286
+    IGHV4-59_star_03_184: 0.0008863696824539
+    IGHV4-59_star_03_185: 0.0015830903167144
+    IGHV4-59_star_03_186: 0.0027165938469403
+    IGHV4-59_star_03_187: 0.0044789060593036
+    IGHV4-59_star_03_188: 0.0070949185697769
+    IGHV4-59_star_03_189: 0.0107981933034452
+    IGHV4-59_star_03_190: 0.0157900316613598
+    IGHV4-59_star_03_191: 0.0221841669375503
+    IGHV4-59_star_03_192: 0.0299454931293886
+    IGHV4-59_star_03_193: 0.0388372109995473
+    IGHV4-59_star_03_194: 0.0483941449074481
+    IGHV4-59_star_03_195: 0.0579383105566298
+    IGHV4-59_star_03_196: 0.0666449205833444
+    IGHV4-59_star_03_197: 0.0736540280661733
+    IGHV4-59_star_03_198: 0.0782085388009405
+    IGHV4-59_star_03_199: 0.0797884560862540
+    IGHV4-59_star_03_200: 0.0782085388009405
+    IGHV4-59_star_03_201: 0.0736540280661733
+    IGHV4-59_star_03_202: 0.0666449205833444
+    IGHV4-59_star_03_203: 0.0579383105566298
+    IGHV4-59_star_03_204: 0.0483941449074481
+    IGHV4-59_star_03_205: 0.0388372109995473
+    IGHV4-59_star_03_206: 0.0299454931293886
+    IGHV4-59_star_03_207: 0.0221841669375503
+    IGHV4-59_star_03_208: 0.0157900316613598
+    IGHV4-59_star_03_209: 0.0107981933034452
+    IGHV4-59_star_03_210: 0.0070949185697769
+    IGHV4-59_star_03_211: 0.0044789060593036
+    IGHV4-59_star_03_212: 0.0027165938469403
+    IGHV4-59_star_03_213: 0.0015830903167144
+    IGHV4-59_star_03_214: 0.0008863696824539
+    IGHV4-59_star_03_215: 0.0004768176403286
+    IGHV4-59_star_03_216: 0.0002464438337130
+    IGHV4-59_star_03_217: 0.0001223803860319
+    IGHV4-59_star_03_218: 0.0000583893851627
+    IGHV4-59_star_03_219: 0.0000267660451550
+    IGHV4-59_star_03_220: 0.0000117886135522
+    IGHV4-59_star_03_221: 0.0000049884942584
+    IGHV4-59_star_03_222: 0.0000020281704132
+    IGHV4-59_star_03_223: 0.0000007922598183
+    IGHV4-59_star_03_224: 0.0000002973439030
+    IGHV4-59_star_03_225: 0.0000001072207069
+    IGHV4-59_star_03_226: 0.0000000371472369
+    IGHV4-59_star_03_227: 0.0000000123652410
+    IGHV4-59_star_03_228: 0.0000000039546393
+    IGHV4-59_star_03_229: 0.0000000012151766
+    IGHV4-59_star_03_230: 0.0000000003587568
+    IGHV4-59_star_03_231: 0.0000000001017628
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_167
+  PATH_LABEL:  IGHV4-59_star_03_167
+  GFF_DESC:    IGHV4-59_star_03_167
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_168:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_168
+  PATH_LABEL:  IGHV4-59_star_03_168
+  GFF_DESC:    IGHV4-59_star_03_168
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_169:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_169
+  PATH_LABEL:  IGHV4-59_star_03_169
+  GFF_DESC:    IGHV4-59_star_03_169
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_170:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_170
+  PATH_LABEL:  IGHV4-59_star_03_170
+  GFF_DESC:    IGHV4-59_star_03_170
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_171:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_171
+  PATH_LABEL:  IGHV4-59_star_03_171
+  GFF_DESC:    IGHV4-59_star_03_171
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_172:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_172
+  PATH_LABEL:  IGHV4-59_star_03_172
+  GFF_DESC:    IGHV4-59_star_03_172
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_173:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_173
+  PATH_LABEL:  IGHV4-59_star_03_173
+  GFF_DESC:    IGHV4-59_star_03_173
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_174:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_174
+  PATH_LABEL:  IGHV4-59_star_03_174
+  GFF_DESC:    IGHV4-59_star_03_174
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_175:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1666666666666667 0.1666666666666667 0.1666666666666667 0.5000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_175
+  PATH_LABEL:  IGHV4-59_star_03_175
+  GFF_DESC:    IGHV4-59_star_03_175
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_176:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.5000000000000000 0.1666666666666667 0.1666666666666667 0.1666666666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_176
+  PATH_LABEL:  IGHV4-59_star_03_176
+  GFF_DESC:    IGHV4-59_star_03_176
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_177:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_177
+  PATH_LABEL:  IGHV4-59_star_03_177
+  GFF_DESC:    IGHV4-59_star_03_177
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_178:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_178
+  PATH_LABEL:  IGHV4-59_star_03_178
+  GFF_DESC:    IGHV4-59_star_03_178
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_179:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_179
+  PATH_LABEL:  IGHV4-59_star_03_179
+  GFF_DESC:    IGHV4-59_star_03_179
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_180:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0666666666666667 0.8000000000000000 0.0666666666666667 0.0666666666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_180
+  PATH_LABEL:  IGHV4-59_star_03_180
+  GFF_DESC:    IGHV4-59_star_03_180
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_181:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0666666666666667 0.8000000000000000 0.0666666666666667 0.0666666666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_181
+  PATH_LABEL:  IGHV4-59_star_03_181
+  GFF_DESC:    IGHV4-59_star_03_181
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_182:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_182
+  PATH_LABEL:  IGHV4-59_star_03_182
+  GFF_DESC:    IGHV4-59_star_03_182
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_183:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_183
+  PATH_LABEL:  IGHV4-59_star_03_183
+  GFF_DESC:    IGHV4-59_star_03_183
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_184:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_184
+  PATH_LABEL:  IGHV4-59_star_03_184
+  GFF_DESC:    IGHV4-59_star_03_184
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_185:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_185
+  PATH_LABEL:  IGHV4-59_star_03_185
+  GFF_DESC:    IGHV4-59_star_03_185
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_186:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_186
+  PATH_LABEL:  IGHV4-59_star_03_186
+  GFF_DESC:    IGHV4-59_star_03_186
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_187:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_187
+  PATH_LABEL:  IGHV4-59_star_03_187
+  GFF_DESC:    IGHV4-59_star_03_187
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_188:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_188
+  PATH_LABEL:  IGHV4-59_star_03_188
+  GFF_DESC:    IGHV4-59_star_03_188
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_189:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0833333333333333 0.7500000000000000 0.0833333333333333 0.0833333333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_189
+  PATH_LABEL:  IGHV4-59_star_03_189
+  GFF_DESC:    IGHV4-59_star_03_189
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_190:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9500000000000000 0.0166666666666667 0.0166666666666667 0.0166666666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_190
+  PATH_LABEL:  IGHV4-59_star_03_190
+  GFF_DESC:    IGHV4-59_star_03_190
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_191:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8000000000000000 0.0666666666666667 0.0666666666666667 0.0666666666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_191
+  PATH_LABEL:  IGHV4-59_star_03_191
+  GFF_DESC:    IGHV4-59_star_03_191
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_192:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0068026666666667 0.0068026666666667 0.9795920000000000 0.0068026666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_192
+  PATH_LABEL:  IGHV4-59_star_03_192
+  GFF_DESC:    IGHV4-59_star_03_192
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_193:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_193
+  PATH_LABEL:  IGHV4-59_star_03_193
+  GFF_DESC:    IGHV4-59_star_03_193
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_194:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0062893333333333 0.0062893333333333 0.9811320000000000 0.0062893333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_194
+  PATH_LABEL:  IGHV4-59_star_03_194
+  GFF_DESC:    IGHV4-59_star_03_194
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_195:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0280703333333333 0.0280703333333333 0.0280703333333333 0.9157890000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_195
+  PATH_LABEL:  IGHV4-59_star_03_195
+  GFF_DESC:    IGHV4-59_star_03_195
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_196:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_196
+  PATH_LABEL:  IGHV4-59_star_03_196
+  GFF_DESC:    IGHV4-59_star_03_196
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_197:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_197
+  PATH_LABEL:  IGHV4-59_star_03_197
+  GFF_DESC:    IGHV4-59_star_03_197
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_198:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9470200000000000 0.0176600000000000 0.0176600000000000 0.0176600000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_198
+  PATH_LABEL:  IGHV4-59_star_03_198
+  GFF_DESC:    IGHV4-59_star_03_198
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_199:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0379746666666667 0.0379746666666667 0.8860760000000000 0.0379746666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_199
+  PATH_LABEL:  IGHV4-59_star_03_199
+  GFF_DESC:    IGHV4-59_star_03_199
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_200:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0093633333333333 0.0093633333333333 0.0093633333333333 0.9719100000000001
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_200
+  PATH_LABEL:  IGHV4-59_star_03_200
+  GFF_DESC:    IGHV4-59_star_03_200
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_201:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0008570000000000 0.9974290000000000 0.0008570000000000 0.0008570000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_201
+  PATH_LABEL:  IGHV4-59_star_03_201
+  GFF_DESC:    IGHV4-59_star_03_201
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_202:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9493670000000000 0.0168776666666667 0.0168776666666667 0.0168776666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_202
+  PATH_LABEL:  IGHV4-59_star_03_202
+  GFF_DESC:    IGHV4-59_star_03_202
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_203:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0197473333333333 0.9407580000000000 0.0197473333333333 0.0197473333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_203
+  PATH_LABEL:  IGHV4-59_star_03_203
+  GFF_DESC:    IGHV4-59_star_03_203
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_204:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0138890000000000 0.9583330000000000 0.0138890000000000 0.0138890000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_204
+  PATH_LABEL:  IGHV4-59_star_03_204
+  GFF_DESC:    IGHV4-59_star_03_204
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_205:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9235990000000001 0.0254670000000000 0.0254670000000000 0.0254670000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_205
+  PATH_LABEL:  IGHV4-59_star_03_205
+  GFF_DESC:    IGHV4-59_star_03_205
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_206:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0077520000000000 0.0077520000000000 0.0077520000000000 0.9767440000000001
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_206
+  PATH_LABEL:  IGHV4-59_star_03_206
+  GFF_DESC:    IGHV4-59_star_03_206
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_207:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.6657500000000001 0.1114166666666667 0.1114166666666667 0.1114166666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_207
+  PATH_LABEL:  IGHV4-59_star_03_207
+  GFF_DESC:    IGHV4-59_star_03_207
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_208:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0073440000000000 0.0073440000000000 0.0073440000000000 0.9779679999999999
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_208
+  PATH_LABEL:  IGHV4-59_star_03_208
+  GFF_DESC:    IGHV4-59_star_03_208
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_209:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0103666666666667 0.9689000000000000 0.0103666666666667 0.0103666666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_209
+  PATH_LABEL:  IGHV4-59_star_03_209
+  GFF_DESC:    IGHV4-59_star_03_209
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_210:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8629830000000001 0.0456723333333333 0.0456723333333333 0.0456723333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_210
+  PATH_LABEL:  IGHV4-59_star_03_210
+  GFF_DESC:    IGHV4-59_star_03_210
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_211:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1078120000000000 0.1078120000000000 0.6765639999999999 0.1078120000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_211
+  PATH_LABEL:  IGHV4-59_star_03_211
+  GFF_DESC:    IGHV4-59_star_03_211
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_212:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0602450000000000 0.0602450000000000 0.0602450000000000 0.8192650000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_212
+  PATH_LABEL:  IGHV4-59_star_03_212
+  GFF_DESC:    IGHV4-59_star_03_212
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_213:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.7253140000000000 0.0915620000000000 0.0915620000000000 0.0915620000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_213
+  PATH_LABEL:  IGHV4-59_star_03_213
+  GFF_DESC:    IGHV4-59_star_03_213
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_214:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0062786666666667 0.0062786666666667 0.9811640000000000 0.0062786666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_214
+  PATH_LABEL:  IGHV4-59_star_03_214
+  GFF_DESC:    IGHV4-59_star_03_214
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_215:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9761700000000000 0.0079433333333333 0.0079433333333333 0.0079433333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_215
+  PATH_LABEL:  IGHV4-59_star_03_215
+  GFF_DESC:    IGHV4-59_star_03_215
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_216:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0094086666666667 0.9717740000000000 0.0094086666666667 0.0094086666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_216
+  PATH_LABEL:  IGHV4-59_star_03_216
+  GFF_DESC:    IGHV4-59_star_03_216
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_217:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9317270000000000 0.0227576666666667 0.0227576666666667 0.0227576666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_217
+  PATH_LABEL:  IGHV4-59_star_03_217
+  GFF_DESC:    IGHV4-59_star_03_217
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_218:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0179610000000000 0.9461170000000000 0.0179610000000000 0.0179610000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_218
+  PATH_LABEL:  IGHV4-59_star_03_218
+  GFF_DESC:    IGHV4-59_star_03_218
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_219:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0218536666666667 0.0218536666666667 0.9344390000000000 0.0218536666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_219
+  PATH_LABEL:  IGHV4-59_star_03_219
+  GFF_DESC:    IGHV4-59_star_03_219
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_220:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0198266666666667 0.0198266666666667 0.0198266666666667 0.9405200000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_220
+  PATH_LABEL:  IGHV4-59_star_03_220
+  GFF_DESC:    IGHV4-59_star_03_220
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_221:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0056456666666667 0.9830630000000000 0.0056456666666667 0.0056456666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_221
+  PATH_LABEL:  IGHV4-59_star_03_221
+  GFF_DESC:    IGHV4-59_star_03_221
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_222:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0283740000000000 0.9148780000000000 0.0283740000000000 0.0283740000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_222
+  PATH_LABEL:  IGHV4-59_star_03_222
+  GFF_DESC:    IGHV4-59_star_03_222
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_223:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9609100000000000 0.0130300000000000 0.0130300000000000 0.0130300000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_223
+  PATH_LABEL:  IGHV4-59_star_03_223
+  GFF_DESC:    IGHV4-59_star_03_223
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_224:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9032490000000000 0.0322503333333333 0.0322503333333333 0.0322503333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_224
+  PATH_LABEL:  IGHV4-59_star_03_224
+  GFF_DESC:    IGHV4-59_star_03_224
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_225:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0298233333333333 0.0298233333333333 0.9105300000000001 0.0298233333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_225
+  PATH_LABEL:  IGHV4-59_star_03_225
+  GFF_DESC:    IGHV4-59_star_03_225
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_226:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9447100000000000 0.0184300000000000 0.0184300000000000 0.0184300000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_226
+  PATH_LABEL:  IGHV4-59_star_03_226
+  GFF_DESC:    IGHV4-59_star_03_226
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_227:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8639460000000000 0.0453513333333333 0.0453513333333333 0.0453513333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_227
+  PATH_LABEL:  IGHV4-59_star_03_227
+  GFF_DESC:    IGHV4-59_star_03_227
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_228:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0879193333333333 0.7362420000000001 0.0879193333333333 0.0879193333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_228
+  PATH_LABEL:  IGHV4-59_star_03_228
+  GFF_DESC:    IGHV4-59_star_03_228
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_229:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0184566666666667 0.9446300000000000 0.0184566666666667 0.0184566666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_229
+  PATH_LABEL:  IGHV4-59_star_03_229
+  GFF_DESC:    IGHV4-59_star_03_229
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_230:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9412930000000000 0.0195690000000000 0.0195690000000000 0.0195690000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_230
+  PATH_LABEL:  IGHV4-59_star_03_230
+  GFF_DESC:    IGHV4-59_star_03_230
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_231:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_231
+  PATH_LABEL:  IGHV4-59_star_03_231
+  GFF_DESC:    IGHV4-59_star_03_231
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_232:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0723023333333333 0.0723023333333333 0.0723023333333333 0.7830930000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_232
+  PATH_LABEL:  IGHV4-59_star_03_232
+  GFF_DESC:    IGHV4-59_star_03_232
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_233:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0089560000000000 0.0089560000000000 0.0089560000000000 0.9731320000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_233
+  PATH_LABEL:  IGHV4-59_star_03_233
+  GFF_DESC:    IGHV4-59_star_03_233
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_234:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0327653333333333 0.9017040000000001 0.0327653333333333 0.0327653333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_234
+  PATH_LABEL:  IGHV4-59_star_03_234
+  GFF_DESC:    IGHV4-59_star_03_234
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_235:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0131060000000000 0.0131060000000000 0.0131060000000000 0.9606820000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_235
+  PATH_LABEL:  IGHV4-59_star_03_235
+  GFF_DESC:    IGHV4-59_star_03_235
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_236:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0307993333333333 0.9076020000000000 0.0307993333333333 0.0307993333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_236
+  PATH_LABEL:  IGHV4-59_star_03_236
+  GFF_DESC:    IGHV4-59_star_03_236
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_237:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0104850000000000 0.9685450000000000 0.0104850000000000 0.0104850000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_237
+  PATH_LABEL:  IGHV4-59_star_03_237
+  GFF_DESC:    IGHV4-59_star_03_237
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_238:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0131060000000000 0.9606820000000000 0.0131060000000000 0.0131060000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_238
+  PATH_LABEL:  IGHV4-59_star_03_238
+  GFF_DESC:    IGHV4-59_star_03_238
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_239:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0034950000000000 0.0034950000000000 0.0034950000000000 0.9895150000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_239
+  PATH_LABEL:  IGHV4-59_star_03_239
+  GFF_DESC:    IGHV4-59_star_03_239
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_240:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0139800000000000 0.0139800000000000 0.9580600000000000 0.0139800000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_240
+  PATH_LABEL:  IGHV4-59_star_03_240
+  GFF_DESC:    IGHV4-59_star_03_240
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_241:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9075410000000000 0.0308196666666667 0.0308196666666667 0.0308196666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_241
+  PATH_LABEL:  IGHV4-59_star_03_241
+  GFF_DESC:    IGHV4-59_star_03_241
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_242:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.7209460000000000 0.0930180000000000 0.0930180000000000 0.0930180000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_242
+  PATH_LABEL:  IGHV4-59_star_03_242
+  GFF_DESC:    IGHV4-59_star_03_242
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_243:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1327200000000000 0.1327200000000000 0.6018399999999999 0.1327200000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_243
+  PATH_LABEL:  IGHV4-59_star_03_243
+  GFF_DESC:    IGHV4-59_star_03_243
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_244:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0744633333333333 0.7766100000000000 0.0744633333333333 0.0744633333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_244
+  PATH_LABEL:  IGHV4-59_star_03_244
+  GFF_DESC:    IGHV4-59_star_03_244
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_245:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0067893333333333 0.0067893333333333 0.0067893333333333 0.9796319999999999
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_245
+  PATH_LABEL:  IGHV4-59_star_03_245
+  GFF_DESC:    IGHV4-59_star_03_245
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_246:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0173133333333333 0.0173133333333333 0.9480600000000000 0.0173133333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_246
+  PATH_LABEL:  IGHV4-59_star_03_246
+  GFF_DESC:    IGHV4-59_star_03_246
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_247:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9184750000000000 0.0271750000000000 0.0271750000000000 0.0271750000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_247
+  PATH_LABEL:  IGHV4-59_star_03_247
+  GFF_DESC:    IGHV4-59_star_03_247
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_248:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1860873333333334 0.1860873333333334 0.4417380000000000 0.1860873333333334
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_248
+  PATH_LABEL:  IGHV4-59_star_03_248
+  GFF_DESC:    IGHV4-59_star_03_248
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_249:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0847083333333333 0.7458750000000001 0.0847083333333333 0.0847083333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_249
+  PATH_LABEL:  IGHV4-59_star_03_249
+  GFF_DESC:    IGHV4-59_star_03_249
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_250:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0156216666666667 0.0156216666666667 0.0156216666666667 0.9531350000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_250
+  PATH_LABEL:  IGHV4-59_star_03_250
+  GFF_DESC:    IGHV4-59_star_03_250
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_251:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0088010000000000 0.9735970000000000 0.0088010000000000 0.0088010000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_251
+  PATH_LABEL:  IGHV4-59_star_03_251
+  GFF_DESC:    IGHV4-59_star_03_251
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_252:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0270626666666667 0.0270626666666667 0.0270626666666667 0.9188120000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_252
+  PATH_LABEL:  IGHV4-59_star_03_252
+  GFF_DESC:    IGHV4-59_star_03_252
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_253:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0180416666666667 0.0180416666666667 0.9458750000000000 0.0180416666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_253
+  PATH_LABEL:  IGHV4-59_star_03_253
+  GFF_DESC:    IGHV4-59_star_03_253
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_254:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0173816666666667 0.0173816666666667 0.0173816666666667 0.9478550000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_254
+  PATH_LABEL:  IGHV4-59_star_03_254
+  GFF_DESC:    IGHV4-59_star_03_254
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_255:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0121013333333333 0.0121013333333333 0.9636960000000000 0.0121013333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_255
+  PATH_LABEL:  IGHV4-59_star_03_255
+  GFF_DESC:    IGHV4-59_star_03_255
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_256:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9636720000000000 0.0121093333333333 0.0121093333333333 0.0121093333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_256
+  PATH_LABEL:  IGHV4-59_star_03_256
+  GFF_DESC:    IGHV4-59_star_03_256
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_257:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0147610000000000 0.9557170000000000 0.0147610000000000 0.0147610000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_257
+  PATH_LABEL:  IGHV4-59_star_03_257
+  GFF_DESC:    IGHV4-59_star_03_257
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_258:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0088126666666667 0.9735620000000000 0.0088126666666667 0.0088126666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_258
+  PATH_LABEL:  IGHV4-59_star_03_258
+  GFF_DESC:    IGHV4-59_star_03_258
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_259:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0343916666666667 0.0343916666666667 0.8968250000000000 0.0343916666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_259
+  PATH_LABEL:  IGHV4-59_star_03_259
+  GFF_DESC:    IGHV4-59_star_03_259
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_260:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0066180000000000 0.9801460000000000 0.0066180000000000 0.0066180000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_260
+  PATH_LABEL:  IGHV4-59_star_03_260
+  GFF_DESC:    IGHV4-59_star_03_260
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_261:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0026490000000000 0.0026490000000000 0.0026490000000000 0.9920530000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_261
+  PATH_LABEL:  IGHV4-59_star_03_261
+  GFF_DESC:    IGHV4-59_star_03_261
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_262:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0083886666666667 0.0083886666666667 0.9748340000000000 0.0083886666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_262
+  PATH_LABEL:  IGHV4-59_star_03_262
+  GFF_DESC:    IGHV4-59_star_03_262
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_263:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0057396666666667 0.9827810000000000 0.0057396666666667 0.0057396666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_263
+  PATH_LABEL:  IGHV4-59_star_03_263
+  GFF_DESC:    IGHV4-59_star_03_263
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_264:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0245033333333333 0.0245033333333333 0.9264900000000000 0.0245033333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_264
+  PATH_LABEL:  IGHV4-59_star_03_264
+  GFF_DESC:    IGHV4-59_star_03_264
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_265:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0028736666666667 0.0028736666666667 0.9913790000000000 0.0028736666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_265
+  PATH_LABEL:  IGHV4-59_star_03_265
+  GFF_DESC:    IGHV4-59_star_03_265
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_266:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9933689999999999 0.0022103333333333 0.0022103333333333 0.0022103333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_266
+  PATH_LABEL:  IGHV4-59_star_03_266
+  GFF_DESC:    IGHV4-59_star_03_266
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_267:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0046450000000000 0.9860650000000000 0.0046450000000000 0.0046450000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_267
+  PATH_LABEL:  IGHV4-59_star_03_267
+  GFF_DESC:    IGHV4-59_star_03_267
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_268:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9568390000000000 0.0143870000000000 0.0143870000000000 0.0143870000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_268
+  PATH_LABEL:  IGHV4-59_star_03_268
+  GFF_DESC:    IGHV4-59_star_03_268
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_269:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0068613333333333 0.9794160000000000 0.0068613333333333 0.0068613333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_269
+  PATH_LABEL:  IGHV4-59_star_03_269
+  GFF_DESC:    IGHV4-59_star_03_269
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_270:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0081893333333333 0.0081893333333333 0.9754320000000000 0.0081893333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_270
+  PATH_LABEL:  IGHV4-59_star_03_270
+  GFF_DESC:    IGHV4-59_star_03_270
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_271:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0019946666666667 0.0019946666666667 0.9940160000000000 0.0019946666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_271
+  PATH_LABEL:  IGHV4-59_star_03_271
+  GFF_DESC:    IGHV4-59_star_03_271
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_272:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0131200000000000 0.9606400000000000 0.0131200000000000 0.0131200000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_272
+  PATH_LABEL:  IGHV4-59_star_03_272
+  GFF_DESC:    IGHV4-59_star_03_272
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_273:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0033356666666667 0.9899930000000000 0.0033356666666667 0.0033356666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_273
+  PATH_LABEL:  IGHV4-59_star_03_273
+  GFF_DESC:    IGHV4-59_star_03_273
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_274:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0580386666666667 0.0580386666666667 0.8258840000000001 0.0580386666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_274
+  PATH_LABEL:  IGHV4-59_star_03_274
+  GFF_DESC:    IGHV4-59_star_03_274
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_275:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0071206666666667 0.0071206666666667 0.0071206666666667 0.9786380000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_275
+  PATH_LABEL:  IGHV4-59_star_03_275
+  GFF_DESC:    IGHV4-59_star_03_275
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_276:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1623190000000000 0.1623190000000000 0.5130430000000000 0.1623190000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_276
+  PATH_LABEL:  IGHV4-59_star_03_276
+  GFF_DESC:    IGHV4-59_star_03_276
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_277:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0026953333333333 0.0026953333333333 0.0026953333333333 0.9919140000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_277
+  PATH_LABEL:  IGHV4-59_star_03_277
+  GFF_DESC:    IGHV4-59_star_03_277
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_278:  0.8235294117647058
+  END: 0.1764705882352941
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9716600000000000 0.0094466666666667 0.0094466666666667 0.0094466666666667
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_278
+  PATH_LABEL:  IGHV4-59_star_03_278
+  GFF_DESC:    IGHV4-59_star_03_278
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_279:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0146443333333333 0.0146443333333333 0.0146443333333333 0.9560670000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_279
+  PATH_LABEL:  IGHV4-59_star_03_279
+  GFF_DESC:    IGHV4-59_star_03_279
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_280:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0100303333333333 0.0100303333333333 0.0100303333333333 0.9699090000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_280
+  PATH_LABEL:  IGHV4-59_star_03_280
+  GFF_DESC:    IGHV4-59_star_03_280
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_281:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8482710000000000 0.0505763333333333 0.0505763333333333 0.0505763333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_281
+  PATH_LABEL:  IGHV4-59_star_03_281
+  GFF_DESC:    IGHV4-59_star_03_281
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_282:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0656280000000000 0.8031159999999999 0.0656280000000000 0.0656280000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_282
+  PATH_LABEL:  IGHV4-59_star_03_282
+  GFF_DESC:    IGHV4-59_star_03_282
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_283:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0021276666666667 0.0021276666666667 0.0021276666666667 0.9936170000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_283
+  PATH_LABEL:  IGHV4-59_star_03_283
+  GFF_DESC:    IGHV4-59_star_03_283
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_284:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0014213333333333 0.0014213333333333 0.9957360000000000 0.0014213333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_284
+  PATH_LABEL:  IGHV4-59_star_03_284
+  GFF_DESC:    IGHV4-59_star_03_284
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_285:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0107913333333333 0.0107913333333333 0.0107913333333333 0.9676260000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_285
+  PATH_LABEL:  IGHV4-59_star_03_285
+  GFF_DESC:    IGHV4-59_star_03_285
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_286:  0.9294117647058824
+  END: 0.0705882352941176
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0034543333333333 0.0034543333333333 0.9896370000000000 0.0034543333333333
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_286
+  PATH_LABEL:  IGHV4-59_star_03_286
+  GFF_DESC:    IGHV4-59_star_03_286
+TRANSITION: STANDARD: P(X)
+  IGHV4-59_star_03_287:  0.9058823529411765
+  END: 0.0941176470588235
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV4-59_star_03_287
+  PATH_LABEL:  IGHV4-59_star_03_287
+  GFF_DESC:    IGHV4-59_star_03_287
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+//END

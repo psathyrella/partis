@@ -1,0 +1,1419 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.000150833937636
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_173: 0.0000000001017628
+  IGHV3_slash_OR16-13_star_91_174: 0.0000000003587568
+  IGHV3_slash_OR16-13_star_91_175: 0.0000000012151766
+  IGHV3_slash_OR16-13_star_91_176: 0.0000000039546393
+  IGHV3_slash_OR16-13_star_91_177: 0.0000000123652410
+  IGHV3_slash_OR16-13_star_91_178: 0.0000000371472369
+  IGHV3_slash_OR16-13_star_91_179: 0.0000001072207069
+  IGHV3_slash_OR16-13_star_91_180: 0.0000002973439030
+  IGHV3_slash_OR16-13_star_91_181: 0.0000007922598183
+  IGHV3_slash_OR16-13_star_91_182: 0.0000020281704132
+  IGHV3_slash_OR16-13_star_91_183: 0.0000049884942584
+  IGHV3_slash_OR16-13_star_91_184: 0.0000117886135522
+  IGHV3_slash_OR16-13_star_91_185: 0.0000267660451550
+  IGHV3_slash_OR16-13_star_91_186: 0.0000583893851627
+  IGHV3_slash_OR16-13_star_91_187: 0.0001223803860319
+  IGHV3_slash_OR16-13_star_91_188: 0.0002464438337130
+  IGHV3_slash_OR16-13_star_91_189: 0.0004768176403286
+  IGHV3_slash_OR16-13_star_91_190: 0.0008863696824539
+  IGHV3_slash_OR16-13_star_91_191: 0.0015830903167144
+  IGHV3_slash_OR16-13_star_91_192: 0.0027165938469403
+  IGHV3_slash_OR16-13_star_91_193: 0.0044789060593036
+  IGHV3_slash_OR16-13_star_91_194: 0.0070949185697769
+  IGHV3_slash_OR16-13_star_91_195: 0.0107981933034452
+  IGHV3_slash_OR16-13_star_91_196: 0.0157900316613598
+  IGHV3_slash_OR16-13_star_91_197: 0.0221841669375503
+  IGHV3_slash_OR16-13_star_91_198: 0.0299454931293886
+  IGHV3_slash_OR16-13_star_91_199: 0.0388372109995473
+  IGHV3_slash_OR16-13_star_91_200: 0.0483941449074481
+  IGHV3_slash_OR16-13_star_91_201: 0.0579383105566298
+  IGHV3_slash_OR16-13_star_91_202: 0.0666449205833444
+  IGHV3_slash_OR16-13_star_91_203: 0.0736540280661733
+  IGHV3_slash_OR16-13_star_91_204: 0.0782085388009405
+  IGHV3_slash_OR16-13_star_91_205: 0.0797884560862540
+  IGHV3_slash_OR16-13_star_91_206: 0.0782085388009405
+  IGHV3_slash_OR16-13_star_91_207: 0.0736540280661733
+  IGHV3_slash_OR16-13_star_91_208: 0.0666449205833444
+  IGHV3_slash_OR16-13_star_91_209: 0.0579383105566298
+  IGHV3_slash_OR16-13_star_91_210: 0.0483941449074481
+  IGHV3_slash_OR16-13_star_91_211: 0.0388372109995473
+  IGHV3_slash_OR16-13_star_91_212: 0.0299454931293886
+  IGHV3_slash_OR16-13_star_91_213: 0.0221841669375503
+  IGHV3_slash_OR16-13_star_91_214: 0.0157900316613598
+  IGHV3_slash_OR16-13_star_91_215: 0.0107981933034452
+  IGHV3_slash_OR16-13_star_91_216: 0.0070949185697769
+  IGHV3_slash_OR16-13_star_91_217: 0.0044789060593036
+  IGHV3_slash_OR16-13_star_91_218: 0.0027165938469403
+  IGHV3_slash_OR16-13_star_91_219: 0.0015830903167144
+  IGHV3_slash_OR16-13_star_91_220: 0.0008863696824539
+  IGHV3_slash_OR16-13_star_91_221: 0.0004768176403286
+  IGHV3_slash_OR16-13_star_91_222: 0.0002464438337130
+  IGHV3_slash_OR16-13_star_91_223: 0.0001223803860319
+  IGHV3_slash_OR16-13_star_91_224: 0.0000583893851627
+  IGHV3_slash_OR16-13_star_91_225: 0.0000267660451550
+  IGHV3_slash_OR16-13_star_91_226: 0.0000117886135522
+  IGHV3_slash_OR16-13_star_91_227: 0.0000049884942584
+  IGHV3_slash_OR16-13_star_91_228: 0.0000020281704132
+  IGHV3_slash_OR16-13_star_91_229: 0.0000007922598183
+  IGHV3_slash_OR16-13_star_91_230: 0.0000002973439030
+  IGHV3_slash_OR16-13_star_91_231: 0.0000001072207069
+  IGHV3_slash_OR16-13_star_91_232: 0.0000000371472369
+  IGHV3_slash_OR16-13_star_91_233: 0.0000000123652410
+  IGHV3_slash_OR16-13_star_91_234: 0.0000000039546393
+  IGHV3_slash_OR16-13_star_91_235: 0.0000000012151766
+  IGHV3_slash_OR16-13_star_91_236: 0.0000000003587568
+  IGHV3_slash_OR16-13_star_91_237: 0.0000000001017628
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_173
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_173
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_173
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_174:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_174
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_174
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_174
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_175:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_175
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_175
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_175
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_176:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_176
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_176
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_176
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_177:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_177
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_177
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_177
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_178:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_178
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_178
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_178
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_179:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_179
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_179
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_179
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_180:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.3333333333333333 0.0000000000000000 0.3333333333333333 0.3333333333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_180
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_180
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_180
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_181:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0238096666666667 0.0238096666666667 0.9285710000000000 0.0238096666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_181
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_181
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_181
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_182:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_182
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_182
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_182
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_183:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_183
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_183
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_183
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_184:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_184
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_184
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_184
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_185:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9230770000000000 0.0256410000000000 0.0256410000000000 0.0256410000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_185
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_185
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_185
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_186:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0238096666666667 0.9285710000000000 0.0238096666666667 0.0238096666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_186
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_186
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_186
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_187:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0119046666666667 0.0119046666666667 0.0119046666666667 0.9642860000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_187
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_187
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_187
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_188:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_188
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_188
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_188
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_189:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.2716050000000000 0.1851850000000000 0.2716050000000000 0.2716050000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_189
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_189
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_189
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_190:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0769230000000000 0.3076923333333333 0.3076923333333333 0.3076923333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_190
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_190
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_190
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_191:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0090090000000000 0.0090090000000000 0.0090090000000000 0.9729730000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_191
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_191
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_191
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_192:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0075756666666667 0.0075756666666667 0.9772729999999999 0.0075756666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_192
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_192
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_192
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_193:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9200000000000000 0.0266666666666667 0.0266666666666667 0.0266666666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_193
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_193
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_193
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_194:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_194
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_194
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_194
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_195:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0046950000000000 0.0046950000000000 0.9859150000000000 0.0046950000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_195
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_195
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_195
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_196:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_196
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_196
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_196
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_197:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0114943333333333 0.0114943333333333 0.9655170000000000 0.0114943333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_197
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_197
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_197
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_198:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0070176666666667 0.9789470000000000 0.0070176666666667 0.0070176666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_198
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_198
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_198
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_199:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0070176666666667 0.9789470000000000 0.0070176666666667 0.0070176666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_199
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_199
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_199
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_200:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0744680000000000 0.3085106666666667 0.3085106666666667 0.3085106666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_200
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_200
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_200
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_201:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9551280000000000 0.0149573333333333 0.0149573333333333 0.0149573333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_201
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_201
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_201
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_202:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0209523333333333 0.0209523333333333 0.0209523333333333 0.9371430000000001
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_202
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_202
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_202
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_203:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0018416666666667 0.0018416666666667 0.0018416666666667 0.9944750000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_203
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_203
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_203
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_204:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0345423333333333 0.8963730000000000 0.0345423333333333 0.0345423333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_204
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_204
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_204
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_205:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9666669999999999 0.0111110000000000 0.0111110000000000 0.0111110000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_205
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_205
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_205
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_206:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0078616666666667 0.9764150000000000 0.0078616666666667 0.0078616666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_206
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_206
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_206
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_207:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.3026113333333333 0.0921660000000000 0.3026113333333333 0.3026113333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_207
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_207
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_207
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_208:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8315410000000000 0.0561530000000000 0.0561530000000000 0.0561530000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_208
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_208
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_208
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_209:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0072916666666667 0.0072916666666667 0.0072916666666667 0.9781250000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_209
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_209
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_209
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_210:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0185186666666667 0.9444440000000000 0.0185186666666667 0.0185186666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_210
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_210
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_210
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_211:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0306906666666667 0.0306906666666667 0.0306906666666667 0.9079280000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_211
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_211
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_211
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_212:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0208836666666667 0.9373490000000000 0.0208836666666667 0.0208836666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_212
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_212
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_212
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_213:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0049963333333333 0.9850110000000000 0.0049963333333333 0.0049963333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_213
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_213
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_213
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_214:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9821430000000000 0.0059523333333333 0.0059523333333333 0.0059523333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_214
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_214
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_214
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_215:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0095400000000000 0.0095400000000000 0.9713800000000000 0.0095400000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_215
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_215
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_215
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_216:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9446110000000000 0.0184630000000000 0.0184630000000000 0.0184630000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_216
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_216
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_216
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_217:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0198246666666667 0.0198246666666667 0.9405260000000000 0.0198246666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_217
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_217
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_217
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_218:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9612820000000000 0.0129060000000000 0.0129060000000000 0.0129060000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_218
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_218
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_218
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_219:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0068376666666667 0.9794870000000000 0.0068376666666667 0.0068376666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_219
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_219
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_219
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_220:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9518520000000000 0.0160493333333333 0.0160493333333333 0.0160493333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_220
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_220
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_220
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_221:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8282710000000000 0.0572430000000000 0.0572430000000000 0.0572430000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_221
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_221
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_221
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_222:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0320813333333333 0.0320813333333333 0.0320813333333333 0.9037560000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_222
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_222
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_222
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_223:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.3005080000000000 0.3005080000000000 0.0984760000000000 0.3005080000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_223
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_223
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_223
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_224:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0184466666666667 0.9446600000000001 0.0184466666666667 0.0184466666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_224
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_224
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_224
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_225:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0266413333333333 0.0266413333333333 0.0266413333333333 0.9200760000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_225
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_225
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_225
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_226:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8566279999999999 0.0477906666666667 0.0477906666666667 0.0477906666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_226
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_226
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_226
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_227:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9610620000000000 0.0129793333333333 0.0129793333333333 0.0129793333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_227
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_227
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_227
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_228:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0086956666666667 0.0086956666666667 0.9739130000000000 0.0086956666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_228
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_228
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_228
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_229:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9610050000000000 0.0129983333333333 0.0129983333333333 0.0129983333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_229
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_229
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_229
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_230:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1032090000000000 0.2989303333333334 0.2989303333333334 0.2989303333333334
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_230
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_230
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_230
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_231:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0469946666666667 0.8590160000000000 0.0469946666666667 0.0469946666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_231
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_231
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_231
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_232:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9170090000000000 0.0276636666666667 0.0276636666666667 0.0276636666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_232
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_232
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_232
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_233:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.3106743333333333 0.0679770000000000 0.3106743333333333 0.3106743333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_233
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_233
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_233
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_234:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0457820000000000 0.0457820000000000 0.8626540000000000 0.0457820000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_234
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_234
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_234
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_235:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0696296666666667 0.7911110000000000 0.0696296666666667 0.0696296666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_235
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_235
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_235
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_236:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0071480000000000 0.0071480000000000 0.0071480000000000 0.9785560000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_236
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_236
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_236
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_237:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0143393333333333 0.9569820000000000 0.0143393333333333 0.0143393333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_237
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_237
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_237
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_238:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0216153333333333 0.0216153333333333 0.0216153333333333 0.9351540000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_238
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_238
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_238
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_239:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.7634110000000001 0.0788630000000000 0.0788630000000000 0.0788630000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_239
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_239
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_239
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_240:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0135410000000000 0.0135410000000000 0.0135410000000000 0.9593770000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_240
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_240
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_240
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_241:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0323860000000000 0.9028420000000000 0.0323860000000000 0.0323860000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_241
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_241
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_241
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_242:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0157600000000000 0.0157600000000000 0.0157600000000000 0.9527200000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_242
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_242
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_242
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_243:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0293300000000000 0.0293300000000000 0.9120100000000000 0.0293300000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_243
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_243
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_243
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_244:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0166773333333333 0.9499680000000000 0.0166773333333333 0.0166773333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_244
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_244
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_244
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_245:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9628930000000000 0.0123690000000000 0.0123690000000000 0.0123690000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_245
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_245
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_245
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_246:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8819490000000000 0.0393503333333333 0.0393503333333333 0.0393503333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_246
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_246
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_246
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_247:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9016700000000000 0.0327766666666667 0.0327766666666667 0.0327766666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_247
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_247
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_247
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_248:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0188336666666667 0.0188336666666667 0.0188336666666667 0.9434990000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_248
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_248
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_248
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_249:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0074836666666667 0.0074836666666667 0.9775490000000000 0.0074836666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_249
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_249
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_249
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_250:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0058800000000000 0.0058800000000000 0.9823600000000000 0.0058800000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_250
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_250
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_250
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_251:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9243700000000000 0.0252100000000000 0.0252100000000000 0.0252100000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_251
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_251
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_251
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_252:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0057780000000000 0.9826660000000000 0.0057780000000000 0.0057780000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_252
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_252
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_252
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_253:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9273050000000000 0.0242316666666667 0.0242316666666667 0.0242316666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_253
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_253
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_253
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_254:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0116550000000000 0.0116550000000000 0.9650350000000000 0.0116550000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_254
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_254
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_254
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_255:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0132476666666667 0.0132476666666667 0.0132476666666667 0.9602570000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_255
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_255
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_255
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_256:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0063953333333333 0.9808140000000000 0.0063953333333333 0.0063953333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_256
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_256
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_256
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_257:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0138810000000000 0.0138810000000000 0.0138810000000000 0.9583570000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_257
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_257
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_257
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_258:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0163776666666667 0.0163776666666667 0.9508670000000000 0.0163776666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_258
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_258
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_258
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_259:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9464590000000001 0.0178470000000000 0.0178470000000000 0.0178470000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_259
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_259
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_259
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_260:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8890169999999999 0.0369943333333333 0.0369943333333333 0.0369943333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_260
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_260
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_260
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_261:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9195400000000000 0.0268200000000000 0.0268200000000000 0.0268200000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_261
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_261
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_261
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_262:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.1088746666666667 0.1088746666666667 0.6733760000000000 0.1088746666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_262
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_262
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_262
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_263:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0980280000000000 0.7059160000000000 0.0980280000000000 0.0980280000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_263
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_263
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_263
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_264:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0332376666666667 0.0332376666666667 0.0332376666666667 0.9002870000000001
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_264
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_264
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_264
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_265:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8171920000000000 0.0609360000000000 0.0609360000000000 0.0609360000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_265
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_265
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_265
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_266:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9396700000000000 0.0201100000000000 0.0201100000000000 0.0201100000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_266
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_266
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_266
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_267:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0383230000000000 0.0383230000000000 0.8850310000000000 0.0383230000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_267
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_267
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_267
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_268:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0058713333333333 0.0058713333333333 0.9823860000000000 0.0058713333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_268
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_268
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_268
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_269:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9466820000000000 0.0177726666666667 0.0177726666666667 0.0177726666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_269
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_269
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_269
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_270:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0122896666666667 0.9631310000000000 0.0122896666666667 0.0122896666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_270
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_270
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_270
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_271:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9534620000000000 0.0155126666666667 0.0155126666666667 0.0155126666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_271
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_271
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_271
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_272:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0117423333333333 0.9647730000000000 0.0117423333333333 0.0117423333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_272
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_272
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_272
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_273:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0043633333333333 0.0043633333333333 0.9869100000000000 0.0043633333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_273
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_273
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_273
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_274:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0066363333333333 0.0066363333333333 0.9800910000000000 0.0066363333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_274
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_274
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_274
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_275:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0037923333333333 0.9886230000000000 0.0037923333333333 0.0037923333333333
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_275
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_275
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_275
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_276:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0011586666666667 0.9965240000000000 0.0011586666666667 0.0011586666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_276
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_276
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_276
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_277:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9748100000000000 0.0083966666666667 0.0083966666666667 0.0083966666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_277
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_277
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_277
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_278:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0186036666666667 0.0186036666666667 0.0186036666666667 0.9441889999999999
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_278
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_278
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_278
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_279:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0497280000000000 0.0497280000000000 0.8508160000000000 0.0497280000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_279
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_279
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_279
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_280:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0347793333333333 0.0347793333333333 0.0347793333333333 0.8956620000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_280
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_280
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_280
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_281:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8015630000000000 0.0661456666666667 0.0661456666666667 0.0661456666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_281
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_281
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_281
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_282:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0217786666666667 0.0217786666666667 0.0217786666666667 0.9346639999999999
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_282
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_282
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_282
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_283:  0.9423076923076923
+  END: 0.0576923076923077
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0384616666666667 0.0384616666666667 0.0384616666666667 0.8846150000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_283
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_283
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_283
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_284:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8475340000000000 0.0508220000000000 0.0508220000000000 0.0508220000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_284
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_284
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_284
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_285:  0.8461538461538461
+  END: 0.1538461538461539
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0724070000000000 0.7827790000000000 0.0724070000000000 0.0724070000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_285
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_285
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_285
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_286:  0.8846153846153846
+  END: 0.1153846153846154
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0059443333333333 0.0059443333333333 0.0059443333333333 0.9821670000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_286
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_286
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_286
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_287:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0249516666666667 0.0249516666666667 0.9251450000000000 0.0249516666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_287
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_287
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_287
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_288:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0189393333333333 0.0189393333333333 0.0189393333333333 0.9431820000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_288
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_288
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_288
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_289:  0.9423076923076923
+  END: 0.0576923076923077
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8031220000000000 0.0656260000000000 0.0656260000000000 0.0656260000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_289
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_289
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_289
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_290:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0516476666666667 0.8450569999999999 0.0516476666666667 0.0516476666666667
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_290
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_290
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_290
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_291:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.2835293333333334 0.2835293333333334 0.2835293333333334 0.1494120000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_291
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_291
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_291
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_292:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9786730000000000 0.0071090000000000 0.0071090000000000 0.0071090000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_292
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_292
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_292
+TRANSITION: STANDARD: P(X)
+  IGHV3_slash_OR16-13_star_91_293:  0.9423076923076923
+  END: 0.0576923076923077
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHV3_slash_OR16-13_star_91_293
+  PATH_LABEL:  IGHV3_slash_OR16-13_star_91_293
+  GFF_DESC:    IGHV3_slash_OR16-13_star_91_293
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+//END

@@ -44,14 +44,17 @@ class HmmWriter(object):
         self.erosion_probs = {}
         try:
             self.read_erosion_probs(False)  # try this exact gene, but...
-        except:
-            self.read_erosion_probs(True)  # ...if we don't have info for it use other alleles
+        except AssertionError:
+            try:
+                self.read_erosion_probs(True)  # ...if we don't have info for it use other alleles
+            except AssertionError:
+                self.read_erosion_probs(False, True)  # ...if we don't have info for it use other 'primary versions'
 
         self.insertion_probs = {}
         if self.region != 'v':
             try:
                 self.read_insertion_probs(False)
-            except:
+            except AssertionError:
                 self.read_insertion_probs(True)  # try again using all the alleles for this gene. TODO do something better
         self.mute_freqs = {}  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
         if self.naivety == 'M':  # mutate if not naive
@@ -78,7 +81,7 @@ class HmmWriter(object):
     #     return float(this_count) / total
 
     # ----------------------------------------------------------------------------------------
-    def read_erosion_probs(self, use_other_alleles=False):
+    def read_erosion_probs(self, use_other_alleles=False, use_other_primary_versions=False):
         # TODO in cases where the bases which are eroded are the same as those inserted (i.e. cases that *suck*) I seem to *always* decide on the choice with the shorter insertion. not good!
         for erosion in utils.erosions:
             if erosion[0] != self.region:
@@ -90,7 +93,10 @@ class HmmWriter(object):
                 total = 0.0
                 for line in reader:
                     if self.region != 'j':
-                        if use_other_alleles:
+                        if use_other_primary_versions:
+                            if not utils.are_same_primary_version(line[self.region + '_gene'], self.gene_name):  # TODO check that I'm actually using the right lines here. Same thing below in read_insertion_probs
+                                continue
+                        elif use_other_alleles:
                             if not utils.are_alleles(line[self.region + '_gene'], self.gene_name):  # TODO check that I'm actually using the right lines here. Same thing below in read_insertion_probs
                                 continue
                         elif line[self.region + '_gene'] != self.gene_name:  # skip other genes (j erosion doesn't depend on gene choice)
@@ -104,6 +110,7 @@ class HmmWriter(object):
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
                     total += float(line['count'])
 
+                print self.gene_name
                 assert len(self.erosion_probs[erosion]) != 0
                 test_total = 0.0
                 for n_eroded in self.erosion_probs[erosion]:  # then normalize
@@ -143,13 +150,24 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_mute_freqs(self):
         mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(self.gene_name) + '.csv'
+        i_try = 0
         while not os.path.exists(mutefname):  # loop through other possible alleles
+            # TODO double check and unify how I look for other alleles/versions when I don't have info for a particular gene versions
             allele_id = re.findall('_star_[0-9][0-9]*', mutefname)
             assert len(allele_id) == 1
             allele_id = allele_id[0]
-            allele_number = int(allele_id.replace('_star_', ''))
-            allele_number += 1
+            if i_try == 0:
+                allele_number = 1
+            else:
+                allele_number = int(allele_id.replace('_star_', ''))
+                assert allele_number > 0 and allele_number < 100  # holy crap who the fuck made an allele number of ninety one?
+                allele_number += 1
             mutefname = mutefname.replace(allele_id, '_star_%02d' % allele_number)
+            if i_try > 100:
+                print 'ERROR too many tries ', i_try, mutefname
+                sys.exit()
+            i_try += 1
+
         # if self.gene_name == 'IGHV3-30*01':  IGHV3-30_star_11.
         #     mutefname = mutefname.replace('_star_01', '_star_02')  # don't really have any info on this allele. TODO see about just removing it?
         with opener('r')(mutefname) as mutefile:
@@ -158,16 +176,13 @@ class HmmWriter(object):
                 self.mute_freqs[int(line['position'])] = float(line['mute_freq'])  # TODO is there some way to incorporate the uncertainty on this?
 
     # ----------------------------------------------------------------------------------------
-    def write(self, outfname='', remove=False):  # TODO wait, I have 'removes' here and in parter.py
+    def write(self):
         self.add_header()
         self.add_states()
-        if outfname == '':
-            outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
+        outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
         with opener('w')(outfname) as outfile:
             outfile.write(self.text)
         self.text = ''
-        if remove:  # if using mkfifo, remove afterwards
-            os.remove(outfname)
 
     # # ----------------------------------------------------------------------------------------
     # def get_erosion_prob(self):  
