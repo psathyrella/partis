@@ -1,5 +1,5 @@
 import time
-# import_start = time.time()
+import_start = time.time()
 import sys
 import os
 import csv
@@ -14,15 +14,9 @@ import utils
 from opener import opener
 from hmmwriter import HmmWriter
 
-# print 'import time: %.3f' % (time.time() - import_start)
-
-# "IGHV1-18*01:IGHD3-10*01:IGHJ4*02_F"
-# v: CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGTTACACCTTTACCAGCTATGGTATCAGCTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAGCGCTTACAATGGTAACACAAACTATGCACAGAAGCTCCAGGGCAGAGTCACCATGACCACAGACACATCCACGAGCACAGCCTACATGGAGCTGAGGAGCCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGA
-# d: GTATTACTATGGTTCGGGGAGTTATTATAAC
-# j: ACTACTTTGACTACTGGGGCCAGGGA
+print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
-
 class PartitionDriver(object):
     def __init__(self, datadir, args, default_v_right_length=90):
         self.datadir = datadir
@@ -155,14 +149,15 @@ class PartitionDriver(object):
             check_call(cmd_str, shell=True)
             sys.exit()  # um, not sure which I want here, but it doesn't really matter. TODO kinda
             return matchlist
-    
+
         hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
         hmm_proc.wait()
         hmm_out, hmm_err = hmm_proc.communicate()
         if self.args.debug:
             print 'OUT\n',hmm_out
-        # run_time = time.time()
-        # print 'hmm run time: %.3f' % (run_time - write_stop)
+        if hmm_proc.returncode != 0:
+            print 'aaarrrrrrrgggggh\n',hmm_err
+            sys.exit()
     
         if self.args.algorithm == 'viterbi':
             # try:  # most likely reason for failure is something got kicked into stderr besides the csv info
@@ -202,6 +197,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, seqfname, query_name, second_query_name):
+        start = time.time()
         # TODO dammit I'm still only using info from the first query
         all_gene_str = self.sw_info[query_name]['all']
         best_genes = self.sw_info[query_name]['best']
@@ -222,9 +218,10 @@ class PartitionDriver(object):
         if self.args.algorithm == 'viterbi':
             print '\ninferred:'
     
-        assert 'J1P' not in best_genes['j'] and 'J2P' not in best_genes['j']  # I think we can remove this version (we never see it), but I'm putting a check in here just in case
-        if 'IGHJ4*' in best_genes['j'] and self.germline_seqs['d'][best_genes['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
-            d_fuzz = 10
+        assert len(re.findall('J[123]P', best_genes['j'])) == 0  # I think we can remove this version (we never see it), but I'm putting a check in here just in case
+
+        hmm_csv_infname = self.workdir + '/hmm_input.csv'
+
         # TODO since the s-w stuff excises the *best* v and *best* j, these k_v and k_d can be quite far off. Nonetheless seems ok a.t.m.
         # NOTE this call costs about 0.01-0.02 seconds if StochHMM.cpp does more or less nothing
         cmd_str = './stochhmm'
@@ -234,11 +231,36 @@ class PartitionDriver(object):
         else:
             cmd_str += ' -hmmtype single'
         cmd_str += ' -debug ' + str(self.args.debug)
-        cmd_str += ' -seq ' + seqfname
-        cmd_str += ' -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d)
-        cmd_str += ' -v_fuzz ' + str(v_fuzz) + ' -d_fuzz ' + str(d_fuzz)
-        cmd_str += ' -only_genes \'' + all_gene_str + '\''  # hm, wait, do I need these escaped quotes?
+        # cmd_str += ' -seq ' + seqfname
+        # cmd_str += ' -k_v_guess ' + str(k_v) + ' -k_d_guess ' + str(k_d)
+        # cmd_str += ' -v_fuzz ' + str(v_fuzz) + ' -d_fuzz ' + str(d_fuzz)
+        # cmd_str += ' -only_genes \'' + all_gene_str + '\''  # hm, wait, do I need these escaped quotes?
         cmd_str += ' -hmmdir ' + hmmdir
+        cmd_str += ' -infile ' + hmm_csv_infname
+
+        with opener('w')(hmm_csv_infname) as hmm_csv_infile:
+            header = ['k_v_guess', 'k_d_guess', 'v_fuzz', 'd_fuzz', 'only_genes', 'name', 'seq', 'second_name', 'second_seq']
+            # writer = csv.DictWriter(hmm_csv_infile, header)
+            # writer.writeheader()
+            # row = {}  # TODO really wet here. see above
+            # row['k_v_guess'] = k_v
+            # row['k_d_guess'] = k_d
+            # row['v_fuzz'] = v_fuzz
+            # row['d_fuzz'] = d_fuzz
+            # row['only_genes'] = all_gene_str
+            # row['seq'] = self.reco_info[query_name]['seq']
+            # row['name'] = query_name
+            hmm_csv_infile.write(' '.join(header) + '\n')
+            hmm_csv_infile.write('%d %d %d %d %s %s %s' % (k_v, k_d, v_fuzz, d_fuzz, all_gene_str, query_name, self.reco_info[query_name]['seq']))
+            if second_query_name != '':
+                # row['seq'] = self.reco_info[second_query_name]['second_seq']
+                # row['second_name'] = second_query_name
+                hmm_csv_infile.write(' %s %s\n' % (second_query_name, self.reco_info[second_query_name]['seq']))
+            else:
+                hmm_csv_infile.write(' %s %s\n' % ('x', 'x'))
+                # row['seq'] = ''
+                # row['second_name'] = ''
+            # writer.writerow(row)
 
         matchlist = self.run_stochhmm(cmd_str, query_name, second_query_name)
 
@@ -252,9 +274,11 @@ class PartitionDriver(object):
                 
     
         # remove hmm model files
+        os.remove(hmm_csv_infname)
         for fname in os.listdir(self.workdir):
             if fname.endswith(".hmm"):
                 os.remove(self.workdir + "/" + fname)
+        print 'hmm run time: %.3f' % (time.time() - start)
     
     # ----------------------------------------------------------------------------------------
     def write_hmm_seqfile(self, seqfname, query_name, second_query_name):
@@ -277,11 +301,11 @@ class PartitionDriver(object):
             for query_name,line in self.reco_info.iteritems():
                 swinfile.write('>' + query_name + ' NUKES\n')
                 swinfile.write(line['seq'] + '\n')
-        # start = time.time()
+        start = time.time()
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         check_call('/home/dralph/.local/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 3 --mismatch 1 --gap-open 100 ' + infname + ' ' + outfname + ' 2>/dev/null', shell=True)
-        # print 's-w time: %.3f' % (time.time()-start)
+        print 's-w time: %.3f' % (time.time()-start)
     
     # ----------------------------------------------------------------------------------------
     def read_smith_waterman(self, infname):
@@ -375,7 +399,8 @@ class PartitionDriver(object):
                     d_fuzz = max(d_fuzz, 10)
                     
                 v_right_length = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
-                print v_right_length
+                # if 'IGHJ4*' in best_genes['j'] and self.germline_seqs['d'][best_genes['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
+                #     d_fuzz = 10
 
                 assert query_name not in self.sw_info
                 self.sw_info[query_name] = {}

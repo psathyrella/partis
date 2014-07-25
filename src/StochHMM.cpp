@@ -23,16 +23,17 @@ void print_posterior(trellis&);
 
 // init command-line options
 opt_parameters commandline[] = {
-  {"-model:-m"     ,OPT_STRING     ,false  ,"",    {}},
-  {"-seq"          ,OPT_STRING     ,true   ,"",    {}},
+  // {"-model:-m"     ,OPT_STRING     ,false  ,"",    {}},
+  // {"-seq"          ,OPT_STRING     ,false   ,"",    {}},
   {"-hmmtype"      ,OPT_STRING     ,false  ,"single", {"single", "pair"}},
-  {"-only_genes"   ,OPT_STRING     ,false  ,"",   {}},
+  // {"-only_genes"   ,OPT_STRING     ,false  ,"",   {}},
   {"-hmmdir"       ,OPT_STRING     ,false  ,"",   {}},
+  {"-infile"       ,OPT_STRING     ,true  ,"",   {}},
   {"-debug"        ,OPT_INT        ,false  ,"",    {}},
-  {"-k_v_guess"    ,OPT_INT        ,true   ,"",    {}},
-  {"-k_d_guess"    ,OPT_INT        ,true   ,"",    {}},
-  {"-v_fuzz"       ,OPT_INT        ,false  ,"3",    {}},
-  {"-d_fuzz"       ,OPT_INT        ,false  ,"3",    {}},
+  // {"-k_v_guess"    ,OPT_INT        ,false   ,"",    {}},
+  // {"-k_d_guess"    ,OPT_INT        ,false   ,"",    {}},
+  // {"-v_fuzz"       ,OPT_INT        ,false  ,"3",    {}},
+  // {"-d_fuzz"       ,OPT_INT        ,false  ,"3",    {}},
   //Non-Stochastic Decoding
   {"-viterbi"      ,OPT_NONE       ,false  ,"",    {}},
   {"-forward"      ,OPT_NONE       ,false  ,"",    {}},
@@ -68,6 +69,84 @@ vector<sequences*> GetSeqs(string seqfname, track *trk) {
   return all_seqs;
 }
 // ----------------------------------------------------------------------------------------
+class Args {
+public:
+  Args(string fname);
+  map<string, vector<string> > strings_;
+  map<string, vector<int> > integers_;
+  set<string> str_headers_, int_headers_;
+  // vector<string> names, second_names, seqs, second_seqs, only_geneses;
+  // vector<int> k_v_guesses, k_d_guesses, v_fuzzes, d_fuzzes;
+};
+Args::Args(string fname):
+  str_headers_{"only_genes", "name", "seq", "second_name", "second_seq"},
+  int_headers_{"k_v_guess", "k_d_guess", "v_fuzz", "d_fuzz"}
+{
+  for (auto &head: str_headers_)
+    strings_[head] = vector<string>();
+  for (auto &head: int_headers_)
+    integers_[head] = vector<int>();
+  
+  ifstream ifs(fname);
+  assert(ifs.is_open());
+  string line;
+  // get header line
+  getline(ifs,line);
+  stringstream ss(line);
+  vector<string> headers;  // keep track of the file's column order
+  while (!ss.eof()) {
+    string head;
+    ss >> head;
+    headers.push_back(head);
+  }
+  while (getline(ifs,line)) {
+    stringstream ss(line);
+    string tmpstr;
+    int tmpint;
+    for (auto &head: headers) {
+      if (str_headers_.find(head) != str_headers_.end()) {
+	ss >> tmpstr;
+	strings_[head].push_back(tmpstr);
+      } else if (int_headers_.find(head) != int_headers_.end()) {
+	ss >> tmpint;
+	integers_[head].push_back(tmpint);
+      } else {
+	assert(0);
+      }
+    }
+  }
+  // for (size_t i=0; i<strings_["seq"].size(); ++i) {
+  //   for (auto &head: str_headers_) {
+  //     cout << head << "  " << strings_[head][i] << endl;
+  //   }
+  //   for (auto &head: int_headers_)
+  //     cout << head << "  " << integers_[head][i] << endl;
+  //   cout << endl;
+  // }
+}
+// ----------------------------------------------------------------------------------------
+vector<sequences*> GetSeqs(Args &args, track *trk) {
+  vector<sequences*> all_seqs;
+  for (size_t iseq=0; iseq<args.strings_["seq"].size(); ++iseq) {
+    sequences *seqs = new sequences;
+    sequence *sq = new(nothrow) sequence(args.strings_["seq"][iseq], trk, args.strings_["name"][iseq]);
+    assert(sq);
+    seqs->addSeq(sq);
+    if (trk->n_seqs == 2) {
+      assert(args.strings_["second_seq"][iseq].size() > 0);
+      assert(args.strings_["second_seq"][iseq] != "x");
+      sequence *second_sq = new(nothrow) sequence(args.strings_["second_seq"][iseq], trk, args.strings_["second_name"][iseq]);
+      assert(second_sq);
+      seqs->addSeq(second_sq);
+    } else {
+      assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
+    }
+
+    all_seqs.push_back(seqs);
+  }
+  return all_seqs;
+}
+// ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   GermLines gl;
   srand(time(NULL));
@@ -79,31 +158,24 @@ int main(int argc, const char * argv[]) {
   else if (opt.isSet("-forward"))
     algorithm = "forward";
 
-  if (opt.isSet("-model")) {
-    assert(opt.sopt("-model") == "dice");
-    run_casino();
-    return 0;
-  }
-
-  int k_v_guess = opt.iopt("-k_v_guess");
-  int k_d_guess = opt.iopt("-k_d_guess");
+  Args args(opt.sopt("-infile"));
 
   size_t n_seqs_per_track(opt.sopt("-hmmtype")=="pair" ? 2 : 1);
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);
-  vector<sequences*> seqs(GetSeqs(opt.sopt("-seq"), &trk));
+  vector<sequences*> seqs(GetSeqs(args, &trk));
   HMMHolder hmms(opt.isSet("-hmmdir") ? opt.sopt("-hmmdir") : "./bcell", n_seqs_per_track);
 
   assert(seqs.size() == 1);  // for the moment this makes the most sense.
+  assert(seqs.size() == args.strings_["name"].size());
   for (size_t is=0; is<seqs.size(); is++) {
-    JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, opt.isSet("-only_genes") ? opt.sopt("-only_genes") : "");
+    JobHolder jh(n_seqs_per_track, algorithm, seqs[is], &hmms, args.strings_["only_genes"][is]);
     if (opt.isSet("-debug"))
       jh.SetDebug(opt.iopt("-debug"));
-    int v_fuzz(3),d_fuzz(6);
-    if (opt.isSet("-v_fuzz")) {
-	opt.getopt("-v_fuzz", v_fuzz);
-	opt.getopt("-d_fuzz", d_fuzz);  // half-width of search region
-    }
+    int k_v_guess = args.integers_["k_v_guess"][is];
+    int k_d_guess = args.integers_["k_d_guess"][is];
+    int v_fuzz = args.integers_["v_fuzz"][is];
+    int d_fuzz = args.integers_["d_fuzz"][is];
     jh.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);
   }
   return 0;
