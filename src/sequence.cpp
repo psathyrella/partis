@@ -37,7 +37,7 @@ namespace StochHMM{
     seq=NULL;
     mask=NULL;
     seqtrk  = NULL;
-    length  = 0;
+    sequence_length_  = 0;
     max_mask=-1;
     external= NULL;
     attrib  = -INFINITY;
@@ -57,7 +57,7 @@ namespace StochHMM{
     }
     realSeq = realTrack;
     seqtrk  = NULL;
-    length  = 0;
+    sequence_length_  = 0;
     max_mask=-1;
     external= NULL;
     attrib  = -INFINITY;
@@ -72,7 +72,7 @@ namespace StochHMM{
     real    = vec;
     external= NULL;
     attrib  = -INFINITY;
-    length  = vec->size();
+    sequence_length_  = vec->size();
     max_mask=-1;
   }
     
@@ -80,7 +80,7 @@ namespace StochHMM{
   //! \param sq Character string that represent sequence
   //! \param tr Track to be used to digitize sequence
   sequence::sequence(char* sq, track* tr):mask(NULL){
-    length  = 0;
+    sequence_length_  = 0;
     max_mask=-1;
     real = NULL;
     seq = new(std::nothrow) std::vector<uint8_t>;
@@ -91,14 +91,18 @@ namespace StochHMM{
     seqtrk  = tr;
     undigitized = sq;
     _digitize();
-    length=seq->size();
+    sequence_length_=seq->size();
   }
     
   //! Create a sequence type
   //! \param sq std::string string that represent sequence
   //! \param tr Track to be used to digitize sequence
-  sequence::sequence(std::string& seq_str, track* trk, std::string name):mask(NULL),name_(name){
-    length  = 0;
+  // ----------------------------------------------------------------------------------------
+  sequence::sequence(std::string& seq_str, track* trk, std::string name):
+    mask(NULL),
+    name_(name)
+  {
+    sequence_length_  = 0;
     max_mask=-1;
     real = NULL;
     seq = new(std::nothrow) std::vector<uint8_t>;
@@ -109,7 +113,7 @@ namespace StochHMM{
     seqtrk  = trk;
     undigitized = seq_str;
     _digitize();
-    length=seq->size();
+    sequence_length_=seq->size();
   }
     
   //!Destroy sequence type
@@ -133,7 +137,7 @@ namespace StochHMM{
     realSeq = rhs.realSeq;
     header  = rhs.header;
     attrib  = rhs.attrib;
-    length  = rhs.length;
+    sequence_length_  = rhs.sequence_length_;
     seqtrk  = rhs.seqtrk;
     external= rhs.external;  //Need copy constructor for this
     max_mask= rhs.max_mask;
@@ -198,7 +202,7 @@ namespace StochHMM{
     }
                 
     seqtrk = NULL;
-    length = 0;
+    sequence_length_ = 0;
     attrib = -INFINITY;
                 
   }
@@ -230,7 +234,7 @@ namespace StochHMM{
     realSeq = rhs.realSeq;
     header  = rhs.header;
     attrib  = rhs.attrib;
-    length  = rhs.length;
+    sequence_length_  = rhs.sequence_length_;
     seqtrk  = rhs.seqtrk;
     external= rhs.external;
     max_mask= rhs.max_mask;
@@ -276,7 +280,12 @@ namespace StochHMM{
   // ----------------------------------------------------------------------------------------
   //! \return a copy of the sequence from <pos> of size <len>
   sequence sequence::getSubSequence(size_t pos, size_t len) {
-    assert(pos+len < undigitized.size());
+    // if(pos >= undigitized.size() || len >= undigitized.size()) {
+    //   std::cout << name_ << " " << pos << " " << len << " " << undigitized << " " << (size_t)(undigitized.size()) << std::cout;
+    // }
+    assert(pos < undigitized.size());
+    assert(len < undigitized.size());
+    assert(pos+len <= undigitized.size());  // arg. if pos+len overflows this still passes
     std::string subseq_str = undigitized.substr(pos, len);
     return sequence(subseq_str, seqtrk, name_);
   }
@@ -332,18 +341,18 @@ namespace StochHMM{
       output += undigitized;
         
     if (realSeq) {
-      for(size_t i=0; i<length; i++) {
+      for(size_t i=0; i<sequence_length_; i++) {
         output += double_to_string((*real)[i]) + " ";
       }
     } else {
-      for(size_t i=0; i<length; i++) {
+      for(size_t i=0; i<sequence_length_; i++) {
         output += int_to_string((int)(*seq)[i]) + " ";
       }
     }
         
     if (mask){
       output += "\n";
-      for(size_t i=0;i<length;i++){
+      for(size_t i=0;i<sequence_length_;i++){
         output+= int_to_string((int)(*mask)[i]) + " ";
       }
     }
@@ -361,13 +370,13 @@ namespace StochHMM{
     // if (!seq && !realSeq) {
       output += undigitized;
     // }
-    // for (size_t i=0; i<length; i++) {
+    // for (size_t i=0; i<sequence_length_; i++) {
       // output += int_to_string((int)(*seq)[i]) + " ";
     // }
         
     if (mask){
       output += "\n";
-      for(size_t i=0;i<length;i++){
+      for(size_t i=0;i<sequence_length_;i++){
         output+= int_to_string((int)(*mask)[i]) + " ";
       }
     }
@@ -397,7 +406,7 @@ namespace StochHMM{
     if (seqtrk!=NULL){
       size_t alphaMax = seqtrk->getAlphaMax();
             
-      for (size_t i=0;i<length;i++){
+      for (size_t i=0;i<sequence_length_;i++){
         output+=seqtrk->getAlpha((*seq)[i]);
         if (alphaMax!=1){
           output+=" ";
@@ -454,7 +463,7 @@ namespace StochHMM{
         continue;
       }
     }
-    length = seq->size();
+    sequence_length_ = seq->size();
     assert(success);
     return success;
   }
@@ -491,7 +500,7 @@ namespace StochHMM{
     if (file.good()) {
       getline(file,undigitized,'\n');
       success = _digitize();
-      length=seq->size();
+      sequence_length_=seq->size();
     }
     if (file.good()) {
       getline(file,mask_string,'\n');
@@ -502,7 +511,7 @@ namespace StochHMM{
       lst.splitString(mask_string, " ,\t");
       //alloc mask vector
             
-      if (lst.size() == length) {
+      if (lst.size() == sequence_length_) {
                 
         if (mask!=NULL){
           delete mask;
@@ -652,7 +661,7 @@ namespace StochHMM{
       return false;
     }
         
-    length=seq->size();
+    sequence_length_=seq->size();
     return true;
   }
     
@@ -727,7 +736,7 @@ namespace StochHMM{
       }
     }
         
-    length=real->size();
+    sequence_length_=real->size();
     return true;
   }
     
@@ -735,7 +744,7 @@ namespace StochHMM{
   int sequence::getMask(size_t position) {
         
     if (mask!=NULL){
-      if (position < getLength()) {
+      if (position < GetSequenceLength()) {
         return (*mask)[position];
       }
       else {
@@ -759,10 +768,10 @@ namespace StochHMM{
     if (tr!= NULL){
       seqtrk = tr;
       _digitize();
-      length = seq->size();
+      sequence_length_ = seq->size();
     }
     else{
-      length = sq.size();
+      sequence_length_ = sq.size();
     }
                 
     return;
@@ -776,7 +785,7 @@ namespace StochHMM{
     realSeq = true;
     real=rl;
                 
-    length = rl->size();
+    sequence_length_ = rl->size();
                 
     return;
   }
@@ -979,46 +988,46 @@ namespace StochHMM{
     return subseq;
   }
 
-  //Randomly generate a sequence based on Probabilities of each character
-  sequence random_sequence(std::vector<double>& freq, size_t length, track* tr){
-    sequence random_seq;
+//   //Randomly generate a sequence based on Probabilities of each character
+//   sequence random_sequence(std::vector<double>& freq, size_t length, track* tr){
+//     sequence random_seq;
         
-    if (tr==NULL){
-      std::cerr << "Track is not defined" << std::endl;
-      return random_seq;
-    }
+//     if (tr==NULL){
+//       std::cerr << "Track is not defined" << std::endl;
+//       return random_seq;
+//     }
         
-    size_t alphaSize=tr->getAlphaSize();
-    size_t freqSize=freq.size();
+//     size_t alphaSize=tr->getAlphaSize();
+//     size_t freqSize=freq.size();
                 
-    if (alphaSize!=freqSize){
-      std::cerr << "Frequency distribution size and Alphabet size must be the same." << std::endl;
-      return random_seq;
-    }
+//     if (alphaSize!=freqSize){
+//       std::cerr << "Frequency distribution size and Alphabet size must be the same." << std::endl;
+//       return random_seq;
+//     }
         
-    //Create CDF of frequency distribution
-    std::vector<std::pair<double,std::string> > cdf;
-    double sum = 0.0;
-    for(size_t i=0;i<freqSize;++i){
-      sum+=freq[i];
-      std::pair<double,std::string> val (sum, tr->getAlpha(i));
-      cdf.push_back(val);
-    }
+//     //Create CDF of frequency distribution
+//     std::vector<std::pair<double,std::string> > cdf;
+//     double sum = 0.0;
+//     for(size_t i=0;i<freqSize;++i){
+//       sum+=freq[i];
+//       std::pair<double,std::string> val (sum, tr->getAlpha(i));
+//       cdf.push_back(val);
+//     }
         
-    //Generate random sequence
-    std::string random_string;
-    for(size_t j=0;j<length;++j){
-      double val = ((double)rand()/((double)(RAND_MAX)+(double)(1))); //Generate random
-      for (size_t m=0;m<freqSize;++m){ //Check to see which value is
-        if (cdf[m].first>=val){
-          random_string+=cdf[m].second;
-          break;
-        }
-      }
-    }
+//     //Generate random sequence
+//     std::string random_string;
+//     for(size_t j=0;j<sequence_length_;++j){
+//       double val = ((double)rand()/((double)(RAND_MAX)+(double)(1))); //Generate random
+//       for (size_t m=0;m<freqSize;++m){ //Check to see which value is
+//         if (cdf[m].first>=val){
+//           random_string+=cdf[m].second;
+//           break;
+//         }
+//       }
+//     }
         
-    random_seq.setSeq(random_string, tr);
-    return random_seq;
-  }
+//     random_seq.setSeq(random_string, tr);
+//     return random_seq;
+//   }
     
 }

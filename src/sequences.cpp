@@ -78,10 +78,10 @@ sequences sequences::getSubSequences(size_t pos, size_t len) {
 
 // ----------------------------------------------------------------------------------------
 void sequences::addSeq(sequence* sq) {
-  if (length==0) {  // make sure <sq> has the same length as any previously added sequences
-    length = sq->size();
+  if (sequence_length_==0) {  // make sure <sq> has the same length as any previously added sequences
+    sequence_length_ = sq->size();
   } else {
-    assert(sq->size() == length);
+    assert(sq->size() == sequence_length_);
   }
   seqs.push_back(sq);  // NOTE we now own this sequence, i.e. we will delete it when we die
   if (seqs.size() == 2) {  // for pair hmm, make sure names obey convention >seq_1, >seq_2 (ensures that when you write the .fa file you *meant* it to be a pair hmm, not two seqs sequentially passed to a plain hmm)

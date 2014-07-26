@@ -27,7 +27,7 @@ class HmmWriter(object):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
-        self.fuzz_around_v_left_edge = 5.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
+        self.fuzz_around_v_left_edge = 10.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
         self.outdir = base_outdir  # + '/' + region
         self.region = utils.get_region(gene_name)
         self.gene_name = gene_name

@@ -89,7 +89,7 @@ namespace StochHMM{
     }
         
     //!Get the size of the sequence
-    inline size_t getLength(){return length;};//Returns length of sequence
+    inline size_t GetSequenceLength(){return sequence_length_;};//Returns length of sequence
         
     //!Get the attribute value for the sequence
     //!Selection of model may use this value to determine which model to use
@@ -214,7 +214,7 @@ namespace StochHMM{
     std::string header; // Header from the sequence
         
     double attrib; //Attribute value (Could be %GC or whatever user defines)
-    size_t length; //Lenght of the Sequence
+    size_t sequence_length_; //Lenght of the Sequence
         
     track* seqtrk; //Ptr to track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
         
@@ -239,7 +239,7 @@ namespace StochHMM{
   //! \param freq  Reference to std::vector<double> that contains frequencies of alphabet corresponding to alphabet in track
   //! \param length  Length of sequence to generate
   //! \param tr Pointer to StochHMM::track where alphabet and ambiguous characters are defined
-  sequence random_sequence(std::vector<double>& freq, size_t length, track* tr);
+  // sequence random_sequence(std::vector<double>& freq, size_t length, track* tr);
   //      sequence random_sequence(emm*);    
   //  sequence translate();
     

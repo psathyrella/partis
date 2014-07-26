@@ -5,7 +5,7 @@ namespace StochHMM {
 void trellis::forward(model* h, sequences* sqs) {
   hmm = h;
   seqs = sqs;
-  seq_size = seqs->getLength();
+  seq_size = seqs->GetSequenceLength();
   state_size = hmm->state_size();
   exDef_defined	= seqs->exDefDefined();
   forward();

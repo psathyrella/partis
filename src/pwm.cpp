@@ -415,7 +415,7 @@ namespace StochHMM{
   }
         
   void PWM::scoreSimple(sequence* seq){
-    size_t seq_size = seq->getLength();
+    size_t seq_size = seq->GetSequenceLength();
     size_t motif_size = weightMatrix.size();
                 
     if (seq_size < motif_size){
@@ -461,7 +461,7 @@ namespace StochHMM{
         
         
   void PWM::scoreUndefSpacer(sequence* seq){
-    size_t seq_size = seq->getLength();
+    size_t seq_size = seq->GetSequenceLength();
     size_t motif_size = weightMatrix.size();
     size_t front_size = frontWeightMatrix.size();
     size_t back_size = backWeightMatrix.size();
@@ -533,7 +533,7 @@ namespace StochHMM{
   }
         
   void PWM::scoreVariableSpacer(sequence* seq){
-    size_t seq_size = seq->getLength();
+    size_t seq_size = seq->GetSequenceLength();
     size_t motif_size = weightMatrix.size();
     size_t front_size = frontWeightMatrix.size();
     //size_t back_size = backWeightMatrix.size();

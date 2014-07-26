@@ -6,7 +6,7 @@ namespace StochHMM {
 void trellis::viterbi(model* h, sequences* sqs) {
   hmm = h;
   seqs = sqs;
-  seq_size = seqs->getLength();
+  seq_size = seqs->GetSequenceLength();
   state_size = hmm->state_size();
   viterbi();
 }

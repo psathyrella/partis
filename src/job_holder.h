@@ -18,20 +18,20 @@ typedef pair<string,string> StrPair;
 // ----------------------------------------------------------------------------------------
 class HMMHolder {
 public:
-  HMMHolder(string hmm_dir, size_t n_seqs_per_track):hmm_dir_(hmm_dir),n_seqs_per_track_(n_seqs_per_track) {}
+  HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines *gl):hmm_dir_(hmm_dir),n_seqs_per_track_(n_seqs_per_track),gl_(gl) {}
   ~HMMHolder();
   model *Get(string gene);
 private:
   string hmm_dir_;
   size_t n_seqs_per_track_;
-  GermLines gl_;  // TODO kind of hackey to have a separate one of these in HMMHolder. Then again, I don't think it's really that expensive.
+  GermLines *gl_;  // TODO kind of hackey to have a separate one of these in HMMHolder. Then again, I don't think it's really that expensive.
   map<string,model*> hmms_;  // map of gene name to hmm pointer
 };
 
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(size_t n_seqs_per_track, string algorithm, sequences *seqs, HMMHolder *hmms, string only_genes="");
+  JobHolder(GermLines *gl, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_best_events, string only_genes="");
   ~JobHolder();
   void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
   void SetDebug(int debug) { debug_ = debug; };
@@ -41,6 +41,8 @@ public:
   void StreamOutput(double test);  // print csv event info to stderr
   StrPair GetQueryStrs(KSet kset, string region);
   void RunKSet(KSet kset);
+  double total_score() { return total_score_; }
+  vector<RecoEvent> &events() { return events_; }
 
 private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
@@ -51,10 +53,10 @@ private:
   double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files
-  size_t n_seqs_per_track_;  // 1 for plain hmms, 2 for pair hmms
+  bool pair_;  // pair hmm? otherwise it's a single
   map<string, set<string> > only_genes_;
   string algorithm_;
-  GermLines gl_;
+  GermLines *gl_;
   vector<RecoEvent> events_;
   map<KSet,double> best_scores_;  // map from kset to best score for that kset (summed over regions)
   map<KSet,double> total_scores_;  // map from kset to total score for that kset (summed over regions)
@@ -68,5 +70,6 @@ private:
   vector<string>::iterator i_current_gene_;
   int debug_;
   size_t n_best_events_; // print and return this many events
+  ofstream ofs_;
 };
 #endif

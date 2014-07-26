@@ -42,7 +42,7 @@
 namespace StochHMM {
 class sequences{
 public:
-  sequences():length(0){}
+  sequences():sequence_length_(0){}
   ~sequences();
       
   short seqValue(int , size_t); // Get digitized value for sequence track(i) in jth position
@@ -51,7 +51,7 @@ public:
   std::string& getHeader(size_t iter=0);
   std::string* getUndigitized(size_t iter) { return seqs[iter]->getUndigitized(); }
   size_t size() { return seqs.size(); }
-  size_t getLength() { return length;}
+  size_t GetSequenceLength() { return sequence_length_;}
   sequences getSubSequences(size_t pos, size_t len);
   bool exDefDefined() { return false; }  // removed this functionality
   bool exDefDefined(size_t) { return false; }  // removed this functionality
@@ -65,7 +65,7 @@ public:
   
 private:
   std::vector<sequence*> seqs; 
-  size_t length;  // length of the sequences (required to be the same for all)
+  size_t sequence_length_;  // length of the sequences (required to be the same for all)
 };
 }
 #endif

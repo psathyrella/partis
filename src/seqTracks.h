@@ -196,7 +196,7 @@ namespace StochHMM{
         
         
     //ACCESSORS
-    inline size_t size(){return set->getLength();};
+    inline size_t size(){return set->GetSequenceLength();};
         
     inline model* getModel(){return hmm;};
     inline sequences* getSeqs(){return set;};

@@ -13,6 +13,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <cassert>
 #include <vector>
 #include <iostream>
 #include <sstream>

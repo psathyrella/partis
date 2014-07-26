@@ -58,7 +58,7 @@ namespace StochHMM {
     seqs = sqs;
     nth_size = SIZE_MAX;
                 
-    seq_size = seqs->getLength();
+    seq_size = seqs->GetSequenceLength();
     state_size = hmm->state_size();
                 
     type = SIMPLE;
