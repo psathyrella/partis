@@ -114,24 +114,13 @@ namespace StochHMM{
     // decoding
     void viterbi();
     void viterbi(model* h, sequences* sqs);
-    void forward();
+    void forward(int iseq=-1);
     void forward(model* h, sequences* sqs);
-    void posterior();
-    void posterior(model* h, sequences* sqs);
-    void stochastic_viterbi();
-    void stochastic_viterbi(model* h, sequences* sqs);
 
     // ----------------------------------------------------------------------------------------
     // traceback
     void traceback(traceback_path& path);
     void traceback(traceback_path& path ,size_t position, size_t state);
-    void traceback_nth(traceback_path& path, size_t n);
-    void traceback_posterior(traceback_path& path);
-    void traceback_stoch_posterior(traceback_path& path);
-    void traceback_stoch_posterior(multiTraceback& paths , size_t reps);
-    void traceback_nth_viterbi(multiTraceback&);
-    void stochastic_traceback(traceback_path& path);
-    void stochastic_traceback(multiTraceback&,size_t);
                 
     inline bool store(){return store_values;}
     inline void store(bool val){store_values=val; return;}
@@ -164,7 +153,7 @@ namespace StochHMM{
                 
   private:
     double getEndingTransition(size_t);
-    double getTransition(state* st, size_t trans_to_state, size_t sequencePosition);
+    double getTransition(state* st, size_t trans_to_state);
     size_t get_explicit_duration_length(transition* trans, size_t sequencePosition,size_t state_iter, size_t to_state);
     double transitionFuncTraceback(state* st, size_t position, transitionFuncParam* func);
                 

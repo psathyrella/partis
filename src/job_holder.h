@@ -66,6 +66,7 @@ private:
   HMMHolder *hmms_;
   map<string, map<StrPair,trellis*> > trellisi_;  // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<StrPair,traceback_path*> > paths_;  // collection of the paths. 
+  map<string, map<StrPair,double> > all_scores_;
   vector<string>::iterator i_current_region_;  // region and position of the *next* job we will pass out with GetNextJob()
   vector<string>::iterator i_current_gene_;
   int debug_;

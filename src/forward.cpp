@@ -11,14 +11,10 @@ void trellis::forward(model* h, sequences* sqs) {
   forward();
 }
 // ----------------------------------------------------------------------------------------
-void trellis::forward() {
-  forward_score	= new (std::nothrow) float_2D(seq_size, std::vector<float>(state_size, -INFINITY));
-  scoring_current = new (std::nothrow) std::vector<double> (state_size, -INFINITY);
-  scoring_previous= new (std::nothrow) std::vector<double> (state_size, -INFINITY);
-  if (scoring_current == NULL || scoring_previous == NULL || forward_score == NULL) {
-    std::cerr << "Can't allocate forward score table. OUT OF MEMORY" << std::endl;
-    exit(2);
-  }
+void trellis::forward(int iseq) {
+  forward_score = new float_2D(seq_size, std::vector<float>(state_size, -INFINITY));
+  scoring_current = new std::vector<double> (state_size, -INFINITY);
+  scoring_previous= new std::vector<double> (state_size, -INFINITY);
 		
   std::bitset<STATE_MAX> next_states;
   std::bitset<STATE_MAX> current_states;
@@ -29,9 +25,20 @@ void trellis::forward() {
   std::bitset<STATE_MAX>* from_trans(NULL);
 		
   // calculate forward scores from INIT state, and initialize next_states
-  for(size_t st = 0; st < state_size; ++st) {
+  for(size_t st=0; st<state_size; ++st) {
     if ((*initial_to)[st]) {  // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      forward_temp = (*hmm)[st]->get_emission_prob(*seqs,0) + getTransition(init, st, 0);
+      double emscore(-INFINITY);
+      if (iseq >= 0) {  // only get emission score for a single sequence (the one with index iseq)
+	assert(seqs->size() >= iseq);
+	emscore = (*hmm)[st]->get_emission_prob((*seqs)[iseq], 0);
+      } else if (seqs->size() == 2){
+      	emscore = (*hmm)[st]->get_emission_prob((*seqs)[0], 0) + (*hmm)[st]->get_emission_prob((*seqs)[1], 0);
+      } else {
+	assert(seqs->size() == 1);
+      	emscore = (*hmm)[st]->get_emission_prob((*seqs)[0], 0);
+      }
+
+      forward_temp = emscore + init->getTrans(st)->getTransition(0,NULL); //getTransition(init, st, 0);
       if (forward_temp > -INFINITY) {
 	(*forward_score)[0][st] = forward_temp;
 	(*scoring_current)[st] = forward_temp;
@@ -39,6 +46,8 @@ void trellis::forward() {
       }
     }
   }
+    // std::cout << "0--- " << std::endl;
+    // std::cout << "1--- " << std::endl;
       
   // calculate the rest of the forward scores
   for (size_t position=1; position<seq_size; ++position) {
@@ -47,7 +56,7 @@ void trellis::forward() {
     swap_ptr = scoring_previous;
     scoring_previous = scoring_current;
     scoring_current = swap_ptr;
-			
+
     //Swap current_states and next states sets
     current_states.reset();
     current_states |= next_states;
@@ -57,14 +66,24 @@ void trellis::forward() {
       if (!current_states[st_current])
 	continue;
               
-      emission = (*hmm)[st_current]->get_emission_prob(*seqs, position);
+      if (iseq >= 0) {  // only get emission score for a single sequence (the one with index iseq)
+	assert(seqs->size() >= iseq);
+	emission = (*hmm)[st_current]->get_emission_prob((*seqs)[iseq], position);
+      } else if (seqs->size() == 2){
+      	emission = (*hmm)[st_current]->get_emission_prob((*seqs)[0], position) + (*hmm)[st_current]->get_emission_prob((*seqs)[1], position);
+      } else {
+	assert(seqs->size() == 1);
+      	emission = (*hmm)[st_current]->get_emission_prob((*seqs)[0], position);
+      }
+
+      // emission = (*hmm)[st_current]->get_emission_prob((*seqs)[0], (*seqs)[1], position);
       from_trans = (*hmm)[st_current]->getFrom();
       for (size_t previous=0; previous<state_size; ++previous) {  //j is previous state
 	if (!(*from_trans)[previous])
 	  continue;
 					
 	if ((*scoring_previous)[previous] != -INFINITY) {
-	  forward_temp = (*scoring_previous)[previous] + emission + getTransition((*hmm)[previous], st_current , position);
+	  forward_temp = (*scoring_previous)[previous] + emission + (*hmm)[previous]->getTrans(st_current)->getTransition(0,NULL); //getTransition((*hmm)[previous], st_current , position);
 	  if ((*scoring_current)[st_current] == -INFINITY) {
 	    (*scoring_current)[st_current] = forward_temp;
 	    (*forward_score)[position][st_current] = forward_temp;

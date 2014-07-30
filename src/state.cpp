@@ -425,57 +425,33 @@ namespace StochHMM{
     return stateString;
   }
         
+  // ----------------------------------------------------------------------------------------
   //! Get the emission value from a state at a particular position in the sequence
   //! \param seqs Sequences the model is analyzing
   //! \param iter Position in the sequences
-  double state::get_emission_prob(sequences &seqs, size_t iter){
-    if (emissions.size() == 0) { // silent state
-      assert(0);  // oh, wait, this is harder than I thought. I need to not advance one position in the sequence
-      return 0.0;
-    }
-
+  double state::get_emission_prob(sequences &seqs, size_t iter) {
     double value(-INFINITY);
-
-    // ----------------------------------------------------------------------------------------
-    // aw, screw it. I'm only gonna use this as a simple or pair hmm, anyway.
-    // i.e., I'm breaking multiple emission and multitrack emission for the moment.
-    assert(emissions.size() == 1);
-    emm *emission(emissions[0]);
-    assert(emission->get_n_tracks() == 1);
-    assert(seqs.size()==1 || seqs.size()==2);
-    std::string first_track_name(seqs[0].getTrack()->getName());
     for (size_t iseq=0; iseq<seqs.size(); ++iseq) {
-      assert(seqs[iseq].getTrack()->getName() == first_track_name);  // make sure all seqs are on the same track
-      double tmp_val = emission->get_emission(seqs[iseq], iter);  // get_emission should really be called get_emission_log_prob
-      
+      double tmp_val = emissions[0]->get_emission(seqs[iseq], iter);  // get_emission should really be called get_emission_log_prob
       if (iseq==0)
     	value = tmp_val;
       else
     	value += tmp_val;
     }      
-    // ----------------------------------------------------------------------------------------
-
-    // for (size_t i=0; i<emissions.size(); i++) {
-    //   double tmp_val(-INFINITY);  // log prob of this emission
-    //   if (emissions[i]->get_n_tracks() == 2) {  // dual track emission
-    // 	assert(seqs.size() == 2);  // otherwise not implemented
-    // 	tmp_val = emissions[i]->get_emission(seqs, iter);
-    //   } else if (emissions[i]->get_n_tracks() == 1) {  // single track emission
-    // 	tmp_val = emissions[i]->get_emission(seqs[i], iter);
-    //   } else {
-    // 	std::cout << emissions[i]->get_n_tracks() << std::endl;
-    // 	assert(0);  // not implemented a.t.m.
-    //   }
-
-    //   if (i==0)
-    // 	value = tmp_val;
-    //   else
-    // 	value += tmp_val;
-    // }
-
     return value;
   }
+
+  // ----------------------------------------------------------------------------------------
+  double state::get_emission_prob(sequence &seq1, sequence &seq2, size_t iter) {
+    return emissions[0]->get_emission(seq1, iter) + emissions[0]->get_emission(seq2, iter);
+  }
+
+  // ----------------------------------------------------------------------------------------
+  double state::get_emission_prob(sequence &seq, size_t iter) {
+    return emissions[0]->get_emission(seq, iter);
+  }
     
+  // ----------------------------------------------------------------------------------------
   //! Get the transition value from a state at a particular position in the sequence
   //! \param seqs Sequences the model is analyzing
   //! \param to State that transition is being calculated to

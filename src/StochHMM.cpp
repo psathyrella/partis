@@ -130,16 +130,41 @@ int main(int argc, const char * argv[]) {
 
   assert(seqs.size() == args.strings_["name"].size());
   for (size_t is=0; is<seqs.size(); is++) {
-    JobHolder jh(&gl, opt.sopt("--algorithm"), seqs[is], &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
-    jh.SetDebug(opt.iopt("--debug"));
     int k_v_guess = args.integers_["k_v_guess"][is];
     int k_d_guess = args.integers_["k_d_guess"][is];
     int v_fuzz = args.integers_["v_fuzz"][is];
     int d_fuzz = args.integers_["d_fuzz"][is];
     // TODO oh wait shouldn't k_d be allowed to be zero?
     // NOTE this is the *maximum* fuzz allowed -- job_holder::Run is allowed to skip ksets that don't make sense
+
+    JobHolder jh(&gl, opt.sopt("--algorithm"), seqs[is], &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
+    jh.SetDebug(opt.iopt("--debug"));
     jh.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);  // note that these events will die when the JobHolder dies
-    StreamOutput(ofs, opt, jh.events(), *seqs[is], jh.total_score());
+
+    sequences seqs_a;
+    // sequence *sq = new(nothrow) sequence(args.strings_["seq"][iseq], trk, args.strings_["name"][iseq]);
+    seqs_a.addSeq(&(*seqs[is])[0]);
+    JobHolder jh_a(&gl, opt.sopt("--algorithm"), &seqs_a, &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
+    jh_a.SetDebug(opt.iopt("--debug"));
+    jh_a.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);  // note that these events will die when the JobHolder dies
+
+    sequences seqs_b;
+    // sequence *sq = new(nothrow) sequence(args.strings_["seq"][iseq], trk, args.strings_["name"][iseq]);
+    seqs_b.addSeq(&(*seqs[is])[1]);
+    JobHolder jh_b(&gl, opt.sopt("--algorithm"), &seqs_b, &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
+    jh_b.SetDebug(opt.iopt("--debug"));
+    jh_b.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);  // note that these events will die when the JobHolder dies
+
+    // cout
+    //   << "FOOP"
+    //   << setw(12) << jh.total_score()
+    //   << setw(12) << jh_a.total_score()
+    //   << setw(12) << jh_b.total_score()
+    //   << " --> "
+    //   << setw(12) << jh.total_score() - jh_a.total_score() - jh_b.total_score()
+    //   << endl;
+
+    StreamOutput(ofs, opt, jh.events(), *seqs[is], jh.total_score() - jh_a.total_score() - jh_b.total_score());
   }
 
   ofs.close();

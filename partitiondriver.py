@@ -48,11 +48,13 @@ class PartitionDriver(object):
             pairscorefile.write('unique_id_1,unique_id_2,score\n')
         swinfname = self.workdir + '/seq.fa'  # file for input to s-w step
         swoutfname = swinfname.replace('.fa', '.bam')
-        if self.args.run_sw:
+        if not self.args.skip_sw:
             print 's-w...',
             sys.stdout.flush()
             self.run_smith_waterman(swinfname, swoutfname)
             print 'done'
+        else:
+            swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
         self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
         hmm_csv_infname = self.workdir + '/hmm_input.csv'
         self.write_hmm_input(hmm_csv_infname)
@@ -181,6 +183,8 @@ class PartitionDriver(object):
                         line['seq'] = tmpseq
                 else:
                     print '  ',line['score']
+                    with opener('a')(self.pairscorefname) as pairscorefile:
+                        pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                 last_id = self.get_score_index(line['unique_id'], line['second_unique_id'])
                 
         # if self.args.algorithm == 'viterbi':
@@ -194,8 +198,6 @@ class PartitionDriver(object):
             # print '    total score: ',total_score
             # assert total_score < 0.0 and total_score > -9999999.9
             # self.pair_scores[self.get_score_index(query_name, second_query_name)] = total_score  # is that a hacky way to hash it so I can reverse the order and get the same entry? seems ok, I guess
-            # with opener('a')(self.pairscorefname) as pairscorefile:
-            #     pairscorefile.write('%s,%s,%f\n' % (query_name, second_query_name, total_score))
 
         print 'hmm print time: %.3f' % (time.time() - start)
     

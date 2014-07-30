@@ -151,7 +151,8 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
       *score = paths_[gene][query_strs] ? paths_[gene][query_strs]->getScore() : -INFINITY;  // it's set to nullptr if no valid path through hmm
       if (debug_ == 2) PrintPath(query_strs, gene, *score, "(cached)");
     } else if (algorithm_=="forward") {
-      *score = trellisi_[gene][query_strs]->getForwardProbability();
+      // *score = trellisi_[gene][query_strs]->getForwardProbability();
+      *score = all_scores_[gene][query_strs];
     } else {
       assert(0);
     }
@@ -179,8 +180,15 @@ void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string ge
       assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);
     } else if (algorithm_=="forward") {
       trellisi_[gene][query_strs]->forward();
+      double joint_score = trellisi_[gene][query_strs]->getForwardProbability();
+      // trellisi_[gene][query_strs]->forward(0);
+      // double score_a = trellisi_[gene][query_strs]->getForwardProbability();
+      // trellisi_[gene][query_strs]->forward(1);
+      // double score_b = trellisi_[gene][query_strs]->getForwardProbability();
       paths_[gene][query_strs] = nullptr;  // avoids violating the assumption that paths_ and trellisi_ have the same entries
-      *score = trellisi_[gene][query_strs]->getForwardProbability();
+      // *score = trellisi_[gene][query_strs]->getForwardProbability();
+      *score = joint_score; // - score_a - score_b;
+      all_scores_[gene][query_strs] = *score;
     } else {
       assert(0);
     }

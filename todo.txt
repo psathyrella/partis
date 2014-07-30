@@ -1,37 +1,29 @@
 hmms
+  - if we assume that we\'re much *more* interested in large clusters than small clusters (say, maybe we only care that there are a lot of one-sequence clusters), then
+    we could initially do all-against-all on some subset. Then, run each new sequence only against the larger clusters in this subset
   - need to get gene choice probs from *naive* and apply them to mature
   - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
     - so try to use the amount of mutation in v to inform this decision
   - blast instead of s-w?
   - figure out what erick meant by non-negative matrix factorization
-  - get connors s-w (vdjalign) running
-  - don\'t forget to add gene version choice probs back in
+  - get connor\'s clustering algorithm working
+  - don\'t forget to add in the denominator to normalize for individual sequence forward probs
   - add an initial step to determine which alleles and versions this individual actually has
-  - add assertion in text parser that emission and transition probs at to 1.0
-  - add probability of choosing a gene as an additional factor
-  - how to choose the k_v k_d ranges to loop over? (probably smith-waterman)
+  - add assertion in text parser that emission and transition probs add to 1.0
   - optimizations
+    - add in cdr3 length partitioning
     - TODO in FillTrellis
     - for k_v --> k_v + 1, don\'t recalculate the whole table
-    - use erick\'s idea for a smith-waterman cutoff for gene version plausibility
-    - don\'t rerun the v region if you\'ve only changed k_d!
     - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences
     - even *within* one gene version\'s dp table, I\'m looping over a lot of states to which I can\'t transition. Does this matter? Can it be avoided?
     - alleles: save chunks of dp tables and reuse \'em
-    - don\'t look at entire v gene
-    - take vdj version length into account (if a huge and unlikely insertion or deletion is necessary, don\'t run it)
-    - use correlation between vdj choices (eg if I chose v7 if I always choose j2, don\'t check all the other js)
+    - don\'t look at entire v gene, i.e. look at less than we have in the reads
     - would it be faster with STATE_MAX less than 1024?
-    - only look at the likeliest gene versions at first (and don\'t look at alleles you know the person doesn\'t have?)
-    - try fancier functions (viterbi, forward, etc) that were originally present
-    - instead of one hmm for all v genes, have several (maybe one for each version?)
-    - which k_v, k_d to loop over?
+    - run HMM several times, the first maybe only on the single best gene versions and a narrow kset
+    - try fancier stochhmm function versions (viterbi, forward, etc) that were originally present
     - can I remove the '######' lines from .hmm files?
     - compress hmm files (well, deverbosify them)
     - don\'t use hmm files -- build the hmm directly in memory
 
-  - double check his forward algorithm
-  - make sure lexicalTable changes didn\'t screw up transition class
   - wait, what is stochhmm doing with the 'N's?
-  - write something to convert hmm model files to diagrams for debugging purposes
   - add bfloats to stochhmm?

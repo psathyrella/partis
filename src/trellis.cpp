@@ -214,59 +214,64 @@ namespace StochHMM {
         
   // ----------------------------------------------------------------------------------------
   //TODO:  Fix getTransitions to work with all transition types
-  double trellis::getTransition(state* st, size_t trans_to_state, size_t sequencePosition) {
-    double transition_prob(-INFINITY);
-    transition* trans = st->getTrans(trans_to_state);
-    if (trans==NULL) {
-      return transition_prob;
-    }
-                                
-    transType trans_type = trans->getTransitionType();
-        
-        
-        
-                
-    if (trans_type == STANDARD ){  //if the transition type is standard then just return the standard probability
-                        
-      transition_prob= trans->getTransition(0,NULL);
-    }
-    else if (trans_type == DURATION){
-                        
-      //If the traceback_table isn't defined, then we need to generate it using the viterbi algorithm
-      if (traceback_table==NULL){
-        (*this).viterbi();
-      }
-                        
-      //Calculate the duration length from the traceback table
-      size_t size = get_explicit_duration_length(trans,sequencePosition, st->getIterator(), trans_to_state);
-      transition_prob=trans->getTransition(size,NULL);
-    }
-    else if (trans_type == LEXICAL || trans_type == PDF){
-      transition_prob=trans->getTransition(sequencePosition, seqs);
-      if (isnan(transition_prob)){
-        std::cerr << "Function returned NaN at Position:" << sequencePosition+1 << " using function named " << trans->getPDFFunctionName() << std::endl;
-        std::exit(23);
-      }
-    }
-                
-        
-    //Is external function define for the transition
-    if (trans->FunctionDefined()){
-                        
-      //If the traceback_table isn't defined, then we need to generate it using the viterbi algorithm
-      if (traceback_table==NULL){
-        (*this).viterbi();
-      }
-                        
-      transition_prob+=transitionFuncTraceback(st, sequencePosition, trans->getExtFunction());
-      if (isnan(transition_prob)){
-        std::cerr << "External Function for Transition returned NaN at Position" << sequencePosition+1 << std::endl;
-        std::exit(23);
-      }
-    }
-                
-    return transition_prob;             
+  double trellis::getTransition(state* st, size_t trans_to_state) {
+    return st->getTrans(trans_to_state)->getTransition(0,NULL);
   }
+  // // ----------------------------------------------------------------------------------------
+  // //TODO:  Fix getTransitions to work with all transition types
+  // double trellis::getTransition(state* st, size_t trans_to_state, size_t sequencePosition) {
+  //   double transition_prob(-INFINITY);
+  //   transition* trans = st->getTrans(trans_to_state);
+  //   if (trans==NULL) {
+  //     return transition_prob;
+  //   }
+                                
+  //   transType trans_type = trans->getTransitionType();
+        
+        
+        
+                
+  //   if (trans_type == STANDARD ){  //if the transition type is standard then just return the standard probability
+                        
+  //     transition_prob= trans->getTransition(0,NULL);
+  //   }
+  //   else if (trans_type == DURATION){
+                        
+  //     //If the traceback_table isn't defined, then we need to generate it using the viterbi algorithm
+  //     if (traceback_table==NULL){
+  //       (*this).viterbi();
+  //     }
+                        
+  //     //Calculate the duration length from the traceback table
+  //     size_t size = get_explicit_duration_length(trans,sequencePosition, st->getIterator(), trans_to_state);
+  //     transition_prob=trans->getTransition(size,NULL);
+  //   }
+  //   else if (trans_type == LEXICAL || trans_type == PDF){
+  //     transition_prob=trans->getTransition(sequencePosition, seqs);
+  //     if (isnan(transition_prob)){
+  //       std::cerr << "Function returned NaN at Position:" << sequencePosition+1 << " using function named " << trans->getPDFFunctionName() << std::endl;
+  //       std::exit(23);
+  //     }
+  //   }
+                
+        
+  //   //Is external function define for the transition
+  //   if (trans->FunctionDefined()){
+                        
+  //     //If the traceback_table isn't defined, then we need to generate it using the viterbi algorithm
+  //     if (traceback_table==NULL){
+  //       (*this).viterbi();
+  //     }
+                        
+  //     transition_prob+=transitionFuncTraceback(st, sequencePosition, trans->getExtFunction());
+  //     if (isnan(transition_prob)){
+  //       std::cerr << "External Function for Transition returned NaN at Position" << sequencePosition+1 << std::endl;
+  //       std::exit(23);
+  //     }
+  //   }
+                
+  //   return transition_prob;             
+  // }
         
         
   //! Traceback to get the duration length of the state.
@@ -462,75 +467,6 @@ namespace StochHMM {
                 
     return;
   }
-        
-        
-  void trellis::stochastic_traceback(traceback_path& path){
-                
-    stochastic_table->traceback(path);
-    return;
-  }
-        
-        
-  void trellis::stochastic_traceback(multiTraceback& paths, size_t reps){
-    for(size_t i=0;i<reps;i++){
-      traceback_path pth(hmm);
-      stochastic_table->traceback(pth);
-      paths.assign(pth);
-    }
-    return;
-  }
-        
-        
-        
-  //TODO: Finish nth traceback function
-  void trellis::traceback_nth(traceback_path& path, size_t n){
-    if (seq_size == 0 || n > nth_size || (nth_traceback_table == NULL && naive_nth_scores == NULL)){
-      return;
-    }
-                
-    if (nth_traceback_table != NULL){
-      int16_t st_pointer = (*ending_nth_viterbi)[n].st_tb;
-      int16_t sc_pointer = (*ending_nth_viterbi)[n].score_tb;
-                        
-      path.setScore((*ending_nth_viterbi)[n].score);
-      path.push_back(st_pointer);
-                        
-                        
-      for( size_t position = seq_size -1 ; position>0 ; position--){
-        (*nth_traceback_table)[position].get(st_pointer,sc_pointer);
-                                
-        if (st_pointer == -1){
-          std::cerr << "No valid path at Position: " << position << std::endl;
-          return;
-        }
-                                
-        path.push_back(st_pointer);
-      }
-                        
-    }
-    else{
-      int16_t st_pointer = (*ending_nth_viterbi)[n].st_tb;
-      int16_t sc_pointer = (*ending_nth_viterbi)[n].score_tb;
-                        
-      path.setScore((*ending_nth_viterbi)[n].score);
-      path.push_back(st_pointer);
-                        
-      for( size_t position = seq_size -1 ; position>0 ; position--){
-        nthScore& temp = (*(*naive_nth_scores)[position][st_pointer])[sc_pointer];
-        st_pointer = temp.st_tb;
-        sc_pointer = temp.score_tb;
-        if (st_pointer == -1){
-          std::cerr << "No valid path at Position: " << position << std::endl;
-          return;
-        }
-        path.push_back(st_pointer);
-      }
-    }
-    return;
-  }
-
-        
-
         
 }
 

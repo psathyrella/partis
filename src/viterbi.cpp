@@ -41,7 +41,7 @@ void trellis::viterbi() {
   //Calculate Viterbi from transitions from INIT (initial) state
   for(size_t st = 0; st < state_size; ++st) {
     if ((*initial_to)[st]) {  //if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      viterbi_temp = (*hmm)[st]->get_emission_prob(*seqs,0) + getTransition(init, st, 0);
+      viterbi_temp = (*hmm)[st]->get_emission_prob(*seqs,0) + getTransition(init, st/*,0*/);
       if (viterbi_temp > -INFINITY) {
 	if ((*scoring_current)[st] < viterbi_temp) {  // NOTE this is always true since all we've done to scoring_current so far is initialize it to -INFINITY
 	  (*scoring_current)[st] = viterbi_temp;
@@ -56,7 +56,7 @@ void trellis::viterbi() {
     //Swap current and previous viterbi scores
     scoring_previous->assign(state_size,-INFINITY); // NOTE I think this can be replaced with
     swap_ptr = scoring_previous;		    // scoring_previous = scoring_current;		
-    scoring_previous = scoring_current;	            // scoring_current->assign(state_size,-INFINITY); 
+    scoring_previous = scoring_current;	            // scoring_current->assign(state_size,-INFINITY); EDIT hmm, nope, doesn't seem to work
     scoring_current = swap_ptr;
                       
     //Swap current_states and next states sets. ie set current_states to the states which can be transitioned to from *any* of the previous states.
@@ -86,7 +86,7 @@ void trellis::viterbi() {
 	//Check that previous state has transition to current state
 	//and that the previous viterbi score is not -INFINITY
 	if ((*scoring_previous)[st_previous] != -INFINITY) {
-	  viterbi_temp = getTransition((*hmm)[st_previous], st_current , position) + emission + (*scoring_previous)[st_previous];
+	  viterbi_temp = getTransition((*hmm)[st_previous], st_current/* , position*/) + emission + (*scoring_previous)[st_previous];
                                               
 	  if (viterbi_temp > (*scoring_current)[st_current]) {
 	    (*scoring_current)[st_current] = viterbi_temp;

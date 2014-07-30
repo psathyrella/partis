@@ -1,6 +1,7 @@
 import sys
 import csv
 from opener import opener
+# ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv 
 
 class Clusterer(object):
     def __init__(self):
@@ -15,8 +16,8 @@ class Clusterer(object):
             reader = csv.DictReader(infile)
             for line in reader:
                 if self.debug:
-                    print line['unique_id_1'], line['unique_id_2'], float(line['score'])
-                self.incorporate_into_clusters(line['unique_id_1'], line['unique_id_2'], float(line['score']))
+                    print line['unique_id'], line['second_unique_id'], float(line['score'])
+                self.incorporate_into_clusters(line['unique_id'], line['second_unique_id'], float(line['score']))
 
         print 'unique_id,reco_id'
         for name,cluster_id in self.query_clusters.iteritems():

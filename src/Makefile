@@ -70,9 +70,9 @@ ARFLAGS = cru
 libstochhmm_a_AR = $(AR) $(ARFLAGS)
 libstochhmm_a_LIBADD =
 am_libstochhmm_a_OBJECTS = pwm.$(OBJEXT) PDF.$(OBJEXT) \
-	trellis.$(OBJEXT) viterbi.$(OBJEXT) stoch_viterbi.$(OBJEXT) \
+	trellis.$(OBJEXT) viterbi.$(OBJEXT) \
 	stochTable.$(OBJEXT) \
-	forward.$(OBJEXT) posterior.$(OBJEXT) traceback_path.$(OBJEXT) \
+	forward.$(OBJEXT) traceback_path.$(OBJEXT) \
 	externDefinitions.$(OBJEXT) index.$(OBJEXT) \
 	stochMath.$(OBJEXT) text.$(OBJEXT) userFunctions.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
@@ -193,10 +193,8 @@ libstochhmm_a_SOURCES = \
 	PDF.cpp \
 	trellis.cpp \
 	viterbi.cpp \
-	stoch_viterbi.cpp \
 	stochTable.cpp \
 	forward.cpp \
-	posterior.cpp \
 	traceback_path.cpp \
 	externDefinitions.cpp \
 	index.cpp \
