@@ -1,18 +1,28 @@
 hmms
+  - oh, wait, crap -- are my summed forward scores crap because I sum over different numbers of ksets for each pair of seqs?
+  - rerun the version counter down to a much lower mean count
+  - trevor says do 'pair emission', i.e. take into account correlation between mutation in clonally related seqs
+  - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
+  - minibatch (clustering strategy or something chris small mentioned)
+  - recenter clusters as you go (and compare new things to the center)
+  - use the extent of SHM (or at least *something* about SHM) in clustering
+  - wait, why not use hmm viterbi for preclustering?
+  - sw all against all (align against each *other* using sw)
   - if we assume that we\'re much *more* interested in large clusters than small clusters (say, maybe we only care that there are a lot of one-sequence clusters), then
     we could initially do all-against-all on some subset. Then, run each new sequence only against the larger clusters in this subset
   - need to get gene choice probs from *naive* and apply them to mature
   - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
-    - so try to use the amount of mutation in v to inform this decision
+    - so try to use the amount of mutation in v to inform this decision (?)
+    - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
   - blast instead of s-w?
   - figure out what erick meant by non-negative matrix factorization
   - get connor\'s clustering algorithm working
-  - don\'t forget to add in the denominator to normalize for individual sequence forward probs
+  - check the denominator (normalization for individual sequence forward probs) by implementing single-sequence forward
   - add an initial step to determine which alleles and versions this individual actually has
   - add assertion in text parser that emission and transition probs add to 1.0
   - optimizations
     - add in cdr3 length partitioning
-    - TODO in FillTrellis
+    - TODOs in FillTrellis
     - for k_v --> k_v + 1, don\'t recalculate the whole table
     - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences
     - even *within* one gene version\'s dp table, I\'m looping over a lot of states to which I can\'t transition. Does this matter? Can it be avoided?

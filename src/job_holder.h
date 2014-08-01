@@ -18,59 +18,60 @@ typedef pair<string,string> StrPair;
 // ----------------------------------------------------------------------------------------
 class HMMHolder {
 public:
-  HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines *gl):hmm_dir_(hmm_dir),n_seqs_per_track_(n_seqs_per_track),gl_(gl) {}
+  HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines &gl):hmm_dir_(hmm_dir),n_seqs_per_track_(n_seqs_per_track),gl_(gl) {}
   ~HMMHolder();
   model *Get(string gene);
 private:
   string hmm_dir_;
   size_t n_seqs_per_track_;
-  GermLines *gl_;  // TODO kind of hackey to have a separate one of these in HMMHolder. Then again, I don't think it's really that expensive.
+  GermLines &gl_;  // TODO kind of hackey to have a separate one of these in HMMHolder. Then again, I don't think it's really that expensive.
   map<string,model*> hmms_;  // map of gene name to hmm pointer
+};
+
+// ----------------------------------------------------------------------------------------
+class Result {
+public:
+  Result() : total_score_(-INFINITY) {}
+  double total_score_;
+  vector<RecoEvent> events_;
 };
 
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(GermLines *gl, string algorithm, sequences *seqs, HMMHolder *hmms, size_t n_best_events, string only_genes="");
+  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str="");
   ~JobHolder();
-  void Run(size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
+  void Clear();
+  Result Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
+  Result Run(sequence &seq, size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
+  void RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
+  void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
   void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
-  void PushBackRecoEvent(KSet kset, map<string,string> &best_genes, double score);
-  RecoEvent FillRecoEvent(KSet kset, map<string,string> &best_genes, double score);
+  void PushBackRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score, vector<RecoEvent> *events);
+  RecoEvent FillRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score);
   void StreamOutput(double test);  // print csv event info to stderr
-  StrPair GetQueryStrs(KSet kset, string region);
-  void RunKSet(KSet kset);
-  double total_score() { return total_score_; }
-  vector<RecoEvent> &events() { return events_; }
+  StrPair GetQueryStrs(sequences &seqs, KSet kset, string region);
+  // double total_score() { return total_score_; }
 
 private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
-  sequences GetSubSeqs(KSet kset, string region);
-  map<string,sequences> GetSubSeqs(KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
+  sequences GetSubSeqs(sequences &seqs, KSet kset, string region);
+  map<string,sequences> GetSubSeqs(sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   size_t GetInsertLength(vector<string> labels);
   size_t GetErosionLength(string side, vector<string> path_labels, string gene_name);
   double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files
-  bool pair_;  // pair hmm? otherwise it's a single
-  map<string, set<string> > only_genes_;
+  GermLines &gl_;
+  HMMHolder &hmms_;
   string algorithm_;
-  GermLines *gl_;
-  vector<RecoEvent> events_;
-  map<KSet,double> best_scores_;  // map from kset to best score for that kset (summed over regions)
-  map<KSet,double> total_scores_;  // map from kset to total score for that kset (summed over regions)
-  double total_score_;  // total total total over everything score for forward algorithm
-  map<KSet,map<string,string> > best_genes_;  // map from a kset to its corresponding triplet of best genes
-  sequences *seqs_;
-  HMMHolder *hmms_;
+  int debug_;
+  size_t n_best_events_; // print and return this many events
+  map<string, set<string> > only_genes_;
+
   map<string, map<StrPair,trellis*> > trellisi_;  // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<StrPair,traceback_path*> > paths_;  // collection of the paths. 
   map<string, map<StrPair,double> > all_scores_;
-  vector<string>::iterator i_current_region_;  // region and position of the *next* job we will pass out with GetNextJob()
-  vector<string>::iterator i_current_gene_;
-  int debug_;
-  size_t n_best_events_; // print and return this many events
-  ofstream ofs_;
 };
 #endif

@@ -20,13 +20,13 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
 // ----------------------------------------------------------------------------------------
 // init command-line options
 opt_parameters commandline[] = {
-  {"--hmmtype"      ,OPT_STRING     ,false  ,"single",  {}},
   {"--hmmdir"       ,OPT_STRING     ,false  ,"./bcell", {}},
   {"--infile"       ,OPT_STRING     ,true   ,"",        {}},
   {"--outfile"      ,OPT_STRING     ,true   ,"",        {}},
   {"--algorithm"    ,OPT_STRING     ,true   ,"viterbi", {}},
   {"--debug"        ,OPT_INT        ,false  ,"0",       {}},
-  {"--n_best_events",OPT_INT        ,false  ,"5",       {}},
+  {"--n_best_events",OPT_INT        ,true  ,"",         {}},
+  {"--pair"         ,OPT_INT        ,false  ,"0",       {}},  // holy crap why is flag not a flag?
 };
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
@@ -80,6 +80,7 @@ Args::Args(string fname):
     }
   }
 }
+
 // ----------------------------------------------------------------------------------------
 vector<sequences*> GetSeqs(Args &args, track *trk) {
   vector<sequences*> all_seqs;
@@ -102,13 +103,14 @@ vector<sequences*> GetSeqs(Args &args, track *trk) {
   }
   return all_seqs;
 }
+
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, "");
   opt.parse_commandline(argc,argv);
-  assert(opt.sopt("--hmmtype") == "single" || opt.sopt("--hmmtype") == "pair");
   assert(opt.sopt("--algorithm") == "viterbi" || opt.sopt("--algorithm") == "forward");
+  assert(opt.iopt("--pair") == 0 || opt.iopt("--pair") == 1);
   assert(opt.iopt("--debug") >=0 && opt.iopt("--debug") < 3);
   Args args(opt.sopt("--infile"));
 
@@ -121,50 +123,37 @@ int main(int argc, const char * argv[]) {
     ofs << "unique_id,second_unique_id,score" << endl;
 
   // init some stochhmm infrastructure
-  size_t n_seqs_per_track(opt.sopt("--hmmtype")=="pair" ? 2 : 1);
+  size_t n_seqs_per_track(opt.iopt("--pair") ? 2 : 1);
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);
   vector<sequences*> seqs(GetSeqs(args, &trk));
   GermLines gl;
-  HMMHolder hmms(opt.sopt("--hmmdir"), n_seqs_per_track, &gl);
+  HMMHolder hmms(opt.sopt("--hmmdir"), n_seqs_per_track, gl);
 
   assert(seqs.size() == args.strings_["name"].size());
   for (size_t is=0; is<seqs.size(); is++) {
-    int k_v_guess = args.integers_["k_v_guess"][is];
-    int k_d_guess = args.integers_["k_d_guess"][is];
-    int v_fuzz = args.integers_["v_fuzz"][is];
-    int d_fuzz = args.integers_["d_fuzz"][is];
+    int k_start = max(1, args.integers_["k_v_guess"][is] - args.integers_["v_fuzz"][is]);
+    int d_start = max(1, args.integers_["k_d_guess"][is] - args.integers_["d_fuzz"][is]);
+    int n_k_v = 2 * args.integers_["v_fuzz"][is];
+    int n_k_d = 2 * args.integers_["d_fuzz"][is];
     // TODO oh wait shouldn't k_d be allowed to be zero?
     // NOTE this is the *maximum* fuzz allowed -- job_holder::Run is allowed to skip ksets that don't make sense
 
-    JobHolder jh(&gl, opt.sopt("--algorithm"), seqs[is], &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
+
+    JobHolder jh(gl, hmms, opt.sopt("--algorithm"), args.strings_["only_genes"][is]);
     jh.SetDebug(opt.iopt("--debug"));
-    jh.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);  // note that these events will die when the JobHolder dies
+    jh.SetNBestEvents(opt.iopt("--n_best_events"));
+    Result result = jh.Run(*seqs[is], k_start, n_k_v, d_start, n_k_d);
+    double score(result.total_score_);
 
-    sequences seqs_a;
-    // sequence *sq = new(nothrow) sequence(args.strings_["seq"][iseq], trk, args.strings_["name"][iseq]);
-    seqs_a.addSeq(&(*seqs[is])[0]);
-    JobHolder jh_a(&gl, opt.sopt("--algorithm"), &seqs_a, &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
-    jh_a.SetDebug(opt.iopt("--debug"));
-    jh_a.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);  // note that these events will die when the JobHolder dies
+    if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
+      assert(seqs[is]->size() == 2);
+      Result result_a = jh.Run((*seqs[is])[0], k_start, n_k_v, d_start, n_k_d);
+      Result result_b = jh.Run((*seqs[is])[1], k_start, n_k_v, d_start, n_k_d);
+      score = score - result_a.total_score_ - result_b.total_score_;
+    }
 
-    sequences seqs_b;
-    // sequence *sq = new(nothrow) sequence(args.strings_["seq"][iseq], trk, args.strings_["name"][iseq]);
-    seqs_b.addSeq(&(*seqs[is])[1]);
-    JobHolder jh_b(&gl, opt.sopt("--algorithm"), &seqs_b, &hmms, opt.iopt("--n_best_events"), args.strings_["only_genes"][is]);
-    jh_b.SetDebug(opt.iopt("--debug"));
-    jh_b.Run(max(k_v_guess - v_fuzz, 1), 2*v_fuzz, max(k_d_guess - d_fuzz, 1), 2*d_fuzz);  // note that these events will die when the JobHolder dies
-
-    // cout
-    //   << "FOOP"
-    //   << setw(12) << jh.total_score()
-    //   << setw(12) << jh_a.total_score()
-    //   << setw(12) << jh_b.total_score()
-    //   << " --> "
-    //   << setw(12) << jh.total_score() - jh_a.total_score() - jh_b.total_score()
-    //   << endl;
-
-    StreamOutput(ofs, opt, jh.events(), *seqs[is], jh.total_score() - jh_a.total_score() - jh_b.total_score());
+    StreamOutput(ofs, opt, result.events_, *seqs[is], score);
   }
 
   ofs.close();
@@ -174,10 +163,11 @@ int main(int argc, const char * argv[]) {
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score) {
   if (opt.sopt("--algorithm") == "viterbi") {
+    assert(opt.iopt("--n_best_events") <= events.size());
     for (size_t ievt=0; ievt<opt.iopt("--n_best_events"); ++ievt) {
       RecoEvent *event = &events[ievt];
       string second_seq_name,second_seq;
-      if (opt.sopt("--hmmtype") == "pair") {
+      if (opt.iopt("--pair")) {
 	second_seq_name = event->second_seq_name_;
 	second_seq = event->second_seq_;
       }
