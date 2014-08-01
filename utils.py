@@ -236,7 +236,7 @@ def is_mutated(original, final):
         return color('red', final)
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False):
+def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False, extra_str=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -314,10 +314,10 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     if 'score' not in line:
         line['score'] = ''
     if not one_line:
-        print '    %s   inserts' % insertions
-        print '    %s   %s' % (d, color_gene(line['d_gene']))
-        print '    %s   %s,%s' % (vj, color_gene(line['v_gene']), color_gene(line['j_gene']))
-    print '    %s   %s' % (final_seq, line['score'])
+        print '%s    %s   inserts' % (extra_str, insertions)
+        print '%s    %s   %s' % (extra_str, d, color_gene(line['d_gene']))
+        print '%s    %s   %s,%s' % (extra_str, vj, color_gene(line['v_gene']), color_gene(line['j_gene']))
+    print '%s    %s   %s' % (extra_str, final_seq, line['score'])
 
     line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
