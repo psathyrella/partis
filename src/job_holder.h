@@ -52,7 +52,7 @@ public:
   RecoEvent FillRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score);
   void StreamOutput(double test);  // print csv event info to stderr
   StrPair GetQueryStrs(sequences &seqs, KSet kset, string region);
-  // double total_score() { return total_score_; }
+  void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
 private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
@@ -73,5 +73,6 @@ private:
   map<string, map<StrPair,trellis*> > trellisi_;  // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<StrPair,traceback_path*> > paths_;  // collection of the paths. 
   map<string, map<StrPair,double> > all_scores_;
+  map<string,double> best_per_gene_scores_;
 };
 #endif

@@ -59,6 +59,7 @@ void JobHolder::Clear() {
   trellisi_.clear();
   paths_.clear();
   all_scores_.clear();
+  best_per_gene_scores_.clear();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -313,7 +314,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes) {
+ void JobHolder::RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes) {
   map<string,sequences> subseqs(GetSubSeqs(seqs, kset));
   (*best_scores)[kset] = -INFINITY;
   (*total_scores)[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
@@ -362,12 +363,23 @@ void JobHolder::RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_score
 	double gene_choice_score = log(hmms_.Get(gene)->overall_gene_prob_);  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
 	*gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
+
+      // set regional total scores
       regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
-      if (debug_ == 2 && algorithm_=="forward") printf("                %9.2f (%.1e)  tot: %7.2f  %s\n", *gene_score, exp(*gene_score), regional_total_scores[region], tc.ColorGene(gene).c_str());
+      if (debug_ == 2 && algorithm_=="forward")
+	printf("                %9.2f (%.1e)  tot: %7.2f  %s\n", *gene_score, exp(*gene_score), regional_total_scores[region], tc.ColorGene(gene).c_str());
+
+      // set best regional scores
       if (*gene_score > regional_best_scores[region]) {
 	regional_best_scores[region] = *gene_score;
 	(*best_genes)[kset][region] = gene;
       }
+
+      // set best per-gene scores
+      if (best_per_gene_scores_.find(gene) == best_per_gene_scores_.end())
+	best_per_gene_scores_[gene] = -INFINITY;
+      if (*gene_score > best_per_gene_scores_[gene])
+	best_per_gene_scores_[gene] = *gene_score;
     }
 
     // return if we didn't find a valid path for this region
@@ -440,4 +452,13 @@ size_t JobHolder::GetErosionLength(string side, vector<string> labels, string ge
   }
 
   return length;
+}
+
+// ----------------------------------------------------------------------------------------
+void JobHolder::WriteBestGeneProbs(ofstream &ofs, string query_name) {
+  ofs << query_name << ",";
+  stringstream ss;
+  for (auto &gene_map: best_per_gene_scores_)
+    ss << gene_map.first << ":" << gene_map.second << ";";
+  ofs << ss.str().substr(0, ss.str().size()-1) << endl;  // remove the last semicolon
 }

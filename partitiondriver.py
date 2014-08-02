@@ -27,13 +27,14 @@ class PartitionDriver(object):
             os.makedirs(self.workdir)
         self.reco_info = self.read_sim_file()  # read simulation info and write sw input file
         self.pair_scores = {}
-        self.default_v_fuzz = 10  # TODO play around with these default fuzzes
+        self.default_v_fuzz = 5  # TODO play around with these default fuzzes
         self.default_d_fuzz = 10  # note that the k_d guess can be almost worthless, since the s-w step tends to expand the j match over a lot of the d
         self.safety_buffer_that_I_should_not_need = 15  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
         self.pairscorefname = 'pairwise-scores.csv'
         self.default_hmm_dir = 'bcell/hmms/' + self.args.human + '/' + self.args.naivety
         self.default_v_right_length = default_v_right_length
         self.sw_info = {}
+        self.precluster_info = {}
             
     # ----------------------------------------------------------------------------------------
     def get_score_index(self, query_name, second_query_name):
@@ -79,12 +80,23 @@ class PartitionDriver(object):
         # run hmm
         hmm_csv_infname = self.workdir + '/hmm_input.csv'
         self.write_hmm_input(hmm_csv_infname)
+
+        single_gene_prob_fname = self.workdir + '/single-gene-probs.csv'
+        self.run_stochhmm(hmm_csv_infname, single_gene_prob_fname, precluster=True)
+        self.read_stochhmm_output(single_gene_prob_fname, precluster=True);
+        self.calculate_scorespace_distances()
+        sys.exit()
+        # TODO use a different infname (and infile contents!)
         hmm_csv_outfname = self.workdir + '/hmm_output.csv'
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
+        self.read_stochhmm_output(hmm_csv_outfname);
+
+
 
         os.remove(swinfname)
         os.remove(swoutfname)
         os.remove(hmm_csv_infname)
+        os.remove(single_gene_prob_fname)
         os.remove(hmm_csv_outfname)
         os.rmdir(self.workdir)
 
@@ -265,9 +277,10 @@ class PartitionDriver(object):
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], info['all'], self.reco_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
-    def run_stochhmm(self, csv_infname, csv_outfname):
+    def run_stochhmm(self, csv_infname, csv_outfname, precluster=False):
         start = time.time()
 
+        # build the command line
         cmd_str = './stochhmm'
         cmd_str += ' --algorithm ' + self.args.algorithm
         if self.args.pair:
@@ -277,12 +290,14 @@ class PartitionDriver(object):
         cmd_str += ' --hmmdir ' + self.default_hmm_dir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
+        if precluster:  # write single gene probabilities for preclustering
+            cmd_str += ' --single_gene_probs 1'
 
         if self.args.debug == 2:  # not sure why, but popen thing hangs with debug 2
-            check_call(cmd_str, shell=True)
-            sys.exit()  # um, not sure which I want here, but it doesn't really matter. TODO kinda
-            return matchlist
+            check_call(cmd_str, shell=True)  # um, not sure which I want here, but it doesn't really matter. TODO kinda
+            sys.exit()
 
+        # run hmm
         hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
         hmm_proc.wait()
         hmm_out, hmm_err = hmm_proc.communicate()
@@ -292,36 +307,80 @@ class PartitionDriver(object):
             sys.exit()
 
         print 'hmm run time: %.3f' % (time.time() - start)
-        start = time.time()
-        with opener('r')(csv_outfname) as csv_outfile:
-            reader = csv.DictReader(csv_outfile)
-            last_id = None
-            for line in reader:
-                if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
-                    from_same_event = False
-                    if self.args.pair:
-                        from_same_event = self.reco_info[line['unique_id']]['reco_id'] == self.reco_info[line['second_unique_id']]['reco_id']
-                    print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event),
-                if self.args.algorithm == 'viterbi':
-                    print ''
-                    # if this is the first line for this query (or query pair), print the true event
-                    if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
-                        print '    true:'
-                        utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], 0, 0, extra_str='    ')
-                        if self.args.pair:
-                            print '      and maybe'
-                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, True, '    ')
-                        print '    inferred:'
-                    utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
-                    if self.args.pair:
-                        tmpseq = line['seq']  # TODO oh, man, that's a cludge
-                        line['seq'] = line['second_seq']
-                        utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
-                        line['seq'] = tmpseq
-                else:
-                    print '  ',line['score']
-                    with opener('a')(self.pairscorefname) as pairscorefile:
-                        pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
-                last_id = self.get_score_index(line['unique_id'], line['second_unique_id'])
 
-        print 'hmm print time: %.3f' % (time.time() - start)
+    # ----------------------------------------------------------------------------------------
+    def read_stochhmm_output(self, csv_outfname, precluster=False):
+        """ Read hmm output file """
+        if precluster:
+            with opener('r')(csv_outfname) as csv_outfile:
+                reader = csv.DictReader(csv_outfile)
+                for line in reader:
+                    self.precluster_info[line['unique_id']] = {}
+                    score_list = line['scores'].split(';')
+                    for score_str in score_list:
+                        gene = score_str.split(':')[0]
+                        score = float(score_str.split(':')[1])
+                        self.precluster_info[line['unique_id']][gene] = score
+        else:
+            with opener('r')(csv_outfname) as csv_outfile:
+                reader = csv.DictReader(csv_outfile)
+                last_id = None
+                for line in reader:
+                    if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
+                        from_same_event = False
+                        if self.args.pair:
+                            from_same_event = self.reco_info[line['unique_id']]['reco_id'] == self.reco_info[line['second_unique_id']]['reco_id']
+                        print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event),
+                    if self.args.algorithm == 'viterbi':
+                        print ''
+                        # if this is the first line for this query (or query pair), print the true event
+                        if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
+                            print '    true:'
+                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], 0, 0, extra_str='    ')
+                            if self.args.pair:
+                                print '      and maybe'
+                                utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, True, '    ')
+                            print '    inferred:'
+                        utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
+                        if self.args.pair:
+                            tmpseq = line['seq']  # TODO oh, man, that's a cludge
+                            line['seq'] = line['second_seq']
+                            utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
+                            line['seq'] = tmpseq
+                    else:
+                        print '  ',line['score']
+                        with opener('a')(self.pairscorefname) as pairscorefile:
+                            pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                    last_id = self.get_score_index(line['unique_id'], line['second_unique_id'])
+    
+    # ----------------------------------------------------------------------------------------
+    def calculate_scorespace_distances(self):
+        precluster_pairscores = {}
+        for query_1,info_1 in self.precluster_info.iteritems():
+            for query_2,info_2 in self.precluster_info.iteritems():
+                if query_1 == query_2:
+                    continue
+                if self.get_score_index(query_1, query_2) in precluster_pairscores:
+                    continue
+
+                gene_set = set(info_1.keys()) & set(info_2.keys())  # gene versions for which we have scores for either sequence. OH WAIT maybe in both? see TODO below
+                total = 0.0
+                for gene in gene_set:
+                    # TODO what to do if they don't both have a score?
+                    # score_1 = float('-inf')
+                    # if gene in info_1:
+                    #     score_1 = info_1[gene]
+                    # score_2 = float('-inf')
+                    # if gene in info_2:
+                    #     score_2 = info_2[gene]
+                    # total += (score_1 - score_2)**2
+                    if info_1[gene] == float('-inf'):
+                        continue
+                    if info_2[gene] == float('-inf'):
+                        continue
+                    total += (info_1[gene] - info_2[gene])**2
+                from_same_event = self.reco_info[query_1]['reco_id'] == self.reco_info[query_2]['reco_id']
+                print '%20s %20s %2d %.1f' % (query_1,query_2,from_same_event,total)
+                precluster_pairscores[self.get_score_index(query_1, query_2)] = total
+                    
+    

@@ -1,5 +1,8 @@
 hmms
   - oh, wait, crap -- are my summed forward scores crap because I sum over different numbers of ksets for each pair of seqs?
+  - you\'re still writing some files for every query sequence in Stochhmm.cpp, I think. Don\'t!
+  - how to treat alleles in this preclustering space?
+  - I should really be able to construct the denominator in P(A,B) / (P(A) P(B)) from the numerator without recalculating much, right?
   - rerun the version counter down to a much lower mean count
   - trevor says do 'pair emission', i.e. take into account correlation between mutation in clonally related seqs
   - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse

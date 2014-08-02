@@ -20,13 +20,14 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
 // ----------------------------------------------------------------------------------------
 // init command-line options
 opt_parameters commandline[] = {
-  {"--hmmdir"       ,OPT_STRING     ,false  ,"./bcell", {}},
-  {"--infile"       ,OPT_STRING     ,true   ,"",        {}},
-  {"--outfile"      ,OPT_STRING     ,true   ,"",        {}},
-  {"--algorithm"    ,OPT_STRING     ,true   ,"viterbi", {}},
-  {"--debug"        ,OPT_INT        ,false  ,"0",       {}},
-  {"--n_best_events",OPT_INT        ,true  ,"",         {}},
-  {"--pair"         ,OPT_INT        ,false  ,"0",       {}},  // holy crap why is flag not a flag?
+  {"--hmmdir",            OPT_STRING, false, "./bcell", {}},
+  {"--infile",            OPT_STRING, true,  "",        {}},
+  {"--outfile",           OPT_STRING, true,  "",        {}},
+  {"--algorithm",         OPT_STRING, true,  "viterbi", {}},
+  {"--debug",             OPT_INT,    false, "0",       {}},
+  {"--n_best_events",     OPT_INT,    true,  "",        {}},
+  {"--pair",              OPT_INT,    false, "0",       {}},  // holy crap why is flag not a flag?
+  {"--single_gene_probs", OPT_INT,    false, "0",       {}},  // get the probability that each single gene version occurs in each query sequence and write to file (for preclustering)
 };
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
@@ -114,13 +115,18 @@ int main(int argc, const char * argv[]) {
   assert(opt.iopt("--debug") >=0 && opt.iopt("--debug") < 3);
   Args args(opt.sopt("--infile"));
 
-  // write csv output header
-  ofstream ofs(opt.sopt("--outfile"));
+  // write csv output headers
+  ofstream ofs;
+  ofs.open(opt.sopt("--outfile"));
   assert(ofs.is_open());
-  if (opt.sopt("--algorithm") == "viterbi")
-    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq" << endl;
-  else
-    ofs << "unique_id,second_unique_id,score" << endl;
+  if (opt.iopt("--single_gene_probs")) {
+    ofs << "unique_id,scores" << endl;
+  } else {
+    if (opt.sopt("--algorithm") == "viterbi")
+      ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq" << endl;
+    else
+      ofs << "unique_id,second_unique_id,score" << endl;
+  }
 
   // init some stochhmm infrastructure
   size_t n_seqs_per_track(opt.iopt("--pair") ? 2 : 1);
@@ -134,18 +140,15 @@ int main(int argc, const char * argv[]) {
   for (size_t is=0; is<seqs.size(); is++) {
     int k_start = max(1, args.integers_["k_v_guess"][is] - args.integers_["v_fuzz"][is]);
     int d_start = max(1, args.integers_["k_d_guess"][is] - args.integers_["d_fuzz"][is]);
-    int n_k_v = 2 * args.integers_["v_fuzz"][is];
-    int n_k_d = 2 * args.integers_["d_fuzz"][is];
-    // TODO oh wait shouldn't k_d be allowed to be zero?
-    // NOTE this is the *maximum* fuzz allowed -- job_holder::Run is allowed to skip ksets that don't make sense
-
+    int n_k_v = 2 * args.integers_["v_fuzz"][is];  // NOTE this is the *maximum* fuzz allowed -- job_holder::Run is allowed to skip ksets that don't make sense
+    int n_k_d = 2 * args.integers_["d_fuzz"][is];  // TODO oh wait shouldn't k_d be allowed to be zero?
 
     JobHolder jh(gl, hmms, opt.sopt("--algorithm"), args.strings_["only_genes"][is]);
     jh.SetDebug(opt.iopt("--debug"));
     jh.SetNBestEvents(opt.iopt("--n_best_events"));
+
     Result result = jh.Run(*seqs[is], k_start, n_k_v, d_start, n_k_d);
     double score(result.total_score_);
-
     if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
       assert(seqs[is]->size() == 2);
       Result result_a = jh.Run((*seqs[is])[0], k_start, n_k_v, d_start, n_k_d);
@@ -153,7 +156,12 @@ int main(int argc, const char * argv[]) {
       score = score - result_a.total_score_ - result_b.total_score_;
     }
 
-    StreamOutput(ofs, opt, result.events_, *seqs[is], score);
+    if (opt.iopt("--single_gene_probs")) {
+      assert(seqs[is]->size() == 1);
+      jh.WriteBestGeneProbs(ofs, (*seqs[is])[0].name_);
+    } else {
+      StreamOutput(ofs, opt, result.events_, *seqs[is], score);
+    }
   }
 
   ofs.close();
