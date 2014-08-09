@@ -368,7 +368,7 @@ class Recombinator(object):
         return mutated_seqs
 
     def add_mutants(self, reco_event):
-        chosen_tree = self.trees[random.randint(0, len(self.trees))]
+        chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         print '  generating mutations (seed %d) with tree %s' % (os.getpid(), chosen_tree)  # TODO make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
         v_mutes = self.run_bppseqgen(reco_event.seqs['v'], chosen_tree, reco_event.gene_names['v'], reco_event)
         d_mutes = self.run_bppseqgen(reco_event.seqs['d'], chosen_tree, reco_event.gene_names['d'], reco_event)
