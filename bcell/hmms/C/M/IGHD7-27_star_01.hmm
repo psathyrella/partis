@@ -1,0 +1,167 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.0400252668748
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.9216564938576837
+    IGHD7-27_star_01_0: 0.0042472278488406
+    IGHD7-27_star_01_1: 0.0082978726790990
+    IGHD7-27_star_01_2: 0.0091204174147454
+    IGHD7-27_star_01_3: 0.0479300438727259
+    IGHD7-27_star_01_4: 0.0086858654789322
+    IGHD7-27_star_01_5: 0.0000206929493244
+    IGHD7-27_star_01_6: 0.0000413858986489
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+TRANSITION: STANDARD: P(X)
+ insert: 0.7249321787696434
+    IGHD7-27_star_01_0: 0.0149122214230139
+    IGHD7-27_star_01_1: 0.0291342304050114
+    IGHD7-27_star_01_2: 0.0320222245661066
+    IGHD7-27_star_01_3: 0.1682846912109914
+    IGHD7-27_star_01_4: 0.0304964918017544
+    IGHD7-27_star_01_5: 0.0000726539411596
+    IGHD7-27_star_01_6: 0.0001453078823193
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_0
+  PATH_LABEL:  IGHD7-27_star_01_0
+  GFF_DESC:    IGHD7-27_star_01_0
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_1
+  PATH_LABEL:  IGHD7-27_star_01_1
+  GFF_DESC:    IGHD7-27_star_01_1
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_2
+  PATH_LABEL:  IGHD7-27_star_01_2
+  GFF_DESC:    IGHD7-27_star_01_2
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9228430000000000 0.0257190000000000 0.0257190000000000 0.0257190000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_3
+  PATH_LABEL:  IGHD7-27_star_01_3
+  GFF_DESC:    IGHD7-27_star_01_3
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9322740000000000 0.0225753333333333 0.0225753333333333 0.0225753333333333
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_4
+  PATH_LABEL:  IGHD7-27_star_01_4
+  GFF_DESC:    IGHD7-27_star_01_4
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0031713333333333 0.9904860000000000 0.0031713333333333 0.0031713333333333
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_5
+  PATH_LABEL:  IGHD7-27_star_01_5
+  GFF_DESC:    IGHD7-27_star_01_5
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0019723333333333 0.0019723333333333 0.0019723333333333 0.9940830000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_6
+  PATH_LABEL:  IGHD7-27_star_01_6
+  GFF_DESC:    IGHD7-27_star_01_6
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_7:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0006306666666667 0.0006306666666667 0.9981080000000000 0.0006306666666667
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_7
+  PATH_LABEL:  IGHD7-27_star_01_7
+  GFF_DESC:    IGHD7-27_star_01_7
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_8:  0.9994057052297940
+  END: 0.0005942947702060
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0003393333333333 0.0003393333333333 0.9989820000000000 0.0003393333333333
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_8
+  PATH_LABEL:  IGHD7-27_star_01_8
+  GFF_DESC:    IGHD7-27_star_01_8
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_9:  0.9927363972530375
+  END: 0.0072636027469625
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0002626666666667 0.0002626666666667 0.9992120000000000 0.0002626666666667
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_9
+  PATH_LABEL:  IGHD7-27_star_01_9
+  GFF_DESC:    IGHD7-27_star_01_9
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_10:  0.1234152139461173
+  END: 0.8765847860538827
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_10
+  PATH_LABEL:  IGHD7-27_star_01_10
+  GFF_DESC:    IGHD7-27_star_01_10
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+//END

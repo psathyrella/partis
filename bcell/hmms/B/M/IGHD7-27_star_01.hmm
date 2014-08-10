@@ -1,0 +1,164 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.0337113938836
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.9277652370203160
+    IGHD7-27_star_01_0: 0.0038605487446852
+    IGHD7-27_star_01_1: 0.0141199275187876
+    IGHD7-27_star_01_2: 0.0063161883131700
+    IGHD7-27_star_01_3: 0.0426136106848361
+    IGHD7-27_star_01_4: 0.0053244877182050
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+TRANSITION: STANDARD: P(X)
+ insert: 0.7393234222467004
+    IGHD7-27_star_01_0: 0.0139317219784798
+    IGHD7-27_star_01_1: 0.0509551666246541
+    IGHD7-27_star_01_2: 0.0227934900871153
+    IGHD7-27_star_01_3: 0.1537814999428838
+    IGHD7-27_star_01_4: 0.0192146991201664
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_0
+  PATH_LABEL:  IGHD7-27_star_01_0
+  GFF_DESC:    IGHD7-27_star_01_0
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_1
+  PATH_LABEL:  IGHD7-27_star_01_1
+  GFF_DESC:    IGHD7-27_star_01_1
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_2
+  PATH_LABEL:  IGHD7-27_star_01_2
+  GFF_DESC:    IGHD7-27_star_01_2
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9229550000000000 0.0256816666666667 0.0256816666666667 0.0256816666666667
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_3
+  PATH_LABEL:  IGHD7-27_star_01_3
+  GFF_DESC:    IGHD7-27_star_01_3
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9098150000000000 0.0300616666666667 0.0300616666666667 0.0300616666666667
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_4
+  PATH_LABEL:  IGHD7-27_star_01_4
+  GFF_DESC:    IGHD7-27_star_01_4
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0036766666666667 0.9889700000000000 0.0036766666666667 0.0036766666666667
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_5
+  PATH_LABEL:  IGHD7-27_star_01_5
+  GFF_DESC:    IGHD7-27_star_01_5
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0013703333333333 0.0013703333333333 0.0013703333333333 0.9958890000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_6
+  PATH_LABEL:  IGHD7-27_star_01_6
+  GFF_DESC:    IGHD7-27_star_01_6
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_7:  0.9995914031216802
+  END: 0.0004085968783198
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0005270000000000 0.0005270000000000 0.9984189999999999 0.0005270000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_7
+  PATH_LABEL:  IGHD7-27_star_01_7
+  GFF_DESC:    IGHD7-27_star_01_7
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_8:  0.9993462449946883
+  END: 0.0006537550053118
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0004390000000000 0.0004390000000000 0.9986830000000000 0.0004390000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_8
+  PATH_LABEL:  IGHD7-27_star_01_8
+  GFF_DESC:    IGHD7-27_star_01_8
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_9:  0.9944430824548500
+  END: 0.0055569175451500
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0002496666666667 0.0002496666666667 0.9992510000000000 0.0002496666666667
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_9
+  PATH_LABEL:  IGHD7-27_star_01_9
+  GFF_DESC:    IGHD7-27_star_01_9
+TRANSITION: STANDARD: P(X)
+  IGHD7-27_star_01_10:  0.0737108768489009
+  END: 0.9262891231510991
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD7-27_star_01_10
+  PATH_LABEL:  IGHD7-27_star_01_10
+  GFF_DESC:    IGHD7-27_star_01_10
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+//END

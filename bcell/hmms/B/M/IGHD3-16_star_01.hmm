@@ -1,0 +1,519 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.0233943905254
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.9277652370203160
+    IGHD3-16_star_01_0: 0.0003997920230859
+    IGHD3-16_star_01_1: 0.0008506213257146
+    IGHD3-16_star_01_2: 0.0004848541556573
+    IGHD3-16_star_01_3: 0.0003742733833144
+    IGHD3-16_star_01_4: 0.0007825716196574
+    IGHD3-16_star_01_5: 0.0009441896715432
+    IGHD3-16_star_01_6: 0.0009016586052575
+    IGHD3-16_star_01_7: 0.0001956429049144
+    IGHD3-16_star_01_8: 0.0003912858098287
+    IGHD3-16_star_01_9: 0.0005358914352002
+    IGHD3-16_star_01_10: 0.0003827795965716
+    IGHD3-16_star_01_11: 0.0549076065748776
+    IGHD3-16_star_01_12: 0.0007145219136003
+    IGHD3-16_star_01_13: 0.0005954349280002
+    IGHD3-16_star_01_14: 0.0012759319885719
+    IGHD3-16_star_01_15: 0.0005273852219431
+    IGHD3-16_star_01_16: 0.0013780065476577
+    IGHD3-16_star_01_17: 0.0025858888301724
+    IGHD3-16_star_01_18: 0.0013950189741719
+    IGHD3-16_star_01_19: 0.0011653512162290
+    IGHD3-16_star_01_20: 0.0006379659942860
+    IGHD3-16_star_01_21: 0.0002721988242287
+    IGHD3-16_star_01_22: 0.0000595434928000
+    IGHD3-16_star_01_23: 0.0001105807723429
+    IGHD3-16_star_01_24: 0.0000340248530286
+    IGHD3-16_star_01_25: 0.0001275931988572
+    IGHD3-16_star_01_26: 0.0001020745590858
+    IGHD3-16_star_01_28: 0.0000255186397714
+    IGHD3-16_star_01_29: 0.0000765559193143
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+TRANSITION: STANDARD: P(X)
+ insert: 0.7393234222467004
+    IGHD3-16_star_01_0: 0.0014427460144142
+    IGHD3-16_star_01_1: 0.0030696723710940
+    IGHD3-16_star_01_2: 0.0017497132515236
+    IGHD3-16_star_01_3: 0.0013506558432813
+    IGHD3-16_star_01_4: 0.0028240985814064
+    IGHD3-16_star_01_5: 0.0034073363319143
+    IGHD3-16_star_01_6: 0.0032538527133596
+    IGHD3-16_star_01_7: 0.0007060246453516
+    IGHD3-16_star_01_8: 0.0014120492907032
+    IGHD3-16_star_01_9: 0.0019338935937892
+    IGHD3-16_star_01_10: 0.0013813525669923
+    IGHD3-16_star_01_11: 0.1981473515541155
+    IGHD3-16_star_01_12: 0.0025785247917189
+    IGHD3-16_star_01_13: 0.0021487706597658
+    IGHD3-16_star_01_14: 0.0046045085566409
+    IGHD3-16_star_01_15: 0.0019031968700783
+    IGHD3-16_star_01_16: 0.0049728692411722
+    IGHD3-16_star_01_17: 0.0093318040081257
+    IGHD3-16_star_01_18: 0.0050342626885941
+    IGHD3-16_star_01_19: 0.0042054511483987
+    IGHD3-16_star_01_20: 0.0023022542783205
+    IGHD3-16_star_01_21: 0.0009822951587501
+    IGHD3-16_star_01_22: 0.0002148770659766
+    IGHD3-16_star_01_23: 0.0003990574082422
+    IGHD3-16_star_01_24: 0.0001227868948438
+    IGHD3-16_star_01_25: 0.0004604508556641
+    IGHD3-16_star_01_26: 0.0003683606845313
+    IGHD3-16_star_01_28: 0.0000920901711328
+    IGHD3-16_star_01_29: 0.0002762705133985
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_0
+  PATH_LABEL:  IGHD3-16_star_01_0
+  GFF_DESC:    IGHD3-16_star_01_0
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_1
+  PATH_LABEL:  IGHD3-16_star_01_1
+  GFF_DESC:    IGHD3-16_star_01_1
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_2
+  PATH_LABEL:  IGHD3-16_star_01_2
+  GFF_DESC:    IGHD3-16_star_01_2
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9659740000000000 0.0113420000000000 0.0113420000000000 0.0113420000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_3
+  PATH_LABEL:  IGHD3-16_star_01_3
+  GFF_DESC:    IGHD3-16_star_01_3
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0268400000000000 0.0268400000000000 0.0268400000000000 0.9194800000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_4
+  PATH_LABEL:  IGHD3-16_star_01_4
+  GFF_DESC:    IGHD3-16_star_01_4
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0207466666666667 0.0207466666666667 0.0207466666666667 0.9377600000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_5
+  PATH_LABEL:  IGHD3-16_star_01_5
+  GFF_DESC:    IGHD3-16_star_01_5
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9072040000000000 0.0309320000000000 0.0309320000000000 0.0309320000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_6
+  PATH_LABEL:  IGHD3-16_star_01_6
+  GFF_DESC:    IGHD3-16_star_01_6
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_7:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0194306666666667 0.0194306666666667 0.0194306666666667 0.9417080000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_7
+  PATH_LABEL:  IGHD3-16_star_01_7
+  GFF_DESC:    IGHD3-16_star_01_7
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_8:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0415520000000000 0.0415520000000000 0.8753440000000000 0.0415520000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_8
+  PATH_LABEL:  IGHD3-16_star_01_8
+  GFF_DESC:    IGHD3-16_star_01_8
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_9:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8805590000000000 0.0398136666666667 0.0398136666666667 0.0398136666666667
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_9
+  PATH_LABEL:  IGHD3-16_star_01_9
+  GFF_DESC:    IGHD3-16_star_01_9
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_10:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0605123333333333 0.0605123333333333 0.0605123333333333 0.8184629999999999
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_10
+  PATH_LABEL:  IGHD3-16_star_01_10
+  GFF_DESC:    IGHD3-16_star_01_10
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_11:  0.9996467263306642
+  END: 0.0003532736693358
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0548076666666667 0.0548076666666667 0.0548076666666667 0.8355770000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_11
+  PATH_LABEL:  IGHD3-16_star_01_11
+  GFF_DESC:    IGHD3-16_star_01_11
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_12:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9736060000000000 0.0087980000000000 0.0087980000000000 0.0087980000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_12
+  PATH_LABEL:  IGHD3-16_star_01_12
+  GFF_DESC:    IGHD3-16_star_01_12
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_13:  0.9901083372585964
+  END: 0.0098916627414037
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0061183333333333 0.9816450000000000 0.0061183333333333 0.0061183333333333
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_13
+  PATH_LABEL:  IGHD3-16_star_01_13
+  GFF_DESC:    IGHD3-16_star_01_13
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_14:  0.9985869053226566
+  END: 0.0014130946773434
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0388743333333333 0.0388743333333333 0.8833770000000000 0.0388743333333333
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_14
+  PATH_LABEL:  IGHD3-16_star_01_14
+  GFF_DESC:    IGHD3-16_star_01_14
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_15:  0.9996467263306642
+  END: 0.0003532736693358
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0138303333333333 0.0138303333333333 0.0138303333333333 0.9585090000000001
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_15
+  PATH_LABEL:  IGHD3-16_star_01_15
+  GFF_DESC:    IGHD3-16_star_01_15
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_16:  0.9992934526613283
+  END: 0.0007065473386717
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.2374020000000000 0.2374020000000000 0.2374020000000000 0.2877940000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_16
+  PATH_LABEL:  IGHD3-16_star_01_16
+  GFF_DESC:    IGHD3-16_star_01_16
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_17:  0.9992934526613283
+  END: 0.0007065473386717
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0108640000000000 0.0108640000000000 0.0108640000000000 0.9674080000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_17
+  PATH_LABEL:  IGHD3-16_star_01_17
+  GFF_DESC:    IGHD3-16_star_01_17
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_18:  0.9992934526613283
+  END: 0.0007065473386717
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0071606666666667 0.0071606666666667 0.9785180000000000 0.0071606666666667
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_18
+  PATH_LABEL:  IGHD3-16_star_01_18
+  GFF_DESC:    IGHD3-16_star_01_18
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_19:  0.9972915685350918
+  END: 0.0027084314649081
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0049226666666667 0.0049226666666667 0.9852320000000000 0.0049226666666667
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_19
+  PATH_LABEL:  IGHD3-16_star_01_19
+  GFF_DESC:    IGHD3-16_star_01_19
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_20:  0.9955252001884126
+  END: 0.0044747998115874
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0047450000000000 0.0047450000000000 0.9857650000000000 0.0047450000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_20
+  PATH_LABEL:  IGHD3-16_star_01_20
+  GFF_DESC:    IGHD3-16_star_01_20
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_21:  0.2199717381064531
+  END: 0.7800282618935469
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0060200000000000 0.0060200000000000 0.9819400000000000 0.0060200000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_21
+  PATH_LABEL:  IGHD3-16_star_01_21
+  GFF_DESC:    IGHD3-16_star_01_21
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_22:  0.9885774846914743
+  END: 0.0114225153085257
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0469806666666667 0.0469806666666667 0.8590580000000000 0.0469806666666667
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_22
+  PATH_LABEL:  IGHD3-16_star_01_22
+  GFF_DESC:    IGHD3-16_star_01_22
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_23:  0.9921102213848327
+  END: 0.0078897786151672
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8452809999999999 0.0515730000000000 0.0515730000000000 0.0515730000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_23
+  PATH_LABEL:  IGHD3-16_star_01_23
+  GFF_DESC:    IGHD3-16_star_01_23
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_24:  0.9803344324069713
+  END: 0.0196655675930287
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0689866666666667 0.0689866666666667 0.7930400000000000 0.0689866666666667
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_24
+  PATH_LABEL:  IGHD3-16_star_01_24
+  GFF_DESC:    IGHD3-16_star_01_24
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_25:  0.9967027790861988
+  END: 0.0032972209138012
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0512046666666667 0.0512046666666667 0.0512046666666667 0.8463860000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_25
+  PATH_LABEL:  IGHD3-16_star_01_25
+  GFF_DESC:    IGHD3-16_star_01_25
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_26:  0.9877531794630240
+  END: 0.0122468205369760
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0935090000000000 0.0935090000000000 0.0935090000000000 0.7194730000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_26
+  PATH_LABEL:  IGHD3-16_star_01_26
+  GFF_DESC:    IGHD3-16_star_01_26
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_27:  0.9930522845030617
+  END: 0.0069477154969383
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8116080000000000 0.0627973333333333 0.0627973333333333 0.0627973333333333
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_27
+  PATH_LABEL:  IGHD3-16_star_01_27
+  GFF_DESC:    IGHD3-16_star_01_27
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_28:  0.9968205369759774
+  END: 0.0031794630240226
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0338236666666667 0.0338236666666667 0.0338236666666667 0.8985290000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_28
+  PATH_LABEL:  IGHD3-16_star_01_28
+  GFF_DESC:    IGHD3-16_star_01_28
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_29:  0.9722091380122468
+  END: 0.0277908619877532
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0352633333333333 0.0352633333333333 0.8942099999999999 0.0352633333333333
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_29
+  PATH_LABEL:  IGHD3-16_star_01_29
+  GFF_DESC:    IGHD3-16_star_01_29
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_30:  0.9871643900141309
+  END: 0.0128356099858691
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0257900000000000 0.9226300000000001 0.0257900000000000 0.0257900000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_30
+  PATH_LABEL:  IGHD3-16_star_01_30
+  GFF_DESC:    IGHD3-16_star_01_30
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_31:  0.9876354215732454
+  END: 0.0123645784267546
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0174733333333333 0.0174733333333333 0.0174733333333333 0.9475800000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_31
+  PATH_LABEL:  IGHD3-16_star_01_31
+  GFF_DESC:    IGHD3-16_star_01_31
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_32:  0.9398257183231277
+  END: 0.0601742816768724
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0210170000000000 0.0210170000000000 0.0210170000000000 0.9369490000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_32
+  PATH_LABEL:  IGHD3-16_star_01_32
+  GFF_DESC:    IGHD3-16_star_01_32
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_33:  0.9965850211964201
+  END: 0.0034149788035798
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.7303320000000000 0.0898893333333333 0.0898893333333333 0.0898893333333333
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_33
+  PATH_LABEL:  IGHD3-16_star_01_33
+  GFF_DESC:    IGHD3-16_star_01_33
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_34:  0.9954074422986340
+  END: 0.0045925577013660
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0397576666666667 0.0397576666666667 0.0397576666666667 0.8807270000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_34
+  PATH_LABEL:  IGHD3-16_star_01_34
+  GFF_DESC:    IGHD3-16_star_01_34
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_35:  0.9962317475270843
+  END: 0.0037682524729157
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9287660000000000 0.0237446666666667 0.0237446666666667 0.0237446666666667
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_35
+  PATH_LABEL:  IGHD3-16_star_01_35
+  GFF_DESC:    IGHD3-16_star_01_35
+TRANSITION: STANDARD: P(X)
+  IGHD3-16_star_01_36:  0.9961139896373057
+  END: 0.0038860103626943
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD3-16_star_01_36
+  PATH_LABEL:  IGHD3-16_star_01_36
+  GFF_DESC:    IGHD3-16_star_01_36
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+//END

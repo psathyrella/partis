@@ -23,14 +23,15 @@ void plots() {
   TCanvas c1("c1","",700,600);
   TString naivety("M");
   map<TString,int> string_map;
-  TH1F hsame = make_hist("same.txt", "same", "double", "", string_map, 8);
-  TH1F hdiff = make_hist("diff.txt", "different", "double", "", string_map);
+  TString human("C");
+  TH1F hsame = make_hist("output/" + human + "-scorespace-preclustering.txt", "same", "double", "", string_map, -1, 2, 0);
+  TH1F hdiff = make_hist("output/" + human + "-scorespace-preclustering.txt", "different", "double", "", string_map, -1, 2, 1);
 
   double xmin(min(hsame.GetBinLowEdge(1), hdiff.GetBinLowEdge(1)));
   double xmax(max(hsame.GetXaxis()->GetBinUpEdge(hsame.GetNbinsX()), hdiff.GetXaxis()->GetBinUpEdge(hdiff.GetNbinsX())));
   xmax = 1.3 * xmax;
   // xmin = -150;
-  // xmax = 40;
+  // xmax /= 2;
   TH1F hframe("hframe", "", hsame.GetNbinsX(), xmin, xmax);
   hframe.SetMaximum(1.35*(max(hsame.GetMaximum(), hdiff.GetMaximum())));
   hframe.SetTitle(";pairwise forward scores;frequency");
@@ -54,5 +55,6 @@ void plots() {
   // TString plotdir("/var/www/sharing/dralph/work/plotting/human-beings/" + human + "/M/" + var + "/plots");
   // gSystem->mkdir(plotdir, true);
   // c1.SaveAs(plotdir + "/" + region + "-" + imatch + ".png");
-  c1.SaveAs("test.png");
+  // c1.SaveAs("output/" + human + "-pairscores.png");
+  c1.SaveAs("/tmp/dralph/test.png");
 }

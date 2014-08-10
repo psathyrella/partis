@@ -150,21 +150,23 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
   // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
 
   // warn if we're on the k_v k_d space boundary
-  if (best_kset.first == k_v_start ||
-      best_kset.first == k_v_start+n_k_v-1 ||
-      best_kset.second == k_d_start ||
-      best_kset.second == k_d_start+n_k_d-1) {
-    cout << "    WARNING maximum at boundary for "
-	 << seqs[0].name_;
-    if (seqs.size() == 2)
-      cout << " " << seqs[1].name_;
-    cout
-	 << "  k_v: " << best_kset.first << "(" << k_v_start << "-" << k_v_start+n_k_v-1 << ")"
-	 << "  k_d: " << best_kset.second << "(" << k_d_start << "-" << k_d_start+n_k_d-1 << ")" << endl;
-    cout << "ok, I changed my mind, ERROR!" << endl;
-    // assert(0);  TODO make sure it doesn't happen
+  if (n_k_v > 2 && n_k_d > 2) {
+    if (best_kset.first == k_v_start ||
+	best_kset.first == k_v_start+n_k_v-1 ||
+	best_kset.second == k_d_start ||
+	best_kset.second == k_d_start+n_k_d-1) {
+      cout << "    WARNING maximum at boundary for "
+	   << seqs[0].name_;
+      if (seqs.size() == 2)
+	cout << " " << seqs[1].name_;
+      cout
+	<< "  k_v: " << best_kset.first << "(" << k_v_start << "-" << k_v_start+n_k_v-1 << ")"
+	<< "  k_d: " << best_kset.second << "(" << k_d_start << "-" << k_d_start+n_k_d-1 << ")" << endl;
+      cout << "ok, I changed my mind, ERROR!" << endl;
+      // assert(0);  TODO make sure it doesn't happen
+    }
   }
-
+  
   // print debug info
   if (debug_) {
     if (algorithm_=="viterbi")
@@ -256,6 +258,9 @@ RecoEvent JobHolder::FillRecoEvent(sequences &seqs, KSet kset, map<string,string
   StrPair seq_strs;
   for (auto &region: gl_.regions_) {
     StrPair query_strs(GetQueryStrs(seqs, kset, region));
+    if (best_genes.find(region) == best_genes.end()) {
+      cout << seqs.stringifyWOHeader() << endl;
+    }
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
     vector<string> path_labels;

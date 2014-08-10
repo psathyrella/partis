@@ -1,4 +1,9 @@
 hmms
+  - distance in any space should be monotonic in extent of SHM -- so use a percent mutated cutoff? Oh yeah -- use hamming distance within the clustering algorithms
+  - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering?
+  - why the hell is recombinator only spitting out clones with ten copies?
+  - try pairwise s-w for preclustering
+  - you know, screw this heuristic preclustering -- try just using a stripped down hmm
   - oh, wait, crap -- are my summed forward scores crap because I sum over different numbers of ksets for each pair of seqs?
   - you\'re still writing some files for every query sequence in Stochhmm.cpp, I think. Don\'t!
   - how to treat alleles in this preclustering space?

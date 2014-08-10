@@ -38,10 +38,13 @@ options opt;  //Global options for parsed command-line options
 class Args {
 public:
   Args(string fname);
+
+  string all_only_genes_;
   map<string, vector<string> > strings_;
   map<string, vector<int> > integers_;
   set<string> str_headers_, int_headers_;
 };
+
 // ----------------------------------------------------------------------------------------
 Args::Args(string fname):
   str_headers_{"only_genes", "name", "seq", "second_name", "second_seq"},
@@ -72,6 +75,12 @@ Args::Args(string fname):
       if (str_headers_.find(head) != str_headers_.end()) {
 	ss >> tmpstr;
 	strings_[head].push_back(tmpstr);
+	if (head=="only_genes") {
+	  if (all_only_genes_.size() == 0)
+	    all_only_genes_ = tmpstr;
+	  else
+	    all_only_genes_ += ":" + tmpstr;
+	}
       } else if (int_headers_.find(head) != int_headers_.end()) {
 	ss >> tmpint;
 	integers_[head].push_back(tmpint);

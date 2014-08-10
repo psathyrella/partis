@@ -110,6 +110,8 @@ class HmmWriter(object):
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
                     total += float(line['count'])
 
+                if len(self.erosion_probs[erosion]) == 0:
+                    print self.gene_name
                 assert len(self.erosion_probs[erosion]) != 0
                 test_total = 0.0
                 for n_eroded in self.erosion_probs[erosion]:  # then normalize

@@ -26,7 +26,6 @@ class PartitionDriver(object):
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
         self.reco_info = self.read_sim_file()  # read simulation info and write sw input file
-        self.pair_scores = {}
         self.default_v_fuzz = 5  # TODO play around with these default fuzzes
         self.default_d_fuzz = 10  # note that the k_d guess can be almost worthless, since the s-w step tends to expand the j match over a lot of the d
         self.safety_buffer_that_I_should_not_need = 15  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
@@ -35,6 +34,7 @@ class PartitionDriver(object):
         self.default_v_right_length = default_v_right_length
         self.sw_info = {}
         self.precluster_info = {}
+        self.match_names_for_all_queries = set()
             
     # ----------------------------------------------------------------------------------------
     def get_score_index(self, query_name, second_query_name):
@@ -54,49 +54,50 @@ class PartitionDriver(object):
         with opener('r')(self.args.simfile) as simfile:
             last_reco_id = -1  # only run on the first seq in each reco event. they're all pretty similar
             reader = csv.DictReader(simfile)
+            n_queries = 0
             for line in reader:
                 reco_info[line['unique_id']] = line
                 last_reco_id = line['reco_id']
+                n_queries += 1
+                if self.args.n_total_queries > 0 and n_queries >= self.args.n_total_queries:
+                    break
         return reco_info
     
     # ----------------------------------------------------------------------------------------
     def run(self):
         # write header for pairwise score file
         with opener('w')(self.pairscorefname) as pairscorefile:
-            pairscorefile.write('unique_id_1,unique_id_2,score\n')
+            pairscorefile.write('unique_id,second_unique_id,score\n')
 
         # run smith-waterman
         swinfname = self.workdir + '/seq.fa'  # file for input to s-w step
         swoutfname = swinfname.replace('.fa', '.bam')
         if not self.args.skip_sw:
-            print 's-w...',
             sys.stdout.flush()
             self.run_smith_waterman(swinfname, swoutfname)
-            print 'done'
+            os.remove(swinfname)
         else:
             swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
         self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
+        os.remove(swoutfname)
 
         # run hmm
-        hmm_csv_infname = self.workdir + '/hmm_input.csv'
-        self.write_hmm_input(hmm_csv_infname)
+        single_clusters = self.single_gene_score_precluster()  # TODO what should n_max_per_region be for this step?
 
-        single_gene_prob_fname = self.workdir + '/single-gene-probs.csv'
-        self.run_stochhmm(hmm_csv_infname, single_gene_prob_fname, precluster=True)
-        self.read_stochhmm_output(single_gene_prob_fname, precluster=True);
-        self.calculate_scorespace_distances()
-        sys.exit()
-        # TODO use a different infname (and infile contents!)
+        # TODO then do another precluster step with a super stripped down pair forward hmm (zero fuzz, etc)
+
+        hmm_csv_infname = self.workdir + '/hmm_input.csv'
+        self.write_hmm_input(hmm_csv_infname, single_gene_precluster=False, preclusters=single_clusters)  # TODO man those variable names suck. wtf dude?
         hmm_csv_outfname = self.workdir + '/hmm_output.csv'
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
         self.read_stochhmm_output(hmm_csv_outfname);
 
-
-
-        os.remove(swinfname)
-        os.remove(swoutfname)
+        from clusterer import Clusterer
+        clust = Clusterer(0, greater_than=True)
+        clust.cluster(self.pairscorefname, debug=True)
+        
+        
         os.remove(hmm_csv_infname)
-        os.remove(single_gene_prob_fname)
         os.remove(hmm_csv_outfname)
         os.rmdir(self.workdir)
 
@@ -213,6 +214,8 @@ class PartitionDriver(object):
                 # if 'IGHJ4*' in best_genes['j'] and self.germline_seqs['d'][best_genes['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
                 #     d_fuzz = 10
 
+                self.match_names_for_all_queries |= set(match_names['v'] + match_names['d'] + match_names['j'])
+
                 assert query_name not in self.sw_info
                 self.sw_info[query_name] = {}
                 self.sw_info[query_name]['k_v'] = k_v
@@ -227,9 +230,34 @@ class PartitionDriver(object):
         print 'sw read time: %.3f' % (time.time() - start)
     
     # ----------------------------------------------------------------------------------------
+    def single_gene_score_precluster(self):
+        hmm_csv_infname = self.workdir + '/single-gene-hmm-input.csv'  # list of single query seqs and genes for stochhmm to check
+        single_gene_prob_fname = self.workdir + '/single-gene-probs.csv'  # list of scores for each gene output by stochhmm
+        precluster_outfname = self.workdir + '/scorespace-distances.csv'  # single gene scorespace distances for input to the clusterer
+
+        self.write_hmm_input(hmm_csv_infname, single_gene_precluster=True)
+        self.run_stochhmm(hmm_csv_infname, single_gene_prob_fname, single_gene_precluster=True)
+        self.read_stochhmm_output(single_gene_prob_fname, precluster=True);
+        self.calculate_scorespace_distances(precluster_outfname)
+        from clusterer import Clusterer
+        clust = Clusterer(0.4, greater_than=False)  # TODO will need a way to get the cut value automatically. *sigh*
+        clust.cluster(precluster_outfname, debug=True)
+        # for cluster_id in clust.cluster_ids:
+        #     for query in iter(clust.query_clusters):
+        #         if clust.query_clusters[query] == cluster_id:
+        #             print '%s,%d' % (query, cluster_id)
+        return clust
+        os.remove(single_gene_prob_fname)
+        os.remove(hmm_csv_infname)
+        os.remove(precluster_outfname)
+
+    # ----------------------------------------------------------------------------------------
     def write_specified_hmms(self, hmmdir, gene_list, v_right_length):
         for gene in gene_list:
             if len(re.findall('J[123]P', gene)) > 0:  # pretty sure these versions are crap
+                print '  poof'
+                continue
+            if 'OR16' in gene or 'OR21' in gene or 'V3/OR15' in gene:
                 print '  poof'
                 continue
             writer = HmmWriter(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
@@ -244,7 +272,8 @@ class PartitionDriver(object):
             self.write_specified_hmms(self.default_hmm_dir, self.germline_seqs[region], v_right_length)
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname):
+    def write_hmm_input(self, csv_fname, single_gene_precluster=False, preclusters=None):  # TODO use different input files for the two hmm steps
+        pair_scores = {}
         with opener('w')(csv_fname) as csvfile:
             # write header
             header = ['name', 'second_name', 'k_v_guess', 'k_d_guess', 'v_fuzz', 'd_fuzz', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
@@ -256,41 +285,50 @@ class PartitionDriver(object):
 
                 # make sure we don't need to rewrite the hmm model files
                 if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
-                    print 'VRIGHT ',info['v_right_length'],self.default_v_right_length,(info['v_right_length']-self.default_v_right_length)
-                assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+                    print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
+                # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
                 # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
                 assert len(re.findall('J[123]P', info['best']['j'])) == 0
 
-                if self.args.pair:
+                only_genes = info['all']
+                if single_gene_precluster:
+                    only_genes = ':'.join(self.match_names_for_all_queries)
+
+                if self.args.pair and not single_gene_precluster:
                     for second_query_name in self.reco_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
                         # second_info = self.sw_info[second_query_name]  # TODO dammit I'm still only using info from the first query
                         if second_query_name == query_name:
                             continue
-                        if self.get_score_index(query_name, second_query_name) in self.pair_scores:  # already wrote this pair to the file
+                        if self.get_score_index(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
                             continue
-                        self.pair_scores[self.get_score_index(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
+
+                        if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
+                            if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:
+                                continue
+
+                        pair_scores[self.get_score_index(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                         csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
-                                             (query_name, second_query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], info['all'],
+                                             (query_name, second_query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], only_genes,
                                               self.reco_info[query_name]['seq'], self.reco_info[second_query_name]['seq']))
                 else:
-                    assert self.args.algorithm == 'viterbi'  # TODO allow non-pair forward
-                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], info['all'], self.reco_info[query_name]['seq']))
+                    # assert self.args.algorithm == 'viterbi'  # TODO allow non-pair forward
+                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], only_genes, self.reco_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
-    def run_stochhmm(self, csv_infname, csv_outfname, precluster=False):
+    def run_stochhmm(self, csv_infname, csv_outfname, single_gene_precluster=False):
         start = time.time()
 
         # build the command line
         cmd_str = './stochhmm'
         cmd_str += ' --algorithm ' + self.args.algorithm
-        if self.args.pair:
+        if self.args.pair and not single_gene_precluster:
             cmd_str += ' --pair 1'
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + self.default_hmm_dir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        if precluster:  # write single gene probabilities for preclustering
+        if single_gene_precluster:  # write single gene probabilities for preclustering
             cmd_str += ' --single_gene_probs 1'
 
         if self.args.debug == 2:  # not sure why, but popen thing hangs with debug 2
@@ -354,33 +392,48 @@ class PartitionDriver(object):
                     last_id = self.get_score_index(line['unique_id'], line['second_unique_id'])
     
     # ----------------------------------------------------------------------------------------
-    def calculate_scorespace_distances(self):
+    def calculate_scorespace_distances(self, outfname):
+        start = time.time()
         precluster_pairscores = {}
-        for query_1,info_1 in self.precluster_info.iteritems():
-            for query_2,info_2 in self.precluster_info.iteritems():
-                if query_1 == query_2:
-                    continue
-                if self.get_score_index(query_1, query_2) in precluster_pairscores:
-                    continue
-
-                gene_set = set(info_1.keys()) & set(info_2.keys())  # gene versions for which we have scores for either sequence. OH WAIT maybe in both? see TODO below
+        mean_per_gene = {}
+        dbgfname = 'output/' + self.args.human + '-scorespace-preclustering.txt'
+        if os.path.exists(dbgfname):
+            os.remove(dbgfname)
+        with opener('w')(outfname) as outfile:
+            writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
+            writer.writeheader()
+            for query,info in self.precluster_info.iteritems():
                 total = 0.0
-                for gene in gene_set:
-                    # TODO what to do if they don't both have a score?
-                    # score_1 = float('-inf')
-                    # if gene in info_1:
-                    #     score_1 = info_1[gene]
-                    # score_2 = float('-inf')
-                    # if gene in info_2:
-                    #     score_2 = info_2[gene]
-                    # total += (score_1 - score_2)**2
-                    if info_1[gene] == float('-inf'):
+                entries = 0
+                for gene,score in info.iteritems():
+                    if score == float('-inf'):
                         continue
-                    if info_2[gene] == float('-inf'):
+                    total += score
+                    entries += 1
+                mean_per_gene[query] = total / entries
+            for query_1,info_1 in self.precluster_info.iteritems():
+                for query_2,info_2 in self.precluster_info.iteritems():
+                    if query_1 == query_2:
                         continue
-                    total += (info_1[gene] - info_2[gene])**2
-                from_same_event = self.reco_info[query_1]['reco_id'] == self.reco_info[query_2]['reco_id']
-                print '%20s %20s %2d %.1f' % (query_1,query_2,from_same_event,total)
-                precluster_pairscores[self.get_score_index(query_1, query_2)] = total
-                    
+                    if self.get_score_index(query_1, query_2) in precluster_pairscores:
+                        continue
     
+                    gs_1 = set(info_1.keys())
+                    gs_2 = set(info_2.keys())
+                    assert gs_1.issubset(gs_2) and gs_2.issubset(gs_1)
+                    total = 0.0
+                    for gene in gs_1:
+                        score_1 = info_1[gene]
+                        score_2 = info_2[gene]
+                        if score_1 == float('-inf') and score_2 != float('-inf'):  # if one, but not the other, is -inf, assume they're not in the same cluster
+                            continue
+                        if score_2 == float('-inf') and score_1 != float('-inf'):
+                            continue
+                        if score_1 != float('-inf') and score_2 != float('-inf'):
+                            total += (score_1 / mean_per_gene[query_1] - score_2 / mean_per_gene[query_2])**2  # NOTE rescaling doesn't really seem to help... oh, well
+                    from_same_event = self.reco_info[query_1]['reco_id'] == self.reco_info[query_2]['reco_id']
+                    with opener('a')(dbgfname) as dbgfile:
+                        dbgfile.write('%20s %20s %2d %-.4f\n' % (query_1,query_2,from_same_event,total))
+                    precluster_pairscores[self.get_score_index(query_1, query_2)] = total
+                    writer.writerow({'unique_id':query_1, 'second_unique_id':query_2, 'score':total})
+        print 'scorespace cluster time: %.3f' % (time.time() - start)

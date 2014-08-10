@@ -1,0 +1,323 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.0196346875074
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.9216564938576837
+    IGHD5-12_star_01_0: 0.0078248595447030
+    IGHD5-12_star_01_1: 0.0037964278114462
+    IGHD5-12_star_01_2: 0.0086157820054210
+    IGHD5-12_star_01_3: 0.0036382433193026
+    IGHD5-12_star_01_4: 0.0061586495607905
+    IGHD5-12_star_01_5: 0.0050408124829758
+    IGHD5-12_star_01_6: 0.0093539763020911
+    IGHD5-12_star_01_7: 0.0066015661387926
+    IGHD5-12_star_01_8: 0.0078670420759413
+    IGHD5-12_star_01_9: 0.0113049183718620
+    IGHD5-12_star_01_10: 0.0035222413583973
+    IGHD5-12_star_01_11: 0.0038175190770654
+    IGHD5-12_star_01_12: 0.0004745534764308
+    IGHD5-12_star_01_13: 0.0002952777186680
+    IGHD5-12_star_01_14: 0.0000316368984287
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+TRANSITION: STANDARD: P(X)
+ insert: 0.7249321787696434
+    IGHD5-12_star_01_0: 0.0274734585210559
+    IGHD5-12_star_01_1: 0.0133294407918870
+    IGHD5-12_star_01_2: 0.0302504253526991
+    IGHD5-12_star_01_3: 0.0127740474255584
+    IGHD5-12_star_01_4: 0.0216233150623944
+    IGHD5-12_star_01_5: 0.0176985352736722
+    IGHD5-12_star_01_6: 0.0328422610622326
+    IGHD5-12_star_01_7: 0.0231784164881146
+    IGHD5-12_star_01_8: 0.0276215634187436
+    IGHD5-12_star_01_9: 0.0396921125802857
+    IGHD5-12_star_01_10: 0.0123667589569174
+    IGHD5-12_star_01_11: 0.0134034932407308
+    IGHD5-12_star_01_12: 0.0016661800989859
+    IGHD5-12_star_01_13: 0.0010367342838134
+    IGHD5-12_star_01_14: 0.0001110786732657
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_0
+  PATH_LABEL:  IGHD5-12_star_01_0
+  GFF_DESC:    IGHD5-12_star_01_0
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 1.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_1
+  PATH_LABEL:  IGHD5-12_star_01_1
+  GFF_DESC:    IGHD5-12_star_01_1
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_2
+  PATH_LABEL:  IGHD5-12_star_01_2
+  GFF_DESC:    IGHD5-12_star_01_2
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0075603333333333 0.0075603333333333 0.9773190000000000 0.0075603333333333
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_3
+  PATH_LABEL:  IGHD5-12_star_01_3
+  GFF_DESC:    IGHD5-12_star_01_3
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0266830000000000 0.0266830000000000 0.9199510000000000 0.0266830000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_4
+  PATH_LABEL:  IGHD5-12_star_01_4
+  GFF_DESC:    IGHD5-12_star_01_4
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8810230000000000 0.0396590000000000 0.0396590000000000 0.0396590000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_5
+  PATH_LABEL:  IGHD5-12_star_01_5
+  GFF_DESC:    IGHD5-12_star_01_5
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0354843333333333 0.0354843333333333 0.0354843333333333 0.8935470000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_6
+  PATH_LABEL:  IGHD5-12_star_01_6
+  GFF_DESC:    IGHD5-12_star_01_6
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_7:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9170380000000000 0.0276540000000000 0.0276540000000000 0.0276540000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_7
+  PATH_LABEL:  IGHD5-12_star_01_7
+  GFF_DESC:    IGHD5-12_star_01_7
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_8:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0282830000000000 0.0282830000000000 0.0282830000000000 0.9151510000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_8
+  PATH_LABEL:  IGHD5-12_star_01_8
+  GFF_DESC:    IGHD5-12_star_01_8
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_9:  0.9990577466684615
+  END: 0.0009422533315386
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9034759999999999 0.0321746666666667 0.0321746666666667 0.0321746666666667
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_9
+  PATH_LABEL:  IGHD5-12_star_01_9
+  GFF_DESC:    IGHD5-12_star_01_9
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_10:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0240193333333333 0.0240193333333333 0.9279420000000000 0.0240193333333333
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_10
+  PATH_LABEL:  IGHD5-12_star_01_10
+  GFF_DESC:    IGHD5-12_star_01_10
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_11:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0221903333333333 0.0221903333333333 0.0221903333333333 0.9334290000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_11
+  PATH_LABEL:  IGHD5-12_star_01_11
+  GFF_DESC:    IGHD5-12_star_01_11
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_12:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0073413333333333 0.0073413333333333 0.9779760000000000 0.0073413333333333
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_12
+  PATH_LABEL:  IGHD5-12_star_01_12
+  GFF_DESC:    IGHD5-12_star_01_12
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_13:  0.9965002019114282
+  END: 0.0034997980885718
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0153343333333333 0.0153343333333333 0.9539970000000000 0.0153343333333333
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_13
+  PATH_LABEL:  IGHD5-12_star_01_13
+  GFF_DESC:    IGHD5-12_star_01_13
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_14:  0.9768474895679096
+  END: 0.0231525104320905
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0175063333333333 0.9474810000000000 0.0175063333333333 0.0175063333333333
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_14
+  PATH_LABEL:  IGHD5-12_star_01_14
+  GFF_DESC:    IGHD5-12_star_01_14
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_15:  0.9711939695786782
+  END: 0.0288060304213218
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0281413333333333 0.0281413333333333 0.0281413333333333 0.9155759999999999
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_15
+  PATH_LABEL:  IGHD5-12_star_01_15
+  GFF_DESC:    IGHD5-12_star_01_15
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_16:  0.9911158971597792
+  END: 0.0088841028402208
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9206180000000000 0.0264606666666667 0.0264606666666667 0.0264606666666667
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_16
+  PATH_LABEL:  IGHD5-12_star_01_16
+  GFF_DESC:    IGHD5-12_star_01_16
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_17:  0.8943330192488895
+  END: 0.1056669807511105
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0104716666666667 0.9685850000000000 0.0104716666666667 0.0104716666666667
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_17
+  PATH_LABEL:  IGHD5-12_star_01_17
+  GFF_DESC:    IGHD5-12_star_01_17
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_18:  0.8478933907659174
+  END: 0.1521066092340826
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0193340000000000 0.0193340000000000 0.9419980000000000 0.0193340000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_18
+  PATH_LABEL:  IGHD5-12_star_01_18
+  GFF_DESC:    IGHD5-12_star_01_18
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_19:  0.8454704536276754
+  END: 0.1545295463723247
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9459440000000000 0.0180186666666667 0.0180186666666667 0.0180186666666667
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_19
+  PATH_LABEL:  IGHD5-12_star_01_19
+  GFF_DESC:    IGHD5-12_star_01_19
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_20:  0.8517970117108629
+  END: 0.1482029882891372
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0370873333333333 0.0370873333333333 0.0370873333333333 0.8887380000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_20
+  PATH_LABEL:  IGHD5-12_star_01_20
+  GFF_DESC:    IGHD5-12_star_01_20
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_21:  0.8224525508143761
+  END: 0.1775474491856239
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0142956666666667 0.0142956666666667 0.0142956666666667 0.9571130000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_21
+  PATH_LABEL:  IGHD5-12_star_01_21
+  GFF_DESC:    IGHD5-12_star_01_21
+TRANSITION: STANDARD: P(X)
+  IGHD5-12_star_01_22:  0.9531565486606541
+  END: 0.0468434513393458
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  1.0000000000000000 0.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+STATE:
+  NAME:        IGHD5-12_star_01_22
+  PATH_LABEL:  IGHD5-12_star_01_22
+  GFF_DESC:    IGHD5-12_star_01_22
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000000000000000 1.0000000000000000 0.0000000000000000 0.0000000000000000
+#############################################
+//END
