@@ -155,6 +155,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
 	best_kset.first == k_v_start+n_k_v-1 ||
 	best_kset.second == k_d_start ||
 	best_kset.second == k_d_start+n_k_d-1) {
+      assert(seqs[0].name_.size() > 0);
       cout << "    WARNING maximum at boundary for "
 	   << seqs[0].name_;
       if (seqs.size() == 2)
@@ -389,7 +390,13 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 
     // return if we didn't find a valid path for this region
     if ((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
-      assert(n_long_erosions == 0);  // adding assert because if it happens, that means my v_right_length was screwed up
+      // TODO put this assert back in. Well, I think. At least figure out a better scheme for dealing with v_right_length-related stuff
+      // if(n_long_erosions != 0) {
+      // 	cout << seqs[0].name_ << endl;
+      // 	if (seqs.size() > 1)
+      // 	  cout << seqs[1].name_ << endl;
+      // }
+      // assert(n_long_erosions == 0);  // adding assert because if it happens, that means my v_right_length was screwed up
       if (debug_ == 2) {
 	cout << "                  found no gene for " << region << " so skip"
 	     << " (" << n_short_v << "/" << igene << " v germlines too short, " << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;

@@ -95,7 +95,9 @@ class PartitionDriver(object):
         from clusterer import Clusterer
         clust = Clusterer(0, greater_than=True)
         clust.cluster(self.pairscorefname, debug=True)
-        
+        for query_name in self.sw_info:
+            if query_name not in clust.query_clusters:
+                print 'singleton ',query_name
         
         os.remove(hmm_csv_infname)
         os.remove(hmm_csv_outfname)
@@ -246,10 +248,10 @@ class PartitionDriver(object):
         #     for query in iter(clust.query_clusters):
         #         if clust.query_clusters[query] == cluster_id:
         #             print '%s,%d' % (query, cluster_id)
-        return clust
         os.remove(single_gene_prob_fname)
         os.remove(hmm_csv_infname)
         os.remove(precluster_outfname)
+        return clust
 
     # ----------------------------------------------------------------------------------------
     def write_specified_hmms(self, hmmdir, gene_list, v_right_length):

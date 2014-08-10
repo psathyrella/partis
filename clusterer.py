@@ -23,10 +23,7 @@ class Clusterer(object):
             for line in reader:
                 if self.debug:
                     print '%22s %22s   %.3f' % (line['unique_id'], line['second_unique_id'], float(line['score'])),
-                if not self.is_removable(line):
-                    if line['unique_id']
-                # crappy shitty clustering algorithm:
-                # self.incorporate_into_clusters(line['unique_id'], line['second_unique_id'], float(line['score']))
+                self.incorporate_into_clusters(line['unique_id'], line['second_unique_id'], float(line['score']))
                 if self.debug:
                     print ''
 
@@ -81,37 +78,38 @@ class Clusterer(object):
         self.query_clusters[query_name] = cluster_id
 
     # ----------------------------------------------------------------------------------------
-    def incorporate_into_clusters(self, query_name, second_query_name, score):
-        together = False
+    def is_removable(self, score):
         if self.greater_than:
-            together = math.fabs(score) > math.fabs(self.threshold)  # TODO kinda don't like the fabs here
+            return score <= self.threshold
         else:
-            together = math.fabs(score) < math.fabs(self.threshold)  # TODO kinda don't like the fabs here
+            return score > self.threshold
+
+    # ----------------------------------------------------------------------------------------
+    def incorporate_into_clusters(self, query_name, second_query_name, score):
         if query_name in self.query_clusters and second_query_name in self.query_clusters:  # if both seqs are already in clusters
-            if together:
+            if self.is_removable(score):
+                if self.debug:
+                    print '    removing link',
+            else:
                 if self.query_clusters[query_name] != self.query_clusters[second_query_name]:
                     self.merge_clusters(query_name, second_query_name)
                 else:
                     if self.debug:
                         print '     already together',
-            else:  # they're already in separate clusters
-                if self.debug:
-                    print '    already separate',
-                pass
         elif query_name in self.query_clusters:
-            if together:  # add second query to first query's existing cluster
-                self.add_to_cluster(self.query_clusters[query_name], second_query_name)
-            else:
+            if self.is_removable(score):
                 self.add_new_cluster(second_query_name)
+            else:
+                self.add_to_cluster(self.query_clusters[query_name], second_query_name)
         elif second_query_name in self.query_clusters:
-            if together:
+            if self.is_removable(score):
+                self.add_new_cluster(query_name)
+            else:
                 self.add_to_cluster(self.query_clusters[second_query_name], query_name)
+        else:
+            if self.is_removable(score):
+                self.add_new_cluster(query_name)
+                self.add_new_cluster(second_query_name)
             else:
                 self.add_new_cluster(query_name)
-        else:
-            self.add_new_cluster(query_name)
-            if together:
                 self.add_to_cluster(self.query_clusters[query_name], second_query_name)
-            else:
-                self.add_new_cluster(second_query_name)
-
