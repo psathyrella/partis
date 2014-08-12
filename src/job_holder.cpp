@@ -155,7 +155,6 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
 	best_kset.first == k_v_start+n_k_v-1 ||
 	best_kset.second == k_d_start ||
 	best_kset.second == k_d_start+n_k_d-1) {
-      assert(seqs[0].name_.size() > 0);
       cout << "    WARNING maximum at boundary for "
 	   << seqs[0].name_;
       if (seqs.size() == 2)

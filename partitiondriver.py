@@ -10,9 +10,11 @@ import operator
 import pysam
 import contextlib
 from subprocess import Popen, check_call, PIPE
+
 import utils
 from opener import opener
 from hmmwriter import HmmWriter
+from clusterer import Clusterer
 
 print 'import time: %.3f' % (time.time() - import_start)
 
@@ -70,46 +72,43 @@ class PartitionDriver(object):
             pairscorefile.write('unique_id,second_unique_id,score\n')
 
         # run smith-waterman
-        swinfname = self.workdir + '/seq.fa'  # file for input to s-w step
-        swoutfname = swinfname.replace('.fa', '.bam')
+        swoutfname = self.workdir + '/query-seqs.bam'
         if not self.args.skip_sw:
-            sys.stdout.flush()
-            self.run_smith_waterman(swinfname, swoutfname)
-            os.remove(swinfname)
+            self.run_smith_waterman(swoutfname)
         else:
-            swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
+            assert False  # doesn't actually work swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
         self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
-        os.remove(swoutfname)
 
-        # run hmm
+        # run single-gene scorespace clustering
         single_clusters = self.single_gene_score_precluster()  # TODO what should n_max_per_region be for this step?
 
         # TODO then do another precluster step with a super stripped down pair forward hmm (zero fuzz, etc)
+        # NOTE you could use this step on some subset of the seqs to calibrate where to cut on the single gene score preclustering
 
         hmm_csv_infname = self.workdir + '/hmm_input.csv'
-        self.write_hmm_input(hmm_csv_infname, single_gene_precluster=False, preclusters=single_clusters)  # TODO man those variable names suck. wtf dude?
         hmm_csv_outfname = self.workdir + '/hmm_output.csv'
+        self.write_hmm_input(hmm_csv_infname, single_gene_precluster=False, preclusters=single_clusters)
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
         self.read_stochhmm_output(hmm_csv_outfname);
+        os.remove(hmm_csv_infname)
+        os.remove(hmm_csv_outfname)
 
-        from clusterer import Clusterer
-        clust = Clusterer(0, greater_than=True)
+        clust = Clusterer(1, greater_than=True)  # TODO better way to set threshhold?
         clust.cluster(self.pairscorefname, debug=True)
-        for query_name in self.sw_info:
+        for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
             if query_name not in clust.query_clusters:
                 print 'singleton ',query_name
         
-        os.remove(hmm_csv_infname)
-        os.remove(hmm_csv_outfname)
         os.rmdir(self.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def run_smith_waterman(self, infname, outfname):
+    def run_smith_waterman(self, outfname):
         """
         Run smith-waterman alignment on the seqs in <infname>, and toss all the top matches into <outfname>.
         Then run through <outfname> to get the top hits and their locations to pass to the hmm.
         Then run the hmm on each gene set.
         """
+        infname = self.workdir + '/query-seqs.fa'
         with opener('w')(infname) as swinfile:  # write *all* the input seqs to file, i.e. run s-w on all of 'em at once
             for query_name,line in self.reco_info.iteritems():
                 swinfile.write('>' + query_name + ' NUKES\n')
@@ -118,17 +117,18 @@ class PartitionDriver(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         check_call('/home/dralph/.local/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 3 --mismatch 1 --gap-open 100 ' + infname + ' ' + outfname + ' 2>/dev/null', shell=True)
+        os.remove(swinfname)
         print 's-w time: %.3f' % (time.time()-start)
     
     # ----------------------------------------------------------------------------------------
-    def read_smith_waterman(self, infname):
+    def read_smith_waterman(self, swinfoname):
         """
         Read bamfile output by s-w step, and write the info (after a bit of collation) to a csv.
         Note that the only reason to bother writing the csv is so you can avoid rerunning the s-w step every time you run the hmm.
         """
         start = time.time()
         gene_choice_probs = utils.read_overall_gene_prob(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety)
-        with contextlib.closing(pysam.Samfile(infname)) as bam:
+        with contextlib.closing(pysam.Samfile(swinfoname)) as bam:
             grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
             for _, reads in grouped:  # loop over query sequences
                 reads = list(reads)
@@ -230,6 +230,7 @@ class PartitionDriver(object):
 
                 assert k_v > 0 and k_d > 0 and v_fuzz > 0 and d_fuzz > 0 and v_right_length > 0
         print 'sw read time: %.3f' % (time.time() - start)
+        os.remove(swinfoname)
     
     # ----------------------------------------------------------------------------------------
     def single_gene_score_precluster(self):
@@ -241,7 +242,6 @@ class PartitionDriver(object):
         self.run_stochhmm(hmm_csv_infname, single_gene_prob_fname, single_gene_precluster=True)
         self.read_stochhmm_output(single_gene_prob_fname, precluster=True);
         self.calculate_scorespace_distances(precluster_outfname)
-        from clusterer import Clusterer
         clust = Clusterer(0.4, greater_than=False)  # TODO will need a way to get the cut value automatically. *sigh*
         clust.cluster(precluster_outfname, debug=True)
         # for cluster_id in clust.cluster_ids:
@@ -298,16 +298,16 @@ class PartitionDriver(object):
 
                 if self.args.pair and not single_gene_precluster:
                     for second_query_name in self.reco_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
-                        # second_info = self.sw_info[second_query_name]  # TODO dammit I'm still only using info from the first query
                         if second_query_name == query_name:
                             continue
                         if self.get_score_index(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
                             continue
-
                         if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
                             if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:
                                 continue
 
+                        second_info = self.sw_info[second_query_name]  # TODO should harmonize v_right_length and fuzzes between the two seqs as well
+                        only_genes = ':'.join(set(only_genes.split(':')) | set(second_info['all'].split(':')))  # NOTE this *really* helps, using both sets of genes
                         pair_scores[self.get_score_index(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                         csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
                                              (query_name, second_query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], only_genes,
@@ -341,9 +341,10 @@ class PartitionDriver(object):
         hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
         hmm_proc.wait()
         hmm_out, hmm_err = hmm_proc.communicate()
-        print 'OUT\n',hmm_out
+        print hmm_out
+        print hmm_err
         if hmm_proc.returncode != 0:
-            print 'aaarrrrrrrgggggh\n',hmm_err,hmm_out
+            print 'aaarrrrrrrgggggh\n', hmm_out, hmm_err
             sys.exit()
 
         print 'hmm run time: %.3f' % (time.time() - start)

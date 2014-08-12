@@ -6,7 +6,7 @@ from opener import opener
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, threshold, greater_than=True):  # put in same cluster if greater than threshold, or less than?
+    def __init__(self, threshold, greater_than=True):  # put in same cluster if greater than threshold, or less than equal to?
         self.threshold = threshold
         self.debug = False
         self.greater_than = greater_than

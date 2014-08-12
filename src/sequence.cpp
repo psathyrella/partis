@@ -142,6 +142,7 @@ namespace StochHMM{
     external= rhs.external;  //Need copy constructor for this
     max_mask= rhs.max_mask;
     undigitized=rhs.undigitized;
+    name_ = rhs.name_;
         
     if (rhs.seq!=NULL){
       seq = new(std::nothrow) std::vector<uint8_t>(*rhs.seq);

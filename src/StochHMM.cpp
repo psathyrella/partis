@@ -122,6 +122,8 @@ int main(int argc, const char * argv[]) {
   assert(opt.sopt("--algorithm") == "viterbi" || opt.sopt("--algorithm") == "forward");
   assert(opt.iopt("--pair") == 0 || opt.iopt("--pair") == 1);
   assert(opt.iopt("--debug") >=0 && opt.iopt("--debug") < 3);
+  if (opt.iopt("--single_gene_probs"))
+    assert(!opt.iopt("--pair"));
   Args args(opt.sopt("--infile"));
 
   // write csv output headers
@@ -158,7 +160,7 @@ int main(int argc, const char * argv[]) {
 
     Result result = jh.Run(*seqs[is], k_start, n_k_v, d_start, n_k_d);
     double score(result.total_score_);
-    if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
+    if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair") && !opt.iopt("--single_gene_probs")) {
       assert(seqs[is]->size() == 2);
       Result result_a = jh.Run((*seqs[is])[0], k_start, n_k_v, d_start, n_k_d);
       Result result_b = jh.Run((*seqs[is])[1], k_start, n_k_v, d_start, n_k_d);
