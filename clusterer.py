@@ -79,7 +79,7 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def is_removable(self, score):
-        if score == float('nan') or score == float('-nan'):
+        if math.isnan(score):
             assert False
             return True
         if self.greater_than:

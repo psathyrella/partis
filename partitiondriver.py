@@ -31,7 +31,6 @@ class PartitionDriver(object):
         self.default_v_fuzz = 5  # TODO play around with these default fuzzes
         self.default_d_fuzz = 10  # note that the k_d guess can be almost worthless, since the s-w step tends to expand the j match over a lot of the d
         self.safety_buffer_that_I_should_not_need = 15  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
-        self.pairscorefname = 'pairwise-scores.csv'
         self.default_hmm_dir = 'bcell/hmms/' + self.args.human + '/' + self.args.naivety
         self.default_v_right_length = default_v_right_length
         self.sw_info = {}
@@ -67,10 +66,6 @@ class PartitionDriver(object):
     
     # ----------------------------------------------------------------------------------------
     def run(self):
-        # write header for pairwise score file
-        with opener('w')(self.pairscorefname) as pairscorefile:
-            pairscorefile.write('unique_id,second_unique_id,score\n')
-
         # run smith-waterman
         swoutfname = self.workdir + '/query-seqs.bam'
         if not self.args.skip_sw:
@@ -82,23 +77,38 @@ class PartitionDriver(object):
         # hamming preclustering
         hamming_clusters = self.hamming_precluster()
 
-        # TODO then do another precluster step with a super stripped down pair forward hmm (zero fuzz, etc)
-        # NOTE you could use this step on some subset of the seqs to calibrate where to cut on the single gene score preclustering
+        # run a stripped-down hmm to precluster (one gene version per query, no v or d fuzz). The non-related seqs creep up toward scores above zero, but pairs that *are* related are super good about staying at large positive score when you strip down the HMM (because their scores are dominated by the *correc* choice)
+        stripped_hmm_csv_infname = self.workdir + '/stripped_hmm_input.csv'
+        stripped_hmm_csv_outfname = self.workdir + '/stripped_hmm_output.csv'
+        stripped_pairscorefname = self.workdir + '/stripped-hmm-pairscores.csv'
+        self.write_hmm_input(stripped_hmm_csv_infname, preclusters=hamming_clusters, stripped=True)
+        self.run_stochhmm(stripped_hmm_csv_infname, stripped_hmm_csv_outfname)
+        self.read_stochhmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname);
+        stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
+        stripped_clusters.cluster(stripped_pairscorefname, debug=True)
+        for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
+            if query_name not in stripped_clusters.query_clusters:
+                print 'singleton ',query_name
+        os.remove(stripped_hmm_csv_infname)
+        os.remove(stripped_hmm_csv_outfname)
+        os.remove(stripped_pairscorefname)
 
         hmm_csv_infname = self.workdir + '/hmm_input.csv'
         hmm_csv_outfname = self.workdir + '/hmm_output.csv'
-        self.write_hmm_input(hmm_csv_infname, preclusters=hamming_clusters)
+        pairscorefname = self.workdir + '/hmm-pairscores.csv'
+        self.write_hmm_input(hmm_csv_infname, preclusters=stripped_clusters)
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
-        self.read_stochhmm_output(hmm_csv_outfname);
+        self.read_stochhmm_output(hmm_csv_outfname, pairscorefname);
         os.remove(hmm_csv_infname)
         os.remove(hmm_csv_outfname)
 
-        clust = Clusterer(1, greater_than=True)  # TODO better way to set threshhold?
-        clust.cluster(self.pairscorefname, debug=True)
+        clusters = Clusterer(1, greater_than=True)  # TODO better way to set threshhold?
+        clusters.cluster(pairscorefname, debug=True)
         for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
-            if query_name not in clust.query_clusters:
+            if query_name not in clusters.query_clusters:
                 print 'singleton ',query_name
-        
+
+        os.remove(pairscorefname)
         os.rmdir(self.workdir)
 
     # ----------------------------------------------------------------------------------------
@@ -278,14 +288,14 @@ class PartitionDriver(object):
             self.write_specified_hmms(self.default_hmm_dir, self.germline_seqs[region], v_right_length)
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, preclusters=None):  # TODO use different input files for the two hmm steps
-        pair_scores = {}
+    def write_hmm_input(self, csv_fname, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
         with opener('w')(csv_fname) as csvfile:
             # write header
             header = ['name', 'second_name', 'k_v_guess', 'k_d_guess', 'v_fuzz', 'd_fuzz', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
             csvfile.write(' '.join(header) + '\n')
 
-            # write a line for each query sequence (or pair of them)
+            # then write a line for each query sequence (or pair of them)
+            pair_scores = {}
             for query_name in self.reco_info:
                 info = self.sw_info[query_name]
 
@@ -293,10 +303,13 @@ class PartitionDriver(object):
                 if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
                     print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
                 # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+
                 # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
                 assert len(re.findall('J[123]P', info['best']['j'])) == 0
 
                 only_genes = info['all']
+                v_fuzz = info['v_fuzz']  # TODO should harmonize v_right_length and fuzzes between the two seqs as well
+                d_fuzz = info['d_fuzz']
                 if self.args.pair:
                     for second_query_name in self.reco_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
                         if second_query_name == query_name:
@@ -307,15 +320,22 @@ class PartitionDriver(object):
                             if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:
                                 continue
 
-                        second_info = self.sw_info[second_query_name]  # TODO should harmonize v_right_length and fuzzes between the two seqs as well
-                        only_genes = ':'.join(set(only_genes.split(':')) | set(second_info['all'].split(':')))  # NOTE this *really* helps, using both sets of genes
+                        second_info = self.sw_info[second_query_name]
+                        second_only_genes = second_info['all']
+                        if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
+                            only_genes = info['best']['v'] + ':' + info['best']['d'] + ':' + info['best']['j']
+                            second_only_genes = second_info['best']['v'] + ':' + second_info['best']['d'] + ':' + second_info['best']['j']
+                            v_fuzz = 1
+                            d_fuzz = 1
+
+                        only_genes = ':'.join(set(only_genes.split(':')) | set(second_only_genes.split(':')))  # NOTE using both sets of genes (from both query seqs) like this *really* helps, 
                         pair_scores[self.get_score_index(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                         csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
-                                             (query_name, second_query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], only_genes,
+                                             (query_name, second_query_name, info['k_v'], info['k_d'], v_fuzz, d_fuzz, only_genes,
                                               self.reco_info[query_name]['seq'], self.reco_info[second_query_name]['seq']))
                 else:
-                    # assert self.args.algorithm == 'viterbi'  # TODO allow non-pair forward
-                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], only_genes, self.reco_info[query_name]['seq']))
+                    # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
+                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v'], info['k_d'], v_fuzz, d_fuzz, only_genes, self.reco_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
     def run_stochhmm(self, csv_infname, csv_outfname):
@@ -350,46 +370,39 @@ class PartitionDriver(object):
         print 'hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
-    def read_stochhmm_output(self, csv_outfname, precluster=False):
+    def read_stochhmm_output(self, hmm_csv_outfname, pairscorefname):
         """ Read hmm output file """
-        if precluster:
-            with opener('r')(csv_outfname) as csv_outfile:
-                reader = csv.DictReader(csv_outfile)
-                for line in reader:
-                    self.precluster_info[line['unique_id']] = {}
-                    score_list = line['scores'].split(';')
-                    for score_str in score_list:
-                        gene = score_str.split(':')[0]
-                        score = float(score_str.split(':')[1])
-                        self.precluster_info[line['unique_id']][gene] = score
-        else:
-            with opener('r')(csv_outfname) as csv_outfile:
-                reader = csv.DictReader(csv_outfile)
-                last_id = None
-                for line in reader:
+        # write header for pairwise score file
+        with opener('w')(pairscorefname) as pairscorefile:
+            pairscorefile.write('unique_id,second_unique_id,score\n')
+
+        with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
+            reader = csv.DictReader(hmm_csv_outfile)
+            last_id = None
+            for line in reader:
+                if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
+                    from_same_event = False
+                    if self.args.pair:
+                        from_same_event = self.reco_info[line['unique_id']]['reco_id'] == self.reco_info[line['second_unique_id']]['reco_id']
+                    print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event),
+                if self.args.algorithm == 'viterbi':
+                    print ''
+                    # if this is the first line for this query (or query pair), print the true event
                     if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
-                        from_same_event = False
+                        print '    true:'
+                        utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], 0, 0, extra_str='    ')
                         if self.args.pair:
-                            from_same_event = self.reco_info[line['unique_id']]['reco_id'] == self.reco_info[line['second_unique_id']]['reco_id']
-                        print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event),
-                    if self.args.algorithm == 'viterbi':
-                        print ''
-                        # if this is the first line for this query (or query pair), print the true event
-                        if last_id != self.get_score_index(line['unique_id'], line['second_unique_id']):
-                            print '    true:'
-                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], 0, 0, extra_str='    ')
-                            if self.args.pair:
-                                print '      and maybe'
-                                utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, True, '    ')
-                            print '    inferred:'
-                        utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
-                        if self.args.pair:
-                            tmpseq = line['seq']  # TODO oh, man, that's a cludge
-                            line['seq'] = line['second_seq']
-                            utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
-                            line['seq'] = tmpseq
-                    else:
-                        print '  ',line['score']
-                        with opener('a')(self.pairscorefname) as pairscorefile:
-                            pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
-                    last_id = self.get_score_index(line['unique_id'], line['second_unique_id'])
+                            print '      and maybe'
+                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, True, '    ')
+                        print '    inferred:'
+                    utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
+                    if self.args.pair:
+                        tmpseq = line['seq']  # TODO oh, man, that's a cludge
+                        line['seq'] = line['second_seq']
+                        utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
+                        line['seq'] = tmpseq
+                else:
+                    print '  ',line['score']
+                    with opener('a')(pairscorefname) as pairscorefile:
+                        pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                last_id = self.get_score_index(line['unique_id'], line['second_unique_id'])
