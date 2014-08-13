@@ -32,7 +32,7 @@ class Clusterer(object):
                 self.id_clusters[cluster_id] = []
             self.id_clusters[cluster_id].append(query)
         
-        if self.debug:
+        if True:  #self.debug:
             for cluster_id in self.id_clusters:
                 print self.id_clusters[cluster_id]
             # print 'unique_id,reco_id'
@@ -79,6 +79,9 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def is_removable(self, score):
+        if score == float('nan') or score == float('-nan'):
+            assert False
+            return True
         if self.greater_than:
             return score <= self.threshold
         else:

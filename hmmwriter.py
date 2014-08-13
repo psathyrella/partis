@@ -26,8 +26,9 @@ class HmmWriter(object):
     def __init__(self, base_indir, base_outdir, gene_name, naivety, germline_seq, v_right_length=-1):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
+        self.default_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
         self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
-        self.fuzz_around_v_left_edge = 10.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
+        self.fuzz_around_v_left_edge = 20.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
         self.outdir = base_outdir  # + '/' + region
         self.region = utils.get_region(gene_name)
         self.gene_name = gene_name
@@ -60,29 +61,10 @@ class HmmWriter(object):
         if self.naivety == 'M':  # mutate if not naive
             self.read_mute_freqs()
 
-    # # ----------------------------------------------------------------------------------------
-    # def read_overall_gene_prob(self):
-    #     """ Get the probability of choosing this gene version """
-    #     with opener('r')(self.indir + '/' + self.region + '_gene-probs.csv.bz2') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
-    #         reader = csv.DictReader(infile)
-    #         total = 0.0
-    #         smallest_count = -1  # if we don't find the gene we're looking for, assume it occurs at the lowest rate at which we see any gene
-    #         this_count = -1
-    #         for line in reader:
-    #             line_count = int(line['count'])
-    #             total += line_count
-    #             if line_count < smallest_count or smallest_count == -1:
-    #                 smallest_count = line_count
-    #             if line[self.region + '_gene'] == self.gene_name:
-    #                 this_count = line_count
-    #     if this_count == -1:  # didn't find this gene
-    #         this_count = smallest_count
-    #     print 'return: %d / %d = %f' % (this_count, total, float(this_count) / total)
-    #     return float(this_count) / total
-
     # ----------------------------------------------------------------------------------------
     def read_erosion_probs(self, use_other_alleles=False, use_other_primary_versions=False):
         # TODO in cases where the bases which are eroded are the same as those inserted (i.e. cases that *suck*) I seem to *always* decide on the choice with the shorter insertion. not good!
+        # TODO fill in cases where we don't have info from data with some (small) default value
         for erosion in utils.erosions:
             if erosion[0] != self.region:
                 continue
@@ -110,8 +92,6 @@ class HmmWriter(object):
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
                     total += float(line['count'])
 
-                if len(self.erosion_probs[erosion]) == 0:
-                    print self.gene_name
                 assert len(self.erosion_probs[erosion]) != 0
                 test_total = 0.0
                 for n_eroded in self.erosion_probs[erosion]:  # then normalize
@@ -121,6 +101,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_probs(self, use_other_alleles=False):
+        # TODO fill in cases where we don't have info from data with some (small) default value
         self.insertion_probs[self.insertion] = {}
         deps = utils.column_dependencies[self.insertion + '_insertion']
         with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(self.insertion + '_insertion', deps)) as infile:
@@ -174,7 +155,10 @@ class HmmWriter(object):
         with opener('r')(mutefname) as mutefile:
             reader = csv.DictReader(mutefile)
             for line in reader:
-                self.mute_freqs[int(line['position'])] = float(line['mute_freq'])  # TODO is there some way to incorporate the uncertainty on this?
+                freq = float(line['mute_freq'])
+                if freq == 0.0:
+                    freq = self.default_mute_freq
+                self.mute_freqs[int(line['position'])] = freq
 
     # ----------------------------------------------------------------------------------------
     def write(self):
@@ -252,7 +236,7 @@ class HmmWriter(object):
             assert utils.is_normed(test_total)
             for inuke in probs:  # add to text
                 self.text += ('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke])  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
-        else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
+        else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d. EDIT it's bad! and this also applies to mutation freqs!
             # self.smallest_entry_index = 0
             total = 0.0
             for inuke in range(len(self.germline_seq)):
@@ -374,14 +358,14 @@ class HmmWriter(object):
         self.text += emission_label_string + '\n'
         emission_probability_string = ' '  # then add the line with actual probabilities
         for nuke in utils.nukes:
-            mute_freq = 0.0
+            mute_freq = self.default_mute_freq
             if inuke in self.mute_freqs:
                 mute_freq = self.mute_freqs[inuke]
             prob = 0.0
             if nuke == germline_nuke:
                 prob = 1.0 - mute_freq
             else:
-                prob = mute_freq / 3.0
+                prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases
             emission_probability_string += (' %18.' + self.precision + 'f') % prob
         emission_probability_string = emission_probability_string.rstrip()
         self.text += emission_probability_string + '\n'

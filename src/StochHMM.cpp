@@ -148,7 +148,9 @@ int main(int argc, const char * argv[]) {
   HMMHolder hmms(opt.sopt("--hmmdir"), n_seqs_per_track, gl);
 
   assert(seqs.size() == args.strings_["name"].size());
+  // if (opt.iopt("--debug")) cout << "  stochhmm over " << seqs.size() << " queries" << endl;
   for (size_t is=0; is<seqs.size(); is++) {
+    // if (is%30 && opt.iopt("--debug")) cout << is << " / " << seqs.size() << endl;
     int k_start = max(1, args.integers_["k_v_guess"][is] - args.integers_["v_fuzz"][is]);
     int d_start = max(1, args.integers_["k_d_guess"][is] - args.integers_["d_fuzz"][is]);
     int n_k_v = 2 * args.integers_["v_fuzz"][is];  // NOTE this is the *maximum* fuzz allowed -- job_holder::Run is allowed to skip ksets that don't make sense

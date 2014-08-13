@@ -123,7 +123,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
       	best_score = best_scores[kset];
       	best_kset = kset;
       }
-      if (algorithm_=="viterbi")
+      if (algorithm_=="viterbi" && best_scores[kset] != -INFINITY)
 	PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
     }
   }
@@ -172,7 +172,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
     if (algorithm_=="viterbi")
       cout << "    best kset: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
     else
-      cout << "    sum over ksets: " << *total_score << endl;
+      cout << "        sum over ksets: " << *total_score << endl;
   }
 
   return result;

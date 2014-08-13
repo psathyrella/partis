@@ -23,9 +23,9 @@ void plots() {
   TCanvas c1("c1","",700,600);
   TString naivety("M");
   map<TString,int> string_map;
-  TString human("C");
-  TH1F hsame = make_hist("output/" + human + "-scorespace-preclustering.txt", "same", "double", "", string_map, -1, 2, 0);
-  TH1F hdiff = make_hist("output/" + human + "-scorespace-preclustering.txt", "different", "double", "", string_map, -1, 2, 1);
+  TString human("A");
+  TH1F hsame = make_hist("output/test.txt", "same", "double", "", string_map, -1, 2, 1);
+  TH1F hdiff = make_hist("output/test.txt", "different", "double", "", string_map, -1, 2, 0);
 
   double xmin(min(hsame.GetBinLowEdge(1), hdiff.GetBinLowEdge(1)));
   double xmax(max(hsame.GetXaxis()->GetBinUpEdge(hsame.GetNbinsX()), hdiff.GetXaxis()->GetBinUpEdge(hdiff.GetNbinsX())));
@@ -34,7 +34,7 @@ void plots() {
   // xmax /= 2;
   TH1F hframe("hframe", "", hsame.GetNbinsX(), xmin, xmax);
   hframe.SetMaximum(1.35*(max(hsame.GetMaximum(), hdiff.GetMaximum())));
-  hframe.SetTitle(";pairwise forward scores;frequency");
+  hframe.SetTitle(";foop;frequency");
   hframe.Draw("txt");
   TLegend leg(0.2, 0.75, 0.55, 0.9);
   leg.SetFillColor(0);
