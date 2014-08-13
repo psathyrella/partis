@@ -27,7 +27,6 @@ opt_parameters commandline[] = {
   {"--debug",             OPT_INT,    false, "0",       {}},
   {"--n_best_events",     OPT_INT,    true,  "",        {}},
   {"--pair",              OPT_INT,    false, "0",       {}},  // holy crap why is flag not a flag?
-  {"--single_gene_probs", OPT_INT,    false, "0",       {}},  // get the probability that each single gene version occurs in each query sequence and write to file (for preclustering)
 };
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
@@ -122,22 +121,16 @@ int main(int argc, const char * argv[]) {
   assert(opt.sopt("--algorithm") == "viterbi" || opt.sopt("--algorithm") == "forward");
   assert(opt.iopt("--pair") == 0 || opt.iopt("--pair") == 1);
   assert(opt.iopt("--debug") >=0 && opt.iopt("--debug") < 3);
-  if (opt.iopt("--single_gene_probs"))
-    assert(!opt.iopt("--pair"));
   Args args(opt.sopt("--infile"));
 
   // write csv output headers
   ofstream ofs;
   ofs.open(opt.sopt("--outfile"));
   assert(ofs.is_open());
-  if (opt.iopt("--single_gene_probs")) {
-    ofs << "unique_id,scores" << endl;
-  } else {
-    if (opt.sopt("--algorithm") == "viterbi")
-      ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq" << endl;
-    else
-      ofs << "unique_id,second_unique_id,score" << endl;
-  }
+  if (opt.sopt("--algorithm") == "viterbi")
+    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq" << endl;
+  else
+    ofs << "unique_id,second_unique_id,score" << endl;
 
   // init some stochhmm infrastructure
   size_t n_seqs_per_track(opt.iopt("--pair") ? 2 : 1);
@@ -162,19 +155,14 @@ int main(int argc, const char * argv[]) {
 
     Result result = jh.Run(*seqs[is], k_start, n_k_v, d_start, n_k_d);
     double score(result.total_score_);
-    if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair") && !opt.iopt("--single_gene_probs")) {
+    if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
       assert(seqs[is]->size() == 2);
       Result result_a = jh.Run((*seqs[is])[0], k_start, n_k_v, d_start, n_k_d);
       Result result_b = jh.Run((*seqs[is])[1], k_start, n_k_v, d_start, n_k_d);
       score = score - result_a.total_score_ - result_b.total_score_;
     }
 
-    if (opt.iopt("--single_gene_probs")) {
-      assert(seqs[is]->size() == 1);
-      jh.WriteBestGeneProbs(ofs, (*seqs[is])[0].name_);
-    } else {
-      StreamOutput(ofs, opt, result.events_, *seqs[is], score);
-    }
+    StreamOutput(ofs, opt, result.events_, *seqs[is], score);
   }
 
   ofs.close();

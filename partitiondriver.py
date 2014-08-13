@@ -79,9 +79,6 @@ class PartitionDriver(object):
             assert False  # doesn't actually work swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
         self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
 
-        # run single-gene scorespace clustering
-        # single_clusters = self.single_gene_score_precluster()  # TODO what should n_max_per_region be for this step?
-
         # hamming preclustering
         hamming_clusters = self.hamming_precluster()
 
@@ -90,7 +87,7 @@ class PartitionDriver(object):
 
         hmm_csv_infname = self.workdir + '/hmm_input.csv'
         hmm_csv_outfname = self.workdir + '/hmm_output.csv'
-        self.write_hmm_input(hmm_csv_infname, single_gene_precluster=False, preclusters=hamming_clusters)
+        self.write_hmm_input(hmm_csv_infname, preclusters=hamming_clusters)
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
         self.read_stochhmm_output(hmm_csv_outfname);
         os.remove(hmm_csv_infname)
@@ -261,73 +258,6 @@ class PartitionDriver(object):
         os.remove(swinfoname)
     
     # ----------------------------------------------------------------------------------------
-    def single_gene_score_precluster(self):
-        hmm_csv_infname = self.workdir + '/single-gene-hmm-input.csv'  # list of single query seqs and genes for stochhmm to check
-        single_gene_prob_fname = self.workdir + '/single-gene-probs.csv'  # list of scores for each gene output by stochhmm
-        precluster_outfname = self.workdir + '/scorespace-distances.csv'  # single gene scorespace distances for input to the clusterer
-
-        self.write_hmm_input(hmm_csv_infname, single_gene_precluster=True)
-        self.run_stochhmm(hmm_csv_infname, single_gene_prob_fname, single_gene_precluster=True)
-        self.read_stochhmm_output(single_gene_prob_fname, precluster=True);
-        self.calculate_scorespace_distances(precluster_outfname)
-        clust = Clusterer(0.4, greater_than=False)  # TODO will need a way to get the cut value automatically. *sigh*
-        clust.cluster(precluster_outfname, debug=False)
-
-        os.remove(single_gene_prob_fname)
-        os.remove(hmm_csv_infname)
-        os.remove(precluster_outfname)
-
-        return clust
-    
-    # ----------------------------------------------------------------------------------------
-    def calculate_scorespace_distances(self, outfname):
-        start = time.time()
-        precluster_pairscores = {}
-        mean_per_gene = {}
-        dbgfname = 'output/' + self.args.human + '-scorespace-preclustering.txt'
-        if os.path.exists(dbgfname):
-            os.remove(dbgfname)
-        with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
-            writer.writeheader()
-            for query,info in self.precluster_info.iteritems():
-                total = 0.0
-                entries = 0
-                for gene,score in info.iteritems():
-                    if score == float('-inf'):
-                        continue
-                    total += score
-                    entries += 1
-                mean_per_gene[query] = total / entries
-            for query_1,info_1 in self.precluster_info.iteritems():
-                for query_2,info_2 in self.precluster_info.iteritems():
-                    if query_1 == query_2:
-                        continue
-                    if self.get_score_index(query_1, query_2) in precluster_pairscores:
-                        continue
-    
-                    gs_1 = set(info_1.keys())
-                    gs_2 = set(info_2.keys())
-                    assert gs_1.issubset(gs_2) and gs_2.issubset(gs_1)
-                    total = 0.0
-                    for gene in gs_1:
-                        score_1 = info_1[gene]
-                        score_2 = info_2[gene]
-                        if score_1 == float('-inf') and score_2 != float('-inf'):  # if one, but not the other, is -inf, assume they're not in the same cluster
-                            continue
-                        if score_2 == float('-inf') and score_1 != float('-inf'):
-                            continue
-                        if score_1 != float('-inf') and score_2 != float('-inf'):
-                            total += (score_1 / mean_per_gene[query_1] - score_2 / mean_per_gene[query_2])**2  # NOTE rescaling doesn't really seem to help... oh, well
-                    from_same_event = self.reco_info[query_1]['reco_id'] == self.reco_info[query_2]['reco_id']
-                    with opener('a')(dbgfname) as dbgfile:
-                        mutation_frac = utils.hamming(self.reco_info[query_1]['seq'], self.reco_info[query_2]['seq']) / float(len(self.reco_info[query_1]['seq']))
-                        dbgfile.write('%20s %20s %2d %8.2f %-.4f\n' % (query_1, query_2, from_same_event, mutation_frac, total))
-                    precluster_pairscores[self.get_score_index(query_1, query_2)] = total
-                    writer.writerow({'unique_id':query_1, 'second_unique_id':query_2, 'score':total})
-        print 'scorespace cluster time: %.3f' % (time.time() - start)
-
-    # ----------------------------------------------------------------------------------------
     def write_specified_hmms(self, hmmdir, gene_list, v_right_length):
         for gene in gene_list:
             if len(re.findall('J[123]P', gene)) > 0:  # pretty sure these versions are crap
@@ -348,7 +278,7 @@ class PartitionDriver(object):
             self.write_specified_hmms(self.default_hmm_dir, self.germline_seqs[region], v_right_length)
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, single_gene_precluster=False, preclusters=None):  # TODO use different input files for the two hmm steps
+    def write_hmm_input(self, csv_fname, preclusters=None):  # TODO use different input files for the two hmm steps
         pair_scores = {}
         with opener('w')(csv_fname) as csvfile:
             # write header
@@ -367,10 +297,7 @@ class PartitionDriver(object):
                 assert len(re.findall('J[123]P', info['best']['j'])) == 0
 
                 only_genes = info['all']
-                if single_gene_precluster:
-                    only_genes = ':'.join(self.match_names_for_all_queries)
-
-                if self.args.pair and not single_gene_precluster:
+                if self.args.pair:
                     for second_query_name in self.reco_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
                         if second_query_name == query_name:
                             continue
@@ -391,22 +318,20 @@ class PartitionDriver(object):
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v'], info['k_d'], info['v_fuzz'], info['d_fuzz'], only_genes, self.reco_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
-    def run_stochhmm(self, csv_infname, csv_outfname, single_gene_precluster=False):
+    def run_stochhmm(self, csv_infname, csv_outfname):
         start = time.time()
         print 'hmm'
 
         # build the command line
         cmd_str = './stochhmm'
         cmd_str += ' --algorithm ' + self.args.algorithm
-        if self.args.pair and not single_gene_precluster:
+        if self.args.pair:
             cmd_str += ' --pair 1'
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + self.default_hmm_dir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        if single_gene_precluster:  # write single gene probabilities for preclustering
-            cmd_str += ' --single_gene_probs 1'
 
         if self.args.debug == 2:  # not sure why, but popen thing hangs with debug 2
             check_call(cmd_str, shell=True)  # um, not sure which I want here, but it doesn't really matter. TODO kinda
