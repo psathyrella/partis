@@ -441,15 +441,15 @@ namespace StochHMM{
     return value;
   }
 
-  // ----------------------------------------------------------------------------------------
-  double state::get_emission_prob(sequence &seq1, sequence &seq2, size_t iter) {
-    return emissions[0]->get_emission(seq1, iter) + emissions[0]->get_emission(seq2, iter);
-  }
+  // // ----------------------------------------------------------------------------------------
+  // double state::get_emission_prob(sequence &seq1, sequence &seq2, size_t iter) {
+  //   return emissions[0]->get_emission(seq1, iter) + emissions[0]->get_emission(seq2, iter);
+  // }
 
-  // ----------------------------------------------------------------------------------------
-  double state::get_emission_prob(sequence &seq, size_t iter) {
-    return emissions[0]->get_emission(seq, iter);
-  }
+  // // ----------------------------------------------------------------------------------------
+  // double state::get_emission_prob(sequence &seq, size_t iter) {
+  //   return emissions[0]->get_emission(seq, iter);
+  // }
     
   // ----------------------------------------------------------------------------------------
   //! Get the transition value from a state at a particular position in the sequence

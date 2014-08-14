@@ -325,13 +325,16 @@ class HmmWriter(object):
         #     self.text += '  END: 1\n'
         self.add_emission_header()
         emission_probability_string = ''
-        for nuke in utils.nukes:
-            emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))  # TODO use insertion base composition from data
+        insert_mute_prob = 0.1  # TODO don't just make this number up
+        for nuke1 in utils.nukes:
+            for nuke2 in utils.nukes:
+                emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))  # TODO use insertion base composition from data
         emission_probability_string = emission_probability_string.rstrip()
         self.text += emission_probability_string + '\n'
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, seq, inuke, germline_nuke):
+        # TODO add jointness to pair hmm emission
         # TODO unify utils.eps and self.precision
         # TODO the transition probs out of a state should add to one. But should this sum include the transitions to END, which stochhm requires
         #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?

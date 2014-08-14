@@ -2,6 +2,7 @@ import sys
 import csv
 import math
 from opener import opener
+import utils
 # ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv 
 
 class Clusterer(object):
@@ -14,6 +15,7 @@ class Clusterer(object):
         self.cluster_ids = []
         self.query_clusters = {}  # map from query name to cluster id
         self.id_clusters = {}  # map from cluster id to query name list
+        self.pairscores = {}  # keep all the scores in memory. TODO may be too large?
 
     # ----------------------------------------------------------------------------------------
     def cluster(self, infname, debug=False):
@@ -24,6 +26,7 @@ class Clusterer(object):
                 if self.debug:
                     print '%22s %22s   %.3f' % (line['unique_id'], line['second_unique_id'], float(line['score'])),
                 self.incorporate_into_clusters(line['unique_id'], line['second_unique_id'], float(line['score']))
+                self.pairscores[utils.get_key(line['unique_id'], line['second_unique_id'])] = float(line['score'])
                 if self.debug:
                     print ''
 
@@ -34,7 +37,7 @@ class Clusterer(object):
         
         if True:  #self.debug:
             for cluster_id in self.id_clusters:
-                print self.id_clusters[cluster_id]
+                print '   ',self.id_clusters[cluster_id]
             # print 'unique_id,reco_id'
             # for name,cluster_id in self.query_clusters.iteritems():
             #     print '%s,%d' % (name, cluster_id)
@@ -81,7 +84,6 @@ class Clusterer(object):
     def is_removable(self, score):
         if math.isnan(score):
             assert False
-            return True
         if self.greater_than:
             return score <= self.threshold
         else:

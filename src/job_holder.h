@@ -31,7 +31,8 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result() : total_score_(-INFINITY) {}
+  Result() : boundary_error_(""),total_score_(-INFINITY) {}
+  string boundary_error_;
   double total_score_;
   vector<RecoEvent> events_;
 };
@@ -42,8 +43,8 @@ public:
   JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str="");
   ~JobHolder();
   void Clear();
-  Result Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
-  Result Run(sequence &seq, size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d);
+  Result Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max);
+  Result Run(sequence &seq, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max);
   void RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
@@ -53,6 +54,7 @@ public:
   void StreamOutput(double test);  // print csv event info to stderr
   StrPair GetQueryStrs(sequences &seqs, KSet kset, string region);
   void WriteBestGeneProbs(ofstream &ofs, string query_name);
+  string errors() { return errors_; }
 
 private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
@@ -63,6 +65,7 @@ private:
   double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files
+  string errors_;
   GermLines &gl_;
   HMMHolder &hmms_;
   string algorithm_;

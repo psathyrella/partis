@@ -11,7 +11,7 @@ void trellis::forward(model* h, sequences* sqs) {
   forward();
 }
 // ----------------------------------------------------------------------------------------
-void trellis::forward(int iseq) {
+void trellis::forward() {
   forward_score = new float_2D(seq_size, std::vector<float>(state_size, -INFINITY));
   scoring_current = new std::vector<double> (state_size, -INFINITY);
   scoring_previous= new std::vector<double> (state_size, -INFINITY);
@@ -27,17 +27,7 @@ void trellis::forward(int iseq) {
   // calculate forward scores from INIT state, and initialize next_states
   for(size_t st=0; st<state_size; ++st) {
     if ((*initial_to)[st]) {  // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      double emscore(-INFINITY);
-      if (iseq >= 0) {  // only get emission score for a single sequence (the one with index iseq)
-	assert(seqs->size() >= iseq);
-	emscore = (*hmm)[st]->get_emission_prob((*seqs)[iseq], 0);
-      } else if (seqs->size() == 2){
-      	emscore = (*hmm)[st]->get_emission_prob((*seqs)[0], 0) + (*hmm)[st]->get_emission_prob((*seqs)[1], 0);
-      } else {
-	assert(seqs->size() == 1);
-      	emscore = (*hmm)[st]->get_emission_prob((*seqs)[0], 0);
-      }
-
+      double emscore = (*hmm)[st]->get_emission_prob(*seqs, 0);
       forward_temp = emscore + init->getTrans(st)->getTransition(0,NULL); //getTransition(init, st, 0);
       if (forward_temp > -INFINITY) {
 	(*forward_score)[0][st] = forward_temp;
@@ -46,8 +36,6 @@ void trellis::forward(int iseq) {
       }
     }
   }
-    // std::cout << "0--- " << std::endl;
-    // std::cout << "1--- " << std::endl;
       
   // calculate the rest of the forward scores
   for (size_t position=1; position<seq_size; ++position) {
@@ -66,17 +54,7 @@ void trellis::forward(int iseq) {
       if (!current_states[st_current])
 	continue;
               
-      if (iseq >= 0) {  // only get emission score for a single sequence (the one with index iseq)
-	assert(seqs->size() >= iseq);
-	emission = (*hmm)[st_current]->get_emission_prob((*seqs)[iseq], position);
-      } else if (seqs->size() == 2){
-      	emission = (*hmm)[st_current]->get_emission_prob((*seqs)[0], position) + (*hmm)[st_current]->get_emission_prob((*seqs)[1], position);
-      } else {
-	assert(seqs->size() == 1);
-      	emission = (*hmm)[st_current]->get_emission_prob((*seqs)[0], position);
-      }
-
-      // emission = (*hmm)[st_current]->get_emission_prob((*seqs)[0], (*seqs)[1], position);
+      emission = (*hmm)[st_current]->get_emission_prob(*seqs, position);
       from_trans = (*hmm)[st_current]->getFrom();
       for (size_t previous=0; previous<state_size; ++previous) {  //j is previous state
 	if (!(*from_trans)[previous])

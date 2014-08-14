@@ -31,7 +31,7 @@ void plots() {
   double xmax(max(hsame.GetXaxis()->GetBinUpEdge(hsame.GetNbinsX()), hdiff.GetXaxis()->GetBinUpEdge(hdiff.GetNbinsX())));
   xmax = 1.3 * xmax;
   // xmin = -150;
-  // xmax /= 2;
+  // xmax = 0.3;
   TH1F hframe("hframe", "", hsame.GetNbinsX(), xmin, xmax);
   hframe.SetMaximum(1.35*(max(hsame.GetMaximum(), hdiff.GetMaximum())));
   hframe.SetTitle(";foop;frequency");

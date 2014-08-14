@@ -109,8 +109,8 @@ namespace StochHMM{
     inline emm* getEmission(size_t iter){return emissions[iter];};
                 
     double get_emission_prob(sequences& seqs, size_t iter);  //get emission for given (position)
-    double get_emission_prob(sequence &seq, size_t iter);
-    double get_emission_prob(sequence &seq1, sequence &seq2, size_t iter);
+    // double get_emission_prob(sequence &seq, size_t iter);
+    // double get_emission_prob(sequence &seq1, sequence &seq2, size_t iter);
     double get_transition_prob(sequences& seqs, size_t to, size_t iter);  //get transition  (position,from or too)
     double getEndTrans();
                 

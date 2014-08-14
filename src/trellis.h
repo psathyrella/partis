@@ -114,7 +114,7 @@ namespace StochHMM{
     // decoding
     void viterbi();
     void viterbi(model* h, sequences* sqs);
-    void forward(int iseq=-1);
+    void forward();
     void forward(model* h, sequences* sqs);
 
     // ----------------------------------------------------------------------------------------

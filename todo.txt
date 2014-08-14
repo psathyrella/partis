@@ -1,8 +1,9 @@
 hmms
+  - play around with s-w match/mismatch scores (match was 3[:1], just changed to 2[:1]... not sure what\'s best. It\'ll depend on the expected level of mutation. *sigh*)
   - get connor\'s whole framework running to extra parameters from data
   - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
   - distance in any space should be monotonic in extent of SHM -- so use a percent mutated cutoff? Oh yeah -- use hamming distance within the clustering algorithms
-  - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering?
+  - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering? (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
   - why the hell is recombinator only spitting out clones with ten copies?
   - try pairwise s-w for preclustering
   - you know, screw this heuristic preclustering -- try just using a stripped down hmm

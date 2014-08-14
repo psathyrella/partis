@@ -60,6 +60,7 @@ void JobHolder::Clear() {
   paths_.clear();
   all_scores_.clear();
   best_per_gene_scores_.clear();
+  errors_ = "";
 }
 
 // ----------------------------------------------------------------------------------------
@@ -86,15 +87,16 @@ map<string,sequences> JobHolder::GetSubSeqs(sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequence &seq, size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
+Result JobHolder::Run(sequence &seq, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max) {
   sequences seqs;
   sequence *newseq = new sequence(seq);  // seriously wtf does <sequences> need to own its sequences?
   seqs.addSeq(newseq);
-  return Run(seqs, k_v_start, n_k_v, k_d_start, n_k_d);
+  return Run(seqs, k_v_min, k_v_max, k_d_min, k_d_max);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_d_start, size_t n_k_d) {
+Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max) {
+  assert(k_v_max>k_v_min && k_d_max>k_d_min);
   assert(seqs.size() == 1 || seqs.size() == 2);
   Clear();
   assert(trellisi_.size()==0 && paths_.size()==0 && all_scores_.size()==0);
@@ -108,9 +110,8 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
   double best_score(-INFINITY);
   KSet best_kset(make_pair(0,0));
   double *total_score = &result.total_score_;  // total score for all ksets
-  if (debug_) cout << "    k_v: " << k_v_start << "-" << k_v_start+n_k_v-1 << "  k_d: " << k_d_start << "-" << k_d_start+n_k_d-1 << endl;
-  for (size_t k_v=k_v_start; k_v<k_v_start+n_k_v; ++k_v) {
-    for (size_t k_d=k_d_start; k_d<k_d_start+n_k_d; ++k_d) {
+  for (size_t k_v=k_v_min; k_v<k_v_max; ++k_v) {
+    for (size_t k_d=k_d_min; k_d<k_d_max; ++k_d) {
       if (k_v + k_d >= seqs.GetSequenceLength()) {
 	cout << "      skipping " << k_v << " + " << k_d << " = " << k_v + k_d << " >= " << seqs.GetSequenceLength() << endl;
 	continue;
@@ -150,29 +151,41 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_start, size_t n_k_v, size_t k_
   // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
 
   // warn if we're on the k_v k_d space boundary
-  if (n_k_v > 2 && n_k_d > 2) {
-    if (best_kset.first == k_v_start ||
-	best_kset.first == k_v_start+n_k_v-1 ||
-	best_kset.second == k_d_start ||
-	best_kset.second == k_d_start+n_k_d-1) {
-      cout << "    WARNING maximum at boundary for "
-	   << seqs[0].name_;
-      if (seqs.size() == 2)
-	cout << " " << seqs[1].name_;
-      cout
-	<< "  k_v: " << best_kset.first << "(" << k_v_start << "-" << k_v_start+n_k_v-1 << ")"
-	<< "  k_d: " << best_kset.second << "(" << k_d_start << "-" << k_d_start+n_k_d-1 << ")" << endl;
-      cout << "ok, I changed my mind, ERROR!" << endl;
+  if (k_v_max-k_v_min > 1 && k_d_max-k_d_min > 2) {  // for the stripped-down hmm we kinda expect the max to be on the boundary
+    if (best_kset.first == k_v_min)
+      result.boundary_error_ = "k_v_min";
+    else if (best_kset.first == k_v_max-1)
+      result.boundary_error_ = "k_v_max";
+    else if (best_kset.second == k_d_min)
+      result.boundary_error_ = "k_d_min";
+    else if (best_kset.second == k_d_max-1)
+      result.boundary_error_ = "k_d_max";
+    else
+      result.boundary_error_ = "";
+
+    if (result.boundary_error_ != "") {
+      errors_ += ":boundary";
+      if (debug_) {
+	cout << "              WARNING maximum at boundary for "
+	     << seqs[0].name_;
+	if (seqs.size() == 2)
+	  cout << " " << seqs[1].name_;
+	cout
+	  << "  k_v: " << best_kset.first << "(" << k_v_min << "-" << k_v_max-1 << ")"
+	  << "  k_d: " << best_kset.second << "(" << k_d_min << "-" << k_d_max-1 << ")" << " " << result.boundary_error_ << endl;
+	// cout << "ok, I changed my mind, ERROR!" << endl;
+      }
       // assert(0);  TODO make sure it doesn't happen
     }
   }
   
   // print debug info
   if (debug_) {
+    cout << "    " << setw(22) << seqs[0].name_ << " " << setw(22) << (seqs.size()==2 ? seqs[1].name_ : "") << "   " << k_v_min << "-" << k_v_max-1 << "   " << k_d_min << "-" << k_d_max-1;  // exclusive...
     if (algorithm_=="viterbi")
       cout << "    best kset: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
     else
-      cout << "        sum over ksets: " << *total_score << endl;
+      cout << "        " << *total_score << endl;
   }
 
   return result;

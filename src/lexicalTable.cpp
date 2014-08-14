@@ -42,7 +42,6 @@ namespace StochHMM{
       exit(2);
     }
 
-    assert(tracks.size() == tracks.size());  // not sure why we need both of these
     assert(tracks.size() == 1 || tracks.size() == 2);  // for the moment I limit to *two* dimensions (tracks), since there doesn't seem to exist a good library for n-dim matrices with n unknown until runtime
     assert(logProb->size() == 1);  // requiring order equal zero a.t.m.
     log_prob_matrix.resize(tracks[0]->getAlphaSize(), (tracks.size()==1) ? 1 : tracks[1]->getAlphaSize());
@@ -119,13 +118,13 @@ namespace StochHMM{
 
   // ----------------------------------------------------------------------------------------
   double lexicalTable::getValue(sequences& seqs, size_t pos) {
-    assert(seqs.size() == tracks.size());
-    assert(seqs.size() == 2);  // a.t.m. use this function only for two seqs, and the one below for one seq
-    assert(pos <= seqs[0].size());  // could also make sure seqs are all the same length. And that seqs are in the order that we expect based on <tracks>
-    for (size_t iseq=0; iseq<seqs.size(); ++iseq) {
-      assert(seqs[iseq].getTrack() == tracks[iseq]);
-      assert(orders[iseq] == 0);  // higher orders not implemented
-    }
+    // assert(seqs.size() == tracks.size());
+    // assert(seqs.size() == 2);  // a.t.m. use this function only for two seqs, and the one below for one seq
+    // assert(pos <= seqs[0].size());  // could also make sure seqs are all the same length. And that seqs are in the order that we expect based on <tracks>
+    // for (size_t iseq=0; iseq<seqs.size(); ++iseq) {
+    //   assert(seqs[iseq].getTrack() == tracks[iseq]);
+    //   assert(orders[iseq] == 0);  // higher orders not implemented
+    // }
     return log_prob_matrix(seqs[0][pos], seqs[1][pos]);
   }
         

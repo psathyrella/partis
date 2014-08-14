@@ -15,7 +15,7 @@ using namespace StochHMM;
 using namespace std;
 // NOTE use this to compile: export CPLUS_INCLUDE_PATH=/home/dralph/Dropbox/include/eigen-eigen-6b38706d90a9; make
 #define STATE_MAX 1024  // TODO reduce the state max to something reasonable?
-void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score);
+void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score, string errors);
 
 // ----------------------------------------------------------------------------------------
 // init command-line options
@@ -47,7 +47,7 @@ public:
 // ----------------------------------------------------------------------------------------
 Args::Args(string fname):
   str_headers_{"only_genes", "name", "seq", "second_name", "second_seq"},
-  int_headers_{"k_v_guess", "k_d_guess", "v_fuzz", "d_fuzz"}
+  int_headers_{"k_v_min", "k_v_max", "k_d_min", "k_d_max"}
 {
   for (auto &head: str_headers_)
     strings_[head] = vector<string>();
@@ -128,9 +128,9 @@ int main(int argc, const char * argv[]) {
   ofs.open(opt.sopt("--outfile"));
   assert(ofs.is_open());
   if (opt.sopt("--algorithm") == "viterbi")
-    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq" << endl;
+    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq,errors" << endl;
   else
-    ofs << "unique_id,second_unique_id,score" << endl;
+    ofs << "unique_id,second_unique_id,score,errors" << endl;
 
   // init some stochhmm infrastructure
   size_t n_seqs_per_track(opt.iopt("--pair") ? 2 : 1);
@@ -141,28 +141,41 @@ int main(int argc, const char * argv[]) {
   HMMHolder hmms(opt.sopt("--hmmdir"), n_seqs_per_track, gl);
 
   assert(seqs.size() == args.strings_["name"].size());
-  // if (opt.iopt("--debug")) cout << "  stochhmm over " << seqs.size() << " queries" << endl;
   for (size_t is=0; is<seqs.size(); is++) {
-    // if (is%30 && opt.iopt("--debug")) cout << is << " / " << seqs.size() << endl;
-    int k_start = max(1, args.integers_["k_v_guess"][is] - args.integers_["v_fuzz"][is]);
-    int d_start = max(1, args.integers_["k_d_guess"][is] - args.integers_["d_fuzz"][is]);
-    int n_k_v = 2 * args.integers_["v_fuzz"][is];  // NOTE this is the *maximum* fuzz allowed -- job_holder::Run is allowed to skip ksets that don't make sense
-    int n_k_d = 2 * args.integers_["d_fuzz"][is];  // TODO oh wait shouldn't k_d be allowed to be zero?
+    if (opt.iopt("--debug")) cout << "  ---------" << endl;
+    int k_v_min(args.integers_["k_v_min"][is]);
+    int k_v_max(args.integers_["k_v_max"][is]);
+    int k_d_min(args.integers_["k_d_min"][is]);
+    int k_d_max(args.integers_["k_d_max"][is]);
 
     JobHolder jh(gl, hmms, opt.sopt("--algorithm"), args.strings_["only_genes"][is]);
     jh.SetDebug(opt.iopt("--debug"));
     jh.SetNBestEvents(opt.iopt("--n_best_events"));
 
-    Result result = jh.Run(*seqs[is], k_start, n_k_v, d_start, n_k_d);
+    Result result = jh.Run(*seqs[is], k_v_min, k_v_max, k_d_min, k_d_max);
+    int icount(0);
+    while (result.boundary_error_ != "") {
+      if (icount > 5) break;
+      if (result.boundary_error_ == "k_v_min") k_v_min = max(0, k_v_min-1);
+      if (result.boundary_error_ == "k_v_max") ++k_v_max;
+      if (result.boundary_error_ == "k_d_min") k_d_min = max(0, k_d_min-1);
+      if (result.boundary_error_ == "k_d_max") ++k_d_max;
+      result = jh.Run(*seqs[is], k_v_min, k_v_max, k_d_min, k_d_max);
+      ++icount;
+    }
+    assert(jh.errors() == "");
     double score(result.total_score_);
     if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
       assert(seqs[is]->size() == 2);
-      Result result_a = jh.Run((*seqs[is])[0], k_start, n_k_v, d_start, n_k_d);
-      Result result_b = jh.Run((*seqs[is])[1], k_start, n_k_v, d_start, n_k_d);
+      Result result_a = jh.Run((*seqs[is])[0], k_v_min, k_v_max, k_d_min, k_d_max);
+      Result result_b = jh.Run((*seqs[is])[1], k_v_min, k_v_max, k_d_min, k_d_max);
+      assert(result_a.boundary_error_ == "" && result_b.boundary_error_ == "");
+      if (opt.iopt("--debug")) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score_, result_b.total_score_, score - result_a.total_score_ - result_b.total_score_);
+      if (opt.iopt("--debug")) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score_), exp(result_b.total_score_), exp(score) / (exp(result_a.total_score_)*exp(result_b.total_score_)));
       score = score - result_a.total_score_ - result_b.total_score_;
     }
 
-    StreamOutput(ofs, opt, result.events_, *seqs[is], score);
+    StreamOutput(ofs, opt, result.events_, *seqs[is], score, jh.errors());
   }
 
   ofs.close();
@@ -170,7 +183,7 @@ int main(int argc, const char * argv[]) {
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score) {
+void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score, string errors) {
   if (opt.sopt("--algorithm") == "viterbi") {
     assert(opt.iopt("--n_best_events") <= events.size());
     for (size_t ievt=0; ievt<opt.iopt("--n_best_events"); ++ievt) {
@@ -195,6 +208,7 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
 	<< "," << event->score_
 	<< "," << event->seq_
 	<< "," << second_seq
+	<< "," << errors
 	<< endl;
     }
   } else {
@@ -202,6 +216,8 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
     ofs
       << seqs[0].name_
       << "," << seqs[1].name_
-      << "," << total_score << endl;
+      << "," << total_score
+      << "," << errors
+      << endl;
   }
 }
