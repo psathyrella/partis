@@ -28,7 +28,7 @@
 namespace StochHMM{
         
   //!Create a state object
-  state::state():endi(NULL), stateIterator(SIZE_MAX){
+  state::state():endi(NULL), stateIterator(SIZE_MAX),mute_prob_(0){
     transi = new (std::nothrow) std::vector<transition*>;
   }
         
@@ -39,7 +39,7 @@ namespace StochHMM{
   //! \param trcks Tracks defined for model
   //! \param wts Pointer to all weight defined for the model
   //! \param funcs State functions defined for the model
-  state::state(std::string& txt, stringList& names,tracks& trcks, weights* wts, StateFuncs* funcs):endi(NULL), stateIterator(SIZE_MAX){
+  state::state(std::string& txt, stringList& names,tracks& trcks, weights* wts, StateFuncs* funcs):endi(NULL), stateIterator(SIZE_MAX),mute_prob_(0){
         
     //endi=new transition(STANDARD);
     transi = new std::vector<transition*>;
@@ -184,6 +184,17 @@ namespace StochHMM{
       }
     }
                 
+    if (lst.contains("MUTE_PROB")) {
+      idx = lst.indexOf("MUTE_PROB");
+      if (idx+1 < lst.size()){
+	idx++;
+	std::stringstream ss(lst[idx]);
+	ss >> mute_prob_;
+      }
+    }
+    if (name=="insert")  // otherwise it should be 1.0
+      assert(mute_prob_ > 0.0 && mute_prob_ < 1.0);
+
     return true;
   }
     
@@ -437,7 +448,11 @@ namespace StochHMM{
     	value = tmp_val;
       else
     	value += tmp_val;
-    }      
+    }
+
+    if (seqs.size()==2 && seqs[0][iter]!=seqs[1][iter]) // for pair hmm, multiply by the total mute prob if the nukes in the two seqs are different. NOTE this is a pretty approximate way to do this
+      value += log(mute_prob_);  // NOTE mute prob should only be non-1.0 for insert states
+    
     return value;
   }
 

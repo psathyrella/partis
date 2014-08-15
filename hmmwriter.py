@@ -284,13 +284,14 @@ class HmmWriter(object):
         self.text += header_string + '\n'
 
     # ----------------------------------------------------------------------------------------
-    def add_state_header(self, name, label=''):
+    def add_state_header(self, name, label='', mute_prob=0.0):
         self.text += '#############################################\n'
         self.text += 'STATE:\n'
         self.text += '  NAME:        %s\n' % name
         if label != '':
             self.text += '  PATH_LABEL:  %s\n' % label
             self.text += '  GFF_DESC:    %s\n' % name
+            self.text += '  MUTE_PROB:   %f\n' % mute_prob  # TODO use the actual values rather than pulling one ooya
     
     # ----------------------------------------------------------------------------------------
     def add_transition_header(self):
@@ -317,7 +318,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_insert_state(self):
-        self.add_state_header('insert', 'i')
+        self.add_state_header('insert', 'i', mute_prob=0.1)
         self.add_transition_header()
         self.add_region_entry_probs(True)
         # TODO allow d region to be entirely eroded. Um, I don't think I have any probabilities for how frequentlyt his happens
@@ -325,10 +326,8 @@ class HmmWriter(object):
         #     self.text += '  END: 1\n'
         self.add_emission_header()
         emission_probability_string = ''
-        insert_mute_prob = 0.1  # TODO don't just make this number up
-        for nuke1 in utils.nukes:
-            for nuke2 in utils.nukes:
-                emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))  # TODO use insertion base composition from data
+        for nuke in utils.nukes:
+            emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))  # TODO use insertion base composition from data
         emission_probability_string = emission_probability_string.rstrip()
         self.text += emission_probability_string + '\n'
 
@@ -340,7 +339,7 @@ class HmmWriter(object):
         #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?
 
         saniname = utils.sanitize_name(self.gene_name)
-        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke))
+        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke), mute_prob=1.0)  # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states
 
         # transitions
         self.add_transition_header()

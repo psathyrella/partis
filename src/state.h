@@ -163,6 +163,8 @@ namespace StochHMM{
                 
     void _finalizeTransitions(std::map<std::string,state*>& state_index);
                 
+    double mute_prob_;  // total/mean mutation probability at this base. A rough approximation -- it's main purpose is to allow multiplying by a small number when two query seqs differ in a hypothesized insert region
+
   private:
     std::string name;       /* State name */
     std::string gff ;       /* State features description */

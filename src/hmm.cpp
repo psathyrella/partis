@@ -155,7 +155,7 @@ namespace StochHMM{
     
     
   // ----------------------------------------------------------------------------------------
-  model::model():n_seqs_per_track_(0) {
+  model::model():n_seqs_per_track_(0),overall_gene_prob_(0) {
     ending = new(std::nothrow) state();
     assert(ending);
         
@@ -416,15 +416,17 @@ namespace StochHMM{
         
     lst.fromTxt(txt);
         
-        
     for(int i=0;i<5;i++){
       if (lst.contains(headers[i])){
         index = lst.indexOf(headers[i]);
         if (index+1 < lst.size()){
           index++;
           (*head[i])=lst[index];
-	  if (headers[i] == "DESCRIPTION")
-	    overall_gene_prob_ = atof(lst[index].c_str());
+	  if (headers[i] == "DESCRIPTION") {
+	    std::stringstream ss(lst[index]);
+	    ss >> overall_gene_prob_;
+	    assert(overall_gene_prob_ > 0.0 && overall_gene_prob_ < 1.0);
+	  }
         } else {
           std::cerr << "Couldn't parse " << headers[i] << " from \"MODEL INFORMATION\" section." << std::endl;
           return false;
