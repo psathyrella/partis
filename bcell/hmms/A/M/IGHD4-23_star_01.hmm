@@ -1,0 +1,293 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.109627266135
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.9325886310704735
+    IGHD4-23_star_01_0: 0.0561529532899231
+    IGHD4-23_star_01_1: 0.0053598762669531
+    IGHD4-23_star_01_2: 0.0009720907039898
+    IGHD4-23_star_01_3: 0.0015196720730263
+    IGHD4-23_star_01_4: 0.0007491341205059
+    IGHD4-23_star_01_5: 0.0008151292692172
+    IGHD4-23_star_01_6: 0.0010701916007228
+    IGHD4-23_star_01_7: 0.0005386631056971
+    IGHD4-23_star_01_8: 0.0001105864654080
+    IGHD4-23_star_01_9: 0.0000321057480217
+    IGHD4-23_star_01_10: 0.0000856153280578
+    IGHD4-23_star_01_11: 0.0000053509580036
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+  MUTE_PROB:   0.100000
+TRANSITION: STANDARD: P(X)
+ insert: 0.7546754749539980
+    IGHD4-23_star_01_0: 0.2043527199422722
+    IGHD4-23_star_01_1: 0.0195057468847763
+    IGHD4-23_star_01_2: 0.0035376479375052
+    IGHD4-23_star_01_3: 0.0055304147573476
+    IGHD4-23_star_01_4: 0.0027262607958756
+    IGHD4-23_star_01_5: 0.0029664313897979
+    IGHD4-23_star_01_6: 0.0038946582798222
+    IGHD4-23_star_01_7: 0.0019603113341772
+    IGHD4-23_star_01_8: 0.0004024480222483
+    IGHD4-23_star_01_9: 0.0001168397483947
+    IGHD4-23_star_01_10: 0.0003115726623858
+    IGHD4-23_star_01_11: 0.0000194732913991
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_0
+  PATH_LABEL:  IGHD4-23_star_01_0
+  GFF_DESC:    IGHD4-23_star_01_0
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.0000003333333333 0.0000003333333333 0.9999990000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_1
+  PATH_LABEL:  IGHD4-23_star_01_1
+  GFF_DESC:    IGHD4-23_star_01_1
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.0000003333333333 0.9999990000000000 0.0000003333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_2
+  PATH_LABEL:  IGHD4-23_star_01_2
+  GFF_DESC:    IGHD4-23_star_01_2
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9925050000000000 0.0024983333333333 0.0024983333333333 0.0024983333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_3
+  PATH_LABEL:  IGHD4-23_star_01_3
+  GFF_DESC:    IGHD4-23_star_01_3
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0033703333333333 0.9898890000000000 0.0033703333333333 0.0033703333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_4
+  PATH_LABEL:  IGHD4-23_star_01_4
+  GFF_DESC:    IGHD4-23_star_01_4
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0079103333333333 0.0079103333333333 0.0079103333333333 0.9762690000000001
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_5
+  PATH_LABEL:  IGHD4-23_star_01_5
+  GFF_DESC:    IGHD4-23_star_01_5
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9673640000000000 0.0108786666666667 0.0108786666666667 0.0108786666666667
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_6
+  PATH_LABEL:  IGHD4-23_star_01_6
+  GFF_DESC:    IGHD4-23_star_01_6
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_7:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0027623333333333 0.9917130000000000 0.0027623333333333 0.0027623333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_7
+  PATH_LABEL:  IGHD4-23_star_01_7
+  GFF_DESC:    IGHD4-23_star_01_7
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_8:  0.9993385193416945
+  END: 0.0006614806583056
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.2149723333333333 0.2149723333333333 0.3550830000000000 0.2149723333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_8
+  PATH_LABEL:  IGHD4-23_star_01_8
+  GFF_DESC:    IGHD4-23_star_01_8
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_9:  0.9969571889717944
+  END: 0.0030428110282055
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0075203333333333 0.0075203333333333 0.9774389999999999 0.0075203333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_9
+  PATH_LABEL:  IGHD4-23_star_01_9
+  GFF_DESC:    IGHD4-23_star_01_9
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_10:  0.9963221675398212
+  END: 0.0036778324601789
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.2262943333333333 0.2262943333333333 0.2262943333333333 0.3211170000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_10
+  PATH_LABEL:  IGHD4-23_star_01_10
+  GFF_DESC:    IGHD4-23_star_01_10
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_11:  0.9977509657617611
+  END: 0.0022490342382389
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0062123333333333 0.0062123333333333 0.9813630000000000 0.0062123333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_11
+  PATH_LABEL:  IGHD4-23_star_01_11
+  GFF_DESC:    IGHD4-23_star_01_11
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_12:  0.1500767317563635
+  END: 0.8499232682436365
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0112866666666667 0.0112866666666667 0.9661400000000000 0.0112866666666667
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_12
+  PATH_LABEL:  IGHD4-23_star_01_12
+  GFF_DESC:    IGHD4-23_star_01_12
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_13:  0.9872466529078689
+  END: 0.0127533470921310
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0542076666666667 0.0542076666666667 0.0542076666666667 0.8373770000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_13
+  PATH_LABEL:  IGHD4-23_star_01_13
+  GFF_DESC:    IGHD4-23_star_01_13
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_14:  0.9957136053341801
+  END: 0.0042863946658200
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8453230000000000 0.0515590000000000 0.0515590000000000 0.0515590000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_14
+  PATH_LABEL:  IGHD4-23_star_01_14
+  GFF_DESC:    IGHD4-23_star_01_14
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_15:  0.9880139704715034
+  END: 0.0119860295284966
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9338170000000000 0.0220610000000000 0.0220610000000000 0.0220610000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_15
+  PATH_LABEL:  IGHD4-23_star_01_15
+  GFF_DESC:    IGHD4-23_star_01_15
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_16:  0.9742022543260835
+  END: 0.0257977456739165
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0274046666666667 0.9177860000000000 0.0274046666666667 0.0274046666666667
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_16
+  PATH_LABEL:  IGHD4-23_star_01_16
+  GFF_DESC:    IGHD4-23_star_01_16
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_17:  0.9894956871461078
+  END: 0.0105043128538922
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0351160000000000 0.0351160000000000 0.0351160000000000 0.8946520000000000
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_17
+  PATH_LABEL:  IGHD4-23_star_01_17
+  GFF_DESC:    IGHD4-23_star_01_17
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHD4-23_star_01_18:  0.9768746361856380
+  END: 0.0231253638143621
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.9999990000000000 0.0000003333333333 0.0000003333333333
+#############################################
+STATE:
+  NAME:        IGHD4-23_star_01_18
+  PATH_LABEL:  IGHD4-23_star_01_18
+  GFF_DESC:    IGHD4-23_star_01_18
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.9999990000000000 0.0000003333333333 0.0000003333333333
+#############################################
+//END

@@ -68,6 +68,8 @@ namespace StochHMM{
     sequence(const sequence&);
     sequence& operator= (const sequence&);
     sequence getSubSequence(size_t pos, size_t len);
+
+    char get_undigitized(size_t pos) { assert(pos<size()); return undigitized[pos]; }
         
     friend class sequences;
     friend class sequenceStream;

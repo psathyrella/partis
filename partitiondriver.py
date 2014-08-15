@@ -55,11 +55,16 @@ class PartitionDriver(object):
             reader = csv.DictReader(simfile)
             n_queries = 0
             for line in reader:
+                if self.args.queries != None and line['unique_id'] not in self.args.queries:
+                    continue
+                if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
+                    continue
                 reco_info[line['unique_id']] = line
                 last_reco_id = line['reco_id']
                 n_queries += 1
                 if self.args.n_total_queries > 0 and n_queries >= self.args.n_total_queries:
                     break
+        assert len(reco_info) > 0
         return reco_info
     
     # ----------------------------------------------------------------------------------------
@@ -94,9 +99,10 @@ class PartitionDriver(object):
             for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
                 if query_name not in stripped_clusters.query_clusters:
                     print '    singleton ',query_name
-            os.remove(stripped_hmm_csv_infname)
-            os.remove(stripped_hmm_csv_outfname)
-            os.remove(stripped_pairscorefname)
+            if self.args.no_clean:
+                os.remove(stripped_hmm_csv_infname)
+                os.remove(stripped_hmm_csv_outfname)
+                os.remove(stripped_pairscorefname)
 
         hmm_csv_infname = self.workdir + '/hmm_input.csv'
         hmm_csv_outfname = self.workdir + '/hmm_output.csv'
@@ -107,18 +113,19 @@ class PartitionDriver(object):
         self.write_hmm_input(hmm_csv_infname, preclusters=stripped_clusters)
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
         self.read_stochhmm_output(hmm_csv_outfname, pairscorefname);
-        os.remove(hmm_csv_infname)
-        os.remove(hmm_csv_outfname)
 
-        clusters = Clusterer(1, greater_than=True)  # TODO better way to set threshhold?
+        clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
         clusters.cluster(pairscorefname, debug=False)
         for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
             if query_name not in clusters.query_clusters:
                 print '    singleton ',query_name
 
-        os.remove(pairscorefname)
-        os.rename(self.dbgfname, '/tmp/dralph/debug.txt')
-        os.rmdir(self.workdir)
+        if self.args.no_clean:
+            os.remove(hmm_csv_infname)
+            os.remove(hmm_csv_outfname)
+            os.remove(pairscorefname)
+            os.rename(self.dbgfname, '/tmp/dralph/debug-' + self.args.human + '.txt')
+            os.rmdir(self.workdir)
 
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self):
@@ -138,11 +145,14 @@ class PartitionDriver(object):
                         continue
                     if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
                         continue
+                    pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                     n_lines += 1
                     query_seq = self.reco_info[query_name]['seq']
                     second_query_seq = self.reco_info[second_query_name]['seq']
                     mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
                     writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
+                    if self.args.debug:
+                        print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
                     with opener('a')(self.dbgfname) as dbgfile:
                         dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name,  self.from_same_event(query_name, second_query_name), mutation_frac))
 
@@ -337,7 +347,7 @@ class PartitionDriver(object):
 
             # then write a line for each query sequence (or pair of them)
             pair_scores = {}
-            n_lines, n_preclustered, n_removable, n_singletons = 0, 0, 0, 0
+            n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
             for query_name in self.reco_info:
                 info = self.sw_info[query_name]
 
@@ -360,9 +370,13 @@ class PartitionDriver(object):
                             continue
                         if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
                             continue
+                        pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                         if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
                             if query_name not in preclusters.query_clusters or second_query_name not in preclusters.query_clusters:  # singletons!
                                 n_singletons += 1
+                                continue
+                            if utils.get_key(query_name, second_query_name) not in preclusters.pairscores:
+                                n_previously_preclustered += 1
                                 continue
                             if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:  # not in same cluster
                                 n_preclustered += 1
@@ -387,7 +401,6 @@ class PartitionDriver(object):
                             k_d_max = k_d_min + 1
 
                         only_genes = ':'.join(set(only_genes.split(':')) | set(second_only_genes.split(':')))  # NOTE using both sets of genes (from both query seqs) like this *really* helps, 
-                        pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                         n_lines += 1
                         csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
                                       (query_name, second_query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes,
@@ -395,7 +408,7 @@ class PartitionDriver(object):
                 else:
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes, self.reco_info[query_name]['seq']))
-        print '    %d lines (%d preclustered out, %d removable links, %d singletons)' % (n_lines, n_preclustered, n_removable, n_singletons)
+        print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
 
     # ----------------------------------------------------------------------------------------
     def run_stochhmm(self, csv_infname, csv_outfname):

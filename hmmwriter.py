@@ -284,13 +284,13 @@ class HmmWriter(object):
         self.text += header_string + '\n'
 
     # ----------------------------------------------------------------------------------------
-    def add_state_header(self, name, label='', mute_prob=0.0):
+    def add_state_header(self, name, label='', mute_prob=0.0, germline_nuke=''):
         self.text += '#############################################\n'
         self.text += 'STATE:\n'
         self.text += '  NAME:        %s\n' % name
         if label != '':
             self.text += '  PATH_LABEL:  %s\n' % label
-            self.text += '  GFF_DESC:    %s\n' % name
+            self.text += '  GFF_DESC:    %s\n' % germline_nuke
             self.text += '  MUTE_PROB:   %f\n' % mute_prob  # TODO use the actual values rather than pulling one ooya
     
     # ----------------------------------------------------------------------------------------
@@ -339,7 +339,7 @@ class HmmWriter(object):
         #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?
 
         saniname = utils.sanitize_name(self.gene_name)
-        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke), mute_prob=1.0)  # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states
+        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke), mute_prob=1.0, germline_nuke=germline_nuke)  # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states
 
         # transitions
         self.add_transition_header()

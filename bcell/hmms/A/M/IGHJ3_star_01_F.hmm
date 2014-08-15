@@ -1,0 +1,422 @@
+#STOCHHMM MODEL FILE
+MODEL INFORMATION
+======================================================
+MODEL_NAME:	bcell
+MODEL_DESCRIPTION:  0.0142277012328
+MODEL_CREATION_DATE:	today
+
+TRACK SYMBOL DEFINITIONS
+======================================================
+NUKES: A,C,G,T
+
+STATE DEFINITIONS
+#############################################
+STATE:
+  NAME:        INIT
+TRANSITION: STANDARD: P(X)
+ insert: 0.8830045933531478
+     IGHJ3_star_01_F_0: 0.0175299302195280
+     IGHJ3_star_01_F_1: 0.0076033064233672
+     IGHJ3_star_01_F_2: 0.0098743533980000
+     IGHJ3_star_01_F_3: 0.0080476048077334
+     IGHJ3_star_01_F_4: 0.0139012105653956
+     IGHJ3_star_01_F_5: 0.0126575823909741
+     IGHJ3_star_01_F_6: 0.0117224853329688
+     IGHJ3_star_01_F_7: 0.0081239738959553
+     IGHJ3_star_01_F_8: 0.0066695670380414
+     IGHJ3_star_01_F_9: 0.0023684599893869
+     IGHJ3_star_01_F_10: 0.0046286455825837
+     IGHJ3_star_01_F_11: 0.0026868342327296
+     IGHJ3_star_01_F_12: 0.0026678268152166
+     IGHJ3_star_01_F_13: 0.0014106219140000
+     IGHJ3_star_01_F_14: 0.0016288677972296
+     IGHJ3_star_01_F_15: 0.0015881376168446
+     IGHJ3_star_01_F_16: 0.0010141814915861
+     IGHJ3_star_01_F_17: 0.0012405734108927
+     IGHJ3_star_01_F_18: 0.0003265202794196
+     IGHJ3_star_01_F_19: 0.0005797262341463
+     IGHJ3_star_01_F_20: 0.0002694980268807
+     IGHJ3_star_01_F_21: 0.0001826069753927
+     IGHJ3_star_01_F_22: 0.0001384826133090
+     IGHJ3_star_01_F_23: 0.0000563434161992
+     IGHJ3_star_01_F_24: 0.0000224015992117
+     IGHJ3_star_01_F_25: 0.0000322447261381
+     IGHJ3_star_01_F_26: 0.0000112007996059
+     IGHJ3_star_01_F_27: 0.0000122190541155
+#############################################
+STATE:
+  NAME:        insert
+  PATH_LABEL:  i
+  GFF_DESC:    insert
+  MUTE_PROB:   0.100000
+TRANSITION: STANDARD: P(X)
+ insert: 0.7074539562089952
+     IGHJ3_star_01_F_0: 0.0438334450952846
+     IGHJ3_star_01_F_1: 0.0190120046387877
+     IGHJ3_star_01_F_2: 0.0246907387595024
+     IGHJ3_star_01_F_3: 0.0201229690632408
+     IGHJ3_star_01_F_4: 0.0347598617019861
+     IGHJ3_star_01_F_5: 0.0316501797682993
+     IGHJ3_star_01_F_6: 0.0293119773318071
+     IGHJ3_star_01_F_7: 0.0203139293348236
+     IGHJ3_star_01_F_8: 0.0166771970515682
+     IGHJ3_star_01_F_9: 0.0059223145560225
+     IGHJ3_star_01_F_10: 0.0115738898825565
+     IGHJ3_star_01_F_11: 0.0067184067104434
+     IGHJ3_star_01_F_12: 0.0066708788206273
+     IGHJ3_star_01_F_13: 0.0035272483942146
+     IGHJ3_star_01_F_14: 0.0040729704147825
+     IGHJ3_star_01_F_15: 0.0039711249366050
+     IGHJ3_star_01_F_16: 0.0025359524066201
+     IGHJ3_star_01_F_17: 0.0031020435228235
+     IGHJ3_star_01_F_18: 0.0008164612500564
+     IGHJ3_star_01_F_19: 0.0014496006393933
+     IGHJ3_star_01_F_20: 0.0006738775806079
+     IGHJ3_star_01_F_21: 0.0004566072271625
+     IGHJ3_star_01_F_22: 0.0003462746258036
+     IGHJ3_star_01_F_23: 0.0001408862448122
+     IGHJ3_star_01_F_24: 0.0000560150129976
+     IGHJ3_star_01_F_25: 0.0000806276702239
+     IGHJ3_star_01_F_26: 0.0000280075064988
+     IGHJ3_star_01_F_27: 0.0000305536434533
+EMISSION: NUKES: P(X)
+  ORDER: 0
+ 0.2500000000000000 0.2500000000000000 0.2500000000000000 0.2500000000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_0
+  PATH_LABEL:  IGHJ3_star_01_F_0
+  GFF_DESC:    IGHJ3_star_01_F_0
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_1:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.0000003333333333 0.0000003333333333 0.9999990000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_1
+  PATH_LABEL:  IGHJ3_star_01_F_1
+  GFF_DESC:    IGHJ3_star_01_F_1
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_2:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.0000003333333333 0.9999990000000000 0.0000003333333333
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_2
+  PATH_LABEL:  IGHJ3_star_01_F_2
+  GFF_DESC:    IGHJ3_star_01_F_2
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_3:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9430390000000000 0.0189870000000000 0.0189870000000000 0.0189870000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_3
+  PATH_LABEL:  IGHJ3_star_01_F_3
+  GFF_DESC:    IGHJ3_star_01_F_3
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_4:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0277566666666667 0.0277566666666667 0.0277566666666667 0.9167300000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_4
+  PATH_LABEL:  IGHJ3_star_01_F_4
+  GFF_DESC:    IGHJ3_star_01_F_4
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_5:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0269090000000000 0.0269090000000000 0.9192730000000000 0.0269090000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_5
+  PATH_LABEL:  IGHJ3_star_01_F_5
+  GFF_DESC:    IGHJ3_star_01_F_5
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_6:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0522876666666667 0.8431370000000000 0.0522876666666667 0.0522876666666667
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_6
+  PATH_LABEL:  IGHJ3_star_01_F_6
+  GFF_DESC:    IGHJ3_star_01_F_6
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_7:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0303470000000000 0.0303470000000000 0.0303470000000000 0.9089590000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_7
+  PATH_LABEL:  IGHJ3_star_01_F_7
+  GFF_DESC:    IGHJ3_star_01_F_7
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_8:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0273540000000000 0.0273540000000000 0.0273540000000000 0.9179380000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_8
+  PATH_LABEL:  IGHJ3_star_01_F_8
+  GFF_DESC:    IGHJ3_star_01_F_8
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_9:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0166313333333333 0.0166313333333333 0.0166313333333333 0.9501060000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_9
+  PATH_LABEL:  IGHJ3_star_01_F_9
+  GFF_DESC:    IGHJ3_star_01_F_9
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_10:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0229100000000000 0.0229100000000000 0.0229100000000000 0.9312700000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_10
+  PATH_LABEL:  IGHJ3_star_01_F_10
+  GFF_DESC:    IGHJ3_star_01_F_10
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_11:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0235516666666667 0.0235516666666667 0.9293450000000000 0.0235516666666667
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_11
+  PATH_LABEL:  IGHJ3_star_01_F_11
+  GFF_DESC:    IGHJ3_star_01_F_11
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_12:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9430940000000000 0.0189686666666667 0.0189686666666667 0.0189686666666667
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_12
+  PATH_LABEL:  IGHJ3_star_01_F_12
+  GFF_DESC:    IGHJ3_star_01_F_12
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_13:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0223403333333333 0.0223403333333333 0.0223403333333333 0.9329790000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_13
+  PATH_LABEL:  IGHJ3_star_01_F_13
+  GFF_DESC:    IGHJ3_star_01_F_13
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_14:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0960260000000000 0.0960260000000000 0.7119219999999999 0.0960260000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_14
+  PATH_LABEL:  IGHJ3_star_01_F_14
+  GFF_DESC:    IGHJ3_star_01_F_14
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_15:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0176426666666667 0.0176426666666667 0.0176426666666667 0.9470720000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_15
+  PATH_LABEL:  IGHJ3_star_01_F_15
+  GFF_DESC:    IGHJ3_star_01_F_15
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_16:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0572756666666667 0.8281730000000000 0.0572756666666667 0.0572756666666667
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_16
+  PATH_LABEL:  IGHJ3_star_01_F_16
+  GFF_DESC:    IGHJ3_star_01_F_16
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_17:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0033163333333333 0.0033163333333333 0.0033163333333333 0.9900510000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_17
+  PATH_LABEL:  IGHJ3_star_01_F_17
+  GFF_DESC:    IGHJ3_star_01_F_17
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_18:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0011750000000000 0.0011750000000000 0.9964750000000000 0.0011750000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_18
+  PATH_LABEL:  IGHJ3_star_01_F_18
+  GFF_DESC:    IGHJ3_star_01_F_18
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_19:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0011646666666667 0.0011646666666667 0.9965060000000000 0.0011646666666667
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_19
+  PATH_LABEL:  IGHJ3_star_01_F_19
+  GFF_DESC:    IGHJ3_star_01_F_19
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_20:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0010710000000000 0.0010710000000000 0.9967870000000000 0.0010710000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_20
+  PATH_LABEL:  IGHJ3_star_01_F_20
+  GFF_DESC:    IGHJ3_star_01_F_20
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_21:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0029900000000000 0.0029900000000000 0.9910300000000000 0.0029900000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_21
+  PATH_LABEL:  IGHJ3_star_01_F_21
+  GFF_DESC:    IGHJ3_star_01_F_21
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_22:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0074003333333333 0.9777990000000000 0.0074003333333333 0.0074003333333333
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_22
+  PATH_LABEL:  IGHJ3_star_01_F_22
+  GFF_DESC:    IGHJ3_star_01_F_22
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_23:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0025893333333333 0.9922320000000000 0.0025893333333333 0.0025893333333333
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_23
+  PATH_LABEL:  IGHJ3_star_01_F_23
+  GFF_DESC:    IGHJ3_star_01_F_23
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_24:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.9129880000000000 0.0290040000000000 0.0290040000000000 0.0290040000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_24
+  PATH_LABEL:  IGHJ3_star_01_F_24
+  GFF_DESC:    IGHJ3_star_01_F_24
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_25:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.8204140000000000 0.0598620000000000 0.0598620000000000 0.0598620000000000
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_25
+  PATH_LABEL:  IGHJ3_star_01_F_25
+  GFF_DESC:    IGHJ3_star_01_F_25
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_26:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0003406666666667 0.0003406666666667 0.9989780000000000 0.0003406666666667
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_26
+  PATH_LABEL:  IGHJ3_star_01_F_26
+  GFF_DESC:    IGHJ3_star_01_F_26
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  IGHJ3_star_01_F_27:  1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.0000003333333333 0.9999990000000000 0.0000003333333333
+#############################################
+STATE:
+  NAME:        IGHJ3_star_01_F_27
+  PATH_LABEL:  IGHJ3_star_01_F_27
+  GFF_DESC:    IGHJ3_star_01_F_27
+  MUTE_PROB:   1.000000
+TRANSITION: STANDARD: P(X)
+  END: 1.0000000000000000
+EMISSION: NUKES: P(X)
+  ORDER: 0
+@                  A                  C                  G                  T
+  0.0000003333333333 0.0000003333333333 0.9999990000000000 0.0000003333333333
+#############################################
+//END

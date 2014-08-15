@@ -169,7 +169,9 @@ int main(int argc, const char * argv[]) {
       assert(seqs[is]->size() == 2);
       Result result_a = jh.Run((*seqs[is])[0], k_v_min, k_v_max, k_d_min, k_d_max);
       Result result_b = jh.Run((*seqs[is])[1], k_v_min, k_v_max, k_d_min, k_d_max);
-      assert(result_a.boundary_error_ == "" && result_b.boundary_error_ == "");
+      if (result_a.boundary_error_ != "" || result_b.boundary_error_ != "") {
+	cout << "WARNING boundary errors for " << (*seqs[is])[0].name_ << " " << (*seqs[is])[1].name_ << endl;
+      }
       if (opt.iopt("--debug")) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score_, result_b.total_score_, score - result_a.total_score_ - result_b.total_score_);
       if (opt.iopt("--debug")) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score_), exp(result_b.total_score_), exp(score) / (exp(result_a.total_score_)*exp(result_b.total_score_)));
       score = score - result_a.total_score_ - result_b.total_score_;
