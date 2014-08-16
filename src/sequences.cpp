@@ -13,8 +13,8 @@ sequences::~sequences() {
 //! \param trck Sequence track to use
 //! \param position Position in sequence to get the value from
 //! \return short digitized value of the sequence based on track type 
-short sequences::seqValue(int trck, size_t position){
-  return seqs[trck]->seqValue(position);
+short sequences::getValue(int trck, size_t position){
+  return seqs[trck]->getValue(position);
 }
   
 //!Get pointer to ith sequence from sequences
@@ -31,7 +31,7 @@ sequence* sequences::getSeq(size_t iter) {
 // ----------------------------------------------------------------------------------------
 std::string& sequences::getHeader(size_t iter) {
   assert(iter < seqs.size());
-  return seqs[iter]->header;
+  return seqs[iter]->header_;
 }
 
 // ----------------------------------------------------------------------------------------

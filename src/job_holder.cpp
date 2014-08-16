@@ -167,9 +167,9 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
       errors_ += ":boundary";
       if (debug_) {
 	cout << "              WARNING maximum at boundary for "
-	     << seqs[0].name_;
+	     << seqs[0].name();
 	if (seqs.size() == 2)
-	  cout << " " << seqs[1].name_;
+	  cout << " " << seqs[1].name();
 	cout
 	  << "  k_v: " << best_kset.first << "(" << k_v_min << "-" << k_v_max-1 << ")"
 	  << "  k_d: " << best_kset.second << "(" << k_d_min << "-" << k_d_max-1 << ")" << " " << result.boundary_error_ << endl;
@@ -181,7 +181,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
   
   // print debug info
   if (debug_) {
-    cout << "    " << setw(22) << seqs[0].name_ << " " << setw(22) << (seqs.size()==2 ? seqs[1].name_ : "") << "   " << k_v_min << "-" << k_v_max-1 << "   " << k_d_min << "-" << k_d_max-1;  // exclusive...
+    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.size()==2 ? seqs[1].name() : "") << "   " << k_v_min << "-" << k_v_max-1 << "   " << k_d_min << "-" << k_d_max-1;  // exclusive...
     if (algorithm_=="viterbi")
       cout << "    best kset: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
     else
@@ -300,12 +300,12 @@ RecoEvent JobHolder::FillRecoEvent(sequences &seqs, KSet kset, map<string,string
   }
 
   // if (seqs_->size() > 0)  // erm, this segfaults a.t.m. I must be forgetting something somewhere else
-  //   assert((*seqs_)[0].name_ == (*seqs_)[1].name_);  // er, another somewhat neurotic consistency check
+  //   assert((*seqs_)[0].name() == (*seqs_)[1].name());  // er, another somewhat neurotic consistency check
 
-  event.SetSeq(seqs[0].name_, seq_strs.first);
+  event.SetSeq(seqs[0].name(), seq_strs.first);
   if (seqs.size() == 2) {
-    // assert((*seqs_)[0].name_ == (*seqs_)[1].name_);  don't recall at this point precisely why it was that I wanted this here
-    event.SetSecondSeq(seqs[1].name_, seq_strs.second);
+    // assert((*seqs_)[0].name() == (*seqs_)[1].name());  don't recall at this point precisely why it was that I wanted this here
+    event.SetSecondSeq(seqs[1].name(), seq_strs.second);
   }
   event.SetScore(score);
 }
@@ -404,9 +404,9 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
     if ((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
       // TODO put this assert back in. Well, I think. At least figure out a better scheme for dealing with v_right_length-related stuff
       // if(n_long_erosions != 0) {
-      // 	cout << seqs[0].name_ << endl;
+      // 	cout << seqs[0].name() << endl;
       // 	if (seqs.size() > 1)
-      // 	  cout << seqs[1].name_ << endl;
+      // 	  cout << seqs[1].name() << endl;
       // }
       // assert(n_long_erosions == 0);  // adding assert because if it happens, that means my v_right_length was screwed up
       if (debug_ == 2) {

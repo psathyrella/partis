@@ -170,7 +170,7 @@ int main(int argc, const char * argv[]) {
       Result result_a = jh.Run((*seqs[is])[0], k_v_min, k_v_max, k_d_min, k_d_max);
       Result result_b = jh.Run((*seqs[is])[1], k_v_min, k_v_max, k_d_min, k_d_max);
       if (result_a.boundary_error_ != "" || result_b.boundary_error_ != "") {
-	cout << "WARNING boundary errors for " << (*seqs[is])[0].name_ << " " << (*seqs[is])[1].name_ << endl;
+	cout << "WARNING boundary errors for " << (*seqs[is])[0].name() << " " << (*seqs[is])[1].name() << endl;
       }
       if (opt.iopt("--debug")) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score_, result_b.total_score_, score - result_a.total_score_ - result_b.total_score_);
       if (opt.iopt("--debug")) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score_), exp(result_b.total_score_), exp(score) / (exp(result_a.total_score_)*exp(result_b.total_score_)));
@@ -216,8 +216,8 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
   } else {
     assert(seqs.size() == 2);  // er, at least for the moment
     ofs
-      << seqs[0].name_
-      << "," << seqs[1].name_
+      << seqs[0].name()
+      << "," << seqs[1].name()
       << "," << total_score
       << "," << errors
       << endl;

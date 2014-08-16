@@ -45,7 +45,7 @@ public:
   sequences():sequence_length_(0){}
   ~sequences();
       
-  short seqValue(int , size_t); // Get digitized value for sequence track(i) in jth position
+  short getValue(int , size_t); // Get digitized value for sequence track(i) in jth position
   sequence* getSeq(size_t); // Return ith sequence
   sequence& operator[](size_t index) {return *seqs[index]; }
   std::string& getHeader(size_t iter=0);

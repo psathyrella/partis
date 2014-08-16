@@ -455,8 +455,8 @@ namespace StochHMM{
     // TODO make these less hacky
     if (seqs.size()==2 && seqs[0][iter]!=seqs[1][iter])  // for pair hmm, multiply by the total mute prob if the nukes in the two seqs are different. NOTE this is a pretty approximate way to do this
       value += log(mute_prob_);  // NOTE mute prob should only be non-1.0 for insert states
-    if (seqs.size()==2 && seqs[0][iter]==seqs[1][iter] && seqs[0].get_undigitized(iter)!=getGFF()[0] && seqs[1].get_undigitized(iter)!=getGFF()[0])  // for *non*-insert states, if *both* seqs are mutated, but they're mutated to the *same* nucleotide, only apply *one* power of the mutation prob. we approximate this number by just taking the square root of the two. TODO don't need both of the last two clauses
-      value /= 2;
+    // if (seqs.size()==2 && seqs[0][iter]==seqs[1][iter] && seqs[0].get_undigitized(iter)!=getGFF()[0] && seqs[1].get_undigitized(iter)!=getGFF()[0])  // for *non*-insert states, if *both* seqs are mutated, but they're mutated to the *same* nucleotide, only apply *one* power of the mutation prob. we approximate this number by just taking the square root of the two. TODO don't need both of the last two clauses
+    //   value /= 2;
 
     return value;
   }

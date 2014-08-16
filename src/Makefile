@@ -69,7 +69,7 @@ AR = ar
 ARFLAGS = cru
 libstochhmm_a_AR = $(AR) $(ARFLAGS)
 libstochhmm_a_LIBADD =
-am_libstochhmm_a_OBJECTS = pwm.$(OBJEXT) PDF.$(OBJEXT) \
+am_libstochhmm_a_OBJECTS = PDF.$(OBJEXT) \
 	trellis.$(OBJEXT) viterbi.$(OBJEXT) \
 	stochTable.$(OBJEXT) \
 	forward.$(OBJEXT) traceback_path.$(OBJEXT) \
@@ -189,7 +189,6 @@ top_builddir = ..
 top_srcdir = ..
 lib_LIBRARIES = libstochhmm.a
 libstochhmm_a_SOURCES = \
-	pwm.cpp \
 	PDF.cpp \
 	trellis.cpp \
 	viterbi.cpp \
@@ -308,7 +307,6 @@ include ./$(DEPDIR)/lexicalTable.Po
 include ./$(DEPDIR)/modelTemplate.Po
 include ./$(DEPDIR)/options.Po
 include ./$(DEPDIR)/posterior.Po
-include ./$(DEPDIR)/pwm.Po
 include ./$(DEPDIR)/sequence.Po
 include ./$(DEPDIR)/sequences.Po
 include ./$(DEPDIR)/state.Po

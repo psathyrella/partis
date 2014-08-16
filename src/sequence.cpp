@@ -1,1034 +1,256 @@
-//
-//  sequence.cpp
-//Copyright (c) 2007-2012 Paul C Lott 
-//University of California, Davis
-//Genome and Biomedical Sciences Facility
-//UC Davis Genome Center
-//Ian Korf Lab
-//Website: www.korflab.ucdavis.edu
-//Email: lottpaul@gmail.com
-//
-//Permission is hereby granted, free of charge, to any person obtaining a copy of
-//this software and associated documentation files (the "Software"), to deal in
-//the Software without restriction, including without limitation the rights to
-//use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-//the Software, and to permit persons to whom the Software is furnished to do so,
-//subject to the following conditions:
-//
-//The above copyright notice and this permission notice shall be included in all
-//copies or substantial portions of the Software.
-//
-//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-//FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-//COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-//IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-//CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "sequence.h"
 
-namespace StochHMM{
-    
-    
-  //!Create a sequence datatype
-  sequence::sequence(){
-    realSeq=false;
-    real = NULL;
-    seq=NULL;
-    mask=NULL;
-    seqtrk  = NULL;
-    sequence_length_  = 0;
-    max_mask=-1;
-    external= NULL;
-    attrib  = -INFINITY;
-  }
-    
-  //!Create a sequence data type
-  //! \param realTrack  True if the sequence is a list of real numbers
-  sequence::sequence(bool realTrack):mask(NULL) {
-    if (realTrack) {
-      real = new(std::nothrow) std::vector<double>;
-      assert(real);
-      seq = NULL;
-    } else {
-      seq = new(std::nothrow) std::vector<uint8_t>;
-      assert(seq);
-      real = NULL;
-    }
-    realSeq = realTrack;
-    seqtrk  = NULL;
-    sequence_length_  = 0;
-    max_mask=-1;
-    external= NULL;
-    attrib  = -INFINITY;
-  }
-    
-  //! \brief Create a sequence typ
-  //! \param vec Vector of doubles to used as the real numbers for the sequence
-  //! \param tr  Pointer to the track to be used
-  sequence::sequence(std::vector<double>* vec ,track* tr):mask(NULL){
-    realSeq = true;
-    seqtrk  = tr;
-    real    = vec;
-    external= NULL;
-    attrib  = -INFINITY;
-    sequence_length_  = vec->size();
-    max_mask=-1;
-  }
-    
-  //! Create a sequence type
-  //! \param sq Character string that represent sequence
-  //! \param tr Track to be used to digitize sequence
-  sequence::sequence(char* sq, track* tr):mask(NULL){
-    sequence_length_  = 0;
-    max_mask=-1;
-    real = NULL;
-    seq = new(std::nothrow) std::vector<uint8_t>;
-    assert(seq);
-    external= NULL;
-    attrib  = -INFINITY;
-    realSeq = false;
-    seqtrk  = tr;
-    undigitized = sq;
-    _digitize();
-    sequence_length_=seq->size();
-  }
-    
-  //! Create a sequence type
-  //! \param sq std::string string that represent sequence
-  //! \param tr Track to be used to digitize sequence
-  // ----------------------------------------------------------------------------------------
-  sequence::sequence(std::string& seq_str, track* trk, std::string name):
-    mask(NULL),
-    name_(name)
-  {
-    sequence_length_  = 0;
-    max_mask=-1;
-    real = NULL;
-    seq = new(std::nothrow) std::vector<uint8_t>;
-    assert(seq);
-    external= NULL;
-    attrib  = -INFINITY;
-    realSeq = false;
-    seqtrk  = trk;
-    undigitized = seq_str;
-    _digitize();
-    sequence_length_=seq->size();
-  }
-    
-  //!Destroy sequence type
-  sequence::~sequence(){
-    delete seq;
-    delete real;
-    delete mask;
-        
-    seq     = NULL;
-    real    = NULL;
-    mask    = NULL;
-    seqtrk  = NULL;
-    external= NULL;
-  }
-    
-    
-    
-  //! Copy constructor for sequence 
-  //!
-  sequence::sequence(const sequence& rhs){
-    realSeq = rhs.realSeq;
-    header  = rhs.header;
-    attrib  = rhs.attrib;
-    sequence_length_  = rhs.sequence_length_;
-    seqtrk  = rhs.seqtrk;
-    external= rhs.external;  //Need copy constructor for this
-    max_mask= rhs.max_mask;
-    undigitized=rhs.undigitized;
-    name_ = rhs.name_;
-        
-    if (rhs.seq!=NULL){
-      seq = new(std::nothrow) std::vector<uint8_t>(*rhs.seq);
-      if (seq==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-    }
-    else{
-      seq=NULL;
-    }
-        
-    if (rhs.real!=NULL){
-      real = new(std::nothrow) std::vector<double>(*rhs.real);
-      if (real==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-    }
-    else{
-      real=NULL;
-    }
-        
-    if (rhs.mask!=NULL){
-      mask = new(std::nothrow) std::vector<int>(*rhs.mask);
-      if (mask==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-    }
-    else{
-      mask = NULL;
-    }
-  }
-        
-        
-  //Clear the sequence and header
-  void sequence::clear(){
-    header = "";
-    undigitized="";
-    max_mask = -1;
-                
-    if (mask!=NULL){
-      delete mask;
-      mask = NULL;
-    }
-                
-    if (real!=NULL){
-      real->clear();
-    }
-                
-    if (seq!=NULL){
-      seq->clear();
-    }
-                
-    if (external!=NULL){
-      delete external;
-    }
-                
-    seqtrk = NULL;
-    sequence_length_ = 0;
-    attrib = -INFINITY;
-                
-  }
-    
-  sequence& sequence::operator= (const sequence& rhs){
-                
-    //Clean up if necessary 
-    if (external != NULL){
-      delete external;
-      external = NULL;
-    }
-                
-    if (seq!= NULL){
-      delete seq;
-      seq = NULL;
-    }
-                
-    if (real!=NULL){
-      delete real;
-      seq = NULL;
-    }
-                
-    if (mask!= NULL){
-      delete mask;
-      mask = NULL;
-    }
-                
-    //Copy rhs over to this
-    realSeq = rhs.realSeq;
-    header  = rhs.header;
-    attrib  = rhs.attrib;
-    sequence_length_  = rhs.sequence_length_;
-    seqtrk  = rhs.seqtrk;
-    external= rhs.external;
-    max_mask= rhs.max_mask;
-    undigitized=rhs.undigitized;
-        
-    if (rhs.seq!=NULL){
-      seq = new(std::nothrow) std::vector<uint8_t>(*rhs.seq);
-      if (seq==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-    }
-    else{
-      seq=NULL;
-    }
-        
-    if (rhs.real!=NULL){
-      real = new(std::nothrow) std::vector<double>(*rhs.real);
-      if (real==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-    }
-    else{
-      real=NULL;
-    }
-        
-    if (rhs.mask!=NULL){
-      mask = new(std::nothrow) std::vector<int>(*rhs.mask);
-      if (mask==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-    }
-    else{
-      mask = NULL;
-    }
-        
-    return *this;
-  }
-    
-    
-  // ----------------------------------------------------------------------------------------
-  //! \return a copy of the sequence from <pos> of size <len>
-  sequence sequence::getSubSequence(size_t pos, size_t len) {
-    // if(pos >= undigitized.size() || len >= undigitized.size()) {
-    //   std::cout << name_ << " " << pos << " " << len << " " << undigitized << " " << (size_t)(undigitized.size()) << std::cout;
-    // }
-    assert(pos < undigitized.size());
-    assert(len < undigitized.size());
-    assert(pos+len <= undigitized.size());  // arg. if pos+len overflows this still passes
-    std::string subseq_str = undigitized.substr(pos, len);
-    return sequence(subseq_str, seqtrk, name_);
-  }
+namespace StochHMM {
 
-  // ----------------------------------------------------------------------------------------
-  //!Get digitized sequence value at a position
-  //! \param position Position in the sequence to get the value for
-  //! \return short integer value of symbol at positiion
-  uint8_t sequence::seqValue (size_t position){
-    if (!realSeq){
-      if (seq!=NULL){
-        return (*seq)[position];
-      }
-      else{
-        std::cerr << "sequence has not been digitized. \n";
-        exit(1);
-      }
-    }
-        
-    std::cerr << "Invalid sequence type queried in sequence class" <<std::endl;
-    exit(1);
-        
-  };
+// ----------------------------------------------------------------------------------------
+sequence::sequence(string& seq_str, track* trk, string name):
+  undigitized_(seq_str),
+  track_(trk),
+  name_(name)
+{
+  seq_ = new(nothrow) vector<uint8_t>;
+  _digitize();
+}
+  
+// ----------------------------------------------------------------------------------------
+sequence::sequence(const sequence& rhs) {
+  name_ = rhs.name_;
+  header_  = rhs.header_;
+  track_  = rhs.track_;
+  undigitized_ = rhs.undigitized_;
+  seq_ = rhs.seq_;
+  if (rhs.seq_)
+    seq_ = new vector<uint8_t>(*rhs.seq_);
+}
+      
+// ----------------------------------------------------------------------------------------
+sequence::~sequence() {
+  delete seq_;
+}
+  
+// ----------------------------------------------------------------------------------------
+void sequence::clear(){
+  header_ = "";
+  undigitized_="";
+  if (seq_)
+    seq_->clear();
+  track_ = NULL;
+}
+  
+// ----------------------------------------------------------------------------------------
+string* sequence::getUndigitized() {
+  if (!undigitized_.empty() || seq_->empty()) {
+    return &undigitized_;
+  } else {
+    undigitized_ = undigitize();
+    return &undigitized_;
+  }
+}
 
-  //!Get real value of sequence at a position
-  //! \param position Position in the sequence to get the value
-  //! \return positioin 
-  double sequence::realValue(size_t position){
-    if (realSeq){
-      if (real!=NULL){
-        return (*real)[position];
-      }
-      else{
-        std::cerr << "Values have not been imported.\n";
-        exit(1);
-      }
-                
-    }
-    std::cerr << "Invalid sequence type queried in sequence class" <<std::endl;
-    exit(1);
-  };
-    
-  //!Get std::string representation of the string
-  //!If the string is a real track, then it will return a string of doubles
-  //!If the string is a non-real track, then it will return a string of shorts, where the shorts are the digitized value of the sequence according to the track
-  //! \return std::string String representation of the sequence
-  std::string sequence::stringify(){
-    std::string output;
-    if (!header.empty())
-      output += header + "\n";
-        
-    if (!seq && !realSeq)
-      output += undigitized;
-        
-    if (realSeq) {
-      for(size_t i=0; i<sequence_length_; i++) {
-        output += double_to_string((*real)[i]) + " ";
-      }
-    } else {
-      for(size_t i=0; i<sequence_length_; i++) {
-        output += int_to_string((int)(*seq)[i]) + " ";
-      }
-    }
-        
-    if (mask){
-      output += "\n";
-      for(size_t i=0;i<sequence_length_;i++){
-        output+= int_to_string((int)(*mask)[i]) + " ";
-      }
-    }
-                
-    output+="\n";
-    return output;
-  }
-        
-  //!Get std::string representation of the string
-  //!If the string is a real track, then it will return a string of doubles
-  //!If the string is a non-real track, then it will return a string of shorts, where the shorts are the digitized value of the sequence according to the track
-  //! \return std::string String representation of the sequence
-  std::string sequence::stringifyWOHeader() {
-    std::string output;
-    // if (!seq && !realSeq) {
-      output += undigitized;
-    // }
-    // for (size_t i=0; i<sequence_length_; i++) {
-      // output += int_to_string((int)(*seq)[i]) + " ";
-    // }
-        
-    if (mask){
-      output += "\n";
-      for(size_t i=0;i<sequence_length_;i++){
-        output+= int_to_string((int)(*mask)[i]) + " ";
-      }
-    }
-                
-    output+="\n";
-    return output;
-  }
-    
-  //!Get the undigitized value of the string
-  //!If the string is a real-track then it will return the same as stringify()
-  //!If the string is a non-real track, it will return undigitized sequence
-  std::string sequence::undigitize(){
-        
-    if (realSeq){
-      return stringify();
-    }
-        
-    if (!seq){  //If the sequence is not digitized yet.  Return the undigitized version 
-      return undigitized;
-    }
-                
-    std::string output;
-    //          if (!header.empty()){
-    //                  output+= header +"\n";
-    //          }
-                
-    if (seqtrk!=NULL){
-      size_t alphaMax = seqtrk->getAlphaMax();
-            
-      for (size_t i=0;i<sequence_length_;i++){
-        output+=seqtrk->getAlpha((*seq)[i]);
-        if (alphaMax!=1){
-          output+=" ";
-        }
-      }
-    }
-    else {
-      std::cerr << "Track is not defined.  Can't undigitize sequence without valid track\n";
-    }
-        
-    return output;
-  }
-    
-  //!Extract sequence from a fasta file
-  //! \param file File stream 
-  //! \param trk Track to use for digitizing sequence
-  //! \return true if function was able to get a sequence from the file
-  bool sequence::getFasta(std::ifstream& file, track* trk) {
-    if (seq) this->clear();
-    seqtrk = trk;
-    assert(file.good());
+// ----------------------------------------------------------------------------------------
+//! \return a copy of the sequence from <pos> of size <len>
+sequence sequence::getSubSequence(size_t pos, size_t len) {
+  assert(pos < undigitized_.size());
+  assert(len < undigitized_.size());
+  assert(pos+len <= undigitized_.size());  // arg. if pos+len overflows this still passes
+  string subseq_str = undigitized_.substr(pos, len);
+  return sequence(subseq_str, track_, name_);
+}
 
-    //Find next header mark 
-    while (file.peek() != '>') {
-      std::string temp;
-      getline(file, temp, '\n');
-      assert(file.good());  // Sequence doesn't contain a header
-    }
-        
-    getline(file, header, '\n');  // get header line
-    // make sure the track name in the fasta header matches that in the track we've been passed
-    std::stringstream ss(header);
-    std::string name,tmp_track_name;
-    ss >> name >> tmp_track_name;
-    assert(name != ">");  // make sure there wasn't a space after the '>'. yeah, I know, I should rewrite this
-    name_ = name.substr(1);  // first char is the '>' marking this as a header line
-    assert(tmp_track_name == trk->getName());
-    
-    bool success(false);
-    //get sequence
-    std::string line;
-    while(getline(file, line, '\n')){
-      undigitized += line;
-
-      char nl_peek = file.peek();
-      if (nl_peek=='>') {  // if there's a new sequence header on the next line, digitize what we have then break
-        success = _digitize();
-        break;
-      } else if (nl_peek==EOF) {  // if we're at the end of the file, digitize and break
-        getline(file, line, '\n');
-        success = _digitize();
-        break;
-      } else {
-        continue;
-      }
-    }
-    sequence_length_ = seq->size();
-    assert(success);
-    return success;
+// ----------------------------------------------------------------------------------------
+string sequence::stringify(){
+  string output;
+  if (!header_.empty())
+    output += header_ + "\n";
+  output += undigitized_ + "\n";
+  return output;
+}
+      
+// ----------------------------------------------------------------------------------------
+string sequence::stringifyWOHeader() {
+  return undigitized_ + "\n";
+}
+  
+// ----------------------------------------------------------------------------------------
+string sequence::undigitize() {
+  if (!seq_){  //If the sequence is not digitized yet.  Return the undigitized version 
+    return undigitized_;
   }
-    
-  // ----------------------------------------------------------------------------------------
-  bool sequence::getMaskedFasta(std::ifstream& file, track* trk){
-                
-    if (seq!=NULL){
-      this->clear();
+              
+  assert(track_);
+  string output;
+  size_t alphaMax = track_->getAlphaMax();
+  for (size_t i=0; i<size(); i++) {
+    output+=track_->getAlpha((*seq_)[i]);
+    if (alphaMax!=1) {
+      output+=" ";
     }
-                
-    seqtrk=trk;
-        
-    if (!file.good()){
-      return false;
-    }
-        
-    //Find next header mark 
-    while(file.peek() != '>'){
-      std::string temp;
-      getline(file,temp,'\n');
-            
-      if (!file.good()){
-        std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
-        return false;
-      }
-    }
-        
-    bool success;
-    std::string line, mask_string;
-        
-    getline(file,header,'\n');
-        
-    if (file.good()) {
-      getline(file,undigitized,'\n');
+  }
+  return output;
+}
+  
+// ----------------------------------------------------------------------------------------
+bool sequence::getFasta(ifstream& file, track* trk) {
+  if (seq_) this->clear();
+  track_ = trk;
+  assert(file.good());
+
+  //Find next header mark 
+  while (file.peek() != '>') {
+    string temp;
+    getline(file, temp, '\n');
+    assert(file.good());  // Sequence doesn't contain a header
+  }
+      
+  getline(file, header_, '\n');  // get header line
+  // make sure the track name in the fasta header matches that in the track we've been passed
+  stringstream ss(header_);
+  string name,tmp_track_name;
+  ss >> name >> tmp_track_name;
+  assert(name != ">");  // make sure there wasn't a space after the '>'. yeah, I know, I should rewrite this
+  name_ = name.substr(1);  // first char is the '>' marking this as a header line
+  assert(tmp_track_name == trk->getName());
+  
+  bool success(false);
+  //get sequence
+  string line;
+  while(getline(file, line, '\n')){
+    undigitized_ += line;
+
+    char nl_peek = file.peek();
+    if (nl_peek=='>') {  // if there's a new sequence header on the next line, digitize what we have then break
       success = _digitize();
-      sequence_length_=seq->size();
-    }
-    if (file.good()) {
-      getline(file,mask_string,'\n');
-            
-      stringList lst;
-      //split string on space, comma, tab
-      clear_whitespace(mask_string,"\n\r");
-      lst.splitString(mask_string, " ,\t");
-      //alloc mask vector
-            
-      if (lst.size() == sequence_length_) {
-                
-        if (mask!=NULL){
-          delete mask;
-        }
-                
-        mask=new(std::nothrow) std::vector<int>;
-        if (mask==NULL){
-          std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-          exit(1);
-        }
-      }
-      else {
-        std::cerr << "Mask length not equal to Sequence length." << std::endl;
-        return false;
-      }
-      //pass vector to lst.toVecInt
-      lst.toVecInt(*mask);
-      max_mask=*max_element(mask->begin(),mask->end());
-    }
-    else {
-      success = false;
-    }
-
-    return success;
-        
-  }
-    
-  // ----------------------------------------------------------------------------------------
-  //!Digitize the sequence 
-  bool sequence::_digitize() {
-    assert(seqtrk);
-        
-    stringList lst;
-    clear_whitespace(undigitized,"\n");
-    if (seqtrk->getAlphaMax()>1) {  // we have words of length greater than one letter
-      lst.splitString(undigitized, " ,\t");
-      if (!seq) {
-	seq = new std::vector<uint8_t>(lst.size());
-      } else {
-        seq->assign(lst.size(), 0);
-      }
-      for (size_t i=0; i<lst.size(); i++) {
-        uint8_t symbl = seqtrk->symbolIndex(lst[i]);
-        (*seq)[i] = symbl;
-      }
+      break;
+    } else if (nl_peek==EOF) {  // if we're at the end of the file, digitize and break
+      getline(file, line, '\n');
+      success = _digitize();
+      break;
     } else {
-      if (!seq) {
-        seq = new std::vector<uint8_t>(undigitized.size());
-      } else {
-        seq->assign(undigitized.size(),0);
-      }
-      for (size_t i=0; i<undigitized.size(); i++) {
-        uint8_t symbl = seqtrk->symbolIndex(undigitized[i]);
-        (*seq)[i] = symbl;
-      }
+      continue;
     }
-    return true;
   }
-    
-  // ----------------------------------------------------------------------------------------
-  //! Import one fastq entry from the file
-  //!FastQ format:
-  //!Line 1: Start with @
-  //!Line 2: Sequence  , Can be multiple lines
-  //!Line 3: Start with +
-  //!Line 4: Quality Score , Can be multiple lines
-  //! \param file File stream to file
-  //! \param trk Track to used to digitize
-  //! \return true if the sequence was successfully imported
-  bool sequence::getFastq(std::ifstream& file, track* trk){
-                
-    if (seq!=NULL){
-      this->clear();
-    }
-                
-    seqtrk=trk;
-            
-    if (!file.good()){
-      return false;
-    }
-        
-    //Find first line that starts with "@" and Get header
-        
-    //Move down until the next line has a "@"
-    while(file.peek() != '@' && file.good()){
-      std::string temp;
-      getline(file,temp,'\n');
-    }
-        
-    //Get Header (One line)
-    if (file.good()){
-      getline(file,header,'\n');
-    }
-    else{
-      return false;
-    }
-        
-        
-    std::string sequence="";
-    //Get sequence (Multiple Lines)
-    if (file.good()){
-      while(getline(file,sequence,'\n')){
-        undigitized+=sequence;
 
-        char nl_peek=file.peek();  // see if we have new sequence header on the next line
-        if (nl_peek=='+'){  //If next line begins with + then we are at a 
-          break;
-        }
-        else if (nl_peek==EOF){
-          break;
-        }
-        else{
-          continue;
-        }
-      }
-    }
-    else{
-      return false;
-    }
-        
-    _digitize();
-        
-    std::string quality_string;
-        
-    //Get Quality String (Multiple Lines)
-    if (file.good()){
-      while(getline(file,sequence,'\n')){
-        quality_string+=sequence;
-                
-        char nl_peek=file.peek();  // see if we have new sequence header on the next line
-        if (nl_peek=='@'){  //If next line begins with + then we are at a
-          if (quality_string.size() < undigitized.size()){
-            continue;
-          }
-                    
-          break;
-        }
-        else if (nl_peek==EOF){
-          break;
-        }
-        else{
-          continue;
-        }
-      }
-    }
-    else{
-      return false;
-    }
-        
-    sequence_length_=seq->size();
-    return true;
+  assert(success);
+  return success;
+}
+  
+// ----------------------------------------------------------------------------------------
+bool sequence::_digitize() {
+  assert(track_);
+      
+  stringList lst;
+  clear_whitespace(undigitized_,"\n");
+  if (!seq_) {
+    seq_ = new vector<uint8_t>(undigitized_.size());
+  } else {
+    seq_->assign(undigitized_.size(),0);
   }
-    
-    
-  //TODO: fix the return, so it returns false if sequence wasn't imported from file
-  //! Import one Real number sequence from the file
-  //! \param file File stream to file
-  //! \param trk Track to used to digitize
-  //! \return true if the sequence was successfully imported
-  bool sequence::getReal(std::ifstream& file, track* trk, stateInfo* info){
-                
-    if (real!=NULL){
-      this->clear();
-    }
-                
-    seqtrk=trk;
-                
-    if (!file.good()){
-      return false;
-    }
-                
-    //get header
-    while(file.peek() != '>'){
-      std::string temp;
-      getline(file,temp,'\n');
-      if (!file.good()){
-        if (!file.good()){
-          std::cerr << "Sequence doesn't contain a header \">\" "<< std::endl;
-          return false;
-        }
-      }
-    }
-        
-                
-    std::string sequence="";
-    getline(file,sequence,'\n');
-    header=sequence;
-        
-    //get sequence
-    std::string line;
-    stringList lst;
-    while(getline(file,line,'\n')){
-      lst.splitString(line,",\t ");
-      std::vector<double> temp (lst.toVecDouble());
-      for(size_t i=0;i<temp.size();i++){
-        real->push_back(temp[i]);
-      }
-            
+  for (size_t i=0; i<undigitized_.size(); i++) {
+    uint8_t symbl = track_->symbolIndex(undigitized_[i]);
+    (*seq_)[i] = symbl;
+  }
+  return true;
+}
+  
+// ----------------------------------------------------------------------------------------
+//! Import one fastq entry from the file
+//!FastQ format:
+//!Line 1: Start with @
+//!Line 2: Sequence  , Can be multiple lines
+//!Line 3: Start with +
+//!Line 4: Quality Score , Can be multiple lines
+//! \param file File stream to file
+//! \param trk Track to used to digitize
+//! \return true if the sequence was successfully imported
+bool sequence::getFastq(ifstream& file, track* trk){
+              
+  if (seq_!=NULL){
+    this->clear();
+  }
+              
+  track_=trk;
+          
+  if (!file.good()){
+    return false;
+  }
+      
+  //Find first line that starts with "@" and Get header
+      
+  //Move down until the next line has a "@"
+  while(file.peek() != '@' && file.good()){
+    string temp;
+    getline(file,temp,'\n');
+  }
+      
+  //Get Header (One line)
+  if (file.good()){
+    getline(file,header_,'\n');
+  }
+  else{
+    return false;
+  }
+      
+      
+  string sequence="";
+  //Get sequence (Multiple Lines)
+  if (file.good()){
+    while(getline(file,sequence,'\n')){
+      undigitized_+=sequence;
+
       char nl_peek=file.peek();  // see if we have new sequence header on the next line
-      if (nl_peek=='>'){
-        _digitize();
+      if (nl_peek=='+'){  //If next line begins with + then we are at a 
         break;
-      }
-      else if (nl_peek=='['){
-        _digitize();
-        if (info == NULL){
-          std::cerr << "Found brackets [] in fasta sequence.\nHEADER: " << header << "\nCan't import External Definitions without stateInfo from HMM model.  Pass stateInfo from model to " << __FUNCTION__ << std::endl;
-          exit(2);
-        }
-        else{
-          external= new (std::nothrow) ExDefSequence(seq->size());
-          external->parse(file, *info);
-        }
-
       }
       else if (nl_peek==EOF){
-        _digitize();
         break;
       }
       else{
         continue;
       }
     }
-        
-    sequence_length_=real->size();
-    return true;
   }
-    
-  //! Return the mask at sequence position
-  int sequence::getMask(size_t position) {
-        
-    if (mask!=NULL){
-      if (position < GetSequenceLength()) {
-        return (*mask)[position];
-      }
-      else {
-        std::cerr << "Position exceeds sequence length.\n";
-        exit(1);
-      }
-    }
-    else{
-      std::cerr << "No Mask information.\n";
-      exit(1);
-    }
+  else{
+    return false;
   }
-    
-  //!Set the sequence from a std::string
-  //! \param sq Sequence to be used as sequence
-  //! \param tr Track to be used to digitize sequence
-  void sequence::setSeq (std::string& sq, track* tr){
-    realSeq= false;
-    undigitized = sq;
-                
-    if (tr!= NULL){
-      seqtrk = tr;
-      _digitize();
-      sequence_length_ = seq->size();
-    }
-    else{
-      sequence_length_ = sq.size();
-    }
-                
-    return;
-  }
-    
-  //!Set the sequence from a vector of doubles
-  //! \param rl Vector of doubles to be used as real number sequence
-  //! \param tr Track to be used to digitize sequence
-  void sequence::setRealSeq(std::vector<double>* rl, track* tr){
-    seqtrk = tr;
-    realSeq = true;
-    real=rl;
-                
-    sequence_length_ = rl->size();
-                
-    return;
-  }
-    
-    
-  //! Get the symbol (alphabet character or word) for a a given position of a alphanumerical sequence
-  //! \param pos  Position within sequence
-  //! \return string String of the symbol
-  //! \sa track::getAlpha(short)
-  std::string sequence::getSymbol(size_t pos) const{
-    if (realSeq){
-      std::cerr << "Can't get symbol of real values\n";
-      return "";
-    }
-        
-    if (seqtrk==NULL){
-      std::cerr << "track is undefined for sequence\n";
-      return "";
-    }
-        
-    return seqtrk->getAlpha((*seq)[pos]);
-  }
-    
-    
-  //    //! Get the index value of word at a given position and with a order of dependence)
-  //    //! Calulates the index for a character/word and returns an Index type.   If the word is non-ambiguous then it will return 1 value for row and column.  First pair is column index,   Second pair is row index.  If symbol is ambiguous, index contains all possible words that match.
-  //    //! \param[in] position Position within the sequence
-  //    //! \param[in] order Order of dependence
-  //    //! \param[out] word index pair of index values
-  //    //! \sa Index  
-  //    
-  //    void sequence::get_index(size_t position, int order, std::pair<Index,Index>& word_index){
-  //        int letter=seqValue(position);
-  //        size_t alphabet=seqtrk->getAlphaSize();
-  //                
-  //        Index& letter_index=word_index.first;
-  //        
-  //        if (letter<0){
-  //            letter_index.setAmbiguous(seqtrk->getAmbiguousSet(letter));
-  //        }
-  //        else{
-  //            letter_index+=letter;
-  //        }
-  //        
-  //        Index& y_subtotal = word_index.second;
-  //        
-  //        if (order!=0){
-  //            
-  //            for(int k=order;k>=1;k--){
-  //                int prev_letter=seqValue(position-k);
-  //                Index word;
-  //                if (prev_letter<0){
-  //                    word.setAmbiguous(seqtrk->getAmbiguousSet(prev_letter));
-  //                    y_subtotal+=word * POWER[k-1][alphabet-1];
-  //                }
-  //                else{
-  //                    y_subtotal+=prev_letter * POWER[k-1][alphabet-1];
-  //                }
-  //            }
-  //        }
-  //        
-  //        return;
-  //    }
-    
-  //! Reverse the sequence; If mask is defined, the mask will also be reversed
-  //! \return true if reverse was successfully performed on sequence
-  bool sequence::reverse(){
-    if (realSeq){
-      if (real!=NULL){
-        std::reverse(real->begin(), real->end());
-        return true;
-      }
-    }
-    else if (seq!=NULL){
-      std::reverse(seq->begin(), seq->end());
-            
-      if (mask!=NULL){
-        std::reverse(mask->begin(), mask->end());
-      }
-      return true;
-    }
-        
-    //Handle non-digitized sequence
-    if (seqtrk!=NULL){
-      size_t max_size = seqtrk->getAlphaMax();
-      if (max_size ==1){
-        if (undigitized.size()>0){
-          std::reverse(undigitized.begin(),undigitized.end());
-          return true;
+      
+  _digitize();
+      
+  string quality_string;
+      
+  //Get Quality String (Multiple Lines)
+  if (file.good()){
+    while(getline(file,sequence,'\n')){
+      quality_string+=sequence;
+              
+      char nl_peek=file.peek();  // see if we have new sequence header on the next line
+      if (nl_peek=='@'){  //If next line begins with + then we are at a
+        if (quality_string.size() < undigitized_.size()){
+          continue;
         }
-        else{
-          std::cerr << "No sequence is defined to reverse\n";
-        }
+                  
+        break;
+      }
+      else if (nl_peek==EOF){
+        break;
       }
       else{
-        std::cerr << "Reverse on undigitized sequence isn't defined for track alphabets that are more than one character\n";
+        continue;
       }
     }
-        
+  }
+  else{
     return false;
   }
-    
-    
-  //! Complements the sequence.  
-  //! \return true if complementation was successful
-  bool sequence::complement() {
-    if (realSeq){
-      std::cerr<< "sequence::complement isn't defined for real valued sequences\n";
-    }
-    else if (seqtrk==NULL){
-      std::cerr << "StochHMM::track is not defined.  Can't complement without defined complement in track\n";
-    }
-    else if (seq!=NULL){
-            
-      for (size_t i = 0; i < seq->size(); i++) {
-        (*seq)[i] = seqtrk->getComplementIndex((*seq)[i]);
-      }
-            
-      return true;
-    }
-    else {
-      size_t undigitized_size=undigitized.size();
-      if (undigitized_size>0){
-        size_t max_size = seqtrk->getAlphaMax();
-        if (max_size ==1){
-          for(size_t i=0;i<undigitized_size;i++){
-            std::string character = seqtrk->getComplementSymbol(undigitized[i]);
-            undigitized[i] = character[0];
-          }
-          return true;
-                    
-        }
-        else{
-          std::cerr << "Complement on undigitized sequence isn't defined for track alphabets that are more than one character\n";
-        }
-                
-      }
-      else{
-        std::cerr << "No sequence defined\n";
-      }
-            
-    }
-    return false;
-  }
-    
-    
-  //! Reverses and complements the sequence
-  //! \return true if both reverse and complement were successful
-  bool sequence::reverseComplement() {
-    if (!reverse()){
-      std::cerr << "Unable to perform reverseComplement on sequence because reverse failed\n";
-      return false;
-    };
-    if (!complement()){
-      std::cerr << "Unable to perform reverseComplement on sequence because complement failed\n";
-      return false;
-    };
-    return true;
-  }
-    
-  // Digitize a sequences
-  bool sequence::digitize(){
-    if (realSeq){
-      return true;
-    }
-    else if (undigitized.size() > 0){
-      _digitize();
-      return true;
-    }
-    else if (seq!=NULL){
-      std::cerr << "Digitized sequence already exists\n";
-      return true;
-    }
-        
-    std::cerr << "No undigitized sequence exists to convert\n";
-    return false;
-  }
-        
-        
-  //Shuffles the sequence
-  void sequence::shuffle(){
-                
-    if (realSeq){
-      std::random_shuffle(real->begin(), real->end());
-    }
-    else if (seq!=NULL){
-      std::random_shuffle(seq->begin(), seq->end());
-    }
-    else{
-      std::random_shuffle(undigitized.begin(), undigitized.end());
-    }
-    return;
-  }
-        
-  //! \return subsequence from (and including) istart to (but excluding) istop
-  std::vector<uint8_t> sequence::getDigitalSubSeq(size_t istart, size_t istop) {
-    std::vector<uint8_t> subseq;
-    for (std::vector<uint8_t>::iterator it = seq->begin()+istart; it != seq->begin()+istop; ++it)
-      subseq.push_back(*it);
-    return subseq;
-  }
-
-//   //Randomly generate a sequence based on Probabilities of each character
-//   sequence random_sequence(std::vector<double>& freq, size_t length, track* tr){
-//     sequence random_seq;
-        
-//     if (tr==NULL){
-//       std::cerr << "Track is not defined" << std::endl;
-//       return random_seq;
-//     }
-        
-//     size_t alphaSize=tr->getAlphaSize();
-//     size_t freqSize=freq.size();
-                
-//     if (alphaSize!=freqSize){
-//       std::cerr << "Frequency distribution size and Alphabet size must be the same." << std::endl;
-//       return random_seq;
-//     }
-        
-//     //Create CDF of frequency distribution
-//     std::vector<std::pair<double,std::string> > cdf;
-//     double sum = 0.0;
-//     for(size_t i=0;i<freqSize;++i){
-//       sum+=freq[i];
-//       std::pair<double,std::string> val (sum, tr->getAlpha(i));
-//       cdf.push_back(val);
-//     }
-        
-//     //Generate random sequence
-//     std::string random_string;
-//     for(size_t j=0;j<sequence_length_;++j){
-//       double val = ((double)rand()/((double)(RAND_MAX)+(double)(1))); //Generate random
-//       for (size_t m=0;m<freqSize;++m){ //Check to see which value is
-//         if (cdf[m].first>=val){
-//           random_string+=cdf[m].second;
-//           break;
-//         }
-//       }
-//     }
-        
-//     random_seq.setSeq(random_string, tr);
-//     return random_seq;
-//   }
-    
+      
+  // sequence_length_=seq->size();
+  return true;
+}
+  
+//! \return subsequence from (and including) istart to (but excluding) istop
+vector<uint8_t> sequence::getDigitalSubSeq(size_t istart, size_t istop) {
+  vector<uint8_t> subseq;
+  for (vector<uint8_t>::iterator it = seq_->begin()+istart; it != seq_->begin()+istop; ++it)
+    subseq.push_back(*it);
+  return subseq;
+}
 }

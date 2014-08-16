@@ -94,7 +94,7 @@ class PartitionDriver(object):
             self.write_hmm_input(stripped_hmm_csv_infname, preclusters=hamming_clusters, stripped=True)
             self.run_stochhmm(stripped_hmm_csv_infname, stripped_hmm_csv_outfname)
             self.read_stochhmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname);
-            stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
+            stripped_clusters = Clusterer(-999, greater_than=True)  # TODO better way to set threshhold?
             stripped_clusters.cluster(stripped_pairscorefname, debug=False)
             for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
                 if query_name not in stripped_clusters.query_clusters:
@@ -156,7 +156,7 @@ class PartitionDriver(object):
                     with opener('a')(self.dbgfname) as dbgfile:
                         dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name,  self.from_same_event(query_name, second_query_name), mutation_frac))
 
-        clust = Clusterer(0.5, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
+        clust = Clusterer(0.8, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
         clust.cluster(hammingfname, debug=False)
         os.remove(hammingfname)
         print '    %d lines' % n_lines

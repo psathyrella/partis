@@ -1,30 +1,3 @@
-//
-//  sequence.h
-//Copyright (c) 2007-2012 Paul C Lott 
-//University of California, Davis
-//Genome and Biomedical Sciences Facility
-//UC Davis Genome Center
-//Ian Korf Lab
-//Website: www.korflab.ucdavis.edu
-//Email: lottpaul@gmail.com
-//
-//Permission is hereby granted, free of charge, to any person obtaining a copy of
-//this software and associated documentation files (the "Software"), to deal in
-//the Software without restriction, including without limitation the rights to
-//use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-//the Software, and to permit persons to whom the Software is furnished to do so,
-//subject to the following conditions:
-//
-//The above copyright notice and this permission notice shall be included in all
-//copies or substantial portions of the Software.
-//
-//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-//FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-//COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-//IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-//CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
@@ -33,217 +6,49 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <math.h>
 #include <cassert>
-#include <fstream>
-#include <algorithm>
-#include "text.h"
 #include "track.h"
-#include "stateInfo.h"
-#include "externDefinitions.h"
-#include "index.h"
 
-//!  \file 
+using namespace std;
+namespace StochHMM {
 
-namespace StochHMM{
-  //! \class sequence
-  //! Contains individual sequence information and functions to deal with importing and digitizing the sequence
-  //! Sequence can be either real numbers (double values)  or sequence(characters or words) discrete values
-  //! class sequence supports 255 discrete values.
-  class sequence{
-  public:
-        
-    //Constructors
-        
-    sequence();
-    sequence(bool);  //True if Real number track, False if alpha
-    //sequence(trackType);
-    sequence(std::vector<double>*,track*);
-    sequence(std::string& seq_str, track* trk, std::string name);
-    sequence(char* , track*);
-                
-    ~sequence();
-        
-    //Copy Constructors
-    sequence(const sequence&);
-    sequence& operator= (const sequence&);
-    sequence getSubSequence(size_t pos, size_t len);
+class sequence {
+  friend class sequences;
+public:
+  sequence() { assert(0); }  // do not allow (in order to make sure things are properly initialized)
+  sequence(string& seq_str, track* trk, string name);
+  sequence(const sequence&);
+  ~sequence();
+      
+  sequence getSubSequence(size_t pos, size_t len);
+      
+  string* getUndigitized();
+  inline string name() const { return name_; }
+  inline uint8_t getValue(size_t pos) const { return (*seq_)[pos]; }  // get digitized value at <pos>
+  inline string getSymbol(size_t pos) const { return track_->getAlpha((*seq_)[pos]); }  // get undigitized value at <pos>
+  inline size_t size() const { return seq_->size(); }
+  inline track* getTrack() const { return track_; }
 
-    char get_undigitized(size_t pos) { assert(pos<size()); return undigitized[pos]; }
-        
-    friend class sequences;
-    friend class sequenceStream;
-        
-    //ACCESSOR
-        
-    //!Get reference to undigitized sequence
-    //!If sequence hasn't been undigitized then it will undigitize it and
-    //!store the result.   (Only undigitizes the sequence once, then passes
-    //!reference to undigitized sequence)
-    inline std::string* getUndigitized(){
-      if (!undigitized.empty() || seq->empty()){
-	return &undigitized;
-      }
-      else {
-	undigitized = undigitize();
-	return &undigitized;
-      }
-    }
-        
-    //!Get the size of the sequence
-    inline size_t GetSequenceLength(){return sequence_length_;};//Returns length of sequence
-        
-    //!Get the attribute value for the sequence
-    //!Selection of model may use this value to determine which model to use
-    //! \sa setAttrib
-    inline double getAttrib(){return attrib;}; //Returns the Attribute value for the sequence
-        
-    //!Get pointer to ExDefSequence for the sequence
-    //! \return ExDefSequence* 
-    inline ExDefSequence* getExDef(){return external;};
-        
-    //!Check to see if exDef is defined for the sequence
-    //! \return true if ExDefSequence is defined for sequence
-    //! \return false if no External definition exists for sequence
-    inline bool exDefDefined(){if (external){return true;} return false;};
-        
-    double realValue(size_t);  // Returns Sequence Value at position
-    uint8_t  seqValue (size_t);  // Returns Digitized Value at position
-    //char   charValue(size_t);  // Returns Alpha Character Value at position
-        
-    //!Get the size of the sequence
-    //! \return size_t size of the sequence
-    inline size_t size(){if (realSeq){return real->size();} else {return seq->size();}};  // Returns size of sequence
-        
-    //! Get the pointer to the track that is defined for the sequence;
-    //! \return pointer to track
-    inline track* getTrack(){return seqtrk;};
-                
-    inline void setTrack(track* tr){
-      seqtrk = tr;
-      return;
-    }
-        
-        
-    //! Print the string represntation of the sequence to stdout
-    //! Prints the digitized version
-    inline void print(){std::cout << stringify() << std::endl;}; //Print sequence to stdout
-    std::string stringify(); // Get sequence as string
-    std::string stringifyWOHeader(); //Get sequence without [Header information
-
-                
-                
-    //! Undigitize the sequence
-    //! If the sequence has not been digitized then it will return directly
-    //! If the sequence has been digitized then it will undigitize it and return it
-    //! \return character or word sequence from fasta
-    std::string undigitize();
-                
-    //MUTATOR
-    //!Set the sequence attribute value
-    //!\param attr Value of attributes for sequence;
-    inline void setAttrib(double attr){attrib=attr;}; //!Set the attribute value
-        
-    //!Set the header of the sequence
-    //!\param head Header of the sequence
-    inline void setHeader(std::string& head){header=head;};
-        
-    void setSeq(std::string&,track*);
-    void setRealSeq(std::vector<double>*,track*);
-                
-    bool getFasta(std::ifstream&, track*);
-        
-                
-    bool getMaskedFasta(std::ifstream&, track*);
-    bool getFastq(std::ifstream&, track*);
-        
-    inline bool getReal (std::ifstream& file){return getReal(file,NULL,NULL);}
-    inline bool getReal (std::ifstream& file, track* trk){ return getReal(file,trk,NULL);}
-    bool getReal (std::ifstream&, track*, stateInfo*);
-                
-    int  getMaxMask(){return max_mask;}
-    int  getMask(size_t);
-    
-    std::string getSymbol(size_t) const;
-        
-    void get_index(size_t position, int order, std::pair<Index, Index>& word_index);
-        
-                
-    //! Returns the header of the sequence as a std::string
-    inline std::string getHeader() { return header; }
-        
-    bool reverseComplement();
-    bool complement();
-    bool reverse();
-        
-    //!Converts sequence digital based on track alphabet
-    bool digitize();
-                
-    //! Shuffles the sequence using std::random_shuffle
-    void shuffle();
-                
-    inline std::vector<uint8_t>* getDigitalSeq(){return seq;}
-    std::vector<uint8_t> getDigitalSubSeq(size_t istart, size_t istop);
-    
-    inline uint8_t operator[](size_t index){return (*seq)[index];}
-                
-    inline bool isRealSeq(){
-      return realSeq;
-    }
-                
-    inline std::vector<double>* getRealSeq(){
-      if (realSeq){
-	return real;
-      }
-      else{
-	return NULL;
-      }
-    }
-                
-    //!Empty Sequence
-    void clear();
-                
-                
-    //void getNext (std::ifstream&, track*);
-        
-        
-    //bool _checkSequence(); //!Check the sequence adheres to the track alphabet
-
-    std::string name_;
-
-  private:
-    bool realSeq; //If Real number sequence
-    std::string header; // Header from the sequence
-        
-    double attrib; //Attribute value (Could be %GC or whatever user defines)
-    size_t sequence_length_; //Lenght of the Sequence
-        
-    track* seqtrk; //Ptr to track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
-        
-    ExDefSequence* external; //External definitions
-    //Stores defined states for given sequence 
-
-    // FIXME:: DIGITIZED SEQUENCES STORED AS SHORT.  NEED TO STANDARDIZE BOTH TRACK AND SEQUENCE CLASS (Track stores as (int) but sequence stores as short.
-    std::vector<uint8_t>* seq; // Digitized Sequence
-    std::vector<double>* real; // Real Number Sequence
-    std::vector<int>* mask; //Stores State masking information for training
-    int max_mask;  //Maximum mask number
-        
-        
-    std::string undigitized;  //Undigitized sequence
-        
-    bool _digitize();  //Digitize the sequence
-  };
-        
-        
-        
-  //!Randomly generate a sequence based on Probabilities of each character
-  //! \param freq  Reference to std::vector<double> that contains frequencies of alphabet corresponding to alphabet in track
-  //! \param length  Length of sequence to generate
-  //! \param tr Pointer to StochHMM::track where alphabet and ambiguous characters are defined
-  // sequence random_sequence(std::vector<double>& freq, size_t length, track* tr);
-  //      sequence random_sequence(emm*);    
-  //  sequence translate();
-    
+  string stringify(); // Get sequence as string
+  string stringifyWOHeader(); //Get sequence without [Header information
+  inline void print() { cout << stringify() << endl; }
+  string undigitize();
+              
+  bool getFasta(ifstream&, track*);
+  bool getFastq(ifstream&, track*);
+  bool digitize();
+  inline vector<uint8_t>* getDigitalSeq(){return seq_;}
+  vector<uint8_t> getDigitalSubSeq(size_t istart, size_t istop);
+  
+  inline uint8_t operator[](size_t index){return (*seq_)[index];}
+  void clear();
+private:
+  bool _digitize();  //Digitize the sequence
+  string name_;
+  string header_;
+  track* track_; //Ptr to track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
+  string undigitized_;  //Undigitized sequence
+  vector<uint8_t>* seq_; // Digitized Sequence
+};
 }
-#endif /*SEQUENCE_H*/
+#endif

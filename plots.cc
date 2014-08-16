@@ -34,7 +34,7 @@ void plots() {
   // xmax = 0.3;
   TH1F hframe("hframe", "", hsame.GetNbinsX(), xmin, xmax);
   hframe.SetMaximum(1.35*(max(hsame.GetMaximum(), hdiff.GetMaximum())));
-  hframe.SetTitle(";foop;frequency");
+  hframe.SetTitle(";forward score;frequency");
   hframe.Draw("txt");
   TLegend leg(0.2, 0.75, 0.55, 0.9);
   leg.SetFillColor(0);

@@ -11,7 +11,7 @@
 
 #include "sequences.h"
 #include "sequence.h"
-#include "seqTracks.h"
+// #include "seqTracks.h"
 #include "externDefinitions.h"
 #include "options.h"
 #include "weight.h"
@@ -29,7 +29,6 @@
 #include "stochMath.h"
 #include "index.h"
 #include "PDF.h"
-#include "pwm.h"
 #include "trellis.h"
 #include "stochTable.h"
 #include "traceback_path.h"
