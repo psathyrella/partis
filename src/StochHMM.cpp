@@ -166,7 +166,7 @@ int main(int argc, const char * argv[]) {
     assert(jh.errors() == "");
     double score(result.total_score_);
     if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
-      assert(seqs[is]->size() == 2);
+      assert(seqs[is]->n_seqs() == 2);
       Result result_a = jh.Run((*seqs[is])[0], k_v_min, k_v_max, k_d_min, k_d_max);
       Result result_b = jh.Run((*seqs[is])[1], k_v_min, k_v_max, k_d_min, k_d_max);
       if (result_a.boundary_error_ != "" || result_b.boundary_error_ != "") {
@@ -214,7 +214,7 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
 	<< endl;
     }
   } else {
-    assert(seqs.size() == 2);  // er, at least for the moment
+    assert(seqs.n_seqs() == 2);  // er, at least for the moment
     ofs
       << seqs[0].name()
       << "," << seqs[1].name()

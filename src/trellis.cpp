@@ -20,7 +20,7 @@ namespace StochHMM {
                 
     type = SIMPLE;
     store_values = false;
-    exDef_defined = false;
+    // exDef_defined = false;
                 
     traceback_table = NULL;
     stochastic_table = NULL;
@@ -63,7 +63,7 @@ namespace StochHMM {
                 
     type = SIMPLE;
     store_values=false;
-    exDef_defined = seqs->exDefDefined();
+    // exDef_defined = seqs->exDefDefined();
                 
     traceback_table = NULL;
     stochastic_table = NULL;
@@ -152,7 +152,7 @@ namespace StochHMM {
     seq_size = 0;
     type = SIMPLE;
     store_values = false;
-    exDef_defined = false;
+    // exDef_defined = false;
                 
     delete traceback_table;
     delete stochastic_table;
@@ -212,11 +212,11 @@ namespace StochHMM {
     ending_backward_prob = -INFINITY;
   }
         
-  // ----------------------------------------------------------------------------------------
-  //TODO:  Fix getTransitions to work with all transition types
-  double trellis::getTransition(state* st, size_t trans_to_state) {
-    return st->getTrans(trans_to_state)->getTransition(0,NULL);
-  }
+  // // ----------------------------------------------------------------------------------------
+  // //TODO:  Fix getTransitions to work with all transition types
+  // double trellis::getTransition(state* st, size_t trans_to_state) {
+  //   return st->getTrans(trans_to_state)->getTransition(0,NULL);
+  // }
   // // ----------------------------------------------------------------------------------------
   // //TODO:  Fix getTransitions to work with all transition types
   // double trellis::getTransition(state* st, size_t trans_to_state, size_t sequencePosition) {
@@ -279,136 +279,137 @@ namespace StochHMM {
   //! value +1.  Otherwise, it will traceback through the trellis until the
   //! traceback identifier is reached. 
   //! \return length of traceback (Giving duration)
-  size_t trellis::get_explicit_duration_length(transition* trans, size_t sequencePosition, size_t state_iter, size_t to_state){
+  // size_t trellis::get_explicit_duration_length(transition* trans, size_t sequencePosition, size_t state_iter, size_t to_state){
+  //   assert(0);
                 
-    if ((*explicit_duration_previous)[state_iter]!=0){
-      //                        std::cout << "Duration:\t" << (*explicit_duration_previous)[state_iter]+1 << std::endl;
-      return (*explicit_duration_previous)[state_iter]+1;
-    }
+    // if ((*explicit_duration_previous)[state_iter]!=0){
+    //   //                        std::cout << "Duration:\t" << (*explicit_duration_previous)[state_iter]+1 << std::endl;
+    //   return (*explicit_duration_previous)[state_iter]+1;
+    // }
                 
                 
-    //If duration hasn't been defined then traceback until the ending parameter is reached
-    size_t length(0);
+    // //If duration hasn't been defined then traceback until the ending parameter is reached
+    // size_t length(0);
                 
-    size_t tbState(state_iter);  //First traceback pointer to use in traceback_table
+    // size_t tbState(state_iter);  //First traceback pointer to use in traceback_table
                 
-    //tracebackIdentifier traceback_identifier = previousState->transi[transitionTo].traceback_identifier;
-    tracebackIdentifier traceback_identifier = trans->getTracebackIdentifier();
+    // //tracebackIdentifier traceback_identifier = previousState->transi[transitionTo].traceback_identifier;
+    // tracebackIdentifier traceback_identifier = trans->getTracebackIdentifier();
                 
-    //string identifier = previousState->transi[transitionTo].traceback_string;
-    std::string identifier = trans->getTracebackString();
+    // //string identifier = previousState->transi[transitionTo].traceback_string;
+    // std::string identifier = trans->getTracebackString();
                 
-    //Traceback through trellis until the correct identifier is reached.
-    for(size_t trellPos=sequencePosition-1 ; trellPos != SIZE_MAX ;trellPos--){
-      length++;
-      tbState = (*traceback_table)[trellPos][tbState];
+    // //Traceback through trellis until the correct identifier is reached.
+    // for(size_t trellPos=sequencePosition-1 ; trellPos != SIZE_MAX ;trellPos--){
+    //   length++;
+    //   tbState = (*traceback_table)[trellPos][tbState];
                         
-      if (tbState == SIZE_MAX){
-        break;
-      }
+    //   if (tbState == SIZE_MAX){
+    //     break;
+    //   }
                         
-      state* st = hmm->getState(tbState);
+    //   state* st = hmm->getState(tbState);
                         
-      //Check to see if stop conditions of traceback are met, if so break;
-      if(traceback_identifier == START_INIT && tbState == SIZE_MAX) {break;}
-      else if (traceback_identifier == DIFF_STATE  && state_iter != st->getIterator())  { break;}
-      else if (traceback_identifier == STATE_NAME  && identifier.compare(st->getName())==0)     { break;}
-      else if (traceback_identifier == STATE_LABEL && identifier.compare(st->getLabel())==0)    { break;}
-      else if (traceback_identifier == STATE_GFF   && identifier.compare(st->getGFF())==0)      { break;}
+    //   //Check to see if stop conditions of traceback are met, if so break;
+    //   if(traceback_identifier == START_INIT && tbState == SIZE_MAX) {break;}
+    //   else if (traceback_identifier == DIFF_STATE  && state_iter != st->getIterator())  { break;}
+    //   else if (traceback_identifier == STATE_NAME  && identifier.compare(st->getName())==0)     { break;}
+    //   else if (traceback_identifier == STATE_LABEL && identifier.compare(st->getLabel())==0)    { break;}
+    //   else if (traceback_identifier == STATE_GFF   && identifier.compare(st->getGFF())==0)      { break;}
                         
-    }
-    //          std::cout << "Duration:\t" << length+1 << std::endl;
-    return length+1;
+    // }
+    // //          std::cout << "Duration:\t" << length+1 << std::endl;
+    // return length+1;
 
-  }
+  // }
         
-  //! When a transitionFunc is to be called it must performs a traceback
-  //! and get the required sequence to pass to the function
-  //! \param 
-  double trellis::transitionFuncTraceback(state* st, size_t position,transitionFuncParam* func){
+  // //! When a transitionFunc is to be called it must performs a traceback
+  // //! and get the required sequence to pass to the function
+  // //! \param 
+  // double trellis::transitionFuncTraceback(state* st, size_t position,transitionFuncParam* func){
         
-    std::vector<int> tracebackPath;
-    std::vector<std::string> tracebackString;
+  //   std::vector<int> tracebackPath;
+  //   std::vector<std::string> tracebackString;
                 
-    //How far to traceback
-    tracebackIdentifier traceback_identifier = func->getTracebackType();
-    const std::string& tracebackIdentifierName = func->getTracebackName();
+  //   //How far to traceback
+  //   tracebackIdentifier traceback_identifier = func->getTracebackType();
+  //   const std::string& tracebackIdentifierName = func->getTracebackName();
         
         
-    //What to combine
-    combineIdentifier combineIdent = func->getCombineType();
-    const std::string& combineIdentName = func->getCombineName();
+  //   //What to combine
+  //   combineIdentifier combineIdent = func->getCombineType();
+  //   const std::string& combineIdentName = func->getCombineName();
         
         
-    //Deterimine which track to use
-    track* alphaTrack = func->getTrack();
-    size_t trackIndex = alphaTrack->getIndex();
-    if (!alphaTrack->isAlpha()){
+  //   //Deterimine which track to use
+  //   track* alphaTrack = func->getTrack();
+  //   size_t trackIndex = alphaTrack->getIndex();
+  //   if (!alphaTrack->isAlpha()){
             
-      std::cerr << "External transition function called on track that isn't discrete (ALPHANUMERIC)\n";
-      exit(2);
+  //     std::cerr << "External transition function called on track that isn't discrete (ALPHANUMERIC)\n";
+  //     exit(2);
             
-    }
+  //   }
         
-    const sequence* seq = seqs->getSeq(trackIndex);
-    int16_t tb_state(st->getIterator());
-    int16_t starting_state = tb_state;
-    state* temp_st = hmm->getState(tb_state);
+  //   const sequence* seq = seqs->getSeq(trackIndex);
+  //   int16_t tb_state(st->getIterator());
+  //   int16_t starting_state = tb_state;
+  //   state* temp_st = hmm->getState(tb_state);
 
                 
-    for(size_t trellisPos = position-1; trellisPos != SIZE_MAX ; --trellisPos){
+  //   for(size_t trellisPos = position-1; trellisPos != SIZE_MAX ; --trellisPos){
             
-      tracebackPath.push_back(tb_state);
-      //std::cout << tb_state << "\t" << temp_st->getLabel() << std::endl;
+  //     tracebackPath.push_back(tb_state);
+  //     //std::cout << tb_state << "\t" << temp_st->getLabel() << std::endl;
                         
                         
-      if ((combineIdent == FULL) ||
-          (combineIdent == STATENAME && combineIdentName.compare(temp_st->getName())==0)||
-          (combineIdent == STATELABEL && combineIdentName.compare(temp_st->getLabel())==0)||
-          (combineIdent == STATEGFF && combineIdentName.compare(temp_st->getGFF())==0))
+  //     if ((combineIdent == FULL) ||
+  //         (combineIdent == STATENAME && combineIdentName.compare(temp_st->getName())==0)||
+  //         (combineIdent == STATELABEL && combineIdentName.compare(temp_st->getLabel())==0)||
+  //         (combineIdent == STATEGFF && combineIdentName.compare(temp_st->getGFF())==0))
                                 
-        {
-          tracebackString.push_back(seq->getSymbol(trellisPos));
-        }
+  //       {
+  //         tracebackString.push_back(seq->getSymbol(trellisPos));
+  //       }
             
                         
-      tb_state= (*traceback_table)[trellisPos][tb_state];
-      temp_st = hmm->getState(tb_state);
+  //     tb_state= (*traceback_table)[trellisPos][tb_state];
+  //     temp_st = hmm->getState(tb_state);
                         
                         
 
-      //Check to see if stop conditions of traceback are met, if so break;
-      if(traceback_identifier == START_INIT && tb_state == -1) {break;}
-      else if (traceback_identifier == DIFF_STATE  && starting_state != tb_state) {  break;}
-      else if (traceback_identifier == STATE_NAME  && tracebackIdentifierName.compare(temp_st->getName())==0){ break;}
-      else if (traceback_identifier == STATE_LABEL && tracebackIdentifierName.compare(temp_st->getLabel())==0) {  break;}
-      else if (traceback_identifier == STATE_GFF   && tracebackIdentifierName.compare(temp_st->getGFF())==0) {  break;}
-    }
+  //     //Check to see if stop conditions of traceback are met, if so break;
+  //     if(traceback_identifier == START_INIT && tb_state == -1) {break;}
+  //     else if (traceback_identifier == DIFF_STATE  && starting_state != tb_state) {  break;}
+  //     else if (traceback_identifier == STATE_NAME  && tracebackIdentifierName.compare(temp_st->getName())==0){ break;}
+  //     else if (traceback_identifier == STATE_LABEL && tracebackIdentifierName.compare(temp_st->getLabel())==0) {  break;}
+  //     else if (traceback_identifier == STATE_GFF   && tracebackIdentifierName.compare(temp_st->getGFF())==0) {  break;}
+  //   }
         
-    size_t length = tracebackString.size();
-    std::string CombinedString;
+  //   size_t length = tracebackString.size();
+  //   std::string CombinedString;
                 
-    size_t maxSymbolSize = alphaTrack->getAlphaMax();
-    //For single letter characters
-    if (maxSymbolSize ==1){
-      for(std::vector<std::string>::reverse_iterator rit = tracebackString.rbegin(); rit!=tracebackString.rend();++rit){
-        CombinedString+=(*rit);
-      }
-    }
-    else{  // For kmer words > 1 in length
-      std::vector<std::string>::reverse_iterator rit = tracebackString.rbegin();
-      CombinedString+=(*rit);
-      ++rit;
-      for(; rit!=tracebackString.rend();++rit){
-        CombinedString+="," + (*rit);
-      }
-    }
+  //   size_t maxSymbolSize = alphaTrack->getAlphaMax();
+  //   //For single letter characters
+  //   if (maxSymbolSize ==1){
+  //     for(std::vector<std::string>::reverse_iterator rit = tracebackString.rbegin(); rit!=tracebackString.rend();++rit){
+  //       CombinedString+=(*rit);
+  //     }
+  //   }
+  //   else{  // For kmer words > 1 in length
+  //     std::vector<std::string>::reverse_iterator rit = tracebackString.rbegin();
+  //     CombinedString+=(*rit);
+  //     ++rit;
+  //     for(; rit!=tracebackString.rend();++rit){
+  //       CombinedString+="," + (*rit);
+  //     }
+  //   }
         
-    //Call the transitionFunc and get the score back
-    double transitionValue = func->evaluate(seqs->getUndigitized(trackIndex), position, &CombinedString, length);
+  //   //Call the transitionFunc and get the score back
+  //   double transitionValue = func->evaluate(seqs->getUndigitized(trackIndex), position, &CombinedString, length);
         
-    return transitionValue;
-  }
+  //   return transitionValue;
+  // }
 
   // ----------------------------------------------------------------------------------------
   //!Perform traceback through trellis

@@ -953,8 +953,8 @@ namespace StochHMM{
     complex_transition_states       = new(std::nothrow) std::vector<bool>(state_size(),false);
                 
     for(size_t st = 0 ; st<state_size(); ++st){
-      (*complex_emission_states)[st]  = states[st]->hasComplexEmission();
-      (*complex_transition_states)[st]= states[st]->hasComplexTransition();
+      (*complex_emission_states)[st]  = false;  //states[st]->hasComplexEmission();
+      (*complex_transition_states)[st]= false;  //states[st]->hasComplexTransition();
                         
       if ((*complex_emission_states)[st] || (*complex_transition_states)[st]){
         basicModel = false;

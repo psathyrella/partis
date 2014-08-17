@@ -402,6 +402,14 @@ namespace StochHMM{
     return;
   }
         
+  template<typename T>
+  std::vector<double> get_exp_vector(std::vector<T> data) {
+    std::vector<double> newvec;
+    for(size_t i=0; i<data.size(); i++)
+      newvec.push_back(exp(data[i]));
+    return newvec;
+  }
+        
   /*! \fn T avgLogVector(std::vector<double>& data)
     \brief Get the average of the vector of log'd values
     \param data Vector of doubles

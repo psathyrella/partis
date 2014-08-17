@@ -1,35 +1,9 @@
-//state.h
-//Copyright (c) 2007-2012 Paul C Lott
-//University of California, Davis
-//Genome and Biomedical Sciences Facility
-//UC Davis Genome Center
-//Ian Korf Lab
-//Website: www.korflab.ucdavis.edu
-//Email: lottpaul@gmail.com
-//
-//Permission is hereby granted, free of charge, to any person obtaining a copy of
-//this software and associated documentation files (the "Software"), to deal in
-//the Software without restriction, including without limitation the rights to
-//use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-//the Software, and to permit persons to whom the Software is furnished to do so,
-//subject to the following conditions:
-//
-//The above copyright notice and this permission notice shall be included in all
-//copies or substantial portions of the Software.
-//
-//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-//FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-//COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-//IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-//CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 #ifndef STATE_H
 #define STATE_H
 
 #include <string>
 #include <vector>
+#include <set>
 #include "text.h"
 #include "emm.h"
 #include "transitions.h"
@@ -46,146 +20,71 @@
 #define STATE_MAX 1024
 #endif
 
-namespace StochHMM{
+using namespace std;
+namespace StochHMM {
+class transition;
+  
+class state {
+  friend class model;
+public:
+  state();
+  state(string&,stringList&,tracks&,weights*, StateFuncs*); //!Create state from string
+  bool parse(string&,stringList&,tracks&,weights*,StateFuncs*);
+  ~state();
 
-  class transition;
-    
-  class state{
-  public:
-    state();
-    //state(int);
-    state(std::string&,stringList&,tracks&,weights*, StateFuncs*); //!Create state from string
-    ~state();
-                
-    friend class model;
-                
-    //ACCESSOR
-                
-    //!Get the states integer index value
-    //! \return integer
-    inline size_t getIterator(){return stateIterator;};
-                
-    //!Get the name of the state
-    //! \return std::string Name of state
-    inline std::string& getName(){return name;};
-                
-    //!Get the GFF tag to use for the state
-    //! \results std::string GFF tag
-    inline std::string& getGFF(){return gff;};
-                
-    //!Get the Label used for the state
-    //! \result std::string
-    inline std::string& getLabel(){return label;};
-                
-    //!Get all transition defined for the state
-    //!\return std::vector<transitions*>*  Pointer to all transitions in state
-    inline std::vector<transition*>* getTransitions(){return transi;};
-                
-    //!Get all states that this state has transitions to
-    //! \return std::vector<state*>* Pointer to all state that are transitioned to
-    inline std::bitset<STATE_MAX>* getTo(){return &to;};
+  // accessors
+  inline size_t getIterator(){return stateIterator;};
+  inline string& getName(){return name;};
+  inline string& getGFF(){return gff;};
+  inline string& getLabel(){return label;};
+  inline vector<transition*>* getTransitions(){return transi;};
+  inline bitset<STATE_MAX>* getTo(){return &to;};
+  inline bitset<STATE_MAX>* getFrom(){return &from;};
+  inline transition* getTrans(size_t iter) { return (*transi)[iter]; }
+  inline transition* getEnding(){return endi;};
+              
+  inline double emission_score(sequences& seqs, size_t iter) {
+    if (seqs.n_seqs() == 2)
+      return emission_.score(seqs[0], iter) + emission_.score(seqs[1], iter);
+    else
+      return emission_.score(seqs[0], iter);
+  }
+  inline double transition_score(size_t to_state) { return (*transi)[to_state]->score(); }
+  double getEndTrans();
+              
+  void print();
+  string stringify();
+              
+  inline void addTransition(transition* trans){transi->push_back(trans);};
+  inline void setEndingTransition(transition* trans){endi=trans;};
+  inline void setName(string& txt){name=txt;};
+  inline void setGFF(string& txt){gff=txt;};
+  inline void setLabel(string& txt){label=txt;};
+  inline void addToState(state* st){to[st->getIterator()]=1;};
+  inline void addFromState(state* st){from[st->getIterator()]=1;};
+  inline void setIter(size_t val){stateIterator=val;};
+              
+  void checkLabels(set<string>& ,set<string>& ,set<string>& );
+  void _finalizeTransitions(map<string,state*>& state_index);
+  double mute_prob_;  // total/mean mutation probability at this base. A rough approximation -- it's main purpose is to allow multiplying by a small number when two query seqs differ in a hypothesized insert region
 
+private:
+  string name;       /* State name */
+  string gff ;       /* State features description */
+  string label;      /* State feature path label */
+              
+  vector<transition*>* transi;
+  transition* endi;
+  emm emission_;
 
-                
-    //!Get all states that transition to this state
-    //!\return std::vector<state*>* Pointer to all state that transition to this state
-    inline std::bitset<STATE_MAX>* getFrom(){return &from;};
-                
-                
-    //TODO: Check that undefined return values are NULL
-    //!Get transition at index
-    //! \param iter Index to get transition for
-    //! \return transition* pointer to the transition
-    inline transition* getTrans(size_t iter){return (*transi)[iter];};
-                
-    //!Get the ending transition
-    //! \return transition* Pointer to ending transition
-    //! \If not defined return value should be NULL
-    inline transition* getEnding(){return endi;};
-                
-    //!Get the emission defined at index
-    //!\param iter Index of emm to get
-    //!\results emm* pointer to emission
-    inline emm* getEmission(size_t iter){return emissions[iter];};
-                
-    double get_emission_prob(sequences& seqs, size_t iter);  //get emission for given (position)
-    // double get_emission_prob(sequence &seq, size_t iter);
-    // double get_emission_prob(sequence &seq1, sequence &seq2, size_t iter);
-    double get_transition_prob(sequences& seqs, size_t to, size_t iter);  //get transition  (position,from or too)
-    double getEndTrans();
-                
-    void print();
-    std::string stringify();
-                
-    //MUTATORS
-    bool parse(std::string&,stringList&,tracks&,weights*,StateFuncs*);
-                
-    //!Add the transition to the state
-    //!\param trans Pointer to transition to add to the state
-    inline void addTransition(transition* trans){transi->push_back(trans);};
-                
-    //!Set the ending transition to a given transition
-    //!\param trans Pointer to transition to be used as ending transition
-    inline void setEndingTransition(transition* trans){endi=trans;};
-                
-    //!Add emission to the state
-    //!\param em Pointer to the emission to be added
-    inline void addEmission(emm* em){emissions.push_back(em);};
-                
-    //!Set the name of the state
-    //!\param txt Name of the state
-    inline void setName(std::string& txt){name=txt;};
-                
-    //!Set the GFF Tag for the state
-    inline void setGFF(std::string& txt){gff=txt;};
-                
-    //!Set the Label for the state
-    inline void setLabel(std::string& txt){label=txt;};
-                
-    //!Add state that this state transitions to
-    inline void addToState(state* st){to[st->getIterator()]=1;};
-                
-    //!Add state that transitions to this state
-    inline void addFromState(state* st){from[st->getIterator()]=1;};
-                
-    //!Set the index value to be used for the state
-    inline void setIter(size_t val){stateIterator=val;};
-                
-    bool hasComplexEmission();
-    bool hasComplexTransition();
-                
-    bool hasSimpleEmission();
-    bool hasSimpleTransition();
-                
-    bool isSimple();
-                
-    void checkLabels(std::set<std::string>& ,std::set<std::string>& ,std::set<std::string>& );
-                
-    void _finalizeTransitions(std::map<std::string,state*>& state_index);
-                
-    double mute_prob_;  // total/mean mutation probability at this base. A rough approximation -- it's main purpose is to allow multiplying by a small number when two query seqs differ in a hypothesized insert region
-
-  private:
-    std::string name;       /* State name */
-    std::string gff ;       /* State features description */
-    std::string label;      /* State feature path label */
-                
-    std::vector<transition*>* transi;
-    transition* endi;
-                
-    // Track Emissions //
-    std::vector<emm*> emissions;
-                
-                
-    //Linking State Information (These are assigned at model finalization)
-    size_t stateIterator;  //index of state in HMM
-    std::bitset<STATE_MAX> to;
-    std::bitset<STATE_MAX> from;
-                
-    bool _parseHeader(std::string&);
-    bool _parseTransition(std::string&,stringList&, tracks&, weights* , StateFuncs*);
-    bool _parseEmissions(std::string&,stringList&, tracks&, weights*, StateFuncs*);
-  };
-        
+  //Linking State Information (These are assigned at model finalization)
+  size_t stateIterator;  //index of state in HMM
+  bitset<STATE_MAX> to;
+  bitset<STATE_MAX> from;
+              
+  bool _parseHeader(string&);
+  bool _parseTransition(string&,stringList&, tracks&, weights* , StateFuncs*);
+  bool _parseEmissions(string&,stringList&, tracks&, weights*, StateFuncs*);
+};
 }
-#endif /*STATE_H*/
+#endif
