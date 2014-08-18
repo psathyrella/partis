@@ -28,8 +28,8 @@ public:
   void addTrack(track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
       
-  inline double getValue(sequences &seqs, size_t pos) { (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // sequences *must* have length of two
-  inline double getValue(sequence &seq, size_t pos) { (*logProb)[0][seq[pos]]; }
+  inline double getValue(sequences &seqs, size_t pos) { return (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // sequences *must* have length of two
+  inline double getValue(sequence &seq, size_t pos) { return (*logProb)[0][seq[pos]]; }
   vector<vector<double> >* getProbabilityTable() { return prob; }
   vector<vector<double> >* getLogProbabilityTable() { return logProb; }
   vector<vector<double> >* getCountsTable() { return counts; }

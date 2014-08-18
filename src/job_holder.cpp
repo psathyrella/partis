@@ -97,7 +97,7 @@ Result JobHolder::Run(sequence &seq, size_t k_v_min, size_t k_v_max, size_t k_d_
 // ----------------------------------------------------------------------------------------
 Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max) {
   assert(k_v_max>k_v_min && k_d_max>k_d_min);
-  assert(seqs.size() == 1 || seqs.size() == 2);
+  assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
   Clear();
   assert(trellisi_.size()==0 && paths_.size()==0 && all_scores_.size()==0);
   map<KSet,double> best_scores;  // best score for each kset (summed over regions)
@@ -143,7 +143,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
       assert(n_best_events_ <= result.events_.size());
       for (size_t ievt=0; ievt<n_best_events_; ++ievt) {
 	result.events_[ievt].Print(gl_, 0, 0, false, false, "          ");  // man, I wish I had keyword args
-	if (seqs.size() == 2)
+	if (seqs.n_seqs() == 2)
 	  result.events_[ievt].Print(gl_, 0, 0, true, true, "          ");
       }
     }
@@ -168,7 +168,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
       if (debug_) {
 	cout << "              WARNING maximum at boundary for "
 	     << seqs[0].name();
-	if (seqs.size() == 2)
+	if (seqs.n_seqs() == 2)
 	  cout << " " << seqs[1].name();
 	cout
 	  << "  k_v: " << best_kset.first << "(" << k_v_min << "-" << k_v_max-1 << ")"
@@ -181,7 +181,7 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
   
   // print debug info
   if (debug_) {
-    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.size()==2 ? seqs[1].name() : "") << "   " << k_v_min << "-" << k_v_max-1 << "   " << k_d_min << "-" << k_d_max-1;  // exclusive...
+    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.n_seqs()==2 ? seqs[1].name() : "") << "   " << k_v_min << "-" << k_v_max-1 << "   " << k_d_min << "-" << k_d_max-1;  // exclusive...
     if (algorithm_=="viterbi")
       cout << "    best kset: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
     else
@@ -303,7 +303,7 @@ RecoEvent JobHolder::FillRecoEvent(sequences &seqs, KSet kset, map<string,string
   //   assert((*seqs_)[0].name() == (*seqs_)[1].name());  // er, another somewhat neurotic consistency check
 
   event.SetSeq(seqs[0].name(), seq_strs.first);
-  if (seqs.size() == 2) {
+  if (seqs.n_seqs() == 2) {
     // assert((*seqs_)[0].name() == (*seqs_)[1].name());  don't recall at this point precisely why it was that I wanted this here
     event.SetSecondSeq(seqs[1].name(), seq_strs.second);
   }
@@ -315,8 +315,8 @@ StrPair JobHolder::GetQueryStrs(sequences &seqs, KSet kset, string region) {
   sequences query_seqs(GetSubSeqs(seqs, kset,region));
   StrPair query_strs;
   query_strs.first = query_seqs[0].undigitize();
-  if (query_seqs.size() == 2) {  // the sequences class should already ensure that both seqs are the same length
-    assert(seqs.size() == 2);
+  if (query_seqs.n_seqs() == 2) {  // the sequences class should already ensure that both seqs are the same length
+    assert(seqs.n_seqs() == 2);
     query_strs.second = query_seqs[1].undigitize();
   }
   return query_strs;  
@@ -348,7 +348,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
     if (debug_ == 2) {
       if (algorithm_=="viterbi") {
 	cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.second, query_strs.first) << endl;
-	if (seqs.size() == 2)
+	if (seqs.n_seqs() == 2)
 	  cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.first, query_strs.second) << endl;
       } else {
 	cout << "              " << region << endl;
@@ -405,7 +405,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
       // TODO put this assert back in. Well, I think. At least figure out a better scheme for dealing with v_right_length-related stuff
       // if(n_long_erosions != 0) {
       // 	cout << seqs[0].name() << endl;
-      // 	if (seqs.size() > 1)
+      // 	if (seqs.n_seqs() > 1)
       // 	  cout << seqs[1].name() << endl;
       // }
       // assert(n_long_erosions == 0);  // adding assert because if it happens, that means my v_right_length was screwed up
