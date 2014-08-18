@@ -31,7 +31,6 @@ public:
   inline transType getTransitionType(){return transition_type;};
   
   inline double score() { return log_trans; }
-  // double getTransition(size_t,sequences*) { return log_trans; }
   
   inline bool isSimple() { return true; }
   inline bool isComplex() { return false; }

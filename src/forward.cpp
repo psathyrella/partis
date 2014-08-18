@@ -28,8 +28,7 @@ void trellis::forward() {
   for(size_t st=0; st<state_size; ++st) {
     if ((*initial_to)[st]) {  // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
       double emscore = (*hmm)[st]->emission_score(*seqs, 0);
-      // forward_temp = emscore + init->transition_score(st);  //init->getTrans(st)->getTransition(); //getTransition(init, st, 0);
-      forward_temp = emscore + init->getTrans(st)->score(); //getTransition(init, st, 0);
+      forward_temp = emscore + init->getTrans(st)->score();
       if (forward_temp > -INFINITY) {
 	(*forward_score)[0][st] = forward_temp;
 	(*scoring_current)[st] = forward_temp;
@@ -62,8 +61,7 @@ void trellis::forward() {
 	  continue;
 					
 	if ((*scoring_previous)[previous] != -INFINITY) {
-	  // forward_temp = (*scoring_previous)[previous] + emission + (*hmm)[previous]->transition_score(st_current);  //(*hmm)[previous]->getTrans(st_current)->getTransition(); //getTransition((*hmm)[previous], st_current , position);
-	  forward_temp = (*scoring_previous)[previous] + emission + (*hmm)[previous]->getTrans(st_current)->score(); //getTransition((*hmm)[previous], st_current , position);
+	  forward_temp = (*scoring_previous)[previous] + emission + (*hmm)[previous]->transition_score(st_current);
 	  if ((*scoring_current)[st_current] == -INFINITY) {
 	    (*scoring_current)[st_current] = forward_temp;
 	    (*forward_score)[position][st_current] = forward_temp;
