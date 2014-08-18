@@ -26,7 +26,8 @@ class HmmWriter(object):
     def __init__(self, base_indir, base_outdir, gene_name, naivety, germline_seq, v_right_length=-1):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
-        self.default_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
+        self.null_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
+        self.insert_mute_prob = 0.1  # TODO don't pull this ooya
         self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.fuzz_around_v_left_edge = 20.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
         self.outdir = base_outdir  # + '/' + region
@@ -158,7 +159,7 @@ class HmmWriter(object):
             for line in reader:
                 freq = float(line['mute_freq'])
                 if freq == 0.0:
-                    freq = self.default_mute_freq
+                    freq = self.null_mute_freq
                 self.mute_freqs[int(line['position'])] = freq
 
     # ----------------------------------------------------------------------------------------
@@ -167,6 +168,8 @@ class HmmWriter(object):
         self.add_states()
         self.text = ''.join(self.text_list)
         outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
         with opener('w')(outfname) as outfile:
             outfile.write(self.text)
         self.text = ''
@@ -286,14 +289,13 @@ class HmmWriter(object):
         self.text_list.append(header_string + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def add_state_header(self, name, label='', mute_prob=0.0, germline_nuke=''):
+    def add_state_header(self, name, label='', germline_nuke=''):
         self.text_list.append('#############################################\n')
         self.text_list.append('STATE:\n')
         self.text_list.append('  NAME:        %s\n' % name)
         if label != '':
             self.text_list.append('  PATH_LABEL:  %s\n' % label)
             self.text_list.append('  GFF_DESC:    %s\n' % germline_nuke)
-            self.text_list.append('  MUTE_PROB:   %f\n' % mute_prob)  # TODO use the actual values rather than pulling one ooya
     
     # ----------------------------------------------------------------------------------------
     def add_transition_header(self):
@@ -305,6 +307,7 @@ class HmmWriter(object):
         if pair:
             self.text_list.append(' PAIR')  # soooo tired of all the capital letters
         self.text_list.append('\n')
+        self.text_list.append('@ %18s %18s %18s %18s\n' % utils.nukes)
 
     # ----------------------------------------------------------------------------------------
     def add_init_state(self):
@@ -321,65 +324,97 @@ class HmmWriter(object):
         return total / n_tot
 
     # ----------------------------------------------------------------------------------------
-    def add_insert_state(self):
-        self.add_state_header('insert', 'i', mute_prob=0.1)
-        self.add_transition_header()
-        self.add_region_entry_probs(True)
-        # TODO allow d region to be entirely eroded. Um, I don't think I have any probabilities for how frequentlyt his happens
-        # if self.region == 'd':  # allow erosion of entire d region
-        #     self.text_list.append('  END: 1\n')
-        self.add_emission_header()
-        emission_label_string = '@'  # add line with human-readable headers
-        self.text_list.append('@')
+    def get_emission_prob(self, nuke1, nuke2='', insert=True, inuke=-1, germline_nuke=''):
+        prob = 0.0
+        if insert:
+            if nuke2 == '':
+                prob = 1./len(utils.nukes)
+            else:
+                prob = 1./(4. + 12.*self.insert_mute_prob)
+                if nuke1 != nuke2:
+                    prob *= self.insert_mute_prob  # TODO damn this isn't normalized right
+        else:
+            assert inuke >= 0
+            assert germline_nuke != ''
+            mute_freq = self.null_mute_freq
+            if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
+                mute_freq = self.mute_freqs[inuke]
+            if nuke2 == '':
+                if nuke1 == germline_nuke:
+                    prob = 1.0 - mute_freq
+                else:
+                    prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases
+            else:
+                cryptic_factor_from_normalization = (math.sqrt(81. + 24*mute_freq) - 9.) / 12.
+                if nuke1 == germline_nuke and nuke2 == germline_nuke:
+                    prob = 1.0 - mute_freq
+                elif nuke1 == nuke2 and nuke1 != germline_nuke:  # assume this requires *one* mutation event (i.e. ignore higher-order terms, I think)
+                    prob = cryptic_factor_from_normalization
+                elif nuke1 == germline_nuke or nuke2 == germline_nuke:
+                    prob = cryptic_factor_from_normalization
+                else:
+                    prob = cryptic_factor_from_normalization**2
+                    
+        return prob
+            
+    # ----------------------------------------------------------------------------------------
+    def add_emissions(self, insert=True, inuke=-1, germline_nuke=''):
+        # first add single emission probs
+        self.add_emission_header(pair=False)
+        self.text_list.append(' ')
         for nuke in utils.nukes:
-            self.text_list.append(' %18s' % nuke)
+            self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke, insert=insert, inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
         self.text_list.append('\n')
-        emission_probability_string = ''
-        for nuke in utils.nukes:
-            emission_probability_string += (' %18.' + self.precision + 'f') % (1./len(utils.nukes))  # TODO use insertion base composition from data
-        emission_probability_string = emission_probability_string.rstrip()
-        self.text_list.append(emission_probability_string + '\n')
+
+        # then the pair emission
+        self.add_emission_header(pair=True)
+        for nuke1 in utils.nukes:
+            self.text_list.append(nuke1)
+            for nuke2 in utils.nukes:
+                self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke1, nuke2, insert=insert, inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
+            self.text_list.append('\n')
+
+    # ----------------------------------------------------------------------------------------
+    def add_insert_state(self):
+        self.add_state_header('insert', 'i')
+        self.add_transition_header()
+        self.add_region_entry_probs(True)  # TODO allow d region to be entirely eroded? Um, I don't think I have any probabilities for how frequently this happens though.
+        self.add_emissions(insert=True)
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, seq, inuke, germline_nuke):
-        # TODO add jointness to pair hmm emission
         # TODO unify utils.eps and self.precision
         # TODO the transition probs out of a state should add to one. But should this sum include the transitions to END, which stochhm requires
         #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?
 
         saniname = utils.sanitize_name(self.gene_name)
-        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke), mute_prob=1.0, germline_nuke=germline_nuke)  # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states
+        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke), germline_nuke=germline_nuke)  # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states
 
         # transitions
         self.add_transition_header()
         exit_probability = self.get_exit_probability(seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene
         if inuke < len(seq) - 1:  # if we're not at the end of this germline gene, add a transition to the next state
             self.text_list.append(('  %s_%d:  %.' + self.precision + 'f\n') % (saniname, inuke+1, 1 - exit_probability))
-        # if exit_probability >= utils.eps:  #10**(-int(self.precision)+1):  # don't write transitions that have zero probability
-        #     self.text_list.append(('  insert:  %.' + self.precision + 'f\n') % exit_probability)  # and one to the insert state
         distance_to_end = len(seq) - inuke - 1
         if exit_probability >= utils.eps or distance_to_end == 0:
             self.text_list.append(('  END: %.' + self.precision + 'f\n') % exit_probability)
 
         # emissions
-        self.add_emission_header()
-        emission_label_string = '@'  # add line with human-readable headers
-        for nuke in utils.nukes:
-            emission_label_string += ' %18s' % nuke
-        self.text_list.append(emission_label_string + '\n')
-        emission_probability_string = ' '  # then add the line with actual probabilities
-        for nuke in utils.nukes:
-            mute_freq = self.default_mute_freq
-            if inuke in self.mute_freqs:
-                mute_freq = self.mute_freqs[inuke]
-            prob = 0.0
-            if nuke == germline_nuke:
-                prob = 1.0 - mute_freq
-            else:
-                prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases
-            emission_probability_string += (' %18.' + self.precision + 'f') % prob
-        emission_probability_string = emission_probability_string.rstrip()
-        self.text_list.append(emission_probability_string + '\n')
+        self.add_emissions(insert=False, inuke=inuke, germline_nuke=germline_nuke)
+        # self.add_emission_header(pair=False)
+        # emission_probability_string = ' '  # then add the line with actual probabilities
+        # for nuke in utils.nukes:
+        #     mute_freq = self.null_mute_freq
+        #     if inuke in self.mute_freqs:
+        #         mute_freq = self.mute_freqs[inuke]
+        #     prob = 0.0
+        #     if nuke == germline_nuke:
+        #         prob = 1.0 - mute_freq
+        #     else:
+        #         prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases
+        #     emission_probability_string += (' %18.' + self.precision + 'f') % prob
+        # emission_probability_string = emission_probability_string.rstrip()
+        # self.text_list.append(emission_probability_string + '\n')
     
     # ----------------------------------------------------------------------------------------
     def add_states(self):

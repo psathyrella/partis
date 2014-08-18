@@ -117,7 +117,7 @@ namespace StochHMM{
         
     for(size_t k = path_size-1;k != SIZE_MAX; k--){
       state* st = hmm->getState(trace_path[k]);
-      std::string new_label=st->getGFF();
+      std::string new_label="FOO";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
 	  gff_feature ln;
@@ -284,7 +284,7 @@ namespace StochHMM{
         
     for(size_t k=path_size-1;k != SIZE_MAX;k--){
       state* st = hmm->getState(trace_path[k]);
-      std::string new_label=st->getGFF();
+      std::string new_label="FOOP";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
 	  std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<std::endl;
@@ -334,7 +334,7 @@ namespace StochHMM{
         
     for(size_t k = path_size-1; k != SIZE_MAX; k--){
       state* st = hmm->getState(trace_path[k]);
-      std::string new_label=st->getGFF();
+      std::string new_label="FOOP";//st->getGFF();
                         
       //If no label then print 
       if (new_label.compare("")==0){

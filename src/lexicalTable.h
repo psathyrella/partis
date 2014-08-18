@@ -14,13 +14,14 @@ namespace StochHMM{
 class lexicalTable{
 public:
   lexicalTable();
+  void init();
   ~lexicalTable();
 
   void addTrack(track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
       
-  inline double getValue(sequences &seqs, size_t pos) { return (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // sequences *must* have length of two
-  inline double getValue(sequence &seq, size_t pos) { return (*logProb)[0][seq[pos]]; }
+  inline double getValue(sequences &seqs, size_t pos) { return (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
+  inline double getValue(sequence &seq, size_t pos) { return (*logProb)[0][seq[pos]]; }  // see NOTE above
   vector<vector<double> >* getProbabilityTable() { return prob; }
   vector<vector<double> >* getLogProbabilityTable() { return logProb; }
   vector<vector<double> >* getCountsTable() { return counts; }

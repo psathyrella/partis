@@ -48,34 +48,9 @@ namespace StochHMM{
     setAlphaType(ALPHA_NUM);
   }
         
-  //!Get the letter/word that has a given digitized value
-  //! \param iter integer value of digital symbol
-  //! \return std::string The string value in the undigitized sequence that is associated with the integer digitized value;
-  std::string track::getAlpha(int iter){
-    if (iter<=max_unambiguous){
-      return alphabet[iter];
-    }
-    else if (iter <= max_ambiguous){
-      return getAmbiguousCharacter(iter);
-    }
-    else{
-      return "";
-    }
-  }
-        
-  //!Get the letter/word that has a given digitized value
-  //! \param iter integer value of digital symbol
-  //! \return std::string The string value in the undigitized sequence that is associated with the integer digitized value;
-  std::string track::getAlpha(size_t iter){
-    if (iter<=max_unambiguous){
-      return alphabet[iter];
-    }
-    else if (iter <= max_ambiguous){
-      return getAmbiguousCharacter(iter);
-    }
-    else{
-      return "";
-    }
+  std::string track::getAlpha(size_t iter) {
+    assert(iter < alphabet.size());
+    return alphabet[iter];
   }
     
   //FIXME: Have it check before adding value
@@ -282,7 +257,7 @@ namespace StochHMM{
   //! Parse a string representation of track to define a tracks parameters
   //! \param txt Line from model that describes a track
   //! \return true if the track was parsed properly
-  bool track::parse(std::string& txt){
+  bool track::parse(std::string& txt) {
     stringList lst;
     stringList tag = extractTag(txt);
     size_t index;
@@ -291,46 +266,15 @@ namespace StochHMM{
     setName(lst[0]);
     setDescription(lst.getComment());  // use any comments that were found as a description
     if (lst[1] == "pair") {  // pair hmm, i.e. we expect two seqs at a time for this track. Would be easy to make it work with more than two, but no point a.t.m.
-      n_seqs = 2;
-      lst.pop_ith(1);
+      assert(0);  // er, I think this is old and not used TODO clean that shit out
     } else {
       n_seqs = 1;  // default to 1
     }
+    setAlphaType(ALPHA_NUM);
+    
+    for(size_t i=1; i<lst.size(); i++)
+      assert(addAlphabetChar(lst[i]));
 
-    if (lst[1].compare("REAL_NUMBER")==0) {
-      setAlphaType(REAL);
-      if (tag.size()>0){
-	if (tag.contains("FUNCTION")){
-	  index=tag.indexOf("FUNCTION");
-	  trackFunction=tag[index+1];
-	}
-	else{
-	  std::cerr << "Real number track function tag must contain FUNCTION: and USE: . Please check the formatting of your tag.  Here is the tag as parsed: " <<  tag.stringify() << std::endl;
-	  return false;
-                    
-	}
-                
-	if (tag.contains("USE")){
-	  index=tag.indexOf("USE");
-	  trackToUse=tag[index+1];
-	}
-	else{
-	  std::cerr << "Real number track tag must contain FUNCTION: and USE: . Please check the formatting of your tag.  Here is the tag as parsed: " <<  tag.stringify() << std::endl;
-	  return false;
-	}
-	trackFunctionDefined=true;
-      }
-    } else {
-      setAlphaType(ALPHA_NUM);
-                        
-      for(size_t i=1;i<lst.size();i++){
-	if (!addAlphabetChar(lst[i])){
-	  std::cerr << "Track import failed, because number of symbols exceeded 255. Alternatively, you can create a real number track for different emissions" << std::endl;
-	  return false;
-	}
-                
-      }
-    }
     return true;
   }
         

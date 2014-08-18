@@ -22,7 +22,7 @@ bool emm::parse(string& txt, tracks& model_tracks) {
     idx = lines.indexOf("EMISSION");
   } else {
     cerr << "Missing EMISSION tag from emission. Please check the formatting.   This is what was handed to the emission class:\n " <<  txt << endl;
-    return false;
+    assert(0);
   }
       
   // Determine Emission Type and set appropriate flags
@@ -46,6 +46,7 @@ bool emm::parse(string& txt, tracks& model_tracks) {
 
   pair_ = line.contains("PAIR");
 
+  scores.init();
   // push back tracks (should only be one a.t.m.)
   tracks_ = new vector<track*>();  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
   for (size_t i=1; i<typeBegin; i++) {  // loop over the words in <line> from 1 to the start of the <valtype> specification (i.e. over what should be a list of all tracks for this emission)
@@ -76,12 +77,13 @@ bool emm::parse(string& txt, tracks& model_tracks) {
     assert(letter == (*tracks_)[0]->getAlpha(in));
   }
 
-  for (size_t il=2; il<lines.size(); il++) {  // NTOE skip header lines
+  size_t n_lines_to_skip(2);  // NOTE skip header lines
+  for (size_t il=n_lines_to_skip; il<lines.size(); il++) {
     line.splitString(lines[il],"\t ");  // reset <line> to a list consisting of lines[il] split by white space
 
     if (pair_) {
-      if (line[0] != (*tracks_)[0]->getAlpha(il)) {
-	cerr << "ERROR beginning of emission line does not match expected letter: " << line[0] << " != " << (*tracks_)[0]->getAlpha(il) << endl;
+      if (line[0] != (*tracks_)[0]->getAlpha(il - n_lines_to_skip)) {
+	cerr << "ERROR beginning of emission line does not match expected letter: " << line[0] << " != " << (*tracks_)[0]->getAlpha(il - n_lines_to_skip) << endl;
 	assert(0);
       }
       line.pop_ith(0);
@@ -104,7 +106,7 @@ bool emm::parse(string& txt, tracks& model_tracks) {
           
   if (scores.getLogProbabilityTable()->size() != expectedRows) {
     cerr << " The Emission table doesn't contain enough rows.  Found " << scores.getLogProbabilityTable()->size() << " but expected " << expectedRows << " \n Please check the Emission Table and formatting for " <<  txt << endl;
-    return false;
+    assert(0);
   }
                       
   return true;

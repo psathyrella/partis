@@ -149,7 +149,6 @@ namespace StochHMM{
     inline size_t getAlphaMax(){return maxSize;};
         
         
-    std::string getAlpha(int);
     std::string getAlpha(size_t);
         
         

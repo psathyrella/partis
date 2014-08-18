@@ -548,30 +548,17 @@ namespace StochHMM{
   bool model::_parseTracks(std::string& txt){
     stringList lst;
     lst.splitString(txt, "\n");
-    for(size_t i=0;i<lst.size();i++){
-      track* trk=new(std::nothrow) track();
-            
-      if (trk==NULL){
-        std::cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << std::endl;
-        exit(1);
-      }
-            
-      if (trk->parse(lst[i])){
+    for(size_t i=0; i<lst.size(); i++) {
+      track* trk = new track();
+      if (trk->parse(lst[i])) {
 	if (n_seqs_per_track_ != 0) trk->n_seqs = n_seqs_per_track_;  // if n_seqs_per_track_ was set explicitly in the hmm constructor, pass this on to each track (and override whatever the text file says)
         trk->setIndex(trcks.size());
         trcks.push_back(trk);
-      }
-      else {
+      } else {
         std::string info = "Couldn't parse new track line.  Please check formatting of : " + lst[i];
         std::cerr << info << std::endl;
-        exit(1);
-                
-        //errorInfo(sCantParseLine, info.c_str());
-                
-        //std::cerr << "Couldn't parse new track line.  Please check formatting of : " << lst[i] << std::endl;
-        //exit(1);
+	assert(0);
       }
-            
     }
     return true;
   }
@@ -863,8 +850,8 @@ namespace StochHMM{
       //Create temporary hash of states for layout
       for(size_t i=0;i<states.size();i++){
         labels.insert(states[i]->getLabel());
-        gff.insert(states[i]->getGFF());
-        gff.insert(states[i]->getName());
+        // gff.insert(states[i]->getGFF());
+        // gff.insert(states[i]->getName());
       }
                         
       for (size_t i=0; i < states.size() ; ++i){

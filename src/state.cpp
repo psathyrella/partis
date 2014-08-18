@@ -2,12 +2,12 @@
 namespace StochHMM {
 
 // ----------------------------------------------------------------------------------------
-state::state():endi(NULL), stateIterator(SIZE_MAX),mute_prob_(0){
+state::state():endi(NULL), stateIterator(SIZE_MAX) {
   transi = new (nothrow) vector<transition*>;
 }
 
 // ----------------------------------------------------------------------------------------
-state::state(string& txt, stringList& names,tracks& trcks, weights* wts, StateFuncs* funcs) : endi(NULL), stateIterator(SIZE_MAX),mute_prob_(0) {
+state::state(string& txt, stringList& names,tracks& trcks, weights* wts, StateFuncs* funcs) : endi(NULL), stateIterator(SIZE_MAX) {
   transi = new vector<transition*>;
   parse(txt,names,trcks, wts,funcs);
 }
@@ -91,32 +91,6 @@ bool state::_parseHeader(string& txt){
     return false;
   }
       
-  // parse GFF_DESC
-  if (lst.contains("GFF")) {
-    idx = lst.indexOf("GFF");
-    if (idx+1 < lst.size()) {
-      idx++;
-      gff = lst[idx];
-      if (name != "insert" && name != "INIT")  // using gff description to store germline nucleotide. TODO hackyhackyhacky
-	assert(gff=="A" || gff=="C" || gff=="G" || gff=="T");
-    } else {
-      cerr <<  "The states GFF_DESC couldn't be parsed from " << txt << endl;
-      return false;
-    }
-  }
-
-  // get the overall mutation probability
-  if (lst.contains("MUTE_PROB")) {  // TODO make this less hacky
-    idx = lst.indexOf("MUTE_PROB");
-    if (idx+1 < lst.size()) {
-	idx++;
-	stringstream ss(lst[idx]);
-	ss >> mute_prob_;
-    }
-  }
-  if (name=="insert")  // otherwise it should be 1.0
-    assert(mute_prob_ > 0.0 && mute_prob_ < 1.0);
-
   return true;
 }
   
@@ -161,8 +135,12 @@ bool state::_parseTransition(string& txt, stringList& names, tracks& trks, weigh
 bool state::_parseEmissions(string& txt, stringList& names, tracks& trks, weights* wts, StateFuncs* funcs) {
   stringList lst;
   lst.splitND(txt,"EMISSION:");
-  assert(lst.size() == 1);  // disallow multiple emissions
-  assert(emission_.parse(lst[0], trks));
+  assert(lst.size() == 1 || lst.size() == 2);
+  emission_.parse(lst[0], trks);
+  if (lst.size() == 2) {
+    assert(!emission_.pair());  // if pair and non-pair emission present, require the latter to be first
+    pair_emission_.parse(lst[1], trks);
+  }
   return true;
 }
   
@@ -178,7 +156,6 @@ string state::stringify(){
   stateString+="\tNAME:\t" + name + "\n";
       
   if (name.compare("INIT")!=0){
-    if (!gff.empty()){ stateString+="\tGFF_DESC:\t" + gff + "\n";}
     stateString+="\tPATH_LABEL:\t" + label + "\n";
   }
       

@@ -77,7 +77,6 @@ namespace StochHMM{
 		
     inline std::string& getStateName(size_t iter){ return states[iter]->getName(); }
     inline std::string& getStateLabel(size_t iter){ return states[iter]->getLabel(); }
-    inline std::string& getStateGFF(size_t iter) { return states[iter]->getGFF(); }
 		
     //!Get pointer to the state at index
     //! \param iter Index of state

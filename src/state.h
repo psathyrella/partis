@@ -35,7 +35,6 @@ public:
   // accessors
   inline size_t getIterator(){return stateIterator;};
   inline string& getName(){return name;};
-  inline string& getGFF(){return gff;};
   inline string& getLabel(){return label;};
   inline vector<transition*>* getTransitions(){return transi;};
   inline bitset<STATE_MAX>* getTo(){return &to;};
@@ -43,11 +42,11 @@ public:
   inline transition* getTrans(size_t iter) { return (*transi)[iter]; }
   inline transition* getEnding(){return endi;};
               
-  inline double emission_score(sequences& seqs, size_t iter) {
+  inline double emission_score(sequences& seqs, size_t pos) {  // seqs better have 1 or 2 seqs, 'cause I ain't checkin it here
     if (seqs.n_seqs() == 2)
-      return emission_.score(seqs[0], iter) + emission_.score(seqs[1], iter);
+      return pair_emission_.score(seqs, pos);
     else
-      return emission_.score(seqs[0], iter);
+      return emission_.score(seqs[0], pos);
   }
   inline double transition_score(size_t to_state) { return (*transi)[to_state]->score(); }
   double getEndTrans();
@@ -58,7 +57,6 @@ public:
   inline void addTransition(transition* trans){transi->push_back(trans);};
   inline void setEndingTransition(transition* trans){endi=trans;};
   inline void setName(string& txt){name=txt;};
-  inline void setGFF(string& txt){gff=txt;};
   inline void setLabel(string& txt){label=txt;};
   inline void addToState(state* st){to[st->getIterator()]=1;};
   inline void addFromState(state* st){from[st->getIterator()]=1;};
@@ -66,16 +64,15 @@ public:
               
   void checkLabels(set<string>& ,set<string>& ,set<string>& );
   void _finalizeTransitions(map<string,state*>& state_index);
-  double mute_prob_;  // total/mean mutation probability at this base. A rough approximation -- it's main purpose is to allow multiplying by a small number when two query seqs differ in a hypothesized insert region
 
 private:
   string name;       /* State name */
-  string gff ;       /* State features description */
   string label;      /* State feature path label */
               
   vector<transition*>* transi;
   transition* endi;
   emm emission_;
+  emm pair_emission_;
 
   //Linking State Information (These are assigned at model finalization)
   size_t stateIterator;  //index of state in HMM
