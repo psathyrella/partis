@@ -93,13 +93,13 @@ class PartitionDriver(object):
                 dbgfile.write('stripped hmm\n')
             self.write_hmm_input(stripped_hmm_csv_infname, preclusters=hamming_clusters, stripped=True)
             self.run_stochhmm(stripped_hmm_csv_infname, stripped_hmm_csv_outfname)
-            self.read_stochhmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname);
-            stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
-            stripped_clusters.cluster(stripped_pairscorefname, debug=False)
+            self.read_hmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname);
+            stripped_clusters = Clusterer(-50, greater_than=True)  # TODO better way to set threshhold?
+            stripped_clusters.cluster(stripped_pairscorefname, debug=True, reco_info=self.reco_info)
             for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
                 if query_name not in stripped_clusters.query_clusters:
                     print '    singleton ',query_name
-            if self.args.no_clean:
+            if not self.args.no_clean:
                 os.remove(stripped_hmm_csv_infname)
                 os.remove(stripped_hmm_csv_outfname)
                 os.remove(stripped_pairscorefname)
@@ -112,15 +112,15 @@ class PartitionDriver(object):
             dbgfile.write('hmm\n')
         self.write_hmm_input(hmm_csv_infname, preclusters=stripped_clusters)
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
-        self.read_stochhmm_output(hmm_csv_outfname, pairscorefname);
+        self.read_hmm_output(hmm_csv_outfname, pairscorefname);
 
         clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
-        clusters.cluster(pairscorefname, debug=False)
+        clusters.cluster(pairscorefname, debug=True, reco_info=self.reco_info)
         for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
             if query_name not in clusters.query_clusters:
                 print '    singleton ',query_name
 
-        if self.args.no_clean:
+        if not self.args.no_clean:
             os.remove(hmm_csv_infname)
             os.remove(hmm_csv_outfname)
             os.remove(pairscorefname)
@@ -440,8 +440,9 @@ class PartitionDriver(object):
         print '    hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
-    def read_stochhmm_output(self, hmm_csv_outfname, pairscorefname):
-        """ Read hmm output file """
+    def read_hmm_output(self, hmm_csv_outfname, pairscorefname):
+        # TODO the input and output files for this function are almost identical at this point
+
         # write header for pairwise score file
         with opener('w')(pairscorefname) as pairscorefile:
             pairscorefile.write('unique_id,second_unique_id,score\n')

@@ -17,16 +17,29 @@ class Clusterer(object):
         self.id_clusters = {}  # map from cluster id to query name list
         self.pairscores = {}  # keep all the scores in memory. TODO may be too large?
 
+        self.nearest_true_mate = {}  # 
+
     # ----------------------------------------------------------------------------------------
-    def cluster(self, infname, debug=False):
+    def cluster(self, infname, debug=False, reco_info=None):
         self.debug = debug
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile)
             for line in reader:
+                query1 = line['unique_id']
+                query2 = line['second_unique_id']
+                score = float(line['score'])
                 if self.debug:
-                    print '%22s %22s   %.3f' % (line['unique_id'], line['second_unique_id'], float(line['score'])),
-                self.incorporate_into_clusters(line['unique_id'], line['second_unique_id'], float(line['score']))
-                self.pairscores[utils.get_key(line['unique_id'], line['second_unique_id'])] = float(line['score'])
+                    print '%22s %22s   %.3f' % (query1, query2, score),
+                self.incorporate_into_clusters(query1, query2, score)
+                self.pairscores[utils.get_key(query1, query2)] = score
+                if reco_info != None and reco_info[query1]['reco_id'] == reco_info[query2]['reco_id']:
+                    for query,score in {query1:score, query2:score}.iteritems():
+                        if query not in self.nearest_true_mate:
+                            self.nearest_true_mate[query] = score
+                        elif self.greater_than and score > self.nearest_true_mate[query]:
+                            self.nearest_true_mate[query] = score
+                        elif not self.greater_than and score < self.nearest_true_mate[query]:
+                            self.nearest_true_mate[query] = score
                 if self.debug:
                     print ''
 
@@ -34,6 +47,8 @@ class Clusterer(object):
             if cluster_id not in self.id_clusters:
                 self.id_clusters[cluster_id] = []
             self.id_clusters[cluster_id].append(query)
+
+        print self.nearest_true_mate
         
         if True:  #self.debug:
             for cluster_id in self.id_clusters:
@@ -54,6 +69,10 @@ class Clusterer(object):
     # ----------------------------------------------------------------------------------------
     def merge_clusters(self, query_name, second_query_name):
         """ move all queries with same id as <second_query_name> to <query_name>'s cluster """
+        if self.query_clusters[query_name] == self.query_clusters[second_query_name]:
+            if self.debug:
+                print '     already together',
+            return
         if self.debug:
             print '     merging ',self.query_clusters[query_name], ' and ',self.query_clusters[second_query_name],
         first_cluster_id = self.query_clusters[query_name]
@@ -91,30 +110,16 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def incorporate_into_clusters(self, query_name, second_query_name, score):
+        if self.is_removable(score):  # TODO this makes singletons not be included in any cluster... I should fix that
+            if self.debug:
+                print '    removing link',
+            return
         if query_name in self.query_clusters and second_query_name in self.query_clusters:  # if both seqs are already in clusters
-            if self.is_removable(score):
-                if self.debug:
-                    print '    removing link',
-            else:
-                if self.query_clusters[query_name] != self.query_clusters[second_query_name]:
-                    self.merge_clusters(query_name, second_query_name)
-                else:
-                    if self.debug:
-                        print '     already together',
+            self.merge_clusters(query_name, second_query_name)
         elif query_name in self.query_clusters:
-            if self.is_removable(score):
-                self.add_new_cluster(second_query_name)
-            else:
-                self.add_to_cluster(self.query_clusters[query_name], second_query_name)
+            self.add_to_cluster(self.query_clusters[query_name], second_query_name)
         elif second_query_name in self.query_clusters:
-            if self.is_removable(score):
-                self.add_new_cluster(query_name)
-            else:
-                self.add_to_cluster(self.query_clusters[second_query_name], query_name)
+            self.add_to_cluster(self.query_clusters[second_query_name], query_name)
         else:
-            if self.is_removable(score):
-                self.add_new_cluster(query_name)
-                self.add_new_cluster(second_query_name)
-            else:
-                self.add_new_cluster(query_name)
-                self.add_to_cluster(self.query_clusters[query_name], second_query_name)
+            self.add_new_cluster(query_name)
+            self.add_to_cluster(self.query_clusters[query_name], second_query_name)
