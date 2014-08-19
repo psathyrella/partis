@@ -298,14 +298,14 @@ public:
     // assert(ij_max>=0);
     if (ij_max < 0)  // TODO fix this somewhat more permanently
       ij_max = 0;
-    for (size_t ij=0; ij<ij_max; ++ij)
+    for (int ij=0; ij<ij_max; ++ij)
       d_str += " ";
     string vj_str(eroded_seqs["v"]);
     int ivj_max = germline_j_start - germline_v_end - 2;
     // assert(ivj_max >= 0);
     if (ivj_max < 0)  // TODO fix this somewhat more permanently
       ivj_max = 0;
-    for (size_t ivj=0; ivj<ivj_max; ++ivj)
+    for (int ivj=0; ivj<ivj_max; ++ivj)
       vj_str += " ";
     vj_str += eroded_seqs["j"];
 

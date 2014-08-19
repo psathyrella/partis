@@ -70,9 +70,8 @@ ARFLAGS = cru
 libstochhmm_a_AR = $(AR) $(ARFLAGS)
 libstochhmm_a_LIBADD =
 am_libstochhmm_a_OBJECTS = \
-	trellis.$(OBJEXT) viterbi.$(OBJEXT) \
-	stochTable.$(OBJEXT) \
-	forward.$(OBJEXT) traceback_path.$(OBJEXT) \
+	trellis.$(OBJEXT) \
+	traceback_path.$(OBJEXT) \
 	stochMath.$(OBJEXT) text.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
 	track.$(OBJEXT) emm.$(OBJEXT) \
@@ -107,7 +106,7 @@ CPP = gcc -E
 CPPFLAGS = 
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2 -std=c++0x
+CXXFLAGS = -g -O2 -std=c++0x -Wall
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -188,19 +187,14 @@ top_srcdir = ..
 lib_LIBRARIES = libstochhmm.a
 libstochhmm_a_SOURCES = \
 	trellis.cpp \
-	viterbi.cpp \
-	stochTable.cpp \
-	forward.cpp \
 	traceback_path.cpp \
 	stochMath.cpp \
 	text.cpp \
-	userFunctions.cpp \
 	hmm.cpp \
 	state.cpp \
 	lexicalTable.cpp \
 	track.cpp \
 	emm.cpp \
-	modelTemplate.cpp \
 	transitions.cpp \
 	options.cpp \
 	job_holder.cpp \
@@ -286,7 +280,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/emm.Po
-include ./$(DEPDIR)/forward.Po
 include ./$(DEPDIR)/hmm.Po
 include ./$(DEPDIR)/lexicalTable.Po
 include ./$(DEPDIR)/options.Po
@@ -294,14 +287,11 @@ include ./$(DEPDIR)/sequence.Po
 include ./$(DEPDIR)/sequences.Po
 include ./$(DEPDIR)/state.Po
 include ./$(DEPDIR)/stochMath.Po
-include ./$(DEPDIR)/stochTable.Po
-include ./$(DEPDIR)/stoch_viterbi.Po
 include ./$(DEPDIR)/text.Po
 include ./$(DEPDIR)/traceback_path.Po
 include ./$(DEPDIR)/track.Po
 include ./$(DEPDIR)/transitions.Po
 include ./$(DEPDIR)/trellis.Po
-include ./$(DEPDIR)/viterbi.Po
 
 .cpp.o:
 	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

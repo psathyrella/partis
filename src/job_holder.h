@@ -5,6 +5,7 @@
 #include <string>
 #include <math.h>
 #include <set>
+#include <iomanip>
 #include "StochHMMlib.h"
 #include "StochHMM_usage.h"
 #include "germlines.h"

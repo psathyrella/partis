@@ -307,6 +307,7 @@ RecoEvent JobHolder::FillRecoEvent(sequences &seqs, KSet kset, map<string,string
     event.SetSecondSeq(seqs[1].name(), seq_strs.second);
   }
   event.SetScore(score);
+  return event;
 }
 
 // ----------------------------------------------------------------------------------------

@@ -2,14 +2,14 @@
 namespace StochHMM {
   
 // ----------------------------------------------------------------------------------------
-lexicalTable::lexicalTable() : logProb(NULL), prob(NULL), counts(NULL) {
+lexicalTable::lexicalTable() : prob(NULL), counts(NULL), logProb(NULL) {
 }
 
 // ----------------------------------------------------------------------------------------
 void lexicalTable::init() {
-  logProb = new vector<vector<double> >;
   prob = new vector<vector<double> >;
   counts = new vector<vector<double> >;
+  logProb = new vector<vector<double> >;
 }
   
 // ----------------------------------------------------------------------------------------

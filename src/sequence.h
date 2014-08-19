@@ -46,8 +46,8 @@ private:
   bool _digitize();  //Digitize the sequence
   string name_;
   string header_;
-  track* track_; //Ptr to track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
   string undigitized_;  //Undigitized sequence
+  track* track_; //Ptr to track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
   vector<uint8_t>* seq_; // Digitized Sequence
 };
 }

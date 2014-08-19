@@ -4,9 +4,9 @@ namespace StochHMM {
 
 // ----------------------------------------------------------------------------------------
 sequence::sequence(string& seq_str, track* trk, string name):
+  name_(name),
   undigitized_(seq_str),
-  track_(trk),
-  name_(name)
+  track_(trk)
 {
   seq_ = new(nothrow) vector<uint8_t>;
   _digitize();

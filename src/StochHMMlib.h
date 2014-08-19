@@ -22,7 +22,6 @@
 #include "stochTypes.h"
 #include "stochMath.h"
 #include "trellis.h"
-#include "stochTable.h"
 #include "traceback_path.h"
 
 #define VERSION 0.37

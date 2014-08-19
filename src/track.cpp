@@ -260,7 +260,6 @@ namespace StochHMM{
   bool track::parse(std::string& txt) {
     stringList lst;
     stringList tag = extractTag(txt);
-    size_t index;
         
     lst.fromNext(txt);  // remove white space, and create the list using :, as delimiters
     setName(lst[0]);
