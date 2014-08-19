@@ -16,7 +16,7 @@ namespace StochHMM {
     nth_size = SIZE_MAX;
                 
     seq_size = 0;
-    state_size = 0;
+    n_states = 0;
                 
     type = SIMPLE;
     store_values = false;
@@ -59,7 +59,7 @@ namespace StochHMM {
     nth_size = SIZE_MAX;
                 
     seq_size = seqs->GetSequenceLength();
-    state_size = hmm->state_size();
+    n_states = hmm->n_states();
                 
     type = SIMPLE;
     store_values=false;
@@ -148,7 +148,7 @@ namespace StochHMM {
     hmm = NULL;
     seqs = NULL;
     nth_size = SIZE_MAX;
-    state_size = 0;
+    n_states = 0;
     seq_size = 0;
     type = SIMPLE;
     store_values = false;

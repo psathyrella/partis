@@ -7,22 +7,20 @@ void trellis::viterbi(model* h, sequences* sqs) {
   hmm = h;
   seqs = sqs;
   seq_size = seqs->GetSequenceLength();
-  state_size = hmm->state_size();
+  n_states = hmm->n_states();
   viterbi();
 }
   
 // ----------------------------------------------------------------------------------------
 void trellis::viterbi() {
-  assert(hmm->isBasic());
-
   //Initialize the traceback table
   if (traceback_table != NULL) {
     delete traceback_table;
   }
               
-  traceback_table = new int_2D(seq_size,std::vector<int16_t> (state_size,-1));
-  scoring_previous = new (std::nothrow) std::vector<double> (state_size,-INFINITY);
-  scoring_current  = new (std::nothrow) std::vector<double> (state_size,-INFINITY);
+  traceback_table = new int_2D(seq_size,std::vector<int16_t> (n_states,-1));
+  scoring_previous = new (std::nothrow) std::vector<double> (n_states,-INFINITY);
+  scoring_current  = new (std::nothrow) std::vector<double> (n_states,-INFINITY);
   assert(scoring_previous && scoring_current && traceback_table);
               
   std::bitset<STATE_MAX> next_states;
@@ -39,7 +37,7 @@ void trellis::viterbi() {
   std::bitset<STATE_MAX>* from_trans(NULL);
               
   //Calculate Viterbi from transitions from INIT (initial) state
-  for(size_t st = 0; st < state_size; ++st) {
+  for(size_t st = 0; st < n_states; ++st) {
     if ((*initial_to)[st]) {  //if the bitset is set (meaning there is a transition to this state), calculate the viterbi
       viterbi_temp = (*hmm)[st]->emission_score(*seqs,0) + init->transition_score(st);
       if (viterbi_temp > -INFINITY) {
@@ -54,9 +52,9 @@ void trellis::viterbi() {
   // loop over the sequence
   for(size_t position=1; position<seq_size; ++position) {
     //Swap current and previous viterbi scores
-    scoring_previous->assign(state_size,-INFINITY); // NOTE I think this can be replaced with
+    scoring_previous->assign(n_states,-INFINITY); // NOTE I think this can be replaced with
     swap_ptr = scoring_previous;		    // scoring_previous = scoring_current;		
-    scoring_previous = scoring_current;	            // scoring_current->assign(state_size,-INFINITY); EDIT hmm, nope, doesn't seem to work
+    scoring_previous = scoring_current;	            // scoring_current->assign(n_states,-INFINITY); EDIT hmm, nope, doesn't seem to work
     scoring_current = swap_ptr;
                       
     //Swap current_states and next states sets. ie set current_states to the states which can be transitioned to from *any* of the previous states.
@@ -65,7 +63,7 @@ void trellis::viterbi() {
     next_states.reset();
                       
     //Current states
-    for (size_t st_current = 0; st_current < state_size; ++st_current) { //Current state that emits value
+    for (size_t st_current = 0; st_current < n_states; ++st_current) { //Current state that emits value
       // Check to see if current state is valid. ie if transition to this state is allowed from *any* state which we passed through at the previous position
       if (!current_states[st_current])
 	continue;
@@ -79,7 +77,7 @@ void trellis::viterbi() {
       // get list of states that are valid previous states
       from_trans = (*hmm)[st_current]->getFrom();
                               
-      for (size_t st_previous=0; st_previous<state_size ; ++st_previous) {  //for previous states
+      for (size_t st_previous=0; st_previous<n_states ; ++st_previous) {  //for previous states
 	if (!(*from_trans)[st_previous])
 	  continue;
                                       
@@ -101,13 +99,13 @@ void trellis::viterbi() {
               
   //TODO:  Calculate ending and set the final viterbi and traceback pointer
   //Swap current and previous viterbi scores
-  scoring_previous->assign(state_size,-INFINITY);
+  scoring_previous->assign(n_states,-INFINITY);
   swap_ptr = scoring_previous;
   scoring_previous = scoring_current;
   scoring_current = swap_ptr;
               
   //Calculate ending viterbi score and traceback from END state
-  for(size_t st_previous = 0; st_previous < state_size ;++st_previous) {
+  for(size_t st_previous = 0; st_previous < n_states ;++st_previous) {
     if ((*scoring_previous)[st_previous] > -INFINITY) {
       viterbi_temp = (*scoring_previous)[st_previous] + (*hmm)[st_previous]->getEndTrans();
                               

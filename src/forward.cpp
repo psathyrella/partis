@@ -6,15 +6,15 @@ void trellis::forward(model* h, sequences* sqs) {
   hmm = h;
   seqs = sqs;
   seq_size = seqs->GetSequenceLength();
-  state_size = hmm->state_size();
+  n_states = hmm->n_states();
   // exDef_defined	= seqs->exDefDefined();
   forward();
 }
 // ----------------------------------------------------------------------------------------
 void trellis::forward() {
-  forward_score = new float_2D(seq_size, std::vector<float>(state_size, -INFINITY));
-  scoring_current = new std::vector<double> (state_size, -INFINITY);
-  scoring_previous= new std::vector<double> (state_size, -INFINITY);
+  forward_score = new float_2D(seq_size, std::vector<float>(n_states, -INFINITY));
+  scoring_current = new std::vector<double> (n_states, -INFINITY);
+  scoring_previous= new std::vector<double> (n_states, -INFINITY);
 		
   std::bitset<STATE_MAX> next_states;
   std::bitset<STATE_MAX> current_states;
@@ -25,7 +25,7 @@ void trellis::forward() {
   std::bitset<STATE_MAX>* from_trans(NULL);
 		
   // calculate forward scores from INIT state, and initialize next_states
-  for(size_t st=0; st<state_size; ++st) {
+  for(size_t st=0; st<n_states; ++st) {
     if ((*initial_to)[st]) {  // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
       double emscore = (*hmm)[st]->emission_score(*seqs, 0);
       forward_temp = emscore + init->getTrans(st)->score();
@@ -40,7 +40,7 @@ void trellis::forward() {
   // calculate the rest of the forward scores
   for (size_t position=1; position<seq_size; ++position) {
     // swap current and previous viterbi scores
-    scoring_previous->assign(state_size,-INFINITY);
+    scoring_previous->assign(n_states,-INFINITY);
     swap_ptr = scoring_previous;
     scoring_previous = scoring_current;
     scoring_current = swap_ptr;
@@ -50,13 +50,13 @@ void trellis::forward() {
     current_states |= next_states;
     next_states.reset();
           
-    for (size_t st_current=0; st_current<state_size; ++st_current) { //i is current state that emits value
+    for (size_t st_current=0; st_current<n_states; ++st_current) { //i is current state that emits value
       if (!current_states[st_current])
 	continue;
               
       emission = (*hmm)[st_current]->emission_score(*seqs, position);
       from_trans = (*hmm)[st_current]->getFrom();
-      for (size_t previous=0; previous<state_size; ++previous) {  //j is previous state
+      for (size_t previous=0; previous<n_states; ++previous) {  //j is previous state
 	if (!(*from_trans)[previous])
 	  continue;
 					
@@ -76,13 +76,13 @@ void trellis::forward() {
   }
 		
   // swap current and previous scores
-  scoring_previous->assign(state_size, -INFINITY);
+  scoring_previous->assign(n_states, -INFINITY);
   swap_ptr = scoring_previous;
   scoring_previous = scoring_current;
   scoring_current = swap_ptr;
 		
   ending_forward_prob = -INFINITY;
-  for(size_t st_previous=0; st_previous<state_size; ++st_previous) {
+  for(size_t st_previous=0; st_previous<n_states; ++st_previous) {
     if ((*scoring_previous)[st_previous] != -INFINITY) {
       forward_temp = (*scoring_previous)[st_previous] + (*hmm)[st_previous]->getEndTrans();
       if (forward_temp > -INFINITY) {

@@ -14,7 +14,7 @@ transition::transition(transType type, valueType valtyp, bool survival) : transi
 }
 
 // ----------------------------------------------------------------------------------------
-bool transition::parse(std::string& txt,stringList& names, valueType valtyp, tracks& trks, weights* wts , StateFuncs* funcs){
+bool transition::parse(std::string& txt,stringList& names, valueType valtyp, tracks& trks) {
   assert(_parseStandard(txt,names, valtyp));
   return true;
 }

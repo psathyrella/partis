@@ -535,7 +535,7 @@ namespace StochHMM{
     // Over the length of the sequence
     model* hmm = ((*pathAccess[0]).first).getModel();
     size_t sequenceSize=((*pathAccess[0]).first).size();
-    size_t stateSize=hmm->state_size();
+    size_t stateSize=hmm->n_states();
         
         
     std::vector<int> states(stateSize,0);
@@ -562,7 +562,7 @@ namespace StochHMM{
         
     std::string header_row = "pos";
     model* hmm = ((*pathAccess[0]).first).getModel();
-    for (size_t state_iter =0; state_iter<hmm->state_size(); state_iter++){
+    for (size_t state_iter =0; state_iter<hmm->n_states(); state_iter++){
       header_row+="\t";
       header_row+=hmm->getStateName(state_iter);
     }

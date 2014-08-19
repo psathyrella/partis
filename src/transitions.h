@@ -20,7 +20,7 @@ public:
   transition();
   transition(transType);
   transition(transType,valueType,bool);
-  bool parse(std::string&, stringList&, valueType valtyp, tracks& ,weights*, StateFuncs*);
+  bool parse(std::string&, stringList&, valueType valtyp, tracks&);
   
   inline void setName(std::string& txt) { stateName = txt; }
   inline void setState(state* st) { toState = st; }

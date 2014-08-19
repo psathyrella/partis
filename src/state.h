@@ -29,7 +29,7 @@ class state {
 public:
   state();
   state(string&,stringList&,tracks&,weights*, StateFuncs*); //!Create state from string
-  bool parse(string&,stringList&,tracks&,weights*,StateFuncs*);
+  bool parse(string&, stringList&, tracks&);
   ~state();
 
   // accessors
@@ -80,8 +80,8 @@ private:
   bitset<STATE_MAX> from;
               
   bool _parseHeader(string&);
-  bool _parseTransition(string&,stringList&, tracks&, weights* , StateFuncs*);
-  bool _parseEmissions(string&,stringList&, tracks&, weights*, StateFuncs*);
+  bool _parseTransition(string&,stringList&, tracks&);
+  bool _parseEmissions(string&,stringList&, tracks&);
 };
 }
 #endif

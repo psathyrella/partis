@@ -163,7 +163,7 @@ namespace StochHMM{
     size_t nth_size; //Size of N to calculate;
                 
                 
-    size_t state_size;      //Number of States
+    size_t n_states;      //Number of States
     size_t seq_size;        //Length of Sequence
                 
     trellisType type;

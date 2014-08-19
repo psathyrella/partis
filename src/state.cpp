@@ -9,7 +9,7 @@ state::state():endi(NULL), stateIterator(SIZE_MAX) {
 // ----------------------------------------------------------------------------------------
 state::state(string& txt, stringList& names,tracks& trcks, weights* wts, StateFuncs* funcs) : endi(NULL), stateIterator(SIZE_MAX) {
   transi = new vector<transition*>;
-  parse(txt,names,trcks, wts,funcs);
+  parse(txt,names,trcks);
 }
   
 // ----------------------------------------------------------------------------------------
@@ -19,7 +19,7 @@ state::~state(){
 }
 
 // ----------------------------------------------------------------------------------------
-bool state::parse(string& txt, stringList& names,tracks& trks, weights* wts, StateFuncs* funcs){
+bool state::parse(string& txt, stringList& names,tracks& trks) {
   size_t stateHeaderInfo = txt.find("STATE:");
   size_t transitionsInfo = txt.find("TRANSITION:");
   size_t emissionInfo    = txt.find("EMISSION:");  // location of start of first emission definition
@@ -39,12 +39,12 @@ bool state::parse(string& txt, stringList& names,tracks& trks, weights* wts, Sta
     return false;
   }
   string trans = (emissionInfo==string::npos) ? txt.substr(transitionsInfo) : txt.substr(transitionsInfo, emissionInfo - transitionsInfo);
-  assert(_parseTransition(trans, names, trks, wts, funcs));
+  assert(_parseTransition(trans, names, trks));
       
   //Check emission's existence  (only INIT state can have no emission)
   if (emissionInfo != string::npos) {
     string emmis = txt.substr(emissionInfo);
-    assert(_parseEmissions(emmis, names, trks, wts, funcs));
+    assert(_parseEmissions(emmis, names, trks));
   } else {
     assert(name == "INIT");
   }
@@ -95,7 +95,7 @@ bool state::_parseHeader(string& txt){
 }
   
 // ----------------------------------------------------------------------------------------
-bool state::_parseTransition(string& txt, stringList& names, tracks& trks, weights* wts, StateFuncs* funcs) {
+bool state::_parseTransition(string& txt, stringList& names, tracks& trks) {
   stringList lst;
   lst.splitND(txt,"TRANSITION:");
       
@@ -121,7 +121,7 @@ bool state::_parseTransition(string& txt, stringList& names, tracks& trks, weigh
                               
     for(size_t iter=1; iter<line.size(); iter++) {
       transition* tmp_trans = new transition(tp);
-      assert(tmp_trans->parse(line[iter], names, valtyp, trks, wts, funcs));
+      assert(tmp_trans->parse(line[iter], names, valtyp, trks));
       if (tmp_trans->getName() == "END")
 	endi = tmp_trans;
       else
@@ -132,7 +132,7 @@ bool state::_parseTransition(string& txt, stringList& names, tracks& trks, weigh
 }
 
 // ----------------------------------------------------------------------------------------
-bool state::_parseEmissions(string& txt, stringList& names, tracks& trks, weights* wts, StateFuncs* funcs) {
+bool state::_parseEmissions(string& txt, stringList& names, tracks& trks) {
   stringList lst;
   lst.splitND(txt,"EMISSION:");
   assert(lst.size() == 1 || lst.size() == 2);

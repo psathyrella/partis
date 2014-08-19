@@ -5,7 +5,6 @@ model *HMMHolder::Get(string gene) {
   if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
     hmms_[gene] = new model;
     hmms_[gene]->import(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".hmm");
-    hmms_[gene]->n_seqs_per_track_ = n_seqs_per_track_;
   }
   return hmms_[gene];
 }  
@@ -378,7 +377,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 	  PrintPath(query_strs, gene, *gene_score, "(cached)");
       } else {
 	FillTrellis(&subseqs[region], query_strs, gene, gene_score);  // set *gene_score to uncorrected score
-	double gene_choice_score = log(hmms_.Get(gene)->overall_gene_prob_);  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
+	double gene_choice_score = log(hmms_.Get(gene)->overall_gene_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
 	*gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
 
