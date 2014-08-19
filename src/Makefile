@@ -69,18 +69,16 @@ AR = ar
 ARFLAGS = cru
 libstochhmm_a_AR = $(AR) $(ARFLAGS)
 libstochhmm_a_LIBADD =
-am_libstochhmm_a_OBJECTS = PDF.$(OBJEXT) \
+am_libstochhmm_a_OBJECTS = \
 	trellis.$(OBJEXT) viterbi.$(OBJEXT) \
 	stochTable.$(OBJEXT) \
 	forward.$(OBJEXT) traceback_path.$(OBJEXT) \
-	externDefinitions.$(OBJEXT) index.$(OBJEXT) \
-	stochMath.$(OBJEXT) text.$(OBJEXT) userFunctions.$(OBJEXT) \
+	stochMath.$(OBJEXT) text.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
-	track.$(OBJEXT) emm.$(OBJEXT) externalFuncs.$(OBJEXT) \
-	modelTemplate.$(OBJEXT) transitions.$(OBJEXT) weight.$(OBJEXT) \
+	track.$(OBJEXT) emm.$(OBJEXT) \
+	modelTemplate.$(OBJEXT) transitions.$(OBJEXT) \
 	options.$(OBJEXT) job_holder.$(OBJEXT) \
-	sequence.$(OBJEXT) sequences.$(OBJEXT) bitwise_ops.$(OBJEXT) \
-	dynamic_bitset.$(OBJEXT)
+	sequence.$(OBJEXT) sequences.$(OBJEXT)
 libstochhmm_a_OBJECTS = $(am_libstochhmm_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -189,14 +187,11 @@ top_builddir = ..
 top_srcdir = ..
 lib_LIBRARIES = libstochhmm.a
 libstochhmm_a_SOURCES = \
-	PDF.cpp \
 	trellis.cpp \
 	viterbi.cpp \
 	stochTable.cpp \
 	forward.cpp \
 	traceback_path.cpp \
-	externDefinitions.cpp \
-	index.cpp \
 	stochMath.cpp \
 	text.cpp \
 	userFunctions.cpp \
@@ -205,16 +200,12 @@ libstochhmm_a_SOURCES = \
 	lexicalTable.cpp \
 	track.cpp \
 	emm.cpp \
-	externalFuncs.cpp \
 	modelTemplate.cpp \
 	transitions.cpp \
-	weight.cpp \
 	options.cpp \
 	job_holder.cpp \
 	sequence.cpp \
-	sequences.cpp \
-	bitwise_ops.cpp \
-	dynamic_bitset.cpp 
+	sequences.cpp
 
 INCLUDES = -I ./
 all: all-am
@@ -294,19 +285,11 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/PDF.Po
-include ./$(DEPDIR)/bitwise_ops.Po
-include ./$(DEPDIR)/dynamic_bitset.Po
 include ./$(DEPDIR)/emm.Po
-include ./$(DEPDIR)/externDefinitions.Po
-include ./$(DEPDIR)/externalFuncs.Po
 include ./$(DEPDIR)/forward.Po
 include ./$(DEPDIR)/hmm.Po
-include ./$(DEPDIR)/index.Po
 include ./$(DEPDIR)/lexicalTable.Po
-include ./$(DEPDIR)/modelTemplate.Po
 include ./$(DEPDIR)/options.Po
-include ./$(DEPDIR)/posterior.Po
 include ./$(DEPDIR)/sequence.Po
 include ./$(DEPDIR)/sequences.Po
 include ./$(DEPDIR)/state.Po
@@ -318,9 +301,7 @@ include ./$(DEPDIR)/traceback_path.Po
 include ./$(DEPDIR)/track.Po
 include ./$(DEPDIR)/transitions.Po
 include ./$(DEPDIR)/trellis.Po
-include ./$(DEPDIR)/userFunctions.Po
 include ./$(DEPDIR)/viterbi.Po
-include ./$(DEPDIR)/weight.Po
 
 .cpp.o:
 	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

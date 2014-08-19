@@ -16,9 +16,7 @@
 #include "track.h"
 #include "text.h"
 #include "stochTypes.h"
-#include "weight.h"
 #include "modelTemplate.h"
-#include "stateInfo.h"
 
 using namespace std;
 namespace StochHMM{
@@ -53,12 +51,7 @@ public:
   void print();
   string stringify();
 
-  bool import(string);
-  bool importFromString(string&);
-  bool importFromString(string&,StateFuncs*);
-  bool importFromString(string&, StateFuncs*, templates*, weights*);
-  bool parse(const string&, StateFuncs*, templates*, weights*);
-  bool parse(string&,string&);
+  bool parse(string);
 		
   void addState(state*);
   inline void setInit(state* st) { initial=st; }
@@ -83,7 +76,6 @@ private:
   vector<state*> states; //!  All the states contained in the model
 
   map<string,state*> stateByName; //Ptr to state stored by State name;
-  stateInfo info;
 		
   state* initial; //!Initial state q0
   state* ending;	//!Ending state
@@ -91,7 +83,7 @@ private:
   bool _parseHeader(string&);	//! Function to parse header of the model from text file
   bool _parseTracks(string&);	//! Parse Tracks definitions from text file
 		
-  bool _parseStates(string&,StateFuncs*); //!Parse state from text file
+  bool _parseStates(string&); //!Parse state from text file
   bool _splitStates(string&,stringList&); //!Split the state definitions into individual states from text file
   bool _getOrderedStateNames(stringList&,stringList&); //! Gets list of states names from model
 		

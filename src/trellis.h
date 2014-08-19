@@ -38,7 +38,6 @@
 #include <stdint.h>
 #include <iomanip>
 #include "stochTable.h"
-#include "sparseArray.h"
 
 namespace StochHMM{
         

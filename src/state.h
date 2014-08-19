@@ -28,7 +28,7 @@ class state {
   friend class model;
 public:
   state();
-  state(string&,stringList&,tracks&,weights*, StateFuncs*); //!Create state from string
+  state(string&,stringList&,tracks&); //!Create state from string
   bool parse(string&, stringList&, tracks&);
   ~state();
 

@@ -7,7 +7,7 @@ state::state():endi(NULL), stateIterator(SIZE_MAX) {
 }
 
 // ----------------------------------------------------------------------------------------
-state::state(string& txt, stringList& names,tracks& trcks, weights* wts, StateFuncs* funcs) : endi(NULL), stateIterator(SIZE_MAX) {
+state::state(string& txt, stringList& names,tracks& trcks) : endi(NULL), stateIterator(SIZE_MAX) {
   transi = new vector<transition*>;
   parse(txt,names,trcks);
 }

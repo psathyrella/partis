@@ -15,7 +15,6 @@
 #include <vector>
 #include "stochMath.h"
 #include "traceback_path.h"
-#include "sparseArray.h"
 
 namespace StochHMM {
         

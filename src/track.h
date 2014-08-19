@@ -36,7 +36,6 @@
 #include <cassert>
 #include "text.h"
 #include "stochTypes.h"
-#include "userFunctions.h"
 #include "stochMath.h"
 #include <limits>
 #include <stdlib.h>
@@ -72,7 +71,6 @@ namespace StochHMM{
   class track {
   public:
     track();
-    track(TrackFuncs*);
     track(std::string, size_t, std::vector<std::string>&);
         
     friend class state;

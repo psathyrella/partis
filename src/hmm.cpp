@@ -2,168 +2,121 @@
 
 namespace StochHMM {
 // ----------------------------------------------------------------------------------------
-model::model() : overall_gene_prob_(0) {
+model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
   ending = new state;
-  finalized=false;
+}
 
-  initial = NULL;
-}
-  
 // ----------------------------------------------------------------------------------------
-bool model::import(string modelFile){
-  string modelString=slurpFile(modelFile);
-  return parse(modelString,NULL,NULL,NULL);
-}
-      
-      
-bool model::importFromString(string& modelString, StateFuncs* funcs){
-  return parse(modelString,funcs,NULL,NULL);
-}
-  
-      
-bool model::importFromString(string& modelString, StateFuncs* funcs, templates* tmpls, weights* scl){
-  return parse(modelString, funcs, tmpls, scl);
-}
-  
-      
-bool model::importFromString(string& modelString){
-  return parse(modelString,NULL,NULL,NULL);
-}
-      
 //!Parses text model file
 //!Splits the model into sections that are then parsed by the individiual classes
 //!parse() functions.
-bool model::parse(const string& model, StateFuncs* funcs, templates* tmpls, weights* scl ){
+bool model::parse(string infname) {
+  string file_str = slurpFile(infname);  // string containing entire file
       
-  size_t header = model.find("MODEL INFORMATION");
-  size_t track  = model.find("TRACK SYMBOL DEFINITIONS");
-  size_t st = model.find("STATE DEFINITIONS");
-  size_t blank;
+  size_t iheader = file_str.find("MODEL INFORMATION");
+  size_t itrack = file_str.find("TRACK SYMBOL DEFINITIONS");
+  size_t istate = file_str.find("STATE DEFINITIONS");
+  size_t iblank;
   size_t nlChar;
       
   //Parse Model Informaton (Optional)
-  if (header!=string::npos){
+  if (iheader!=string::npos) {
+    iblank = file_str.find("\n\n", iheader); //Get coordinates of splitting Model Information
           
-    blank=model.find("\n\n",header); //Get coordinates of splitting Model Information
-          
-    size_t nlCharEq = model.rfind("####\n",blank);
-    size_t nlCharNum= model.rfind("====\n",blank);
+    size_t nlCharEq = file_str.rfind("####\n",iblank);
+    size_t nlCharNum= file_str.rfind("====\n",iblank);
     //Check for optional dividing line
-    if (nlCharEq!=string::npos){
-      nlChar=nlCharEq+5;
-    }
-    else if (nlCharNum!=string::npos){
-      nlChar=nlCharNum+5;
-    }
-    else{  //No divider line
-      nlChar=model.find("\n",header);
+    if (nlCharEq != string::npos) {
+      nlChar = nlCharEq + 5;
+    } else if (nlCharNum != string::npos) {
+      nlChar = nlCharNum + 5;
+    } else {  //No divider line
+      nlChar = file_str.find("\n", iheader);
       nlChar++;
     }
           
-    string head = model.substr(nlChar,blank-nlChar);
-    if (!_parseHeader(head)){
+    string head = file_str.substr(nlChar, iblank - nlChar);
+    if (!_parseHeader(head))
       return false;
-    }
   }
-      
       
   //Parse Tracks (Required)
-  if (track!=string::npos){
+  if (itrack!=string::npos) {
+    iblank = file_str.find("\n\n", itrack);
           
-    blank=model.find("\n\n",track);
-          
-          
-    size_t nlCharEq = model.rfind("####\n",blank);
-    size_t nlCharNum= model.rfind("====\n",blank);
+    size_t nlCharEq = file_str.rfind("####\n", iblank);
+    size_t nlCharNum = file_str.rfind("====\n", iblank);
     //Check for optional dividing line
-    if (nlCharEq!=string::npos){
-      nlChar=nlCharEq+5;
-    }
-    else if (nlCharNum!=string::npos){
-      nlChar=nlCharNum+5;
-    }
-    else{  //No divider line
-      nlChar=model.find("\n",track);
+    if (nlCharEq != string::npos) {
+      nlChar = nlCharEq + 5;
+    } else if (nlCharNum != string::npos) {
+      nlChar = nlCharNum + 5;
+    } else {  //No divider line
+      nlChar = file_str.find("\n", itrack);
       nlChar++;
     }
           
-          
-    string trck (model.substr(nlChar,blank-nlChar));
-          
-    if (!_parseTracks(trck)){
+    string trck(file_str.substr(nlChar, iblank-nlChar));
+    if (!_parseTracks(trck))
       return false;
-    }
-  }
-  else{
+  } else {
     cerr << "Required section: TRACK SYMBOL DEFINITIONS missing from the model" << endl;
     return false;
   }
               
   //Parse State Definitions (Required)
-  if (st!=string::npos){
-    size_t blankNum = model.find("####\n",st);
-    size_t blankEq  = model.find("====\n",st);
+  if (istate!=string::npos) {
+    size_t blankNum = file_str.find("####\n", istate);
+    size_t blankEq  = file_str.find("====\n", istate);
           
-    blank=model.find("####\n",st);
+    iblank = file_str.find("####\n", istate);
           
-          
-    if (blankEq!=string::npos){
-      blank=blankEq+5;
-    }
-    else if (blankNum!=string::npos){
-      blank=blankNum+5;
-    }
-    else{
-      blank=model.find("\n",st);
-      blank++;
+    if (blankEq != string::npos) {
+      iblank = blankEq + 5;
+    } else if (blankNum != string::npos) {
+      iblank = blankNum + 5;
+    } else {
+      iblank = file_str.find("\n", istate);
+      iblank++;
     }
           
-          
-    nlChar=model.find("\n//END");
-    if (nlChar==string::npos){
-      nlChar=model.size()-1;
+    nlChar = file_str.find("\n//END");
+    if (nlChar == string::npos) {
+      nlChar = file_str.size() - 1;
     }
           
-    string stateTxt= model.substr(blank,nlChar-blank);
-    if (!_parseStates(stateTxt,funcs)){
+    string stateTxt = file_str.substr(iblank, nlChar-iblank);
+    if (!_parseStates(stateTxt))
       return false;
-    }
-          
   } else {
     cerr << "Required sections <STATE DEFINITIONS> missing from the model" << endl;
     return false;
-    //errorInfo(sMissingStateDefinition, "Required sections <STATE DEFINITIONS> missing from the model")
   }
       
   return true;
 }
       
-      
-//Parse model header information
-bool model::_parseHeader(string& txt){
+// ----------------------------------------------------------------------------------------
+bool model::_parseHeader(string& txt) {
   stringList lst;
   size_t index;
   bool first(false);
   bool second(false);
-      
-  //string headers[] = {"MODEL_NAME", "MODEL_DESCRIPTION", "MODEL_CREATION_DATE","MODEL_CREATION_COMMAND", "MODEL_AUTHOR","MODEL_NUM_ATTRIB","MODEL_NUM_ATTRIB_UPPER","MODEL_NUM_ATTRIB_LOWER"};
   string headers[] = {"NAME", "DESCRIPTION", "CREATION_DATE","CREATION_COMMAND", "AUTHOR","NUM_ATTRIB","UPPER","LOWER"};
-      
-  string* head[]={&name, &desc, &date, &command,&author};
+  string* head[] = {&name, &desc, &date, &command, &author};
       
   lst.fromTxt(txt);
-      
-  for(int i=0;i<5;i++){
-    if (lst.contains(headers[i])){
+  for(int i=0; i<5; i++) {
+    if (lst.contains(headers[i])) {
       index = lst.indexOf(headers[i]);
-      if (index+1 < lst.size()){
+      if (index+1 < lst.size()) {
         index++;
-        (*head[i])=lst[index];
-	  if (headers[i] == "DESCRIPTION") {
-	    stringstream ss(lst[index]);
-	    ss >> overall_gene_prob_;
-	    assert(overall_gene_prob_ > 0.0 && overall_gene_prob_ < 1.0);
-	  }
+        (*head[i]) = lst[index];
+	if (headers[i] == "DESCRIPTION") {
+	  stringstream ss(lst[index]);
+	  ss >> overall_gene_prob_;
+	  assert(overall_gene_prob_ > 0.0 && overall_gene_prob_ < 1.0);
+	}
       } else {
         cerr << "Couldn't parse " << headers[i] << " from \"MODEL INFORMATION\" section." << endl;
         return false;
@@ -174,100 +127,75 @@ bool model::_parseHeader(string& txt){
   //Set Numerical Attributes of Model
   if (lst.contains(headers[5])){
     index = lst.indexOf(headers[5]);
-          
-    if (index+1 < lst.size()){
+    if (index+1 < lst.size()) {
       index++;
-              
-              
       double tempValue;
-      if (!stringToDouble(lst[index], tempValue)){
+      if (!stringToDouble(lst[index], tempValue)) {
         cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
         return false;
       }
-              
-    }
-    else{
+    } else {
       cerr << "Couldn't parse " << headers[5] << " value from \"MODEL INFORMATION\" section." << endl;
       return false;
     }
-  }
-  else if (lst.contains(headers[6]) && lst.contains(headers[7])){
+  } else if (lst.contains(headers[6]) && lst.contains(headers[7])) {
     index = lst.indexOf(headers[6]);
-          
-    if (index+1<lst.size()){
+    if (index+1<lst.size()) {
       index++;
-              
       double tempValue;
-      if (!stringToDouble(lst[index], tempValue)){
+      if (!stringToDouble(lst[index], tempValue)) {
         cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
         return false;
       }
       second=true;
-    }
-    else{
+    } else {
       cerr << "Couldn't parse " << headers[6] << " value from \"MODEL INFORMATION\" section." << endl;
       return false;
     }
           
-          
     index = lst.indexOf(headers[7]);
-          
-    if (index+1<lst.size()){
+    if (index+1<lst.size()) {
       index++;
-              
-              
       double tempValue;
-      if (!stringToDouble(lst[index], tempValue)){
+      if (!stringToDouble(lst[index], tempValue)) {
         cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
         return false;
       }
       first=true;
-    }
-    else{
+    } else {
       cerr << "Couldn't parse " << headers[6] << " value from \"MODEL INFORMATION\" section." << endl;
       return false;
     }
           
-    if (first && second){
+    if (first && second) {
       assert(0);
-    }
-    else{
+    } else {
       cerr << "Unable to parse both UPPER and LOWER" << endl;
       return false;
     }
-  }
-  else if (lst.contains(headers[6])){
+  } else if (lst.contains(headers[6])) {
     index = lst.indexOf(headers[6]);
-          
-    if (index+1<lst.size()){
+    if (index+1<lst.size()) {
       index++;
-              
       double tempValue;
-      if (!stringToDouble(lst[index], tempValue)){
+      if (!stringToDouble(lst[index], tempValue)) {
         cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
         return false;
       }
-              
-              
-    }
-    else{
+    } else {
       cerr << "Couldn't parse " << headers[6] << " value from \"MODEL INFORMATION\" section." << endl;
       return false;
     }
-  }
-  else if (lst.contains(headers[7])){
+  } else if (lst.contains(headers[7])) {
     index = lst.indexOf(headers[6]);
-          
-    if (index+1<lst.size()){
+    if (index+1<lst.size()) {
       index++;
-              
       double tempValue;
-      if (!stringToDouble(lst[index], tempValue)){
+      if (!stringToDouble(lst[index], tempValue)) {
         cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
         return false;
       }
-    }
-    else{
+    } else {
       cerr << "Couldn't parse " << headers[7] << " value from \"MODEL INFORMATION\" section." << endl;
       return false;
     }
@@ -288,7 +216,7 @@ bool model::_parseTracks(string& txt) {
 }
 
 // ----------------------------------------------------------------------------------------
-bool model::_parseStates(string& txt, StateFuncs* funcs) {
+bool model::_parseStates(string& txt) {
   //1. split sections and identify any template sections
   //2. get state names list
   //3. create and parse states
@@ -480,13 +408,13 @@ void model::finalize(){
     checkTopology();
                       
                       
-    //Assign StateInfo
-    for(size_t i=0; i < states.size();i++){
-      string& st_name = states[i]->getName();
-      info.stateIterByName[st_name]=i;
-      info.stateIterByLabel[st_name].push_back(i);
-      info.stateIterByGff[st_name].push_back(i);
-    }
+    // //Assign StateInfo
+    // for(size_t i=0; i < states.size();i++){
+    //   string& st_name = states[i]->getName();
+    //   info.stateIterByName[st_name]=i;
+    //   info.stateIterByLabel[st_name].push_back(i);
+    //   info.stateIterByGff[st_name].push_back(i);
+    // }
     finalized = true;
   }
   return;

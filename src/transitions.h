@@ -7,7 +7,6 @@
 #include "track.h"
 #include "stochMath.h"
 #include "stochTypes.h"
-#include "weight.h"
 #include "sequences.h"
 #include <stdlib.h>
 
