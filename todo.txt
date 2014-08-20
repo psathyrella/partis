@@ -1,51 +1,55 @@
-hmms
-  - implement banding? I think I have this listed below but without using the word 'banding'
-  - play around with s-w match/mismatch scores (match was 3[:1], just changed to 2[:1]... not sure what\'s best. It\'ll depend on the expected level of mutation. *sigh*)
-  - get connor\'s whole framework running to extra parameters from data
-  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
-  - distance in any space should be monotonic in extent of SHM -- so use a percent mutated cutoff? Oh yeah -- use hamming distance within the clustering algorithms
-  - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering? (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
-  - why the hell is recombinator only spitting out clones with ten copies?
-  - try pairwise s-w for preclustering
-  - you know, screw this heuristic preclustering -- try just using a stripped down hmm
-  - oh, wait, crap -- are my summed forward scores crap because I sum over different numbers of ksets for each pair of seqs?
+  - play around with naive data
+  - get parameters from data more seamlessly, maybe with connor\'s stuff
+      - get gene choice probs from *naive* and apply them to mature?
   - you\'re still writing some files for every query sequence in Stochhmm.cpp, I think. Don\'t!
-  - how to treat alleles in this preclustering space?
+  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
+  - would it be faster with STATE_MAX less than 1024?
+  - why the hell is recombinator only spitting out clones with ten copies?
+  - stop using imgt (get the versions dynamically, i.e. add an initial step to determine which alleles and versions this individual actually has)
   - I should really be able to construct the denominator in P(A,B) / (P(A) P(B)) from the numerator without recalculating much, right?
-  - rerun the version counter down to a much lower mean count
-  - trevor says do 'pair emission', i.e. take into account correlation between mutation in clonally related seqs
-  - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
-  - minibatch (clustering strategy or something chris small mentioned)
-  - recenter clusters as you go (and compare new things to the center)
-  - use the extent of SHM (or at least *something* about SHM) in clustering
-  - wait, why not use hmm viterbi for preclustering?
-  - sw all against all (align against each *other* using sw)
-  - if we assume that we\'re much *more* interested in large clusters than small clusters (say, maybe we only care that there are a lot of one-sequence clusters), then
-    we could initially do all-against-all on some subset. Then, run each new sequence only against the larger clusters in this subset
-  - need to get gene choice probs from *naive* and apply them to mature
-  - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
-    - so try to use the amount of mutation in v to inform this decision (?)
-    - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
-  - blast instead of s-w?
-  - figure out what erick meant by non-negative matrix factorization
-  - get connor\'s clustering algorithm working
-  - check the denominator (normalization for individual sequence forward probs) by implementing single-sequence forward
-  - add an initial step to determine which alleles and versions this individual actually has
   - add assertion in text parser that emission and transition probs add to 1.0
-  - optimizations
-    - add in cdr3 length partitioning
-    - TODOs in FillTrellis
-    - for k_v --> k_v + 1, don\'t recalculate the whole table
-    - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences
-    - even *within* one gene version\'s dp table, I\'m looping over a lot of states to which I can\'t transition. Does this matter? Can it be avoided?
-    - alleles: save chunks of dp tables and reuse \'em
-    - don\'t look at entire v gene, i.e. look at less than we have in the reads
-    - would it be faster with STATE_MAX less than 1024?
-    - run HMM several times, the first maybe only on the single best gene versions and a narrow kset
-    - try fancier stochhmm function versions (viterbi, forward, etc) that were originally present
-    - can I remove the '######' lines from .hmm files?
-    - compress hmm files (well, deverbosify them)
-    - don\'t use hmm files -- build the hmm directly in memory
+  - rerun the version counter down to a much lower mean count
+  - add in cdr3 length partitioning
+  - for k_v --> k_v + 1, don\'t recalculate the whole table
+  - TODOs in code
+  - transitivity:
+    - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering?
+        (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
 
+  - low priority
+  - optimization
+    - hmm structure optimization
+      - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
+      - implement banding? I think I have this listed below but without using the word 'banding'
+    - try pairwise s-w for preclustering (all against all -- align against each *other* using sw)
+    - blast instead of s-w?
+    - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences (EDIT wait, what?)
+    - alleles: save chunks of dp tables and reuse \'em
+  - accuracy improvement
+    - play around with s-w match/mismatch scores (match was 3[:1], just changed to 2[:1]... not sure what\'s best. It\'ll depend on the expected level of mutation. *sigh*)
+    - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
+      - so try to use the amount of mutation in v to inform this decision (?)
+      - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
   - wait, what is stochhmm doing with the 'N's?
   - add bfloats to stochhmm?
+
+
+# ----------------------------------------------------------------------------------------
+misc
+  - connor\'s spectral decomposition sorting
+  
+simulator
+  - make *sure* that the mute freqs are being properly used by the tree simulator
+  - use amalgamation of patients (and each individually, with mature or naive)
+  - better insertion freqs (nucleotide choices, at least)
+  - better SHM freqs distribution
+  - do something with tree inference closure tests for recombinator (?)
+  - TODOs in recombinator
+  - tree branch lengths per-person?
+  data/simulation differences
+    we ignore infrequent vdj choices, i.e. data has a *huge* tail of vdj choices with only a few instances which is totally absent in simulation
+    mutation frequencies aren\'t site-dependent in simulation (yet!)
+    not really sure that I\'m treating the primers correctly a.t.m.
+    the plots I made so far are only for the first thousand lines in the data files
+hmmer
+  - only use half of data for training

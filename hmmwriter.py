@@ -330,9 +330,10 @@ class HmmWriter(object):
             if nuke2 == '':
                 prob = 1./len(utils.nukes)
             else:
-                prob = 1./(4. + 12.*self.insert_mute_prob)
-                if nuke1 != nuke2:
-                    prob *= self.insert_mute_prob  # TODO damn this isn't normalized right
+                if nuke1 == nuke2:
+                    prob = (1. - self.insert_mute_prob) / 4
+                else:
+                    prob = self.insert_mute_prob / 12
         else:
             assert inuke >= 0
             assert germline_nuke != ''
@@ -345,9 +346,10 @@ class HmmWriter(object):
                 else:
                     prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases
             else:
-                cryptic_factor_from_normalization = (math.sqrt(81. + 24*mute_freq) - 9.) / 12.
+                # cryptic_factor_from_normalization = (math.sqrt(81. + 24*mute_freq) - 9.) / 12.
+                cryptic_factor_from_normalization = (math.sqrt(3.)*math.sqrt(-8.*mute_freq**2 + 16.*mute_freq + 27.) - 9.) / 12.
                 if nuke1 == germline_nuke and nuke2 == germline_nuke:
-                    prob = 1.0 - mute_freq
+                    prob = (1.0 - mute_freq)**2
                 elif nuke1 == nuke2 and nuke1 != germline_nuke:  # assume this requires *one* mutation event (i.e. ignore higher-order terms, I think)
                     prob = cryptic_factor_from_normalization
                 elif nuke1 == germline_nuke or nuke2 == germline_nuke:

@@ -29,7 +29,6 @@ class PartitionDriver(object):
         self.dbgfname = self.workdir + '/dbg.txt'
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
-        self.reco_info = self.read_sim_file()  # read simulation info and write sw input file
         self.default_v_fuzz = 2  # TODO play around with these default fuzzes
         self.default_d_fuzz = 2
         self.safety_buffer_that_I_should_not_need = 35  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
@@ -38,7 +37,12 @@ class PartitionDriver(object):
         self.sw_info = {}
         self.precluster_info = {}
         self.match_names_for_all_queries = set()
-            
+
+        self.is_data = False  # data or simulation
+        self.input_info = {}
+        self.reco_info = {}  # generator truth information
+        self.read_input_file()  # read simulation info and write sw input file
+
     # ----------------------------------------------------------------------------------------
     def from_same_event(self, query_name, second_query_name):
         if self.args.pair:
@@ -47,28 +51,33 @@ class PartitionDriver(object):
             return False
 
     # ----------------------------------------------------------------------------------------
-    def read_sim_file(self):
+    def read_input_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
-        reco_info = {}  # generator truth information
         with opener('r')(self.args.simfile) as simfile:
             last_reco_id = -1  # only run on the first seq in each reco event. they're all pretty similar
             reader = csv.DictReader(simfile)
             n_queries = 0
             for line in reader:
+                # if command line specified query or reco ids, skip other ones
                 if self.args.queries != None and line['unique_id'] not in self.args.queries:
                     continue
                 if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
                     continue
-                reco_info[line['unique_id']] = line
+
+                self.input_info[line['unique_id']] = {'unique_id':line['unique_id'], 'seq':line['seq']}
+                if not self.is_data:
+                    self.reco_info[line['unique_id']] = line
                 last_reco_id = line['reco_id']
                 n_queries += 1
                 if self.args.n_total_queries > 0 and n_queries >= self.args.n_total_queries:
                     break
-        assert len(reco_info) > 0
-        return reco_info
+        assert len(self.input_info) > 0
     
     # ----------------------------------------------------------------------------------------
     def run(self):
+        with opener('w')(self.dbgfname) as dbgfile:
+            dbgfile.write('hamming\n')
+
         # run smith-waterman
         swoutfname = self.workdir + '/query-seqs.bam'
         if not self.args.skip_sw:
@@ -77,9 +86,10 @@ class PartitionDriver(object):
             assert False  # doesn't actually work swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
         self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
 
+        # # cdr3 length partitioning
+        # cdr3_length_clusters = self.cdr3_length_precluster()
+
         # hamming preclustering
-        with opener('w')(self.dbgfname) as dbgfile:
-            dbgfile.write('hamming\n')
         hamming_clusters = self.hamming_precluster()
 
         stripped_clusters = None
@@ -94,7 +104,7 @@ class PartitionDriver(object):
             self.write_hmm_input(stripped_hmm_csv_infname, preclusters=hamming_clusters, stripped=True)
             self.run_stochhmm(stripped_hmm_csv_infname, stripped_hmm_csv_outfname)
             self.read_hmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname);
-            stripped_clusters = Clusterer(-50, greater_than=True)  # TODO better way to set threshhold?
+            stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
             stripped_clusters.cluster(stripped_pairscorefname, debug=True, reco_info=self.reco_info)
             for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
                 if query_name not in stripped_clusters.query_clusters:
@@ -127,6 +137,27 @@ class PartitionDriver(object):
             os.rename(self.dbgfname, '/tmp/dralph/debug-' + self.args.human + '.txt')
             os.rmdir(self.workdir)
 
+    # # ----------------------------------------------------------------------------------------
+    # def cdr3_length_precluster(self):
+    #     cdr3_length_infname = self.workdir + '/cdr3_length_precluster_input.csv'
+    #     with opener('w')(cdr3_length_infname) as infile:
+    #         columns = ('unique_id', 'seq')
+    #         # ARGGGG don't use reco_info for this... segregate out the simulation info
+    #         csv.DictWriter()
+        
+    #     connordir = '/shared/silo_researcher/Matsen_F/MatsenGrp/working/cmccoy/20140414-bcell-validation'
+    #     cmd_str = connordir + '/venv/bin/linsim dists-by-cdr3'
+    #     cmd_str += ' --name-column unique_id'
+    #     cmd_str += ' --sequence-column seq'
+    #     cmd_str += cdr3_length_infname
+    #     cmd_str += '/tmp/out'
+    #     hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
+    #     hmm_proc.wait()
+    #     hmm_out, hmm_err = hmm_proc.communicate()
+
+    #     if not self.no_clean:
+    #         os.remove(cdr3_length_infname)
+
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self):
         if not self.args.algorithm == 'forward':
@@ -139,16 +170,16 @@ class PartitionDriver(object):
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
             writer.writeheader()
             n_lines = 0
-            for query_name in self.reco_info:
-                for second_query_name in self.reco_info:
+            for query_name in self.input_info:
+                for second_query_name in self.input_info:
                     if second_query_name == query_name:
                         continue
                     if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
                         continue
                     pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
                     n_lines += 1
-                    query_seq = self.reco_info[query_name]['seq']
-                    second_query_seq = self.reco_info[second_query_name]['seq']
+                    query_seq = self.input_info[query_name]['seq']
+                    second_query_seq = self.input_info[second_query_name]['seq']
                     mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
                     writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
                     if self.args.debug:
@@ -172,7 +203,7 @@ class PartitionDriver(object):
         """
         infname = self.workdir + '/query-seqs.fa'
         with opener('w')(infname) as swinfile:  # write *all* the input seqs to file, i.e. run s-w on all of 'em at once
-            for query_name,line in self.reco_info.iteritems():
+            for query_name,line in self.input_info.iteritems():
                 swinfile.write('>' + query_name + ' NUKES\n')
                 swinfile.write(line['seq'] + '\n')
         start = time.time()
@@ -276,7 +307,7 @@ class PartitionDriver(object):
                     if region not in best:
                         print ' no',region,'match found for',query_name
                         print '    true:'
-                        utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0, extra_str='    ')
+                        utils.print_reco_event(self.germline_seqs, self.input_info[query_name], 0, 0, extra_str='    ')
                 # write sw info to file for hmm
                 # best k_v, k_d:
                 k_v = all_query_bounds[best['v']][1]  # end of v match
@@ -346,7 +377,7 @@ class PartitionDriver(object):
             # then write a line for each query sequence (or pair of them)
             pair_scores = {}
             n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
-            for query_name in self.reco_info:
+            for query_name in self.input_info:
                 info = self.sw_info[query_name]
 
                 # make sure we don't need to rewrite the hmm model files
@@ -363,7 +394,7 @@ class PartitionDriver(object):
                 k_d_min = info['k_d_min']
                 k_d_max = info['k_d_max']
                 if self.args.pair:
-                    for second_query_name in self.reco_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
+                    for second_query_name in self.input_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
                         if second_query_name == query_name:
                             continue
                         if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
@@ -402,10 +433,10 @@ class PartitionDriver(object):
                         n_lines += 1
                         csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
                                       (query_name, second_query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes,
-                                       self.reco_info[query_name]['seq'], self.reco_info[second_query_name]['seq']))
+                                       self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
                 else:
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
-                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes, self.reco_info[query_name]['seq']))
+                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes, self.input_info[query_name]['seq']))
         print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
 
     # ----------------------------------------------------------------------------------------
