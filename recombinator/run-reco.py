@@ -20,4 +20,4 @@ for human in utils.humans:
         success = False
         while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices, or something similar)
             success = reco.combine(outfname, 'append')
-    sys.exit()
+    # sys.exit()

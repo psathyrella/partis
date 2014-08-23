@@ -229,11 +229,13 @@ def color_gene(gene):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def is_mutated(original, final):
-    if original == final:
-        return final
-    else:
-        return color('red', final)
+def is_mutated(original, final, n_muted=-1, n_total=-1):
+    n_total += 1
+    return_str = final
+    if original != final:
+        return_str = color('red', final)
+        n_muted += 1
+    return return_str, n_muted, n_total
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False, extra_str=''):
@@ -274,26 +276,27 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
             line['seq'] += '.'
 
     final_seq = ''
+    n_muted, n_total = 0,0
     for inuke in range(len(line['seq'])):
         ilocal = inuke
         new_nuke = ''
         if ilocal < v_length:
-            new_nuke = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke])
+            new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
         else:
             ilocal -= v_length
             if ilocal < len(line['vd_insertion']):
-                new_nuke = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke])
+                new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
             else:
                 ilocal -= len(line['vd_insertion'])
                 if ilocal < d_length:
-                    new_nuke = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke])
+                    new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
                 else:
                     ilocal -= d_length
                     if ilocal < len(line['dj_insertion']):
-                        new_nuke = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke])
+                        new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                     else:
                         ilocal -= len(line['dj_insertion'])
-                        new_nuke = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke])
+                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
 
         if cyst_position > 0 and final_tryp_position > 0:
             if inuke == cyst_position or inuke == final_tryp_position:
@@ -317,7 +320,7 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
         print '%s    %s   inserts' % (extra_str, insertions)
         print '%s    %s   %s' % (extra_str, d, color_gene(line['d_gene']))
         print '%s    %s   %s,%s' % (extra_str, vj, color_gene(line['v_gene']), color_gene(line['j_gene']))
-    print '%s    %s   %s' % (extra_str, final_seq, line['score'])
+    print '%s    %s   %-10s %d / %d = %5.2f mutated' % (extra_str, final_seq, line['score'], n_muted, n_total, float(n_muted) / n_total)
 
     line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
@@ -423,3 +426,26 @@ def read_overall_gene_prob(indir, only_region='', only_gene=''):
     else:
         return counts[only_region][only_gene]
 
+# ----------------------------------------------------------------------------------------
+def hamming(seq1, seq2):
+    assert len(seq1) == len(seq2)
+    total = 0
+    for ch1,ch2 in zip(seq1,seq2):
+        if ch1 != ch2:
+            total += 1
+    return total
+
+# ----------------------------------------------------------------------------------------
+def get_key(query_name, second_query_name):
+    """
+    Return a hashable combination of the two query names that's the same if we reverse their order.
+    At the moment, just add 'em up.
+    """
+    # assert query_name != ''
+    # if second_query_name == '':
+    #     second_query_name = '0'
+    # return int(query_name) + int(second_query_name)
+    assert query_name != ''
+    if second_query_name == '':
+        second_query_name = '0'
+    return '.'.join(sorted([query_name, second_query_name]))
