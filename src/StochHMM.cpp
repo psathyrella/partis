@@ -137,7 +137,7 @@ int main(int argc, const char * argv[]) {
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);
   vector<sequences*> seqs(GetSeqs(args, &trk));
-  GermLines gl;
+  GermLines gl("/home/dralph/Dropbox/work/partis/recombinator/data");
   HMMHolder hmms(opt.sopt("--hmmdir"), n_seqs_per_track, gl);
 
   assert(seqs.size() == args.strings_["name"].size());

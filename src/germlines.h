@@ -98,7 +98,7 @@ class TermColors {
 class GermLines {
  public:
   // ----------------------------------------------------------------------------------------
-  GermLines(string input_dir="/home/dralph/Dropbox/work/recombinator/data"):
+  GermLines(string input_dir):
     regions_{"v","d","j"}
     {
       for (auto &region : regions_) {
