@@ -7,8 +7,8 @@ import math
 import collections
 from scipy.stats import norm
 import csv
-import utils
-from opener import opener
+from utils import utils
+from utils.opener import opener
 
 # define this up here so the multi line string doesn't mess up the indentation below
 header_base_text = """#STOCHHMM MODEL FILE

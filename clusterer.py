@@ -1,8 +1,9 @@
 import sys
 import csv
 import math
-from opener import opener
-import utils
+
+from utils import utils
+from utils.opener import opener
 # ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv 
 
 class Clusterer(object):

@@ -12,8 +12,8 @@ import pysam
 import contextlib
 from subprocess import Popen, check_call, PIPE
 
-import utils
-from opener import opener
+from utils import utils
+from utils.opener import opener
 from hmmwriter import HmmWriter
 from clusterer import Clusterer
 
@@ -21,10 +21,11 @@ print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
-    def __init__(self, datadir, args, default_v_right_length=90):
+    def __init__(self, datadir, args, default_v_right_length=90, stochhmm_dir=''):
         self.datadir = datadir
+        self.stochhmm_dir = stochhmm_dir
         self.args = args
-        self.germline_seqs = utils.read_germlines()
+        self.germline_seqs = utils.read_germlines(self.datadir)
         self.workdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())  # use a tmp dir specific to this process for the hmm input file
         self.dbgfname = self.workdir + '/dbg.txt'
         if not os.path.exists(self.workdir):
@@ -32,7 +33,7 @@ class PartitionDriver(object):
         self.default_v_fuzz = 2  # TODO play around with these default fuzzes
         self.default_d_fuzz = 2
         self.safety_buffer_that_I_should_not_need = 35  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
-        self.default_hmm_dir = 'bcell/hmms/' + self.args.human + '/' + self.args.naivety
+        self.default_hmm_dir = self.stochhmm_dir + '/bcell/hmms/' + self.args.human + '/' + self.args.naivety
         self.default_v_right_length = default_v_right_length
         self.sw_info = {}
         self.precluster_info = {}
@@ -444,7 +445,7 @@ class PartitionDriver(object):
         start = time.time()
 
         # build the command line
-        cmd_str = './stochhmm'
+        cmd_str = self.stochhmm_dir + '/stochhmm'
         cmd_str += ' --algorithm ' + self.args.algorithm
         if self.args.pair:
             cmd_str += ' --pair 1'

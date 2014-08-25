@@ -10,6 +10,8 @@ import sys
 
 from partitiondriver import PartitionDriver
 
+workdir = '/home/dralph/Dropbox/work'
+datadir = workdir + '/partis/recombinator/data'
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--simfile')
@@ -37,9 +39,8 @@ if args.reco_ids != None:
 
 # ----------------------------------------------------------------------------------------
 if not args.simfile:
-    args.simfile = '/home/dralph/Dropbox/work/recombinator/output/' + args.human + '/' + args.naivety + '/simu.csv'
-datadir = '/home/dralph/Dropbox/work/recombinator/data'
-parter = PartitionDriver(datadir, args, default_v_right_length=89)
+    args.simfile = workdir + '/partis/recombinator/output/' + args.human + '/' + args.naivety + '/simu.csv'
+parter = PartitionDriver(datadir, args, default_v_right_length=89, stochhmm_dir=workdir + '/StochHMM')
 
 if args.write_hmm_files:
     parter.write_all_hmms(89)

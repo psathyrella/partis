@@ -340,12 +340,12 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir='/home/dralph/Dropbox/work/recombinator', remove_fp=False):
+def read_germlines(data_dir, remove_fp=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     germlines = {}
     for region in regions:
         germlines[region] = collections.OrderedDict()
-        for seq_record in SeqIO.parse(data_dir + '/data/igh'+region+'.fasta', "fasta"):
+        for seq_record in SeqIO.parse(data_dir + '/igh'+region+'.fasta', "fasta"):
             gene_name = seq_record.name
             if remove_fp and region == 'j':
                 gene_name = gene_name[:-2]
