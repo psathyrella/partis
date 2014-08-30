@@ -81,17 +81,25 @@ def int_to_nucleotide(number):
         sys.exit()
 
 #----------------------------------------------------------------------------------------                    
-def check_conserved_cysteine(seq, cyst_position):
+def check_conserved_cysteine(seq, cyst_position, debug=False):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
+    if len(seq) < cyst_position+3:
+        print 'ERROR cysteine checker %d %s' % (cyst_position, seq)
+        assert False
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
-        # print 'ERROR cysteine in V is messed up: %s' % cyst_word
+        if debug:
+            print 'ERROR cysteine in V is messed up: %s' % cyst_word
         assert False
-def check_conserved_tryptophan(seq, tryp_position):
+def check_conserved_tryptophan(seq, tryp_position, debug=False):
     """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
+    if len(seq) < tryp_position+3:
+        print 'ERROR tryp checker %d %s' % (tryp_position, seq)
+        assert False
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
-        # print 'ERROR tryptophan in J is messed up: %s' % tryp_word
+        if debug:
+            print 'ERROR tryptophan in J is messed up: %s' % tryp_word
         assert False
 def check_conserved_codons(seq, cyst_position, tryp_position):
     """ Double check that we conserved the cysteine and the tryptophan. """

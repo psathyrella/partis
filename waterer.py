@@ -1,5 +1,7 @@
 import time
 import sys
+import json
+import csv
 import os
 import itertools
 import operator
@@ -17,6 +19,11 @@ class Waterer(object):
         self.pdriver = pdriver
         self.sw_info = {}
         self.gene_choice_probs = utils.read_overall_gene_prob(self.pdriver.datadir + '/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
+        with opener('r')(self.pdriver.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
+            self.cyst_positions = json.load(json_file)
+        with opener('r')(self.pdriver.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
+            tryp_reader = csv.reader(csv_file)
+            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
         outfname = self.pdriver.workdir + '/query-seqs.bam'
         self.run_smith_waterman(outfname)
         self.read_output(outfname)
@@ -83,19 +90,55 @@ class Waterer(object):
         self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds)
 
     # ----------------------------------------------------------------------------------------
+    def get_conserved_codon_position(self, region, gene, glbounds, qrbounds):
+        if region == 'v':
+            gl_cpos = self.cyst_positions[gene]['cysteine-position']  # germline cystein position
+            query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cystein position in query sequence match
+            # print '%d - %d ( + %d ) = %d (%d)' % (gl_cpos, glbounds[0], qrbounds[0], query_cpos, query_cpos + qrbounds[0])
+            return query_cpos
+        elif region == 'j':
+            gl_tpos = int(self.tryp_positions[gene])
+            query_tpos = gl_tpos - glbounds[0]  #+ qrbounds[0]  # NOTE this coordinate is w/ respect to the j query *only*. Adjust below for coord in the whole query sequence
+            query_tpos += qrbounds[0]  # add the length of the v match, and the length of query seq we'll be matching to d
+            return query_tpos
+            # print '%3d %s' % (tpos - glbounds[0], query_match_seq[tpos - glbounds[0]: tpos - glbounds[0] + 3])
+        else:
+            return -1
+
+    # ----------------------------------------------------------------------------------------
+    def check_conserved_codons(self, region, gene, query_name, query_seq, glbounds, qrbounds):
+        codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
+        try:
+            if region == 'v':
+                utils.check_conserved_cysteine(query_seq[:qrbounds[1]], codon_pos, debug=True)  # don't use qrbounds[0] at start of slice so query_cpos is the same for all v matches, even if they don't start at the same place in the query sequence
+            elif region == 'j':
+                codon_pos -= qrbounds[0]  # subtract back of the length of the v match and prospective d match
+                utils.check_conserved_tryptophan(query_seq[qrbounds[0]:qrbounds[1]], codon_pos, debug=True)
+            return True
+        except AssertionError:
+            return False
+
+    # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds):
-        best, match_names = {}, {}
+        best, best_scores, match_names = {}, {}, {}
         n_matches, n_used = {'v':0, 'd':0, 'j':0}, {'v':0, 'd':0, 'j':0}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
         for region in utils.regions:
             all_match_names[region] = sorted(all_match_names[region], reverse=True)
             match_names[region] = []
+        codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         for region in utils.regions:
             for score,gene in all_match_names[region]:
                 n_matches[region] += 1
                 if n_matches[region] > self.pdriver.args.n_max_per_region:  # only take the top few from each region
                     # TODO should use *lots* of d matches, but fewer vs and js
+                    continue
+                glbounds = all_germline_bounds[gene]
+                qrbounds = all_query_bounds[gene]
+                if not self.check_conserved_codons(region, gene, query_name, query_seq, glbounds, qrbounds):  # if conserved cyst or tryp got mutated (or otherwise messed up) skip this match
+                    assert len(match_names[region]) > 0  # but first make sure this is much worse than another match we already have
+                    assert score / best_scores[region] < 1./3  # pull a third out of thin air
                     continue
                 n_used[region] += 1
                 match_names[region].append(gene)
@@ -112,14 +155,22 @@ class Waterer(object):
                 # check consistency with best match (since the best match is excised in s-w code, and because stochhmm is run with *one* k_v k_d set)
                 if region not in best:
                     best[region] = gene
+                    best_scores[region] = score
+
+
+                codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
+                if codon_positions[region] == -1:
+                    codon_positions[region] = codon_pos
+                assert codon_pos == codon_positions[region]
 
                 if self.pdriver.args.debug:
                     buff_str = (17 - len(gene)) * ' '
-                    print '%8s%s%s%6.1e * %2.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.gene_choice_probs[region][gene], score / self.gene_choice_probs[region][gene], score),
-                    glbounds = all_germline_bounds[gene]
-                    qrbounds = all_query_bounds[gene]
-                    print ' %4d%4d   %s' % (glbounds[0], glbounds[1], self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
-                    print '%46s  %4d%4d   %s' % ('', qrbounds[0], qrbounds[1], utils.color_mutants(self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]))
+                    print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.gene_choice_probs[region][gene], score / self.gene_choice_probs[region][gene], score),
+                    print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
+                    print '%48s  %4d%4d   %s' % ('', qrbounds[0], qrbounds[1], utils.color_mutants(self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]))
+
+                glmatchseq = self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
+                assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
                         
         # print how many of the available matches we used
         if self.pdriver.args.debug:
@@ -170,5 +221,8 @@ class Waterer(object):
         self.sw_info[query_name]['k_d_min'] = k_d_min
         self.sw_info[query_name]['k_d_max'] = k_d_max
         self.sw_info[query_name]['v_right_length'] = v_right_length
+        assert codon_positions['v'] != -1
+        assert codon_positions['j'] != -1
+        self.sw_info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         self.sw_info[query_name]['best'] = best
         self.sw_info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
