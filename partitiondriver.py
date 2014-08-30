@@ -76,11 +76,11 @@ class PartitionDriver(object):
         waterer = Waterer(self)
         self.sw_info = waterer.sw_info
 
-        # # cdr3 length partitioning
-        # cdr3_length_clusters = self.cdr3_length_precluster()
+        # cdr3 length partitioning
+        cdr3_length_clusters = self.cdr3_length_precluster()
 
         # hamming preclustering
-        hamming_clusters = self.hamming_precluster()
+        hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
 
         stripped_clusters = None
         if self.args.algorithm == 'forward':
@@ -149,6 +149,28 @@ class PartitionDriver(object):
     #         os.remove(cdr3_length_infname)
 
     # ----------------------------------------------------------------------------------------
+    def cdr3_length_precluster(self, preclusters=None):
+        cdr3lengthfname = self.workdir + '/cdr3lengths.csv'
+        with opener('w')(cdr3lengthfname) as outfile:
+            writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'cdr3_length', 'second_cdr3_length', 'score'))
+            writer.writeheader()
+            for query_name, second_query_name in self.get_pairs(preclusters):
+                cdr3_length = self.sw_info[query_name]['cdr3_length']
+                second_cdr3_length = self.sw_info[second_query_name]['cdr3_length']
+                same_length = cdr3_length == second_cdr3_length
+                if not self.is_data:
+                    assert cdr3_length == int(self.reco_info[query_name]['cdr3_length'])
+                    assert second_cdr3_length == int(self.reco_info[second_query_name]['cdr3_length'])
+                writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'cdr3_length':cdr3_length, 'second_cdr3_length':second_cdr3_length, 'score':int(same_length)})
+                with opener('a')(self.dbgfname) as dbgfile:
+                    dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name, self.from_same_event(query_name, second_query_name), same_length))
+
+        clust = Clusterer(0.5, greater_than=True)  # i.e. cluster together if same_length == True
+        clust.cluster(cdr3lengthfname, debug=False)
+        os.remove(cdr3lengthfname)
+        return clust
+
+    # ----------------------------------------------------------------------------------------
     def get_pairs(self, preclusters=None):
         """ Get all unique the pairs of sequences in input_info, skipping where preclustered out """
         pair_scores = {}
@@ -179,10 +201,6 @@ class PartitionDriver(object):
 
         print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
         return pairs
-
-    # ----------------------------------------------------------------------------------------
-    def cdr3_length_precluster(self):
-        print 'ack!'
 
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self, preclusters=None):
