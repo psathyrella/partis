@@ -214,12 +214,8 @@ class Waterer(object):
 
         assert query_name not in self.sw_info
         self.sw_info[query_name] = {}
-        self.sw_info[query_name]['k_v'] = k_v
-        self.sw_info[query_name]['k_d'] = k_d
-        self.sw_info[query_name]['k_v_min'] = k_v_min
-        self.sw_info[query_name]['k_v_max'] = k_v_max
-        self.sw_info[query_name]['k_d_min'] = k_d_min
-        self.sw_info[query_name]['k_d_max'] = k_d_max
+        self.sw_info[query_name]['k_v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
+        self.sw_info[query_name]['k_d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
         self.sw_info[query_name]['v_right_length'] = v_right_length
         assert codon_positions['v'] != -1
         assert codon_positions['j'] != -1

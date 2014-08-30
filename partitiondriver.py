@@ -83,11 +83,6 @@ class PartitionDriver(object):
         # run smith-waterman
         waterer = Waterer(self)
         self.sw_info = waterer.sw_info
-        # if not self.args.skip_sw:
-        #     self.run_smith_waterman(swoutfname)
-        # else:
-        #     assert False  # doesn't actually work swoutfname = swoutfname.replace(os.path.dirname(swoutfname), '.')
-        # self.read_smith_waterman(swoutfname)  # read sw bam output, collate it, and write to csv for hmm input
 
         # # cdr3 length partitioning
         # cdr3_length_clusters = self.cdr3_length_precluster()
@@ -162,38 +157,65 @@ class PartitionDriver(object):
     #         os.remove(cdr3_length_infname)
 
     # ----------------------------------------------------------------------------------------
-    def hamming_precluster(self):
+    def get_pairs(self, preclusters=None):
+        """ Get all unique the pairs of sequences in input_info, skipping where preclustered out """
+        pair_scores = {}
+        pairs = []
+        n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
+        for query_name in self.input_info:
+            for second_query_name in self.input_info:
+                if second_query_name == query_name:
+                    continue
+                if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
+                    continue
+                pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
+                if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
+                    if query_name not in preclusters.query_clusters or second_query_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
+                        n_singletons += 1
+                        continue
+                    if utils.get_key(query_name, second_query_name) not in preclusters.pairscores:  # preclustered out in a previous preclustering step
+                        n_previously_preclustered += 1
+                        continue
+                    if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:  # not in same cluster
+                        n_preclustered += 1
+                        continue
+                    if preclusters.is_removable(preclusters.pairscores[utils.get_key(query_name, second_query_name)]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
+                        n_removable += 1
+                        continue
+                pairs.append((query_name, second_query_name))
+                n_lines += 1
+
+        print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
+        return pairs
+
+    # ----------------------------------------------------------------------------------------
+    def cdr3_length_precluster(self):
+        print 'ack!'
+
+    # ----------------------------------------------------------------------------------------
+    def hamming_precluster(self, preclusters=None):
         if not self.args.algorithm == 'forward':
             return
         start = time.time()
         print 'hamming clustering'
         hammingfname = self.workdir + '/fractional-hamming-scores.csv'
-        pair_scores = {}
         with opener('w')(hammingfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
             writer.writeheader()
             n_lines = 0
-            for query_name in self.input_info:
-                for second_query_name in self.input_info:
-                    if second_query_name == query_name:
-                        continue
-                    if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
-                        continue
-                    pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
-                    n_lines += 1
-                    query_seq = self.input_info[query_name]['seq']
-                    second_query_seq = self.input_info[second_query_name]['seq']
-                    mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
-                    writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
-                    if self.args.debug:
-                        print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
-                    with opener('a')(self.dbgfname) as dbgfile:
-                        dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name,  self.from_same_event(query_name, second_query_name), mutation_frac))
+            for query_name,second_query_name in self.get_pairs(preclusters):
+                query_seq = self.input_info[query_name]['seq']
+                second_query_seq = self.input_info[second_query_name]['seq']
+                mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
+                writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
+                if self.args.debug:
+                    print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
+                with opener('a')(self.dbgfname) as dbgfile:
+                    dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name,  self.from_same_event(query_name, second_query_name), mutation_frac))
 
         clust = Clusterer(0.5, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
         clust.cluster(hammingfname, debug=False)
         os.remove(hammingfname)
-        print '    %d lines' % n_lines
         print '    hamming time: %.3f' % (time.time()-start)
         return clust
     
@@ -223,69 +245,55 @@ class PartitionDriver(object):
             csvfile.write(' '.join(header) + '\n')
 
             # then write a line for each query sequence (or pair of them)
-            pair_scores = {}
-            n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
-            for query_name in self.input_info:
-                info = self.sw_info[query_name]
+            if self.args.pair:
+                for query_name, second_query_name in self.get_pairs(preclusters):  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
+                    info = self.sw_info[query_name]
+                    second_info = self.sw_info[second_query_name]
+    
+                    # make sure we don't need to rewrite the hmm model files
+                    if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
+                        print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
+                    # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+    
+                    # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
+                    assert len(re.findall('J[123]P', info['best']['j'])) == 0
+    
+                    # TODO the current method of expanding the k space bounds to encompass all the gene matches, and both sequences, is *correct*, but I think it's unnecessarily slow
+                    k_v, k_d = {}, {}
+                    k_v['min'] = min(info['k_v']['min'], second_info['k_v']['min'])
+                    k_v['max'] = max(info['k_v']['max'], second_info['k_v']['max'])
+                    k_d['min'] = min(info['k_d']['min'], second_info['k_d']['min'])
+                    k_d['max'] = max(info['k_d']['max'], second_info['k_d']['max'])
 
-                # make sure we don't need to rewrite the hmm model files
-                if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
-                    print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
-                # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+                    only_genes = info['all']
+                    second_only_genes = second_info['all']
+                    if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
+                        only_genes = info['best']['v'] + ':' + info['best']['d'] + ':' + info['best']['j']
+                        second_only_genes = second_info['best']['v'] + ':' + second_info['best']['d'] + ':' + second_info['best']['j']
+                        k_v['min'] = info['k_v']['best']
+                        k_v['max'] = k_v['min'] + 1
+                        k_d['min'] = info['k_d']['best']
+                        k_d['max'] = k_d['min'] + 1
 
-                # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
-                assert len(re.findall('J[123]P', info['best']['j'])) == 0
-
-                only_genes = info['all']
-                k_v_min = info['k_v_min']
-                k_v_max = info['k_v_max']
-                k_d_min = info['k_d_min']
-                k_d_max = info['k_d_max']
-                if self.args.pair:
-                    for second_query_name in self.input_info:  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
-                        if second_query_name == query_name:
-                            continue
-                        if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
-                            continue
-                        pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
-                        if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
-                            if query_name not in preclusters.query_clusters or second_query_name not in preclusters.query_clusters:  # singletons!
-                                n_singletons += 1
-                                continue
-                            if utils.get_key(query_name, second_query_name) not in preclusters.pairscores:
-                                n_previously_preclustered += 1
-                                continue
-                            if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:  # not in same cluster
-                                n_preclustered += 1
-                                continue
-                            if preclusters.is_removable(preclusters.pairscores[utils.get_key(query_name, second_query_name)]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
-                                n_removable += 1
-                                continue
-
-                        second_info = self.sw_info[second_query_name]
-                        second_only_genes = second_info['all']
-                        # TODO the current method of expanding the k space bounds to encompass all the gene matches, and both sequences, is *correct*, but I think it's unnecessarily slow
-                        k_v_min = min(k_v_min, second_info['k_v_min'])
-                        k_v_max = max(k_v_max, second_info['k_v_max'])
-                        k_d_min = min(k_d_min, second_info['k_d_min'])
-                        k_d_max = max(k_d_max, second_info['k_d_max'])
-                        if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
-                            only_genes = info['best']['v'] + ':' + info['best']['d'] + ':' + info['best']['j']
-                            second_only_genes = second_info['best']['v'] + ':' + second_info['best']['d'] + ':' + second_info['best']['j']
-                            k_v_min = info['k_v']
-                            k_v_max = k_v_min + 1
-                            k_d_min = info['k_d']
-                            k_d_max = k_d_min + 1
-
-                        only_genes = ':'.join(set(only_genes.split(':')) | set(second_only_genes.split(':')))  # NOTE using both sets of genes (from both query seqs) like this *really* helps, 
-                        n_lines += 1
-                        csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
-                                      (query_name, second_query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes,
-                                       self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
-                else:
+                    only_genes = ':'.join(set(only_genes.split(':')) | set(second_only_genes.split(':')))  # NOTE using both sets of genes (from both query seqs) like this *really* helps, 
+                    csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
+                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], only_genes,
+                                   self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
+            else:
+                for query_name in self.input_info:
+                    info = self.sw_info[query_name]
+    
+                    # make sure we don't need to rewrite the hmm model files
+                    if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
+                        print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
+                    # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+    
+                    # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
+                    assert len(re.findall('J[123]P', info['best']['j'])) == 0
+    
+                    only_genes = info['all']
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
-                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, k_v_min, k_v_max, k_d_min, k_d_max, only_genes, self.input_info[query_name]['seq']))
-        print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
+                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], only_genes, self.input_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
     def run_stochhmm(self, csv_infname, csv_outfname):
