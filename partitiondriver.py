@@ -1,14 +1,8 @@
 import time
 import sys
 import os
-import math
 import csv
 import re
-import itertools
-import StringIO
-import operator
-import pysam
-import contextlib
 from subprocess import Popen, check_call, PIPE
 
 import_start = time.time()
@@ -56,7 +50,6 @@ class PartitionDriver(object):
     def read_input_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
         with opener('r')(self.args.simfile) as simfile:
-            last_reco_id = -1  # only run on the first seq in each reco event. they're all pretty similar
             reader = csv.DictReader(simfile)
             n_queries = 0
             for line in reader:
@@ -69,7 +62,6 @@ class PartitionDriver(object):
                 self.input_info[line['unique_id']] = {'unique_id':line['unique_id'], 'seq':line['seq']}
                 if not self.is_data:
                     self.reco_info[line['unique_id']] = line
-                last_reco_id = line['reco_id']
                 n_queries += 1
                 if self.args.n_total_queries > 0 and n_queries >= self.args.n_total_queries:
                     break
@@ -101,12 +93,12 @@ class PartitionDriver(object):
                 dbgfile.write('stripped hmm\n')
             self.write_hmm_input(stripped_hmm_csv_infname, preclusters=hamming_clusters, stripped=True)
             self.run_stochhmm(stripped_hmm_csv_infname, stripped_hmm_csv_outfname)
-            self.read_hmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname);
+            self.read_hmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname)
             stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
             stripped_clusters.cluster(stripped_pairscorefname, debug=False, reco_info=self.reco_info)
             for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
                 if query_name not in stripped_clusters.query_clusters:
-                    print '    singleton ',query_name
+                    print '    singleton ', query_name
             if not self.args.no_clean:
                 os.remove(stripped_hmm_csv_infname)
                 os.remove(stripped_hmm_csv_outfname)
@@ -120,13 +112,13 @@ class PartitionDriver(object):
             dbgfile.write('hmm\n')
         self.write_hmm_input(hmm_csv_infname, preclusters=stripped_clusters)
         self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
-        self.read_hmm_output(hmm_csv_outfname, pairscorefname);
+        self.read_hmm_output(hmm_csv_outfname, pairscorefname)
 
         clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
         clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
         for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
             if query_name not in clusters.query_clusters:
-                print '    singleton ',query_name
+                print '    singleton ', query_name
 
         if not self.args.no_clean:
             os.remove(hmm_csv_infname)
@@ -202,8 +194,7 @@ class PartitionDriver(object):
         with opener('w')(hammingfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
             writer.writeheader()
-            n_lines = 0
-            for query_name,second_query_name in self.get_pairs(preclusters):
+            for query_name, second_query_name in self.get_pairs(preclusters):
                 query_seq = self.input_info[query_name]['seq']
                 second_query_seq = self.input_info[second_query_name]['seq']
                 mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
