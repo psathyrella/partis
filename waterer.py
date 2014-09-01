@@ -157,17 +157,18 @@ class Waterer(object):
                     best[region] = gene
                     best_scores[region] = score
 
-
-                codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
-                if codon_positions[region] == -1:
-                    codon_positions[region] = codon_pos
-                assert codon_pos == codon_positions[region]
-
                 if self.pdriver.args.debug:
                     buff_str = (17 - len(gene)) * ' '
                     print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.gene_choice_probs[region][gene], score / self.gene_choice_probs[region][gene], score),
                     print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
                     print '%48s  %4d%4d   %s' % ('', qrbounds[0], qrbounds[1], utils.color_mutants(self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]))
+
+                codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
+                if codon_positions[region] == -1:
+                    codon_positions[region] = codon_pos
+                if codon_pos != codon_positions[region]:
+                    print codon_pos,codon_positions[region],query_name
+                assert codon_pos == codon_positions[region]
 
                 glmatchseq = self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                 assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
