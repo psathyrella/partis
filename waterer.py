@@ -218,8 +218,35 @@ class Waterer(object):
         self.sw_info[query_name]['k_v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         self.sw_info[query_name]['k_d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
         self.sw_info[query_name]['v_right_length'] = v_right_length
+        self.sw_info[query_name]['best'] = best
+        self.sw_info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
+
         assert codon_positions['v'] != -1
         assert codon_positions['j'] != -1
         self.sw_info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
-        self.sw_info[query_name]['best'] = best
-        self.sw_info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
+        # erosion, insertion, mutation info for best match
+        self.sw_info[query_name]['v_3p_del'] = len(self.pdriver.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
+        self.sw_info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
+        self.sw_info[query_name]['d_3p_del'] = len(self.pdriver.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
+        self.sw_info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
+        self.sw_info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
+        self.sw_info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+        # tmp_line = {}
+        # tmp_line['seq'] = query_seq
+        # for region in utils.regions:
+        #     tmp_line[region + '_gene'] = best[region]
+        # tmp_line['v_3p_del'] = self.sw_info[query_name]['v_3p_del']
+        # tmp_line['d_5p_del'] = self.sw_info[query_name]['d_5p_del']
+        # tmp_line['d_3p_del'] = self.sw_info[query_name]['d_3p_del']
+        # tmp_line['j_5p_del'] = self.sw_info[query_name]['j_5p_del']
+        # tmp_line['vd_insertion'] = self.sw_info[query_name]['vd_insertion']
+        # tmp_line['dj_insertion'] = self.sw_info[query_name]['dj_insertion']
+        
+        # utils.print_reco_event(self.pdriver.germline_seqs, self.pdriver.reco_info[query_name], 0, 0, extra_str='    ')
+        # utils.print_reco_event(self.pdriver.germline_seqs, tmp_line, 0, 0, extra_str='    ')
+ 
+
+
+
+
+

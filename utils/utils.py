@@ -190,7 +190,8 @@ def find_tryp_in_joined_seq(tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_i
 # ----------------------------------------------------------------------------------------
 Colors = {}
 Colors['head'] = '\033[95m'
-Colors["purple"] = '\033[95m'
+Colors['bold'] = '\033[1m'
+Colors['purple'] = '\033[95m'
 Colors['blue'] = '\033[94m'
 Colors['green'] = '\033[92m'
 Colors['yellow'] = '\033[93m'
@@ -217,15 +218,15 @@ def color_mutants(ref_seq, seq, print_result=False):
 
 # ----------------------------------------------------------------------------------------
 def color_gene(gene):
-    return_str = gene[:3] + color('purple', gene[3])
+    return_str = gene[:3] + color('bold', color('red', gene[3])) + ' '  # add a space after
     n_version = gene[4 : gene.find('-')]
     n_subversion = gene[gene.find('-')+1 : gene.find('*')]
     if get_region(gene) == 'j':
         n_version = gene[4 : gene.find('*')]
         n_subversion = ''
-        return_str += color('red', n_version)
+        return_str += color('purple', n_version)
     else:
-        return_str += color('red', n_version) + '-' + color('red', n_subversion)
+        return_str += color('purple', n_version) + '-' + color('purple', n_subversion)
 
     allele_end = gene.find('_')
     if allele_end < 0:
@@ -234,6 +235,10 @@ def color_gene(gene):
     return_str += '*' + color('yellow', allele)
     if '_' in gene:  # _F or _P in j gene names
         return_str += gene[gene.find('_') :]
+
+    # hm, how about without all the crap in it?
+    return_str = return_str.replace('IGH','  ')
+    return_str = return_str.replace('*',' ')
     return return_str
 
 # ----------------------------------------------------------------------------------------
