@@ -11,6 +11,7 @@ from subprocess import check_call
 
 from utils import utils
 from utils.opener import opener
+from parametercounter import ParameterCounter
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
@@ -18,6 +19,7 @@ class Waterer(object):
     def __init__(self, pdriver):
         self.pdriver = pdriver
         self.sw_info = {}
+        self.pcounter = ParameterCounter()
         self.gene_choice_probs = utils.read_overall_gene_prob(self.pdriver.datadir + '/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
         with opener('r')(self.pdriver.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -231,6 +233,10 @@ class Waterer(object):
         self.sw_info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
         self.sw_info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
         self.sw_info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+
+        for region in utils.regions:
+            self.sw_info[query_name][region + '_gene'] = best[region]
+        self.pcounter.increment(self.sw_info[query_name])
         # tmp_line = {}
         # tmp_line['seq'] = query_seq
         # for region in utils.regions:
