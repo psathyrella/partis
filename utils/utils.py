@@ -52,7 +52,7 @@ for column,deps in column_dependencies.iteritems():
     column_dependency_tuples.append(tuple(tmp_list))
 column_dependency_tuples.append(index_columns)
 
-def get_prob_fname_tuple(columns):
+def get_prob_fname_tuple(columns):  # TODO doesn't return a tuple... why'd I name it that?
     outfname = 'probs.csv.bz2'
     for ic in columns:
         outfname = ic + '-' + outfname

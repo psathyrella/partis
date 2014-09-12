@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+import os
+import csv
+import sys
 from utils import utils
+from utils.opener import opener
 
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
@@ -7,6 +11,7 @@ class ParameterCounter(object):
     def __init__(self):
         self.total = 0
         self.counts = {}
+        self.base_outdir = 'data'
         for column in utils.column_dependencies:
             self.counts[column] = {}
 
@@ -36,3 +41,25 @@ class ParameterCounter(object):
                     return_str.append('%20s' % str(val))
                 return_str.append('   %d / %d = %f\n' % (count, self.total, float(count) / self.total))
         return ''.join(return_str)
+
+    # ----------------------------------------------------------------------------------------
+    def write_counts(self):
+        for column in self.counts:
+            index_columns = [column,] + utils.column_dependencies[column]
+            outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)
+            if os.path.isfile(outfname):
+                os.remove(outfname)
+            elif not os.path.exists(self.base_outdir):
+                os.makedirs(self.base_outdir)
+            with opener('w')(outfname) as outfile:
+                out_fieldnames = index_columns
+                out_fieldnames.append('count')
+                out_data = csv.DictWriter(outfile, out_fieldnames)
+                out_data.writeheader()
+                # NOTE this will in general not be sorted
+                for index, count in self.counts[column].iteritems():
+                    line = {}
+                    for ic in range(len(index)):
+                        line[index_columns[ic]] = index[ic]
+                    line['count'] = count
+                    out_data.writerow(line)

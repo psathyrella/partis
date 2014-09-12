@@ -75,7 +75,8 @@ class PartitionDriver(object):
         # run smith-waterman
         waterer = Waterer(self)
         self.sw_info = waterer.sw_info
-        print waterer.pcounter
+        waterer.pcounter.write_counts()
+        # print waterer.pcounter
         sys.exit()
 
         # cdr3 length partitioning
