@@ -8,10 +8,10 @@ from utils.opener import opener
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self):
+    def __init__(self, base_outdir):
         self.total = 0
         self.counts = {}
-        self.base_outdir = 'data'
+        self.base_outdir = base_outdir
         for column in utils.column_dependencies:
             self.counts[column] = {}
 

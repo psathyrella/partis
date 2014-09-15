@@ -18,21 +18,22 @@
         (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
 
   - low priority
-  - optimization
-    - hmm structure optimization
-      - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
-      - implement banding? I think I have this listed below but without using the word 'banding'
-    - try pairwise s-w for preclustering (all against all -- align against each *other* using sw)
-    - blast instead of s-w?
-    - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences (EDIT wait, what?)
-    - alleles: save chunks of dp tables and reuse \'em
-  - accuracy improvement
-    - play around with s-w match/mismatch scores (match was 3[:1], just changed to 2[:1]... not sure what\'s best. It\'ll depend on the expected level of mutation. *sigh*)
-    - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
-      - so try to use the amount of mutation in v to inform this decision (?)
-      - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
-  - wait, what is stochhmm doing with the 'N's?
-  - add bfloats to stochhmm?
+    - rewrite parsing code/text files with http://www.yaml.org/
+    - optimization
+      - hmm structure optimization
+        - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
+        - implement banding? I think I have this listed below but without using the word 'banding'
+      - try pairwise s-w for preclustering (all against all -- align against each *other* using sw)
+      - blast instead of s-w?
+      - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences (EDIT wait, what?)
+      - alleles: save chunks of dp tables and reuse \'em
+    - accuracy improvement
+      - play around with s-w match/mismatch scores (match was 3[:1], just changed to 2[:1]... not sure what\'s best. It\'ll depend on the expected level of mutation. *sigh*)
+      - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
+        - so try to use the amount of mutation in v to inform this decision (?)
+        - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
+    - wait, what is stochhmm doing with the 'N's?
+    - add bfloats to stochhmm?
 
 
 # ----------------------------------------------------------------------------------------

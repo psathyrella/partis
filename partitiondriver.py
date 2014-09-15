@@ -1,5 +1,6 @@
 import time
 import sys
+import json
 import os
 import csv
 import re
@@ -20,6 +21,7 @@ class PartitionDriver(object):
         self.datadir = datadir
         self.stochhmm_dir = stochhmm_dir
         self.args = args
+        self.parameter_dir = 'data'
         self.germline_seqs = utils.read_germlines(self.datadir)
         self.workdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())  # use a tmp dir specific to this process for the hmm input file
         self.dbgfname = self.workdir + '/dbg.txt'
@@ -32,6 +34,12 @@ class PartitionDriver(object):
         self.default_v_right_length = default_v_right_length
         self.precluster_info = {}
         self.match_names_for_all_queries = set()
+
+        with opener('r')(self.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
+            self.cyst_positions = json.load(json_file)
+        with opener('r')(self.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
+            tryp_reader = csv.reader(csv_file)
+            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         self.is_data = False  # data or simulation
         self.input_info = {}
@@ -73,14 +81,18 @@ class PartitionDriver(object):
             dbgfile.write('hamming\n')
 
         # run smith-waterman
-        waterer = Waterer(self)
+        waterer = Waterer(self, bootstrap=False)
         self.sw_info = waterer.sw_info
-        waterer.pcounter.write_counts()
+        # waterer.pcounter.write_counts()
+        # assert False  # TODO check bootstrap thingy above
         # print waterer.pcounter
-        sys.exit()
+        # sys.exit()
 
         # cdr3 length partitioning
-        cdr3_length_clusters = self.cdr3_length_precluster()
+        cdr3_length_clusters = None
+        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths. TODO fix that
+        if cdr3_cluster:
+            cdr3_length_clusters = self.cdr3_length_precluster()
 
         # hamming preclustering
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
@@ -163,7 +175,9 @@ class PartitionDriver(object):
                 same_length = cdr3_length == second_cdr3_length
                 if not self.is_data:
                     assert cdr3_length == int(self.reco_info[query_name]['cdr3_length'])
-                    assert second_cdr3_length == int(self.reco_info[second_query_name]['cdr3_length'])
+                    if second_cdr3_length != int(self.reco_info[second_query_name]['cdr3_length']):
+                        print 'WARNING did not infer correct cdr3 length'
+                        assert False
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'cdr3_length':cdr3_length, 'second_cdr3_length':second_cdr3_length, 'score':int(same_length)})
                 with opener('a')(self.dbgfname) as dbgfile:
                     dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name, self.from_same_event(query_name, second_query_name), same_length))
@@ -240,7 +254,7 @@ class PartitionDriver(object):
             if 'OR16' in gene or 'OR21' in gene or 'V3/OR15' in gene:
                 print '  poof'
                 continue
-            writer = HmmWriter(self.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
+            writer = HmmWriter(self.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
                                hmmdir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
             writer.write()
 
@@ -362,7 +376,9 @@ class PartitionDriver(object):
                     if last_id != utils.get_key(line['unique_id'], line['second_unique_id']):
                         print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], self.from_same_event(line['unique_id'], line['second_unique_id']))
                         print '    true:'
-                        utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], 0, 0, extra_str='    ')
+                        cpos = self.cyst_positions[self.reco_info[line['unique_id']]['v_gene']]['cysteine-position']
+                        # TODO fix this, i.e. figure out the number to add to it so it's correct: tpos = int(self.tryp_positions[self.reco_info[line['unique_id']]['j_gene']]) + 
+                        utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], cpos, 0, extra_str='    ')
                         if self.args.pair:
                             # print '      and maybe'
                             utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, self.from_same_event(line['unique_id'], line['second_unique_id']), '    ')

@@ -80,31 +80,40 @@ def int_to_nucleotide(number):
         print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
 
-#----------------------------------------------------------------------------------------                    
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------                    
 def check_conserved_cysteine(seq, cyst_position, debug=False):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     if len(seq) < cyst_position+3:
-        print 'ERROR cysteine checker %d %s' % (cyst_position, seq)
+        if debug:
+            print 'ERROR cysteine checker %d %s' % (cyst_position, seq)
         assert False
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
         if debug:
             print 'ERROR cysteine in V is messed up: %s' % cyst_word
         assert False
+
+# ----------------------------------------------------------------------------------------
 def check_conserved_tryptophan(seq, tryp_position, debug=False):
     """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
     if len(seq) < tryp_position+3:
-        print 'ERROR tryp checker %d %s' % (tryp_position, seq)
+        if debug:
+            print 'ERROR tryp checker %d %s' % (tryp_position, seq)
         assert False
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
         if debug:
             print 'ERROR tryptophan in J is messed up: %s' % tryp_word
         assert False
+
+# ----------------------------------------------------------------------------------------
 def check_conserved_codons(seq, cyst_position, tryp_position):
     """ Double check that we conserved the cysteine and the tryptophan. """
     check_conserved_cysteine(seq, cyst_position)
     check_conserved_tryptophan(seq, tryp_position)
+
+# ----------------------------------------------------------------------------------------
 def are_conserved_codons_screwed_up(reco_event):
     """ Version that checks all the final seqs in reco_event.
 
@@ -311,11 +320,13 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
                         ilocal -= len(line['dj_insertion'])
                         new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
 
-        if cyst_position > 0 and final_tryp_position > 0:
-            if inuke == cyst_position or inuke == final_tryp_position:
-                new_nuke = '\033[7m' + new_nuke
-            elif inuke == cyst_position + 2 or inuke == final_tryp_position + 2:
-                new_nuke = new_nuke + '\033[m'
+        for pos in (cyst_position, final_tryp_position):  # reverse video for the conserved codon positions
+            if pos > 0:
+                adjusted_pos = pos - line['v_5p_del']  # adjust positions to allow for reads not extending all the way to left side of v
+                if inuke == adjusted_pos:
+                    new_nuke = '\033[7m' + new_nuke
+                elif inuke == adjusted_pos + 2:
+                    new_nuke = new_nuke + '\033[m'
         final_seq += new_nuke
 
     # pad with dots
