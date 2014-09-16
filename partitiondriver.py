@@ -21,7 +21,8 @@ class PartitionDriver(object):
         self.datadir = datadir
         self.stochhmm_dir = stochhmm_dir
         self.args = args
-        self.parameter_dir = 'data'
+        # self.parameter_dir = 'data'
+        self.parameter_dir = 'data'  #'recombinator/data'
         self.germline_seqs = utils.read_germlines(self.datadir)
         self.workdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())  # use a tmp dir specific to this process for the hmm input file
         self.dbgfname = self.workdir + '/dbg.txt'
@@ -83,10 +84,10 @@ class PartitionDriver(object):
         # run smith-waterman
         waterer = Waterer(self, bootstrap=False)
         self.sw_info = waterer.sw_info
-        # waterer.pcounter.write_counts()
+        waterer.pcounter.write_counts()
         # assert False  # TODO check bootstrap thingy above
         # print waterer.pcounter
-        # sys.exit()
+        sys.exit()
 
         # cdr3 length partitioning
         cdr3_length_clusters = None
@@ -246,8 +247,11 @@ class PartitionDriver(object):
         return clust
     
     # ----------------------------------------------------------------------------------------
-    def write_specified_hmms(self, hmmdir, gene_list, v_right_length):
+    def write_specified_hmms(self, gene_list, v_right_length):
+        hmm_dir = self.default_hmm_dir
+        utils.prep_dir(hmm_dir, '*.hmm')
         for gene in gene_list:
+            print gene
             if len(re.findall('J[123]P', gene)) > 0:  # pretty sure these versions are crap
                 print '  poof'
                 continue
@@ -255,13 +259,13 @@ class PartitionDriver(object):
                 print '  poof'
                 continue
             writer = HmmWriter(self.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
-                               hmmdir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
+                               hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
             writer.write()
 
     # ----------------------------------------------------------------------------------------
     def write_all_hmms(self, v_right_length):
         for region in utils.regions:
-            self.write_specified_hmms(self.default_hmm_dir, self.germline_seqs[region], v_right_length)
+            self.write_specified_hmms(self.germline_seqs[region], v_right_length)
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps

@@ -4,28 +4,33 @@ import csv
 import sys
 from utils import utils
 from utils.opener import opener
+from mutefreqer import MuteFreqer
 
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, base_outdir):
+    def __init__(self, pdriver, base_outdir):
+        self.pdriver = pdriver
         self.total = 0
         self.counts = {}
         self.base_outdir = base_outdir
+        utils.prep_dir(self.base_outdir, '*.csv.bz2')
         for column in utils.column_dependencies:
             self.counts[column] = {}
+        self.mutefreqer = MuteFreqer(self.base_outdir, os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety, self.pdriver.germline_seqs)
 
     # ----------------------------------------------------------------------------------------
-    def increment(self, params):
+    def increment(self, info, gl_match):
         self.total += 1
         for deps in utils.column_dependency_tuples:
             if deps == utils.index_columns:
                 continue
             column = deps[0]
-            index = tuple(params[ic] for ic in deps)
-            if index not in self.counts[column]:  # duplicates are either from non-sensical 'v_5p_del' and 'j_3p_del' erosions or from the splitting of patient A's naive cells into two batches
+            index = tuple(info[ic] for ic in deps)
+            if index not in self.counts[column]:
                 self.counts[column][index] = 0
             self.counts[column][index] += 1
+        self.mutefreqer.increment(info, gl_match)
 
     # ----------------------------------------------------------------------------------------
     def __str__(self):
@@ -44,6 +49,7 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):
+        self.mutefreqer.write(self.base_outdir)
         for column in self.counts:
             index_columns = [column,] + utils.column_dependencies[column]
             outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)

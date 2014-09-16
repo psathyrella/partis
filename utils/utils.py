@@ -2,7 +2,9 @@
 require member variables. """
 
 import sys
+import os
 import math
+import glob
 import collections
 import csv
 from opener import opener
@@ -473,3 +475,12 @@ def get_key(query_name, second_query_name):
     if second_query_name == '':
         second_query_name = '0'
     return '.'.join(sorted([query_name, second_query_name]))
+
+# ----------------------------------------------------------------------------------------
+def prep_dir(dirname, wildling):
+    if os.path.exists(dirname):
+        for fname in glob.glob(dirname + '/' + wildling):
+            os.remove(fname)
+    else:
+        os.makedirs(dirname)
+    assert len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) == 0  # make sure there's no other files in the dir

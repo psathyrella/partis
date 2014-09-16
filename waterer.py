@@ -18,7 +18,7 @@ class Waterer(object):
     def __init__(self, pdriver, bootstrap):
         self.pdriver = pdriver
         self.sw_info = {}
-        self.pcounter = ParameterCounter('data/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
+        self.pcounter = ParameterCounter(self.pdriver, 'data/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
         self.bootstrap = bootstrap  # bootsrap=True if we *don't* have any parameters to start with, i.e. we don't yet know anything about this data. The main effect of bootsrap=True is that gene_choice_probs will *not* be applied (since we of course don't know them)
         if not self.bootstrap:
             self.gene_choice_probs = utils.read_overall_gene_prob(self.pdriver.datadir + '/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
@@ -138,7 +138,8 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds):
-        best, best_scores, match_names = {}, {}, {}
+        # best_scores = {}
+        best, match_names = {}, {}
         n_matches, n_used, n_skipped = {'v':0, 'd':0, 'j':0}, {'v':0, 'd':0, 'j':0}, {'v':0, 'd':0, 'j':0}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
@@ -191,7 +192,9 @@ class Waterer(object):
                 # check consistency with best match (since the best match is excised in s-w code, and because stochhmm is run with *one* k_v k_d set)
                 if region not in best:
                     best[region] = gene
-                    best_scores[region] = score
+                    best[region + '_gl_seq'] = self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
+                    best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
+                    # best_scores[region] = score
 
                 glmatchseq = self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                 assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
@@ -260,7 +263,7 @@ class Waterer(object):
 
         for region in utils.regions:
             self.sw_info[query_name][region + '_gene'] = best[region]
-        self.pcounter.increment(self.sw_info[query_name])
+        self.pcounter.increment(self.sw_info[query_name], best)
         # tmp_line = {}
         # tmp_line['seq'] = query_seq
         # for region in utils.regions:

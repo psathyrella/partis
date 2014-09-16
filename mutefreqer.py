@@ -2,17 +2,18 @@
 
 import sys
 import os
+from subprocess import check_call
 import csv
 import math
 sys.argv.append('-b')
 from ROOT import TH1F, TCanvas, kRed, gROOT, TLine
-gROOT.Macro("plotting/root/MitStyleRemix.cc+")
+gROOT.Macro("plotting/MitStyleRemix.cc+")
 from scipy.stats import beta
-from opener import opener
-import utils
 
-# TODO read versions from reference file to check
+from utils import utils
+from utils.opener import opener
 
+# ----------------------------------------------------------------------------------------
 def fraction_uncertainty(obs, total):
     """ Return uncertainty on the ratio n / total """
     assert obs <= total
@@ -28,85 +29,83 @@ def fraction_uncertainty(obs, total):
         hi = 1.
     return (lo,hi)
 
-class MuteFreqReader(object):
-    def __init__(self, inputdir, human, naivety, imax=-1):
-        self.human = human
-        self.naivety = naivety
-        self.freqs = {}
-        infname = inputdir + '/' + self.human + '/' + self.naivety + '/mute-counts.csv.bz2'
-        print ' opening ',infname
-        with opener('r')(infname) as infile:
-            reader = csv.DictReader(infile)
-            il = 0
-            for line in reader:
-                il += 1
-                assert line['subject'] == self.human
-                gene_name = line['reference']
-                if gene_name not in self.freqs:
-                    self.freqs[gene_name] = {}
-                assert utils.maturity_to_naivety(line['subset']) == self.naivety
-                position = int(line['position'])
-                assert position not in self.freqs[gene_name]
-                self.freqs[gene_name][position] = {}
-                self.freqs[gene_name][position]['ref'] = line['ref_base']
-                self.freqs[gene_name][position]['n_reads'] = int(line['n_reads'])
-                # assert line['N'] == ''
-                for nuke in utils.nukes:
-                    self.freqs[gene_name][position][nuke] = float(line[nuke]) / int(line['n_reads'])
-                if imax > 0 and il > imax:
-                    break
+# ----------------------------------------------------------------------------------------
+class MuteFreqer(object):
+    def __init__(self, base_outdir, base_plotdir, germline_seqs):
+        self.outdir = base_outdir + '/mute-freqs'
+        self.plotdir = base_plotdir + '/mute-freqs/plots'
+        utils.prep_dir(self.outdir, '*.csv.bz2')
+        utils.prep_dir(self.plotdir, '*.png')
+        self.germline_seqs = germline_seqs
+        self.counts = {}
     
-    def write_freqs(self, baseplotdir, baseoutdir, total_frequency=True, only_gene_name='', calculate_uncertainty=True):
+    # ----------------------------------------------------------------------------------------
+    def increment(self, info, gl_match):
+        assert 'v_5p_del' not in info  # TODO use a better method of getting v_5p and j_3p
+        info['v_5p_del'] = self.germline_seqs['v'][gl_match['v']].find(gl_match['v_gl_seq'])
+        for region in utils.regions:
+            if gl_match[region] not in self.counts:
+                self.counts[gl_match[region]] = {}
+            mute_counts = self.counts[gl_match[region]]  # temporary variable to avoid long dict access
+            germline_seq = gl_match[region + '_gl_seq']
+            query_seq = gl_match[region + '_qr_seq']
+            assert len(germline_seq) == len(query_seq)
+            for inuke in range(len(germline_seq)):
+                i_germline = inuke + info[region + '_5p_del']  # account for left-side deletions in the indexing
+                if i_germline not in mute_counts:  # if we have not yet observed this position in a query sequence, initialize it
+                    mute_counts[i_germline] = {'A':0, 'C':0, 'G':0, 'T':0, 'total':0, 'gl_nuke':germline_seq[inuke]}
+                mute_counts[i_germline]['total'] += 1
+                mute_counts[i_germline][query_seq[inuke]] += 1
+
+    # ----------------------------------------------------------------------------------------
+    def write(self, calculate_uncertainty=True):
         cvn = TCanvas("cvn", "", 1700, 600)
-        for gene_name in self.freqs:
-            if only_gene_name != '' and gene_name != only_gene_name:
-                continue
-            print '  %-20s' % (gene_name)
-            mute_freqs = self.freqs[gene_name]
-            sorted_positions = sorted(mute_freqs)
+        for gene in self.counts:
+            print '  %-20s' % (gene)
+            mute_counts = self.counts[gene]
+            sorted_positions = sorted(mute_counts)
 
             # calculate mute freq and its uncertainty
             for position in sorted_positions:
+                # sum over A,C,G,T (TODO don't sum over them)
                 n_conserved, n_mutated = 0, 0
-                total = mute_freqs[position]['n_reads']
                 for nuke in utils.nukes:
-                    obs = int(round(mute_freqs[position][nuke] * total))
-                    if nuke == mute_freqs[position]['ref']:
-                        n_conserved += obs
+                    if nuke == mute_counts[position]['gl_nuke']:
+                        n_conserved += mute_counts[position][nuke]
                     else:
-                        n_mutated += obs
+                        n_mutated += mute_counts[position][nuke]
                     # uncert = fraction_uncertainty(obs, total)  # uncertainty for each nuke
-                assert n_mutated + n_conserved == total
-                mute_freqs[position]['mute_freq'] = float(n_mutated) / total
+                mute_counts[position]['freq'] = float(n_mutated) / mute_counts[position]['total']
                 mutated_fraction_err = (0.0, 0.0)
                 if calculate_uncertainty:  # it's kinda slow
-                    mutated_fraction_err = fraction_uncertainty(n_mutated, total)
-                mute_freqs[position]['mute_freq_lo_err'] = mutated_fraction_err[0]
-                mute_freqs[position]['mute_freq_hi_err'] = mutated_fraction_err[1]
+                    mutated_fraction_err = fraction_uncertainty(n_mutated, mute_counts[position]['total'])
+                mute_counts[position]['freq_lo_err'] = mutated_fraction_err[0]
+                mute_counts[position]['freq_hi_err'] = mutated_fraction_err[1]
+
+
+            # TODO there's kind of starting to be a lot of differenct scripts producing inputs for recombinator. I should unify them
 
             # write to csv
-            outdir = baseoutdir + '/' + self.human + '/' + self.naivety + '/mute-freqs'
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
-            outfname = outdir +  '/' + utils.sanitize_name(gene_name) + '.csv'
-            # TODO there's kind of starting to be a lot of differenct scripts producing inputs for recombinator. I should unify them
-            with opener('w')(outfname) as outfile:  # write out mutation freqs for use by recombinator
-                outfile.write('position,mute_freq,lo_err,hi_err\n')
+            outfname = self.outdir + '/' + utils.sanitize_name(gene) + '.csv'
+            with opener('w')(outfname) as outfile:
+                writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err'))
+                writer.writeheader()
                 for position in sorted_positions:
-                    outfile.write('%d,%f,%f,%f\n' % (position, mute_freqs[position]['mute_freq'], mute_freqs[position]['mute_freq_lo_err'],mute_freqs[position]['mute_freq_hi_err']))
+                    row = {'position':position, 'mute_freq':mute_counts[position]['freq'], 'lo_err':mute_counts[position]['freq_lo_err'], 'hi_err':mute_counts[position]['freq_hi_err']}
+                    writer.writerow(row)
                 
             # and make a plot
-            hist = TH1F('hist_' + utils.sanitize_name(gene_name), '',
+            hist = TH1F('hist_' + utils.sanitize_name(gene), '',
                         sorted_positions[-1] - sorted_positions[0] + 1,
                         sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
             lo_err_hist = TH1F(hist)
             hi_err_hist = TH1F(hist)
             for position in sorted_positions:
-                hist.SetBinContent(hist.FindBin(position), mute_freqs[position]['mute_freq'])
-                lo_err_hist.SetBinContent(hist.FindBin(position), mute_freqs[position]['mute_freq_lo_err'])
-                hi_err_hist.SetBinContent(hist.FindBin(position), mute_freqs[position]['mute_freq_hi_err'])
+                hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq'])
+                lo_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_lo_err'])
+                hi_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_hi_err'])
             hframe = TH1F(hist)
-            hframe.SetTitle(gene_name + ';;')
+            hframe.SetTitle(gene + ';;')
             hframe.Reset()
             hframe.SetMinimum(lo_err_hist.GetMinimum() - 0.03)
             hframe.SetMaximum(1.1*hi_err_hist.GetMaximum())
@@ -124,16 +123,7 @@ class MuteFreqReader(object):
             hi_err_hist.SetMarkerStyle(23)
             lo_err_hist.Draw('p same')
             hi_err_hist.Draw('p same')
-            plotdir = baseplotdir + '/' + self.human + '/' + self.naivety + '/plots'
-            if not os.path.exists(plotdir):
-                os.makedirs(plotdir)
-            outfname = plotdir + '/' + utils.sanitize_name(gene_name) + '.png'
-            cvn.SaveAs(outfname)
+            plotfname = self.plotdir + '/' + utils.sanitize_name(gene) + '.png'
+            check_call(['./permissify-www', self.plotdir])  # shell script that 
+            cvn.SaveAs(plotfname)
 
-if __name__ == "__main__":
-    recombinator_dir = '/home/dralph/Dropbox/work/recombinator'
-    human = 'C'
-    naivety = 'M'
-    mfr = MuteFreqReader(recombinator_dir+ '/data/human-beings', human, naivety)
-    mfr.write_freqs(os.getenv('PWD').replace('/home/dralph/Dropbox', os.getenv('www')),
-                    recombinator_dir + '/data/human-beings')
