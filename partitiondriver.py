@@ -21,8 +21,6 @@ class PartitionDriver(object):
         self.datadir = datadir
         self.stochhmm_dir = stochhmm_dir
         self.args = args
-        # self.parameter_dir = 'data'
-        self.parameter_dir = 'data'  #'recombinator/data'
         self.germline_seqs = utils.read_germlines(self.datadir)
         self.workdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())  # use a tmp dir specific to this process for the hmm input file
         self.dbgfname = self.workdir + '/dbg.txt'
@@ -42,11 +40,10 @@ class PartitionDriver(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
-        self.is_data = False  # data or simulation
         self.input_info = {}
         self.reco_info = {}  # generator truth information
         self.read_input_file()  # read simulation info and write sw input file
-        self.sw_info = {}
+        self.waterer = None
 
     # ----------------------------------------------------------------------------------------
     def from_same_event(self, query_name, second_query_name):
@@ -58,18 +55,27 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_input_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
-        with opener('r')(self.args.simfile) as simfile:
-            reader = csv.DictReader(simfile)
+        with opener('r')(self.args.seqfile) as seqfile:
+            delimiter = ','
+            name_column = 'unique_id'
+            seq_column = 'seq'
+            n_nukes_skip = 0  # skip all the TTTTTTTTs in data. TODO er that seems hackey doesn't it?
+            if '.tsv.' in self.args.seqfile:
+                delimiter = '\t'
+                name_column = 'name'
+                seq_column = 'nucleotide'
+                n_nukes_skip = 9
+            reader = csv.DictReader(seqfile, delimiter=delimiter)
             n_queries = 0
             for line in reader:
                 # if command line specified query or reco ids, skip other ones
-                if self.args.queries != None and line['unique_id'] not in self.args.queries:
+                if self.args.queries != None and line[name_column] not in self.args.queries:
                     continue
                 if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
                     continue
 
-                self.input_info[line['unique_id']] = {'unique_id':line['unique_id'], 'seq':line['seq']}
-                if not self.is_data:
+                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][n_queries:]}
+                if not self.args.is_data:
                     self.reco_info[line['unique_id']] = line
                 n_queries += 1
                 if self.args.n_total_queries > 0 and n_queries >= self.args.n_total_queries:
@@ -82,12 +88,10 @@ class PartitionDriver(object):
             dbgfile.write('hamming\n')
 
         # run smith-waterman
-        waterer = Waterer(self, bootstrap=False)
-        self.sw_info = waterer.sw_info
-        waterer.pcounter.write_counts()
-        # assert False  # TODO check bootstrap thingy above
-        # print waterer.pcounter
-        sys.exit()
+        self.waterer = Waterer(self, self.args, bootstrap=self.args.write_parameter_counts)  # if we're writing parameter counts to file, bootstrap 'em, write, then exit
+        if self.args.write_parameter_counts:  # TODO get parameter counts from hmm, not just from sw
+            self.waterer.pcounter.write_counts()
+            sys.exit()
 
         # cdr3 length partitioning
         cdr3_length_clusters = None
@@ -112,7 +116,7 @@ class PartitionDriver(object):
             self.read_hmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname)
             stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
             stripped_clusters.cluster(stripped_pairscorefname, debug=False, reco_info=self.reco_info)
-            for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
+            for query_name in self.waterer.info:  # check for singletons that got split out in the preclustering step
                 if query_name not in stripped_clusters.query_clusters:
                     print '    singleton ', query_name
             if not self.args.no_clean:
@@ -132,7 +136,7 @@ class PartitionDriver(object):
 
         clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
         clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
-        for query_name in self.sw_info:  # check for singletons that got split out in the preclustering step
+        for query_name in self.waterer.info:  # check for singletons that got split out in the preclustering step
             if query_name not in clusters.query_clusters:
                 print '    singleton ', query_name
 
@@ -171,10 +175,10 @@ class PartitionDriver(object):
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'cdr3_length', 'second_cdr3_length', 'score'))
             writer.writeheader()
             for query_name, second_query_name in self.get_pairs(preclusters):
-                cdr3_length = self.sw_info[query_name]['cdr3_length']
-                second_cdr3_length = self.sw_info[second_query_name]['cdr3_length']
+                cdr3_length = self.waterer.info[query_name]['cdr3_length']
+                second_cdr3_length = self.waterer.info[second_query_name]['cdr3_length']
                 same_length = cdr3_length == second_cdr3_length
-                if not self.is_data:
+                if not self.args.is_data:
                     assert cdr3_length == int(self.reco_info[query_name]['cdr3_length'])
                     if second_cdr3_length != int(self.reco_info[second_query_name]['cdr3_length']):
                         print 'WARNING did not infer correct cdr3 length'
@@ -258,7 +262,7 @@ class PartitionDriver(object):
             if 'OR16' in gene or 'OR21' in gene or 'V3/OR15' in gene:
                 print '  poof'
                 continue
-            writer = HmmWriter(self.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
+            writer = HmmWriter(self.args.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
                                hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
             writer.write()
 
@@ -277,8 +281,8 @@ class PartitionDriver(object):
             # then write a line for each query sequence (or pair of them)
             if self.args.pair:
                 for query_name, second_query_name in self.get_pairs(preclusters):  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
-                    info = self.sw_info[query_name]
-                    second_info = self.sw_info[second_query_name]
+                    info = self.waterer.info[query_name]
+                    second_info = self.waterer.info[second_query_name]
     
                     # make sure we don't need to rewrite the hmm model files
                     if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
@@ -311,7 +315,7 @@ class PartitionDriver(object):
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
             else:
                 for query_name in self.input_info:
-                    info = self.sw_info[query_name]
+                    info = self.waterer.info[query_name]
     
                     # make sure we don't need to rewrite the hmm model files
                     if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:

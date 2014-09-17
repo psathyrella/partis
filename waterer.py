@@ -15,13 +15,14 @@ from parametercounter import ParameterCounter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, pdriver, bootstrap):
+    def __init__(self, pdriver, args, bootstrap):
         self.pdriver = pdriver
-        self.sw_info = {}
-        self.pcounter = ParameterCounter(self.pdriver, 'data/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
+        self.args = args
+        self.info = {}
+        self.pcounter = ParameterCounter(self.pdriver, 'data/human-beings/' + self.args.human + '/' + self.args.naivety)
         self.bootstrap = bootstrap  # bootsrap=True if we *don't* have any parameters to start with, i.e. we don't yet know anything about this data. The main effect of bootsrap=True is that gene_choice_probs will *not* be applied (since we of course don't know them)
         if not self.bootstrap:
-            self.gene_choice_probs = utils.read_overall_gene_prob(self.pdriver.datadir + '/human-beings/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety)
+            self.gene_choice_probs = utils.read_overall_gene_prob(self.pdriver.datadir + '/human-beings/' + self.args.human + '/' + self.args.naivety)
         outfname = self.pdriver.workdir + '/query-seqs.bam'
         self.run_smith_waterman(outfname)
         self.read_output(outfname)
@@ -92,7 +93,10 @@ class Waterer(object):
             all_query_bounds[gene] = (read.qstart, read.qend)
             # TODO the s-w allows the j right edge to be chopped off -- I should skip the matches where different amounts are chopped off in the query and germline
             all_germline_bounds[gene] = (read.pos, read.aend)
-        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds)
+        try:
+            self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds)
+        except AssertionError:
+            print 'processing failed on query',query_name
 
     # ----------------------------------------------------------------------------------------
     def get_conserved_codon_position(self, region, gene, glbounds, qrbounds):
@@ -126,7 +130,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, tmp_codon_pos, skipping=False):
-        if self.pdriver.args.debug:
+        if self.args.debug:
             buff_str = (17 - len(gene)) * ' '
             print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), score / self.get_choice_prob(region, gene), score),
             print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
@@ -147,6 +151,8 @@ class Waterer(object):
             all_match_names[region] = sorted(all_match_names[region], reverse=True)
             match_names[region] = []
         codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
+        if self.args.debug:
+            print '  %s' % query_name
         for region in utils.regions:
             for score,gene in all_match_names[region]:
                 n_matches[region] += 1
@@ -165,13 +171,13 @@ class Waterer(object):
                 if codon_positions[region] == -1:
                     codon_positions[region] = tmp_codon_pos
                 if tmp_codon_pos != codon_positions[region]:  # NOTE this happens if different matches have different hypothesized conserved-codon-positions
-                    print 'WARNING discarding match with different hypothesized conserved-codon-positions'  # TODO figure out a way around this. maybe implement clustering on non-unique values?
+                    # print 'WARNING discarding match with different hypothesized conserved-codon-positions'  # TODO figure out a way around this. maybe implement clustering on non-unique values?
                     n_skipped[region] += 1
                     self.print_match(region, gene, query_seq, score, glbounds, qrbounds, tmp_codon_pos, skipping=True)
                     continue
 
                 # only use the best few matches
-                if n_matches[region] > self.pdriver.args.n_max_per_region:  # only take the top few from each region
+                if n_matches[region] > self.args.n_max_per_region:  # only take the top few from each region
                     # TODO should use *lots* of d matches, but fewer vs and js
                     break
 
@@ -200,11 +206,11 @@ class Waterer(object):
                 assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
                         
         # print how many of the available matches we used
-        if self.pdriver.args.debug:
-            print '  used',
+        if self.args.debug:
+            print '         used',
             for region in utils.regions:
                 if region != 'v':
-                    print '      ',
+                    print '            ',
                 print ' %d / %d in %s' % (n_used[region], n_matches[region], region),
                 if n_skipped[region] != 0:
                     print ' (skipped %d)' % (n_skipped[region]),
@@ -214,14 +220,17 @@ class Waterer(object):
             if region not in best:
                 print ' no',region,'match found for',query_name
                 print '    true:'
-                utils.print_reco_event(self.pdriver.germline_seqs, self.pdriver.input_info[query_name], 0, 0, extra_str='    ')
+                if not self.args.is_data:
+                    utils.print_reco_event(self.pdriver.germline_seqs, self.pdriver.reco_info[query_name], 0, 0, extra_str='    ')
+                assert False
+
         # write sw info to file for hmm
         # best k_v, k_d:
         k_v = all_query_bounds[best['v']][1]  # end of v match
         k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
 
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
-            # if self.pdriver.args.debug:
+            # if self.args.debug:
             print '  expanding k_d'
             k_d_max = max(8, k_d_max)
             
@@ -242,38 +251,38 @@ class Waterer(object):
         # print '  k_d min %d max %d (best %d)' % (k_d_min, k_d_max, k_d)
         self.pdriver.match_names_for_all_queries |= set(match_names['v'] + match_names['d'] + match_names['j'])
 
-        assert query_name not in self.sw_info
-        self.sw_info[query_name] = {}
-        self.sw_info[query_name]['k_v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
-        self.sw_info[query_name]['k_d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-        self.sw_info[query_name]['v_right_length'] = v_right_length
-        self.sw_info[query_name]['best'] = best
-        self.sw_info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
+        assert query_name not in self.info
+        self.info[query_name] = {}
+        self.info[query_name]['k_v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
+        self.info[query_name]['k_d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
+        self.info[query_name]['v_right_length'] = v_right_length
+        self.info[query_name]['best'] = best
+        self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
         assert codon_positions['v'] != -1
         assert codon_positions['j'] != -1
-        self.sw_info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+        self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         # erosion, insertion, mutation info for best match
-        self.sw_info[query_name]['v_3p_del'] = len(self.pdriver.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
-        self.sw_info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
-        self.sw_info[query_name]['d_3p_del'] = len(self.pdriver.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
-        self.sw_info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
-        self.sw_info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
-        self.sw_info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+        self.info[query_name]['v_3p_del'] = len(self.pdriver.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
+        self.info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
+        self.info[query_name]['d_3p_del'] = len(self.pdriver.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
+        self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
+        self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
+        self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
 
         for region in utils.regions:
-            self.sw_info[query_name][region + '_gene'] = best[region]
-        self.pcounter.increment(self.sw_info[query_name], best)
+            self.info[query_name][region + '_gene'] = best[region]
+        self.pcounter.increment(self.info[query_name], best)
         # tmp_line = {}
         # tmp_line['seq'] = query_seq
         # for region in utils.regions:
         #     tmp_line[region + '_gene'] = best[region]
-        # tmp_line['v_3p_del'] = self.sw_info[query_name]['v_3p_del']
-        # tmp_line['d_5p_del'] = self.sw_info[query_name]['d_5p_del']
-        # tmp_line['d_3p_del'] = self.sw_info[query_name]['d_3p_del']
-        # tmp_line['j_5p_del'] = self.sw_info[query_name]['j_5p_del']
-        # tmp_line['vd_insertion'] = self.sw_info[query_name]['vd_insertion']
-        # tmp_line['dj_insertion'] = self.sw_info[query_name]['dj_insertion']
+        # tmp_line['v_3p_del'] = self.info[query_name]['v_3p_del']
+        # tmp_line['d_5p_del'] = self.info[query_name]['d_5p_del']
+        # tmp_line['d_3p_del'] = self.info[query_name]['d_3p_del']
+        # tmp_line['j_5p_del'] = self.info[query_name]['j_5p_del']
+        # tmp_line['vd_insertion'] = self.info[query_name]['vd_insertion']
+        # tmp_line['dj_insertion'] = self.info[query_name]['dj_insertion']
         
         # utils.print_reco_event(self.pdriver.germline_seqs, self.pdriver.reco_info[query_name], 0, 0, extra_str='    ')
         # utils.print_reco_event(self.pdriver.germline_seqs, tmp_line, 0, 0, extra_str='    ')

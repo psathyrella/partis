@@ -14,21 +14,24 @@ workdir = '/home/dralph/Dropbox/work'
 datadir = workdir + '/partis/recombinator/data'
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--simfile')
+parser.add_argument('--seqfile')
 # restrict to certain query seqs or recombination events
 parser.add_argument('--queries')
 parser.add_argument('--reco_ids')
 
 parser.add_argument('--algorithm', default='viterbi', choices=['viterbi', 'forward'])
-parser.add_argument('--n_max_per_region', type=int, default=5)
+parser.add_argument('--n_max_per_region', type=int, default=3)
 parser.add_argument('--n_best_events', type=int, default=5)
 parser.add_argument('--n_total_queries', type=int, default=-1)
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--v_right_length', type=int, default=89)
 parser.add_argument('--pair', action='store_true')
+parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--no_clean', action='store_true')
 parser.add_argument('--write_all_hmm_files', action='store_true')
-parser.add_argument('--write_hmm_files')
+parser.add_argument('--write_hmm_files')  # specify a specific set of genes for which to write the hmm files
+parser.add_argument('--parameter_dir', default='./data')
+parser.add_argument('--write_parameter_counts', action='store_true')
 parser.add_argument('--human', default='A', choices=['A', 'B', 'C'])
 parser.add_argument('--naivety', default='M', choices=['N', 'M'])
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
@@ -39,13 +42,14 @@ if args.reco_ids != None:
     args.reco_ids = args.reco_ids.strip().split(':')
 
 # ----------------------------------------------------------------------------------------
-if not args.simfile:
-    args.simfile = workdir + '/partis/recombinator/output/' + args.human + '/' + args.naivety + '/simu.csv'
+if not args.seqfile:
+    args.seqfile = workdir + '/partis/recombinator/output/' + args.human + '/' + args.naivety + '/simu.csv'
 parter = PartitionDriver(datadir, args, default_v_right_length=89, stochhmm_dir=workdir + '/StochHMM')
 
 if args.write_all_hmm_files:
     parter.write_all_hmms(args.v_right_length)
     sys.exit()
+
 if args.write_hmm_files != None:
     args.write_hmm_files = args.write_hmm_files.split(':')
     parter.write_specified_hmms(args.write_hmm_files, args.v_right_length)

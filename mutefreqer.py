@@ -33,9 +33,10 @@ def fraction_uncertainty(obs, total):
 class MuteFreqer(object):
     def __init__(self, base_outdir, base_plotdir, germline_seqs):
         self.outdir = base_outdir + '/mute-freqs'
-        self.plotdir = base_plotdir + '/mute-freqs/plots'
-        utils.prep_dir(self.outdir, '*.csv.bz2')
-        utils.prep_dir(self.plotdir, '*.png')
+        self.base_plotdir = base_plotdir + '/mute-freqs'
+        utils.prep_dir(self.outdir, '*.csv')
+        for region in utils.regions:
+            utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.png')
         self.germline_seqs = germline_seqs
         self.counts = {}
     
@@ -123,7 +124,9 @@ class MuteFreqer(object):
             hi_err_hist.SetMarkerStyle(23)
             lo_err_hist.Draw('p same')
             hi_err_hist.Draw('p same')
-            plotfname = self.plotdir + '/' + utils.sanitize_name(gene) + '.png'
-            check_call(['./permissify-www', self.plotdir])  # shell script that 
+            plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.png'
             cvn.SaveAs(plotfname)
 
+        check_call(['./permissify-www', self.base_plotdir])
+        for region in utils.regions:
+            check_call(['makeHtml', self.base_plotdir + '/' + region])

@@ -6,6 +6,7 @@ from utils import utils
 from utils.opener import opener
 from mutefreqer import MuteFreqer
 
+# ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
@@ -14,7 +15,7 @@ class ParameterCounter(object):
         self.total = 0
         self.counts = {}
         self.base_outdir = base_outdir
-        utils.prep_dir(self.base_outdir, '*.csv.bz2')
+        utils.prep_dir(self.base_outdir, '*.csv')
         for column in utils.column_dependencies:
             self.counts[column] = {}
         self.mutefreqer = MuteFreqer(self.base_outdir, os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety, self.pdriver.germline_seqs)

@@ -55,7 +55,7 @@ for column,deps in column_dependencies.iteritems():
 column_dependency_tuples.append(index_columns)
 
 def get_prob_fname_tuple(columns):  # TODO doesn't return a tuple... why'd I name it that?
-    outfname = 'probs.csv.bz2'
+    outfname = 'probs.csv'
     for ic in columns:
         outfname = ic + '-' + outfname
     return outfname
@@ -426,7 +426,7 @@ def read_overall_gene_prob(indir, only_region='', only_gene=''):
         counts[region] = {}
         total = 0
         smallest_count = -1  # if we don't find the gene we're looking for, assume it occurs at the lowest rate at which we see any gene
-        with opener('r')(indir + '/' + region + '_gene-probs.csv.bz2') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+        with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
             reader = csv.DictReader(infile)
             for line in reader:
                 line_count = int(line['count'])
