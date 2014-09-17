@@ -160,21 +160,8 @@ class Waterer(object):
                 qrbounds = all_query_bounds[gene]
                 tmp_codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
 
-                # conserved codons
-                if not self.check_conserved_codons(region, gene, query_name, query_seq, glbounds, qrbounds):  # if conserved cyst or tryp got mutated (or otherwise messed up) skip this match
-                    # TODO uncomment these:
-                    # assert len(match_names[region]) > 0  # but first make sure this is much worse than another match we already have
-                    # assert score / best_scores[region] < 1./3  # pull a third out of thin air
-                    n_skipped[region] += 1
-                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, tmp_codon_pos, skipping=True)
-                    continue
-                if codon_positions[region] == -1:
+                if codon_positions[region] == -1:  # set to the position in the best match
                     codon_positions[region] = tmp_codon_pos
-                if tmp_codon_pos != codon_positions[region]:  # NOTE this happens if different matches have different hypothesized conserved-codon-positions
-                    # print 'WARNING discarding match with different hypothesized conserved-codon-positions'  # TODO figure out a way around this. maybe implement clustering on non-unique values?
-                    n_skipped[region] += 1
-                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, tmp_codon_pos, skipping=True)
-                    continue
 
                 # only use the best few matches
                 if n_matches[region] > self.args.n_max_per_region:  # only take the top few from each region
