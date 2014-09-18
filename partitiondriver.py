@@ -60,11 +60,11 @@ class PartitionDriver(object):
             name_column = 'unique_id'
             seq_column = 'seq'
             n_nukes_skip = 0  # skip all the TTTTTTTTs in data. TODO er that seems hackey doesn't it?
-            if '.tsv.' in self.args.seqfile:
+            if '.tsv' in self.args.seqfile:
                 delimiter = '\t'
                 name_column = 'name'
                 seq_column = 'nucleotide'
-                n_nukes_skip = 9
+                # n_nukes_skip = 9  # TODO ehhhhh I don't like this
             reader = csv.DictReader(seqfile, delimiter=delimiter)
             n_queries = 0
             for line in reader:
@@ -74,7 +74,7 @@ class PartitionDriver(object):
                 if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
                     continue
 
-                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][n_queries:]}
+                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][n_nukes_skip:]}
                 if not self.args.is_data:
                     self.reco_info[line['unique_id']] = line
                 n_queries += 1

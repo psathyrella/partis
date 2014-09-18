@@ -43,7 +43,8 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         check_call('/home/dralph/.local/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 5 --mismatch 3 --gap-open 100 ' + infname + ' ' + outfname + ' 2>/dev/null', shell=True)
-        os.remove(infname)
+        if not self.args.no_clean:
+            os.remove(infname)
         print '    s-w time: %.3f' % (time.time()-start)
     
     # ----------------------------------------------------------------------------------------
@@ -54,7 +55,8 @@ class Waterer(object):
             for _, reads in grouped:  # loop over query sequences
                 self.process_query(bam, list(reads))
         print '    sw read time: %.3f' % (time.time() - start)
-        os.remove(outfname)
+        if not self.args.no_clean:
+            os.remove(outfname)
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
@@ -85,6 +87,7 @@ class Waterer(object):
                 raw_best[region] = gene
 
             if 'J1P' in gene or 'J3P' in gene:
+                print 'WARNING do you really want to skip the J[0-9]P versions?'
                 continue
 
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
@@ -129,13 +132,13 @@ class Waterer(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, tmp_codon_pos, skipping=False):
+    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, skipping=False):
         if self.args.debug:
             buff_str = (17 - len(gene)) * ' '
             print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), score / self.get_choice_prob(region, gene), score),
             print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]])
             print '%48s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
-            print '  %s (%d)' % (utils.color_mutants(self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]), tmp_codon_pos),
+            print '  %s (%d)' % (utils.color_mutants(self.pdriver.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]), codon_pos),
             if skipping:
                 print 'skipping!',
             print ''                
@@ -143,8 +146,8 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds):
         # best_scores = {}
-        best, match_names = {}, {}
-        n_matches, n_used, n_skipped = {'v':0, 'd':0, 'j':0}, {'v':0, 'd':0, 'j':0}, {'v':0, 'd':0, 'j':0}
+        best, match_names, n_matches = {}, {}, {}
+        n_used = {'v':0, 'd':0, 'j':0}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
         for region in utils.regions:
@@ -152,26 +155,23 @@ class Waterer(object):
             match_names[region] = []
         codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         if self.args.debug:
-            print '  %s' % query_name
+            print '  %s %s' % (query_name,query_seq)
         for region in utils.regions:
+            n_matches[region] = len(all_match_names[region])
             for score,gene in all_match_names[region]:
-                n_matches[region] += 1
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
-                tmp_codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
-
                 if codon_positions[region] == -1:  # set to the position in the best match
-                    codon_positions[region] = tmp_codon_pos
+                    codon_positions[region] = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
 
                 # only use the best few matches
-                if n_matches[region] > self.args.n_max_per_region:  # only take the top few from each region
-                    # TODO should use *lots* of d matches, but fewer vs and js
+                if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
                     break
 
                 # add match to the list
                 n_used[region] += 1
                 match_names[region].append(gene)
-                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, tmp_codon_pos, skipping=False)
+                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, codon_positions[region], skipping=False)
 
                 if region == 'v':
                     this_k_v = all_query_bounds[gene][1]
@@ -198,20 +198,16 @@ class Waterer(object):
             for region in utils.regions:
                 if region != 'v':
                     print '            ',
-                print ' %d / %d in %s' % (n_used[region], n_matches[region], region),
-                if n_skipped[region] != 0:
-                    print ' (skipped %d)' % (n_skipped[region]),
-                print ''
+                print ' %d / %d in %s' % (n_used[region], n_matches[region], region)
 
         for region in utils.regions:
             if region not in best:
                 print ' no',region,'match found for',query_name
-                print '    true:'
                 if not self.args.is_data:
+                    print '    true:'
                     utils.print_reco_event(self.pdriver.germline_seqs, self.pdriver.reco_info[query_name], 0, 0, extra_str='    ')
                 assert False
 
-        # write sw info to file for hmm
         # best k_v, k_d:
         k_v = all_query_bounds[best['v']][1]  # end of v match
         k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
@@ -223,7 +219,7 @@ class Waterer(object):
             
         v_right_length = len(self.pdriver.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
         if 'IGHJ4*' in best['j'] and self.pdriver.germline_seqs['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
-            # print '  doubly expanding k_d'
+            print '  doubly expanding k_d'
             if k_d_max-k_d_min < 8:
                 k_d_min -= 5
                 k_d_max += 2
