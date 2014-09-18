@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 import os
 import csv
+import types
 import sys
+from subprocess import check_call
+
 from utils import utils
 from utils.opener import opener
+from utils import plotting
 from mutefreqer import MuteFreqer
 
 # ----------------------------------------------------------------------------------------
@@ -34,7 +38,7 @@ class ParameterCounter(object):
     def increment(self, info, gl_match):
         self.total += 1
         for deps in utils.column_dependency_tuples:
-            if deps == utils.index_columns:
+            if deps == utils.index_columns:  # don't need the fully marginalized one. Oh *snap* did I just use 'marginalized' correctly?
                 continue
             column = deps[0]
             index = self.get_index(info, deps)
@@ -59,7 +63,28 @@ class ParameterCounter(object):
         return ''.join(return_str)
 
     # ----------------------------------------------------------------------------------------
+    def plot(self):
+        plotdir = os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety
+        utils.prep_dir(plotdir + '/plots', '*.png')
+
+        for column in self.counts:
+            values = {}
+            var_type = 'int'
+            for index, count in self.counts[column].iteritems():
+                column_val = index[0]
+                if type(column_val) == types.StringType:
+                    var_type = 'string'
+                if column_val not in values:
+                    values[column_val] = 0.0
+                values[column_val] += count
+            hist = plotting.make_hist(values, var_type, column)
+            plotting.draw(hist, var_type, plotname=column, plotdir=plotdir)
+        check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+        check_call(['makeHtml', plotdir, '4'])
+
+    # ----------------------------------------------------------------------------------------
     def write_counts(self):
+        self.plot()
         self.mutefreqer.write(self.base_outdir)
         for column in self.counts:
             index_columns = [column,] + utils.column_dependencies[column]

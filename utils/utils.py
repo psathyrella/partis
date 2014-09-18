@@ -248,7 +248,7 @@ def color_gene(gene):
         return_str += gene[gene.find('_') :]
 
     # hm, how about without all the crap in it?
-    return_str = return_str.replace('IGH','  ')
+    return_str = return_str.replace('IGH','  ').lower()
     return_str = return_str.replace('*',' ')
     return return_str
 
