@@ -5,14 +5,6 @@
 #include "MitStyleRemix.h"
 
 void MitStyleRemix() {
-  const char* author   = "$Author: dkralph $$";
-  const char* modified = "$Modified by ksung $$";
-  printf(" MIT root style REMIX(%s,%s).\n",author,modified);
-  printf("\n");
-  printf(" Use: MakeCanvas(name,title)\n");
-  printf("      InitSubPad(pad,nPad)\n");
-  printf("      InitHist(hist,xTitle,yTitle,color)\n");
-  printf("\n");
   SetStyle();
 }
 

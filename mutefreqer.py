@@ -127,6 +127,6 @@ class MuteFreqer(object):
             plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.png'
             cvn.SaveAs(plotfname)
 
-        check_call(['./permissify-www', self.base_plotdir])
+        check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
         for region in utils.regions:
-            check_call(['makeHtml', self.base_plotdir + '/' + region])
+            check_call(['makeHtml', self.base_plotdir + '/' + region, '2'])

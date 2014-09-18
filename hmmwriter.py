@@ -121,10 +121,7 @@ class HmmWriter(object):
                     elif line['j_gene'] != self.gene_name:
                         continue
                 n_inserted = 0
-                try:  # in old files I'm writing the length of the insertion, but in new ones I'm writing the actual insertion
-                    n_inserted = int(line[self.insertion + '_insertion'])
-                except ValueError:
-                    n_inserted = len(line[self.insertion + '_insertion'])
+                n_inserted = int(line[self.insertion + '_insertion'])
                 if n_inserted not in self.insertion_probs[self.insertion]:
                     self.insertion_probs[self.insertion][n_inserted] = 0.0
                 self.insertion_probs[self.insertion][n_inserted] += float(line['count'])

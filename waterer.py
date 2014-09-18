@@ -86,10 +86,6 @@ class Waterer(object):
             if region not in raw_best:  # best v, d, and j before multiplying by gene choice probs. needed 'cause *these* are the v and j that get excised
                 raw_best[region] = gene
 
-            if 'J1P' in gene or 'J3P' in gene:
-                print 'WARNING do you really want to skip the J[0-9]P versions?'
-                continue
-
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
             score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
             all_match_names[region].append((score,gene))
@@ -168,6 +164,10 @@ class Waterer(object):
                 if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
                     break
 
+                if 'J1P' in gene or 'J3P' in gene:
+                    print 'WARNING do you really want to skip the J[0-9]P versions?'
+                    continue
+
                 # add match to the list
                 n_used[region] += 1
                 match_names[region].append(gene)
@@ -213,13 +213,14 @@ class Waterer(object):
         k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
 
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
-            # if self.args.debug:
-            print '  expanding k_d'
+            if self.args.debug:
+                print '  expanding k_d'
             k_d_max = max(8, k_d_max)
             
         v_right_length = len(self.pdriver.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
         if 'IGHJ4*' in best['j'] and self.pdriver.germline_seqs['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
-            print '  doubly expanding k_d'
+            if self.args.debug:
+                print '  doubly expanding k_d'
             if k_d_max-k_d_min < 8:
                 k_d_min -= 5
                 k_d_max += 2

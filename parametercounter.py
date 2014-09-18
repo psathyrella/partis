@@ -21,13 +21,23 @@ class ParameterCounter(object):
         self.mutefreqer = MuteFreqer(self.base_outdir, os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety, self.pdriver.germline_seqs)
 
     # ----------------------------------------------------------------------------------------
+    def get_index(self, info, deps):
+        index = []
+        for ic in deps:
+            if '_insertion' in ic:
+                index.append(len(info[ic]))
+            else:
+                index.append(info[ic])
+        return tuple(index)
+
+    # ----------------------------------------------------------------------------------------
     def increment(self, info, gl_match):
         self.total += 1
         for deps in utils.column_dependency_tuples:
             if deps == utils.index_columns:
                 continue
             column = deps[0]
-            index = tuple(info[ic] for ic in deps)
+            index = self.get_index(info, deps)
             if index not in self.counts[column]:
                 self.counts[column][index] = 0
             self.counts[column][index] += 1
