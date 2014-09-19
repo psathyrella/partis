@@ -14,15 +14,15 @@ from mutefreqer import MuteFreqer
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, base_outdir, args, germline_seqs):
+    def __init__(self, germline_seqs, base_outdir, plotdir=''):
         self.base_outdir = base_outdir
-        self.args = args
+        self.plotdir = plotdir
         self.total = 0
         self.counts = {}
         utils.prep_dir(self.base_outdir, '*.csv')
         for column in utils.column_dependencies:
             self.counts[column] = {}
-        self.mutefreqer = MuteFreqer(self.base_outdir, self.args.plotdir, germline_seqs)
+        self.mutefreqer = MuteFreqer(self.base_outdir, self.plotdir, germline_seqs)
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -75,13 +75,14 @@ class ParameterCounter(object):
                     values[column_val] = 0.0
                 values[column_val] += count
             hist = plotting.make_hist(values, var_type, column)
-            plotting.draw(hist, var_type, plotname=column, plotdir=self.args.plotdir)
-        check_call(['./permissify-www', self.args.plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['makeHtml', self.args.plotdir, '4', 'null', 'svg'])
+            plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir)
+        check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
+        check_call(['makeHtml', self.plotdir, '4', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):
-        self.plot()
+        if self.plotdir != '':
+            self.plot()
         self.mutefreqer.write(self.base_outdir)
         for column in self.counts:
             index_columns = [column,] + utils.column_dependencies[column]

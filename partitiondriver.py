@@ -12,6 +12,7 @@ from utils.opener import opener
 from hmmwriter import HmmWriter
 from clusterer import Clusterer
 from waterer import Waterer
+from parametercounter import ParameterCounter
 
 print 'import time: %.3f' % (time.time() - import_start)
 
@@ -46,7 +47,7 @@ class PartitionDriver(object):
             delimiter = ','
             name_column = 'unique_id'
             seq_column = 'seq'
-            n_nukes_skip = 0  # skip all the TTTTTTTTs in data. TODO er that seems hackey doesn't it?
+            # n_nukes_skip = 0  # skip all the TTTTTTTTs in data. TODO er that seems hackey doesn't it?
             if '.tsv' in self.args.seqfile:
                 delimiter = '\t'
                 name_column = 'name'
@@ -61,7 +62,7 @@ class PartitionDriver(object):
                 if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
                     continue
 
-                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][n_nukes_skip:]}
+                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}  #[n_nukes_skip:]}
                 if not self.args.is_data:
                     self.reco_info[line['unique_id']] = line
                 n_queries += 1
@@ -75,15 +76,16 @@ class PartitionDriver(object):
         with opener('w')(self.dbgfname) as dbgfile:
             dbgfile.write('hamming\n')
 
-        # run smith-waterman
-        self.waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs)
-        if self.args.write_parameter_counts:  # TODO get parameter counts from hmm, not just from sw
-            self.waterer.pcounter.write_counts()
-            sys.exit()
+        # run smith-waterman from scratch, i.e. bootstrapping it
+        sw_parameter_dir = self.args.workdir + '/sw_parameters'
+        self.waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs,
+                               from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=os.getenv('www') + '/parameters')
+        self.waterer.run()
+        sys.exit()
 
         # cdr3 length partitioning
-        cdr3_length_clusters = None
         cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths. TODO fix that
+        cdr3_length_clusters = None
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster()
 

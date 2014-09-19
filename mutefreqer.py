@@ -31,10 +31,12 @@ def fraction_uncertainty(obs, total):
 class MuteFreqer(object):
     def __init__(self, base_outdir, base_plotdir, germline_seqs):
         self.outdir = base_outdir + '/mute-freqs'
-        self.base_plotdir = base_plotdir + '/mute-freqs'
+        self.base_plotdir = base_plotdir
+        if self.base_plotdir != '':
+            self.base_plotdir += '/mute-freqs'
+            for region in utils.regions:
+                utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
         utils.prep_dir(self.outdir, '*.csv')
-        for region in utils.regions:
-            utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
         self.germline_seqs = germline_seqs
         self.counts = {}
     
@@ -59,6 +61,7 @@ class MuteFreqer(object):
     # ----------------------------------------------------------------------------------------
     def write(self, calculate_uncertainty=True):
         cvn = TCanvas("cvn", "", 1700, 600)
+        print 'writing mute freqs'
         for gene in self.counts:
             print '  %-20s' % (gene)
             mute_counts = self.counts[gene]
@@ -122,9 +125,11 @@ class MuteFreqer(object):
             hi_err_hist.SetMarkerStyle(23)
             lo_err_hist.Draw('p same')
             hi_err_hist.Draw('p same')
-            plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
-            cvn.SaveAs(plotfname)
+            if self.base_plotdir != '':
+                plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
+                cvn.SaveAs(plotfname)
 
-        check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
-        for region in utils.regions:
-            check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])
+        if self.base_plotdir != '':
+            check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
+            for region in utils.regions:
+                check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])

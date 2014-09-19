@@ -32,11 +32,9 @@ parser.add_argument('--n_best_events', type=int, default=5)
 parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around with these default fuzzes
 parser.add_argument('--default_d_fuzz', type=int, default=2)
 parser.add_argument('--v_right_length', type=int, default=89)  # length of v gene starting from junction with d (used mainly for writing hmms model files)
-parser.add_argument('--bootstrap', action='store_true', default=True)  # bootsrap=True if we *don't* have any parameters to start with, i.e. we don't yet know anything about this data. The main effect of bootsrap=True is that gene_choice_probs will *not* be applied (since we of course don't know them)
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information
-parser.add_argument('--parameter_dir')  # sample-(human)-specific parameters, eg for input to HMM
+# parser.add_argument('--parameter_dir')  # sample-(human)-specific parameters, eg for input to HMM
 parser.add_argument('--stochhmm_dir', default=os.getenv('HOME') + '/work/StochHMM')
-parser.add_argument('--plotdir')
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
 args = parser.parse_args()
@@ -46,11 +44,9 @@ if args.reco_ids != None:
     args.reco_ids = args.reco_ids.strip().split(':')
 if args.only_genes != None:
     args.only_genes = args.only_genes.strip().split(':')
-if args.parameter_dir == None:
-    args.parameter_dir = './parameters/human-beings/' + args.human + '/' + args.naivety
-if args.plotdir == None:
-    args.plotdir = os.getenv('www') + '/partis/' + args.human + '/' + args.naivety
-utils.prep_dir(args.plotdir + '/plots', '*.svg')
+# if args.parameter_dir == None:
+#     args.parameter_dir = './parameters/human-beings/' + args.human + '/' + args.naivety
+
 utils.prep_dir(args.workdir)
 # ----------------------------------------------------------------------------------------
 parter = PartitionDriver(args)

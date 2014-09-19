@@ -16,15 +16,22 @@ from parametercounter import ParameterCounter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs):
+    def __init__(self, args, input_info, reco_info, germline_seqs, from_scratch=True, parameter_dir='', write_parameters=True, plotdir=''):
+        if write_parameters or not from_scratch:
+            assert parameter_dir != ''
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
         self.germline_seqs = germline_seqs
+        self.pcounter = None
+        if write_parameters:
+            if plotdir != '':
+                utils.prep_dir(plotdir + '/plots', '*.svg')
+            self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
         self.info = {}
-        self.pcounter = ParameterCounter(self.args.parameter_dir, self.args, germline_seqs)
-        if not self.args.bootstrap:
-            self.gene_choice_probs = utils.read_overall_gene_prob(self.args.parameter_dir)
+        self.from_scratch = from_scratch
+        if not self.from_scratch:
+            self.gene_choice_probs = utils.read_overall_gene_prob(self.parameter_dir)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -32,9 +39,12 @@ class Waterer(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
+    # ----------------------------------------------------------------------------------------
+    def run(self):
         outfname = self.args.workdir + '/query-seqs.bam'
         self.run_smith_waterman(outfname)
         self.read_output(outfname)
+        self.pcounter.write_counts()
 
     # ----------------------------------------------------------------------------------------
     def run_smith_waterman(self, outfname):
@@ -70,7 +80,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
         choice_prob = 1.0
-        if not self.args.bootstrap:
+        if not self.from_scratch:
             if gene in self.gene_choice_probs[region]:
                 choice_prob = self.gene_choice_probs[region][gene]
             else:
@@ -269,4 +279,6 @@ class Waterer(object):
 
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
-        self.pcounter.increment(self.info[query_name], best)
+
+        if self.pcounter != None:
+            self.pcounter.increment(self.info[query_name], best)
