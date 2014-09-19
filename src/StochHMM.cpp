@@ -20,13 +20,14 @@ void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequen
 // ----------------------------------------------------------------------------------------
 // init command-line options
 opt_parameters commandline[] = {
-  {"--hmmdir",            OPT_STRING, false, "./bcell", {}},
-  {"--infile",            OPT_STRING, true,  "",        {}},
-  {"--outfile",           OPT_STRING, true,  "",        {}},
-  {"--algorithm",         OPT_STRING, true,  "viterbi", {}},
-  {"--debug",             OPT_INT,    false, "0",       {}},
-  {"--n_best_events",     OPT_INT,    true,  "",        {}},
-  {"--pair",              OPT_INT,    false, "0",       {}},  // holy crap why is flag not a flag?
+  {"--hmmdir",            OPT_STRING, false, "",   {}},
+  {"--datadir",           OPT_STRING, false, "",   {}},
+  {"--infile",            OPT_STRING, true,  "",   {}},
+  {"--outfile",           OPT_STRING, true,  "",   {}},
+  {"--algorithm",         OPT_STRING, true,  "",   {}},
+  {"--debug",             OPT_INT,    false, "0",  {}},
+  {"--n_best_events",     OPT_INT,    true,  "",   {}},
+  {"--pair",              OPT_INT,    false, "0",  {}},  // holy crap why is flag not a flag?
 };
 
 int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of options in opt
@@ -137,7 +138,7 @@ int main(int argc, const char * argv[]) {
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);
   vector<sequences*> seqs(GetSeqs(args, &trk));
-  GermLines gl("/home/dralph/Dropbox/work/partis/recombinator/data");
+  GermLines gl(opt.sopt("--datadir"));
   HMMHolder hmms(opt.sopt("--hmmdir"), n_seqs_per_track, gl);
 
   assert(seqs.size() == args.strings_["name"].size());
