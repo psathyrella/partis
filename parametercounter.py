@@ -65,7 +65,7 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self):
         plotdir = os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety
-        utils.prep_dir(plotdir + '/plots', '*.png')
+        utils.prep_dir(plotdir + '/plots', '*.svg')
 
         for column in self.counts:
             values = {}
@@ -80,7 +80,7 @@ class ParameterCounter(object):
             hist = plotting.make_hist(values, var_type, column)
             plotting.draw(hist, var_type, plotname=column, plotdir=plotdir)
         check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['makeHtml', plotdir, '4'])
+        check_call(['makeHtml', plotdir, '4', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):

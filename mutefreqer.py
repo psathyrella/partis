@@ -36,7 +36,7 @@ class MuteFreqer(object):
         self.base_plotdir = base_plotdir + '/mute-freqs'
         utils.prep_dir(self.outdir, '*.csv')
         for region in utils.regions:
-            utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.png')
+            utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
         self.germline_seqs = germline_seqs
         self.counts = {}
     
@@ -124,9 +124,9 @@ class MuteFreqer(object):
             hi_err_hist.SetMarkerStyle(23)
             lo_err_hist.Draw('p same')
             hi_err_hist.Draw('p same')
-            plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.png'
+            plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
             cvn.SaveAs(plotfname)
 
         check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
         for region in utils.regions:
-            check_call(['makeHtml', self.base_plotdir + '/' + region, '2'])
+            check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])

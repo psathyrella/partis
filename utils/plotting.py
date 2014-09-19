@@ -107,4 +107,4 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop'):
     hist.Draw("hist same");
     cvn.SetLogx('x' in log)
     cvn.SetLogy('y' in log)
-    cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
+    cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
