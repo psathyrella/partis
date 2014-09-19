@@ -23,6 +23,7 @@ parser.add_argument('--queries')  # restrict to certain query seqs
 parser.add_argument('--reco_ids')  # or recombination events
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--n_total_queries', type=int, default=-1)  # stop after this many queries
+parser.add_argument('--only_genes')
 parser.add_argument('--algorithm', default='viterbi', choices=['viterbi', 'forward'])
 parser.add_argument('--pair', action='store_true')
 
@@ -43,6 +44,8 @@ if args.queries != None:
     args.queries = args.queries.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
 if args.reco_ids != None:
     args.reco_ids = args.reco_ids.strip().split(':')
+if args.only_genes != None:
+    args.only_genes = args.only_genes.strip().split(':')
 if args.parameter_dir == None:
     args.parameter_dir = './parameters/human-beings/' + args.human + '/' + args.naivety
 if args.plotdir == None:

@@ -1,5 +1,6 @@
 import time
 import sys
+import json
 import os
 import csv
 import re
@@ -328,6 +329,7 @@ class PartitionDriver(object):
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + self.args.parameter_dir + '/hmms'
+        cmd_str += ' --datadir ' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         # cmd_str += ' >/dev/null'

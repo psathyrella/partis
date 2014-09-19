@@ -163,6 +163,7 @@ class Waterer(object):
             print '  %s %s' % (query_name,query_seq)
         for region in utils.regions:
             n_matches[region] = len(all_match_names[region])
+            n_skipped = 0
             for score,gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
@@ -172,6 +173,11 @@ class Waterer(object):
                 # only use the best few matches
                 if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
                     break
+
+                # only use a specified set of genes
+                if self.args.only_genes != None and gene not in self.args.only_genes:
+                    n_skipped += 1
+                    continue
 
                 if 'J1P' in gene or 'J3P' in gene:
                     print 'WARNING do you really want to skip the J[0-9]P versions?'
@@ -200,6 +206,8 @@ class Waterer(object):
 
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                 assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
+            if n_skipped > 0:
+                print '%8s skipped %d %s genes' % ('', n_skipped, region)
                         
         # print how many of the available matches we used
         if self.args.debug:
