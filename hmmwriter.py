@@ -23,14 +23,14 @@ TRACK SYMBOL DEFINITIONS
 NUKES: """
 
 class HmmWriter(object):
-    def __init__(self, base_indir, base_outdir, gene_name, naivety, germline_seq, v_right_length=-1):
+    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, v_right_length=-1):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.null_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
         self.insert_mute_prob = 0.1  # TODO don't pull this ooya
         self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.fuzz_around_v_left_edge = 20.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
-        self.outdir = base_outdir  # + '/' + region
+        self.outdir = outdir  # + '/' + region
         self.region = utils.get_region(gene_name)
         self.gene_name = gene_name
         self.naivety = naivety
@@ -244,7 +244,7 @@ class HmmWriter(object):
                 test_total += probs[inuke]
             assert utils.is_normed(test_total)
             for inuke in probs:  # add to text
-                self.text_list.append(('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke]))  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+                self.text_list.append(('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke]))
         else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d. EDIT it's bad! and this also applies to mutation freqs!
             # self.smallest_entry_index = 0
             total = 0.0
@@ -257,7 +257,7 @@ class HmmWriter(object):
                         continue
                     total += prob * (1.0 - non_zero_insertion_prob)
                     if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
-                        self.text_list.append(('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob)))  # see gene probs in recombinator/data/human-beings/A/M/ighv-probs.txt
+                        self.text_list.append(('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob)))
                         if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # keep track of the first state that has a chance of being entered from INIT -- we want to start writing (with add_internal_state) from there
                             self.smallest_entry_index = inuke
             assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))

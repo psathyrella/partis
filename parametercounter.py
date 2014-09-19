@@ -14,15 +14,15 @@ from mutefreqer import MuteFreqer
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, pdriver, base_outdir):
-        self.pdriver = pdriver
+    def __init__(self, base_outdir, args, germline_seqs):
+        self.base_outdir = base_outdir
+        self.args = args
         self.total = 0
         self.counts = {}
-        self.base_outdir = base_outdir
         utils.prep_dir(self.base_outdir, '*.csv')
         for column in utils.column_dependencies:
             self.counts[column] = {}
-        self.mutefreqer = MuteFreqer(self.base_outdir, os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety, self.pdriver.germline_seqs)
+        self.mutefreqer = MuteFreqer(self.base_outdir, self.args.plotdir, germline_seqs)
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -64,9 +64,6 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self):
-        plotdir = os.getenv('www') + '/partis/' + self.pdriver.args.human + '/' + self.pdriver.args.naivety
-        utils.prep_dir(plotdir + '/plots', '*.svg')
-
         for column in self.counts:
             values = {}
             var_type = 'int'
@@ -78,9 +75,9 @@ class ParameterCounter(object):
                     values[column_val] = 0.0
                 values[column_val] += count
             hist = plotting.make_hist(values, var_type, column)
-            plotting.draw(hist, var_type, plotname=column, plotdir=plotdir)
-        check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['makeHtml', plotdir, '4', 'null', 'svg'])
+            plotting.draw(hist, var_type, plotname=column, plotdir=self.args.plotdir)
+        check_call(['./permissify-www', self.args.plotdir])  # NOTE this should really permissify starting a few directories higher up
+        check_call(['makeHtml', self.args.plotdir, '4', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):

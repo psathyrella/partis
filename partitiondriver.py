@@ -1,6 +1,5 @@
 import time
 import sys
-import json
 import os
 import csv
 import re
@@ -17,32 +16,19 @@ print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
-    def __init__(self, datadir, args, default_v_right_length=90, stochhmm_dir=''):
-        self.datadir = datadir
-        self.stochhmm_dir = stochhmm_dir
+    def __init__(self, args):
         self.args = args
-        self.germline_seqs = utils.read_germlines(self.datadir)
-        self.workdir = '/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid())  # use a tmp dir specific to this process for the hmm input file
-        self.dbgfname = self.workdir + '/dbg.txt'
-        if not os.path.exists(self.workdir):
-            os.makedirs(self.workdir)
-        self.default_v_fuzz = 2  # TODO play around with these default fuzzes
-        self.default_d_fuzz = 2
+        self.germline_seqs = utils.read_germlines(self.args.datadir)
+        self.dbgfname = self.args.workdir + '/dbg.txt'
+
         self.safety_buffer_that_I_should_not_need = 35  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
-        self.default_hmm_dir = self.stochhmm_dir + '/bcell/hmms/' + self.args.human + '/' + self.args.naivety
-        self.default_v_right_length = default_v_right_length
-        self.precluster_info = {}
-        self.match_names_for_all_queries = set()
 
-        with opener('r')(self.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
+        with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
-        with opener('r')(self.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
-            tryp_reader = csv.reader(csv_file)
-            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
+        self.precluster_info = {}
         self.input_info = {}
         self.reco_info = {}  # generator truth information
-        self.read_input_file()  # read simulation info and write sw input file
         self.waterer = None
 
     # ----------------------------------------------------------------------------------------
@@ -84,11 +70,12 @@ class PartitionDriver(object):
     
     # ----------------------------------------------------------------------------------------
     def run(self):
+        self.read_input_file()  # read simulation info and write sw input file
         with opener('w')(self.dbgfname) as dbgfile:
             dbgfile.write('hamming\n')
 
         # run smith-waterman
-        self.waterer = Waterer(self, self.args, bootstrap=self.args.write_parameter_counts)  # if we're writing parameter counts to file, bootstrap 'em, write, then exit
+        self.waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs)
         if self.args.write_parameter_counts:  # TODO get parameter counts from hmm, not just from sw
             self.waterer.pcounter.write_counts()
             sys.exit()
@@ -105,9 +92,9 @@ class PartitionDriver(object):
         stripped_clusters = None
         if self.args.algorithm == 'forward':
             # run a stripped-down hmm to precluster (one gene version per query, no v or d fuzz). The non-related seqs creep up toward scores above zero, but pairs that *are* related are super good about staying at large positive score when you strip down the HMM (because their scores are dominated by the *correc* choice)
-            stripped_hmm_csv_infname = self.workdir + '/stripped_hmm_input.csv'
-            stripped_hmm_csv_outfname = self.workdir + '/stripped_hmm_output.csv'
-            stripped_pairscorefname = self.workdir + '/stripped-hmm-pairscores.csv'
+            stripped_hmm_csv_infname = self.args.workdir + '/stripped_hmm_input.csv'
+            stripped_hmm_csv_outfname = self.args.workdir + '/stripped_hmm_output.csv'
+            stripped_pairscorefname = self.args.workdir + '/stripped-hmm-pairscores.csv'
             print 'stripped hmm'
             with opener('a')(self.dbgfname) as dbgfile:
                 dbgfile.write('stripped hmm\n')
@@ -124,9 +111,9 @@ class PartitionDriver(object):
                 os.remove(stripped_hmm_csv_outfname)
                 os.remove(stripped_pairscorefname)
 
-        hmm_csv_infname = self.workdir + '/hmm_input.csv'
-        hmm_csv_outfname = self.workdir + '/hmm_output.csv'
-        pairscorefname = self.workdir + '/hmm-pairscores.csv'
+        hmm_csv_infname = self.args.workdir + '/hmm_input.csv'
+        hmm_csv_outfname = self.args.workdir + '/hmm_output.csv'
+        pairscorefname = self.args.workdir + '/hmm-pairscores.csv'
         print 'hmm'
         with opener('a')(self.dbgfname) as dbgfile:
             dbgfile.write('hmm\n')
@@ -144,12 +131,12 @@ class PartitionDriver(object):
             os.remove(hmm_csv_infname)
             os.remove(hmm_csv_outfname)
             os.remove(pairscorefname)
-            os.rename(self.dbgfname, '/tmp/dralph/debug-' + self.args.human + '.txt')
-            os.rmdir(self.workdir)
+            os.remove(self.dbgfname)
+            os.rmdir(self.args.workdir)
 
     # # ----------------------------------------------------------------------------------------
     # def cdr3_length_precluster(self):
-    #     cdr3_length_infname = self.workdir + '/cdr3_length_precluster_input.csv'
+    #     cdr3_length_infname = self.args.workdir + '/cdr3_length_precluster_input.csv'
     #     with opener('w')(cdr3_length_infname) as infile:
     #         columns = ('unique_id', 'seq')
     #         # ARGGGG don't use reco_info for this... segregate out the simulation info
@@ -170,7 +157,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def cdr3_length_precluster(self, preclusters=None):
-        cdr3lengthfname = self.workdir + '/cdr3lengths.csv'
+        cdr3lengthfname = self.args.workdir + '/cdr3lengths.csv'
         with opener('w')(cdr3lengthfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'cdr3_length', 'second_cdr3_length', 'score'))
             writer.writeheader()
@@ -230,7 +217,7 @@ class PartitionDriver(object):
             return
         start = time.time()
         print 'hamming clustering'
-        hammingfname = self.workdir + '/fractional-hamming-scores.csv'
+        hammingfname = self.args.workdir + '/fractional-hamming-scores.csv'
         with opener('w')(hammingfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
             writer.writeheader()
@@ -251,8 +238,8 @@ class PartitionDriver(object):
         return clust
     
     # ----------------------------------------------------------------------------------------
-    def write_specified_hmms(self, gene_list, v_right_length):
-        hmm_dir = self.default_hmm_dir
+    def write_specified_hmms(self, gene_list):
+        hmm_dir = self.args.parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.hmm')
         for gene in gene_list:
             print gene
@@ -262,14 +249,14 @@ class PartitionDriver(object):
             if 'OR16' in gene or 'OR21' in gene or 'V3/OR15' in gene:
                 print '  poof'
                 continue
-            writer = HmmWriter(self.args.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety,
-                               hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=v_right_length)
+            writer = HmmWriter(self.args.parameter_dir,
+                               hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
             writer.write()
 
     # ----------------------------------------------------------------------------------------
-    def write_all_hmms(self, v_right_length):
+    def write_all_hmms(self):
         for region in utils.regions:
-            self.write_specified_hmms(self.germline_seqs[region], v_right_length)
+            self.write_specified_hmms(self.germline_seqs[region], self.args.v_right_length)
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
@@ -285,8 +272,8 @@ class PartitionDriver(object):
                     second_info = self.waterer.info[second_query_name]
     
                     # make sure we don't need to rewrite the hmm model files
-                    if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
-                        print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
+                    if abs(info['v_right_length'] - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
+                        print 'WARNING VRIGHT ', info['v_right_length'], self.args.v_right_length, (info['v_right_length']-self.args.v_right_length)
                     # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
     
                     # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
@@ -318,8 +305,8 @@ class PartitionDriver(object):
                     info = self.waterer.info[query_name]
     
                     # make sure we don't need to rewrite the hmm model files
-                    if abs(info['v_right_length'] - self.default_v_right_length) >= self.safety_buffer_that_I_should_not_need:
-                        print 'WARNING VRIGHT ', info['v_right_length'], self.default_v_right_length, (info['v_right_length']-self.default_v_right_length)
+                    if abs(info['v_right_length'] - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
+                        print 'WARNING VRIGHT ', info['v_right_length'], self.args.v_right_length, (info['v_right_length']-self.args.v_right_length)
                     # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
     
                     # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
@@ -334,13 +321,13 @@ class PartitionDriver(object):
         start = time.time()
 
         # build the command line
-        cmd_str = self.stochhmm_dir + '/stochhmm'
+        cmd_str = self.args.stochhmm_dir + '/stochhmm'
         cmd_str += ' --algorithm ' + self.args.algorithm
         if self.args.pair:
             cmd_str += ' --pair 1'
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
-        cmd_str += ' --hmmdir ' + self.default_hmm_dir
+        cmd_str += ' --hmmdir ' + self.args.parameter_dir + '/hmms'
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         # cmd_str += ' >/dev/null'

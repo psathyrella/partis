@@ -477,10 +477,11 @@ def get_key(query_name, second_query_name):
     return '.'.join(sorted([query_name, second_query_name]))
 
 # ----------------------------------------------------------------------------------------
-def prep_dir(dirname, wildling):
+def prep_dir(dirname, wildling=None):
     if os.path.exists(dirname):
-        for fname in glob.glob(dirname + '/' + wildling):
-            os.remove(fname)
+        if wildling != None:
+            for fname in glob.glob(dirname + '/' + wildling):
+                os.remove(fname)
     else:
         os.makedirs(dirname)
     assert len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) == 0  # make sure there's no other files in the dir

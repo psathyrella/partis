@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 import sys
-import os
 from subprocess import check_call
 import csv
-import math
 sys.argv.append('-b')
 from ROOT import TH1F, TCanvas, kRed, gROOT, TLine
 gROOT.Macro("plotting/MitStyleRemix.cc+")
