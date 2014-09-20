@@ -25,13 +25,13 @@ class Waterer(object):
         self.germline_seqs = germline_seqs
         self.pcounter = None
         if write_parameters:
+            self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', '*.svg')
-            self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
         self.info = {}
         self.from_scratch = from_scratch
         if not self.from_scratch:
-            self.gene_choice_probs = utils.read_overall_gene_prob(self.parameter_dir)
+            self.gene_choice_probs = utils.read_overall_gene_prob(parameter_dir)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -44,7 +44,8 @@ class Waterer(object):
         outfname = self.args.workdir + '/query-seqs.bam'
         self.run_smith_waterman(outfname)
         self.read_output(outfname)
-        self.pcounter.write_counts()
+        if self.pcounter != None:
+            self.pcounter.write_counts()
 
     # ----------------------------------------------------------------------------------------
     def clean(self):

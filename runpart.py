@@ -12,9 +12,9 @@ parser.add_argument('-b', action='store_true')  # passed on to ROOT when plottin
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no_clean', action='store_true')  # don't remove the various temp files
 # actions:
-parser.add_argument('--write_parameter_counts', action='store_true')
-parser.add_argument('--write_all_hmm_files', action='store_true')
-parser.add_argument('--write_hmm_files')  # specify a specific set of genes for which to write the hmm files
+parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
+parser.add_argument('--read_cached_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
+parser.add_argument('--parameter_dir')
 
 parser.add_argument('--human', default='A', choices=['A', 'B', 'C'])
 parser.add_argument('--naivety', default='M', choices=['N', 'M'])
@@ -33,7 +33,6 @@ parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around
 parser.add_argument('--default_d_fuzz', type=int, default=2)
 parser.add_argument('--v_right_length', type=int, default=89)  # length of v gene starting from junction with d (used mainly for writing hmms model files)
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information
-# parser.add_argument('--parameter_dir')  # sample-(human)-specific parameters, eg for input to HMM
 parser.add_argument('--stochhmm_dir', default=os.getenv('HOME') + '/work/StochHMM')
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
@@ -50,11 +49,4 @@ if args.only_genes != None:
 utils.prep_dir(args.workdir)
 # ----------------------------------------------------------------------------------------
 parter = PartitionDriver(args)
-
-if args.write_all_hmm_files:
-    parter.write_all_hmms()
-elif args.write_hmm_files != None:
-    args.write_hmm_files = args.write_hmm_files.split(':')
-    parter.write_specified_hmms(args.write_hmm_files)
-else:
-    parter.run()
+parter.run()

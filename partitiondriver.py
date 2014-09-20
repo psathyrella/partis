@@ -73,11 +73,24 @@ class PartitionDriver(object):
     def run(self):
         self.read_input_file()  # read simulation info and write sw input file
 
-        # run smith-waterman from scratch, i.e. bootstrapping it
-        sw_parameter_dir = self.args.workdir + '/sw_parameters'
+        # run smith-waterman
+        from_scratch, write_parameters = True, True
+        sw_parameter_dir = ''
+        if self.args.cache_parameters:
+            from_scratch = True
+            write_parameters = True
+            sw_parameter_dir = self.args.parameter_dir
+        elif self.args.read_cached_parameters:
+            from_scratch = False
+            write_parameters = False
+            sw_parameter_dir = self.args.parameter_dir
+        else:
+            from_scratch = True
+            write_parameters = True
+            sw_parameter_dir = self.args.workdir + '/sw_parameters'
         sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs,
-                               from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
+                          from_scratch=from_scratch, parameter_dir=sw_parameter_dir, write_parameters=write_parameters, plotdir=sw_plotdir)
         waterer.run()
 
         # cdr3 length partitioning
@@ -86,25 +99,32 @@ class PartitionDriver(object):
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)
 
-        print 'writing hmm files'
-        if self.args.only_genes != None:
-            self.write_specified_hmms(sw_parameter_dir, self.args.only_genes)
-        else:
-            self.write_all_hmms(sw_parameter_dir)
+        parameter_dir = sw_parameter_dir  # NOTE this notation kinda sucks, but I'm just making the point that if we've read cached parameters they're not necessarily from smith-waterman. TODO unhackify it
+        if not self.args.read_cached_parameters:
+            print 'writing hmm files'
+            if self.args.only_genes != None:
+                self.write_specified_hmms(sw_parameter_dir, self.args.only_genes)
+            else:
+                self.write_all_hmms(sw_parameter_dir)
+
+        if self.args.cache_parameters:
+            print 'cached the parameters, now exiting'
+            sys.exit()
 
         if self.args.pair and self.args.algorithm == 'forward':
             hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
-            stripped_clusters = self.run_hmm(waterer, parameter_dir=sw_parameter_dir, preclusters=hamming_clusters, stripped=True)
-            final_clusters = self.run_hmm(waterer, parameter_dir=sw_parameter_dir, preclusters=stripped_clusters, stripped=False)
+            stripped_clusters = self.run_hmm(waterer, parameter_dir=parameter_dir, preclusters=hamming_clusters, stripped=True)
+            final_clusters = self.run_hmm(waterer, parameter_dir=parameter_dir, preclusters=stripped_clusters, stripped=False)
         else:
-            self.run_hmm(waterer, parameter_dir=sw_parameter_dir)
+            self.run_hmm(waterer, parameter_dir=parameter_dir)
 
         if not self.args.no_clean:
-            waterer.clean()
-            for fname in glob.glob(sw_parameter_dir + '/hmms/*.hmm'):
-                os.remove(fname)
-            os.rmdir(sw_parameter_dir + '/hmms')
-            os.rmdir(sw_parameter_dir)
+            if not self.args.read_cached_parameters:
+                waterer.clean()
+                for fname in glob.glob(parameter_dir + '/hmms/*.hmm'):
+                    os.remove(fname)
+                os.rmdir(parameter_dir + '/hmms')
+                os.rmdir(parameter_dir)
             leftovers = [ fname for fname in os.listdir(self.args.workdir) ]
             if len(leftovers) > 0:
                 for over in leftovers:
