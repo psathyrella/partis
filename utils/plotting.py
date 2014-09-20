@@ -28,6 +28,8 @@ def set_bins(values, n_bins, is_log_x, var_type, xbins):
             xmax = n_bins + 0.5
         else:
             dx = float(values[-1] - values[0]) / n_bins
+            if dx == 0:  # hackey, but effective
+                dx = max(1e-5, values[0])
             xmin = values[0] - 0.1*dx  # expand a little to avoid underflows
             xmax = values[-1] + 0.1*dx  # and overflows
         dx = float(xmax - xmin) / n_bins  # then recalculate dx
@@ -68,11 +70,13 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
         else:
             hist.Fill(bin_labels[ival], values[bin_labels[ival]])
         
-    print '  %d (mean %f) values for %s' % (len(values), hist.GetMean(), 'what?')
+    # print '  %d (mean %f) values for %s' % (len(values), hist.GetMean(), 'what?')
   
     # make sure there's no overflows
     if hist.GetBinContent(0) != 0.0 or hist.GetBinContent(hist.GetNbinsX()+1) != 0.0:
-        print 'overflows!'
+        print 'overflows in ',hist.GetName(),'exiting'
+        for ibin in range(0, hist.GetNbinsX()+2):
+            print '%d %f %f %f' % (ibin, hist.GetXaxis().GetBinLowEdge(ibin), hist.GetXaxis().GetBinUpEdge(ibin), hist.GetBinContent(ibin))
         sys.exit()
 
     hist.GetYaxis().SetTitle('counts')

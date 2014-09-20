@@ -2,6 +2,7 @@ import time
 import sys
 import json
 import os
+import glob
 import csv
 import re
 from subprocess import Popen, check_call, PIPE
@@ -21,7 +22,6 @@ class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
         self.germline_seqs = utils.read_germlines(self.args.datadir)
-        self.dbgfname = self.args.workdir + '/dbg.txt'
 
         self.safety_buffer_that_I_should_not_need = 35  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
 
@@ -31,7 +31,6 @@ class PartitionDriver(object):
         self.precluster_info = {}
         self.input_info = {}
         self.reco_info = {}  # generator truth information
-        self.waterer = None
 
     # ----------------------------------------------------------------------------------------
     def from_same_event(self, query_name, second_query_name):
@@ -73,100 +72,82 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def run(self):
         self.read_input_file()  # read simulation info and write sw input file
-        with opener('w')(self.dbgfname) as dbgfile:
-            dbgfile.write('hamming\n')
 
         # run smith-waterman from scratch, i.e. bootstrapping it
         sw_parameter_dir = self.args.workdir + '/sw_parameters'
-        self.waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs,
-                               from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=os.getenv('www') + '/parameters')
-        self.waterer.run()
-        sys.exit()
+        sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs,
+                               from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
+        waterer.run()
 
         # cdr3 length partitioning
         cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths. TODO fix that
         cdr3_length_clusters = None
         if cdr3_cluster:
-            cdr3_length_clusters = self.cdr3_length_precluster()
+            cdr3_length_clusters = self.cdr3_length_precluster(waterer)
 
-        # hamming preclustering
-        hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
+        print 'writing hmm files'
+        if self.args.only_genes != None:
+            self.write_specified_hmms(sw_parameter_dir, self.args.only_genes)
+        else:
+            self.write_all_hmms(sw_parameter_dir)
 
-        stripped_clusters = None
-        if self.args.algorithm == 'forward':
-            # run a stripped-down hmm to precluster (one gene version per query, no v or d fuzz). The non-related seqs creep up toward scores above zero, but pairs that *are* related are super good about staying at large positive score when you strip down the HMM (because their scores are dominated by the *correc* choice)
-            stripped_hmm_csv_infname = self.args.workdir + '/stripped_hmm_input.csv'
-            stripped_hmm_csv_outfname = self.args.workdir + '/stripped_hmm_output.csv'
-            stripped_pairscorefname = self.args.workdir + '/stripped-hmm-pairscores.csv'
-            print 'stripped hmm'
-            with opener('a')(self.dbgfname) as dbgfile:
-                dbgfile.write('stripped hmm\n')
-            self.write_hmm_input(stripped_hmm_csv_infname, preclusters=hamming_clusters, stripped=True)
-            self.run_stochhmm(stripped_hmm_csv_infname, stripped_hmm_csv_outfname)
-            self.read_hmm_output(stripped_hmm_csv_outfname, stripped_pairscorefname)
-            stripped_clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
-            stripped_clusters.cluster(stripped_pairscorefname, debug=False, reco_info=self.reco_info)
-            for query_name in self.waterer.info:  # check for singletons that got split out in the preclustering step
-                if query_name not in stripped_clusters.query_clusters:
-                    print '    singleton ', query_name
-            if not self.args.no_clean:
-                os.remove(stripped_hmm_csv_infname)
-                os.remove(stripped_hmm_csv_outfname)
-                os.remove(stripped_pairscorefname)
-
-        hmm_csv_infname = self.args.workdir + '/hmm_input.csv'
-        hmm_csv_outfname = self.args.workdir + '/hmm_output.csv'
-        pairscorefname = self.args.workdir + '/hmm-pairscores.csv'
-        print 'hmm'
-        with opener('a')(self.dbgfname) as dbgfile:
-            dbgfile.write('hmm\n')
-        self.write_hmm_input(hmm_csv_infname, preclusters=stripped_clusters)
-        self.run_stochhmm(hmm_csv_infname, hmm_csv_outfname)
-        self.read_hmm_output(hmm_csv_outfname, pairscorefname)
-
-        clusters = Clusterer(0, greater_than=True)  # TODO better way to set threshhold?
-        clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
-        for query_name in self.waterer.info:  # check for singletons that got split out in the preclustering step
-            if query_name not in clusters.query_clusters:
-                print '    singleton ', query_name
+        if self.args.pair and self.args.algorithm == 'forward':
+            hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
+            stripped_clusters = self.run_hmm(waterer, parameter_dir=sw_parameter_dir, preclusters=hamming_clusters, stripped=True)
+            final_clusters = self.run_hmm(waterer, parameter_dir=sw_parameter_dir, preclusters=stripped_clusters, stripped=False)
+        else:
+            self.run_hmm(waterer, parameter_dir=sw_parameter_dir)
 
         if not self.args.no_clean:
-            os.remove(hmm_csv_infname)
-            os.remove(hmm_csv_outfname)
-            os.remove(pairscorefname)
-            os.remove(self.dbgfname)
+            waterer.clean()
+            for fname in glob.glob(sw_parameter_dir + '/hmms/*.hmm'):
+                os.remove(fname)
+            os.rmdir(sw_parameter_dir + '/hmms')
+            os.rmdir(sw_parameter_dir)
+            leftovers = [ fname for fname in os.listdir(self.args.workdir) ]
+            if len(leftovers) > 0:
+                for over in leftovers:
+                    print self.args.workdir + '/' + over
             os.rmdir(self.args.workdir)
 
-    # # ----------------------------------------------------------------------------------------
-    # def cdr3_length_precluster(self):
-    #     cdr3_length_infname = self.args.workdir + '/cdr3_length_precluster_input.csv'
-    #     with opener('w')(cdr3_length_infname) as infile:
-    #         columns = ('unique_id', 'seq')
-    #         # ARGGGG don't use reco_info for this... segregate out the simulation info
-    #         csv.DictWriter()
-        
-    #     connordir = '/shared/silo_researcher/Matsen_F/MatsenGrp/working/cmccoy/20140414-bcell-validation'
-    #     cmd_str = connordir + '/venv/bin/linsim dists-by-cdr3'
-    #     cmd_str += ' --name-column unique_id'
-    #     cmd_str += ' --sequence-column seq'
-    #     cmd_str += cdr3_length_infname
-    #     cmd_str += '/tmp/out'
-    #     hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
-    #     hmm_proc.wait()
-    #     hmm_out, hmm_err = hmm_proc.communicate()
+    # ----------------------------------------------------------------------------------------
+    def run_hmm(self, waterer, parameter_dir, preclusters=None, stripped=False, prefix=''):
+        if prefix == '' and stripped:
+            prefix = 'stripped'
+        print prefix,'hmm'
+        csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
+        csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
+        pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
+        self.write_hmm_input(csv_infname, waterer, preclusters=preclusters, stripped=stripped)
+        self.run_stochhmm(csv_infname, csv_outfname, parameter_dir=parameter_dir)
+        self.read_hmm_output(csv_outfname, pairscorefname)
 
-    #     if not self.no_clean:
-    #         os.remove(cdr3_length_infname)
+        clusters = None
+        if self.args.pair and self.args.algorithm == 'forward':
+            clusters = Clusterer(0, greater_than=True)
+            clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
+            if preclusters != None:
+                for query_name in waterer.info:  # check for singletons that got split out in the preclustering step
+                    if query_name not in clusters.query_clusters:
+                        print '    singleton ', query_name
+
+        if not self.args.no_clean:
+            os.remove(csv_infname)
+            os.remove(csv_outfname)
+            os.remove(pairscorefname)
+
+        return clusters
 
     # ----------------------------------------------------------------------------------------
-    def cdr3_length_precluster(self, preclusters=None):
+    def cdr3_length_precluster(self, waterer, preclusters=None):
         cdr3lengthfname = self.args.workdir + '/cdr3lengths.csv'
         with opener('w')(cdr3lengthfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'cdr3_length', 'second_cdr3_length', 'score'))
             writer.writeheader()
             for query_name, second_query_name in self.get_pairs(preclusters):
-                cdr3_length = self.waterer.info[query_name]['cdr3_length']
-                second_cdr3_length = self.waterer.info[second_query_name]['cdr3_length']
+                cdr3_length = waterer.info[query_name]['cdr3_length']
+                second_cdr3_length = waterer.info[second_query_name]['cdr3_length']
                 same_length = cdr3_length == second_cdr3_length
                 if not self.args.is_data:
                     assert cdr3_length == int(self.reco_info[query_name]['cdr3_length'])
@@ -174,8 +155,6 @@ class PartitionDriver(object):
                         print 'WARNING did not infer correct cdr3 length'
                         assert False
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'cdr3_length':cdr3_length, 'second_cdr3_length':second_cdr3_length, 'score':int(same_length)})
-                with opener('a')(self.dbgfname) as dbgfile:
-                    dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name, self.from_same_event(query_name, second_query_name), same_length))
 
         clust = Clusterer(0.5, greater_than=True)  # i.e. cluster together if same_length == True
         clust.cluster(cdr3lengthfname, debug=False)
@@ -216,8 +195,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self, preclusters=None):
-        if not self.args.algorithm == 'forward':
-            return
         start = time.time()
         print 'hamming clustering'
         hammingfname = self.args.workdir + '/fractional-hamming-scores.csv'
@@ -231,8 +208,6 @@ class PartitionDriver(object):
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
                 if self.args.debug:
                     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
-                with opener('a')(self.dbgfname) as dbgfile:
-                    dbgfile.write('%20s %20s   %d  %f\n' % (query_name, second_query_name,  self.from_same_event(query_name, second_query_name), mutation_frac))
 
         clust = Clusterer(0.5, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
         clust.cluster(hammingfname, debug=False)
@@ -241,28 +216,28 @@ class PartitionDriver(object):
         return clust
     
     # ----------------------------------------------------------------------------------------
-    def write_specified_hmms(self, gene_list):
-        hmm_dir = self.args.parameter_dir + '/hmms'
+    def write_specified_hmms(self, parameter_dir, gene_list):
+        hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.hmm')
         for gene in gene_list:
-            print gene
+            if self.args.debug:
+                print '   ',gene
             if len(re.findall('J[123]P', gene)) > 0:  # pretty sure these versions are crap
                 print '  poof'
                 continue
             if 'OR16' in gene or 'OR21' in gene or 'V3/OR15' in gene:
                 print '  poof'
                 continue
-            writer = HmmWriter(self.args.parameter_dir,
-                               hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
             writer.write()
 
     # ----------------------------------------------------------------------------------------
-    def write_all_hmms(self):
+    def write_all_hmms(self, parameter_dir):
         for region in utils.regions:
-            self.write_specified_hmms(self.germline_seqs[region], self.args.v_right_length)
+            self.write_specified_hmms(parameter_dir, self.germline_seqs[region])
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
+    def write_hmm_input(self, csv_fname, waterer, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
         with opener('w')(csv_fname) as csvfile:
             # write header
             header = ['name', 'second_name', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
@@ -271,8 +246,8 @@ class PartitionDriver(object):
             # then write a line for each query sequence (or pair of them)
             if self.args.pair:
                 for query_name, second_query_name in self.get_pairs(preclusters):  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
-                    info = self.waterer.info[query_name]
-                    second_info = self.waterer.info[second_query_name]
+                    info = waterer.info[query_name]
+                    second_info = waterer.info[second_query_name]
     
                     # make sure we don't need to rewrite the hmm model files
                     if abs(info['v_right_length'] - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
@@ -305,7 +280,7 @@ class PartitionDriver(object):
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
             else:
                 for query_name in self.input_info:
-                    info = self.waterer.info[query_name]
+                    info = waterer.info[query_name]
     
                     # make sure we don't need to rewrite the hmm model files
                     if abs(info['v_right_length'] - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
@@ -320,7 +295,7 @@ class PartitionDriver(object):
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], only_genes, self.input_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
-    def run_stochhmm(self, csv_infname, csv_outfname):
+    def run_stochhmm(self, csv_infname, csv_outfname, parameter_dir):
         start = time.time()
 
         # build the command line
@@ -330,7 +305,7 @@ class PartitionDriver(object):
             cmd_str += ' --pair 1'
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
-        cmd_str += ' --hmmdir ' + self.args.parameter_dir + '/hmms'
+        cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
         cmd_str += ' --datadir ' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
@@ -389,9 +364,6 @@ class PartitionDriver(object):
                         utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
                         line['seq'] = tmpseq
                 else:
-                    with opener('a')(self.dbgfname) as dbgfile:
-                        dbgfile.write('%20s %20s   %d  %7.2f  %d\n' %
-                                      (line['unique_id'], line['second_unique_id'], self.from_same_event(line['unique_id'], line['second_unique_id']), float(line['score']), boundary_error))
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                 last_id = utils.get_key(line['unique_id'], line['second_unique_id'])

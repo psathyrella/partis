@@ -47,6 +47,11 @@ class Waterer(object):
         self.pcounter.write_counts()
 
     # ----------------------------------------------------------------------------------------
+    def clean(self):
+        if self.pcounter != None:
+            self.pcounter.clean()
+
+    # ----------------------------------------------------------------------------------------
     def run_smith_waterman(self, outfname):
         """
         Run smith-waterman alignment on the seqs in <infname>, and toss all the top matches into <outfname>.
@@ -216,7 +221,7 @@ class Waterer(object):
 
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                 assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
-            if n_skipped > 0:
+            if self.args.debug and n_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_skipped, region)
                         
         # print how many of the available matches we used

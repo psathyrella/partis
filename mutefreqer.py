@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 from subprocess import check_call
 import csv
 sys.argv.append('-b')
@@ -61,9 +62,7 @@ class MuteFreqer(object):
     # ----------------------------------------------------------------------------------------
     def write(self, calculate_uncertainty=True):
         cvn = TCanvas("cvn", "", 1700, 600)
-        print 'writing mute freqs'
         for gene in self.counts:
-            print '  %-20s' % (gene)
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)
 
@@ -133,3 +132,11 @@ class MuteFreqer(object):
             check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
             for region in utils.regions:
                 check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])
+
+    # ----------------------------------------------------------------------------------------
+    def clean(self):
+        """ remove all the parameter files """
+        for gene in self.counts:
+            outfname = self.outdir + '/' + utils.sanitize_name(gene) + '.csv'
+            os.remove(outfname)
+        os.rmdir(self.outdir)

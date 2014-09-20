@@ -23,7 +23,7 @@ parser.add_argument('--queries')  # restrict to certain query seqs
 parser.add_argument('--reco_ids')  # or recombination events
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--n_total_queries', type=int, default=-1)  # stop after this many queries
-parser.add_argument('--only_genes')
+parser.add_argument('--only_genes')  # skip all gene matches except for these when parsing the sw output
 parser.add_argument('--algorithm', default='viterbi', choices=['viterbi', 'forward'])
 parser.add_argument('--pair', action='store_true')
 

@@ -103,3 +103,11 @@ class ParameterCounter(object):
                         line[index_columns[ic]] = index[ic]
                     line['count'] = count
                     out_data.writerow(line)
+    # ----------------------------------------------------------------------------------------
+    def clean(self):
+        """ remove all the parameter files """
+        self.mutefreqer.clean()
+        for column in self.counts:
+            index_columns = [column,] + utils.column_dependencies[column]
+            outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)
+            os.remove(outfname)
