@@ -28,14 +28,14 @@ class ParameterCounter(object):
     def get_index(self, info, deps):
         index = []
         for ic in deps:
-            if '_insertion' in ic:
+            if '_insertion' in ic:  # only using the *length* of the insertion at the moment, not the base content
                 index.append(len(info[ic]))
             else:
                 index.append(info[ic])
         return tuple(index)
 
     # ----------------------------------------------------------------------------------------
-    def increment(self, info, gl_match):
+    def increment(self, info):
         self.total += 1
         for deps in utils.column_dependency_tuples:
             if deps == utils.index_columns:  # don't need the fully marginalized one. Oh *snap* did I just use 'marginalized' correctly?
@@ -45,7 +45,7 @@ class ParameterCounter(object):
             if index not in self.counts[column]:
                 self.counts[column][index] = 0
             self.counts[column][index] += 1
-        self.mutefreqer.increment(info, gl_match)
+        self.mutefreqer.increment(info)
 
     # ----------------------------------------------------------------------------------------
     def __str__(self):
@@ -77,7 +77,7 @@ class ParameterCounter(object):
             hist = plotting.make_hist(values, var_type, column)
             plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir)
         check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['makeHtml', self.plotdir, '4', 'null', 'svg'])
+        check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):

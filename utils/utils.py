@@ -262,41 +262,77 @@ def is_mutated(original, final, n_muted=-1, n_total=-1):
     return return_str, n_muted, n_total
 
 # ----------------------------------------------------------------------------------------
+def get_v_5p_del(original_seqs, line):
+    original_length = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j'])
+    total_deletion_length = int(line['v_3p_del']) + int(line['d_5p_del']) + int(line['d_3p_del']) + int(line['j_5p_del'])
+    total_insertion_length = len(line['vd_insertion']) + len(line['dj_insertion'])
+    return original_length - total_deletion_length + total_insertion_length - len(line['seq'])
+
+# ----------------------------------------------------------------------------------------
+def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
+    """ get original and eroded germline seqs """
+    v_3p_del = int(line['v_3p_del'])
+    d_5p_del = int(line['d_5p_del'])
+    d_3p_del = int(line['d_3p_del'])
+    j_5p_del = int(line['j_5p_del'])
+
+    for region in regions:
+        original_seqs[region] = germlines[region][line[region+'_gene']]
+    if 'v_5p_del' not in line:  # try to infer the left-hand v 'deletion'
+        line['v_5p_del'] = get_v_5p_del(original_seqs, line)
+    original_seqs['v'] = original_seqs['v'][line['v_5p_del']:]  # TODO erm, should the 5p v erosion be off the original, or eroded sequence?
+
+    lengths['v'] = len(original_seqs['v']) - v_3p_del
+    lengths['d'] = len(original_seqs['d']) - d_5p_del - d_3p_del
+    lengths['j'] = len(original_seqs['j']) - j_5p_del
+
+    eroded_seqs['v'] = original_seqs['v'][:lengths['v']]
+    eroded_seqs['d'] = original_seqs['d'][d_5p_del : len(original_seqs['d']) - d_3p_del]
+    eroded_seqs['j'] = original_seqs['j'][j_5p_del :]
+
+# ----------------------------------------------------------------------------------------
+def get_match_seqs(germlines, line):
+    """
+    get query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
+    NOTE adds them into <line>
+
+    """
+
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+
+    for region in regions:
+        line[region + '_gl_seq'] = eroded_seqs[region]
+
+    line['v_qr_seq'] = line['seq'][:len(eroded_seqs['v'])]  # NOTE I can't seem to escape the feeling that I've already done all this algebra somewhere else. *sigh*
+    line['d_qr_seq'] = line['seq'][len(eroded_seqs['v']) + len(line['vd_insertion']) : len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d'])]
+    line['j_qr_seq'] = line['seq'][len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']) : len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']) + len(eroded_seqs['j'])]
+
+# ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False, extra_str=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
     """
-    original_seqs = {}
-    for region in regions:
-        original_seqs[region] = germlines[region][line[region+'_gene']]
-    if 'v_5p_del' not in line:  # try to infer the left-hand v 'deletion'
-        line['v_5p_del'] = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j']) \
-                           - int(line['v_3p_del']) - int(line['d_5p_del']) - int(line['d_3p_del']) - int(line['j_5p_del']) \
-                           + len(line['vd_insertion']) + len(line['dj_insertion']) \
-                           - len(line['seq'])
-    original_seqs['v'] = original_seqs['v'][line['v_5p_del']:]
+    v_3p_del = int(line['v_3p_del'])  # TODO hurg don't really want these any more
+    d_5p_del = int(line['d_5p_del'])
+    d_3p_del = int(line['d_3p_del'])
+    j_5p_del = int(line['j_5p_del'])
 
-    v_length = len(original_seqs['v']) - int(line['v_3p_del'])
-    d_length = len(original_seqs['d']) - int(line['d_5p_del']) - int(line['d_3p_del'])
-    j_length = len(original_seqs['j']) - int(line['j_5p_del'])
-    eroded_seqs = {}
-    eroded_seqs['v'] = original_seqs['v'][:len(original_seqs['v'])-int(line['v_3p_del'])]
-    eroded_seqs['d'] = original_seqs['d'][int(line['d_5p_del']) : len(original_seqs['d'])-int(line['d_3p_del'])]
-    eroded_seqs['j'] = original_seqs['j'][int(line['j_5p_del']) :]
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
     germline_v_end = len(original_seqs['v']) - 1
-    germline_d_start = len(original_seqs['v']) - int(line['v_3p_del']) + len(line['vd_insertion']) - int(line['d_5p_del'])
+    germline_d_start = lengths['v'] + len(line['vd_insertion']) - d_5p_del
     germline_d_end = germline_d_start + len(original_seqs['d'])
-    germline_j_start = germline_d_end + 1 - int(line['d_3p_del']) + len(line['dj_insertion']) - int(line['j_5p_del'])
+    germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
 
-    # took this out for the moment... I'm liking the truncation better
-    # if 'v_5p_del' in line:
-    #     for _ in range(int(line["v_5p_del"])):
-    #         line['seq'] = '.' + line['seq']  # NOTE this is kinda inefficient
-        
     if 'j_3p_del' in line:
-        for _ in range(int(line['j_3p_del'])):
+        for _ in range(j_3p_del):
             line['seq'] += '.'
 
     final_seq = ''
@@ -304,18 +340,18 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     for inuke in range(len(line['seq'])):
         ilocal = inuke
         new_nuke = ''
-        if ilocal < v_length:
+        if ilocal < lengths['v']:
             new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
         else:
-            ilocal -= v_length
+            ilocal -= lengths['v']
             if ilocal < len(line['vd_insertion']):
                 new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
             else:
                 ilocal -= len(line['vd_insertion'])
-                if ilocal < d_length:
+                if ilocal < lengths['d']:
                     new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
                 else:
-                    ilocal -= d_length
+                    ilocal -= lengths['d']
                     if ilocal < len(line['dj_insertion']):
                         new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                     else:
@@ -332,12 +368,12 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
         final_seq += new_nuke
 
     # pad with dots
-    eroded_seqs['v'] = eroded_seqs['v'] + int(line['v_3p_del']) * '.'
-    eroded_seqs['d'] = int(line['d_5p_del']) * '.' + eroded_seqs['d'] + int(line['d_3p_del']) * '.'
-    eroded_seqs['j'] = int(line['j_5p_del']) * '.' + eroded_seqs['j']
+    eroded_seqs['v'] = eroded_seqs['v'] + v_3p_del * '.'
+    eroded_seqs['d'] = d_5p_del * '.' + eroded_seqs['d'] + d_3p_del * '.'
+    eroded_seqs['j'] = j_5p_del * '.' + eroded_seqs['j']
 
-    insertions = v_length * ' ' + line['vd_insertion'] + d_length * ' ' + line['dj_insertion'] + j_length * ' '
-    d = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - int(line['j_5p_del']) + len(line['dj_insertion']) - int(line['d_3p_del'])) * ' '
+    insertions = lengths['v'] * ' ' + line['vd_insertion'] + lengths['d'] * ' ' + line['dj_insertion'] + lengths['j'] * ' '
+    d = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - j_5p_del + len(line['dj_insertion']) - d_3p_del) * ' '
     vj = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
 
     if 'score' not in line:

@@ -42,18 +42,16 @@ class MuteFreqer(object):
         self.counts = {}
     
     # ----------------------------------------------------------------------------------------
-    def increment(self, info, gl_match):
-        assert 'v_5p_del' not in info  # TODO use a better method of getting v_5p and j_3p
-        info['v_5p_del'] = self.germline_seqs['v'][gl_match['v']].find(gl_match['v_gl_seq'])
+    def increment(self, info):
         for region in utils.regions:
-            if gl_match[region] not in self.counts:
-                self.counts[gl_match[region]] = {}
-            mute_counts = self.counts[gl_match[region]]  # temporary variable to avoid long dict access
-            germline_seq = gl_match[region + '_gl_seq']
-            query_seq = gl_match[region + '_qr_seq']
+            if info[region + '_gene'] not in self.counts:
+                self.counts[info[region + '_gene']] = {}
+            mute_counts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
+            germline_seq = info[region + '_gl_seq']
+            query_seq = info[region + '_qr_seq']
             assert len(germline_seq) == len(query_seq)
             for inuke in range(len(germline_seq)):
-                i_germline = inuke + info[region + '_5p_del']  # account for left-side deletions in the indexing
+                i_germline = inuke + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
                 if i_germline not in mute_counts:  # if we have not yet observed this position in a query sequence, initialize it
                     mute_counts[i_germline] = {'A':0, 'C':0, 'G':0, 'T':0, 'total':0, 'gl_nuke':germline_seq[inuke]}
                 mute_counts[i_germline]['total'] += 1

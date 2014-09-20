@@ -43,10 +43,11 @@ if args.reco_ids != None:
     args.reco_ids = args.reco_ids.strip().split(':')
 if args.only_genes != None:
     args.only_genes = args.only_genes.strip().split(':')
-# if args.parameter_dir == None:
-#     args.parameter_dir = './parameters/human-beings/' + args.human + '/' + args.naivety
 
 utils.prep_dir(args.workdir)
 # ----------------------------------------------------------------------------------------
 parter = PartitionDriver(args)
-parter.run()
+if args.cache_parameters:
+    parter.cache_parameters()
+else:
+    parter.run()
