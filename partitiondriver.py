@@ -70,28 +70,12 @@ class PartitionDriver(object):
         assert len(self.input_info) > 0
     
     # ----------------------------------------------------------------------------------------
-    def run(self):
-        sys.exit()
+    def partition(self):
         self.read_input_file()  # read simulation info and write sw input file
 
         # run smith-waterman
-        from_scratch, write_parameters = True, True
-        sw_parameter_dir = ''
-        if self.args.cache_parameters:
-            from_scratch = True
-            write_parameters = True
-            sw_parameter_dir = self.args.parameter_dir
-        elif self.args.read_cached_parameters:
-            from_scratch = False
-            write_parameters = False
-            sw_parameter_dir = self.args.parameter_dir
-        else:
-            from_scratch = True
-            write_parameters = True
-            sw_parameter_dir = self.args.workdir + '/sw_parameters'
-        sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs,
-                          from_scratch=from_scratch, parameter_dir=sw_parameter_dir, write_parameters=write_parameters, plotdir=sw_plotdir)
+        assert self.args.read_cached_parameters
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
         # cdr3 length partitioning
@@ -100,25 +84,12 @@ class PartitionDriver(object):
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)
 
-        parameter_dir = sw_parameter_dir  # NOTE this notation kinda sucks, but I'm just making the point that if we've read cached parameters they're not necessarily from smith-waterman. TODO unhackify it
-        if not self.args.read_cached_parameters:
-            print 'writing hmm files'
-            if self.args.only_genes != None:
-                self.write_specified_hmms(sw_parameter_dir, self.args.only_genes)
-            else:
-                self.write_all_hmms(sw_parameter_dir)
+        assert self.args.pair and self.args.algorithm == 'forward'
+        hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
+        stripped_clusters = self.run_hmm(waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
+        final_clusters = self.run_hmm(waterer.info, self.args.parameter_dir, preclusters=stripped_clusters, stripped=False)
 
-        if self.args.cache_parameters:
-            print 'cached the parameters, now exiting'
-            sys.exit()
-
-        if self.args.pair and self.args.algorithm == 'forward':
-            assert False  # oh man this is getting complicated need to fix
-            # hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
-            # stripped_clusters = self.run_hmm(waterer, parameter_dir=parameter_dir, preclusters=hamming_clusters, stripped=True)
-            # final_clusters = self.run_hmm(waterer, parameter_dir=parameter_dir, preclusters=stripped_clusters, stripped=False)
-        else:
-            self.run_hmm(waterer, parameter_in_dir=parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
+        # self.clean(waterer)
 
     # ----------------------------------------------------------------------------------------
     def clean(self, waterer):
@@ -138,22 +109,27 @@ class PartitionDriver(object):
         os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def cache_parameters(self):
+    def cache_parameters(self, parameter_dir=''):
         self.read_input_file()  # read simulation info and write sw input file
 
-        write_parameters = True
-        sw_parameter_dir = self.args.parameter_dir + '/sw_parameters'
+        if parameter_dir == '':
+            parameter_dir = self.args.parameter_dir
+
+        sw_parameter_dir = parameter_dir + '/sw_parameters'
         sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs,
-                          from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
         waterer.run()
 
-        print 'writing hmm files'
+        print 'writing hmms with sw info'
         self.write_hmms(sw_parameter_dir, self.args.only_genes)
 
-        hmm_parameter_dir = self.args.parameter_dir + '/hmm_parameters'
+        hmm_parameter_dir = parameter_dir + '/hmm_parameters'
         assert not self.args.pair and self.args.algorithm == 'viterbi'  # er, could probably do it for forward pair, but I'm not really sure what it would mean
         self.run_hmm(waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
+        # self.clean(waterer)
+
+        print 'writing hmms with info from hmm'
+        self.write_hmms(hmm_parameter_dir, self.args.only_genes)
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir=''):
@@ -308,7 +284,7 @@ class PartitionDriver(object):
                     # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
     
                     # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
-                    assert len(re.findall('J[123]P', info['best']['j'])) == 0
+                    assert len(re.findall('J[123]P', info['j_gene'])) == 0
     
                     # TODO the current method of expanding the k space bounds to encompass all the gene matches, and both sequences, is *correct*, but I think it's unnecessarily slow
                     k_v, k_d = {}, {}
@@ -320,8 +296,8 @@ class PartitionDriver(object):
                     only_genes = info['all']
                     second_only_genes = second_info['all']
                     if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
-                        only_genes = info['best']['v'] + ':' + info['best']['d'] + ':' + info['best']['j']
-                        second_only_genes = second_info['best']['v'] + ':' + second_info['best']['d'] + ':' + second_info['best']['j']
+                        only_genes = info['v_gene'] + ':' + info['d_gene'] + ':' + info['j_gene']
+                        second_only_genes = second_info['v_gene'] + ':' + second_info['d_gene'] + ':' + second_info['j_gene']
                         k_v['min'] = info['k_v']['best']
                         k_v['max'] = k_v['min'] + 1
                         k_d['min'] = info['k_d']['best']

@@ -50,4 +50,4 @@ parter = PartitionDriver(args)
 if args.cache_parameters:
     parter.cache_parameters()
 else:
-    parter.run()
+    parter.partition()

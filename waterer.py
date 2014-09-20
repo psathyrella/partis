@@ -16,7 +16,7 @@ from parametercounter import ParameterCounter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs, from_scratch=True, parameter_dir='', write_parameters=True, plotdir=''):
+    def __init__(self, args, input_info, reco_info, germline_seqs, from_scratch=True, parameter_dir='', write_parameters=False, plotdir=''):
         if write_parameters or not from_scratch:
             assert parameter_dir != ''
         self.args = args
