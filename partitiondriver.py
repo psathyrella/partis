@@ -18,6 +18,13 @@ from parametercounter import ParameterCounter
 print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
+def from_same_event(pair_hmm, reco_info, query_name, second_query_name):
+    if pair_hmm:
+        return reco_info[query_name]['reco_id'] == reco_info[second_query_name]['reco_id']
+    else:
+        return False
+
+# ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
@@ -32,12 +39,24 @@ class PartitionDriver(object):
         self.input_info = {}
         self.reco_info = {}  # generator truth information
 
+        self.read_input_file()  # read simulation info and write sw input file
+
     # ----------------------------------------------------------------------------------------
-    def from_same_event(self, query_name, second_query_name):
-        if self.args.pair:
-            return self.reco_info[query_name]['reco_id'] == self.reco_info[second_query_name]['reco_id']
-        else:
-            return False
+    def clean(self, waterer):
+        if self.args.no_clean:
+            return
+        if not self.args.read_cached_parameters:  # ha ha I don't have this arg any more
+            waterer.clean()  # remove all the parameter files that the waterer's ParameterCounter made
+            for fname in glob.glob(waterer.parameter_dir + '/hmms/*.hmm'):  # remove all the hmm files from the same directory
+                os.remove(fname)
+            os.rmdir(waterer.parameter_dir + '/hmms')
+            os.rmdir(waterer.parameter_dir)
+
+        # check to see if we missed anything
+        leftovers = [ fname for fname in os.listdir(self.args.workdir) ]
+        for over in leftovers:
+            print self.args.workdir + '/' + over
+        os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def read_input_file(self):
@@ -70,47 +89,7 @@ class PartitionDriver(object):
         assert len(self.input_info) > 0
     
     # ----------------------------------------------------------------------------------------
-    def partition(self):
-        self.read_input_file()  # read simulation info and write sw input file
-
-        # run smith-waterman
-        assert self.args.read_cached_parameters
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
-        waterer.run()
-
-        # cdr3 length partitioning
-        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths. TODO fix that
-        cdr3_length_clusters = None
-        if cdr3_cluster:
-            cdr3_length_clusters = self.cdr3_length_precluster(waterer)
-
-        assert self.args.pair and self.args.algorithm == 'forward'
-        hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
-        stripped_clusters = self.run_hmm(waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        final_clusters = self.run_hmm(waterer.info, self.args.parameter_dir, preclusters=stripped_clusters, stripped=False)
-
-        # self.clean(waterer)
-
-    # ----------------------------------------------------------------------------------------
-    def clean(self, waterer):
-        if self.args.no_clean:
-            return
-        if not self.args.read_cached_parameters:
-            waterer.clean()  # remove all the parameter files that the waterer's ParameterCounter made
-            for fname in glob.glob(waterer.parameter_dir + '/hmms/*.hmm'):  # remove all the hmm files from the same directory
-                os.remove(fname)
-            os.rmdir(waterer.parameter_dir + '/hmms')
-            os.rmdir(waterer.parameter_dir)
-
-        # check to see if we missed anything
-        leftovers = [ fname for fname in os.listdir(self.args.workdir) ]
-        for over in leftovers:
-            print self.args.workdir + '/' + over
-        os.rmdir(self.args.workdir)
-
-    # ----------------------------------------------------------------------------------------
     def cache_parameters(self, parameter_dir=''):
-        self.read_input_file()  # read simulation info and write sw input file
 
         if parameter_dir == '':
             parameter_dir = self.args.parameter_dir
@@ -124,15 +103,45 @@ class PartitionDriver(object):
         self.write_hmms(sw_parameter_dir, self.args.only_genes)
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
-        assert not self.args.pair and self.args.algorithm == 'viterbi'  # er, could probably do it for forward pair, but I'm not really sure what it would mean
-        self.run_hmm(waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
-        # self.clean(waterer)
+        assert not self.args.pair  # er, could probably do it for forward pair, but I'm not really sure what it would mean
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
 
         print 'writing hmms with info from hmm'
         self.write_hmms(hmm_parameter_dir, self.args.only_genes)
 
+        # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
+
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir=''):
+    def partition(self):
+
+        # run smith-waterman
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer.run()
+
+        # cdr3 length partitioning
+        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths. TODO fix that
+        cdr3_length_clusters = None
+        if cdr3_cluster:
+            cdr3_length_clusters = self.cdr3_length_precluster(waterer)
+
+        assert self.args.pair
+        hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
+        stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
+        final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=stripped_clusters, stripped=False)
+
+        # self.clean(waterer)
+
+    # ----------------------------------------------------------------------------------------
+    def point_estimate(self):
+        """ get a point estimate for each query sequence (or pair). i.e. run viterbi """
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer.run()
+
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir)
+        # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
+
+    # ----------------------------------------------------------------------------------------
+    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir=''):
         pcounter = None
         if count_parameters:
             pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir)
@@ -146,14 +155,14 @@ class PartitionDriver(object):
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, stripped=stripped)
-        self.run_stochhmm(csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
-        self.read_hmm_output(csv_outfname, pairscorefname, pcounter)
+        self.run_stochhmm(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter)
 
         if count_parameters:
             pcounter.write_counts()
 
         clusters = None
-        if self.args.pair and self.args.algorithm == 'forward':
+        if self.args.pair and algorithm == 'forward':
             clusters = Clusterer(0, greater_than=True)
             clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
             if preclusters != None:
@@ -324,12 +333,12 @@ class PartitionDriver(object):
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], only_genes, self.input_info[query_name]['seq']))
 
     # ----------------------------------------------------------------------------------------
-    def run_stochhmm(self, csv_infname, csv_outfname, parameter_dir):
+    def run_stochhmm(self, algorithm, csv_infname, csv_outfname, parameter_dir):
         start = time.time()
 
         # build the command line
         cmd_str = self.args.stochhmm_dir + '/stochhmm'
-        cmd_str += ' --algorithm ' + self.args.algorithm
+        cmd_str += ' --algorithm ' + algorithm
         if self.args.pair:
             cmd_str += ' --pair 1'
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
@@ -357,7 +366,7 @@ class PartitionDriver(object):
         print '    hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, hmm_csv_outfname, pairscorefname, pcounter):
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter):
         # TODO the input and output files for this function are almost identical at this point
 
         # write header for pairwise score file
@@ -378,7 +387,7 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 # print the results
-                if self.args.algorithm == 'viterbi':  # for viterbi print the inferred reco events
+                if algorithm == 'viterbi':  # for viterbi print the inferred reco events
                     if last_id != utils.get_key(line['unique_id'], line['second_unique_id']):  # if this is the first line for this query (or query pair), print the true event
                         # increment counters
                         if pcounter != None:
@@ -386,13 +395,13 @@ class PartitionDriver(object):
                             pcounter.increment(line)
 
                         # then print stuff
-                        print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], self.from_same_event(line['unique_id'], line['second_unique_id']))
+                        print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
                         print '    true:'
                         cpos = self.cyst_positions[self.reco_info[line['unique_id']]['v_gene']]['cysteine-position']
                         # TODO fix this, i.e. figure out the number to add to it so it's correct: tpos = int(self.tryp_positions[self.reco_info[line['unique_id']]['j_gene']]) + 
                         utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], cpos, 0, extra_str='    ')
                         if self.args.pair:
-                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, self.from_same_event(line['unique_id'], line['second_unique_id']), '    ')
+                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, from_same_event(self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']), '    ')
                         print '    inferred:'
                     utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
                     if self.args.pair:

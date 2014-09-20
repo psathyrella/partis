@@ -13,7 +13,7 @@ parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no_clean', action='store_true')  # don't remove the various temp files
 # actions:
 parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
-parser.add_argument('--read_cached_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
+parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--parameter_dir')
 
 parser.add_argument('--human', default='A', choices=['A', 'B', 'C'])
@@ -24,7 +24,6 @@ parser.add_argument('--reco_ids')  # or recombination events
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--n_total_queries', type=int, default=-1)  # stop after this many queries
 parser.add_argument('--only_genes')  # skip all gene matches except for these when parsing the sw output
-parser.add_argument('--algorithm', default='viterbi', choices=['viterbi', 'forward'])
 parser.add_argument('--pair', action='store_true')
 
 parser.add_argument('--n_max_per_region', type=int, default=3)
@@ -49,5 +48,7 @@ utils.prep_dir(args.workdir)
 parter = PartitionDriver(args)
 if args.cache_parameters:
     parter.cache_parameters()
+elif args.point_estimate:
+    parter.point_estimate()
 else:
     parter.partition()
