@@ -156,7 +156,7 @@ int main(int argc, const char * argv[]) {
     Result result = jh.Run(*seqs[is], k_v_min, k_v_max, k_d_min, k_d_max);
     int icount(0);
     while (result.boundary_error_ != "") {
-      if (icount > 5) break;
+      if (icount > 10) break;
       if (result.boundary_error_ == "k_v_min") k_v_min = max(0, k_v_min-1);
       if (result.boundary_error_ == "k_v_max") ++k_v_max;
       if (result.boundary_error_ == "k_d_min") k_d_min = max(0, k_d_min-1);
@@ -164,7 +164,11 @@ int main(int argc, const char * argv[]) {
       result = jh.Run(*seqs[is], k_v_min, k_v_max, k_d_min, k_d_max);
       ++icount;
     }
-    assert(jh.errors() == "");
+    if(jh.errors() != "") {
+      cout << "jh errors: " << endl;
+      cout << jh.errors() << endl;
+      assert(0);
+    }
     double score(result.total_score_);
     if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
       assert(seqs[is]->n_seqs() == 2);
