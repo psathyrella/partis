@@ -188,8 +188,11 @@ int main(int argc, const char * argv[]) {
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score, string errors) {
   if (opt.sopt("--algorithm") == "viterbi") {
-    assert(opt.iopt("--n_best_events") <= events.size());
-    for (size_t ievt=0; ievt<opt.iopt("--n_best_events"); ++ievt) {
+    // assert(opt.iopt("--n_best_events") <= events.size());  // make sure we found at least as many valid events as were asked for with <--n_best_events>
+    if (opt.iopt("--n_best_events") > events.size())  // make sure we found at least as many valid events as were asked for with <--n_best_events>
+      cout << "WARNING asked for " << opt.iopt("--n_best_events") << " events but only found " << events.size() << endl;
+    size_t n_max = min(size_t(opt.iopt("--n_best_events")), events.size());
+    for (size_t ievt=0; ievt<n_max; ++ievt) {
       RecoEvent *event = &events[ievt];
       string second_seq_name,second_seq;
       if (opt.iopt("--pair")) {
