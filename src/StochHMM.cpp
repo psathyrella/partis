@@ -159,8 +159,9 @@ int main(int argc, const char * argv[]) {
       if (icount > 10) break;
       if (result.boundary_error_ == "k_v_min") k_v_min = max(0, k_v_min-1);
       if (result.boundary_error_ == "k_v_max") ++k_v_max;
-      if (result.boundary_error_ == "k_d_min") k_d_min = max(0, k_d_min-1);
+      if (result.boundary_error_ == "k_d_min") k_d_min = max(1, k_d_min-1);
       if (result.boundary_error_ == "k_d_max") ++k_d_max;
+      if (opt.iopt("--debug")) cout << "    rerunning with kset " << k_v_min << "-" << k_v_max << ", " << k_d_min << "-" << k_d_max << endl;
       result = jh.Run(*seqs[is], k_v_min, k_v_max, k_d_min, k_d_max);
       ++icount;
     }

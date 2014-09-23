@@ -96,6 +96,7 @@ Result JobHolder::Run(sequence &seq, size_t k_v_min, size_t k_v_max, size_t k_d_
 // ----------------------------------------------------------------------------------------
 Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max) {
   assert(k_v_max>k_v_min && k_d_max>k_d_min);
+  assert(k_v_min > 0 && k_d_min > 0);
   assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
   Clear();
   assert(trellisi_.size()==0 && paths_.size()==0 && all_scores_.size()==0);
