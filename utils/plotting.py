@@ -1,6 +1,7 @@
 import math
 import os
 import sys
+import csv
 from array import array
 sys.argv.append('-b')
 from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue
@@ -9,7 +10,7 @@ gROOT.Macro("plotting/MitStyleRemix.cc+")
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
-def set_bins(values, n_bins, is_log_x, var_type, xbins):
+def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
     """ NOTE <values> should be sorted """
     if is_log_x:
         log_xmin = math.log(pow(10.0, math.floor(math.log10(values[0]))))  # round down to the nearest power of 10 from the first entry
@@ -37,6 +38,23 @@ def set_bins(values, n_bins, is_log_x, var_type, xbins):
             xbins[ib] = xmin + ib*dx
 
 # ----------------------------------------------------------------------------------------
+def make_hist_from_file(fname, column, hist_label='', n_bins=30, log=''):
+    values = []
+    with opener('r')(fname) as infile:
+        reader = csv.DictReader(infile)
+        for line in reader:
+            values.append(float(line[column]))
+
+    values = sorted(values)
+    xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
+    set_bins(values, n_bins, 'x' in log, xbins, var_type='float')
+    hist = TH1F('h'+hist_label, '', n_bins, xbins)
+    for value in values:
+        hist.Fill(value)
+
+    return hist
+
+# ----------------------------------------------------------------------------------------
 def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False):
     """ fill a histogram with values from a dictionary """
 
@@ -54,7 +72,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     hist = None
     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work them out dynamically
-        set_bins(bin_labels, n_bins, 'x' in log, var_type, xbins)
+        set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
         hist = TH1F('h'+hist_label, '', n_bins, xbins)
     else:
       hist = TH1F('h'+hist_label, '', n_bins, xmin_force, xmax_force)
@@ -84,7 +102,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
         hist.Scale(1./hist.Integral())
         hist.GetYaxis().SetTitle('freq')
     
-    return hist;
+    return hist
 
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop'):
