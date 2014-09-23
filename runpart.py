@@ -16,6 +16,8 @@ parser.add_argument('--cache_parameters', action='store_true')  # cache paramete
 parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--parameter_dir')
 
+parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
+
 parser.add_argument('--human', default='A', choices=['A', 'B', 'C'])
 parser.add_argument('--naivety', default='M', choices=['N', 'M'])
 parser.add_argument('--seqfile')  # input file

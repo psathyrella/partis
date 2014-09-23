@@ -26,10 +26,14 @@ class HmmWriter(object):
     def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, v_right_length=-1):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
+
+        # crappy parameters I made up:
         self.null_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
         self.insert_mute_prob = 0.1  # TODO don't pull this ooya
         self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.fuzz_around_v_left_edge = 20.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
+        self.default_mute_rate = self.insert_mute_prob
+
         self.outdir = outdir  # + '/' + region
         self.region = utils.get_region(gene_name)
         self.gene_name = gene_name
@@ -47,21 +51,31 @@ class HmmWriter(object):
 
         self.erosion_probs = {}
         try:
-            self.read_erosion_probs(False)  # try this exact gene, but...
+            self.read_erosion_probs()  # try this exact gene, but...
         except AssertionError:
-            if self.debug:
-                print '  no erosion probs for',gene_name
+            print '  no erosion probs for',gene_name,'so try other alleles'
             try:
-                self.read_erosion_probs(True)  # ...if we don't have info for it use other alleles
+                self.read_erosion_probs(use_other_alleles=True)  # ...if we don't have info for it use other alleles
             except AssertionError:
-                self.read_erosion_probs(False, True)  # ...if we don't have info for it use other 'primary versions'
+                print '    couldn\'t find any alleles, either, so try other primary versions'
+                self.read_erosion_probs(use_other_alleles=False, use_other_primary_versions=True)  # ...if we don't have info for it use other 'primary versions'
 
         self.insertion_probs = {}
         if self.region != 'v':
             try:
-                self.read_insertion_probs(False)
+                self.read_insertion_probs(use_other_alleles=False)
             except AssertionError:
-                self.read_insertion_probs(True)  # try again using all the alleles for this gene. TODO do something better
+                print '  no insertion probs found for', self.gene_name, 'so try other alleles'
+                try:
+                    self.read_insertion_probs(use_other_alleles=True)  # try again using all the alleles for this gene. TODO do something better
+                except AssertionError:
+                    print '    couldn\'t find any alleles, either, so try other primary versions'
+                    try:
+                        self.read_insertion_probs(use_other_alleles=False, use_other_primary_versions=True)  # ...if we don't have info for it use other 'primary versions'
+                    except AssertionError:
+                        print '     hrg, can\'t find that either. Using IGHJ4*02_F, he\'s a popular fellow'
+                        self.read_insertion_probs(use_other_alleles=False, use_other_primary_versions=False, use_specific_version='IGHJ4*02_F')  # ...if we don't have info for it use other 'primary versions'
+
         self.mute_freqs = {}  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
         if self.naivety == 'M':  # mutate if not naive
             self.read_mute_freqs()
@@ -78,15 +92,18 @@ class HmmWriter(object):
             with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(erosion + '_del', deps)) as infile:
                 reader = csv.DictReader(infile)
                 total = 0.0
+                genes_used = set()
                 for line in reader:
-                    if self.region != 'j':
+                    if self.region != 'j':  # j erosion doesn't depend on gene choice
                         if use_other_primary_versions:
                             if not utils.are_same_primary_version(line[self.region + '_gene'], self.gene_name):  # TODO check that I'm actually using the right lines here. Same thing below in read_insertion_probs
                                 continue
+                            genes_used.add(line[self.region + '_gene'])
                         elif use_other_alleles:
                             if not utils.are_alleles(line[self.region + '_gene'], self.gene_name):  # TODO check that I'm actually using the right lines here. Same thing below in read_insertion_probs
                                 continue
-                        elif line[self.region + '_gene'] != self.gene_name:  # skip other genes (j erosion doesn't depend on gene choice)
+                            genes_used.add(line[self.region + '_gene'])
+                        elif line[self.region + '_gene'] != self.gene_name:  # skip other genes
                             continue
                     if int(line[erosion + '_del']) >= len(self.germline_seq):  # j erosion lengths don't depend on j gene, so we have to skip the ones that're too long
                         assert self.region == 'j'
@@ -96,8 +113,10 @@ class HmmWriter(object):
                         self.erosion_probs[erosion][n_eroded] = 0.0
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
                     total += float(line['count'])
+                if len(genes_used) > 0:
+                    print '    used', ' '.join(genes_used)
 
-                assert len(self.erosion_probs[erosion]) != 0
+                assert len(self.erosion_probs[erosion]) != 0  # make sure we actually found some erosion information
                 test_total = 0.0
                 for n_eroded in self.erosion_probs[erosion]:  # then normalize
                     self.erosion_probs[erosion][n_eroded] /= total
@@ -105,19 +124,28 @@ class HmmWriter(object):
                 assert utils.is_normed(test_total)
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_probs(self, use_other_alleles=False):
+    def read_insertion_probs(self, use_other_alleles=False, use_other_primary_versions=False, use_specific_version=''):
         # TODO fill in cases where we don't have info from data with some (small) default value
         self.insertion_probs[self.insertion] = {}
         deps = utils.column_dependencies[self.insertion + '_insertion']
         with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(self.insertion + '_insertion', deps)) as infile:
             reader = csv.DictReader(infile)
             total = 0.0
+            genes_used = set()
             for line in reader:
                 if self.region == 'j':  # for dj insertion, skip rows for genes other than the current one (vd insertion doesn't depend on gene choice, so use everything for it)
-                    assert self.insertion == 'dj'  # neuroticism is a positive personality trait
+                    if use_other_primary_versions:
+                        if not utils.are_same_primary_version(line[self.region + '_gene'], self.gene_name):  # TODO check that I'm actually using the right lines here. Same thing below in read_insertion_probs
+                            continue
+                        genes_used.add(line[self.region + '_gene'])
                     if use_other_alleles:
                         if not utils.are_alleles(line['j_gene'], self.gene_name):
                             continue
+                        genes_used.add(line[self.region + '_gene'])
+                    elif use_specific_version != '':
+                        if line['j_gene'] != use_specific_version:
+                            continue
+                        genes_used.add(line[self.region + '_gene'])
                     elif line['j_gene'] != self.gene_name:
                         continue
                 n_inserted = 0
@@ -126,6 +154,8 @@ class HmmWriter(object):
                     self.insertion_probs[self.insertion][n_inserted] = 0.0
                 self.insertion_probs[self.insertion][n_inserted] += float(line['count'])
                 total += float(line['count'])
+            if len(genes_used) > 0:
+                print '    used', ' '.join(genes_used)
 
             assert len(self.insertion_probs[self.insertion]) != 0  # designed to fail
 
@@ -139,32 +169,40 @@ class HmmWriter(object):
     def read_mute_freqs(self):
         mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(self.gene_name) + '.csv'
         i_try = 0
+        if not os.path.exists(mutefname):
+            print '  no mute file for',self.gene_name,'so try other alleles'
+            print '    ',
         while not os.path.exists(mutefname):  # loop through other possible alleles
             # TODO double check and unify how I look for other alleles/versions when I don't have info for a particular gene versions
             allele_id = re.findall('_star_[0-9][0-9]*', mutefname)
-            assert len(allele_id) == 1
+            assert len(allele_id) == 1  # make sure we found only one match
             allele_id = allele_id[0]
             if i_try == 0:
                 allele_number = 1
             else:
                 allele_number = int(allele_id.replace('_star_', ''))
-                assert allele_number > 0 and allele_number < 100  # holy crap who the fuck made an allele number of ninety one?
+                # assert allele_number > 0 and allele_number < 100
                 allele_number += 1
             mutefname = mutefname.replace(allele_id, '_star_%02d' % allele_number)
-            if i_try > 100:
-                print 'ERROR too many tries ', i_try, mutefname
-                sys.exit()
+            print allele_number,
+            if i_try > 99:
+                print '\n    ERROR could not find mute file to use on', self.gene_name, 'using default value of', self.default_mute_rate
+                break
             i_try += 1
-
-        # if self.gene_name == 'IGHV3-30*01':  IGHV3-30_star_11.
-        #     mutefname = mutefname.replace('_star_01', '_star_02')  # don't really have any info on this allele. TODO see about just removing it?
-        with opener('r')(mutefname) as mutefile:
-            reader = csv.DictReader(mutefile)
-            for line in reader:
-                freq = float(line['mute_freq'])
-                if freq == 0.0:
-                    freq = self.null_mute_freq
-                self.mute_freqs[int(line['position'])] = freq
+        if i_try > 0:
+            print ''
+        
+        if os.path.exists(mutefname):
+            with opener('r')(mutefname) as mutefile:
+                reader = csv.DictReader(mutefile)
+                for line in reader:
+                    freq = float(line['mute_freq'])
+                    if freq == 0.0:
+                        freq = self.null_mute_freq
+                    self.mute_freqs[int(line['position'])] = freq
+        else:
+            for ipos in range(len(self.germline_seq)):
+                self.mute_freqs[ipos] = self.default_mute_rate
 
     # ----------------------------------------------------------------------------------------
     def write(self):
@@ -208,9 +246,13 @@ class HmmWriter(object):
         non_zero_insertion_prob = 1.0
         if self.region != 'v':  # no insertion state in v hmm
             if for_insert_state:  # for the insert state, we want the prob of *leaving* the insert state to be 1./insertion_length, so multiply all the region entry probs by this
-                insertion_length = self.get_mean_insert_length()
-                self.text_list.append((' insert: %.' + self.precision + 'f\n') % (1.0 - 1./insertion_length))
-                non_zero_insertion_prob -= 1./insertion_length  # TODO I have no real idea if this is right. well, it's probably ok, but I really need to read through it again
+                inverse_length = 0.0
+                try:
+                    inverse_length = 1./self.get_mean_insert_length()
+                except ZeroDivisionError:
+                    pass
+                self.text_list.append((' insert: %.' + self.precision + 'f\n') % (1.0 - inverse_length))
+                non_zero_insertion_prob -= inverse_length  # TODO I have no real idea if this is right. well, it's probably ok, but I really need to read through it again
             else:
                 if 0 in self.insertion_probs[self.insertion]:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0       *giggle*
                     non_zero_insertion_prob -= self.insertion_probs[self.insertion][0]

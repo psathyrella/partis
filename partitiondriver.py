@@ -18,7 +18,9 @@ from parametercounter import ParameterCounter
 print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
-def from_same_event(pair_hmm, reco_info, query_name, second_query_name):
+def from_same_event(is_data, pair_hmm, reco_info, query_name, second_query_name):
+    if is_data:
+        return False
     if pair_hmm:
         return reco_info[query_name]['reco_id'] == reco_info[second_query_name]['reco_id']
     else:
@@ -37,7 +39,9 @@ class PartitionDriver(object):
 
         self.precluster_info = {}
         self.input_info = {}
-        self.reco_info = {}  # generator truth information
+        self.reco_info = None
+        if not self.args.is_data:
+            self.reco_info = {}  # generator truth information
 
         self.read_input_file()  # read simulation info and write sw input file
 
@@ -80,7 +84,7 @@ class PartitionDriver(object):
                 if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
                     continue
 
-                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}  #[n_nukes_skip:]}
+                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][self.args.n_bases_skip:]}
                 if not self.args.is_data:
                     self.reco_info[line['unique_id']] = line
                 n_queries += 1
@@ -100,14 +104,14 @@ class PartitionDriver(object):
         waterer.run()
 
         print 'writing hmms with sw info'
-        self.write_hmms(sw_parameter_dir, self.args.only_genes)
+        self.write_hmms(sw_parameter_dir, waterer.info['all_matches'])
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
         assert not self.args.pair  # er, could probably do it for forward pair, but I'm not really sure what it would mean
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
 
-        print 'writing hmms with info from hmm'
-        self.write_hmms(hmm_parameter_dir, self.args.only_genes)
+        print 'writing hmms with hmm info'
+        self.write_hmms(hmm_parameter_dir, waterer.info['all_matches'])
 
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
 
@@ -167,7 +171,7 @@ class PartitionDriver(object):
             clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
             if preclusters != None:
                 for query_name in sw_info:  # check for singletons that got split out in the preclustering step
-                    if query_name not in clusters.query_clusters:
+                    if query_name not in clusters.query_clusters and query_name != 'all_matches':
                         print '    singleton ', query_name
 
         if not self.args.no_clean:
@@ -254,23 +258,29 @@ class PartitionDriver(object):
         return clust
     
     # ----------------------------------------------------------------------------------------
-    def write_hmms(self, parameter_dir, gene_list=None):
+    def write_hmms(self, parameter_dir, sw_matches):
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.hmm')
 
-        if gene_list == None:  # if specific genes weren't specified, do 'em all
+        gene_list = self.args.only_genes
+        if gene_list == None:  # if specific genes weren't specified, do the ones for which we have matches
+            gene_list = []
             for region in utils.regions:
-                gene_list.append(self.germline_seqs[region])
+                for gene in self.germline_seqs[region]:
+                    if gene in sw_matches:
+                        gene_list.append(gene)
 
         for gene in gene_list:
             if self.args.debug:
                 print '   ',gene
-            if len(re.findall('J[123]P', gene)) > 0:  # pretty sure these versions are crap
-                print '  poof'
-                continue
-            if 'OR16' in gene or 'OR21' in gene or 'V3/OR15' in gene:
-                print '  poof'
-                continue
+            # if len(re.findall('J[123]P', gene)) > 0 or 'OR16' in gene or 'OR21' in gene or 'OR15' in gene or 'IGHV1-46*0' in gene or 'IGHV1-68' in gene or 'IGHV1-NL1' in gene or 'IGHV1-c' in gene or 'IGHV1-f' in gene:
+            #     try:
+            #         writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
+            #         writer.write()
+            #     except AssertionError:
+            #         print '  giving up on',gene
+            #         continue
+            # else:
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
             writer.write()
 
@@ -281,6 +291,7 @@ class PartitionDriver(object):
             header = ['name', 'second_name', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
             csvfile.write(' '.join(header) + '\n')
 
+            skipped_gene_matches = set()
             # then write a line for each query sequence (or pair of them)
             if self.args.pair:
                 for query_name, second_query_name in self.get_pairs(preclusters):  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
@@ -312,12 +323,21 @@ class PartitionDriver(object):
                         k_d['min'] = info['k_d']['best']
                         k_d['max'] = k_d['min'] + 1
 
-                    only_genes = ':'.join(set(only_genes.split(':')) | set(second_only_genes.split(':')))  # NOTE using both sets of genes (from both query seqs) like this *really* helps, 
+                    only_genes = []
+                    tmp_set = set(info['all'].split(':')) | set(second_info['all'].split(':'))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
+                    for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, skip genes for which this didn't happen
+                        if gene not in sw_info['all_matches']:
+                            skipped_gene_matches.add(gene)
+                            continue
+                        only_genes.append(gene)
                     csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
-                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], only_genes,
+                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(only_genes),
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
             else:
                 for query_name in self.input_info:
+                    if query_name not in sw_info:
+                        print '    %s not found in sw info' % query_name
+                        continue
                     info = sw_info[query_name]
     
                     # make sure we don't need to rewrite the hmm model files
@@ -325,12 +345,19 @@ class PartitionDriver(object):
                         print 'WARNING VRIGHT ', info['v_right_length'], self.args.v_right_length, (info['v_right_length']-self.args.v_right_length)
                     # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
     
-                    # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
-                    assert len(re.findall('J[123]P', info['j_gene'])) == 0
+                    # # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
+                    # assert len(re.findall('J[123]P', info['j_gene'])) == 0
     
-                    only_genes = info['all']
+                    only_genes = []
+                    tmp_set = set(info['all'].split(':'))
+                    for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, skip genes for which this didn't happen
+                        if gene not in sw_info['all_matches']:
+                            skipped_gene_matches.add(gene)
+                            continue
+                        only_genes.append(gene)
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
-                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], only_genes, self.input_info[query_name]['seq']))
+                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
+            print '    %s not in best sw matches, skipping' % ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches])
 
     # ----------------------------------------------------------------------------------------
     def run_stochhmm(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -386,29 +413,30 @@ class PartitionDriver(object):
                 else:
                     assert len(line['errors']) == 0
 
-                # print the results
-                if algorithm == 'viterbi':  # for viterbi print the inferred reco events
+                if algorithm == 'viterbi':
                     if last_id != utils.get_key(line['unique_id'], line['second_unique_id']):  # if this is the first line for this query (or query pair), print the true event
-                        # increment counters
-                        if pcounter != None:
+                        if pcounter != None:  # increment counters
                             utils.get_match_seqs(self.germline_seqs, line)
                             pcounter.increment(line)
 
-                        # then print stuff
-                        print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
-                        print '    true:'
-                        cpos = self.cyst_positions[self.reco_info[line['unique_id']]['v_gene']]['cysteine-position']
-                        # TODO fix this, i.e. figure out the number to add to it so it's correct: tpos = int(self.tryp_positions[self.reco_info[line['unique_id']]['j_gene']]) + 
-                        utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], cpos, 0, extra_str='    ')
+                        if self.args.debug > 0: # print stuff
+                            print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
+                            print '    true:'
+                            cpos = -1
+                            if not self.args.is_data:
+                                cpos = self.cyst_positions[self.reco_info[line['unique_id']]['v_gene']]['cysteine-position']
+                                # TODO fix this, i.e. figure out the number to add to it so it's correct: tpos = int(self.tryp_positions[self.reco_info[line['unique_id']]['j_gene']]) + 
+                                utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], cpos, 0, extra_str='    ')
+                                if self.args.pair:
+                                    utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']), '    ')
+                            print '    inferred:'
+                    if self.args.debug > 0: # print stuff
+                        utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
                         if self.args.pair:
-                            utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, from_same_event(self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']), '    ')
-                        print '    inferred:'
-                    utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
-                    if self.args.pair:
-                        tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
-                        line['seq'] = line['second_seq']
-                        utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
-                        line['seq'] = tmpseq
+                            tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
+                            line['seq'] = line['second_seq']
+                            utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
+                            line['seq'] = tmpseq
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
