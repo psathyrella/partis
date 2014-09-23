@@ -166,9 +166,7 @@ int main(int argc, const char * argv[]) {
       ++icount;
     }
     if(jh.errors() != "") {
-      cout << "jh errors: " << endl;
-      cout << jh.errors() << endl;
-      assert(0);
+      cout << "WARNING jh errors: " << jh.errors() << endl;
     }
     double score(result.total_score_);
     if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
