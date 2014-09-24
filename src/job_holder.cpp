@@ -22,10 +22,8 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
     better_kbounds_.dmax = kbounds.dmax + 1;
   }
 
-  if (boundary_error_ && better_kbounds_.equals(kbounds)) {
+  if (boundary_error_ && better_kbounds_.equals(kbounds))
     could_not_expand_ = true;
-    cout << "WARNING couldn't expand k bounds" << endl;
-  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -137,10 +135,11 @@ Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
   double best_score(-INFINITY);
   KSet best_kset(0,0);
   double *total_score = &result.total_score_;  // total score for all ksets
+  int n_too_long(0);
   for (size_t k_v=kbounds.vmin; k_v<kbounds.vmax; ++k_v) {
     for (size_t k_d=kbounds.dmin; k_d<kbounds.dmax; ++k_d) {
       if (k_v + k_d >= seqs.GetSequenceLength()) {
-	cout << "      skipping " << k_v << " + " << k_d << " = " << k_v + k_d << " >= " << seqs.GetSequenceLength() << endl;
+	++n_too_long;
 	continue;
       }
       KSet kset(k_v,k_d);
@@ -155,10 +154,12 @@ Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
 	PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
     }
   }
+  if (debug_ && n_too_long>0) cout << "      skipped " << n_too_long << " k sets 'cause they were longer than the sequence" << endl;
 
   // return if no valid path
   if (best_kset.v == 0) {
-    cout << "  ERROR no valid paths for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
+    cout << "ERROR no valid paths for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
+    result.no_path_ = true;
     return result;
   }
 
@@ -191,7 +192,7 @@ Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
     cout << "              WARNING maximum at boundary for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
     cout << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax-1 << ")"
 	 << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax-1 << ")" << endl;
-    cout << "    expand to " << result.better_kbounds().vmin << "-" << result.better_kbounds().vmax << ", " << result.better_kbounds().dmin << "-" << result.better_kbounds().dmax << endl;
+    cout << "    expand to " << result.better_kbounds().stringify() << endl;
   }
 
   return result;

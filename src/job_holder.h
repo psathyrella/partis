@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <sstream>
 #include <math.h>
 #include <set>
 #include <iomanip>
@@ -31,6 +32,11 @@ class KBounds {
 public:
   KBounds(KSet kmin, KSet kmax) : vmin(kmin.v), dmin(kmin.d), vmax(kmax.v), dmax(kmax.d) {}
   bool equals(KBounds rhs) { return vmin==rhs.vmin && vmax==rhs.vmax && dmin==rhs.dmin && dmax==rhs.dmax; }
+  string stringify() {
+    stringstream ss;
+    ss << vmin << "-" << vmax << ", " << dmin << "-" << dmax;
+    return ss.str();
+  }
   size_t vmin,dmin,vmax,dmax;
 };
 // ----------------------------------------------------------------------------------------
@@ -49,13 +55,14 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result(KBounds kbounds) : total_score_(-INFINITY), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false) {}
+  Result(KBounds kbounds) : total_score_(-INFINITY), no_path_(false), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false) {}
   void check_boundaries(KSet best, KBounds kbounds);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
   bool boundary_error() { return boundary_error_; } // is the best kset on boundary of k space?
   bool could_not_expand() { return could_not_expand_; }
   KBounds better_kbounds() { return better_kbounds_; }
   double total_score() { return total_score_; }
   double total_score_;  // TODO move this to private
+  bool no_path_;
   vector<RecoEvent> events_;  // TODO move this to private
 
 private:

@@ -156,6 +156,7 @@ int main(int argc, const char * argv[]) {
     Result result(kbounds);
     do {
       result = jh.Run(*seqs[is], kbounds);
+      if (result.could_not_expand()) cout << "WARNING " << (*seqs[is])[0].name() << ((*seqs[is]).n_seqs()==2 ? (*seqs[is])[1].name() : "") << " couldn't expand k bounds for " << kbounds.stringify() << endl;
       kbounds = result.better_kbounds();
     } while (result.boundary_error() && !result.could_not_expand());
 
@@ -170,6 +171,12 @@ int main(int argc, const char * argv[]) {
       score = score - result_a.total_score() - result_b.total_score();
     }
 
+    if (opt.iopt("--n_best_events") > result.events_.size()) {  // if we were asked for more events than we found
+      if (result.events_.size() > 0)
+	cout << "WARNING asked for " << opt.iopt("--n_best_events") << " events but only found " << result.events_.size() << endl;
+      else
+	assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
+    }
     StreamOutput(ofs, opt, result.events_, *seqs[is], score);
   }
 
@@ -181,8 +188,6 @@ int main(int argc, const char * argv[]) {
 void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score) {
   if (opt.sopt("--algorithm") == "viterbi") {
     // assert(opt.iopt("--n_best_events") <= events.size());  // make sure we found at least as many valid events as were asked for with <--n_best_events>
-    if (opt.iopt("--n_best_events") > events.size())  // make sure we found at least as many valid events as were asked for with <--n_best_events>
-      cout << "WARNING asked for " << opt.iopt("--n_best_events") << " events but only found " << events.size() << endl;
     size_t n_max = min(size_t(opt.iopt("--n_best_events")), events.size());
     for (size_t ievt=0; ievt<n_max; ++ievt) {
       RecoEvent *event = &events[ievt];
