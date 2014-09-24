@@ -13,8 +13,19 @@
 using namespace std;
 using namespace StochHMM;
 
-typedef pair<size_t,size_t> KSet;  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j
+// typedef pair<size_t,size_t> KSet;  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j
 typedef pair<string,string> StrPair;
+
+// ----------------------------------------------------------------------------------------
+class KSet {
+public:
+  KSet(size_t k_v, size_t k_d) : v(k_v), d(k_d) {}
+  bool equals(KSet rhs) { return v == rhs.v && d == rhs.d; }
+  bool operator< (const KSet rhs) const { return  v < rhs.v && d < rhs.d; }
+
+  size_t v;
+  size_t d;
+};
 
 // ----------------------------------------------------------------------------------------
 class HMMHolder {
@@ -32,10 +43,18 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result() : boundary_error_(""),total_score_(-INFINITY) {}
-  string boundary_error_;
-  double total_score_;
-  vector<RecoEvent> events_;
+  Result(KSet kmin, KSet kmax) : total_score_(-INFINITY), better_kmin_(kmin), better_kmax_(kmax), boundary_error_(false) {}
+  void check_boundaries(KSet best, KSet kmin, KSet kmax);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
+  bool boundary_error() { return boundary_error_; } // is the best kset on boundary of k space?
+  KSet better_kmin() { return better_kmin_; }
+  KSet better_kmax() { return better_kmax_; }
+  double total_score() { return total_score_; }
+  double total_score_;  // TODO move this to private
+  vector<RecoEvent> events_;  // TODO move this to private
+
+private:
+  KSet better_kmin_,better_kmax_;
+  bool boundary_error_;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -44,8 +63,8 @@ public:
   JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str="");
   ~JobHolder();
   void Clear();
-  Result Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max);
-  Result Run(sequence &seq, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max);
+  Result Run(sequences &seqs, KSet kmin, KSet kmax);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(sequence &seq, KSet kmin, KSet kmax);
   void RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
@@ -55,7 +74,6 @@ public:
   void StreamOutput(double test);  // print csv event info to stderr
   StrPair GetQueryStrs(sequences &seqs, KSet kset, string region);
   void WriteBestGeneProbs(ofstream &ofs, string query_name);
-  string errors() { return errors_; }
 
 private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
@@ -66,7 +84,6 @@ private:
   double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files
-  string errors_;
   GermLines &gl_;
   HMMHolder &hmms_;
   string algorithm_;

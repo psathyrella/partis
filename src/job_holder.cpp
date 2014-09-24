@@ -1,6 +1,33 @@
 #include "job_holder.h"
 
 // ----------------------------------------------------------------------------------------
+void Result::check_boundaries(KSet best, KSet kmin, KSet kmax) {
+  if (kmax.v-kmin.v <= 1 || kmax.d-kmin.d <= 2) return;  // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
+
+  // see if we need to expand
+  if (best.v == kmin.v) {
+    boundary_error_ = true;
+    better_kmin_.v = max((size_t)1, kmin.v-1);
+  }
+  if (best.v == kmax.v-1) {
+    boundary_error_ = true;
+    better_kmax_.v = kmax.v + 1;
+  }
+  if (best.d == kmin.d) {
+    boundary_error_ = true;
+    better_kmin_.d = max((size_t)1, kmin.d-1);
+  }
+  if (best.d == kmax.d-1) {
+    boundary_error_ = true;
+    better_kmax_.d = kmax.d + 1;
+  }
+
+  if (boundary_error_) {
+    if (better_kmin_.equals(kmin) && better_kmax_.equals(kmax)) cout << "WARNING couldn't expand k bounds" << endl;
+  }
+}
+
+// ----------------------------------------------------------------------------------------
 model *HMMHolder::Get(string gene) {
   if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
     hmms_[gene] = new model;
@@ -59,13 +86,12 @@ void JobHolder::Clear() {
   paths_.clear();
   all_scores_.clear();
   best_per_gene_scores_.clear();
-  errors_ = "";
 }
 
 // ----------------------------------------------------------------------------------------
 sequences JobHolder::GetSubSeqs(sequences &seqs, KSet kset, string region) {
   // get subsequences for one region
-  size_t k_v(kset.first),k_d(kset.second);
+  size_t k_v(kset.v),k_d(kset.d);
   if (region=="v")
     return seqs.getSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
   else if (region=="d")
@@ -86,17 +112,17 @@ map<string,sequences> JobHolder::GetSubSeqs(sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequence &seq, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max) {
+Result JobHolder::Run(sequence &seq, KSet kmin, KSet kmax) {
   sequences seqs;
   sequence *newseq = new sequence(seq);  // seriously wtf does <sequences> need to own its sequences?
   seqs.addSeq(newseq);
-  return Run(seqs, k_v_min, k_v_max, k_d_min, k_d_max);
+  return Run(seqs, kmin, kmax);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_d_min, size_t k_d_max) {
-  assert(k_v_max>k_v_min && k_d_max>k_d_min);
-  assert(k_v_min > 0 && k_d_min > 0);
+Result JobHolder::Run(sequences &seqs, KSet kmin, KSet kmax) {
+  assert(kmax.v>kmin.v && kmax.d>kmin.d);  // make sure max values for k_v and k_d are greater than their min values
+  assert(kmin.v > 0 && kmin.d > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
   Clear();
   assert(trellisi_.size()==0 && paths_.size()==0 && all_scores_.size()==0);
@@ -104,14 +130,14 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
   map<KSet,double> total_scores;  // total score for each kset (summed over regions)
   map<KSet,map<string,string> > best_genes;  // map from a kset to its corresponding triplet of best genes
 
-  Result result;
+  Result result(kmin, kmax);
 
   // loop over k_v k_d space
   double best_score(-INFINITY);
-  KSet best_kset(make_pair(0,0));
+  KSet best_kset(0,0);
   double *total_score = &result.total_score_;  // total score for all ksets
-  for (size_t k_v=k_v_min; k_v<k_v_max; ++k_v) {
-    for (size_t k_d=k_d_min; k_d<k_d_max; ++k_d) {
+  for (size_t k_v=kmin.v; k_v<kmax.v; ++k_v) {
+    for (size_t k_d=kmin.d; k_d<kmax.d; ++k_d) {
       if (k_v + k_d >= seqs.GetSequenceLength()) {
 	cout << "      skipping " << k_v << " + " << k_d << " = " << k_v + k_d << " >= " << seqs.GetSequenceLength() << endl;
 	continue;
@@ -130,8 +156,8 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
   }
 
   // return if no valid path
-  if (best_kset.first == 0) {
-    if (debug_) cout << "  nothing sensical" << endl;
+  if (best_kset.v == 0) {
+    if (debug_) cout << "  ERROR no valid paths for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
     return result;
   }
 
@@ -150,42 +176,21 @@ Result JobHolder::Run(sequences &seqs, size_t k_v_min, size_t k_v_max, size_t k_
   }
   // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
 
-  // warn if we're on the k_v k_d space boundary
-  if (k_v_max-k_v_min > 1 && k_d_max-k_d_min > 2) {  // for the stripped-down hmm we kinda expect the max to be on the boundary
-    if (best_kset.first == k_v_min)
-      result.boundary_error_ = "k_v_min";
-    else if (best_kset.first == k_v_max-1)
-      result.boundary_error_ = "k_v_max";
-    else if (best_kset.second == k_d_min)
-      result.boundary_error_ = "k_d_min";
-    else if (best_kset.second == k_d_max-1)
-      result.boundary_error_ = "k_d_max";
-    else
-      result.boundary_error_ = "";
-
-    if (result.boundary_error_ != "") {
-      errors_ += ":boundary";
-      if (debug_) {
-	cout << "              WARNING maximum at boundary for "
-	     << seqs[0].name();
-	if (seqs.n_seqs() == 2)
-	  cout << " " << seqs[1].name();
-	cout
-	  << "  k_v: " << best_kset.first << "(" << k_v_min << "-" << k_v_max-1 << ")"
-	  << "  k_d: " << best_kset.second << "(" << k_d_min << "-" << k_d_max-1 << ")" << " " << result.boundary_error_ << endl;
-	// cout << "ok, I changed my mind, ERROR!" << endl;
-      }
-      // assert(0);  TODO make sure it doesn't happen
-    }
-  }
-  
   // print debug info
   if (debug_) {
-    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.n_seqs()==2 ? seqs[1].name() : "") << "   " << k_v_min << "-" << k_v_max-1 << "   " << k_d_min << "-" << k_d_max-1;  // exclusive...
+    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.n_seqs()==2 ? seqs[1].name() : "") << "   " << kmin.v << "-" << kmax.v-1 << "   " << kmin.d << "-" << kmax.d-1;  // exclusive...
     if (algorithm_=="viterbi")
-      cout << "    best kset: " << setw(4) << best_kset.first << setw(4) << best_kset.second << setw(12) << best_score << endl;
+      cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
     else
       cout << "        " << *total_score << endl;
+  }
+
+  result.check_boundaries(best_kset, kmin, kmax);
+  if (debug_ && result.boundary_error()) {  // not necessarily a big deal yet -- the bounds get automatical expanded
+    cout << "              WARNING maximum at boundary for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
+    cout << "  k_v: " << best_kset.v << "(" << kmin.v << "-" << kmax.v-1 << ")"
+	 << "  k_d: " << best_kset.d << "(" << kmin.d << "-" << kmax.d-1 << ")" << endl;
+    cout << "    expand to " << result.better_kmin().v << "-" << result.better_kmax().v << ", " << result.better_kmin().d << "-" << result.better_kmax().d << endl;
   }
 
   return result;
@@ -341,7 +346,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
   map<string,double> regional_best_scores;  // the best score for each region
   map<string,double> regional_total_scores;  // the total score for each region, i.e. log P_v
   if (debug_ == 2)
-    cout << "            " << kset.first << " " << kset.second << " -------------------" << endl;
+    cout << "            " << kset.v << " " << kset.d << " -------------------" << endl;
   for (auto &region : gl_.regions_) {
     StrPair query_strs(GetQueryStrs(seqs, kset, region));
 
