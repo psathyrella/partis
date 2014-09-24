@@ -29,7 +29,7 @@ class Waterer(object):
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', '*.svg')
         self.info = {}
-        self.info['all_matches'] = set()  # set of all the matches we found
+        self.info['all_best_matches'] = set()  # set of all the matches we found
         self.from_scratch = from_scratch
         if not self.from_scratch:
             self.gene_choice_probs = utils.read_overall_gene_prob(parameter_dir)
@@ -296,7 +296,7 @@ class Waterer(object):
             self.info[query_name][region + '_gene'] = best[region]
             self.info[query_name][region + '_gl_seq'] = best[region + '_gl_seq']
             self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
-            self.info['all_matches'].add(best[region])
+            self.info['all_best_matches'].add(best[region])
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])

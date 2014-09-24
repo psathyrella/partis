@@ -104,14 +104,14 @@ class PartitionDriver(object):
         waterer.run()
 
         print 'writing hmms with sw info'
-        self.write_hmms(sw_parameter_dir, waterer.info['all_matches'])
+        self.write_hmms(sw_parameter_dir, waterer.info['all_best_matches'])
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
         assert not self.args.pair  # er, could probably do it for forward pair, but I'm not really sure what it would mean
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
 
         print 'writing hmms with hmm info'
-        self.write_hmms(hmm_parameter_dir, waterer.info['all_matches'])
+        self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
 
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
 
@@ -171,7 +171,7 @@ class PartitionDriver(object):
             clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
             if preclusters != None:
                 for query_name in sw_info:  # check for singletons that got split out in the preclustering step
-                    if query_name not in clusters.query_clusters and query_name != 'all_matches':
+                    if query_name not in clusters.query_clusters and query_name != 'all_best_matches':
                         print '    singleton ', query_name
 
         if not self.args.no_clean:
@@ -285,6 +285,12 @@ class PartitionDriver(object):
             writer.write()
 
     # ----------------------------------------------------------------------------------------
+    def check_v_right(self, sw_v_right, query_name):
+        """ make sure the v_right_length from smith waterman isn't too different to the one we assume when writing the hmm files """
+        if abs(sw_v_right - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
+            print 'WARNING %s sw v right: %d  (expecting about %d)' % (query_name, sw_v_right, self.args.v_right_length)
+
+    # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
         with opener('w')(csv_fname) as csvfile:
             # write header
@@ -298,10 +304,7 @@ class PartitionDriver(object):
                     info = sw_info[query_name]
                     second_info = sw_info[second_query_name]
     
-                    # make sure we don't need to rewrite the hmm model files
-                    if abs(info['v_right_length'] - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
-                        print 'WARNING VRIGHT ', info['v_right_length'], self.args.v_right_length, (info['v_right_length']-self.args.v_right_length)
-                    # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+                    self.check_v_right(info['v_right_length'], query_name)
     
                     # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
                     assert len(re.findall('J[123]P', info['j_gene'])) == 0
@@ -326,7 +329,7 @@ class PartitionDriver(object):
                     only_genes = []
                     tmp_set = set(info['all'].split(':')) | set(second_info['all'].split(':'))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
                     for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, skip genes for which this didn't happen
-                        if gene not in sw_info['all_matches']:
+                        if gene not in sw_info['all_best_matches']:
                             skipped_gene_matches.add(gene)
                             continue
                         only_genes.append(gene)
@@ -340,24 +343,22 @@ class PartitionDriver(object):
                         continue
                     info = sw_info[query_name]
     
-                    # make sure we don't need to rewrite the hmm model files
-                    if abs(info['v_right_length'] - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
-                        print 'WARNING VRIGHT ', info['v_right_length'], self.args.v_right_length, (info['v_right_length']-self.args.v_right_length)
-                    # assert abs(info['v_right_length'] - self.default_v_right_length) < self.safety_buffer_that_I_should_not_need
+                    self.check_v_right(info['v_right_length'], query_name)
     
                     # # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
                     # assert len(re.findall('J[123]P', info['j_gene'])) == 0
     
                     only_genes = []
                     tmp_set = set(info['all'].split(':'))
-                    for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, skip genes for which this didn't happen
-                        if gene not in sw_info['all_matches']:
+                    for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, so skip genes for which this didn't happen
+                        if self.args.cache_parameters and gene not in sw_info['all_best_matches']:  # except if we're *not* caching parameters, then we hopefully *do* have the gene's hmm written... *sigh* this is getting complicated
                             skipped_gene_matches.add(gene)
                             continue
                         only_genes.append(gene)
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
-            print '    %s not in best sw matches, skipping' % ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches])
+            if len(skipped_gene_matches) > 0:
+                print '    not in best sw matches, skipping: %s' % ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches])
 
     # ----------------------------------------------------------------------------------------
     def run_stochhmm(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -381,14 +382,15 @@ class PartitionDriver(object):
             sys.exit()
 
         # run hmm
-        hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
-        hmm_proc.wait()
-        hmm_out, hmm_err = hmm_proc.communicate()
-        print hmm_out,
-        print hmm_err,
-        if hmm_proc.returncode != 0:
-            print 'aaarrrrrrrgggggh\n', hmm_out, hmm_err
-            sys.exit()
+        check_call(cmd_str, shell=True)
+        # hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
+        # hmm_proc.wait()
+        # hmm_out, hmm_err = hmm_proc.communicate()
+        # print hmm_out,
+        # print hmm_err,
+        # if hmm_proc.returncode != 0:
+        #     print 'aaarrrrrrrgggggh\n', hmm_out, hmm_err
+        #     sys.exit()
 
         print '    hmm run time: %.3f' % (time.time() - start)
 
@@ -407,7 +409,7 @@ class PartitionDriver(object):
 
                 # check for errors
                 boundary_error = False
-                if 'boundary' in line['errors'].split(':'):
+                if line['errors'] != None and 'boundary' in line['errors'].split(':'):
                     n_boundary_errors += 1
                     boundary_error = True
                 else:
