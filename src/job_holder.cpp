@@ -1,29 +1,30 @@
 #include "job_holder.h"
 
 // ----------------------------------------------------------------------------------------
-void Result::check_boundaries(KSet best, KSet kmin, KSet kmax) {
-  if (kmax.v-kmin.v <= 1 || kmax.d-kmin.d <= 2) return;  // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
+void Result::check_boundaries(KSet best, KBounds kbounds) {
+  if (kbounds.vmax-kbounds.vmin <= 1 || kbounds.dmax-kbounds.dmin <= 2) return;  // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
 
   // see if we need to expand
-  if (best.v == kmin.v) {
+  if (best.v == kbounds.vmin) {
     boundary_error_ = true;
-    better_kmin_.v = max((size_t)1, kmin.v-1);
+    better_kbounds_.vmin = max((size_t)1, kbounds.vmin-1);
   }
-  if (best.v == kmax.v-1) {
+  if (best.v == kbounds.vmax-1) {
     boundary_error_ = true;
-    better_kmax_.v = kmax.v + 1;
+    better_kbounds_.vmax = kbounds.vmax + 1;
   }
-  if (best.d == kmin.d) {
+  if (best.d == kbounds.dmin) {
     boundary_error_ = true;
-    better_kmin_.d = max((size_t)1, kmin.d-1);
+    better_kbounds_.dmin = max((size_t)1, kbounds.dmin-1);
   }
-  if (best.d == kmax.d-1) {
+  if (best.d == kbounds.dmax-1) {
     boundary_error_ = true;
-    better_kmax_.d = kmax.d + 1;
+    better_kbounds_.dmax = kbounds.dmax + 1;
   }
 
-  if (boundary_error_) {
-    if (better_kmin_.equals(kmin) && better_kmax_.equals(kmax)) cout << "WARNING couldn't expand k bounds" << endl;
+  if (boundary_error_ && better_kbounds_.equals(kbounds)) {
+    could_not_expand_ = true;
+    cout << "WARNING couldn't expand k bounds" << endl;
   }
 }
 
@@ -112,17 +113,17 @@ map<string,sequences> JobHolder::GetSubSeqs(sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequence &seq, KSet kmin, KSet kmax) {
+Result JobHolder::Run(sequence &seq, KBounds kbounds) {
   sequences seqs;
   sequence *newseq = new sequence(seq);  // seriously wtf does <sequences> need to own its sequences?
   seqs.addSeq(newseq);
-  return Run(seqs, kmin, kmax);
+  return Run(seqs, kbounds);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequences &seqs, KSet kmin, KSet kmax) {
-  assert(kmax.v>kmin.v && kmax.d>kmin.d);  // make sure max values for k_v and k_d are greater than their min values
-  assert(kmin.v > 0 && kmin.d > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
+Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
+  assert(kbounds.vmax>kbounds.vmin && kbounds.dmax>kbounds.dmin);  // make sure max values for k_v and k_d are greater than their min values
+  assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
   Clear();
   assert(trellisi_.size()==0 && paths_.size()==0 && all_scores_.size()==0);
@@ -130,14 +131,14 @@ Result JobHolder::Run(sequences &seqs, KSet kmin, KSet kmax) {
   map<KSet,double> total_scores;  // total score for each kset (summed over regions)
   map<KSet,map<string,string> > best_genes;  // map from a kset to its corresponding triplet of best genes
 
-  Result result(kmin, kmax);
+  Result result(kbounds);
 
   // loop over k_v k_d space
   double best_score(-INFINITY);
   KSet best_kset(0,0);
   double *total_score = &result.total_score_;  // total score for all ksets
-  for (size_t k_v=kmin.v; k_v<kmax.v; ++k_v) {
-    for (size_t k_d=kmin.d; k_d<kmax.d; ++k_d) {
+  for (size_t k_v=kbounds.vmin; k_v<kbounds.vmax; ++k_v) {
+    for (size_t k_d=kbounds.dmin; k_d<kbounds.dmax; ++k_d) {
       if (k_v + k_d >= seqs.GetSequenceLength()) {
 	cout << "      skipping " << k_v << " + " << k_d << " = " << k_v + k_d << " >= " << seqs.GetSequenceLength() << endl;
 	continue;
@@ -157,7 +158,7 @@ Result JobHolder::Run(sequences &seqs, KSet kmin, KSet kmax) {
 
   // return if no valid path
   if (best_kset.v == 0) {
-    if (debug_) cout << "  ERROR no valid paths for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
+    cout << "  ERROR no valid paths for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
     return result;
   }
 
@@ -178,19 +179,19 @@ Result JobHolder::Run(sequences &seqs, KSet kmin, KSet kmax) {
 
   // print debug info
   if (debug_) {
-    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.n_seqs()==2 ? seqs[1].name() : "") << "   " << kmin.v << "-" << kmax.v-1 << "   " << kmin.d << "-" << kmax.d-1;  // exclusive...
+    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.n_seqs()==2 ? seqs[1].name() : "") << "   " << kbounds.vmin << "-" << kbounds.vmax-1 << "   " << kbounds.dmin << "-" << kbounds.dmax-1;  // exclusive...
     if (algorithm_=="viterbi")
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
     else
       cout << "        " << *total_score << endl;
   }
 
-  result.check_boundaries(best_kset, kmin, kmax);
+  result.check_boundaries(best_kset, kbounds);
   if (debug_ && result.boundary_error()) {  // not necessarily a big deal yet -- the bounds get automatical expanded
     cout << "              WARNING maximum at boundary for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
-    cout << "  k_v: " << best_kset.v << "(" << kmin.v << "-" << kmax.v-1 << ")"
-	 << "  k_d: " << best_kset.d << "(" << kmin.d << "-" << kmax.d-1 << ")" << endl;
-    cout << "    expand to " << result.better_kmin().v << "-" << result.better_kmax().v << ", " << result.better_kmin().d << "-" << result.better_kmax().d << endl;
+    cout << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax-1 << ")"
+	 << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax-1 << ")" << endl;
+    cout << "    expand to " << result.better_kbounds().vmin << "-" << result.better_kbounds().vmax << ", " << result.better_kbounds().dmin << "-" << result.better_kbounds().dmax << endl;
   }
 
   return result;

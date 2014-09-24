@@ -147,22 +147,22 @@ int main(int argc, const char * argv[]) {
     if (opt.iopt("--pair")) assert(seqs[is]->n_seqs() == 2);
     KSet kmin(args.integers_["k_v_min"][is], args.integers_["k_d_min"][is]);
     KSet kmax(args.integers_["k_v_max"][is], args.integers_["k_d_max"][is]);
+    KBounds kbounds(kmin, kmax);
 
     JobHolder jh(gl, hmms, opt.sopt("--algorithm"), args.strings_["only_genes"][is]);
     jh.SetDebug(opt.iopt("--debug"));
     jh.SetNBestEvents(opt.iopt("--n_best_events"));
 
-    Result result(kmin, kmax);
+    Result result(kbounds);
     do {
-      result = jh.Run(*seqs[is], kmin, kmax);
-      kmin = result.better_kmin();
-      kmax = result.better_kmax();
-    } while (result.boundary_error());
+      result = jh.Run(*seqs[is], kbounds);
+      kbounds = result.better_kbounds();
+    } while (result.boundary_error() && !result.could_not_expand());
 
     double score(result.total_score());
     if (opt.sopt("--algorithm") == "forward" && opt.iopt("--pair")) {
-      Result result_a = jh.Run((*seqs[is])[0], kmin, kmax);  // denominator in P(A,B) / (P(A) P(B))
-      Result result_b = jh.Run((*seqs[is])[1], kmin, kmax);
+      Result result_a = jh.Run((*seqs[is])[0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
+      Result result_b = jh.Run((*seqs[is])[1], kbounds);
       
       if (result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << (*seqs[is])[0].name() << " " << (*seqs[is])[1].name() << endl;
       if (opt.iopt("--debug")) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score(), result_b.total_score(), score - result_a.total_score() - result_b.total_score());

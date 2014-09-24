@@ -13,11 +13,10 @@
 using namespace std;
 using namespace StochHMM;
 
-// typedef pair<size_t,size_t> KSet;  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j
 typedef pair<string,string> StrPair;
 
 // ----------------------------------------------------------------------------------------
-class KSet {
+class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j
 public:
   KSet(size_t k_v, size_t k_d) : v(k_v), d(k_d) {}
   bool equals(KSet rhs) { return v == rhs.v && d == rhs.d; }
@@ -27,6 +26,13 @@ public:
   size_t d;
 };
 
+// ----------------------------------------------------------------------------------------
+class KBounds {
+public:
+  KBounds(KSet kmin, KSet kmax) : vmin(kmin.v), dmin(kmin.d), vmax(kmax.v), dmax(kmax.d) {}
+  bool equals(KBounds rhs) { return vmin==rhs.vmin && vmax==rhs.vmax && dmin==rhs.dmin && dmax==rhs.dmax; }
+  size_t vmin,dmin,vmax,dmax;
+};
 // ----------------------------------------------------------------------------------------
 class HMMHolder {
 public:
@@ -43,18 +49,19 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result(KSet kmin, KSet kmax) : total_score_(-INFINITY), better_kmin_(kmin), better_kmax_(kmax), boundary_error_(false) {}
-  void check_boundaries(KSet best, KSet kmin, KSet kmax);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
+  Result(KBounds kbounds) : total_score_(-INFINITY), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false) {}
+  void check_boundaries(KSet best, KBounds kbounds);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
   bool boundary_error() { return boundary_error_; } // is the best kset on boundary of k space?
-  KSet better_kmin() { return better_kmin_; }
-  KSet better_kmax() { return better_kmax_; }
+  bool could_not_expand() { return could_not_expand_; }
+  KBounds better_kbounds() { return better_kbounds_; }
   double total_score() { return total_score_; }
   double total_score_;  // TODO move this to private
   vector<RecoEvent> events_;  // TODO move this to private
 
 private:
-  KSet better_kmin_,better_kmax_;
+  KBounds better_kbounds_;
   bool boundary_error_;
+  bool could_not_expand_;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -63,8 +70,8 @@ public:
   JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str="");
   ~JobHolder();
   void Clear();
-  Result Run(sequences &seqs, KSet kmin, KSet kmax);  // run all over the kspace specified by bounds in kmin and kmax
-  Result Run(sequence &seq, KSet kmin, KSet kmax);
+  Result Run(sequences &seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(sequence &seq, KBounds kbounds);
   void RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
