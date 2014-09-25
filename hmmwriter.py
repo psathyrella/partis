@@ -89,7 +89,7 @@ class HmmWriter(object):
                 continue
             self.erosion_probs[erosion] = {}
             deps = utils.column_dependencies[erosion + '_del']
-            with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(erosion + '_del', deps)) as infile:
+            with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
                 total = 0.0
                 genes_used = set()
@@ -128,7 +128,7 @@ class HmmWriter(object):
         # TODO fill in cases where we don't have info from data with some (small) default value
         self.insertion_probs[self.insertion] = {}
         deps = utils.column_dependencies[self.insertion + '_insertion']
-        with opener('r')(self.indir + '/' + utils.get_prob_fname_key_val(self.insertion + '_insertion', deps)) as infile:
+        with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=self.insertion + '_insertion', deps=deps)) as infile:
             reader = csv.DictReader(infile)
             total = 0.0
             genes_used = set()

@@ -55,10 +55,11 @@ if args.simulate:
     reco = Recombinator(args, total_length_from_right=130)
     for _ in range(args.n_max_queries):
         success = False
-        while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices, or something similar)
-            success = reco.combine()  #outfname, 'append')
-    # sys.exit()
-    
+        while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices)
+            success = reco.combine()
+            if not success:
+                print 'failed!'
+                sys.exit()
 else:
     from partitiondriver import PartitionDriver
 

@@ -69,7 +69,7 @@ class Recombinator(object):
         print '    reading version freqs from %s' % (self.args.parameter_dir + '/' + utils.all_column_fname)
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.all_column_fname)
 
-        utils.prep_dir(self.args.outdir)
+        utils.prep_dir(self.args.outdir, 'simu.csv')
 
     # ----------------------------------------------------------------------------------------
     def combine(self):
@@ -127,7 +127,7 @@ class Recombinator(object):
             total = 0.0
             for line in in_data:
                 # NOTE do *not* assume the file is sorted
-                if line['cdr3_length'] == -1:
+                if int(line['cdr3_length']) == -1:
                     continue  # couldn't find conserved codons when we were inferring things
                 if self.args.only_genes != None:  # are we restricting ourselves to a subset of genes?
                     for region in utils.regions:
@@ -401,6 +401,7 @@ class Recombinator(object):
             total_deletion_length += int(reco_event.vdj_combo_label[utils.index_keys[erosion + '_del']])
 
         # print some crap
+        # gene_choices = utils.color_gene(reco_event.vdj_combo_label[utils.index_keys['v_gene']]) + ' ' + utils.color_gene(reco_event.vdj_combo_label[utils.index_keys['d_gene']]) + ' ' + utils.color_gene(reco_event.vdj_combo_label[utils.index_keys['j_gene']])
         gene_choices = reco_event.vdj_combo_label[utils.index_keys['v_gene']] + ' ' + reco_event.vdj_combo_label[utils.index_keys['d_gene']] + ' ' + reco_event.vdj_combo_label[utils.index_keys['j_gene']]
         print '               try: %45s %10s %10d %10d' % (gene_choices, reco_event.vdj_combo_label[utils.index_keys['cdr3_length']], total_deletion_length, reco_event.net_length_change),
         is_bad = (-total_deletion_length > reco_event.net_length_change)

@@ -47,28 +47,25 @@ column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depe
 column_dependencies['vd_insertion'] = []
 column_dependencies['dj_insertion'] = ['j_gene']
 
-# first entry is the column of interest, and it depends upon the following entries
+# tuples with the column and its dependencies mashed together
+# (first entry is the column of interest, and it depends upon the following entries)
 column_dependency_tuples = []
-for column,deps in column_dependencies.iteritems():
+for column, deps in column_dependencies.iteritems():
     tmp_list = [column]
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
-# column_dependency_tuples.append(index_columns)
 
-def get_prob_fname_tuple(columns):  # TODO doesn't return a tuple... why'd I name it that?
-    if columns == 'all':
+def get_parameter_fname(column=None, deps=None, column_and_deps=None):
+    """ return the file name in which we store the information for <column>. Either pass in <column> and <deps> *or* <column_and_deps> """
+    if column == 'all':
         return 'all-probs.csv'
+    if column_and_deps == None:
+        column_and_deps = [column]
+        column_and_deps.extend(deps)
     outfname = 'probs.csv'
-    for ic in columns:
+    for ic in column_and_deps:
         outfname = ic + '-' + outfname
     return outfname
-
-def get_prob_fname_key_val(column, dependencies):
-    tmp_list = [column]
-    tmp_list.extend(dependencies)
-    return get_prob_fname_tuple(tuple(tmp_list))
-
-all_column_fname = get_prob_fname_tuple('all')
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
@@ -113,10 +110,10 @@ def check_conserved_tryptophan(seq, tryp_position, debug=False):
         assert False
 
 # ----------------------------------------------------------------------------------------
-def check_conserved_codons(seq, cyst_position, tryp_position):
+def check_conserved_codons(seq, cyst_position, tryp_position, debug=False):
     """ Double check that we conserved the cysteine and the tryptophan. """
-    check_conserved_cysteine(seq, cyst_position)
-    check_conserved_tryptophan(seq, tryp_position)
+    check_conserved_cysteine(seq, cyst_position, debug)
+    check_conserved_tryptophan(seq, tryp_position, debug)
 
 # ----------------------------------------------------------------------------------------
 def are_conserved_codons_screwed_up(reco_event):

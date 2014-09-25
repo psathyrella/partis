@@ -10,7 +10,6 @@ from utils import utils
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
     """ Container to hold the information for a single recombination event. """
-
     def __init__(self, germlines):
         self.germlines = germlines
         self.vdj_combo_label = ()  # A tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
@@ -32,6 +31,7 @@ class RecombinationEvent(object):
         self.original_cyst_word = ''
         self.original_tryp_word = ''
 
+    # ----------------------------------------------------------------------------------------
     def set_vdj_combo(self, vdj_combo_label, cyst_position, tryp_position, all_seqs):  # TODO it's kinda wasteful to pass all_seqs through this call so many times
         """ Set the label which labels the gene/length choice (a tuple of strings)
         as well as it's constituent parts. """
@@ -57,7 +57,7 @@ class RecombinationEvent(object):
                                                                    self.seqs['j'],
                                                                    0)
 
-        utils.check_conserved_codons(self.seqs['v'] + self.seqs['d'] + self.seqs['j'], self.cyst_position, tryp_position_in_joined_seq)
+        utils.check_conserved_codons(self.seqs['v'] + self.seqs['d'] + self.seqs['j'], self.cyst_position, tryp_position_in_joined_seq, debug=True)
         self.current_cdr3_length = tryp_position_in_joined_seq - self.cyst_position + 3
         self.net_length_change = self.cdr3_length - self.current_cdr3_length
         
@@ -69,6 +69,7 @@ class RecombinationEvent(object):
         self.original_cyst_word = str(self.seqs['v'][self.cyst_position : self.cyst_position + 3 ])
         self.original_tryp_word = str(self.seqs['j'][self.tryp_position : self.tryp_position + 3 ])
 
+    # ----------------------------------------------------------------------------------------
     def set_final_tryp_position(self):
         """ Set tryp position in the final, combined sequence. """
         self.final_tryp_position = utils.find_tryp_in_joined_seq(self.tryp_position,
@@ -84,6 +85,7 @@ class RecombinationEvent(object):
         assert final_cdr3_length == int(self.cdr3_length)
 
 
+    # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, total_length_from_right=0):
         """ Write out all info to csv file. """
         columns = ('unique_id', 'reco_id', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'vd_insertion', 'dj_insertion', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'seq')
@@ -125,6 +127,7 @@ class RecombinationEvent(object):
                 row['unique_id'] = hash(unique_id)
                 writer.writerow(row)
 
+    # ----------------------------------------------------------------------------------------
     def print_event(self, total_length_from_right=0):
         line = {}  # collect some information into a form that print_reco_event understands
         line['cdr3_length'] = self.cdr3_length

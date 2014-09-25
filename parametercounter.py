@@ -31,10 +31,10 @@ class ParameterCounter(object):
         self.mutefreqer.clean()
         for column in self.counts:
             if column == 'all':
-                os.remove(self.base_outdir + '/' + utils.get_prob_fname_tuple(column))
+                os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column='all'))
             else:
                 index_columns = [column,] + utils.column_dependencies[column]
-                os.remove(self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns))
+                os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index_columns))
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -109,10 +109,10 @@ class ParameterCounter(object):
             outfname = None
             if column == 'all':
                 index_columns = utils.index_columns
-                outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple('all')
+                outfname = self.base_outdir + '/' + utils.get_parameter_fname(column='all')
             else:
                 index_columns = [column,] + utils.column_dependencies[column]
-                outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)
+                outfname = self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index_columns)
             if os.path.isfile(outfname):
                 os.remove(outfname)
             elif not os.path.exists(self.base_outdir):
