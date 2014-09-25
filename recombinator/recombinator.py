@@ -37,7 +37,6 @@ class Recombinator(object):
                 self.mute_models[region][model] = {}
 
         print '  init'
-        # ----------------------------------------------------------------------------------------
         # first read stuff that doesn't depend on which human we're looking at
         print '    reading vdj versions'
         self.all_seqs = utils.read_germlines(self.args.datadir)
@@ -48,7 +47,6 @@ class Recombinator(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
-        # ----------------------------------------------------------------------------------------
         # then read stuff that's specific to each human
         if self.apply_shm:
             # TODO I'm not inferring the gtr parameters a.t.m., so I'm just (very hackily) using the same ones for all individuals
@@ -71,8 +69,10 @@ class Recombinator(object):
         print '    reading version freqs from %s' % (self.args.parameter_dir + '/' + utils.all_column_fname)
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.all_column_fname)
 
+        utils.prep_dir(self.args.outdir)
+
     # ----------------------------------------------------------------------------------------
-    def combine(self, outfile='', mode='overwrite'):
+    def combine(self):
         """ Run the combination. """
         reco_event = RecombinationEvent(self.all_seqs)
         print 'combine'
@@ -113,18 +113,10 @@ class Recombinator(object):
 
         reco_event.print_event(self.total_length_from_right)
 
-        # write some stuff that can be used by hmmer for training profiles
-        # NOTE at the moment I have this *appending* to the files
-#        self.write_final_vdj(reco_event)
+        # write output to csv
+        outfname = self.args.outdir + '/simu.csv'
+        reco_event.write_event(outfname, self.total_length_from_right)
 
-        # write final output to csv
-        if outfile != '':
-            if mode == 'overwrite' and os.path.exists(outfile):
-                os.remove(outfile)
-            else:
-                assert mode == 'append'
-            print '  writing'
-            reco_event.write_event(outfile, self.total_length_from_right)
         return True
 
     # ----------------------------------------------------------------------------------------
@@ -395,57 +387,6 @@ class Recombinator(object):
         # print '    check full seq trees'
         # self.check_tree_simulation('', chosen_tree, reco_event)
 
-    # ----------------------------------------------------------------------------------------
-    def write_final_vdj(self, reco_event):
-        """ Write the eroded and mutated v, d, and j regions to file. """
-        # first do info for the whole reco event
-        original_seqs = {}
-        for region in utils.regions:
-            original_seqs[region] = self.all_seqs[region][reco_event.gene_names[region]]
-        # work out the final starting positions and lengths
-        v_start = 0
-        v_length = len(original_seqs['v']) - reco_event.erosions['v_3p']
-        d_start = v_length + len(reco_event.insertions['vd'])
-        d_length = len(original_seqs['d']) - reco_event.erosions['d_5p'] - reco_event.erosions['d_3p']
-        j_start = v_length + len(reco_event.insertions['vd']) + d_length + len(reco_event.insertions['dj'])
-        j_length = len(original_seqs['j']) - reco_event.erosions['j_5p']
-        # then do stuff that's particular to each mutant
-        for final_seq in reco_event.final_seqs:
-            assert len(final_seq) == v_length + len(reco_event.insertions['vd']) + d_length + len(reco_event.insertions['dj']) + j_length
-            # get the final seqs (i.e. what v, d, and j look like in the final sequence)
-            final_seqs = {}
-            final_seqs['v'] = final_seq[v_start:v_start+v_length]
-            final_seqs['d'] = final_seq[d_start:d_start+d_length]
-            final_seqs['j'] = final_seq[j_start:j_start+j_length]
-            # pad with dots so it looks like (ok, is) an m.s.a. file
-            final_seqs['v'] = final_seqs['v'] + reco_event.erosions['v_3p'] * '.'
-            final_seqs['d'] = reco_event.erosions['d_5p'] * '.' + final_seqs['d'] + reco_event.erosions['d_3p'] * '.'
-            final_seqs['j'] = reco_event.erosions['j_5p'] * '.' + final_seqs['j']
-            for region in utils.regions:
-                sanitized_name = reco_event.gene_names[region]  # replace special characters in gene names
-                sanitized_name = sanitized_name.replace('*','_star_')
-                sanitized_name = sanitized_name.replace('/','_slash_')
-                out_dir = 'data/msa/' + region
-                if not os.path.exists(out_dir):
-                    os.makedirs(out_dir)
-                out_fname = out_dir + '/' + sanitized_name + '.sto'
-                new_line = '%15d   %s\n' % (hash(numpy.random.uniform()), final_seqs[region])
-                # a few machinations such that the stockholm format has a '//' at the end
-                # NOTE this method will use a lot of memory if these files get huge. I don't *anticipate* them getting huge, though
-                lines = []
-                if os.path.isfile(out_fname):  # if file already exists, insert the new line just before the '//'
-                    with opener('r')(out_fname) as outfile:
-                        lines = outfile.readlines()
-                        lines.insert(-1, new_line)
-                else:  # else insert everything we need
-                    lines = ['# STOCKHOLM 1.0\n', new_line, '//\n']
-                # did we screw this whole thing up?
-                print lines
-                assert lines[0].strip() == '# STOCKHOLM 1.0'
-                assert lines[-1].strip() == '//'
-                with opener('w')(out_fname) as outfile:
-                    outfile.writelines(lines)
-                    
     # ----------------------------------------------------------------------------------------
     def are_erosion_lengths_inconsistent(self, reco_event):
         """ Are the erosion lengths inconsistent with the cdr3 length?

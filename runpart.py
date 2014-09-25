@@ -23,6 +23,7 @@ parser.add_argument('--simulate', action='store_true')  # make simulated recombi
 parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
 parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--parameter_dir')
+parser.add_argument('--outdir')
 
 parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
 
@@ -50,12 +51,9 @@ args = parser.parse_args()
 # ----------------------------------------------------------------------------------------
 if args.simulate:
     from recombinator.recombinator import Recombinator
-    assert args.parameter_dir != None
+    assert args.parameter_dir != None and args.outdir != None
     reco = Recombinator(args, total_length_from_right=130)
-    for _ in range(10):
-        outdir = 'recombinator/output/' + args.human + '/' + args.naivety
-        utils.prep_dir(outdir)
-        outfname = outdir + '/simu.csv'
+    for _ in range(args.n_max_queries):
         success = False
         while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices, or something similar)
             success = reco.combine()  #outfname, 'append')

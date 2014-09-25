@@ -10,7 +10,7 @@ def opener(mode):
     exts = {'.bz2': bz2.BZ2File,
             '.gz': gzip.open}
     def open_file(path):
-        if not path or (mode != 'w' and not os.path.exists(path)):
+        if not path or ('w' not in mode and not os.path.exists(path)):
             print 'file',path,'not found'
             assert False
         if path == '-':
