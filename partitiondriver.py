@@ -88,7 +88,7 @@ class PartitionDriver(object):
                 if not self.args.is_data:
                     self.reco_info[line['unique_id']] = line
                 n_queries += 1
-                if self.args.n_total_queries > 0 and n_queries >= self.args.n_total_queries:
+                if self.args.n_max_queries > 0 and n_queries >= self.args.n_max_queries:
                     break
         assert len(self.input_info) > 0
     
@@ -358,7 +358,7 @@ class PartitionDriver(object):
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
-                print '    not in best sw matches, skipping: %s' % ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches])
+                print '    not in best sw matches, skipping: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])
 
     # ----------------------------------------------------------------------------------------
     def run_stochhmm(self, algorithm, csv_infname, csv_outfname, parameter_dir):

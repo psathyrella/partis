@@ -4,14 +4,22 @@ import sys
 import os
 
 from utils import utils
-from partitiondriver import PartitionDriver
 
+# run on data:
+#./runpart.py --n_bases_skip 9 --v_right_length 56 --is_data --parameter_dir tmp/data/parameters-100000/hmm_parameters --human A --n_max_queries 1000 --debug 1 --seqfile /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2 --point_estimate --queries '04-A-M_0000184' --n_max_per_region 10
 # ----------------------------------------------------------------------------------------
+def get_arg_list(arg):  # make lists from args that are passed as strings of colon-separated values
+    if arg == None:
+        return arg
+    else:
+        return arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no_clean', action='store_true')  # don't remove the various temp files
 # actions:
+parser.add_argument('--simulate', action='store_true')  # make simulated recombination events
 parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
 parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--parameter_dir')
@@ -24,8 +32,8 @@ parser.add_argument('--seqfile')  # input file
 parser.add_argument('--queries')  # restrict to certain query seqs
 parser.add_argument('--reco_ids')  # or recombination events
 parser.add_argument('--is_data', action='store_true')
-parser.add_argument('--n_total_queries', type=int, default=-1)  # stop after this many queries
-parser.add_argument('--only_genes')  # skip all gene matches except for these when parsing the sw output
+parser.add_argument('--n_max_queries', type=int, default=-1)  # stop after this many queries
+parser.add_argument('--only_genes')  # skip all gene matches except for these when parsing the sw output  #'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F',
 parser.add_argument('--pair', action='store_true')
 
 parser.add_argument('--n_max_per_region', type=int, default=3)
@@ -38,19 +46,33 @@ parser.add_argument('--stochhmm_dir', default=os.getenv('HOME') + '/work/StochHM
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
 args = parser.parse_args()
-if args.queries != None:
-    args.queries = args.queries.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
-if args.reco_ids != None:
-    args.reco_ids = args.reco_ids.strip().split(':')
-if args.only_genes != None:
-    args.only_genes = args.only_genes.strip().split(':')
 
-utils.prep_dir(args.workdir)
 # ----------------------------------------------------------------------------------------
-parter = PartitionDriver(args)
-if args.cache_parameters:
-    parter.cache_parameters()
-elif args.point_estimate:
-    parter.point_estimate()
+if args.simulate:
+    from recombinator.recombinator import Recombinator
+    assert args.parameter_dir != None
+    reco = Recombinator(args, total_length_from_right=130)
+    for _ in range(100):
+        outdir = 'recombinator/output/' + self.args.human + '/' + self.args.naivety
+        utils.prep_dir(outdir)
+        outfname = outdir + '/simu.csv'
+        success = False
+        while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices, or something similar)
+            success = reco.combine(outfname, 'append')
+    # sys.exit()
+    
 else:
-    parter.partition()
+    from partitiondriver import PartitionDriver
+
+    args.queries = get_arg_list(args.queries)
+    args.reco_ids = get_arg_list(args.reco_ids)
+    args.only_genes = get_arg_list(args.only_genes)
+
+    utils.prep_dir(args.workdir)
+    parter = PartitionDriver(args)
+    if args.cache_parameters:
+        parter.cache_parameters()
+    elif args.point_estimate:
+        parter.point_estimate()
+    else:
+        parter.partition()

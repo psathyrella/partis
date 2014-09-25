@@ -52,9 +52,11 @@ for column,deps in column_dependencies.iteritems():
     tmp_list = [column]
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
-column_dependency_tuples.append(index_columns)
+# column_dependency_tuples.append(index_columns)
 
 def get_prob_fname_tuple(columns):  # TODO doesn't return a tuple... why'd I name it that?
+    if columns == 'all':
+        return 'all-probs.csv'
     outfname = 'probs.csv'
     for ic in columns:
         outfname = ic + '-' + outfname
@@ -514,6 +516,7 @@ def get_key(query_name, second_query_name):
 
 # ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildling=None):
+    """ make <dirname> if it d.n.e., and if shell glob <wildling> is specified, remove existing files which are thereby matched """
     if os.path.exists(dirname):
         if wildling != None:
             for fname in glob.glob(dirname + '/' + wildling):

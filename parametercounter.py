@@ -20,6 +20,7 @@ class ParameterCounter(object):
         self.total = 0
         self.counts = {}
         utils.prep_dir(self.base_outdir, '*.csv')
+        self.counts['all'] = {}
         for column in utils.column_dependencies:
             self.counts[column] = {}
         self.mutefreqer = MuteFreqer(self.base_outdir, self.plotdir, germline_seqs)
@@ -29,9 +30,11 @@ class ParameterCounter(object):
         """ remove all the parameter files """
         self.mutefreqer.clean()
         for column in self.counts:
-            index_columns = [column,] + utils.column_dependencies[column]
-            outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)
-            os.remove(outfname)
+            if column == 'all':
+                os.remove(self.base_outdir + '/' + utils.get_prob_fname_tuple(column))
+            else:
+                index_columns = [column,] + utils.column_dependencies[column]
+                os.remove(self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns))
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -46,19 +49,25 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         self.total += 1
+
+        all_index = self.get_index(info, utils.index_columns)
+        if all_index not in self.counts['all']:
+            self.counts['all'][all_index] = 0
+        self.counts['all'][all_index] += 1
+
         for deps in utils.column_dependency_tuples:
-            if deps == utils.index_columns:  # don't need the fully marginalized one. Oh *snap* did I just use 'marginalized' correctly?
-                continue
             column = deps[0]
             index = self.get_index(info, deps)
             if index not in self.counts[column]:
                 self.counts[column][index] = 0
             self.counts[column][index] += 1
+
         self.mutefreqer.increment(info)
 
     # ----------------------------------------------------------------------------------------
     def __str__(self):
         return_str = []
+        print 'hm I think I was too lazy to put \'all\' in this string'
         for column in self.counts:
             return_str.append('%s\n' % column)
             return_str.append('%20s' % column)
@@ -74,6 +83,8 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self):
         for column in self.counts:
+            if column == 'all':
+                continue
             values = {}
             var_type = 'int'
             for index, count in self.counts[column].iteritems():
@@ -94,14 +105,20 @@ class ParameterCounter(object):
             self.plot()
         self.mutefreqer.write(self.base_outdir)
         for column in self.counts:
-            index_columns = [column,] + utils.column_dependencies[column]
-            outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)
+            index_columns = None
+            outfname = None
+            if column == 'all':
+                index_columns = utils.index_columns
+                outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple('all')
+            else:
+                index_columns = [column,] + utils.column_dependencies[column]
+                outfname = self.base_outdir + '/' + utils.get_prob_fname_tuple(index_columns)
             if os.path.isfile(outfname):
                 os.remove(outfname)
             elif not os.path.exists(self.base_outdir):
                 os.makedirs(self.base_outdir)
             with opener('w')(outfname) as outfile:
-                out_fieldnames = index_columns
+                out_fieldnames = list(index_columns)
                 out_fieldnames.append('count')
                 out_data = csv.DictWriter(outfile, out_fieldnames)
                 out_data.writeheader()
