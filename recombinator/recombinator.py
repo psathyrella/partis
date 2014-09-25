@@ -12,8 +12,8 @@ from subprocess import check_output
 from Bio import SeqIO
 import dendropy
 
-from opener import opener
-import utils
+from utils.opener import opener
+from utils import utils
 from event import RecombinationEvent
 
 #----------------------------------------------------------------------------------------
@@ -40,7 +40,7 @@ class Recombinator(object):
         # ----------------------------------------------------------------------------------------
         # first read stuff that doesn't depend on which human we're looking at
         print '    reading vdj versions'
-        self.all_seqs = utils.read_germlines('.')
+        self.all_seqs = utils.read_germlines(self.args.datadir)
         print '    reading cyst and tryp positions'
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -68,8 +68,8 @@ class Recombinator(object):
 
         if self.args.only_genes != None:
             print '    restricting to: %s' % ' '.join(self.args.only_genes)
-        print '    reading version freqs from %s' % (self.args.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety + '/' + utils.all_column_fname)
-        self.read_vdj_version_freqs(self.args.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety + '/' + utils.all_column_fname)
+        print '    reading version freqs from %s' % (self.args.parameter_dir + '/' + utils.all_column_fname)
+        self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.all_column_fname)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, outfile='', mode='overwrite'):
@@ -129,15 +129,15 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self, fname):
-        """ Read the frequencies at which various VDJ combinations appeared
-        in data. This file was created with versioncounter.py
-        """
+        """ Read the frequencies at which various VDJ combinations appeared in data """
         with opener('r')(fname) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:
                 # NOTE do *not* assume the file is sorted
-                if len(self.args.only_genes) > 0:  # are we restricting ourselves to a subset of genes?
+                if line['cdr3_length'] == -1:
+                    continue  # couldn't find conserved codons when we were inferring things
+                if self.args.only_genes != None:  # are we restricting ourselves to a subset of genes?
                     for region in utils.regions:
                         if line[region + '_gene'] not in self.args.only_genes: continue
                 total += float(line['count'])
@@ -254,7 +254,7 @@ class Recombinator(object):
             mean_freq = 0.1  # TODO don't pull this number outta yo ass
         else:
             # read mutation frequencies from disk. TODO this could be cached in memory to speed things up
-            mutefname = self.args.parameter_dir + '/human-beings/' + self.args.human + '/' + self.args.naivety + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
+            mutefname = self.args.parameter_dir + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
             with opener('r')(mutefname) as mutefile:
                 reader = csv.DictReader(mutefile)
                 for line in reader:  # NOTE these positions are *zero* indexed

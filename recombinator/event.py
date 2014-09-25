@@ -4,8 +4,8 @@ import random
 import numpy
 import os
 
-from opener import opener
-import utils
+from utils.opener import opener
+from utils import utils
 
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):

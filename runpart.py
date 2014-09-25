@@ -52,13 +52,13 @@ if args.simulate:
     from recombinator.recombinator import Recombinator
     assert args.parameter_dir != None
     reco = Recombinator(args, total_length_from_right=130)
-    for _ in range(100):
-        outdir = 'recombinator/output/' + self.args.human + '/' + self.args.naivety
+    for _ in range(10):
+        outdir = 'recombinator/output/' + args.human + '/' + args.naivety
         utils.prep_dir(outdir)
         outfname = outdir + '/simu.csv'
         success = False
         while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices, or something similar)
-            success = reco.combine(outfname, 'append')
+            success = reco.combine()  #outfname, 'append')
     # sys.exit()
     
 else:

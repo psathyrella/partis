@@ -32,15 +32,16 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
     index_keys[index_columns[i]] = i
 
 # ----------------------------------------------------------------------------------------
-# correlation stuff
+# Info specifying which parameters are assumed to correlate with which others. Taken from mutual
+# information plot in bcellap repo
 
-# correlations are taken from figure in the bcellap repo
+# key is parameter of interest, and associated list gives the parameters (other than itself) which are necessary to predict it
 column_dependencies = {}
 column_dependencies['v_gene'] = [] # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
 column_dependencies['v_3p_del'] = ['v_gene']
 column_dependencies['d_gene'] = []  # ['d_5p_del', 'd_3p_del'] TODO stop ignoring this correlation. Well, maybe. See note in hmmwriter.py
-column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']
-column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']
+column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']  # NOTE at least for now there's no way to specify the d erosion correlations
+column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']  #   in the hmm, so they're integrated out
 column_dependencies['j_gene'] = []  # ['dj_insertion']  TODO see note above
 column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice. NOTE this makes normalization kinda fun when you read these out
 column_dependencies['vd_insertion'] = []
@@ -67,7 +68,7 @@ def get_prob_fname_key_val(column, dependencies):
     tmp_list.extend(dependencies)
     return get_prob_fname_tuple(tuple(tmp_list))
 
-all_column_fname = get_prob_fname_tuple(index_columns)
+all_column_fname = get_prob_fname_tuple('all')
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
@@ -302,14 +303,15 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
 def add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs):
     """ Add the cdr3_length to <line> based on the information already in <line> """
     eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position'] - int(line['v_5p_del'])  # cysteine position in eroded germline sequence
+    eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
     try:
         check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=True)
+        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=True)
+        tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])  # TODO dammit didn't I already do this somewhere up there?
+        line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
     except AssertionError:
-        print '    skipping bad codon'
-    eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
-    check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=True)
-    tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])  # TODO dammit didn't I already do this somewhere up there?
-    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+        print '    bad codon, setting cdr3_length to -1'
+        line['cdr3_length'] = -1
     
 # ----------------------------------------------------------------------------------------
 def get_match_seqs(germlines, line, cyst_positions, tryp_positions):
