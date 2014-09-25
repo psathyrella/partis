@@ -90,7 +90,7 @@ def check_conserved_cysteine(seq, cyst_position, debug=False):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     if len(seq) < cyst_position+3:
         if debug:
-            print 'ERROR cysteine checker %d %s' % (cyst_position, seq)
+            print 'ERROR seq not long enough in cysteine checker %d %s' % (cyst_position, seq)
         assert False
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
@@ -103,7 +103,7 @@ def check_conserved_tryptophan(seq, tryp_position, debug=False):
     """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
     if len(seq) < tryp_position+3:
         if debug:
-            print 'ERROR tryp checker %d %s' % (tryp_position, seq)
+            print 'ERROR seq not long enough in tryp checker %d %s' % (tryp_position, seq)
         assert False
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
@@ -272,7 +272,11 @@ def get_v_5p_del(original_seqs, line):
 
 # ----------------------------------------------------------------------------------------
 def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
-    """ get original and eroded germline seqs """
+    """
+    get original and eroded germline seqs
+    damn these function names kinda suck. TODO rejigger the function and variable names hereabouts
+    """
+    
     v_3p_del = int(line['v_3p_del'])
     d_5p_del = int(line['d_5p_del'])
     d_3p_del = int(line['d_3p_del'])
@@ -284,16 +288,31 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
         line['v_5p_del'] = get_v_5p_del(original_seqs, line)
     original_seqs['v'] = original_seqs['v'][line['v_5p_del']:]  # TODO erm, should the 5p v erosion be off the original, or eroded sequence?
 
+    # length (in the query sequence) which is assigned to each region
     lengths['v'] = len(original_seqs['v']) - v_3p_del
     lengths['d'] = len(original_seqs['d']) - d_5p_del - d_3p_del
     lengths['j'] = len(original_seqs['j']) - j_5p_del
 
+    # the eroded germline sequences
     eroded_seqs['v'] = original_seqs['v'][:lengths['v']]
     eroded_seqs['d'] = original_seqs['d'][d_5p_del : len(original_seqs['d']) - d_3p_del]
     eroded_seqs['j'] = original_seqs['j'][j_5p_del :]
 
 # ----------------------------------------------------------------------------------------
-def get_match_seqs(germlines, line):
+def add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs):
+    """ Add the cdr3_length to <line> based on the information already in <line> """
+    eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position'] - int(line['v_5p_del'])  # cysteine position in eroded germline sequence
+    try:
+        check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=True)
+    except AssertionError:
+        print '    skipping bad codon'
+    eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
+    check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=True)
+    tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])  # TODO dammit didn't I already do this somewhere up there?
+    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+    
+# ----------------------------------------------------------------------------------------
+def get_match_seqs(germlines, line, cyst_positions, tryp_positions):
     """
     get query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
     NOTE adds them into <line>
@@ -304,10 +323,13 @@ def get_match_seqs(germlines, line):
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+    add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs)
 
+    # add the <eroded_seqs> to <line> so we can find them later
     for region in regions:
         line[region + '_gl_seq'] = eroded_seqs[region]
 
+    # the sections of the query sequence which are assigned to each region
     line['v_qr_seq'] = line['seq'][:len(eroded_seqs['v'])]  # NOTE I can't seem to escape the feeling that I've already done all this algebra somewhere else. *sigh*
     line['d_qr_seq'] = line['seq'][len(eroded_seqs['v']) + len(line['vd_insertion']) : len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d'])]
     line['j_qr_seq'] = line['seq'][len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']) : len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']) + len(eroded_seqs['j'])]

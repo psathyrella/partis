@@ -36,6 +36,9 @@ class PartitionDriver(object):
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
+        with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
+            tryp_reader = csv.reader(csv_file)
+            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         self.precluster_info = {}
         self.input_info = {}
@@ -418,7 +421,7 @@ class PartitionDriver(object):
                 if algorithm == 'viterbi':
                     if last_id != utils.get_key(line['unique_id'], line['second_unique_id']):  # if this is the first line for this query (or query pair), print the true event
                         if pcounter != None:  # increment counters
-                            utils.get_match_seqs(self.germline_seqs, line)
+                            utils.get_match_seqs(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
                             pcounter.increment(line)
 
                         if self.args.debug > 0: # print stuff

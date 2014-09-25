@@ -123,9 +123,13 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_conserved_codon_position(self, region, gene, glbounds, qrbounds):
+        """
+        Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
+        its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
+        """
         if region == 'v':
-            gl_cpos = self.cyst_positions[gene]['cysteine-position']  # germline cystein position
-            query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cystein position in query sequence match
+            gl_cpos = self.cyst_positions[gene]['cysteine-position']  # germline cysteine position
+            query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
             # print '%d - %d ( + %d ) = %d (%d)' % (gl_cpos, glbounds[0], qrbounds[0], query_cpos, query_cpos + qrbounds[0])
             return query_cpos
         elif region == 'j':
