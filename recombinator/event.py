@@ -32,17 +32,16 @@ class RecombinationEvent(object):
         self.original_tryp_word = ''
 
     # ----------------------------------------------------------------------------------------
-    def set_vdj_combo(self, vdj_combo_label, cyst_position, tryp_position, all_seqs):  # TODO it's kinda wasteful to pass all_seqs through this call so many times
-        """ Set the label which labels the gene/length choice (a tuple of strings)
-        as well as it's constituent parts. """
+    def set_vdj_combo(self, vdj_combo_label, cyst_positions, tryp_positions, all_seqs):  # TODO it's kinda wasteful to pass all_seqs through this call so many times
+        """ Set the label which labels the gene/length choice (a tuple of strings) as well as it's constituent parts """
         self.vdj_combo_label = vdj_combo_label
-        self.cyst_position = cyst_position
-        self.tryp_position = tryp_position
         for region in utils.regions:
             self.gene_names[region] = vdj_combo_label[utils.index_keys[region + '_gene']]
-            self.seqs[region] = all_seqs[region][vdj_combo_label[utils.index_keys[region + '_gene']]]
-            # replace any Ns with a random nuke (a.t.m. use the same nuke for all Ns in a given seq)
-            self.seqs[region] = self.seqs[region].replace('N', utils.int_to_nucleotide(random.randint(0, 3)))
+            self.seqs[region] = all_seqs[region][self.gene_names[region]]
+            self.seqs[region] = self.seqs[region].replace('N', utils.int_to_nucleotide(random.randint(0, 3)))  # replace any Ns with a random nuke (a.t.m. use the same nuke for all Ns in a given seq)
+        self.cyst_position = cyst_positions[self.gene_names['v']]['cysteine-position']
+        assert False  # still rejiggering this function
+        self.tryp_position = int(tryp_positions[self.gene_names['j']])
         # set the erosion lengths
         for erosion_location in utils.erosions:
             self.erosions[erosion_location] = int(vdj_combo_label[utils.index_keys[erosion_location + '_del']])

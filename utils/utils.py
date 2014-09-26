@@ -26,7 +26,7 @@ maturities = ['memory', 'naive']  # NOTE eveywhere else I call this 'naivety' an
 naivities = ['M', 'N']
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
-index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del')
+index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'vd_insertion', 'dj_insertion')
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
@@ -82,7 +82,6 @@ def int_to_nucleotide(number):
         print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
 
-# ----------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------                    
 def check_conserved_cysteine(seq, cyst_position, debug=False):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """

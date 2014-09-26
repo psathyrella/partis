@@ -33,8 +33,8 @@ class ParameterCounter(object):
             if column == 'all':
                 os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column='all'))
             else:
-                index_columns = [column,] + utils.column_dependencies[column]
-                os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index_columns))
+                index = [column,] + utils.column_dependencies[column]
+                os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index))
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -105,27 +105,27 @@ class ParameterCounter(object):
             self.plot()
         self.mutefreqer.write(self.base_outdir)
         for column in self.counts:
-            index_columns = None
+            index = None
             outfname = None
             if column == 'all':
-                index_columns = utils.index_columns
+                index = utils.index_columns
                 outfname = self.base_outdir + '/' + utils.get_parameter_fname(column='all')
             else:
-                index_columns = [column,] + utils.column_dependencies[column]
-                outfname = self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index_columns)
+                index = [column,] + utils.column_dependencies[column]
+                outfname = self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index)
             if os.path.isfile(outfname):
                 os.remove(outfname)
             elif not os.path.exists(self.base_outdir):
                 os.makedirs(self.base_outdir)
             with opener('w')(outfname) as outfile:
-                out_fieldnames = list(index_columns)
+                out_fieldnames = list(index)
                 out_fieldnames.append('count')
                 out_data = csv.DictWriter(outfile, out_fieldnames)
                 out_data.writeheader()
                 # NOTE this will in general not be sorted
-                for index, count in self.counts[column].iteritems():
+                for key, count in self.counts[column].iteritems():
                     line = {}
-                    for ic in range(len(index)):
-                        line[index_columns[ic]] = index[ic]
+                    for ic in range(len(key)):
+                        line[index[ic]] = key[ic]
                     line['count'] = count
                     out_data.writerow(line)
