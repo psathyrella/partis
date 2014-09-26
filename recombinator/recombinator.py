@@ -71,33 +71,15 @@ class Recombinator(object):
         """ create a recombination event and write it to disk """
         reco_event = RecombinationEvent(self.all_seqs)
         print 'combine'
-        print '      choosing genes %45s %10s %10s %10s %10s' % (' ', 'cdr3', 'deletions', 'net', 'ok?')
-        while self.is_bad_event(reco_event):  # set a vdj/erosion choice in reco_event (keep trying if we initially get a bad one)
-            self.choose_vdj_combo(reco_event)
-        self.get_insertion_lengths(reco_event)
-        assert False  # don't set the insertion lengths any more!
-
-        print '    chose:  gene             length'
-        for region in utils.regions:
-            print '        %s  %-18s %-3d' % (region, reco_event.gene_names[region], len(reco_event.seqs[region])),
-            if region == 'v':
-                print ' (cysteine: %d)' % reco_event.cyst_position
-            elif region == 'j':
-                print ' (tryptophan: %d)' % reco_event.tryp_position
-            else:
-                print ''
-
-        assert not utils.is_erosion_longer_than_seq(reco_event)
-        assert not utils.would_erode_conserved_codon(reco_event)
-        # erode, insert, and combine
+        self.choose_vdj_combo(reco_event)
         self.erode_and_insert(reco_event)
-        print '  joining'
-        print '         v: %s' % reco_event.seqs['v']
+        print '  joining eroded seqs'
+        print '         v: %s' % reco_event.eroded_seqs['v']
         print '    insert: %s' % reco_event.insertions['vd']
-        print '         d: %s' % reco_event.seqs['d']
+        print '         d: %s' % reco_event.eroded_seqs['d']
         print '    insert: %s' % reco_event.insertions['dj']
-        print '         j: %s' % reco_event.seqs['j']
-        reco_event.recombined_seq = reco_event.seqs['v'] + reco_event.insertions['vd'] + reco_event.seqs['d'] + reco_event.insertions['dj'] + reco_event.seqs['j']
+        print '         j: %s' % reco_event.eroded_seqs['j']
+        reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
         reco_event.set_final_tryp_position()
 
         if self.apply_shm:
@@ -138,20 +120,6 @@ class Recombinator(object):
             assert math.fabs(test_total - 1.0) < 1e-8
 
     # ----------------------------------------------------------------------------------------
-    def is_bad_event(self, reco_event):
-        """
-        Is there something wrong with the event we've chosen? (most likely because it was inferred
-        from an uproductive rearrangement)
-        """
-        if self.are_erosion_lengths_inconsistent(reco_event):
-            return True
-        if utils.is_erosion_longer_than_seq(reco_event):
-            return True
-        if utils.would_erode_conserved_codon(reco_event):
-            return True
-        return False
-
-    # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
         """ Choose which combination germline variants to use """
         iprob = numpy.random.uniform(0,1)
@@ -159,91 +127,53 @@ class Recombinator(object):
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice,
-                                         self.cyst_positions,  #[vdj_choice[utils.index_keys['v_gene']]]['cysteine-position'],
-                                         self.tryp_positions,  #int(self.tryp_positions[vdj_choice[utils.index_keys['j_gene']]]),
-                                         self.all_seqs)
+                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs)
                 return
 
         assert False  # shouldn't fall through to here
 
     # ----------------------------------------------------------------------------------------
-    def get_insertion_lengths(self, reco_event):
-        """ Partition the necessary insertion length between the vd and dj boundaries. """
-        # first get total insertion length
-        total_insertion_length = reco_event.total_deletion_length + reco_event.net_length_change
-        assert total_insertion_length >= 0
-
-        # then divide total_insertion_length into vd_insertion and dj_insertion
-        partition_point = numpy.random.uniform(0, total_insertion_length)
-        reco_event.insertion_lengths['vd'] = int(round(partition_point))
-        reco_event.insertion_lengths['dj'] = total_insertion_length - reco_event.insertion_lengths['vd']
-        print '      insertion lengths: %d %d' % (reco_event.insertion_lengths['vd'], reco_event.insertion_lengths['dj'])
-        assert reco_event.insertion_lengths['vd'] + reco_event.insertion_lengths['dj'] == total_insertion_length  # check for rounding problems
-
-    # ----------------------------------------------------------------------------------------
-    def erode(self, region, location, reco_event, protected_position=-1):
-        """ Erode some number of letters from reco_event.seqs[region]
-
-        Nucleotides are removed from the <location> ('5p' or '3p') side of
-        <seq>. The codon beginning at index <protected_position> is optionally
-        protected from removal.
-        """
-        seq = reco_event.seqs[region]
-        n_to_erode = reco_event.erosions[region + '_' + location]
-        if protected_position > 0:  # this check is redundant at this point
-            if location == '3p' and region == 'v':
-                if len(seq) - n_to_erode <= protected_position + 2:
-                    assert False
-            elif location == '5p' and region == 'j':
-                if n_to_erode - 1 >= protected_position:
-                    assert False
-            else:
-                print 'ERROR unanticipated protection'
-                sys.exit()
-
-        fragment_before = ''
+    def erode(self, erosion, reco_event):
+        """ apply <erosion> to the germline seqs in <reco_event> """
+        seq = reco_event.eroded_seqs[erosion[0]]  # <erosion> looks like v_3p
+        n_to_erode = reco_event.erosions[erosion]
+        fragment_before = ''  # fragments to print
         fragment_after = ''
-        if location == '5p':
+        if '5p' in erosion:
             fragment_before = seq[:n_to_erode + 3] + '...'
             new_seq = seq[n_to_erode:len(seq)]
             fragment_after = new_seq[:n_to_erode + 3] + '...'
-        elif location == '3p':
+        else:
+            assert '3p' in erosion
             fragment_before = '...' + seq[len(seq) - n_to_erode - 3 :]
             new_seq = seq[0:len(seq)-n_to_erode]
             fragment_after = '...' + new_seq[len(new_seq) - n_to_erode - 3 :]
-        else:
-            print 'ERROR location must be \"5p\" or \"3p\"'
-            sys.exit()
-        print '    %3d from %s' % (n_to_erode, location),
-        print 'of %s: %15s' % (region, fragment_before),
+
+        print '    %3d from %s' % (n_to_erode, erosion[2:]),
+        print 'of %s: %15s' % (erosion[0], fragment_before),
         print ' --> %-15s' % fragment_after
         if len(fragment_after) == 0:
             print '    NOTE eroded away entire sequence'
 
-        reco_event.seqs[region] = new_seq
+        reco_event.eroded_seqs[erosion[0]] = new_seq
 
     # ----------------------------------------------------------------------------------------
-    def set_insertion(self, boundary, reco_event):
-        """ Set the insertions in reco_event """
+    def insert(self, boundary, reco_event):
         insert_seq_str = ''
         for _ in range(0, reco_event.insertion_lengths[boundary]):
-            insert_seq_str += utils.int_to_nucleotide(random.randint(0, 3))
-
+            insert_seq_str += utils.int_to_nucleotide(random.randint(0, 3))  # TODO do something more accurate for the base content here
         reco_event.insertions[boundary] = insert_seq_str
-        
+
     # ----------------------------------------------------------------------------------------
     def erode_and_insert(self, reco_event):
-        """ Erode and insert based on the lengths in reco_event. """
+        """ Erode the germline seqs, and add insertions, based on the info in <reco_event> """
         print '  eroding'
-        self.erode('v', '3p', reco_event, reco_event.cyst_position)
-        self.erode('d', '5p', reco_event)
-        self.erode('d', '3p', reco_event)
-        self.erode('j', '5p', reco_event, reco_event.tryp_position)
-
-        # then insert
+        for region in utils.regions:
+            reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
+        for erosion in utils.erosions:
+            self.erode(erosion, reco_event)
         for boundary in utils.boundaries:
-            self.set_insertion(boundary, reco_event)
+            self.insert(boundary, reco_event)
 
     # ----------------------------------------------------------------------------------------
     def write_mute_freqs(self, region, gene_name, seq, reco_event, reco_seq_fname):
@@ -372,9 +302,9 @@ class Recombinator(object):
     def add_mutants(self, reco_event):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         print '  generating mutations (seed %d) with tree %s' % (os.getpid(), chosen_tree)  # TODO make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-        v_mutes = self.run_bppseqgen(reco_event.seqs['v'], chosen_tree, reco_event.gene_names['v'], reco_event)
-        d_mutes = self.run_bppseqgen(reco_event.seqs['d'], chosen_tree, reco_event.gene_names['d'], reco_event)
-        j_mutes = self.run_bppseqgen(reco_event.seqs['j'], chosen_tree, reco_event.gene_names['j'], reco_event)
+        v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event)
+        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event)
+        j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event)
         vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event)  # TODO use a better mutation model for the insertions
         dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event)
 
@@ -394,55 +324,6 @@ class Recombinator(object):
         assert not utils.are_conserved_codons_screwed_up(reco_event)
         # print '    check full seq trees'
         # self.check_tree_simulation('', chosen_tree, reco_event)
-
-    # ----------------------------------------------------------------------------------------
-    def are_erosion_lengths_inconsistent(self, reco_event):
-        """ Are the erosion lengths inconsistent with the cdr3 length?
-        TODO we need to work out why these are sometimes inconsistent (and fix it), so we're not
-        just throwing out ~1/3 of the input file.
-        """
-        if reco_event.vdj_combo_label == ():  # haven't filled it yet
-            return True
-        # now are the erosion lengths we chose consistent with the cdr3_length we chose?
-        total_deletion_length = 0
-        for erosion in utils.erosions:
-            total_deletion_length += int(reco_event.vdj_combo_label[utils.index_keys[erosion + '_del']])
-
-        # print some crap
-        # gene_choices = utils.color_gene(reco_event.vdj_combo_label[utils.index_keys['v_gene']]) + ' ' + utils.color_gene(reco_event.vdj_combo_label[utils.index_keys['d_gene']]) + ' ' + utils.color_gene(reco_event.vdj_combo_label[utils.index_keys['j_gene']])
-        gene_choices = reco_event.vdj_combo_label[utils.index_keys['v_gene']] + ' ' + reco_event.vdj_combo_label[utils.index_keys['d_gene']] + ' ' + reco_event.vdj_combo_label[utils.index_keys['j_gene']]
-        print '               try: %45s %10s %10d %10d' % (gene_choices, reco_event.vdj_combo_label[utils.index_keys['cdr3_length']], total_deletion_length, reco_event.net_length_change),
-        is_bad = (-total_deletion_length > reco_event.net_length_change)
-        if is_bad:
-            print '%10s' % 'no'
-        else:
-            print '%10s' % 'yes'
-
-#        # write out some stuff for connor to check
-#        outfname = 'for-connor.csv'
-#        if os.path.isfile(outfname):
-#            mode = 'ab'
-#        else:
-#            mode = 'wb'
-#        columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'initial_cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'is_bad')
-#        with opener('ab')(outfname) as outfile:
-#            writer = csv.DictWriter(outfile, columns)
-#            if mode == 'wb':  # write the header if file wasn't there before
-#                writer.writeheader()
-#            # fill the row with values
-#            row = {}
-#            # first the stuff that's common to the whole recombination event
-#            row['cdr3_length'] = reco_event.cdr3_length
-#            row['initial_cdr3_length'] = reco_event.current_cdr3_length
-#            for region in utils.regions:
-#                row[region + '_gene'] = reco_event.gene_names[region]
-#            for erosion_location in utils.erosions:
-#                row[erosion_location + '_del'] = reco_event.erosions[erosion_location]
-#            row['is_bad'] = is_bad
-#            writer.writerow(row)
-
-        # i.e. we're *in*consistent if net change is negative and also less than total deletions
-        return is_bad
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):

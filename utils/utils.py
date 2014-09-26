@@ -171,31 +171,22 @@ def is_erosion_longer_than_seq(reco_event):
     return False
 
 #----------------------------------------------------------------------------------------
-#def find_tryp_in_joined_seq(reco_event):
-    # NOTE remember this is the tryp position, in j alone, *before* erosion
-#                                                      tryp_position,  
-#                                                      reco_event.seqs['v'],
-#                                                      reco_info['vd_insertion'],
-#                                                      reco_event.seqs['d'],
-#                                                      reco_info['dj_insertion'],
-#                                                      reco_event.seqs['j'],
-#                                                      reco_info['j_5p_del'])
-#
-def find_tryp_in_joined_seq(tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_insertion, j_seq, j_erosion):
+def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_insertion, j_seq, j_erosion):
     """ Find the <end> tryptophan in a joined sequence.
 
     Given local tryptophan position in the j region, figure
     out what position it's at in the final sequence.
-    NOTE tryp_position_in_j is the position *before* the j was eroded,
+    NOTE gl_tryp_position_in_j is the position *before* the j was eroded,
     but this fcn assumes that the j *has* been eroded.
+    also NOTE <[vdj]_seq> are assumed to already be eroded
     """
-#    print 'checking tryp with: %s, %d -%d = %d' % (j_seq, tryp_position_in_j, j_erosion, tryp_position_in_j - j_erosion)
-    check_conserved_tryptophan(j_seq, tryp_position_in_j - j_erosion)  # make sure tryp is where it's supposed to be
+    print 'checking tryp with: %s, %d - %d = %d' % (j_seq, gl_tryp_position_in_j, j_erosion, gl_tryp_position_in_j - j_erosion)
+    check_conserved_tryptophan(j_seq, gl_tryp_position_in_j - j_erosion)  # make sure tryp is where it's supposed to be
     length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion)
-#    print '  finding tryp position as'
-#    print '    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion) = %d + %d + %d + %d' % (len(v_seq), len(vd_insertion), len(d_seq), len(dj_insertion))
-#    print '    result = tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (tryp_position_in_j, j_erosion, length_to_left_of_j, tryp_position_in_j - j_erosion + length_to_left_of_j)
-    return tryp_position_in_j - j_erosion + length_to_left_of_j
+    print '  finding tryp position as'
+    print '    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion) = %d + %d + %d + %d' % (len(v_seq), len(vd_insertion), len(d_seq), len(dj_insertion))
+    print '    result = gl_tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (gl_tryp_position_in_j, j_erosion, length_to_left_of_j, gl_tryp_position_in_j - j_erosion + length_to_left_of_j)
+    return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
 Colors = {}
