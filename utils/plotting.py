@@ -3,9 +3,14 @@ import os
 import sys
 import csv
 from array import array
-sys.argv.append('-b')
-from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue
-gROOT.Macro("plotting/MitStyleRemix.cc+")
+has_root = True
+try:
+    sys.argv.append('-b')
+    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue
+    gROOT.Macro("plotting/MitStyleRemix.cc+")
+except ImportError:
+    print ' ROOT not found, proceeding without plotting'
+    has_root = False
 
 from opener import opener
 
@@ -39,6 +44,8 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_file(fname, column, hist_label='', n_bins=30, log=''):
+    if not has_root:
+        return 
     values = []
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
@@ -106,6 +113,8 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
 
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop'):
+    if not has_root:
+        return 
     cvn = TCanvas('cvn', '', 700, 600)
     xmin = hist.GetBinLowEdge(1)
     xmax = hist.GetXaxis().GetBinUpEdge(hist.GetNbinsX())

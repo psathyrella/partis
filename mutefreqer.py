@@ -4,10 +4,16 @@ import sys
 import os
 from subprocess import check_call
 import csv
-sys.argv.append('-b')
-from ROOT import TH1F, TCanvas, kRed, gROOT, TLine
-gROOT.Macro("plotting/MitStyleRemix.cc+")
+
 from scipy.stats import beta
+has_root = True
+try:
+    sys.argv.append('-b')
+    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine
+    gROOT.Macro("plotting/MitStyleRemix.cc+")
+except ImportError:
+    print ' ROOT not found, proceeding without plotting'
+    has_root = False
 
 from utils import utils
 from utils.opener import opener
@@ -93,43 +99,44 @@ class MuteFreqer(object):
                     row = {'position':position, 'mute_freq':mute_counts[position]['freq'], 'lo_err':mute_counts[position]['freq_lo_err'], 'hi_err':mute_counts[position]['freq_hi_err']}
                     writer.writerow(row)
                 
-            # and make a plot
-            hist = TH1F('hist_' + utils.sanitize_name(gene), '',
-                        sorted_positions[-1] - sorted_positions[0] + 1,
-                        sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
-            lo_err_hist = TH1F(hist)
-            hi_err_hist = TH1F(hist)
-            for position in sorted_positions:
-                hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq'])
-                lo_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_lo_err'])
-                hi_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_hi_err'])
-            hframe = TH1F(hist)
-            hframe.SetTitle(gene + ';;')
-            hframe.Reset()
-            hframe.SetMinimum(lo_err_hist.GetMinimum() - 0.03)
-            hframe.SetMaximum(1.1*hi_err_hist.GetMaximum())
-            hframe.Draw('')
-            line = TLine(hist.GetXaxis().GetXmin(), 0., hist.GetXaxis().GetXmax(), 0.)
-            line.SetLineColor(0)
-            line.Draw()  # can't figure out how to convince hframe not to draw a horizontal line at y=0, so... cover it up
-            hist.SetLineColor(419)
-            hist.Draw('same')
-            lo_err_hist.SetLineColor(kRed+2)
-            hi_err_hist.SetLineColor(kRed+2)
-            lo_err_hist.SetMarkerColor(kRed+2)
-            hi_err_hist.SetMarkerColor(kRed+2)
-            lo_err_hist.SetMarkerStyle(22)
-            hi_err_hist.SetMarkerStyle(23)
-            lo_err_hist.Draw('p same')
-            hi_err_hist.Draw('p same')
-            if self.base_plotdir != '':
-                plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
-                cvn.SaveAs(plotfname)
+            if has_root: # make a plot
+                hist = TH1F('hist_' + utils.sanitize_name(gene), '',
+                            sorted_positions[-1] - sorted_positions[0] + 1,
+                            sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
+                lo_err_hist = TH1F(hist)
+                hi_err_hist = TH1F(hist)
+                for position in sorted_positions:
+                    hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq'])
+                    lo_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_lo_err'])
+                    hi_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_hi_err'])
+                hframe = TH1F(hist)
+                hframe.SetTitle(gene + ';;')
+                hframe.Reset()
+                hframe.SetMinimum(lo_err_hist.GetMinimum() - 0.03)
+                hframe.SetMaximum(1.1*hi_err_hist.GetMaximum())
+                hframe.Draw('')
+                line = TLine(hist.GetXaxis().GetXmin(), 0., hist.GetXaxis().GetXmax(), 0.)
+                line.SetLineColor(0)
+                line.Draw()  # can't figure out how to convince hframe not to draw a horizontal line at y=0, so... cover it up
+                hist.SetLineColor(419)
+                hist.Draw('same')
+                lo_err_hist.SetLineColor(kRed+2)
+                hi_err_hist.SetLineColor(kRed+2)
+                lo_err_hist.SetMarkerColor(kRed+2)
+                hi_err_hist.SetMarkerColor(kRed+2)
+                lo_err_hist.SetMarkerStyle(22)
+                hi_err_hist.SetMarkerStyle(23)
+                lo_err_hist.Draw('p same')
+                hi_err_hist.Draw('p same')
+                if self.base_plotdir != '':
+                    plotfname = self.base_plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
+                    cvn.SaveAs(plotfname)
 
-        if self.base_plotdir != '':
-            check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
-            for region in utils.regions:
-                check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])
+        if has_root:
+            if self.base_plotdir != '':
+                check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
+                for region in utils.regions:
+                    check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
