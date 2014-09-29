@@ -171,7 +171,7 @@ def is_erosion_longer_than_seq(reco_event):
     return False
 
 #----------------------------------------------------------------------------------------
-def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_insertion, j_seq, j_erosion):
+def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_insertion, j_seq, j_erosion, debug=False):
     """ Find the <end> tryptophan in a joined sequence.
 
     Given local tryptophan position in the j region, figure
@@ -180,12 +180,14 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     but this fcn assumes that the j *has* been eroded.
     also NOTE <[vdj]_seq> are assumed to already be eroded
     """
-    print 'checking tryp with: %s, %d - %d = %d' % (j_seq, gl_tryp_position_in_j, j_erosion, gl_tryp_position_in_j - j_erosion)
+    if debug:
+        print 'checking tryp with: %s, %d - %d = %d' % (j_seq, gl_tryp_position_in_j, j_erosion, gl_tryp_position_in_j - j_erosion)
     check_conserved_tryptophan(j_seq, gl_tryp_position_in_j - j_erosion)  # make sure tryp is where it's supposed to be
     length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion)
-    print '  finding tryp position as'
-    print '    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion) = %d + %d + %d + %d' % (len(v_seq), len(vd_insertion), len(d_seq), len(dj_insertion))
-    print '    result = gl_tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (gl_tryp_position_in_j, j_erosion, length_to_left_of_j, gl_tryp_position_in_j - j_erosion + length_to_left_of_j)
+    if debug:
+        print '  finding tryp position as'
+        print '    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion) = %d + %d + %d + %d' % (len(v_seq), len(vd_insertion), len(d_seq), len(dj_insertion))
+        print '    result = gl_tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (gl_tryp_position_in_j, j_erosion, length_to_left_of_j, gl_tryp_position_in_j - j_erosion + length_to_left_of_j)
     return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
@@ -395,7 +397,7 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
         print '%s    %s   inserts' % (extra_str, insertions)
         print '%s    %s   %s' % (extra_str, d, color_gene(line['d_gene']))
         print '%s    %s   %s,%s' % (extra_str, vj, color_gene(line['v_gene']), color_gene(line['j_gene']))
-    print '%s    %s   %-10s %d / %d = %5.2f mutated' % (extra_str, final_seq, line['score'], n_muted, n_total, float(n_muted) / n_total)
+    print '%s    %s   %-10s muted: %5.2f' % (extra_str, final_seq, line['score'], float(n_muted) / n_total)
 
     line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']

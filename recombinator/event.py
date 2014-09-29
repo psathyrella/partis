@@ -30,7 +30,7 @@ class RecombinationEvent(object):
         self.original_tryp_word = ''
 
     # ----------------------------------------------------------------------------------------
-    def set_vdj_combo(self, vdj_combo_label, cyst_positions, tryp_positions, all_seqs):
+    def set_vdj_combo(self, vdj_combo_label, cyst_positions, tryp_positions, all_seqs, debug=False):
         """ Set the label which labels the gene/length choice (a tuple of strings) as well as it's constituent parts """
         self.vdj_combo_label = vdj_combo_label
         for region in utils.regions:
@@ -49,10 +49,11 @@ class RecombinationEvent(object):
         self.original_cyst_word = str(self.original_seqs['v'][self.cyst_position : self.cyst_position + 3 ])
         self.original_tryp_word = str(self.original_seqs['j'][self.tryp_position : self.tryp_position + 3 ])
 
-        self.print_gene_choice()
+        if debug:
+            self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_tryp_position(self):
+    def set_final_tryp_position(self, debug=False):
         """ Set tryp position in the final, combined sequence. """
         self.final_tryp_position = utils.find_tryp_in_joined_seq(self.tryp_position,
                                                                 self.eroded_seqs['v'],
@@ -61,10 +62,12 @@ class RecombinationEvent(object):
                                                                 self.insertions['dj'],
                                                                 self.eroded_seqs['j'],
                                                                 self.erosions['j_5p'])
-        print '  final tryptophan position: %d' % self.final_tryp_position
+        if debug:
+            print '  final tryptophan position: %d' % self.final_tryp_position
         # make sure cdr3 length matches the desired length in vdj_combo_label
         final_cdr3_length = self.final_tryp_position - self.cyst_position + 3
-        print '  final_tryp_position - cyst_position + 3 = %d - %d + 3 = %d (should be %d)' % (self.final_tryp_position, self.cyst_position, final_cdr3_length, self.cdr3_length)
+        if debug:
+            print '  final_tryp_position - cyst_position + 3 = %d - %d + 3 = %d (should be %d)' % (self.final_tryp_position, self.cyst_position, final_cdr3_length, self.cdr3_length)
         utils.check_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.cyst_position, self.final_tryp_position)
         assert final_cdr3_length == int(self.cdr3_length)
 
@@ -117,9 +120,6 @@ class RecombinationEvent(object):
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
         for boundary in utils.boundaries:
-            # assert boundary in self.insertions
-            if boundary not in self.insertions:  # if the insertion isn't set, but the length is set, just fill it with Xs. TODO fix that shit
-                self.insertions[boundary] = self.insertion_lengths[boundary] * 'X'
             line[boundary + '_insertion'] = self.insertions[boundary]
         for erosion_location in utils.erosions:
             line[erosion_location + '_del'] = self.erosions[erosion_location]
@@ -142,3 +142,15 @@ class RecombinationEvent(object):
             else:
                 print ''
 
+    # ----------------------------------------------------------------------------------------
+    def revert_conserved_codons(self, seq):
+        """ revert conserved cysteine and tryptophan to their original bases, eg if they were messed up by s.h.m. """
+        # TODO how badly does this screw up the tree you can infer from the seqs?
+        cpos = self.cyst_position
+        if seq[cpos : cpos + 3] != self.original_cyst_word:
+            seq = seq[:cpos] + self.original_cyst_word + seq[cpos+3:]
+        tpos = self.final_tryp_position
+        if seq[tpos : tpos + 3] != self.original_tryp_word:
+            seq = seq[:tpos] + self.original_tryp_word + seq[tpos+3:]
+
+        return seq
