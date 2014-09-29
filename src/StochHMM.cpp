@@ -13,7 +13,6 @@
 #include "StochHMM_usage.h"
 using namespace StochHMM;
 using namespace std;
-// NOTE use this to compile: export CPLUS_INCLUDE_PATH=/home/dralph/Dropbox/include/eigen-eigen-6b38706d90a9; make
 #define STATE_MAX 1024  // TODO reduce the state max to something reasonable?
 void StreamOutput(ofstream &ofs, options &opt, vector<RecoEvent> &events, sequences &seqs, double total_score);
 
