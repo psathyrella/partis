@@ -63,6 +63,7 @@ if args.simulate:
         sys.exit(0)
     from recombinator.recombinator import Recombinator
     assert args.parameter_dir != None and args.outdir != None
+    assert os.path.exists(args.bpp_dir)
     reco = Recombinator(args, total_length_from_right=130)
     for ievt in range(args.n_max_queries):
         if args.debug:
@@ -77,6 +78,10 @@ if args.simulate:
     os.rmdir(reco.workdir)
         
 else:
+    assert args.seqfile != None
+    assert args.cache_parameters != None or args.point_estimate != None
+    assert args.parameter_dir != None
+    assert os.path.exists(args.stochhmm_dir)
     from partitiondriver import PartitionDriver
 
     args.queries = get_arg_list(args.queries)
