@@ -8,14 +8,12 @@ import numpy
 import math
 import tempfile
 from subprocess import check_call
-from opener import opener
-import utils
+from utils.opener import opener
+from utils import utils
 
-data_dir = 'data/human-beings'
-branch_length_fname = 'branch-lengths.txt'
-
+# ----------------------------------------------------------------------------------------
 class Hist(object):
-    """ a mickey mouse histogram """
+    """ a simple histogram """
     def __init__(self, n_bins = 20, xmin = 0.0, xmax = 30.0):
         self.n_bins = n_bins
         self.xmin = float(xmin)
@@ -61,92 +59,100 @@ class Hist(object):
             for ib in range(self.n_bins + 2):
                 outfile.write('%.15e %.15e\n' % (self.centers[ib], self.bin_contents[ib]))
 
-#----------------------------------------------------------------------------------------
-def make_branch_length_hists():
-    naivety = 'M'
-    for human in utils.humans:
-        with opener('r')(data_dir + '/' + human + '/' + naivety + '/tree-parameters.json.gz') as infile:
-            js = json.load(infile)
-            hist = Hist(100, 0.0, 1.3)
-            il = 0
-            for length in js['branchLengths']:
-                hist.fill(length)
-                il += 1
-                if il > 100:
-                    break
-            hist.normalize()
-            hist.write(data_dir + '/' + human + '/' + naivety + '/' + branch_length_fname)
-
-#----------------------------------------------------------------------------------------
-def choose_branch_length(bin_centers, contents):
-    iprob = numpy.random.uniform(0,1)
-    sum_prob = 0.0
-    # print '  %f' % iprob
-    for ibin in range(len(bin_centers)):
-        sum_prob += contents[ibin]
-        # print '    %5f %5f' % (contents[ibin], sum_prob)
-        if iprob < sum_prob:
-            # print '    returning %s' % bin_centers[ibin]
-            return bin_centers[ibin]
-            
-    assert False  # shouldn't fall through to here
-
 # ----------------------------------------------------------------------------------------
-def generate_trees(human, naivety):
-    tree_generator = 'TreeSim'  # ape
-    n_trees = '1000'
+class TreeGenerator(object):
+    def __init__(self, args):
+        self.args = args
+        self.tree_generator = 'TreeSim'  # ape
+        self.n_trees = '1000'
+        self.branch_length_fname = self.args.hackey_extra_data_dir + '/branch-lengths.txt'
+        self.treefname = self.args.hackey_extra_data_dir + '/trees.tre'
+        self.make_branch_length_hists()
+        self.generate_trees()
 
-    # read branch length hists
-    bin_centers, contents = [], []
-    with opener('r')(data_dir + '/' + human + '/' + naivety + '/' + branch_length_fname) as branchfile:
-        check_sum = 0.0
-        for line in branchfile:
-            bin_centers.append(line.split()[0])  # keep it as a string
-            contents.append(float(line.split()[1]))  # probability of each bin
-            check_sum += contents[-1]
-        assert math.fabs(check_sum - 1.0) < 1e-10
+    #----------------------------------------------------------------------------------------
+    def make_branch_length_hists(self):
+        for human in utils.humans:
+            with opener('r')(self.args.tree_parameter_file) as infile:
+            # with opener('r')(data_dir + '/' + human + '/' + naivety + '/tree-parameters.json.gz') as infile:
+                js = json.load(infile)
+                hist = Hist(100, 0.0, 1.3)
+                il = 0
+                for length in js['branchLengths']:
+                    hist.fill(length)
+                    il += 1
+                    if il > 100:
+                        break
+                hist.normalize()
+                hist.write(self.branch_length_fname)
+    
+    #----------------------------------------------------------------------------------------
+    def choose_branch_length(self, bin_centers, contents):
+        iprob = numpy.random.uniform(0,1)
+        sum_prob = 0.0
+        # print '  %f' % iprob
+        for ibin in range(len(bin_centers)):
+            sum_prob += contents[ibin]
+            # print '    %5f %5f' % (contents[ibin], sum_prob)
+            if iprob < sum_prob:
+                # print '    returning %s' % bin_centers[ibin]
+                return bin_centers[ibin]
+                
+        assert False  # shouldn't fall through to here
+    
+    # ----------------------------------------------------------------------------------------
+    def generate_trees(self):
+        # read branch length histogram
+        bin_centers, contents = [], []
+        with opener('r')(self.branch_length_fname) as branchfile:
+            check_sum = 0.0
+            for line in branchfile:
+                bin_centers.append(line.split()[0])  # keep it as a string
+                contents.append(float(line.split()[1]))  # probability of each bin
+                check_sum += contents[-1]
+            assert utils.is_normed(check_sum)
+    
+        if os.path.exists(self.treefname):
+            os.remove(self.treefname)
 
-    treefname = data_dir + '/' + human + '/' + naivety + '/trees.tre'
-    try:  # there has *got* to be a better way than a try/except clause
-        os.remove(treefname)
-    except:
-        pass
-
-    r_command = 'R --slave'
-    if tree_generator == 'ape':
-        r_command += ' -e \"'
-        r_command += 'library(ape); '
-        r_command += 'set.seed(0); '
-        r_command += 'for (itree in 1:' + str(n_trees)+ ') { write.tree(rtree(' + str(n_leaves) + ', br = rexp, rate = 10), \'test.tre\', append=TRUE) }'
-        r_command += '\"'
-        check_call(r_command, shell=True)
-    else:
-        # set parameters
-        n_species = '10'
-        speciation_rate = '1'
-        extinction_rate = '0.5'
-        n_trees_each_run = '1'
-        # build command line
-        with tempfile.NamedTemporaryFile() as commandfile:
-            commandfile.write('library(TreeSim)\n')
-            for it in range(int(n_trees)):  # Now this! This is *truly* a shitty way of accomplishing what I want.
-                age = choose_branch_length(bin_centers, contents)
-                commandfile.write('trees <- sim.bd.taxa.age(' + n_species + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + age + ', ' + 'mrca = FALSE)\n')
-                commandfile.write('write.tree(trees[[1]], \"' + treefname + '\", append=TRUE)\n')
-            r_command += ' -f ' + commandfile.name
-            commandfile.flush()
+        # build up the R command line
+        r_command = 'R --slave'
+        if self.tree_generator == 'ape':
+            r_command += ' -e \"'
+            r_command += 'library(ape); '
+            r_command += 'set.seed(0); '
+            r_command += 'for (itree in 1:' + self.n_trees+ ') { write.tree(rtree(' + str(n_leaves) + ', br = rexp, rate = 10), \'test.tre\', append=TRUE) }'
+            r_command += '\"'
             check_call(r_command, shell=True)
-
-       # # plot the tree to a png
-       # r_command += 'png(file=\\"foo.png\\"); '
-       # r_command += 'plot.phylo(tree); '
-       # r_command += 'add.scale.bar(); '
-       # r_command += 'dev.off(); '
+        elif self.tree_generator == 'TreeSim':
+            # set parameters. TODO gee, I'm not really sure these parameters are all right
+            n_species = '5'
+            speciation_rate = '1'
+            extinction_rate = '0.5'
+            n_trees_each_run = '1'
+            # build command line, one (painful) tree at a time
+            with tempfile.NamedTemporaryFile() as commandfile:
+                commandfile.write('library(TreeSim)\n')
+                for it in range(int(self.n_trees)):
+                    age = self.choose_branch_length(bin_centers, contents)
+                    commandfile.write('trees <- sim.bd.taxa.age(' + n_species + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + age + ', ' + 'mrca = FALSE)\n')
+                    commandfile.write('write.tree(trees[[1]], \"' + self.treefname + '\", append=TRUE)\n')
+                r_command += ' -f ' + commandfile.name
+                commandfile.flush()
+                check_call(r_command, shell=True)
+        else:
+            assert False
+    
+           # # plot the tree to a png
+           # r_command += 'png(file=\\"foo.png\\"); '
+           # r_command += 'plot.phylo(tree); '
+           # r_command += 'add.scale.bar(); '
+           # r_command += 'dev.off(); '
         
 
 #----------------------------------------------------------------------------------------    
 # make_branch_length_hists()
 # sys.exit()
-naivety = 'M'
-for human in utils.humans:
-    generate_trees(human, naivety)
+# naivety = 'M'
+# for human in utils.humans:
+#     generate_trees(human, naivety)

@@ -20,6 +20,7 @@ parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no_clean', action='store_true')  # don't remove the various temp files
 # actions:
 parser.add_argument('--simulate', action='store_true')  # make simulated recombination events
+parser.add_argument('--generate_trees', action='store_true')  # generate trees to pass to bppseqgen for simulation
 parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
 parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--parameter_dir')
@@ -47,10 +48,19 @@ parser.add_argument('--stochhmm_dir', default=os.getenv('HOME') + '/work/StochHM
 parser.add_argument('--bpp_dir', default='/home/matsengrp/local/encap/bpp-master-20140414')    # NOTE you need a version of bio++ from at least 2014 for the mute-freqs-per-base to work. Either copy the binary from dkralph@gmail.com, or get a development version from: http://biopp.univ-montp2.fr/wiki/index.php/Installation
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
+# temporary arguments (i.e. will be removed as soon as they're not needed)
+parser.add_argument('--hackey_extra_data_dir', default='recombinator/data')  # dir for tree parameters that I'm not yet inferring. TODO fix that, obviously
+parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz')
+# NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
+
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
 if args.simulate:
+    if args.generate_trees:
+        from recombinator.treegenerator import TreeGenerator, Hist
+        treegen = TreeGenerator(args)
+        sys.exit(0)
     from recombinator.recombinator import Recombinator
     assert args.parameter_dir != None and args.outdir != None
     reco = Recombinator(args, total_length_from_right=130)
