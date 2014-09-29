@@ -23,6 +23,7 @@ parser.add_argument('--simulate', action='store_true')  # make simulated recombi
 parser.add_argument('--generate_trees', action='store_true')  # generate trees to pass to bppseqgen for simulation
 parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
 parser.add_argument('--point_estimate', action='store_true')
+parser.add_argument('--partition', action='store_true')
 parser.add_argument('--parameter_dir')
 parser.add_argument('--outdir')
 
@@ -79,7 +80,7 @@ if args.simulate:
         
 else:
     assert args.seqfile != None
-    assert args.cache_parameters or args.point_estimate
+    assert args.cache_parameters or args.point_estimate or args.partition
     assert args.parameter_dir != None
     assert os.path.exists(args.stochhmm_dir)
     from partitiondriver import PartitionDriver
