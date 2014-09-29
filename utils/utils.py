@@ -12,7 +12,7 @@ from opener import opener
 from Bio import SeqIO
 
 #----------------------------------------------------------------------------------------
-eps = 1.e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
+eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
 def is_normed(prob):
     return math.fabs(prob - 1.0) < eps  #*1000000000
 
@@ -66,6 +66,62 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     for ic in column_and_deps:
         outfname = ic + '-' + outfname
     return outfname
+
+# ----------------------------------------------------------------------------------------
+# bash color codes
+Colors = {}
+Colors['head'] = '\033[95m'
+Colors['bold'] = '\033[1m'
+Colors['purple'] = '\033[95m'
+Colors['blue'] = '\033[94m'
+Colors['green'] = '\033[92m'
+Colors['yellow'] = '\033[93m'
+Colors['red'] = '\033[91m'
+Colors['end'] = '\033[0m'
+
+def color(col, seq):
+    assert col in Colors
+    return Colors[col] + seq + Colors['end']
+
+# ----------------------------------------------------------------------------------------
+def color_mutants(ref_seq, seq, print_result=False):
+    # assert len(ref_seq) == len(seq)
+    return_str = ''
+    for inuke in range(len(seq)):
+        if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
+            return_str += seq[inuke]
+        else:
+            return_str += color('red', seq[inuke])
+    if print_result:
+        print '%75s %s' % ('', ref_seq)
+        print '%75s %s' % ('', return_str)
+    return return_str
+
+# ----------------------------------------------------------------------------------------
+def color_gene(gene):
+    """ color gene name (and remove extra characters), eg IGHV3-h*01 --> v 3-h 1 """
+    return_str = gene[:3] + color('bold', color('red', gene[3])) + ' '  # add a space after
+    n_version = gene[4 : gene.find('-')]
+    n_subversion = gene[gene.find('-')+1 : gene.find('*')]
+    if get_region(gene) == 'j':
+        n_version = gene[4 : gene.find('*')]
+        n_subversion = ''
+        return_str += color('purple', n_version)
+    else:
+        return_str += color('purple', n_version) + '-' + color('purple', n_subversion)
+
+    allele_end = gene.find('_')
+    if allele_end < 0:
+        allele_end = len(gene)
+    allele = gene[gene.find('*')+1 : allele_end]
+    return_str += '*' + color('yellow', allele)
+    if '_' in gene:  # _F or _P in j gene names
+        return_str += gene[gene.find('_') :]
+
+    # now remove extra characters
+    return_str = return_str.replace('IGH','  ').lower()
+    return_str = return_str.replace('*',' ')
+    return return_str
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
@@ -189,60 +245,6 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
         print '    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion) = %d + %d + %d + %d' % (len(v_seq), len(vd_insertion), len(d_seq), len(dj_insertion))
         print '    result = gl_tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (gl_tryp_position_in_j, j_erosion, length_to_left_of_j, gl_tryp_position_in_j - j_erosion + length_to_left_of_j)
     return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
-
-# ----------------------------------------------------------------------------------------
-Colors = {}
-Colors['head'] = '\033[95m'
-Colors['bold'] = '\033[1m'
-Colors['purple'] = '\033[95m'
-Colors['blue'] = '\033[94m'
-Colors['green'] = '\033[92m'
-Colors['yellow'] = '\033[93m'
-Colors['red'] = '\033[91m'
-Colors['end'] = '\033[0m'
-
-def color(col, seq):
-    assert col in Colors
-    return Colors[col] + seq + Colors['end']
-
-# ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False):
-    # assert len(ref_seq) == len(seq)
-    return_str = ''
-    for inuke in range(len(seq)):
-        if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
-            return_str += seq[inuke]
-        else:
-            return_str += color('red', seq[inuke])
-    if print_result:
-        print '%75s %s' % ('', ref_seq)
-        print '%75s %s' % ('', return_str)
-    return return_str
-
-# ----------------------------------------------------------------------------------------
-def color_gene(gene):
-    return_str = gene[:3] + color('bold', color('red', gene[3])) + ' '  # add a space after
-    n_version = gene[4 : gene.find('-')]
-    n_subversion = gene[gene.find('-')+1 : gene.find('*')]
-    if get_region(gene) == 'j':
-        n_version = gene[4 : gene.find('*')]
-        n_subversion = ''
-        return_str += color('purple', n_version)
-    else:
-        return_str += color('purple', n_version) + '-' + color('purple', n_subversion)
-
-    allele_end = gene.find('_')
-    if allele_end < 0:
-        allele_end = len(gene)
-    allele = gene[gene.find('*')+1 : allele_end]
-    return_str += '*' + color('yellow', allele)
-    if '_' in gene:  # _F or _P in j gene names
-        return_str += gene[gene.find('_') :]
-
-    # hm, how about without all the crap in it?
-    return_str = return_str.replace('IGH','  ').lower()
-    return_str = return_str.replace('*',' ')
-    return return_str
 
 # ----------------------------------------------------------------------------------------
 def is_mutated(original, final, n_muted=-1, n_total=-1):

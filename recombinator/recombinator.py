@@ -24,8 +24,8 @@ class Recombinator(object):
     #    writing mute freqs and running bppseqgen five times for each recombination event
 
     def __init__(self, args, total_length_from_right=0):
-        self.tmpdir = '/tmp/' + os.getenv('USER') + '/recombinator/' + str(os.getpid())
-        utils.prep_dir(self.tmpdir)
+        self.workdir = '/tmp/' + os.getenv('USER') + '/recombinator/' + str(os.getpid())
+        utils.prep_dir(self.workdir)
         self.args = args
         # parameters that control recombination, erosion, and whatnot
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
@@ -97,8 +97,6 @@ class Recombinator(object):
         outfname = self.args.outdir + '/simu.csv'
         reco_event.write_event(outfname, self.total_length_from_right)
 
-        os.rmdir(self.tmpdir)
-        
         return True
 
     # ----------------------------------------------------------------------------------------
@@ -262,14 +260,14 @@ class Recombinator(object):
             return ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
 
         # write the tree to a tmp file
-        treefname = self.tmpdir + '/tree.tre'
+        treefname = self.workdir + '/tree.tre'
         with opener('w')(treefname) as treefile:
             treefile.write(chosen_tree)
 
-        reco_seq_fname = self.tmpdir + '/start_seq.txt'
+        reco_seq_fname = self.workdir + '/start_seq.txt'
         self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
 
-        leaf_seq_fname = self.tmpdir + '/leaf-seqs.fa'
+        leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
 
         assert ';' not in self.args.bpp_dir
         assert os.path.exists(self.args.bpp_dir)  # NOTE you need a version of bio++ from at least 2014 for the mute-freqs-per-base to work. Either copy the binary from dkralph@gmail.com, or get a development version from: http://biopp.univ-montp2.fr/wiki/index.php/Installation
@@ -336,7 +334,7 @@ class Recombinator(object):
         clean_up = False
         if leaf_seq_fname == '':  # we need to make the leaf seq file based on info in reco_event
             clean_up = True
-            leaf_seq_fname = self.tmpdir + '/leaf-seqs.fa'
+            leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
             with opener('w')(leaf_seq_fname) as leafseqfile:
                 for iseq in range(len(reco_event.final_seqs)):
                     leafseqfile.write('>t' + str(iseq+1) + '\n')  # TODO the *order* of the seqs doesn't correspond to the tN number. does it matter?

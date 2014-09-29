@@ -32,6 +32,8 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # set of all the matches we found
         self.from_scratch = from_scratch
         if not self.from_scratch:
+            if self.args.debug:
+                print '  reading gene choice probs from',parameter_dir
             self.gene_choice_probs = utils.read_overall_gene_prob(parameter_dir)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
@@ -161,7 +163,7 @@ class Waterer(object):
             buff_str = (17 - len(gene)) * ' '
             tmp_val = 0.0
             try:
-                score / self.get_choice_prob(region, gene)
+                tmp_val = score / self.get_choice_prob(region, gene)
             except ZeroDivisionError:
                 pass
             print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score),
@@ -188,7 +190,7 @@ class Waterer(object):
             match_names[region] = []
         codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         if self.args.debug:
-            print '  %s %s' % (query_name,query_seq)
+            print '  %s %s' % (query_name, '')  #query_seq)
         for region in utils.regions:
             n_matches[region] = len(all_match_names[region])
             n_skipped = 0

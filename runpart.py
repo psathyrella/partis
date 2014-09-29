@@ -54,13 +54,18 @@ if args.simulate:
     from recombinator.recombinator import Recombinator
     assert args.parameter_dir != None and args.outdir != None
     reco = Recombinator(args, total_length_from_right=130)
-    for _ in range(args.n_max_queries):
+    for ievt in range(args.n_max_queries):
+        if args.debug:
+            print ievt,
+            sys.stdout.flush()
         success = False
         while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices)
             success = reco.combine()
-            if not success:
+            if not success:  # er, I think I've rewritten everything so it shouldn't fail, but let's just make sure, shall we?
                 print 'failed!'
                 sys.exit()
+    os.rmdir(reco.workdir)
+        
 else:
     from partitiondriver import PartitionDriver
 
