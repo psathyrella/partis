@@ -65,7 +65,9 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def write(self, calculate_uncertainty=True):
-        cvn = TCanvas("cvn", "", 1700, 600)
+        cvn = None
+        if has_root:
+            cvn = TCanvas("cvn", "", 1700, 600)
         for gene in self.counts:
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)

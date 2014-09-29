@@ -45,7 +45,7 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 # ----------------------------------------------------------------------------------------
 def make_hist_from_file(fname, column, hist_label='', n_bins=30, log=''):
     if not has_root:
-        return 
+        return
     values = []
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
@@ -64,6 +64,8 @@ def make_hist_from_file(fname, column, hist_label='', n_bins=30, log=''):
 # ----------------------------------------------------------------------------------------
 def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False):
     """ fill a histogram with values from a dictionary """
+    if not has_root:
+        return
 
     bin_labels = sorted(values)
     if var_type == 'string':  # for strings, sort so most common value is to left side
@@ -114,7 +116,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop'):
     if not has_root:
-        return 
+        return
     cvn = TCanvas('cvn', '', 700, 600)
     xmin = hist.GetBinLowEdge(1)
     xmax = hist.GetXaxis().GetBinUpEdge(hist.GetNbinsX())

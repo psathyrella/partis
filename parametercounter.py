@@ -9,6 +9,11 @@ from utils import utils
 from utils.opener import opener
 from utils import plotting
 from mutefreqer import MuteFreqer
+has_root = True
+try:
+    from ROOT import kRed
+except ImportError:
+    has_root = False
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
@@ -96,12 +101,13 @@ class ParameterCounter(object):
                 values[column_val] += count
             hist = plotting.make_hist(values, var_type, column)
             plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir)
-        check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])
+        if has_root:
+            check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
+            check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):
-        if self.plotdir != '':
+        if self.plotdir != '' and has_root:
             self.plot()
         self.mutefreqer.write(self.base_outdir)
         for column in self.counts:
