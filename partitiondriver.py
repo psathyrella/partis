@@ -102,7 +102,9 @@ class PartitionDriver(object):
             parameter_dir = self.args.parameter_dir
 
         sw_parameter_dir = parameter_dir + '/sw_parameters'
-        sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
+        sw_plotdir = None
+        if os.getenv('www') != None:
+            sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
         waterer.run()
 
