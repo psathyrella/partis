@@ -250,8 +250,6 @@ class Recombinator(object):
         we have different mutation models for different regions. Returns a list of mutated
         sequences.
         """
-        # TODO oh wait crap are all the bits (v,d,j,inserts) that I'm mashing together beings simulated from the same tree? or am I mashing together pieces from different trees?
-
         region = ''
         if is_insertion:
             region = 'v'  # TODO don't just use v for inserts
