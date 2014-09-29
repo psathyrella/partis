@@ -189,7 +189,7 @@ Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
 
   result.check_boundaries(best_kset, kbounds);
   if (debug_ && result.boundary_error()) {  // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "              WARNING maximum at boundary for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
+    cout << "WARNING maximum at boundary for " << seqs[0].name() << (seqs.n_seqs()==2 ? seqs[1].name() : "") << endl;
     cout << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax-1 << ")"
 	 << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax-1 << ")" << endl;
     cout << "    expand to " << result.better_kbounds().stringify() << endl;
