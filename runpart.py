@@ -79,7 +79,7 @@ if args.simulate:
         
 else:
     assert args.seqfile != None
-    assert args.cache_parameters != None or args.point_estimate != None
+    assert args.cache_parameters or args.point_estimate
     assert args.parameter_dir != None
     assert os.path.exists(args.stochhmm_dir)
     from partitiondriver import PartitionDriver
