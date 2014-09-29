@@ -170,7 +170,7 @@ int main(int argc, const char * argv[]) {
       score = score - result_a.total_score() - result_b.total_score();
     }
 
-    if (opt.iopt("--n_best_events") > result.events_.size()) {  // if we were asked for more events than we found
+    if (size_t(opt.iopt("--n_best_events")) > result.events_.size()) {  // if we were asked for more events than we found
       if (result.events_.size() > 0)
 	cout << "WARNING asked for " << opt.iopt("--n_best_events") << " events but only found " << result.events_.size() << endl;
       else
