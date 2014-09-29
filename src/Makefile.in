@@ -69,20 +69,15 @@ AR = ar
 ARFLAGS = cru
 libstochhmm_a_AR = $(AR) $(ARFLAGS)
 libstochhmm_a_LIBADD =
-am_libstochhmm_a_OBJECTS = pwm.$(OBJEXT) PDF.$(OBJEXT) \
-	trellis.$(OBJEXT) viterbi.$(OBJEXT) stoch_viterbi.$(OBJEXT) \
-	stoch_forward.$(OBJEXT) nth_best.$(OBJEXT) \
-	stochTable.$(OBJEXT) backward.$(OBJEXT) forward.$(OBJEXT) \
-	baum_welch.$(OBJEXT) forward_viterbi.$(OBJEXT) \
-	posterior.$(OBJEXT) traceback_path.$(OBJEXT) \
-	externDefinitions.$(OBJEXT) index.$(OBJEXT) \
-	stochMath.$(OBJEXT) text.$(OBJEXT) userFunctions.$(OBJEXT) \
+am_libstochhmm_a_OBJECTS = \
+	trellis.$(OBJEXT) \
+	traceback_path.$(OBJEXT) \
+	stochMath.$(OBJEXT) text.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
-	track.$(OBJEXT) emm.$(OBJEXT) externalFuncs.$(OBJEXT) \
-	modelTemplate.$(OBJEXT) transitions.$(OBJEXT) weight.$(OBJEXT) \
-	options.$(OBJEXT) seqJobs.$(OBJEXT) seqTracks.$(OBJEXT) \
-	sequence.$(OBJEXT) sequences.$(OBJEXT) bitwise_ops.$(OBJEXT) \
-	dynamic_bitset.$(OBJEXT)
+	track.$(OBJEXT) emm.$(OBJEXT) \
+	modelTemplate.$(OBJEXT) transitions.$(OBJEXT) \
+	options.$(OBJEXT) job_holder.$(OBJEXT) \
+	sequence.$(OBJEXT) sequences.$(OBJEXT)
 libstochhmm_a_OBJECTS = $(am_libstochhmm_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -191,41 +186,20 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 lib_LIBRARIES = libstochhmm.a
 libstochhmm_a_SOURCES = \
-	pwm.cpp \
-	PDF.cpp \
 	trellis.cpp \
-	viterbi.cpp \
-	stoch_viterbi.cpp \
-	stoch_forward.cpp \
-	nth_best.cpp \
-	stochTable.cpp \
-	backward.cpp \
-	forward.cpp \
-	baum_welch.cpp \
-	forward_viterbi.cpp \
-	posterior.cpp \
 	traceback_path.cpp \
-	externDefinitions.cpp \
-	index.cpp \
 	stochMath.cpp \
 	text.cpp \
-	userFunctions.cpp \
 	hmm.cpp \
 	state.cpp \
 	lexicalTable.cpp \
 	track.cpp \
 	emm.cpp \
-	externalFuncs.cpp \
-	modelTemplate.cpp \
 	transitions.cpp \
-	weight.cpp \
 	options.cpp \
-	seqJobs.cpp \
-	seqTracks.cpp \
+	job_holder.cpp \
 	sequence.cpp \
-	sequences.cpp \
-	bitwise_ops.cpp \
-	dynamic_bitset.cpp 
+	sequences.cpp
 
 INCLUDES = -I ./
 all: all-am
@@ -305,41 +279,19 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/PDF.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/backward.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/baum_welch.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bitwise_ops.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynamic_bitset.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emm.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/externDefinitions.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/externalFuncs.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/forward.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/forward_viterbi.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/trellis.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/traceback_path.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stochMath.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/text.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hmm.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/index.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/state.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lexicalTable.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modelTemplate.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nth_best.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/track.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/transitions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/options.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posterior.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pwm.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seqJobs.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seqTracks.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sequence.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sequences.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/state.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stochMath.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stochTable.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stoch_forward.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stoch_viterbi.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/text.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/traceback_path.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/track.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/transitions.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/trellis.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userFunctions.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/viterbi.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/weight.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
