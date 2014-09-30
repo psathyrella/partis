@@ -70,7 +70,7 @@ class Waterer(object):
         start = time.time()
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        check_call(self.args.ighutil_dir + '/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 5 --mismatch 3 --gap-open 1000 ' + infname + ' ' + outfname + ' 2>/dev/null', shell=True)
+        check_call(self.args.ighutil_dir + '/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 5 --mismatch 3 --gap-open 1000 ' + infname + ' ' + outfname, shell=True)
         if not self.args.no_clean:
             os.remove(infname)
         print '    s-w time: %.3f' % (time.time()-start)

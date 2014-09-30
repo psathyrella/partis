@@ -1,6 +1,5 @@
 # dependecies:
 #   bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
-#   vdjalign (https://github.com/cmccoy/ighutil)
 #   pysam
 #   optional:
 #     ROOT
@@ -9,9 +8,12 @@
 # ----------------------------------------------------------------------------------------
 # installation
 
-# Connor's mebcell stuff
+# ighutil
 git clone git@github.com:cmccoy/ighutil.git
-# damn, can't get it installed with either of the methods there...
+cd ighutil
+make -C clj  # NOTE requires java 7
+sudo pip install ./python  # install vdjalign in /usr/local/bin/. NOTE not the only way to install -- see the ighutil readme
+cd ..
 
 # stochhmm
 git clone git@github.com:psathyrella/StochHMM -b working-psathyrella
@@ -19,9 +21,8 @@ cd StochHMM/
 ./configure
 make  # ignore errors/warnings about autoconf being too old
 # and... it'll crash 'cause it doesn't like c++0x
-sed -i 's/^CXXFLAGS = \(.*\)/CXXFLAGS = \1 -std=c++0x -Wall/' Makefile src/Makefile  # add back in the cxx flags I *put* in there but stupid make/autoconf keep removing
+sed -i 's/^CXXFLAGS = \(.*\)/CXXFLAGS = \1 -std=c++0x -Wall/' Makefile src/Makefile  # add back in the cxx flags I *put* in there but stupid make/autoconf keep removing. TODO fix that, obviously
 make  # *then* finish building the stuff that uses c++0x
-
 cd ..
 
 # partis
@@ -29,7 +30,8 @@ git clone git@github.com:psathyrella/partis
 cd partis/
 
 # Run this command:
-./runpart.py --cache_parameters --seqfile test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir tmp/parameters --stochhmm_dir ../StochHMM
+# NOTE ighutil_dir should be wherever you pip installed ighutil above
+./runpart.py --cache_parameters --seqfile test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir tmp/parameters --stochhmm_dir ../StochHMM --ighutil_dir /usr/local
 # this does the following:
 #   1) runs smith-waterman on the data in test/data.tsv in order to estimate model parameters, which are written to tmp/parameters/sw_parameters
 #   2) read these parameters and use 'em to run the viterbi hmm on the same data file. This gives you better estimates of the parameters, which
