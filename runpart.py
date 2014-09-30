@@ -47,6 +47,7 @@ parser.add_argument('--v_right_length', type=int, default=89)  # length of v gen
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information
 parser.add_argument('--stochhmm_dir', default=os.getenv('HOME') + '/work/StochHMM')
 parser.add_argument('--bpp_dir', default='/home/matsengrp/local/encap/bpp-master-20140414')    # NOTE you need a version of bio++ from at least 2014 for the mute-freqs-per-base to work. Either copy the binary from dkralph@gmail.com, or get a development version from: http://biopp.univ-montp2.fr/wiki/index.php/Installation
+parser.add_argument('--ighutil_dir', default=os.getenv('HOME') + '/.local')
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)

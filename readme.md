@@ -1,5 +1,6 @@
 # dependecies:
 #   bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
+#   vdjalign (https://github.com/cmccoy/ighutil)
 #   pysam
 #   optional:
 #     ROOT
@@ -7,6 +8,10 @@
 
 # ----------------------------------------------------------------------------------------
 # installation
+
+# Connor's mebcell stuff
+git clone git@github.com:cmccoy/ighutil.git
+# damn, can't get it installed with either of the methods there...
 
 # stochhmm
 git clone git@github.com:psathyrella/StochHMM -b working-psathyrella
