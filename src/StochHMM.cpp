@@ -10,6 +10,9 @@
 #include "job_holder.h"
 #include "germlines.h"
 
+// #include "tclap/CmdLine.h"
+// using namespace TCLAP;
+
 #include "StochHMM_usage.h"
 using namespace StochHMM;
 using namespace std;
@@ -33,7 +36,7 @@ int opt_size=sizeof(commandline)/sizeof(commandline[0]);  //Stores the number of
 options opt;  //Global options for parsed command-line options
 
 // ----------------------------------------------------------------------------------------
-// class for reading csv input info
+// class for reading csv input file
 class Args {
 public:
   Args(string fname);
@@ -91,6 +94,7 @@ Args::Args(string fname):
 }
 
 // ----------------------------------------------------------------------------------------
+// read input sequences from file and return as vector of sequences
 vector<sequences*> GetSeqs(Args &args, track *trk) {
   vector<sequences*> all_seqs;
   for (size_t iseq=0; iseq<args.strings_["seq"].size(); ++iseq) {
@@ -115,6 +119,43 @@ vector<sequences*> GetSeqs(Args &args, track *trk) {
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
+// // ----------------------------------------------------------------------------------------
+// 	// Wrap everything in a try block.  Do this every time, 
+// 	// because exceptions will be thrown for problems. 
+// 	try {  
+
+// 	// Define the command line object.
+// 	CmdLine cmd("Command description message", ' ', "0.9");
+
+// 	// Define a value argument and add it to the command line.
+// 	ValueArg<string> nameArg("n","name","Name to print",true,"homer","string");
+// 	cmd.add( nameArg );
+
+// 	// Define a switch and add it to the command line.
+// 	SwitchArg reverseSwitch("r","reverse","Print name backwards", false);
+// 	cmd.add( reverseSwitch );
+
+// 	// Parse the args.
+// 	cmd.parse( argc, argv );
+
+// 	// Get the value parsed by each arg. 
+// 	string name = nameArg.getValue();
+// 	bool reverseName = reverseSwitch.getValue();
+
+// 	// Do what you intend too...
+// 	if ( reverseName )
+// 	{
+// 		reverse(name.begin(),name.end());
+// 		cout << "My name (spelled backwards) is: " << name << endl;
+// 	}
+// 	else
+// 		cout << "My name is: " << name << endl;
+
+
+// 	} catch (ArgException &e)  // catch any exceptions
+// 	{ cerr << "error: " << e.error() << " for arg " << e.argId() << endl; }
+
+// // ----------------------------------------------------------------------------------------
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, "");
   opt.parse_commandline(argc,argv);

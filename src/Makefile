@@ -75,7 +75,7 @@ am_libstochhmm_a_OBJECTS = \
 	stochMath.$(OBJEXT) text.$(OBJEXT) \
 	hmm.$(OBJEXT) state.$(OBJEXT) lexicalTable.$(OBJEXT) \
 	track.$(OBJEXT) emm.$(OBJEXT) \
-	modelTemplate.$(OBJEXT) transitions.$(OBJEXT) \
+	transitions.$(OBJEXT) \
 	options.$(OBJEXT) job_holder.$(OBJEXT) \
 	sequence.$(OBJEXT) sequences.$(OBJEXT)
 libstochhmm_a_OBJECTS = $(am_libstochhmm_a_OBJECTS)
@@ -93,11 +93,11 @@ DIST_SOURCES = $(libstochhmm_a_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/dralph/Dropbox/work/StochHMM/missing --run aclocal-1.11
-AMTAR = ${SHELL} /home/dralph/Dropbox/work/StochHMM/missing --run tar
-AUTOCONF = ${SHELL} /home/dralph/Dropbox/work/StochHMM/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/dralph/Dropbox/work/StochHMM/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/dralph/Dropbox/work/StochHMM/missing --run automake-1.11
+ACLOCAL = ${SHELL} /home/dralph/work/StochHMM/missing --run aclocal-1.11
+AMTAR = ${SHELL} /home/dralph/work/StochHMM/missing --run tar
+AUTOCONF = ${SHELL} /home/dralph/work/StochHMM/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/dralph/work/StochHMM/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/dralph/work/StochHMM/missing --run automake-1.11
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -125,7 +125,7 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/dralph/Dropbox/work/StochHMM/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/dralph/work/StochHMM/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 PACKAGE = stochhmm
@@ -141,10 +141,10 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = 
 VERSION = 0.27
-abs_builddir = /home/dralph/Dropbox/work/StochHMM/src
-abs_srcdir = /home/dralph/Dropbox/work/StochHMM/src
-abs_top_builddir = /home/dralph/Dropbox/work/StochHMM
-abs_top_srcdir = /home/dralph/Dropbox/work/StochHMM
+abs_builddir = /home/dralph/work/StochHMM/src
+abs_srcdir = /home/dralph/work/StochHMM/src
+abs_top_builddir = /home/dralph/work/StochHMM
+abs_top_srcdir = /home/dralph/work/StochHMM
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 am__include = include
@@ -164,7 +164,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/dralph/Dropbox/work/StochHMM/install-sh
+install_sh = ${SHELL} /home/dralph/work/StochHMM/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -279,19 +279,19 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/emm.Po
+include ./$(DEPDIR)/trellis.Po
+include ./$(DEPDIR)/traceback_path.Po
+include ./$(DEPDIR)/stochMath.Po
+include ./$(DEPDIR)/text.Po
 include ./$(DEPDIR)/hmm.Po
+include ./$(DEPDIR)/state.Po
 include ./$(DEPDIR)/lexicalTable.Po
+include ./$(DEPDIR)/track.Po
+include ./$(DEPDIR)/emm.Po
+include ./$(DEPDIR)/transitions.Po
 include ./$(DEPDIR)/options.Po
 include ./$(DEPDIR)/sequence.Po
 include ./$(DEPDIR)/sequences.Po
-include ./$(DEPDIR)/state.Po
-include ./$(DEPDIR)/stochMath.Po
-include ./$(DEPDIR)/text.Po
-include ./$(DEPDIR)/traceback_path.Po
-include ./$(DEPDIR)/track.Po
-include ./$(DEPDIR)/transitions.Po
-include ./$(DEPDIR)/trellis.Po
 
 .cpp.o:
 	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

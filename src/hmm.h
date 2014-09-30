@@ -16,7 +16,6 @@
 #include "track.h"
 #include "text.h"
 #include "stochTypes.h"
-#include "modelTemplate.h"
 
 using namespace std;
 namespace StochHMM{
