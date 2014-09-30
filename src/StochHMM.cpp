@@ -12,7 +12,7 @@
 
 // #include "tclap/CmdLine.h"
 // using namespace TCLAP;
-
+// 
 #include "StochHMM_usage.h"
 using namespace StochHMM;
 using namespace std;

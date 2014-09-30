@@ -1,6 +1,6 @@
 #ifndef EMM_H
 #define EMM_H
-    
+#include "tclap/Arg.h"    
 #include <iostream>
 #include <string>
 #include <vector>
