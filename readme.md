@@ -1,9 +1,9 @@
 # dependecies:
-#   bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
-#   pysam
-#   optional:
-#     ROOT
-#     TreeSim (R package, needed to generate trees)
+   bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
+   pysam
+   optional:
+     ROOT
+     TreeSim (R package, needed to generate trees)
 
 # ----------------------------------------------------------------------------------------
 # installation
@@ -16,7 +16,7 @@ sudo pip install ./python  # install vdjalign in /usr/local/bin/. NOTE not the o
 cd ..
 
 # stochhmm
-git clone git@github.com:psathyrella/StochHMM -b working-psathyrella
+git clone git@github.com:psathyrella/StochHMM -b psathyrella
 cd StochHMM/
 ./configure
 make  # ignore errors/warnings about autoconf being too old
