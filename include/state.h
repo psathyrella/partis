@@ -1,5 +1,5 @@
-#ifndef STATE_H
-#define STATE_H
+#ifndef STOCHHMM_STATE_H
+#define STOCHHMM_STATE_H
 
 #include <string>
 #include <vector>
@@ -11,17 +11,8 @@
 #include <stdlib.h>
 #include <bitset>
 
-#ifndef SIZE_MAX
-#define SIZE_MAX ((size_t)-1)
-#endif
-
-//Define size of bitset.  If not set in makefile then will use default 1024.
-#ifndef STATE_MAX
-#define STATE_MAX 1024
-#endif
-
 using namespace std;
-namespace StochHMM {
+namespace stochhmm {
 class transition;
   
 class state {
@@ -42,7 +33,7 @@ public:
   inline transition* getTrans(size_t iter) { return (*transi)[iter]; }
   inline transition* getEnding(){return endi;};
               
-  inline double emission_score(sequences& seqs, size_t pos) {  // seqs better have 1 or 2 seqs, 'cause I ain't checkin it here
+  inline double emission_score(Sequences& seqs, size_t pos) {  // seqs better have 1 or 2 seqs, 'cause I ain't checkin it here
     if (seqs.n_seqs() == 2)
       return pair_emission_.score(seqs, pos);
     else

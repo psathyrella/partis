@@ -88,7 +88,7 @@ void JobHolder::Clear() {
 }
 
 // ----------------------------------------------------------------------------------------
-sequences JobHolder::GetSubSeqs(sequences &seqs, KSet kset, string region) {
+Sequences JobHolder::GetSubSeqs(Sequences &seqs, KSet kset, string region) {
   // get subsequences for one region
   size_t k_v(kset.v),k_d(kset.d);
   if (region=="v")
@@ -102,24 +102,24 @@ sequences JobHolder::GetSubSeqs(sequences &seqs, KSet kset, string region) {
 }
 
 // ----------------------------------------------------------------------------------------
-map<string,sequences> JobHolder::GetSubSeqs(sequences &seqs, KSet kset) {
+map<string,Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
   // get subsequences for all regions
-  map<string,sequences> subseqs;
+  map<string,Sequences> subseqs;
   for (auto &region: gl_.regions_)
     subseqs[region] = GetSubSeqs(seqs, kset, region);
   return subseqs;
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequence &seq, KBounds kbounds) {
-  sequences seqs;
-  sequence *newseq = new sequence(seq);  // seriously wtf does <sequences> need to own its sequences?
+Result JobHolder::Run(Sequence &seq, KBounds kbounds) {
+  Sequences seqs;
+  Sequence *newseq = new Sequence(seq);  // seriously wtf does <Sequences> need to own its Sequences?
   seqs.addSeq(newseq);
   return Run(seqs, kbounds);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
+Result JobHolder::Run(Sequences &seqs, KBounds kbounds) {
   assert(kbounds.vmax>kbounds.vmin && kbounds.dmax>kbounds.dmin);  // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
@@ -199,7 +199,7 @@ Result JobHolder::Run(sequences &seqs, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score) {
+void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string gene, double *score) {
   *score = -INFINITY;
   // initialize trellis and path
   if (trellisi_.find(gene) == trellisi_.end()) {
@@ -267,13 +267,13 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::PushBackRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score, vector<RecoEvent> *events) {
+void JobHolder::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string,string> &best_genes, double score, vector<RecoEvent> *events) {
   RecoEvent event(FillRecoEvent(seqs, kset, best_genes, score));
   events->push_back(event);
 }
 
 // ----------------------------------------------------------------------------------------
-RecoEvent JobHolder::FillRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score) {
+RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string,string> &best_genes, double score) {
   RecoEvent event;
   StrPair seq_strs;
   for (auto &region: gl_.regions_) {
@@ -319,11 +319,11 @@ RecoEvent JobHolder::FillRecoEvent(sequences &seqs, KSet kset, map<string,string
 }
 
 // ----------------------------------------------------------------------------------------
-StrPair JobHolder::GetQueryStrs(sequences &seqs, KSet kset, string region) {
-  sequences query_seqs(GetSubSeqs(seqs, kset,region));
+StrPair JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
+  Sequences query_seqs(GetSubSeqs(seqs, kset,region));
   StrPair query_strs;
   query_strs.first = query_seqs[0].undigitize();
-  if (query_seqs.n_seqs() == 2) {  // the sequences class should already ensure that both seqs are the same length
+  if (query_seqs.n_seqs() == 2) {  // the Sequences class should already ensure that both seqs are the same length
     assert(seqs.n_seqs() == 2);
     query_strs.second = query_seqs[1].undigitize();
   }
@@ -340,8 +340,8 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 }
 
 // ----------------------------------------------------------------------------------------
- void JobHolder::RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes) {
-  map<string,sequences> subseqs(GetSubSeqs(seqs, kset));
+ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes) {
+  map<string,Sequences> subseqs(GetSubSeqs(seqs, kset));
   (*best_scores)[kset] = -INFINITY;
   (*total_scores)[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
   (*best_genes)[kset] = map<string,string>();

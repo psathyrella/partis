@@ -1,5 +1,5 @@
-#ifndef SEQUENCE_H
-#define SEQUENCE_H
+#ifndef STOCHHMM_SEQUENCE_H
+#define STOCHHMM_SEQUENCE_H
 
 #include <vector>
 #include <stdlib.h>
@@ -10,17 +10,17 @@
 #include "track.h"
 
 using namespace std;
-namespace StochHMM {
+namespace stochhmm {
 
-class sequence {
-  friend class sequences;
+class Sequence {
+  friend class Sequences;
 public:
-  sequence() { assert(0); }  // do not allow (in order to make sure things are properly initialized)
-  sequence(string& seq_str, track* trk, string name);
-  sequence(const sequence&);
-  ~sequence();
+  Sequence() { assert(0); }  // do not allow (in order to make sure things are properly initialized)
+  Sequence(string& seq_str, track* trk, string name);
+  Sequence(const Sequence&);
+  ~Sequence();
       
-  sequence getSubSequence(size_t pos, size_t len);
+  Sequence getSubSequence(size_t pos, size_t len);
       
   string* getUndigitized();
   inline string name() const { return name_; }

@@ -1,7 +1,7 @@
 #include "sequences.h"
 
-namespace StochHMM {
-sequences::~sequences() {
+namespace stochhmm {
+Sequences::~Sequences() {
   for(size_t i=0;i<seqs.size();i++){
     delete seqs[i];
     seqs[i] = NULL;
@@ -12,7 +12,7 @@ sequences::~sequences() {
 //! \param trck Sequence track to use
 //! \param position Position in sequence to get the value from
 //! \return short digitized value of the sequence based on track type 
-short sequences::getValue(int trck, size_t position){
+short Sequences::getValue(int trck, size_t position){
   return seqs[trck]->getValue(position);
 }
   
@@ -20,7 +20,7 @@ short sequences::getValue(int trck, size_t position){
 //! \param iter Iterator to use for extracting sequence;
 //! \return sequence* pointer to sequence
 //! \return NULL if no sequence exists at iter
-sequence* sequences::getSeq(size_t iter) {
+Sequence* Sequences::getSeq(size_t iter) {
   if(iter<seqs.size()){
     return seqs[iter];
   }
@@ -28,13 +28,13 @@ sequence* sequences::getSeq(size_t iter) {
 }
 
 // ----------------------------------------------------------------------------------------
-std::string& sequences::getHeader(size_t iter) {
+std::string& Sequences::getHeader(size_t iter) {
   assert(iter < seqs.size());
   return seqs[iter]->header_;
 }
 
 // ----------------------------------------------------------------------------------------
-std::string sequences::stringifyWOHeader() {
+std::string Sequences::stringifyWOHeader() {
   std::string tmp_str;
   for(size_t i=0; i<seqs.size(); i++)
     tmp_str += seqs[i]->stringifyWOHeader();
@@ -42,7 +42,7 @@ std::string sequences::stringifyWOHeader() {
 }
 
 // ----------------------------------------------------------------------------------------
-std::string sequences::stringify() {
+std::string Sequences::stringify() {
   std::string tmp_str;
   for(size_t i=0; i<seqs.size(); i++) {
     track* trk = seqs[i]->getTrack();
@@ -53,7 +53,7 @@ std::string sequences::stringify() {
 }
 
 // ----------------------------------------------------------------------------------------
-std::string sequences::undigitize() {
+std::string Sequences::undigitize() {
   std::string output;
   for(size_t i=0; i<seqs.size(); i++) {
     track* trk = seqs[i]->getTrack();
@@ -65,10 +65,10 @@ std::string sequences::undigitize() {
   
 // ----------------------------------------------------------------------------------------
 //! \return return the collection of subsequences from <pos> with size <len>
-sequences sequences::getSubSequences(size_t pos, size_t len) {
-  sequences new_seqs;  // init with *zero* seqs because we push back below
+Sequences Sequences::getSubSequences(size_t pos, size_t len) {
+  Sequences new_seqs;  // init with *zero* seqs because we push back below
   for (size_t is=0; is<seqs.size(); is++) {
-    sequence *tmp_seq = new(std::nothrow) sequence(seqs[is]->getSubSequence(pos,len));
+    Sequence *tmp_seq = new(std::nothrow) Sequence(seqs[is]->getSubSequence(pos,len));
     assert(tmp_seq);
     new_seqs.addSeq(tmp_seq);
   }
@@ -76,7 +76,7 @@ sequences sequences::getSubSequences(size_t pos, size_t len) {
 }    
 
 // ----------------------------------------------------------------------------------------
-void sequences::addSeq(sequence* sq) {
+void Sequences::addSeq(Sequence* sq) {
   if (sequence_length_==0) {  // make sure <sq> has the same length as any previously added sequences
     sequence_length_ = sq->size();
   } else {

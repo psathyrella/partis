@@ -1,9 +1,9 @@
 #include "sequence.h"
 
-namespace StochHMM {
+namespace stochhmm {
 
 // ----------------------------------------------------------------------------------------
-sequence::sequence(string& seq_str, track* trk, string name):
+Sequence::Sequence(string& seq_str, track* trk, string name):
   name_(name),
   undigitized_(seq_str),
   track_(trk)
@@ -13,7 +13,7 @@ sequence::sequence(string& seq_str, track* trk, string name):
 }
   
 // ----------------------------------------------------------------------------------------
-sequence::sequence(const sequence& rhs) {
+Sequence::Sequence(const Sequence& rhs) {
   name_ = rhs.name_;
   header_  = rhs.header_;
   track_  = rhs.track_;
@@ -24,12 +24,12 @@ sequence::sequence(const sequence& rhs) {
 }
       
 // ----------------------------------------------------------------------------------------
-sequence::~sequence() {
+Sequence::~Sequence() {
   delete seq_;
 }
   
 // ----------------------------------------------------------------------------------------
-void sequence::clear(){
+void Sequence::clear(){
   header_ = "";
   undigitized_="";
   if (seq_)
@@ -38,7 +38,7 @@ void sequence::clear(){
 }
   
 // ----------------------------------------------------------------------------------------
-string* sequence::getUndigitized() {
+string* Sequence::getUndigitized() {
   if (!undigitized_.empty() || seq_->empty()) {
     return &undigitized_;
   } else {
@@ -49,16 +49,16 @@ string* sequence::getUndigitized() {
 
 // ----------------------------------------------------------------------------------------
 //! \return a copy of the sequence from <pos> of size <len>
-sequence sequence::getSubSequence(size_t pos, size_t len) {
+Sequence Sequence::getSubSequence(size_t pos, size_t len) {
   assert(pos < undigitized_.size());
   assert(len < undigitized_.size());
   assert(pos+len <= undigitized_.size());  // arg. if pos+len overflows this still passes
   string subseq_str = undigitized_.substr(pos, len);
-  return sequence(subseq_str, track_, name_);
+  return Sequence(subseq_str, track_, name_);
 }
 
 // ----------------------------------------------------------------------------------------
-string sequence::stringify(){
+string Sequence::stringify(){
   string output;
   if (!header_.empty())
     output += header_ + "\n";
@@ -67,12 +67,12 @@ string sequence::stringify(){
 }
       
 // ----------------------------------------------------------------------------------------
-string sequence::stringifyWOHeader() {
+string Sequence::stringifyWOHeader() {
   return undigitized_ + "\n";
 }
   
 // ----------------------------------------------------------------------------------------
-string sequence::undigitize() {
+string Sequence::undigitize() {
   if (!seq_){  //If the sequence is not digitized yet.  Return the undigitized version 
     return undigitized_;
   }
@@ -90,7 +90,7 @@ string sequence::undigitize() {
 }
   
 // ----------------------------------------------------------------------------------------
-bool sequence::getFasta(ifstream& file, track* trk) {
+bool Sequence::getFasta(ifstream& file, track* trk) {
   if (seq_) this->clear();
   track_ = trk;
   assert(file.good());
@@ -135,7 +135,7 @@ bool sequence::getFasta(ifstream& file, track* trk) {
 }
   
 // ----------------------------------------------------------------------------------------
-bool sequence::_digitize() {
+bool Sequence::_digitize() {
   assert(track_);
       
   stringList lst;
@@ -162,7 +162,7 @@ bool sequence::_digitize() {
 //! \param file File stream to file
 //! \param trk Track to used to digitize
 //! \return true if the sequence was successfully imported
-bool sequence::getFastq(ifstream& file, track* trk){
+bool Sequence::getFastq(ifstream& file, track* trk){
               
   if (seq_!=NULL){
     this->clear();
@@ -247,7 +247,7 @@ bool sequence::getFastq(ifstream& file, track* trk){
 }
   
 //! \return subsequence from (and including) istart to (but excluding) istop
-vector<uint8_t> sequence::getDigitalSubSeq(size_t istart, size_t istop) {
+vector<uint8_t> Sequence::getDigitalSubSeq(size_t istart, size_t istop) {
   vector<uint8_t> subseq;
   for (vector<uint8_t>::iterator it = seq_->begin()+istart; it != seq_->begin()+istop; ++it)
     subseq.push_back(*it);

@@ -25,8 +25,8 @@
 //COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 //IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 //CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#ifndef STOCHMATH_H
-#define STOCHMATH_H
+#ifndef STOCHHMM_STOCHMATH_H
+#define STOCHHMM_STOCHMATH_H
 
 #include <math.h>
 #include <iostream>
@@ -35,18 +35,7 @@
 #include <stdint.h>
 #include <algorithm>
 
-#ifndef SIZE_MAX
-#define SIZE_MAX ((size_t)-1)
-#endif
-
-#ifndef UINT16_MAX
-#define UINT16_MAX 65535
-#endif
-
-
-namespace StochHMM{
-    
-#define PI 3.1415926535897932
+namespace stochhmm{
     
   //FIXME: Need to generate dynamically once upon initialization of HMM. System differences between (int,long,...);
   //Or just leave it. It may work well enough;

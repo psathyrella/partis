@@ -1,5 +1,5 @@
-#ifndef TRANSITIONS_H
-#define TRANSITIONS_H
+#ifndef STOCHHMM_TRANSITIONS_H
+#define STOCHHMM_TRANSITIONS_H
 
 #include <vector> 
 #include <string>
@@ -10,7 +10,7 @@
 #include "sequences.h"
 #include <stdlib.h>
 
-namespace StochHMM {
+namespace stochhmm {
 class state;
 class transition{
   friend class model;

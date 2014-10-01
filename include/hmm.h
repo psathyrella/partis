@@ -1,5 +1,5 @@
-#ifndef HMM_H
-#define HMM_H
+#ifndef STOCHHMM_HMM_H
+#define STOCHHMM_HMM_H
 
 #include <iostream>
 #include <string>
@@ -13,12 +13,9 @@
 #include <bitset>
 
 #include "state.h"
-#include "track.h"
-#include "text.h"
-#include "stochTypes.h"
 
 using namespace std;
-namespace StochHMM{
+namespace stochhmm {
 /*! \class model
   Hidden Markov Model Class
   model class combines the States, and model information together in a single unit.

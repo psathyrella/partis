@@ -1,26 +1,26 @@
-#include "lexicalTable.h"
-namespace StochHMM {
+#include "lexicaltable.h"
+namespace stochhmm {
   
 // ----------------------------------------------------------------------------------------
-lexicalTable::lexicalTable() : prob(NULL), counts(NULL), logProb(NULL) {
+LexicalTable::LexicalTable() : prob(NULL), counts(NULL), logProb(NULL) {
 }
 
 // ----------------------------------------------------------------------------------------
-void lexicalTable::init() {
+void LexicalTable::init() {
   prob = new vector<vector<double> >;
   counts = new vector<vector<double> >;
   logProb = new vector<vector<double> >;
 }
   
 // ----------------------------------------------------------------------------------------
-lexicalTable::~lexicalTable() {
+LexicalTable::~LexicalTable() {
   delete logProb;
   delete prob;
   delete counts;
 }
 
 // ----------------------------------------------------------------------------------------
-void lexicalTable::AddColumn(vector<double> logprobs) {
+void LexicalTable::AddColumn(vector<double> logprobs) {
   logProb->push_back(logprobs);
   prob->push_back(get_exp_vector(logprobs));
 }

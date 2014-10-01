@@ -1,6 +1,6 @@
 #include "hmm.h"
 
-namespace StochHMM {
+namespace stochhmm {
 // ----------------------------------------------------------------------------------------
 model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
   ending = new state;

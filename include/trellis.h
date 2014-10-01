@@ -1,5 +1,5 @@
-#ifndef StochHMM_trellis_h
-#define StochHMM_trellis_h
+#ifndef STOCHHMM_TRELLIS_H
+#define STOCHHMM_TRELLIS_H
 
 #include <vector>
 #include <stdint.h>
@@ -8,7 +8,7 @@
 #include "traceback_path.h"
 
 using namespace std;
-namespace StochHMM {
+namespace stochhmm {
       
 typedef vector<vector<int16_t> > int_2D;
 typedef vector<vector<float> > float_2D;
@@ -18,11 +18,11 @@ typedef vector<vector<double> > double_2D;
 class trellis{
 public:
   double  ending_viterbi_score;
-  trellis(model* h , sequences* sqs);
+  trellis(model* h , Sequences* sqs);
   ~trellis();
 
   inline model* getModel(){return hmm;}
-  inline sequences* getSeq(){return seqs;}
+  inline Sequences* getSeq(){return seqs;}
   inline float_2D* getForwardTable(){return forward_score;}
   inline double getForwardProbability(){return ending_forward_prob;}
               
@@ -31,7 +31,7 @@ public:
   void traceback(traceback_path& path);
 private:
   model* hmm;
-  sequences* seqs; //Digitized Sequences
+  Sequences* seqs; //Digitized Sequences
   int_2D*         traceback_table;        //Simple traceback table
               
   //Score Tables

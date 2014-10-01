@@ -1,5 +1,5 @@
-#ifndef StochHMM_Lexical_h
-#define StochHMM_Lexical_h
+#ifndef STOCHHMM_LEXICALTABLE_H
+#define STOCHHMM_LEXICALTABLE_H
 
 #include <string>
 #include <vector>
@@ -9,19 +9,19 @@
 #include "stochTypes.h"
 
 using namespace std;
-namespace StochHMM{
+namespace stochhmm {
       
-class lexicalTable{
+class LexicalTable {
 public:
-  lexicalTable();
+  LexicalTable();
   void init();
-  ~lexicalTable();
+  ~LexicalTable();
 
   void addTrack(track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
       
-  inline double getValue(sequences &seqs, size_t pos) { return (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
-  inline double getValue(sequence &seq, size_t pos) { return (*logProb)[0][seq[pos]]; }  // see NOTE above
+  inline double getValue(Sequences &seqs, size_t pos) { return (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
+  inline double getValue(Sequence &seq, size_t pos) { return (*logProb)[0][seq[pos]]; }  // see NOTE above
   vector<vector<double> >* getProbabilityTable() { return prob; }
   vector<vector<double> >* getLogProbabilityTable() { return logProb; }
   vector<vector<double> >* getCountsTable() { return counts; }

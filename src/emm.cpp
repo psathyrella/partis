@@ -1,6 +1,6 @@
 #include "emm.h"
 
-namespace StochHMM{
+namespace stochhmm {
 
 // ----------------------------------------------------------------------------------------
 emm::emm() {

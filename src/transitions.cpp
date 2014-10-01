@@ -1,5 +1,5 @@
 #include "transitions.h"
-namespace StochHMM{
+namespace stochhmm {
   
 // ----------------------------------------------------------------------------------------
 transition::transition(transType type) : transition_type(type) {

@@ -7,12 +7,15 @@
 #include <math.h>
 #include <set>
 #include <iomanip>
-#include "StochHMMlib.h"
-#include "StochHMM_usage.h"
+
+#include "sequences.h"
+#include "hmm.h"
+#include "trellis.h"
+#include "traceback_path.h"
 #include "germlines.h"
 
 using namespace std;
-using namespace StochHMM;
+using namespace stochhmm;
 
 typedef pair<string,string> StrPair;
 
@@ -77,22 +80,22 @@ public:
   JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str="");
   ~JobHolder();
   void Clear();
-  Result Run(sequences &seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
-  Result Run(sequence &seq, KBounds kbounds);
-  void RunKSet(sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes);
+  Result Run(Sequences &seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(Sequence &seq, KBounds kbounds);
+  void RunKSet(Sequences &seqs, KSet kset, map<KSet,double> *best_scores, map<KSet,double> *total_scores, map<KSet,map<string,string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
-  void FillTrellis(sequences *query_seqs, StrPair query_strs, string gene, double *score);
-  void PushBackRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score, vector<RecoEvent> *events);
-  RecoEvent FillRecoEvent(sequences &seqs, KSet kset, map<string,string> &best_genes, double score);
+  void FillTrellis(Sequences *query_seqs, StrPair query_strs, string gene, double *score);
+  void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string,string> &best_genes, double score, vector<RecoEvent> *events);
+  RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string,string> &best_genes, double score);
   void StreamOutput(double test);  // print csv event info to stderr
-  StrPair GetQueryStrs(sequences &seqs, KSet kset, string region);
+  StrPair GetQueryStrs(Sequences &seqs, KSet kset, string region);
   void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
 private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
-  sequences GetSubSeqs(sequences &seqs, KSet kset, string region);
-  map<string,sequences> GetSubSeqs(sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
+  Sequences GetSubSeqs(Sequences &seqs, KSet kset, string region);
+  map<string,Sequences> GetSubSeqs(Sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   size_t GetInsertLength(vector<string> labels);
   size_t GetErosionLength(string side, vector<string> path_labels, string gene_name);
   double AddWithMinusInfinities(double first, double second);
