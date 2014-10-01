@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+using namespace std;
+
 namespace stochhmm{
   class track;
   class tracks;
@@ -25,12 +27,12 @@ namespace stochhmm{
   // !  For example in DNA N = [ACGT] = [0,1,2,3]
   class ambigCharacter {
   public:
-    ambigCharacter(track*, std::string&, std::vector<std::string>& ); //track, ambiguous character, unambiguous characters
-    inline std::string getSymbol(){return symbol;};
-    inline std::vector<size_t>& getDef(){return setDefinition;};
+    ambigCharacter(track*, string&, vector<string>& ); //track, ambiguous character, unambiguous characters
+    inline string getSymbol(){return symbol;};
+    inline vector<size_t>& getDef(){return setDefinition;};
   private:
-    std::string symbol;  //Ambiguous character definition
-    std::vector<size_t> setDefinition; //Set of letters by digital value that ambiguous character defines
+    string symbol;  //Ambiguous character definition
+    vector<size_t> setDefinition; //Set of letters by digital value that ambiguous character defines
   };
     
   // ----------------------------------------------------------------------------------------
@@ -41,62 +43,62 @@ namespace stochhmm{
   class track {
   public:
     track();
-    track(std::string, size_t, std::vector<std::string>&);
+    track(string, size_t, vector<string>&);
         
     friend class state;
     friend class model;
     friend class tracks;
         
-    bool parse(std::string&);
-    bool parseAmbiguous(std::string&);
-    inline void setName(std::string& nm){name=nm;};
-    inline void setDescription(std::string& desc){description=desc;};
+    bool parse(string&);
+    bool parseAmbiguous(string&);
+    inline void setName(string& nm){name=nm;};
+    inline void setDescription(string& desc){description=desc;};
     inline void setIndex(size_t indx){
-      if (indx<std::numeric_limits<size_t>::max()){
+      if (indx<numeric_limits<size_t>::max()){
 	trackIndex=indx;
 	return;
       }
-      std::cerr << "Track index: " << indx << " is OUT_OF_RANGE\n";
+      cerr << "Track index: " << indx << " is OUT_OF_RANGE\n";
       exit(1);
     }
     inline void setAlphaType(trackType typ){alpha_type=typ;};
                 
-    bool addAlphabetChar(std::string&);
+    bool addAlphabetChar(string&);
     bool addAlphabetChar(const char *);
-    bool addAlphabetChar(std::vector<std::string>&);
+    bool addAlphabetChar(vector<string>&);
     bool addAlphabetChar(size_t chSize, const char * characters[]);
-    bool addAlphabetChar(std::string& character, std::string& complement);
+    bool addAlphabetChar(string& character, string& complement);
     bool addAlphabetChar(size_t chSize, const char* characters[], const char* complements[]);
-    bool addAlphabetChar(std::vector<std::string>& characters , std::vector<std::string>& complements);
+    bool addAlphabetChar(vector<string>& characters , vector<string>& complements);
                 
-    void addComplement(std::string&, std::string&);
+    void addComplement(string&, string&);
     void addComplement(const char *, const char *);
-    bool addComplement(std::vector<std::string>& characters, std::vector<std::string>& complements);
+    bool addComplement(vector<string>& characters, vector<string>& complements);
         
     //! Set ambiguous character flag to true
     //! This will allow ambiguous characters to be processed in sequence
     //! Without this flag, only strict track characters or values are allowed
     inline void setAmbiguous(){ambiguous=true; return;};
-    void addAmbiguous(std::string&,std::vector<std::string>&);
+    void addAmbiguous(string&,vector<string>&);
         
         
     //ACCESSOR
         
     //! Get the name of the track
-    //! \return std::string Name of the track
-    inline std::string getName(){return name;};
+    //! \return string Name of the track
+    inline string getName(){return name;};
         
     //! Get the description of the track
-    //! \return std::string Description of the track
-    inline std::string getDescription(){return description;};
+    //! \return string Description of the track
+    inline string getDescription(){return description;};
         
     //! Get the index of the track
     //! \return int Index of the track
     inline size_t getIndex(){
-      if (trackIndex<std::numeric_limits<size_t>::max()){
+      if (trackIndex<numeric_limits<size_t>::max()){
 	return trackIndex;
       }
-      std::cerr << "Track Index is not set in track.  Set the track index with setIndex(size_t indx) before calling.\n";
+      cerr << "Track Index is not set in track.  Set the track index with setIndex(size_t indx) before calling.\n";
       exit(1);
     };
         
@@ -117,18 +119,18 @@ namespace stochhmm{
     inline size_t getAlphaMax(){return maxSize;};
         
         
-    std::string getAlpha(size_t);
+    string getAlpha(size_t);
         
         
-    uint8_t symbolIndex(const std::string&);
+    uint8_t symbolIndex(const string&);
     uint8_t symbolIndex(unsigned char);
         
     uint8_t getComplementIndex(uint8_t val);
-    uint8_t getComplementIndex(std::string&);
+    uint8_t getComplementIndex(string&);
         
                 
-    std::string getComplementSymbol(std::string& character);
-    std::string getComplementSymbol(uint8_t value);
+    string getComplementSymbol(string& character);
+    string getComplementSymbol(uint8_t value);
 
     inline bool isComplementDefined(){return complementSet;}
         
@@ -148,26 +150,26 @@ namespace stochhmm{
     //! \return size_t Number of ambiguous characters/words defined
     inline size_t getAmbiguousSize(){return ambiguousSymbols.size();};
         
-    std::string getAmbiguousCharacter(size_t);
+    string getAmbiguousCharacter(size_t);
         
         
     //! Get the indices of characters that an ambiguous character represents
-    //! \return std::vector<int>
-    inline std::vector<size_t>& getAmbiguousSet(uint8_t val){return ambiguousSymbols[(val-max_unambiguous)-1].getDef();}
+    //! \return vector<int>
+    inline vector<size_t>& getAmbiguousSet(uint8_t val){return ambiguousSymbols[(val-max_unambiguous)-1].getDef();}
         
-    inline std::vector<size_t>& getUnambiguousSet(){ return unambiguous; }
+    inline vector<size_t>& getUnambiguousSet(){ return unambiguous; }
         
                 
-    std::string stringify();
-    std::string stringifyAmbig();
+    string stringify();
+    string stringifyAmbig();
                 
     //! Print the string representation of the track to stdout
-    inline void print(){ std::cout << stringify() << std::endl;}
+    inline void print(){ cout << stringify() << endl;}
         
-    std::string convertIndexToWord(size_t,size_t);
+    string convertIndexToWord(size_t,size_t);
     void convertIndexToDigital(size_t,size_t,uint8_t*);
-    size_t convertAlphaWordToIndex(std::string);
-    size_t convertDigiWordToIndex(std::vector<uint8_t>);
+    size_t convertAlphaWordToIndex(string);
+    size_t convertDigiWordToIndex(vector<uint8_t>);
                 
     size_t n_seqs;  // number of sequences for this track (eg two for a pair hmm)
 
@@ -176,18 +178,18 @@ namespace stochhmm{
     inline bool isTrackFuncDefined(){return trackFunctionDefined;}
         
     //! Get name of TrackFunc defined for track
-    //! \return std::string Name of trackFunc defined
-    inline std::string getTrackFunction(){return trackFunction;}
+    //! \return string Name of trackFunc defined
+    inline string getTrackFunction(){return trackFunction;}
         
     //! Get name of Track to use for trackFunc
-    inline std::string getTrackToUse(){return trackToUse;}
+    inline string getTrackToUse(){return trackToUse;}
                 
     inline uint8_t getMaxUnambiguous(){return max_unambiguous;}
     inline uint8_t getMaxAmbiguous(){return max_ambiguous;}
         
   private:
-    std::string name;       /* Track Name */
-    std::string description;        /* Track Desc */
+    string name;       /* Track Name */
+    string description;        /* Track Desc */
     size_t trackIndex;     /*track number*/
         
     trackType alpha_type;   /* Track Type 1=string, 2=real_number  0=uninitialized*/
@@ -196,30 +198,30 @@ namespace stochhmm{
     bool trackFunctionDefined;
     bool complementSet;
         
-    std::string trackToUse;
-    std::string trackFunction;
+    string trackToUse;
+    string trackFunction;
         
-    std::vector<std::string> alphabet;  //Contains the corresponding symbol,letter, word that is referenced in the seq by index
-    std::map<uint8_t,uint8_t> complementAlphabet;
+    vector<string> alphabet;  //Contains the corresponding symbol,letter, word that is referenced in the seq by index
+    map<uint8_t,uint8_t> complementAlphabet;
         
     size_t maxSize;  //Maximum size of the alphabet words
                 
     uint8_t max_unambiguous;
     uint8_t max_ambiguous;
-    std::vector<size_t> unambiguous;
+    vector<size_t> unambiguous;
         
     bool ambiguous; //Are ambiguous characters set
     int defaultAmbiguous; //Default ambiguous character
         
     //Contains the ambiguous characters defined by user corresponding to position in the
     //array. Where index 0=-1, 1=-2... so on.
-    std::vector<ambigCharacter> ambiguousSymbols;
+    vector<ambigCharacter> ambiguousSymbols;
         
-    std::map<std::string,uint8_t> symbolIndices;
-    //std::map<char,uint8_t>* charIndices;
-    std::vector<uint8_t>* charIndices;
+    map<string,uint8_t> symbolIndices;
+    //map<char,uint8_t>* charIndices;
+    vector<uint8_t>* charIndices;
         
-    void _splitAmbiguousList(std::vector<std::pair<std::string ,std::vector<std::string> > >&, const std::string&);
+    void _splitAmbiguousList(vector<pair<string ,vector<string> > >&, const string&);
   };
         
     
@@ -230,18 +232,18 @@ namespace stochhmm{
     void push_back(track*);
         
     //ACCESSOR
-    size_t indexOf(const std::string&);
+    size_t indexOf(const string&);
     size_t size(){return trks.size();};
-    track* getTrack(const std::string&);
-    bool isTrackDefined(const std::string&);
+    track* getTrack(const string&);
+    bool isTrackDefined(const string&);
     track* operator[](size_t i){return trks[i];};
         
     void print();
-    std::string stringify();
+    string stringify();
         
   private:
-    std::vector<track*> trks;
-    std::map<std::string,size_t> index;
+    vector<track*> trks;
+    map<string,size_t> index;
   };
         
         

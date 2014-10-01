@@ -14,34 +14,34 @@ transition::transition(transType type, valueType valtyp, bool survival) : transi
 }
 
 // ----------------------------------------------------------------------------------------
-bool transition::parse(std::string& txt,stringList& names, valueType valtyp, tracks& trks) {
+bool transition::parse(string& txt,stringList& names, valueType valtyp, tracks& trks) {
   assert(_parseStandard(txt,names, valtyp));
   return true;
 }
   
 // ----------------------------------------------------------------------------------------
-bool transition::_parseStandard(std::string& txt, stringList& names, valueType valtyp) {
+bool transition::_parseStandard(string& txt, stringList& names, valueType valtyp) {
   stringList line;
   line.splitString(txt,"\t:");
-  assert(line.size() >= 2);  // std::cerr << "Line should contain 2 values (STATE  VALUE).  Couldn't parse:\n" << txt << std::endl;
+  assert(line.size() >= 2);  // cerr << "Line should contain 2 values (STATE  VALUE).  Couldn't parse:\n" << txt << endl;
   stateName = line[0];
       
   if (!names.contains(stateName) && stateName!="END"){
-    std::cerr << "Tried to create a transition in the model to state named : " << stateName << " but there is no state with that name.  Please check the formatting. \n";
+    cerr << "Tried to create a transition in the model to state named : " << stateName << " but there is no state with that name.  Please check the formatting. \n";
     return false;
   }
       
   if (valtyp == PROBABILITY) {
     double tempValue;
     if (!stringToDouble(line[1], tempValue)) {
-      std::cerr << "Probability value not numeric: " << line[1] << std::endl;
+      cerr << "Probability value not numeric: " << line[1] << endl;
       return false;
     }
     log_trans = log(tempValue);
   } else if (valtyp == LOG_PROB) {
     double tempValue;
     if (!stringToDouble(line[1], tempValue)) {
-      std::cerr << "Log Probability value not numeric: " << line[1] << std::endl;
+      cerr << "Log Probability value not numeric: " << line[1] << endl;
       return false;
     }
     log_trans = tempValue;
@@ -51,12 +51,12 @@ bool transition::_parseStandard(std::string& txt, stringList& names, valueType v
   
 // ----------------------------------------------------------------------------------------
 void transition::print(){
-  std::cout << stringify() << std::endl;
+  cout << stringify() << endl;
 }
   
 // ----------------------------------------------------------------------------------------
-std::string transition::stringify() {
-  std::string transString;
+string transition::stringify() {
+  string transString;
   transString+="\t" + stateName + ":\t" + double_to_string(log_trans);
   return transString;
 }

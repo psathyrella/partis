@@ -14,20 +14,23 @@
 #include "text.h"
 #include "hmm.h"
 #include "stochMath.h"
+
+using namespace std;
+
 namespace stochhmm {
 
   //! \struct gff_feature
   //!Each gff_feature represents a single GFF line
   struct gff_feature{
-    std::string seqname;    //Column 1
-    std::string source;     //Column 2
-    std::string feature;    //Column 3
+    string seqname;    //Column 1
+    string source;     //Column 2
+    string feature;    //Column 3
     size_t start;              //Column 4
     size_t end;                //Column 5
     char score;             //Column 6
     char strand;            //Column 7
     char frame;             //Column 8
-    std::string attribute;  //Column 9
+    string attribute;  //Column 9
   };
 
 
@@ -50,7 +53,7 @@ namespace stochhmm {
     //!Returns the state index at a given position (it) within the traceback sequence
     inline int val(size_t it){
       if (it>=trace_path.size()){
-	std::cerr << "Out of Range index\n ";
+	cerr << "Out of Range index\n ";
 	exit(2);
       }
       return trace_path[it];
@@ -63,28 +66,28 @@ namespace stochhmm {
         
                 
     //!Print the path to file stream
-    void fprint_path(std::ofstream&);
+    void fprint_path(ofstream&);
         
     //! Get traceback as vector of state labels
-    //! \param [out] std::vector<std::string> Vector of Labels
-    void label(std::vector<std::string>&);
+    //! \param [out] vector<string> Vector of Labels
+    void label(vector<string>&);
                 
     //! Get traceback as string of state labels
-    void label(std::string&);
+    void label(string&);
         
                 
     //! Get traceback as vector of gff_features
     //! \param[out] pth reference to vector of gff_feature
     //! \param[in] sequenceName Name of Sequence to be used in GFF
-    void gff(std::vector<gff_feature>&,std::string&);
+    void gff(vector<gff_feature>&,string&);
                 
     //!Get names of traceback path
     //!\param [out] pth vector<string>
-    void name(std::vector<std::string>&);
+    void name(vector<string>&);
                 
-    //! Get the path to std::vector<int>
-    //! \param [out] pth std::vector<int> that represents path
-    void path(std::vector<int>&);
+    //! Get the path to vector<int>
+    //! \param [out] pth vector<int> that represents path
+    void path(vector<int>&);
         
     //! Print the traceback path as path to stdout using cout
     //! Path numbers correspond to state index in model
@@ -102,10 +105,10 @@ namespace stochhmm {
     //!\param[in] ranking  Rank of traceback
     //!\param[in] times Number of times that traceback occurred
     //!\param[in] posterior Posterior probability score
-    void print_gff(std::string,double,int,int,double) const ;
+    void print_gff(string,double,int,int,double) const ;
         
     //!Outputs the gff formatted output for the traceback
-    void print_gff(std::string) const ;
+    void print_gff(string) const ;
         
     //!Get the score that is associated with the traceback
     inline double getScore(){
@@ -127,16 +130,16 @@ namespace stochhmm {
     bool operator>= (const TracebackPath&) const;
   private:
     model* hmm;
-    std::vector<int> trace_path;
+    vector<int> trace_path;
     double score;
   };
 
   // ----------------------------------------------------------------------------------------
   //Rows are the Sequence Position
   //Columns are the States
-  //! \def std::vector<std::vector<int> > heatTable;
+  //! \def vector<vector<int> > heatTable;
   //! Table for heat map data generated from multiple tracebacks
-  typedef std::vector<std::vector<int> > heatTable;
+  typedef vector<vector<int> > heatTable;
 
   //! \class multiTraceback
   //! Contains multiple tracebacks.  Will store them in sorted unique list (sorted in order of number of occurances);
@@ -153,9 +156,9 @@ namespace stochhmm {
     void operator=(size_t);
         
         
-    void print_path(std::string format="path", std::string *header=NULL);
+    void print_path(string format="path", string *header=NULL);
     void print_label();
-    void print_gff(std::string&);
+    void print_gff(string&);
     void print_hits();
         
         
@@ -180,12 +183,12 @@ namespace stochhmm {
     size_t vectorIterator;
     size_t maxSize;
     bool isFinalized;
-    std::vector<std::map<TracebackPath,int>::iterator> pathAccess;
-    std::map<TracebackPath,int> paths;
+    vector<map<TracebackPath,int>::iterator> pathAccess;
+    map<TracebackPath,int> paths;
     heatTable* table;
   };
      
-  bool sortTBVec(std::map<TracebackPath,int>::iterator, std::map<TracebackPath,int>::iterator);
+  bool sortTBVec(map<TracebackPath,int>::iterator, map<TracebackPath,int>::iterator);
 }
 #endif
 

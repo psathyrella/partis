@@ -28,22 +28,22 @@ Sequence* Sequences::getSeq(size_t iter) {
 }
 
 // ----------------------------------------------------------------------------------------
-std::string& Sequences::getHeader(size_t iter) {
+string& Sequences::getHeader(size_t iter) {
   assert(iter < seqs.size());
   return seqs[iter]->header_;
 }
 
 // ----------------------------------------------------------------------------------------
-std::string Sequences::stringifyWOHeader() {
-  std::string tmp_str;
+string Sequences::stringifyWOHeader() {
+  string tmp_str;
   for(size_t i=0; i<seqs.size(); i++)
     tmp_str += seqs[i]->stringifyWOHeader();
   return tmp_str;
 }
 
 // ----------------------------------------------------------------------------------------
-std::string Sequences::stringify() {
-  std::string tmp_str;
+string Sequences::stringify() {
+  string tmp_str;
   for(size_t i=0; i<seqs.size(); i++) {
     track* trk = seqs[i]->getTrack();
     tmp_str += ">" + trk->getName() + "\n";
@@ -53,8 +53,8 @@ std::string Sequences::stringify() {
 }
 
 // ----------------------------------------------------------------------------------------
-std::string Sequences::undigitize() {
-  std::string output;
+string Sequences::undigitize() {
+  string output;
   for(size_t i=0; i<seqs.size(); i++) {
     track* trk = seqs[i]->getTrack();
     output += ">" + trk->getName();
@@ -68,7 +68,7 @@ std::string Sequences::undigitize() {
 Sequences Sequences::getSubSequences(size_t pos, size_t len) {
   Sequences new_seqs;  // init with *zero* seqs because we push back below
   for (size_t is=0; is<seqs.size(); is++) {
-    Sequence *tmp_seq = new(std::nothrow) Sequence(seqs[is]->getSubSequence(pos,len));
+    Sequence *tmp_seq = new(nothrow) Sequence(seqs[is]->getSubSequence(pos,len));
     assert(tmp_seq);
     new_seqs.addSeq(tmp_seq);
   }

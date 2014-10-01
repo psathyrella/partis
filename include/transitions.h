@@ -10,6 +10,8 @@
 #include "sequences.h"
 #include <stdlib.h>
 
+using namespace std;
+
 namespace stochhmm {
 class state;
 class transition{
@@ -19,13 +21,13 @@ public:
   transition();
   transition(transType);
   transition(transType,valueType,bool);
-  bool parse(std::string&, stringList&, valueType valtyp, tracks&);
+  bool parse(string&, stringList&, valueType valtyp, tracks&);
   
-  inline void setName(std::string& txt) { stateName = txt; }
+  inline void setName(string& txt) { stateName = txt; }
   inline void setState(state* st) { toState = st; }
   inline void setTransType(transType type) { transition_type = type; }
   inline void setTransProb(double value){log_trans=value;};
-  inline std::string& getName(){return stateName;};
+  inline string& getName(){return stateName;};
   inline state* getState(){return toState;};
   inline transType getTransitionType(){return transition_type;};
   
@@ -35,13 +37,13 @@ public:
   inline bool isComplex() { return false; }
   
   void print();
-  std::string stringify();
+  string stringify();
 private:    
   transType transition_type;  //0: standard  1:USER DISTRIBUTION  2:INTERNAL DISTRIBUTION 3:LEXICAL
-  std::string stateName;  //What state we are transitioning to (Fill out when parsing)
+  string stateName;  //What state we are transitioning to (Fill out when parsing)
   state* toState;    //pointer to the state (Filled during HMM finalization)
   double log_trans; //Log of standard transition probability
-  bool _parseStandard(std::string&,stringList&, valueType);
+  bool _parseStandard(string&,stringList&, valueType);
 };
 }
 #endif

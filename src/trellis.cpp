@@ -31,13 +31,13 @@ void trellis::viterbi() {
     delete traceback_table;
   }
               
-  traceback_table = new int_2D(seqs->GetSequenceLength(),std::vector<int16_t> (hmm->n_states(),-1));
-  scoring_previous = new (std::nothrow) std::vector<double> (hmm->n_states(),-INFINITY);
-  scoring_current  = new (std::nothrow) std::vector<double> (hmm->n_states(),-INFINITY);
+  traceback_table = new int_2D(seqs->GetSequenceLength(),vector<int16_t> (hmm->n_states(),-1));
+  scoring_previous = new (nothrow) vector<double> (hmm->n_states(),-INFINITY);
+  scoring_current  = new (nothrow) vector<double> (hmm->n_states(),-INFINITY);
   assert(scoring_previous && scoring_current && traceback_table);
               
-  std::bitset<STATE_MAX> next_states;
-  std::bitset<STATE_MAX> current_states;
+  bitset<STATE_MAX> next_states;
+  bitset<STATE_MAX> current_states;
               
   double  viterbi_temp(-INFINITY);
   double  emission(-INFINITY);
@@ -46,8 +46,8 @@ void trellis::viterbi() {
               
   state* init = hmm->getInitial();
               
-  std::bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
-  std::bitset<STATE_MAX>* from_trans(NULL);
+  bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
+  bitset<STATE_MAX>* from_trans(NULL);
               
   //Calculate Viterbi from transitions from INIT (initial) state
   for(size_t st = 0; st < hmm->n_states(); ++st) {
@@ -137,17 +137,17 @@ void trellis::viterbi() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::forward() {
-  forward_score = new float_2D(seqs->GetSequenceLength(), std::vector<float>(hmm->n_states(), -INFINITY));
-  scoring_current = new std::vector<double> (hmm->n_states(), -INFINITY);
-  scoring_previous= new std::vector<double> (hmm->n_states(), -INFINITY);
+  forward_score = new float_2D(seqs->GetSequenceLength(), vector<float>(hmm->n_states(), -INFINITY));
+  scoring_current = new vector<double> (hmm->n_states(), -INFINITY);
+  scoring_previous= new vector<double> (hmm->n_states(), -INFINITY);
 		
-  std::bitset<STATE_MAX> next_states;
-  std::bitset<STATE_MAX> current_states;
+  bitset<STATE_MAX> next_states;
+  bitset<STATE_MAX> current_states;
   double  forward_temp(-INFINITY);
   double  emission(-INFINITY);
   state* init = hmm->getInitial();
-  std::bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
-  std::bitset<STATE_MAX>* from_trans(NULL);
+  bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
+  bitset<STATE_MAX>* from_trans(NULL);
 		
   // calculate forward scores from INIT state, and initialize next_states
   for(size_t st=0; st<hmm->n_states(); ++st) {

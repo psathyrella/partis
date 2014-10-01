@@ -27,16 +27,16 @@ namespace stochhmm {
   }
     
     
-  //! Get the path to std::vector<int>
-  //! \param [out] pth std::vector<int> that represents path
-  void TracebackPath::path(std::vector<int>& pth){
+  //! Get the path to vector<int>
+  //! \param [out] pth vector<int> that represents path
+  void TracebackPath::path(vector<int>& pth){
     pth=trace_path;
     return ;
   }
 
   //TODO: change assignment to lhs
   //! Get the label of the TracebackPath and assigns to vector<string> ref
-  void TracebackPath::label(std::vector<std::string>& pth){
+  void TracebackPath::label(vector<string>& pth){
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
       state* st = hmm->getState(trace_path[k]);
       pth.push_back(st->getLabel());
@@ -45,8 +45,8 @@ namespace stochhmm {
   }
     
   //!Get string of path label traceback
-  //! \param[out] pth std::string
-  void TracebackPath::label(std::string& pth){
+  //! \param[out] pth string
+  void TracebackPath::label(string& pth){
         
     if (pth.size()>0){
       pth.clear();
@@ -62,10 +62,10 @@ namespace stochhmm {
     
   //!Get names of traceback path
   //!\param [out] pth vector<string>
-  void TracebackPath::name(std::vector<std::string>& pth){
+  void TracebackPath::name(vector<string>& pth){
                 
     if ( hmm==NULL ){
-      std::cerr << "Model is NULL.  traceback::name(...) must have valid HMM model defined.\n";
+      cerr << "Model is NULL.  traceback::name(...) must have valid HMM model defined.\n";
       exit(2);
     }
                 
@@ -79,19 +79,19 @@ namespace stochhmm {
     
   //!Get GFF output of traceback path
   //!\param [out] pth
-  void TracebackPath::gff(std::vector<gff_feature>& pth,std::string& sequenceName){
-    std::string current_label="";
+  void TracebackPath::gff(vector<gff_feature>& pth,string& sequenceName){
+    string current_label="";
     long long start=0;
     size_t path_size=size();
                 
     if ( hmm==NULL ){
-      std::cerr << "Model is NULL.  traceback::gff(...) must have valid HMM model defined.\n";
+      cerr << "Model is NULL.  traceback::gff(...) must have valid HMM model defined.\n";
       exit(2);
     }
         
     for(size_t k = path_size-1;k != SIZE_MAX; k--){
       // state* st = hmm->getState(trace_path[k]);
-      std::string new_label="FOO";//st->getGFF();
+      string new_label="FOO";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
 	  gff_feature ln;
@@ -166,21 +166,21 @@ namespace stochhmm {
     int line=0;
     for(size_t k = this->size()-1; k != SIZE_MAX; k--){
       // for(size_t k = 0; k < this->size(); k++) { // REVERSE
-      std::cout << trace_path[k] << " ";
+      cout << trace_path[k] << " ";
       line++;
     }
-    std::cout << std::endl;
+    cout << endl;
   }
 
   //!Print the path to file stream
-  void TracebackPath::fprint_path(std::ofstream &file){
+  void TracebackPath::fprint_path(ofstream &file){
     int line=0;
     for(size_t k=this->size()-1;k != SIZE_MAX; k--){
       // for(size_t k = 0; k < this->size(); k++) { // REVERSE
       file << trace_path[k]<< " ";
       line++;
     }
-    file << std::endl;
+    file << endl;
   }
 
   //!Check to see if paths are the same
@@ -239,29 +239,29 @@ namespace stochhmm {
     assert(hmm);
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--) {
       state* st = hmm->getState(trace_path[k]);
-      std::cout << st->getLabel() << " ";
-      std::cout.flush();
+      cout << st->getLabel() << " ";
+      cout.flush();
     }
-    std::cout << std::endl;
+    cout << endl;
   }
 
   //!Outputs the gff formatted output for the traceback to stdout
-  void TracebackPath::print_gff(std::string sequence_name, double score, int ranking, int times, double posterior) const {
-    std::string current_label="";
+  void TracebackPath::print_gff(string sequence_name, double score, int ranking, int times, double posterior) const {
+    string current_label="";
     long long start=0;
     size_t path_size=this->size();
                 
     if ( hmm==NULL ){
-      std::cerr << "Model is NULL.  traceback::print_gff(...) must have valid HMM model defined.\n";
+      cerr << "Model is NULL.  traceback::print_gff(...) must have valid HMM model defined.\n";
       exit(2);
     }
         
     for(size_t k=path_size-1;k != SIZE_MAX;k--){
       // state* st = hmm->getState(trace_path[k]);
-      std::string new_label="FOOP";//st->getGFF();
+      string new_label="FOOP";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
-	  std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<std::endl;
+	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
 	  start=0;
 	  current_label=new_label;
 	}
@@ -271,7 +271,7 @@ namespace stochhmm {
       }
       else {
 	if(k==0){
-	  std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<std::endl;
+	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
 	}
 	else if (start==0){
 	  start=path_size-k;
@@ -281,7 +281,7 @@ namespace stochhmm {
 	  continue;
 	}
 	else {
-	  std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<std::endl;
+	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
 	  start=path_size-k;
 	  current_label=new_label;
 	}
@@ -292,8 +292,8 @@ namespace stochhmm {
 
 
   //!outputs the gff formatted output for the traceback
-  void TracebackPath::print_gff(std::string sequence_name) const {
-    std::string current_label="";
+  void TracebackPath::print_gff(string sequence_name) const {
+    string current_label="";
     long long start=0;
     size_t path_size=size();
                 
@@ -301,19 +301,19 @@ namespace stochhmm {
       sequence_name = sequence_name.substr(1);
                         
       if ( hmm==NULL ){
-	std::cerr << "Model is NULL.  traceback::print_gff(...) must have valid HMM model defined.\n";
+	cerr << "Model is NULL.  traceback::print_gff(...) must have valid HMM model defined.\n";
 	exit(2);
       }
     }
         
     for(size_t k = path_size-1; k != SIZE_MAX; k--){
       // state* st = hmm->getState(trace_path[k]);
-      std::string new_label="FOOP";//st->getGFF();
+      string new_label="FOOP";//st->getGFF();
                         
       //If no label then print 
       if (new_label.compare("")==0){
 	if (start>0){
-	  std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<std::endl;
+	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<endl;
 	  start=0;
 	  current_label=new_label;
 	}
@@ -328,20 +328,20 @@ namespace stochhmm {
 	}
 	else if (new_label.compare(current_label)==0){
 	  if(k==0){
-	    std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<std::endl;
+	    cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<endl;
                                                 
 	  }
                                         
 	  continue;
 	}
 	else {
-	  std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<std::endl;
+	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<endl;
                                         
 	  start=path_size-k;
 	  current_label=new_label;
                                         
 	  if(k==0){
-	    std::cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<std::endl;
+	    cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<endl;
 	  }
                     
 	}
@@ -349,7 +349,7 @@ namespace stochhmm {
             
     }
         
-    std::cout << std::endl<<std::endl;
+    cout << endl<<endl;
   }
 
 
@@ -488,7 +488,7 @@ namespace stochhmm {
     vectorIterator=0;
 
     // push a pointer to each entry in paths into pathAccess
-    std::map<TracebackPath,int>::iterator pathsIterator;
+    map<TracebackPath,int>::iterator pathsIterator;
     for(pathsIterator=paths.begin();pathsIterator!=paths.end();pathsIterator++){
       pathAccess.push_back(pathsIterator);
     }
@@ -512,10 +512,10 @@ namespace stochhmm {
     size_t stateSize=hmm->n_states();
         
         
-    std::vector<int> states(stateSize,0);
+    vector<int> states(stateSize,0);
     table = new heatTable(sequenceSize,states);
         
-    std::map<TracebackPath,int>::iterator it;
+    map<TracebackPath,int>::iterator it;
 
     for( it =paths.begin(); it!=paths.end();it++){
       int count = (*it).second;
@@ -534,29 +534,29 @@ namespace stochhmm {
       get_hit_table();
     }
         
-    std::string header_row = "pos";
+    string header_row = "pos";
     model* hmm = ((*pathAccess[0]).first).getModel();
     for (size_t state_iter =0; state_iter<hmm->n_states(); state_iter++){
       header_row+="\t";
       header_row+=hmm->getStateName(state_iter);
     }
 
-    std::cout << header_row << std::endl;
+    cout << header_row << endl;
         
     for(size_t position = 0; position < table->size(); position++){
-      std::string line = join((*table)[position], '\t');
-      std::cout << position+1 << "\t" << line << std::endl;
+      string line = join((*table)[position], '\t');
+      cout << position+1 << "\t" << line << endl;
     }
         
     return;
   }
     
     
-  void multiTraceback::print_path(std::string format, std::string *header){
+  void multiTraceback::print_path(string format, string *header){
     assert(isFinalized);
-    std::cout << "counts" << "          path" << std::endl;
+    cout << "counts" << "          path" << endl;
     for(size_t iter=0; iter<this->size(); iter++){
-      std::cout << (*pathAccess[iter]).second << "         ";
+      cout << (*pathAccess[iter]).second << "         ";
       if (format=="path")
 	(*pathAccess[iter]).first.print_path();
       else if (format=="label")
@@ -565,7 +565,7 @@ namespace stochhmm {
 	(*pathAccess[iter]).first.print_gff(*header);
       else
 	assert(0);
-      // std::cout << std::endl;
+      // cout << endl;
     }
     return;
   }
@@ -574,12 +574,12 @@ namespace stochhmm {
     print_path("label");
   }
     
-  void multiTraceback::print_gff(std::string& header){
+  void multiTraceback::print_gff(string& header){
     print_path("gff", &header);
   }
     
     
-  bool sortTBVec(std::map<TracebackPath,int>::iterator lhs, std::map<TracebackPath,int>::iterator rhs)
+  bool sortTBVec(map<TracebackPath,int>::iterator lhs, map<TracebackPath,int>::iterator rhs)
   {
     return ((*lhs).second < (*rhs).second);
   }
