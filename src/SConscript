@@ -3,17 +3,10 @@ import sys
 
 env = Environment()
 env.Append(CPPFLAGS = ['-g', '-O2', '-Wall', '-std=c++0x'])
-# env.Append(LIBS = ['SDL_image','GL'])
 env.Append(CPPPATH = ['../include'])
-# Program('hello.cc')
-# lib_target  = "hello"
-# lib_sources = ["hello.cc"]
 
 binary_name = 'StochHMM'
 binary_src = binary_name + '.cpp'
 sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/src') if ('.cpp' in fname and binary_name not in fname)]
-print sources
-# sys.exit()
-# object_list = env.Object(source = sources)
 env.Library(target='stochhmm', source=sources)
 env.Program(target='stochhmm', source=binary_src, LIBS='stochhmm', LIBPATH='.')

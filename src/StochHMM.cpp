@@ -10,9 +10,9 @@
 #include "job_holder.h"
 #include "germlines.h"
 
-// #include "tclap/CmdLine.h"
-// using namespace TCLAP;
-// 
+#include "tclap/CmdLine.h"
+using namespace TCLAP;
+
 #include "StochHMM_usage.h"
 using namespace StochHMM;
 using namespace std;
@@ -39,7 +39,7 @@ options opt;  //Global options for parsed command-line options
 // class for reading csv input file
 class Args {
 public:
-  Args(string fname);
+  Args(string fname, int argc, const char * argv[]);
 
   string all_only_genes_;
   map<string, vector<string> > strings_;
@@ -48,10 +48,59 @@ public:
 };
 
 // ----------------------------------------------------------------------------------------
-Args::Args(string fname):
+Args::Args(string fname, int argc, const char * argv[]):
   str_headers_{"only_genes", "name", "seq", "second_name", "second_seq"},
   int_headers_{"k_v_min", "k_v_max", "k_d_min", "k_d_max"}
 {
+  // ----------------------------------------------------------------------------------------
+  // Wrap everything in a try block.  Do this every time, 
+  // because exceptions will be thrown for problems. 
+  try {  
+
+    // Define the command line object.
+    CmdLine cmd("stochhmm -- the stochastofantastic HMM compiler", ' ', "0.0");
+    ValueArg<string> hmmdir_arg("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string");
+    ValueArg<string> datadir_arg("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string");
+    ValueArg<string> infile_arg("i", "infile", "input (whitespace-separated) file", true, "", "string");
+    ValueArg<string> outfile_arg("o", "outfile", "output csv file", true, "", "string");
+    vector<string> algo_strings{"viterbi", "forward"};
+    ValuesConstraint<string> algo_vals(algo_strings);
+    ValueArg<string> algorithm_arg("a", "algorithm", "algorithm to run", true, "", &algo_vals);
+    vector<int> debug_ints{0,1,2};
+    ValuesConstraint<int> debug_vals(debug_ints);
+    ValueArg<int> debug_arg("g", "debug", "debug level", false, 0, &debug_vals);
+    cmd.add(hmmdir_arg);
+    cmd.add(datadir_arg);
+    cmd.add(infile_arg);
+    cmd.add(outfile_arg);
+    cmd.add(algorithm_arg);
+    cmd.add(debug_arg);
+
+    cmd.parse(argc, argv);
+    assert(0);
+    // bool reverseName = reverseSwitch.getValue();
+// // ----------------------------------------------------------------------------------------
+//   {"--hmmdir",            OPT_STRING, false, "",   {}},
+//   {"--datadir",           OPT_STRING, false, "",   {}},
+//   {"--infile",            OPT_STRING, true,  "",   {}},
+//   {"--outfile",           OPT_STRING, true,  "",   {}},
+//   {"--algorithm",         OPT_STRING, true,  "",   {}},
+//   {"--debug",             OPT_INT,    false, "0",  {}},
+//   {"--n_best_events",     OPT_INT,    true,  "",   {}},
+//   {"--pair",              OPT_INT,    false, "0",  {}},  // holy crap why is flag not a flag?
+// // ----------------------------------------------------------------------------------------
+
+//     if ( reverseName ) {
+//       reverse(name.begin(),name.end());
+//       cout << "My name (spelled backwards) is: " << name << endl;
+//     } else
+//       cout << "My name is: " << name << endl;
+  } catch (ArgException &e)  // catch any exceptions
+    { cerr << "error: " << e.error() << " for arg " << e.argId() << endl; }
+//   return 1;
+
+// // // ----------------------------------------------------------------------------------------
+
   for (auto &head: str_headers_)
     strings_[head] = vector<string>();
   for (auto &head: int_headers_)
@@ -119,50 +168,17 @@ vector<sequences*> GetSeqs(Args &args, track *trk) {
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
-// // ----------------------------------------------------------------------------------------
-// 	// Wrap everything in a try block.  Do this every time, 
-// 	// because exceptions will be thrown for problems. 
-// 	try {  
-
-// 	// Define the command line object.
-// 	CmdLine cmd("Command description message", ' ', "0.9");
-
-// 	// Define a value argument and add it to the command line.
-// 	ValueArg<string> nameArg("n","name","Name to print",true,"homer","string");
-// 	cmd.add( nameArg );
-
-// 	// Define a switch and add it to the command line.
-// 	SwitchArg reverseSwitch("r","reverse","Print name backwards", false);
-// 	cmd.add( reverseSwitch );
-
-// 	// Parse the args.
-// 	cmd.parse( argc, argv );
-
-// 	// Get the value parsed by each arg. 
-// 	string name = nameArg.getValue();
-// 	bool reverseName = reverseSwitch.getValue();
-
-// 	// Do what you intend too...
-// 	if ( reverseName )
-// 	{
-// 		reverse(name.begin(),name.end());
-// 		cout << "My name (spelled backwards) is: " << name << endl;
-// 	}
-// 	else
-// 		cout << "My name is: " << name << endl;
-
-
-// 	} catch (ArgException &e)  // catch any exceptions
-// 	{ cerr << "error: " << e.error() << " for arg " << e.argId() << endl; }
-
-// // ----------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------
+  Args tmpargs("/tmp/out", argc, argv);
+assert(0);
+// ----------------------------------------------------------------------------------------
   srand(time(NULL));
   opt.set_parameters(commandline, opt_size, "");
   opt.parse_commandline(argc,argv);
   assert(opt.sopt("--algorithm") == "viterbi" || opt.sopt("--algorithm") == "forward");
   assert(opt.iopt("--pair") == 0 || opt.iopt("--pair") == 1);
   assert(opt.iopt("--debug") >=0 && opt.iopt("--debug") < 3);
-  Args args(opt.sopt("--infile"));
+  Args args(opt.sopt("--infile"), argc, argv);
 
   // write csv output headers
   ofstream ofs;
