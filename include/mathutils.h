@@ -1,32 +1,5 @@
-//
-//  stochMath.h
-
-//Copyright (c) 2007-2012 Paul C Lott 
-//University of California, Davis
-//Genome and Biomedical Sciences Facility
-//UC Davis Genome Center
-//Ian Korf Lab
-//Website: www.korflab.ucdavis.edu
-//Email: lottpaul@gmail.com
-//
-//Permission is hereby granted, free of charge, to any person obtaining a copy of
-//this software and associated documentation files (the "Software"), to deal in
-//the Software without restriction, including without limitation the rights to
-//use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-//the Software, and to permit persons to whom the Software is furnished to do so,
-//subject to the following conditions:
-//
-//The above copyright notice and this permission notice shall be included in all
-//copies or substantial portions of the Software.
-//
-//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-//FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-//COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-//IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-//CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#ifndef STOCHHMM_STOCHMATH_H
-#define STOCHHMM_STOCHMATH_H
+#ifndef STOCHHMM_MATHUTILS_H
+#define STOCHHMM_MATHUTILS_H
 
 #include <math.h>
 #include <iostream>
@@ -116,53 +89,6 @@ namespace stochhmm{
   };
 #endif
     
-    
-  //! Integer Power function
-  //! The function is overflow safe, all the calculations are checked to make sure that the result won't overflow.   Works for positive or negative bases.
-  //! Any overflow will result in the return value of zero
-  //! \param base
-  //! \param exponent
-  //! \return  zero if underflow or overflow occurs.
-  template <typename T>
-  T integerPower(T base, T exponent){
-    bool negative(false);
-    T max = numeric_limits<T>::max();
-    if (base<1){    
-      base=abs(base);
-      if (exponent%2!=0){
-	negative=true;
-      }
-    }
-        
-    T result = 1;
-    while (exponent)
-      {
-	if (exponent & 1){
-	  if (result > max/base){  //Determine if value of result*base > INT_MAX;
-	    return 0;
-	  }
-                
-	  result *= base;
-	}
-            
-	exponent >>= 1;
-            
-	if (exponent != 0){
-	  if (base > max/base){ //Determine if value of base*base > INT_MAX;
-	    return 0;
-	  }
-	  base *= base;
-	}
-      }
-        
-    if (negative){
-      return (-1*result);
-    }
-    return (result);
-        
-  };
-
-    
   //! Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
   //! i.e. a *or* b
   //! \param first  log'd Double value
@@ -184,121 +110,6 @@ namespace stochhmm{
     }
   }
 
-  /*! \fn void addVectorCombinatorial(vector< REAL >& result, vector< REAL >& lhs, vector< REAL >& rhs)
-    \brief Adds the lhs and rhs vector combinatorially in result
-    \param lhs vector of (ints or doubles)
-    \param rhs vector of (ints or doubles)
-    \param results Result of the two vectors added together
-         
-    ----------------------------------------------------------------------------
-    Description: addVectorCombinatorial
-    Adds the values of vectors combinatorial
-    Example [ 1 4 ] + [ 2 7 ] = [ 2 6 8 11 ]
-    ----------------------------------------------------------------------------
-        
-  */
-  template<typename T>
-  void addVectorCombinatorial(vector<T>& result, vector<T>& lhs, vector<T>& rhs){
-        
-    if (result.size()>0){
-      result.clear();
-    }
-        
-    //If either vector is empty then return copy of the other
-    if (lhs.size()==0){
-      result.assign(rhs.begin(),rhs.end());
-      return;
-    }
-    else if (rhs.size()==0){
-      result.assign(lhs.begin(),lhs.end());
-      return;
-    }
-        
-    for(size_t i=0;i<lhs.size();i++){
-      for(size_t j=0;j<rhs.size();j++){
-	result.push_back(lhs[i]+rhs[j]);
-      }
-    }
-    return;
-  }
-    
-    
-  /*! \fn void multiplyVectorCombinatorial(vector< REAL >& result, vector< REAL >& lhs, vector< REAL >& rhs)
-    \brief Multiply teh lhs and rhs vector combinatorially in result
-    \param lhs vector of (ints or doubles)
-    \param rhs vector of (ints or doubles)
-    \param results Result of the two vectors added together
-  */
-  template<typename T>
-  void multiplyVectorCombinatorial(vector<T>& result, vector<T>& lhs, vector<T>& rhs){
-    if (result.size()>0){
-      result.clear();
-    }
-        
-    //If either vector is empty then return copy of the other
-    if (lhs.size()==0){
-      result.assign(rhs.begin(),rhs.end());
-      return;
-    }
-    else if (rhs.size()==0){
-      result.assign(lhs.begin(),lhs.end());
-      return;
-    }
-        
-        
-    for(size_t i=0;i<lhs.size();i++){
-      for(size_t j=0;j<rhs.size();j++){
-	result.push_back(lhs[i]*rhs[j]);
-      }
-    }
-    return;
-  }
-    
-    
-  /*! \fn void addToVector(vector<REAL>& vec ,REAL value)
-    \brief Adds value to each indices of the vector
-    \param vec  Reference to vector 
-    \param value  Value to add to vector
-  */
-  template<typename T>
-  void addValueToVector(vector<T>& vec,T value){
-    for(size_t i=0;i<vec.size();i++){
-      vec[i]+=value;
-    }
-    return;
-  }
-
-    
-  /*! \fn void multiplyValueToVector(vector<REAL>& vec, REAL value)
-    \brief Multiply value to each indices of the vector
-    \param vec Reference to vector
-    \param value Value to multiply each indices by
-  */
-  template<typename T>
-  void multiplyValueToVector(vector<T>& vec, T value){
-    for(size_t i=0;i<vec.size();i++){
-      vec[i]*=value;
-    }
-    return;
-  }
-    
-    
-  /*! \fn void divideValueToVector(vector<REAL>& vec, REAL value)
-    \brief Divide value to each indices of the vector
-    \param vec Reference to vector
-    \param value Value to divide each indices by
-  */
-  template<typename T>
-  void divideValueToVector(vector<T>& vec,T value){
-    for(size_t i=0;i<vec.size();i++){
-      vec[i]/=value;
-    }
-    return;
-  }
-        
-    
-  //  
-  void generateUnknownIndices(vector<size_t>&,size_t,size_t,size_t);
 
     
   /*! \fn T sumVector(vector<T>& data)
@@ -381,18 +192,6 @@ namespace stochhmm{
     return;
   }
     
-  /*! \fn void expVector(vector<doubles>& data)
-    \brief Take the exponent of each element in the vector
-    \param data Vector of doubles
-  */
-  template<typename T>
-  void expVector(vector<T>& data){
-    for(size_t i=0;i<data.size();i++){
-      data[i]=exp(data[i]);
-    }
-    return;
-  }
-        
   template<typename T>
   vector<double> get_exp_vector(vector<T> data) {
     vector<double> newvec;
@@ -401,17 +200,6 @@ namespace stochhmm{
     return newvec;
   }
         
-  /*! \fn T avgLogVector(vector<double>& data)
-    \brief Get the average of the vector of log'd values
-    \param data Vector of doubles
-  */
-  template<typename T>
-  T avgLogVector(vector<T>& data){
-    expVector(data);
-    return log(sumVector(data) / T(data.size()));
-  }
-
-    
   /*! \fn void probVector(vector<double>& data)
     \brief Convert the vector to probilities.  Divide each indice by the sum of the vector
     \param data Vecor of doubles
@@ -436,151 +224,5 @@ namespace stochhmm{
     return;
   }
         
-  /*! \fn void logProbVector(vector<double>& data)
-    \brief Convert the vector to log of probilities.  Divide each indice by the sum of the vector
-    \param data Vecor of doubles
-  */
-  template<typename T>
-  void logProbVector(vector<T>& data){
-    T sum=sumVector(data);
-    for(size_t iter=0;iter<data.size();iter++){
-      if (sum==0){
-	data[iter]=-INFINITY;
-      }
-      else{
-	data[iter] = log(data[iter]/sum);
-      }
-    }
-    return;
-  }
-    
-    
-  //Linear interpolation and extrapolation
-  /*! \fn double interpolate(pair<double,double>& a, pair<double,double>& b, double& cx)
-    \brief  Interpolates the y value given cx and two surrounding points on either side a and b
-    \param a pair of doubles (X1,Y1)
-    \param b pair of doubles (X2,Y2)
-    \param cx double value X
-  */
-  double interpolate(pair<double,double>&,pair<double,double>&,double&);
-    
-    
-  /*! \fn double extrapolate(pair<double,double>& a, pair<double,double>& b, double& cx)
-    \brief Extrapolates the Y value of point given by cx and two previous points.
-    \param a  pair of doubles (X1,Y1)
-    \param b  pair of doubles (X2,Y2)
-    \param cx double value of X
-  */
-  double extrapolate(pair<double,double>&,pair<double,double>&,double&);
-        
-        
-  template <class T>
-  T min(vector<T> &set){
-    T min =set[0];
-    for(long i=set.size()-1;i>0;i--){
-      if (set[i]<min){ min=set[i];}
-    }
-    return min;
-  }
-    
-  template <class T>
-  T max(vector<T> &set){
-    T max=set[0];
-    for(long i=set.size()-1;i>0;i--){
-      if (set[i]>max){ max=set[i];}
-    }
-    return min;
-  }
-    
-  template <class T>
-  T construct_histogram (vector<T> &set,int N_bins){
-    T mini=min(set);
-    T maxi=max(set);
-    T delta=(maxi-mini+1)/N_bins;
-    vector<T> bin (N_bins,0);
-    for(size_t i=set.size()-1;i != SIZE_MAX;i--){
-      T value=floor((set[i]-mini)/delta);
-      bin(value)=bin(value)+1/(set.size()*delta);
-    }
-    return bin;
-  }
-    
-  template <class T>
-  T smooth_histogram (vector<T> histo, int intervals, int window_size, int iterations){
-    vector<T> s_histo=histo;
-    for (int i=1;i<=iterations;i++){
-      for (int b=0;b<=intervals-window_size;b++){
-	int c=b+floor((window_size-1)/2);
-	s_histo[c]=0;
-	for (int j=b;j<=b+window_size-1;i++){
-	  s_histo[c]=s_histo[c]+histo[j]/window_size;
-	}
-      }
-      for (int b=0;b<=((window_size-1)/2)-1;b++){
-	s_histo=s_histo[floor((window_size-1)/2)];
-      }
-      for (int b=intervals-window_size+1+floor((window_size-1)/2); b<=intervals-1;i++){
-	s_histo[b]=s_histo[intervals-window_size+floor((window_size-1) / 2)];
-      }
-      histo=s_histo;
-    }
-    T sum=0;
-    for (int b=0;b<=intervals-1;b++){
-      sum+=sum+s_histo[b];
-    }
-    for (int b=0;b<=intervals-1;b++){
-      s_histo[b]/=sum;
-    }
-    return s_histo;
-  }
-        
-  //!Shannon's Entropy in log(2) space
-  float entropy(vector<float>& set);
-  double entropy(vector<double>& set);
-        
-  //!Shannon's Relative entropy (Kullback-Leibler Divergence)
-  //!Normalized for A->B and B->A
-  float rel_entropy(vector<float> &set, vector<float> &set2);
-  double rel_entropy(vector<double> &set, vector<double> &set2);
-        
-  double _integrate(double (*funct)(double, vector<double>&),double, double, vector<double>& );
-  double integrate(double (*funct)(double, vector<double>&),double, double, vector<double>&, double, double);
-    
-  double simpson(double (*funct)(double, vector<double>&),double alpha, double beta,double lower, double upper);
-  double adapt_simpson(double (*funct)(double, double, double),double alpha, double beta, double lower, double upper, double max_error, double sum);
-  double summation(double(*funct)(int,vector<double>&), int, int, vector<double>&);
-    
-  ////Functions
-    
-  //Incomplete gamma functions
-  double igamma_upper (double, double);
-  double igamma_lower (double, double);
-  double _igamma_lower (double, vector<double>&);
-  //Regularized gamma functions
-  double rgammap(double, double);
-  double rgammaq(double, double);
-    
-  //Beta Functions
-  double beta(double a, double b);
-    
-  //Incomplete Beta function
-  double ibeta(double,double,double);
-  float betaPDF(float x, float a, float b);
-  double _ibeta(double, vector<double>&);
-    
-  //Regularized Incomplete Beta function
-  double ribeta(double,double,double);
-    
-  double factorial(double);
-  double bin_coef (double, double);
-  int bin_coef(int,int);
-    
-  //!Logit function
-  //!Inverse of the sigmoidal logistic function
-  //!Also known as log-odds score or ratio
-  inline double logit(double x){
-    return log(x/(1-x));
-  }
-
 }
 #endif

@@ -12,6 +12,7 @@
 #include "hmm.h"
 #include "trellis.h"
 #include "tracebackpath.h"
+#include "mathutils.h"
 #include "germlines.h"
 
 using namespace std;

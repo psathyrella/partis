@@ -10,7 +10,7 @@
 #include <cassert>
 #include "text.h"
 #include "stochTypes.h"
-#include "stochMath.h"
+#include "mathutils.h"
 #include <limits>
 #include <stdlib.h>
 #include <stdint.h>

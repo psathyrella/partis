@@ -14,7 +14,7 @@
 #include "text.h"
 
 #include "hmm.h"
-#include "stochMath.h"
+#include "mathutils.h"
 
 using namespace std;
 

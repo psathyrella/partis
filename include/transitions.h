@@ -5,7 +5,7 @@
 #include <string>
 #include "text.h"
 #include "track.h"
-// #include "stochMath.h"
+#include "mathutils.h"
 #include "stochTypes.h"
 #include "sequences.h"
 #include <stdlib.h>
