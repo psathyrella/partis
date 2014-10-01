@@ -1,42 +1,42 @@
-#include "traceback_path.h"
+#include "tracebackpath.h"
 
 namespace stochhmm {
 
 
   int WID=80;
-  //!Create a traceback_path
+  //!Create a TracebackPath
   //!\param modl Pointer to model file 
-  traceback_path::traceback_path(model* modl){
+  TracebackPath::TracebackPath(model* modl){
     hmm=modl;
   }
 
   //!Pushes a state index onto the end of the path
   //!\param state Index of state to add
-  void traceback_path::push_back(int state){
+  void TracebackPath::push_back(int state){
     trace_path.push_back(state);
   }
     
-  //!Returns the size (ie. length) of the traceback_path
-  size_t traceback_path::size()const {
+  //!Returns the size (ie. length) of the TracebackPath
+  size_t TracebackPath::size()const {
     return trace_path.size();
   }
     
   //!Clears all traceback path information
-  void traceback_path::clear(){
+  void TracebackPath::clear(){
     trace_path.clear();
   }
     
     
   //! Get the path to std::vector<int>
   //! \param [out] pth std::vector<int> that represents path
-  void traceback_path::path(std::vector<int>& pth){
+  void TracebackPath::path(std::vector<int>& pth){
     pth=trace_path;
     return ;
   }
 
   //TODO: change assignment to lhs
-  //! Get the label of the traceback_path and assigns to vector<string> ref
-  void traceback_path::label(std::vector<std::string>& pth){
+  //! Get the label of the TracebackPath and assigns to vector<string> ref
+  void TracebackPath::label(std::vector<std::string>& pth){
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
       state* st = hmm->getState(trace_path[k]);
       pth.push_back(st->getLabel());
@@ -46,7 +46,7 @@ namespace stochhmm {
     
   //!Get string of path label traceback
   //! \param[out] pth std::string
-  void traceback_path::label(std::string& pth){
+  void TracebackPath::label(std::string& pth){
         
     if (pth.size()>0){
       pth.clear();
@@ -62,7 +62,7 @@ namespace stochhmm {
     
   //!Get names of traceback path
   //!\param [out] pth vector<string>
-  void traceback_path::name(std::vector<std::string>& pth){
+  void TracebackPath::name(std::vector<std::string>& pth){
                 
     if ( hmm==NULL ){
       std::cerr << "Model is NULL.  traceback::name(...) must have valid HMM model defined.\n";
@@ -79,7 +79,7 @@ namespace stochhmm {
     
   //!Get GFF output of traceback path
   //!\param [out] pth
-  void traceback_path::gff(std::vector<gff_feature>& pth,std::string& sequenceName){
+  void TracebackPath::gff(std::vector<gff_feature>& pth,std::string& sequenceName){
     std::string current_label="";
     long long start=0;
     size_t path_size=size();
@@ -162,7 +162,7 @@ namespace stochhmm {
     
     
   //!Print the path to stdout
-  void traceback_path::print_path() const{
+  void TracebackPath::print_path() const{
     int line=0;
     for(size_t k = this->size()-1; k != SIZE_MAX; k--){
       // for(size_t k = 0; k < this->size(); k++) { // REVERSE
@@ -173,7 +173,7 @@ namespace stochhmm {
   }
 
   //!Print the path to file stream
-  void traceback_path::fprint_path(std::ofstream &file){
+  void TracebackPath::fprint_path(std::ofstream &file){
     int line=0;
     for(size_t k=this->size()-1;k != SIZE_MAX; k--){
       // for(size_t k = 0; k < this->size(); k++) { // REVERSE
@@ -184,7 +184,7 @@ namespace stochhmm {
   }
 
   //!Check to see if paths are the same
-  bool traceback_path::operator== (const traceback_path &rhs) const{
+  bool TracebackPath::operator== (const TracebackPath &rhs) const{
     if (rhs.trace_path==trace_path){
       return true;
     }
@@ -194,7 +194,7 @@ namespace stochhmm {
   }
 
   //!Comparison operators for path
-  bool traceback_path::operator<  (const traceback_path &rhs ) const{
+  bool TracebackPath::operator<  (const TracebackPath &rhs ) const{
     if (trace_path<rhs.trace_path){
       return true;
     }
@@ -204,7 +204,7 @@ namespace stochhmm {
   }
 
   //!Comparison operators for path
-  bool traceback_path::operator>  (const traceback_path &rhs) const{
+  bool TracebackPath::operator>  (const TracebackPath &rhs) const{
     if (trace_path>rhs.trace_path){
       return true;
     }
@@ -214,7 +214,7 @@ namespace stochhmm {
   }
 
   //!Comparison operators for path
-  bool traceback_path::operator<=  (const traceback_path &rhs) const{
+  bool TracebackPath::operator<=  (const TracebackPath &rhs) const{
     if (trace_path<=rhs.trace_path){
       return true;
     }
@@ -224,7 +224,7 @@ namespace stochhmm {
   }
 
   //!Comparison operators for path
-  bool traceback_path::operator>=  (const traceback_path &rhs) const{
+  bool TracebackPath::operator>=  (const TracebackPath &rhs) const{
     if (trace_path>=rhs.trace_path){
       return true;
     }
@@ -234,8 +234,8 @@ namespace stochhmm {
   }
 
 
-  //!Print traceback_path labels to stdout
-  void traceback_path::print_label() const {
+  //!Print TracebackPath labels to stdout
+  void TracebackPath::print_label() const {
     assert(hmm);
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--) {
       state* st = hmm->getState(trace_path[k]);
@@ -246,7 +246,7 @@ namespace stochhmm {
   }
 
   //!Outputs the gff formatted output for the traceback to stdout
-  void traceback_path::print_gff(std::string sequence_name, double score, int ranking, int times, double posterior) const {
+  void TracebackPath::print_gff(std::string sequence_name, double score, int ranking, int times, double posterior) const {
     std::string current_label="";
     long long start=0;
     size_t path_size=this->size();
@@ -292,7 +292,7 @@ namespace stochhmm {
 
 
   //!outputs the gff formatted output for the traceback
-  void traceback_path::print_gff(std::string sequence_name) const {
+  void TracebackPath::print_gff(std::string sequence_name) const {
     std::string current_label="";
     long long start=0;
     size_t path_size=size();
@@ -355,7 +355,7 @@ namespace stochhmm {
 
   /* Need to re-write to handle new HMM Types
   //fix to handle higher order model 
-  double traceback_path::path_prob (const HMM &model){
+  double TracebackPath::path_prob (const HMM &model){
   int size= trace_path.size();
         
   int seq_size= model.seq_size();
@@ -455,27 +455,27 @@ namespace stochhmm {
   }
     
     
-  //!Get traceback_path at index position
+  //!Get TracebackPath at index position
   //! \param val Index position
-  traceback_path multiTraceback::operator[](size_t val){
+  TracebackPath multiTraceback::operator[](size_t val){
     return (*pathAccess[val]).first;
   }
     
     
-  //!Get traceback_path at currently set index in multiTraceback
-  traceback_path multiTraceback::path(){
+  //!Get TracebackPath at currently set index in multiTraceback
+  TracebackPath multiTraceback::path(){
     return (*pathAccess[vectorIterator]).first;
   }
 
-  //!Get the number times that traceback_path was recorded in multiple traceback
+  //!Get the number times that TracebackPath was recorded in multiple traceback
   int multiTraceback::counts(){
     return (*pathAccess[vectorIterator]).second;
   }
 
     
-  //!Add traceback_path to multiTraceback
+  //!Add TracebackPath to multiTraceback
   //!\param path Traceback path to add
-  void multiTraceback::assign(traceback_path& path){
+  void multiTraceback::assign(TracebackPath& path){
     paths[path]++;
     return;
   }
@@ -488,7 +488,7 @@ namespace stochhmm {
     vectorIterator=0;
 
     // push a pointer to each entry in paths into pathAccess
-    std::map<traceback_path,int>::iterator pathsIterator;
+    std::map<TracebackPath,int>::iterator pathsIterator;
     for(pathsIterator=paths.begin();pathsIterator!=paths.end();pathsIterator++){
       pathAccess.push_back(pathsIterator);
     }
@@ -515,7 +515,7 @@ namespace stochhmm {
     std::vector<int> states(stateSize,0);
     table = new heatTable(sequenceSize,states);
         
-    std::map<traceback_path,int>::iterator it;
+    std::map<TracebackPath,int>::iterator it;
 
     for( it =paths.begin(); it!=paths.end();it++){
       int count = (*it).second;
@@ -579,7 +579,7 @@ namespace stochhmm {
   }
     
     
-  bool sortTBVec(std::map<traceback_path,int>::iterator lhs, std::map<traceback_path,int>::iterator rhs)
+  bool sortTBVec(std::map<TracebackPath,int>::iterator lhs, std::map<TracebackPath,int>::iterator rhs)
   {
     return ((*lhs).second < (*rhs).second);
   }

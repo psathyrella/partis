@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_TRACEBACK_PATH_H
-#define STOCHHMM_TRACEBACK_PATH_H
+#ifndef STOCHHMM_TRACEBACKPATH_H
+#define STOCHHMM_TRACEBACKPATH_H
 
 #include <vector>
 #include <string>
@@ -33,9 +33,9 @@ namespace stochhmm {
 
   //! Perform traceback of traceback table
   //! Stores one traceback path for a sequence
-  class traceback_path{
+  class TracebackPath{
   public:
-    traceback_path(model*);
+    TracebackPath(model*);
         
     //!Add state to traceback
     void push_back(int);
@@ -120,11 +120,11 @@ namespace stochhmm {
         
     //double path_prob (const HMM&, sequence&);  //Need to rewrite function
     inline int operator[](size_t val) const {return trace_path[val];};
-    bool operator== (const traceback_path&) const;
-    bool operator<  (const traceback_path&) const;
-    bool operator>  (const traceback_path&) const;
-    bool operator<= (const traceback_path&) const;
-    bool operator>= (const traceback_path&) const;
+    bool operator== (const TracebackPath&) const;
+    bool operator<  (const TracebackPath&) const;
+    bool operator>  (const TracebackPath&) const;
+    bool operator<= (const TracebackPath&) const;
+    bool operator>= (const TracebackPath&) const;
   private:
     model* hmm;
     std::vector<int> trace_path;
@@ -160,13 +160,13 @@ namespace stochhmm {
         
         
     //Access the data at a point
-    traceback_path path();
+    TracebackPath path();
     int counts();
-    traceback_path operator[](size_t);
+    TracebackPath operator[](size_t);
         
         
     //Assign
-    void assign(traceback_path&);
+    void assign(TracebackPath&);
         
     //Finalize multiTraceback (Sort and setup Iterators);
     void finalize();
@@ -180,14 +180,14 @@ namespace stochhmm {
     size_t vectorIterator;
     size_t maxSize;
     bool isFinalized;
-    std::vector<std::map<traceback_path,int>::iterator> pathAccess;
-    std::map<traceback_path,int> paths;
+    std::vector<std::map<TracebackPath,int>::iterator> pathAccess;
+    std::map<TracebackPath,int> paths;
     heatTable* table;
   };
      
-  bool sortTBVec(std::map<traceback_path,int>::iterator, std::map<traceback_path,int>::iterator);
+  bool sortTBVec(std::map<TracebackPath,int>::iterator, std::map<TracebackPath,int>::iterator);
 }
-#endif /*TRACEBACK_PATH_H*/
+#endif
 
 
 

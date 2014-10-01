@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "sequences.h"
 #include "hmm.h"
-#include "traceback_path.h"
+#include "tracebackpath.h"
 
 using namespace std;
 namespace stochhmm {
@@ -28,7 +28,7 @@ public:
               
   void viterbi();
   void forward();
-  void traceback(traceback_path& path);
+  void traceback(TracebackPath& path);
 private:
   model* hmm;
   Sequences* seqs; //Digitized Sequences

@@ -1,5 +1,5 @@
-#ifndef JOB_HOLDER_H
-#define JOB_HOLDER_H
+#ifndef JOBHOLDER_H
+#define JOBHOLDER_H
 
 #include <map>
 #include <string>
@@ -11,7 +11,7 @@
 #include "sequences.h"
 #include "hmm.h"
 #include "trellis.h"
-#include "traceback_path.h"
+#include "tracebackpath.h"
 #include "germlines.h"
 
 using namespace std;
@@ -109,7 +109,7 @@ private:
   map<string, set<string> > only_genes_;
 
   map<string, map<StrPair,trellis*> > trellisi_;  // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
-  map<string, map<StrPair,traceback_path*> > paths_;  // collection of the paths. 
+  map<string, map<StrPair,TracebackPath*> > paths_;  // collection of the paths. 
   map<string, map<StrPair,double> > all_scores_;
   map<string,double> best_per_gene_scores_;
 };

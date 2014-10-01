@@ -229,7 +229,7 @@ void trellis::forward() {
 // ----------------------------------------------------------------------------------------
 //!Perform traceback through trellis
 //!\return path trackback_path
-void trellis::traceback(traceback_path& path) {
+void trellis::traceback(TracebackPath& path) {
   assert(seqs->GetSequenceLength() != 0);
   assert(traceback_table);
   if (path.getModel() == NULL)

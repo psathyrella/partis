@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <time.h>
 #include <fstream>
-#include "job_holder.h"
+#include "jobholder.h"
 #include "germlines.h"
 #include "tclap/CmdLine.h"
 using namespace TCLAP;

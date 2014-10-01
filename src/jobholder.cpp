@@ -1,4 +1,4 @@
-#include "job_holder.h"
+#include "jobholder.h"
 
 // ----------------------------------------------------------------------------------------
 void Result::check_boundaries(KSet best, KBounds kbounds) {
@@ -204,7 +204,7 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
   // initialize trellis and path
   if (trellisi_.find(gene) == trellisi_.end()) {
     trellisi_[gene] = map<StrPair,trellis*>();
-    paths_[gene] = map<StrPair,traceback_path*>();
+    paths_[gene] = map<StrPair,TracebackPath*>();
   }
   trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene), query_seqs);
   trellis *trell(trellisi_[gene][query_strs]);
@@ -216,7 +216,7 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
       paths_[gene][query_strs] = nullptr;
       if (debug_ == 2) cout << "                    " << gene << " " << *score << endl;
     } else {
-      paths_[gene][query_strs] = new traceback_path(hmms_.Get(gene));
+      paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene));
       trell->traceback(*paths_[gene][query_strs]);
       assert(trell->ending_viterbi_score == paths_[gene][query_strs]->getScore());  // TODO remove this assertion
       if (debug_ == 2) PrintPath(query_strs, gene, *score);
