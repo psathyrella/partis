@@ -35,6 +35,8 @@
 #include <stdint.h>
 #include <algorithm>
 
+using namespace std;
+
 namespace stochhmm{
     
   //FIXME: Need to generate dynamically once upon initialization of HMM. System differences between (int,long,...);
@@ -124,7 +126,7 @@ namespace stochhmm{
   template <typename T>
   T integerPower(T base, T exponent){
     bool negative(false);
-    T max = std::numeric_limits<T>::max();
+    T max = numeric_limits<T>::max();
     if (base<1){    
       base=abs(base);
       if (exponent%2!=0){
@@ -182,7 +184,7 @@ namespace stochhmm{
     }
   }
 
-  /*! \fn void addVectorCombinatorial(std::vector< REAL >& result, std::vector< REAL >& lhs, std::vector< REAL >& rhs)
+  /*! \fn void addVectorCombinatorial(vector< REAL >& result, vector< REAL >& lhs, vector< REAL >& rhs)
     \brief Adds the lhs and rhs vector combinatorially in result
     \param lhs vector of (ints or doubles)
     \param rhs vector of (ints or doubles)
@@ -196,7 +198,7 @@ namespace stochhmm{
         
   */
   template<typename T>
-  void addVectorCombinatorial(std::vector<T>& result, std::vector<T>& lhs, std::vector<T>& rhs){
+  void addVectorCombinatorial(vector<T>& result, vector<T>& lhs, vector<T>& rhs){
         
     if (result.size()>0){
       result.clear();
@@ -221,14 +223,14 @@ namespace stochhmm{
   }
     
     
-  /*! \fn void multiplyVectorCombinatorial(std::vector< REAL >& result, std::vector< REAL >& lhs, std::vector< REAL >& rhs)
+  /*! \fn void multiplyVectorCombinatorial(vector< REAL >& result, vector< REAL >& lhs, vector< REAL >& rhs)
     \brief Multiply teh lhs and rhs vector combinatorially in result
     \param lhs vector of (ints or doubles)
     \param rhs vector of (ints or doubles)
     \param results Result of the two vectors added together
   */
   template<typename T>
-  void multiplyVectorCombinatorial(std::vector<T>& result, std::vector<T>& lhs, std::vector<T>& rhs){
+  void multiplyVectorCombinatorial(vector<T>& result, vector<T>& lhs, vector<T>& rhs){
     if (result.size()>0){
       result.clear();
     }
@@ -253,13 +255,13 @@ namespace stochhmm{
   }
     
     
-  /*! \fn void addToVector(std::vector<REAL>& vec ,REAL value)
+  /*! \fn void addToVector(vector<REAL>& vec ,REAL value)
     \brief Adds value to each indices of the vector
     \param vec  Reference to vector 
     \param value  Value to add to vector
   */
   template<typename T>
-  void addValueToVector(std::vector<T>& vec,T value){
+  void addValueToVector(vector<T>& vec,T value){
     for(size_t i=0;i<vec.size();i++){
       vec[i]+=value;
     }
@@ -267,13 +269,13 @@ namespace stochhmm{
   }
 
     
-  /*! \fn void multiplyValueToVector(std::vector<REAL>& vec, REAL value)
+  /*! \fn void multiplyValueToVector(vector<REAL>& vec, REAL value)
     \brief Multiply value to each indices of the vector
     \param vec Reference to vector
     \param value Value to multiply each indices by
   */
   template<typename T>
-  void multiplyValueToVector(std::vector<T>& vec, T value){
+  void multiplyValueToVector(vector<T>& vec, T value){
     for(size_t i=0;i<vec.size();i++){
       vec[i]*=value;
     }
@@ -281,13 +283,13 @@ namespace stochhmm{
   }
     
     
-  /*! \fn void divideValueToVector(std::vector<REAL>& vec, REAL value)
+  /*! \fn void divideValueToVector(vector<REAL>& vec, REAL value)
     \brief Divide value to each indices of the vector
     \param vec Reference to vector
     \param value Value to divide each indices by
   */
   template<typename T>
-  void divideValueToVector(std::vector<T>& vec,T value){
+  void divideValueToVector(vector<T>& vec,T value){
     for(size_t i=0;i<vec.size();i++){
       vec[i]/=value;
     }
@@ -296,15 +298,15 @@ namespace stochhmm{
         
     
   //  
-  void generateUnknownIndices(std::vector<size_t>&,size_t,size_t,size_t);
+  void generateUnknownIndices(vector<size_t>&,size_t,size_t,size_t);
 
     
-  /*! \fn T sumVector(std::vector<T>& data)
+  /*! \fn T sumVector(vector<T>& data)
     \brief Sum the vector and return the sum
     \param data Vector of doubles
   */
   template<class T>
-  T sumVector(std::vector<T>& data){
+  T sumVector(vector<T>& data){
     double sum=0;
     for(size_t i=0;i<data.size();i++){
       sum+=data[i];
@@ -312,12 +314,12 @@ namespace stochhmm{
     return sum;
   }
         
-  /*! \fn T sumVector(std::vector<T>& data)
+  /*! \fn T sumVector(vector<T>& data)
     \brief Sum the vector and return the sum
     \param data Vector of doubles
   */
   template<class T>
-  T sumVector(const std::vector<T>& data){
+  T sumVector(const vector<T>& data){
     double sum=0;
     for(size_t i=0;i<data.size();i++){
       sum+=data[i];
@@ -325,12 +327,12 @@ namespace stochhmm{
     return sum;
   }
         
-  /*! \fn T productVector(std::vector<T>& data)
+  /*! \fn T productVector(vector<T>& data)
     \brief Multiply terms in vector and return the product
     \param data Vector of T
   */
   template<class T>
-  T productVector(std::vector<T>& data){
+  T productVector(vector<T>& data){
     double product=data[0];
     for(size_t i=1;i<data.size();++i){
       product*=data[i];
@@ -339,52 +341,52 @@ namespace stochhmm{
   }
         
     
-  /*! \fn double minVector(std::vector<double>& data)
+  /*! \fn double minVector(vector<double>& data)
     \brief Get Minimum of the vector
     \param data Vector of doubles
   */
   template<typename T>
-  T minVector(std::vector<T>& data){
+  T minVector(vector<T>& data){
     return *min_element(data.begin(), data.end());
   }
     
-  /*! \fn double maxVector(std::vector<doubles>& data)
+  /*! \fn double maxVector(vector<doubles>& data)
     \brief Get the Maximum of the vector
     \param data Vector of doubles
   */
   template<typename T>
-  T maxVector(std::vector<T>& data){
+  T maxVector(vector<T>& data){
     return *max_element(data.begin(), data.end());
   }
     
-  /*! \fn T avgVector(std::vector<double>& data)
+  /*! \fn T avgVector(vector<double>& data)
     \brief Get the average of the vector
     \param data Vector of doubles
   */
   template<typename T>
-  T avgVector(std::vector<T>& data){
+  T avgVector(vector<T>& data){
     return sumVector(data) / T(data.size());
   }
         
             
-  /*! \fn void logVector(std::vector<double>& data)
+  /*! \fn void logVector(vector<double>& data)
     \brief Take log of each element in vector
     \param data Vector of doubles
   */
   template<typename T>
-  void logVector(std::vector<T>& data){
+  void logVector(vector<T>& data){
     for(size_t i=0;i<data.size();i++){
       data[i]=log(data[i]);
     }
     return;
   }
     
-  /*! \fn void expVector(std::vector<doubles>& data)
+  /*! \fn void expVector(vector<doubles>& data)
     \brief Take the exponent of each element in the vector
     \param data Vector of doubles
   */
   template<typename T>
-  void expVector(std::vector<T>& data){
+  void expVector(vector<T>& data){
     for(size_t i=0;i<data.size();i++){
       data[i]=exp(data[i]);
     }
@@ -392,30 +394,30 @@ namespace stochhmm{
   }
         
   template<typename T>
-  std::vector<double> get_exp_vector(std::vector<T> data) {
-    std::vector<double> newvec;
+  vector<double> get_exp_vector(vector<T> data) {
+    vector<double> newvec;
     for(size_t i=0; i<data.size(); i++)
       newvec.push_back(exp(data[i]));
     return newvec;
   }
         
-  /*! \fn T avgLogVector(std::vector<double>& data)
+  /*! \fn T avgLogVector(vector<double>& data)
     \brief Get the average of the vector of log'd values
     \param data Vector of doubles
   */
   template<typename T>
-  T avgLogVector(std::vector<T>& data){
+  T avgLogVector(vector<T>& data){
     expVector(data);
     return log(sumVector(data) / T(data.size()));
   }
 
     
-  /*! \fn void probVector(std::vector<double>& data)
+  /*! \fn void probVector(vector<double>& data)
     \brief Convert the vector to probilities.  Divide each indice by the sum of the vector
     \param data Vecor of doubles
   */
   template<typename T>
-  void probVector(std::vector<T>& data){
+  void probVector(vector<T>& data){
     T sum=sumVector(data);
     for(size_t iter=0;iter<data.size();iter++){
       if (sum==0){
@@ -429,17 +431,17 @@ namespace stochhmm{
   }
         
   template <typename T>
-  void addVector(std::vector<T>& lhs, std::vector<T>& rhs){
-    transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), std::plus<T>());
+  void addVector(vector<T>& lhs, vector<T>& rhs){
+    transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), plus<T>());
     return;
   }
         
-  /*! \fn void logProbVector(std::vector<double>& data)
+  /*! \fn void logProbVector(vector<double>& data)
     \brief Convert the vector to log of probilities.  Divide each indice by the sum of the vector
     \param data Vecor of doubles
   */
   template<typename T>
-  void logProbVector(std::vector<T>& data){
+  void logProbVector(vector<T>& data){
     T sum=sumVector(data);
     for(size_t iter=0;iter<data.size();iter++){
       if (sum==0){
@@ -454,26 +456,26 @@ namespace stochhmm{
     
     
   //Linear interpolation and extrapolation
-  /*! \fn double interpolate(std::pair<double,double>& a, std::pair<double,double>& b, double& cx)
+  /*! \fn double interpolate(pair<double,double>& a, pair<double,double>& b, double& cx)
     \brief  Interpolates the y value given cx and two surrounding points on either side a and b
     \param a pair of doubles (X1,Y1)
     \param b pair of doubles (X2,Y2)
     \param cx double value X
   */
-  double interpolate(std::pair<double,double>&,std::pair<double,double>&,double&);
+  double interpolate(pair<double,double>&,pair<double,double>&,double&);
     
     
-  /*! \fn double extrapolate(std::pair<double,double>& a, std::pair<double,double>& b, double& cx)
+  /*! \fn double extrapolate(pair<double,double>& a, pair<double,double>& b, double& cx)
     \brief Extrapolates the Y value of point given by cx and two previous points.
     \param a  pair of doubles (X1,Y1)
     \param b  pair of doubles (X2,Y2)
     \param cx double value of X
   */
-  double extrapolate(std::pair<double,double>&,std::pair<double,double>&,double&);
+  double extrapolate(pair<double,double>&,pair<double,double>&,double&);
         
         
   template <class T>
-  T min(std::vector<T> &set){
+  T min(vector<T> &set){
     T min =set[0];
     for(long i=set.size()-1;i>0;i--){
       if (set[i]<min){ min=set[i];}
@@ -482,7 +484,7 @@ namespace stochhmm{
   }
     
   template <class T>
-  T max(std::vector<T> &set){
+  T max(vector<T> &set){
     T max=set[0];
     for(long i=set.size()-1;i>0;i--){
       if (set[i]>max){ max=set[i];}
@@ -491,11 +493,11 @@ namespace stochhmm{
   }
     
   template <class T>
-  T construct_histogram (std::vector<T> &set,int N_bins){
+  T construct_histogram (vector<T> &set,int N_bins){
     T mini=min(set);
     T maxi=max(set);
     T delta=(maxi-mini+1)/N_bins;
-    std::vector<T> bin (N_bins,0);
+    vector<T> bin (N_bins,0);
     for(size_t i=set.size()-1;i != SIZE_MAX;i--){
       T value=floor((set[i]-mini)/delta);
       bin(value)=bin(value)+1/(set.size()*delta);
@@ -504,8 +506,8 @@ namespace stochhmm{
   }
     
   template <class T>
-  T smooth_histogram (std::vector<T> histo, int intervals, int window_size, int iterations){
-    std::vector<T> s_histo=histo;
+  T smooth_histogram (vector<T> histo, int intervals, int window_size, int iterations){
+    vector<T> s_histo=histo;
     for (int i=1;i<=iterations;i++){
       for (int b=0;b<=intervals-window_size;b++){
 	int c=b+floor((window_size-1)/2);
@@ -533,27 +535,27 @@ namespace stochhmm{
   }
         
   //!Shannon's Entropy in log(2) space
-  float entropy(std::vector<float>& set);
-  double entropy(std::vector<double>& set);
+  float entropy(vector<float>& set);
+  double entropy(vector<double>& set);
         
   //!Shannon's Relative entropy (Kullback-Leibler Divergence)
   //!Normalized for A->B and B->A
-  float rel_entropy(std::vector<float> &set, std::vector<float> &set2);
-  double rel_entropy(std::vector<double> &set, std::vector<double> &set2);
+  float rel_entropy(vector<float> &set, vector<float> &set2);
+  double rel_entropy(vector<double> &set, vector<double> &set2);
         
-  double _integrate(double (*funct)(double, std::vector<double>&),double, double, std::vector<double>& );
-  double integrate(double (*funct)(double, std::vector<double>&),double, double, std::vector<double>&, double, double);
+  double _integrate(double (*funct)(double, vector<double>&),double, double, vector<double>& );
+  double integrate(double (*funct)(double, vector<double>&),double, double, vector<double>&, double, double);
     
-  double simpson(double (*funct)(double, std::vector<double>&),double alpha, double beta,double lower, double upper);
+  double simpson(double (*funct)(double, vector<double>&),double alpha, double beta,double lower, double upper);
   double adapt_simpson(double (*funct)(double, double, double),double alpha, double beta, double lower, double upper, double max_error, double sum);
-  double summation(double(*funct)(int,std::vector<double>&), int, int, std::vector<double>&);
+  double summation(double(*funct)(int,vector<double>&), int, int, vector<double>&);
     
   ////Functions
     
   //Incomplete gamma functions
   double igamma_upper (double, double);
   double igamma_lower (double, double);
-  double _igamma_lower (double, std::vector<double>&);
+  double _igamma_lower (double, vector<double>&);
   //Regularized gamma functions
   double rgammap(double, double);
   double rgammaq(double, double);
@@ -564,7 +566,7 @@ namespace stochhmm{
   //Incomplete Beta function
   double ibeta(double,double,double);
   float betaPDF(float x, float a, float b);
-  double _ibeta(double, std::vector<double>&);
+  double _ibeta(double, vector<double>&);
     
   //Regularized Incomplete Beta function
   double ribeta(double,double,double);

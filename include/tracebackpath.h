@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <cassert>
 #include "text.h"
+
 #include "hmm.h"
 #include "stochMath.h"
 
