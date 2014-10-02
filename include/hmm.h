@@ -13,6 +13,7 @@
 #include <bitset>
 
 #include "state.h"
+#include "yaml-cpp/node/node.h"
 
 using namespace std;
 namespace stochhmm {

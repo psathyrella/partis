@@ -10,4 +10,4 @@ binary_name = 'stochhmm'
 binary_src = binary_name + '.cc'
 sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/src') if ('.cc' in fname and binary_name not in fname)]
 env.Library(target='stochhmm', source=sources)
-env.Program(target='../stochhmm', source=binary_src, LIBS='stochhmm', LIBPATH='.')
+env.Program(target='../stochhmm', source=binary_src, LIBS=['stochhmm', 'yaml-cpp'], LIBPATH=['.', 'yaml-cpp'])
