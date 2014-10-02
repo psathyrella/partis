@@ -13,7 +13,9 @@
 #include <bitset>
 
 #include "state.h"
-#include "yaml-cpp/node/node.h"
+// #include "yaml-cpp/node/node.h"
+// #include "yaml-cpp/node/parse.h"
+#include "yaml-cpp/yaml.h"
 
 using namespace std;
 namespace stochhmm {

@@ -11,6 +11,19 @@ model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
 //!Splits the model into sections that are then parsed by the individiual classes
 //!parse() functions.
 bool model::parse(string infname) {
+  YAML::Node config = YAML::LoadFile("test.yaml");
+  YAML::Node tracks(config["tracks"]);
+  for (size_t i=0; i<tracks.size(); ++i) {
+    YAML::Node track(tracks[i]);
+    for (YAML::const_iterator it=track.begin(); it!=track.end(); ++it) {
+      cout << it->first << endl;
+      for (size_t ic=0; ic<it->second.size(); ++ic) {
+	cout << "  " << it->second[ic] << endl;
+      }
+    }
+  }
+  assert(0);
+  
   string file_str = slurpFile(infname);  // string containing entire file
       
   size_t iheader = file_str.find("MODEL INFORMATION");
