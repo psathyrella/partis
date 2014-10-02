@@ -272,7 +272,7 @@ class PartitionDriver(object):
             gene_list = []
             for region in utils.regions:
                 for gene in self.germline_seqs[region]:
-                    if gene in sw_matches:
+                    if sw_matches == None or gene in sw_matches:  # shouldn't be None really, but I'm testing something
                         gene_list.append(gene)
 
         for gene in gene_list:

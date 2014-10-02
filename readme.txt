@@ -1,9 +1,14 @@
 # dependecies:
-   bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
-   pysam
-   optional:
-     ROOT
-     TreeSim (R package, needed to generate trees)
+# required:
+  bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
+  pysam
+  scons
+# optional:
+  ROOT
+  TreeSim (R package, needed to generate trees)
+# included:
+  tclap   
+  yaml-cpp
 
 # ----------------------------------------------------------------------------------------
 # installation
@@ -18,11 +23,7 @@ cd ..
 # stochhmm
 git clone git@github.com:psathyrella/StochHMM -b psathyrella
 cd StochHMM/
-./configure
-make  # ignore errors/warnings about autoconf being too old
-# and... it'll crash 'cause it doesn't like c++0x
-sed -i 's/^CXXFLAGS = \(.*\)/CXXFLAGS = \1 -std=c++0x -Wall/' Makefile src/Makefile  # add back in the cxx flags I *put* in there but stupid make/autoconf keep removing. TODO fix that, obviously
-make  # *then* finish building the stuff that uses c++0x
+scons  # TODO just run this scons stuff from inside the partis scons. you know, once you write a sconstruct for partis
 cd ..
 
 # partis

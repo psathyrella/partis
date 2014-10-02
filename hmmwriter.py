@@ -5,10 +5,35 @@ import os
 import re
 import math
 import collections
+import yaml
 from scipy.stats import norm
 import csv
 from utils import utils
 from utils.opener import opener
+
+class Emission(object):
+    def __init__(self, track):
+        self.track = track  # a list of the available emission values
+        self.probs = {}
+        for letter in self.track:
+            self.probs[letter] = 0.0
+
+class PairEmission(object):
+    def __init__(self, track):
+        self.track = track  # a list of the available emission values
+        self.probs = {}
+        for letter_1 in self.track:
+            self.probs[letter_1] = {}
+            for letter_2 in self.track:
+                self.probs[letter_1][letter_2] = 0.0
+
+class State(object):
+    def __init__(self, name, label, transitions, emissions, pair_emissions):
+        self.name = name
+        self.label = label
+        self.transitions = transitions
+        self.emissions = emissions
+        self.pair_emissions = pair_emissions
 
 # define this up here so the multi line string doesn't mess up the indentation below
 header_base_text = """#STOCHHMM MODEL FILE
@@ -206,6 +231,14 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def write(self):
+        emis = Emission(list(utils.nukes))
+        pair_emis = PairEmission(list(utils.nukes))
+        trans = {'insert':0.1, '0':0.9}
+        insert_state = State('insert', 'i', trans, emis, pair_emis)
+        # with opener('w')('foop.yaml') as yamlfile:
+        #     yaml.dump(insert_state, yamlfile)
+        print yaml.dump(insert_state)
+        sys.exit()
         self.add_header()
         self.add_states()
         self.text = ''.join(self.text_list)
