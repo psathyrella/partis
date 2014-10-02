@@ -35,6 +35,15 @@ class State(object):
         self.emissions = emissions
         self.pair_emissions = pair_emissions
 
+class HMM(object):
+    def __init__(self, name, gene_prob, tracks):
+        self.name = name
+        self.gene_prob = gene_prob
+        self.tracks = tracks
+        self.states = []
+    def add_state(state):
+        self.states.append(state)
+
 # define this up here so the multi line string doesn't mess up the indentation below
 header_base_text = """#STOCHHMM MODEL FILE
 MODEL INFORMATION
@@ -71,8 +80,10 @@ class HmmWriter(object):
             self.insertion = 'vd'
         elif self.region == 'j':
             self.insertion = 'dj'
-        self.text_list = []
-        self.text = ''  # text of the hmm description, to be written to file on completion
+
+
+        self.overall_gene_prob = utils.read_overall_gene_prob(self.indir, self.region, self.gene_name)
+        self.hmm = HMM(utils.sanitize_name(gene_name), self.overall_gene_prob, list(utils.nukes))
 
         self.erosion_probs = {}
         try:
@@ -359,14 +370,6 @@ class HmmWriter(object):
         else:
             return 0.0
     
-    # ----------------------------------------------------------------------------------------
-    def add_header(self):
-        header_string = header_base_text.replace('TOTAL_PROB', str(utils.read_overall_gene_prob(self.indir, self.region, self.gene_name)))
-        for nuke in utils.nukes:
-            header_string += nuke + ','
-        header_string = header_string.rstrip(',')
-        self.text_list.append(header_string + '\n')
-
     # ----------------------------------------------------------------------------------------
     def add_state_header(self, name, label='', germline_nuke=''):
         self.text_list.append('#############################################\n')
