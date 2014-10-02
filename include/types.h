@@ -1,6 +1,7 @@
-#ifndef STOCHHMM_STOCHTYPES_H
-#define STOCHHMM_STOCHTYPES_H
-namespace stochhmm{
+#ifndef STOCHHMM_TYPES_H
+#define STOCHHMM_TYPES_H
+
+namespace stochhmm {
   //! \file stochTypes.h
   //! Stores enumerated types used in StochHMM library
 

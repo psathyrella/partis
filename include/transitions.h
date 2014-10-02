@@ -6,7 +6,7 @@
 #include "text.h"
 #include "track.h"
 #include "mathutils.h"
-#include "stochTypes.h"
+#include "types.h"
 #include "sequences.h"
 #include <stdlib.h>
 

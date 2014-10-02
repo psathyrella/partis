@@ -7,7 +7,7 @@ env.Append(CPPPATH = ['../include'])
 env.Append(CPPDEFINES={'STATE_MAX':'1024', 'SIZE_MAX':'\(\(size_t\)-1\)', 'UINT16_MAX':'65535', 'PI':'3.1415926535897932'})  # TODO reduce the state max to something reasonable?
 
 binary_name = 'stochhmm'
-binary_src = binary_name + '.cpp'
-sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/src') if ('.cpp' in fname and binary_name not in fname)]
+binary_src = binary_name + '.cc'
+sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/src') if ('.cc' in fname and binary_name not in fname)]
 env.Library(target='stochhmm', source=sources)
 env.Program(target='../stochhmm', source=binary_src, LIBS='stochhmm', LIBPATH='.')

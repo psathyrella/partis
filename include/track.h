@@ -5,15 +5,11 @@
 #include <string>
 #include <map>
 #include <iostream>
-#include <fstream>
 #include <sstream>
 #include <cassert>
 #include "text.h"
-#include "stochTypes.h"
+#include "types.h"
 #include "mathutils.h"
-#include <limits>
-#include <stdlib.h>
-#include <stdint.h>
 
 using namespace std;
 
