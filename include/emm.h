@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 
+#include "yaml-cpp/yaml.h"
 #include "lexicaltable.h"
 
 using namespace std;
@@ -15,7 +16,7 @@ class emm {
   friend class model;
 public:
   emm();
-  bool parse(string&, tracks&);
+  bool parse(YAML::Node config, string is_pair, tracks model_tracks);
   ~emm();
               
   // accessors

@@ -19,134 +19,28 @@ state::~state(){
 }
 
 // ----------------------------------------------------------------------------------------
-bool state::parse(string& txt, stringList& names,tracks& trks) {
-  size_t stateHeaderInfo = txt.find("STATE:");
-  size_t transitionsInfo = txt.find("TRANSITION:");
-  size_t emissionInfo    = txt.find("EMISSION:");  // location of start of first emission definition
-  stringList lines;
-      
-  //Extract and Parse Header Information
-  if (stateHeaderInfo==string::npos) {
-    cerr << "Couldn't identify state Header Information. Please check the formatting.  The supplied text was : " << txt << endl;
-    return false;
-  }
-  string header = txt.substr(stateHeaderInfo,transitionsInfo-stateHeaderInfo);
-  assert(_parseHeader(header));
-              
-  //Extract and Parse Transition Information
-  if (transitionsInfo == string::npos) {
-    cerr << "Couldn't identify state Transitions Information.  Please check the formatting.  The supplied text was : " << txt << endl;
-    return false;
-  }
-  string trans = (emissionInfo==string::npos) ? txt.substr(transitionsInfo) : txt.substr(transitionsInfo, emissionInfo - transitionsInfo);
-  assert(_parseTransition(trans, names, trks));
-      
-  //Check emission's existence  (only INIT state can have no emission)
-  if (emissionInfo != string::npos) {
-    string emmis = txt.substr(emissionInfo);
-    assert(_parseEmissions(emmis, names, trks));
-  } else {
-    assert(name == "INIT");
-  }
-      
-  return true;
-}
-  
-// ----------------------------------------------------------------------------------------
-bool state::_parseHeader(string& txt){
-  clear_whitespace(txt,"\t ");
-  stringList lst = splitString(txt,"\n:");
-      
+void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
   size_t idx;
-  // parse NAME
-  if (lst.contains("NAME")) {
-    idx = lst.indexOf("NAME");
-    if (idx+1 < lst.size()) {
-	idx++;
-	name = lst[idx];
-    } else {
-      cerr << "The states NAME couldn't be parsed from " << txt << endl;
-      return false;
-    }
-          
-    if (name == "INIT")
-      return true;
-  } else {
-    cerr << "No NAME found in state header information. Please check formatting. Following is header information recieved: " << txt << endl;
-    return false;
-  }
+  name = node["name"].as<string>();
+  if (name == "init")
+    return;
+  label = node["label"].as<string>();
       
-  // parse PATH_LABEL
-  if (lst.contains("PATH")) {
-    idx = lst.indexOf("PATH");
-    if (idx+1 < lst.size()) {
-      idx++;
-      label = lst[idx];
-    } else {
-      cerr <<  "The states PATH_LABEL couldn't be parsed from " << txt << endl;
-      return false;
-    }
-  } else {
-    cerr << "No PATH_LABEL found in state header information. Please check formatting. Following is header information recieved: " << txt << endl;
-    return false;
-  }
-      
-  return true;
-}
-  
-// ----------------------------------------------------------------------------------------
-bool state::_parseTransition(string& txt, stringList& names, tracks& trks) {
-  stringList lst;
-  lst.splitND(txt,"TRANSITION:");
-      
-  for (size_t iter=0; iter<lst.size(); iter++) {
-    stringList line(splitString(lst[iter],"\n"));
-    line.removeLWS("\t ");
-    line.removeComments();
-          
-    clear_whitespace(line[0],"\t");
-    stringList head(splitString(line[0],":"));
-    assert(head.contains("STANDARD"));
-    transType tp(STANDARD);
-                      
-    valueType valtyp(UNKNOWN);
-    if (head.contains("P(X)"))
-      valtyp = PROBABILITY;
-    else if (head.contains("LOG"))
-      valtyp = LOG_PROB;
-    else if (head.contains("COUNTS"))
-      valtyp = COUNTS;
+  for (YAML::const_iterator it=node["transitions"].begin(); it!=node["transitions"].end(); ++it) {
+    string to_state(it->first.as<string>());
+    assert(state_names.find(to_state) != state_names.end()); // make sure transition is to a state that we know about
+    double prob(it->second.as<double>());
+    transition* tmp_trans = new transition(to_state, prob);
+    if (tmp_trans->getName() == "end")
+      endi = tmp_trans;
     else
-      assert(0);
-                              
-    for(size_t iter=1; iter<line.size(); iter++) {
-      transition* tmp_trans = new transition(tp);
-      assert(tmp_trans->parse(line[iter], names, valtyp, trks));
-      if (tmp_trans->getName() == "END")
-	endi = tmp_trans;
-      else
-	addTransition(tmp_trans);
-    }
+      transi->push_back(tmp_trans);
   }
-  return true;
-}
-
-// ----------------------------------------------------------------------------------------
-bool state::_parseEmissions(string& txt, stringList& names, tracks& trks) {
-  stringList lst;
-  lst.splitND(txt,"EMISSION:");
-  assert(lst.size() == 1 || lst.size() == 2);
-  emission_.parse(lst[0], trks);
-  if (lst.size() == 2) {
-    assert(!emission_.pair());  // if pair and non-pair emission present, require the latter to be first
-    pair_emission_.parse(lst[1], trks);
-  }
-  return true;
-}
-  
-// ----------------------------------------------------------------------------------------
-void state::print(){
-  cout<< stringify() << endl;
+      
+  if (node["emissions"])
+    emission_.parse(node["emissions"], "single", trks);
+  if (node["pair_emissions"])
+    pair_emission_.parse(node["pair_emissions"], "pair", trks);
 }
   
 // ----------------------------------------------------------------------------------------

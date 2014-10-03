@@ -18,7 +18,7 @@ using namespace stochhmm;
 typedef pair<string,string> StrPair;
 
 // ----------------------------------------------------------------------------------------
-class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j
+class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j []
 public:
   KSet(size_t k_v, size_t k_d) : v(k_v), d(k_d) {}
   bool equals(KSet rhs) { return v == rhs.v && d == rhs.d; }

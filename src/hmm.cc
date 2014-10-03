@@ -7,106 +7,56 @@ model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
 }
 
 // ----------------------------------------------------------------------------------------
-//!Parses text model file
-//!Splits the model into sections that are then parsed by the individiual classes
-//!parse() functions.
-bool model::parse(string infname) {
-  YAML::Node config = YAML::LoadFile("test.yaml");
+void model::parse(string infname) {
+  YAML::Node config = YAML::LoadFile(infname);
+  name = config["name"].as<string>();
+  overall_gene_prob_ = config["extras"]["gene_prob"].as<double>();
+  
   YAML::Node tracks(config["tracks"]);
-  for (size_t i=0; i<tracks.size(); ++i) {
-    YAML::Node track(tracks[i]);
-    for (YAML::const_iterator it=track.begin(); it!=track.end(); ++it) {
-      cout << it->first << endl;
-      for (size_t ic=0; ic<it->second.size(); ++ic) {
-	cout << "  " << it->second[ic] << endl;
+  for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
+    track *trk = new track;
+    trk->setName(it->first.as<string>());
+    for (size_t ic=0; ic<it->second.size(); ++ic)
+      trk->addAlphabetChar(it->second[ic].as<string>());
+    tracks_.push_back(trk);
+  }
+
+  vector<string> state_names;
+  for (size_t is=0; is<config["states"].size(); ++is) {
+    string name = config["states"][is]["name"].as<string>();
+    for (auto chkname: state_names) {
+      if (name == chkname) {
+	cerr << "ERROR added two states with name \"" << name << "\"" << endl;
+	assert(0);
       }
     }
+    state_names.push_back(name);
   }
-  assert(0);
-  
-  string file_str = slurpFile(infname);  // string containing entire file
-      
-  size_t iheader = file_str.find("MODEL INFORMATION");
-  size_t itrack = file_str.find("TRACK SYMBOL DEFINITIONS");
-  size_t istate = file_str.find("STATE DEFINITIONS");
-  size_t iblank;
-  size_t nlChar;
-      
-  //Parse Model Informaton (Optional)
-  if (iheader!=string::npos) {
-    iblank = file_str.find("\n\n", iheader); //Get coordinates of splitting Model Information
+
+  for (size_t ist=0; ist<state_names.size(); ++ist) {
+    state *st(new state);
+    st->parse(config["states"][ist], state_names, tracks_);
           
-    size_t nlCharEq = file_str.rfind("####\n",iblank);
-    size_t nlCharNum= file_str.rfind("====\n",iblank);
-    //Check for optional dividing line
-    if (nlCharEq != string::npos) {
-      nlChar = nlCharEq + 5;
-    } else if (nlCharNum != string::npos) {
-      nlChar = nlCharNum + 5;
-    } else {  //No divider line
-      nlChar = file_str.find("\n", iheader);
-      nlChar++;
-    }
-          
-    string head = file_str.substr(nlChar, iblank - nlChar);
-    if (!_parseHeader(head))
+    if (!st->parse(stats[iter], NameList, tracks_)){
+      delete st;
       return false;
+    }
+          
+          
+    if (st->getName() == "INIT"){
+      initial=st;
+      stateByName[st->getName()]=st;
+    }
+    else{
+  	assert(states.size() < STATE_MAX);
+      states.push_back(st);
+      stateByName[st->getName()]=st;
+    }
   }
       
-  //Parse Tracks (Required)
-  if (itrack!=string::npos) {
-    iblank = file_str.find("\n\n", itrack);
-          
-    size_t nlCharEq = file_str.rfind("####\n", iblank);
-    size_t nlCharNum = file_str.rfind("====\n", iblank);
-    //Check for optional dividing line
-    if (nlCharEq != string::npos) {
-      nlChar = nlCharEq + 5;
-    } else if (nlCharNum != string::npos) {
-      nlChar = nlCharNum + 5;
-    } else {  //No divider line
-      nlChar = file_str.find("\n", itrack);
-      nlChar++;
-    }
-          
-    string trck(file_str.substr(nlChar, iblank-nlChar));
-    if (!_parseTracks(trck))
-      return false;
-  } else {
-    cerr << "Required section: TRACK SYMBOL DEFINITIONS missing from the model" << endl;
-    return false;
-  }
-              
-  //Parse State Definitions (Required)
-  if (istate!=string::npos) {
-    size_t blankNum = file_str.find("####\n", istate);
-    size_t blankEq  = file_str.find("====\n", istate);
-          
-    iblank = file_str.find("####\n", istate);
-          
-    if (blankEq != string::npos) {
-      iblank = blankEq + 5;
-    } else if (blankNum != string::npos) {
-      iblank = blankNum + 5;
-    } else {
-      iblank = file_str.find("\n", istate);
-      iblank++;
-    }
-          
-    nlChar = file_str.find("\n//END");
-    if (nlChar == string::npos) {
-      nlChar = file_str.size() - 1;
-    }
-          
-    string stateTxt = file_str.substr(iblank, nlChar-iblank);
-    if (!_parseStates(stateTxt))
-      return false;
-  } else {
-    cerr << "Required sections <STATE DEFINITIONS> missing from the model" << endl;
-    return false;
-  }
       
-  return true;
+  //Post process states to create final state with only transitions from filled out.
+  finalize();
 }
       
 // ----------------------------------------------------------------------------------------
@@ -217,63 +167,6 @@ bool model::_parseHeader(string& txt) {
   return true;
 }
   
-// ----------------------------------------------------------------------------------------
-bool model::_parseTracks(string& txt) {
-  stringList lst;
-  lst.splitString(txt, "\n");
-  assert(lst.size() == 1);
-  track *tmp_trk = new track;
-  tmp_trk->parse(lst[0]);
-  tracks_.push_back(tmp_trk);
-  return true;
-}
-
-// ----------------------------------------------------------------------------------------
-bool model::_parseStates(string& txt) {
-  //1. split sections and identify any template sections
-  //2. get state names list
-  //3. create and parse states
-      
-  stringList stats;
-  _splitStates(txt,stats);
-      
-      
-  stringList NameList;
-  _getOrderedStateNames(stats,NameList);
-      
-  for(size_t iter=0;iter<stats.size();iter++){
-    state* st = new(nothrow) state;
-          
-    if (st==NULL){
-      cerr << "OUT OF MEMORY\nFile" << __FILE__ << "Line:\t"<< __LINE__ << endl;
-      exit(1);
-    }
-          
-    if (!st->parse(stats[iter], NameList, tracks_)){
-      delete st;
-      return false;
-    }
-          
-          
-    if (st->getName() == "INIT"){
-      initial=st;
-      stateByName[st->getName()]=st;
-    }
-    else{
-	assert(states.size() < STATE_MAX);
-      states.push_back(st);
-      stateByName[st->getName()]=st;
-    }
-  }
-      
-      
-  //Post process states to create final state with only transitions from filled out.
-  finalize();
-      
-      
-  return true;
-}
-  
   
 // ----------------------------------------------------------------------------------------
 void model::addState(state* st){
@@ -282,58 +175,6 @@ void model::addState(state* st){
   stateByName[st->getName()]=st;
   return;
 };
-      
-  
-// ----------------------------------------------------------------------------------------
-//Split states into individual state strings
-bool model::_splitStates(string& txt ,stringList& sts){
-      
-  size_t start=0;
-  size_t end=0;
-      
-  while(start!=string::npos){
-    end=txt.find("STATE:",start+1);
-          
-    string st = txt.substr(start,end-start);
-          
-    clear_whitespace(st, "#");
-          
-    if (st.find("TEMPLATE:")!=string::npos){
-              
-      stringList tmpd;
-              
-      for(size_t i=0;i<tmpd.size();i++){
-        sts.push_back(tmpd[i]);
-      }
-    }
-    else{
-      sts.push_back(st);
-    }
-                      
-    start=txt.find("STATE:",end);
-          
-  }
-  return true;
-}
-
-// ----------------------------------------------------------------------------------------
-bool model::_getOrderedStateNames(stringList& states, stringList& names){
-  for(size_t i=0;i<states.size();i++){
-    size_t nameHeader=states[i].find("NAME:");
-    size_t nameLineEnding=states[i].find_first_of("\n",nameHeader);
-    string name = states[i].substr(nameHeader+5,nameLineEnding-(nameHeader+5));
-    clear_whitespace(name, " \t\n");
-    if (names.containsExact(name)){
-      cerr << "State with name of: " << name << " is defined twice in the model\n";
-      return false;
-    }
-    else{
-      names.push_back(name);
-    }
-  }
-  return true;
-}
-  
   
 //!Get pointer to state by state name
 //!\param txt String name of state

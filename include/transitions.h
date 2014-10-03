@@ -18,10 +18,7 @@ class transition{
   friend class model;
   friend class state;
 public:
-  transition();
-  transition(transType);
-  transition(transType,valueType,bool);
-  bool parse(string&, stringList&, valueType valtyp, tracks&);
+  transition(string to_state, double prob);
   
   inline void setName(string& txt) { stateName = txt; }
   inline void setState(state* st) { toState = st; }

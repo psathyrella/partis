@@ -30,7 +30,7 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
 model *HMMHolder::Get(string gene) {
   if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
     hmms_[gene] = new model;
-    hmms_[gene]->parse(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".hmm");
+    hmms_[gene]->parse(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
   }
   return hmms_[gene];
 }  

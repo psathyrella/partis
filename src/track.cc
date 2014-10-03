@@ -56,7 +56,7 @@ namespace stochhmm {
   //FIXME: Have it check before adding value
   //! Add a letter/word symbol to the track
   //! \param character Word or symbol used in undigitized sequence
-  bool track::addAlphabetChar(string& character){
+  bool track::addAlphabetChar(string character){
         
     if (alphabet.size() >= 255){
       cerr << "Alphabet limit reached.   Unable to add additional characters to the track:\t" << character << endl;
@@ -253,29 +253,29 @@ namespace stochhmm {
   }
     
     
-  //FIXME: Change return value so only returns true if parse is OK
-  //! Parse a string representation of track to define a tracks parameters
-  //! \param txt Line from model that describes a track
-  //! \return true if the track was parsed properly
-  bool track::parse(string& txt) {
-    stringList lst;
-    stringList tag = extractTag(txt);
+  // //FIXME: Change return value so only returns true if parse is OK
+  // //! Parse a string representation of track to define a tracks parameters
+  // //! \param txt Line from model that describes a track
+  // //! \return true if the track was parsed properly
+  // bool track::parse(string& txt) {
+  //   stringList lst;
+  //   stringList tag = extractTag(txt);
         
-    lst.fromNext(txt);  // remove white space, and create the list using :, as delimiters
-    setName(lst[0]);
-    setDescription(lst.getComment());  // use any comments that were found as a description
-    if (lst[1] == "pair") {  // pair hmm, i.e. we expect two seqs at a time for this track. Would be easy to make it work with more than two, but no point a.t.m.
-      assert(0);  // er, I think this is old and not used TODO clean that shit out
-    } else {
-      n_seqs = 1;  // default to 1
-    }
-    setAlphaType(ALPHA_NUM);
+  //   lst.fromNext(txt);  // remove white space, and create the list using :, as delimiters
+  //   setName(lst[0]);
+  //   setDescription(lst.getComment());  // use any comments that were found as a description
+  //   if (lst[1] == "pair") {  // pair hmm, i.e. we expect two seqs at a time for this track. Would be easy to make it work with more than two, but no point a.t.m.
+  //     assert(0);  // er, I think this is old and not used TODO clean that shit out
+  //   } else {
+  //     n_seqs = 1;  // default to 1
+  //   }
+  //   setAlphaType(ALPHA_NUM);
     
-    for(size_t i=1; i<lst.size(); i++)
-      assert(addAlphabetChar(lst[i]));
+  //   for(size_t i=1; i<lst.size(); i++)
+  //     assert(addAlphabetChar(lst[i]));
 
-    return true;
-  }
+  //   return true;
+  // }
         
     
   //! Get the string representation of the track

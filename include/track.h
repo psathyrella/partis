@@ -45,9 +45,9 @@ namespace stochhmm{
     friend class model;
     friend class tracks;
         
-    bool parse(string&);
+    // bool parse(string&);
     bool parseAmbiguous(string&);
-    inline void setName(string& nm){name=nm;};
+    inline void setName(string nm){name=nm;};
     inline void setDescription(string& desc){description=desc;};
     inline void setIndex(size_t indx){
       if (indx<numeric_limits<size_t>::max()){
@@ -59,7 +59,7 @@ namespace stochhmm{
     }
     inline void setAlphaType(trackType typ){alpha_type=typ;};
                 
-    bool addAlphabetChar(string&);
+    bool addAlphabetChar(string);
     bool addAlphabetChar(const char *);
     bool addAlphabetChar(vector<string>&);
     bool addAlphabetChar(size_t chSize, const char * characters[]);

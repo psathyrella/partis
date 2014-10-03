@@ -4,12 +4,14 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "text.h"
-#include "emm.h"
-#include "transitions.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <bitset>
+
+#include "text.h"
+#include "emm.h"
+#include "transitions.h"
+#include "yaml-cpp/yaml.h"
 
 using namespace std;
 namespace stochhmm {
@@ -20,7 +22,7 @@ class state {
 public:
   state();
   state(string&,stringList&,tracks&); //!Create state from string
-  bool parse(string&, stringList&, tracks&);
+  void parse(YAML::Node node, vector<string> state_names, tracks trks);
   ~state();
 
   // accessors
@@ -45,7 +47,6 @@ public:
   void print();
   string stringify();
               
-  inline void addTransition(transition* trans){transi->push_back(trans);};
   inline void setEndingTransition(transition* trans){endi=trans;};
   inline void setName(string& txt){name=txt;};
   inline void setLabel(string& txt){label=txt;};

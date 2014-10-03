@@ -15,102 +15,53 @@ emm::~emm(){
 }
   
 // ----------------------------------------------------------------------------------------
-bool emm::parse(string& txt, tracks& model_tracks) {
-  stringList lines;  // a list of the lines in <txt>, which specifies the entire emission
-  lines.splitString(txt,"\n");
-  size_t idx;  // set <idx> to start of emission definition
-  if (lines.contains("EMISSION")) {
-    idx = lines.indexOf("EMISSION");
-  } else {
-    cerr << "Missing EMISSION tag from emission. Please check the formatting.   This is what was handed to the emission class:\n " <<  txt << endl;
-    assert(0);
-  }
-      
-  // Determine Emission Type and set appropriate flags
-  stringList line;
-  line.splitString(lines[idx], "\t,: ");  // split lines[idx] (idx probably zero) using any of these delimineters, and store in <line>
-  size_t typeBegin(0);
-  valueType valtyp(PROBABILITY);
-  if (line.contains("P(X)")) {
-    typeBegin = line.indexOf("P(X)");
-    valtyp = PROBABILITY;
-  } else if (line.contains("LOG")) {
-    typeBegin = line.indexOf("LOG");
-    valtyp = LOG_PROB;
-  } else if (line.contains("COUNTS")) {
-    typeBegin = line.indexOf("COUNTS");
-    valtyp = COUNTS ;
-  } else {
-    string info = "Couldn't parse Value type in the Emission: " + txt  + " Please check the formatting.   The allowed types are: P(X), LOG, COUNTS, or REAL_NUMBER. \n";
-    cerr << info << endl;
-  }
-
-  pair_ = line.contains("PAIR");
+bool emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
+  pair_ = is_pair;
 
   scores.init();
   // push back tracks (should only be one a.t.m.)
+  // NOTE at this point we only allow one track per emission (in particular, we require that pair emissions be on the same track). kinda TODO This'd be easy to change later, of course
   tracks_ = new vector<track*>();  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
-  for (size_t i=1; i<typeBegin; i++) {  // loop over the words in <line> from 1 to the start of the <valtype> specification (i.e. over what should be a list of all tracks for this emission)
-    track* tk(model_tracks.getTrack(line[i]));
-    if (tk) {
+  if (is_pair=="single") {
+    track *tk(model_tracks.getTrack(config["track"]));
+    assert(tk);  // assures we actualy found the track in model_tracks
+    tracks_->push_back(tk);
+    scores.addTrack(tk, 0);
+    
+    YAML::Node probs(config["probs"]);
+    assert(probs.size() == scores.getAlphaSize(0));  // TODO actually I don't need these either, since I'm looping over the track
+    assert(scores.getAlphaSize(0) == tk->getAlphaSize()); // TODO arg I shouldn't need this. so complicated...
+    vector<double> log_probs;
+    for (size_t ip=0; ip<scores.getAlphaSize(0); ++ip) {
+      double prob(probs[tk->getAlpha(ip)]);  // NOTE probs are stored as dicts in the file, so <probs> is unordered
+      log_probs.push_back(log(prob));
+    }
+    scores.AddColumn(tmp_vec);  // NOTE <tmp_vec> must already be logged
+  } else if (is_pair=="pair") {
+    assert(config["tracks"].size() == 2);
+    for (size_t it=0; it<config["tracks"].size(); ++it) {
+      track *tk(model_tracks.getTrack(config["tracks"][it]));
+      assert(tk);  // assures we actualy found the track in model_tracks
       tracks_->push_back(tk);
       scores.addTrack(tk, 0);
-    } else {
-      cerr << "Emissions tried to add a track named: " << line[i] << " . However, there isn't a matching track in the model.  Please check model formatting.\n";
-      assert(0);
     }
-  }
-      
-  size_t expectedColumns(scores.getAlphaSize(0));
-  size_t expectedRows(pair_ ? scores.getAlphaSize(0) : 1);
-
-  // check emission labels are written correctly
-  stringstream ss(lines[1]);
-  string letter;
-  ss >> letter;
-  if (letter != "@") {
-    cerr << "ERROR in emission label line " << lines[1] << endl;
-    cerr << "    " << letter << " != @" << endl;
-    assert(0);
-  }
-  for (size_t in=0; in<expectedColumns; ++in) {
-    ss >> letter;
-    assert(letter == (*tracks_)[0]->getAlpha(in));
-  }
-
-  size_t n_lines_to_skip(2);  // NOTE skip header lines
-  for (size_t il=n_lines_to_skip; il<lines.size(); il++) {
-    line.splitString(lines[il],"\t ");  // reset <line> to a list consisting of lines[il] split by white space
-
-    if (pair_) {
-      if (line[0] != (*tracks_)[0]->getAlpha(il - n_lines_to_skip)) {
-	cerr << "ERROR beginning of emission line does not match expected letter: " << line[0] << " != " << (*tracks_)[0]->getAlpha(il - n_lines_to_skip) << endl;
-	assert(0);
+    
+    YAML::Node probs(config["probs"]);
+    assert(probs.size() == scores.getAlphaSize(0));  // TODO actually I don't need these either, since I'm looping over the track
+    assert(scores.getAlphaSize(0) == tk->getAlphaSize()); // TODO arg I shouldn't need this. so complicated...
+    for (size_t ip=0; ip<scores.getAlphaSize(0); ++ip) {
+      YAML::Node these_probs(config["probs"][tk->getAlpha(ip)]);
+      assert(these_probs.size() == scores.getAlphaSize(0));
+      vector<double> log_probs;
+      for (size_t ipp=0; ipp<scores.getAlphaSize(0); ++ipp) {
+	double prob(these_probs[tk->getAlpha(ipp)]);  // NOTE probs are stored as dicts in the file, so <probs> is unordered
+	log_probs.push_back(log(prob));
       }
-      line.pop_ith(0);
+      scores.AddColumn(tmp_vec);  // NOTE <tmp_vec> must already be logged. also NOTE that a column in <scores> is maybe a row in the yaml file. I didn't choose it!
     }
-
-    vector<double> tmp_vec = line.toVecDouble();
-    if (tmp_vec.size() != expectedColumns) {
-      cerr << "The following line with " << tmp_vec.size() << " columns couldn't be parsed into the required number of columns (" + int_to_string(expectedColumns) + ")\n"
-	   << lines[il] << endl;
-      assert(0);
-    }
-    if (valtyp == PROBABILITY) {
-      logVector(tmp_vec);
-    } else if (valtyp == COUNTS) {
-      probVector(tmp_vec);
-      logVector(tmp_vec);
-    }
-    scores.AddColumn(tmp_vec);
-  }
-          
-  if (scores.getLogProbabilityTable()->size() != expectedRows) {
-    cerr << " The Emission table doesn't contain enough rows.  Found " << scores.getLogProbabilityTable()->size() << " but expected " << expectedRows << " \n Please check the Emission Table and formatting for " <<  txt << endl;
+  } else {
     assert(0);
   }
-                      
-  return true;
 }
       
 // // ----------------------------------------------------------------------------------------
