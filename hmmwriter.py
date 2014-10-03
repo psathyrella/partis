@@ -246,7 +246,7 @@ class HmmWriter(object):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
         with opener('w')(outfname) as outfile:
-            yaml.dump(self.hmm, outfile)
+            yaml.dump(self.hmm, outfile, width=200)
         # self.text = ''  TODO wait, what?
 
     # # ----------------------------------------------------------------------------------------
@@ -308,7 +308,7 @@ class HmmWriter(object):
             probs = collections.OrderedDict()
             total = 0.0
             for inuke in range(len(self.germline_seq)):  # start at far left side of v, but only write out probs that are greater than utils.eps (so will only write out probs near to 'location of' v_right_length
-                tmp_prob = norm.pdf(float(inuke), float(istart), self.fuzz_around_v_left_edge)  # NOTE not yet normalized
+                tmp_prob = float(norm.pdf(float(inuke), float(istart), self.fuzz_around_v_left_edge))  # NOTE not yet normalized
                 if tmp_prob < utils.eps:  # TODO this really probably goes further out into the tails than we need to, so probably slows us down quite a bit
                     continue
                 probs[inuke] = tmp_prob  # normal distribution centered around istart
