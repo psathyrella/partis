@@ -11,50 +11,42 @@ import csv
 from utils import utils
 from utils.opener import opener
 
-class Emission(object):
-    def __init__(self, track):
-        self.track = track  # a list of the available emission values
-        self.probs = {}
-        for letter in self.track:
-            self.probs[letter] = 0.0
-
-class PairEmission(object):
-    def __init__(self, track):
-        self.track = track  # a list of the available emission values
-        self.probs = {}
-        for letter_1 in self.track:
-            self.probs[letter_1] = {}
-            for letter_2 in self.track:
-                self.probs[letter_1][letter_2] = 0.0
+class Track(object):
+    def __init__(self, name, letters):
+        self.name = name
+        self.letters = letters  # should be a list
 
 class State(object):
-    def __init__(self, name, label, transitions, emissions, pair_emissions):
+    def __init__(self, name, label=''):
         self.name = name
         self.label = label
-        self.transitions = transitions
-        self.emissions = emissions
-        self.pair_emissions = pair_emissions
+        if label == '':
+            self.label = name
+        self.transitions = []
+        self.emissions = {}  # partially implement emission to multiple tracks (I say 'partially' because I think I haven't written it into stochhmm yet)
+        self.pair_emissions = {}
+        self.extras = {}  # any extra info you want to add
+    def add_emission(self, track, emission_probs):
+        for letter in track.letters:
+            assert letter in emission_probs
+        self.emissions[track.name] = emission_probs
+    def add_pair_emission(self, track, pair_emission_probs):
+        for letter1 in track.letters:
+            assert letter1 in pair_emission_probs
+            for letter2 in track.letters:
+                assert letter2 in pair_emission_probs[letter1]
+        self.pair_emissions[track.name] = pair_emission_probs
+    def add_transition(self, to_name, prob):
+        self.transitions.append({to_name:prob})
 
 class HMM(object):
-    def __init__(self, name, gene_prob, tracks):
+    def __init__(self, name, tracks):
         self.name = name
-        self.gene_prob = gene_prob
         self.tracks = tracks
         self.states = []
-    def add_state(state):
+        self.extras = {}  # any extra info you want to add
+    def add_state(self, state):
         self.states.append(state)
-
-# define this up here so the multi line string doesn't mess up the indentation below
-header_base_text = """#STOCHHMM MODEL FILE
-MODEL INFORMATION
-======================================================
-MODEL_NAME:	bcell
-MODEL_DESCRIPTION:  TOTAL_PROB
-MODEL_CREATION_DATE:	today
-
-TRACK SYMBOL DEFINITIONS
-======================================================
-NUKES: """
 
 class HmmWriter(object):
     def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, v_right_length=-1):
@@ -71,6 +63,7 @@ class HmmWriter(object):
         self.outdir = outdir  # + '/' + region
         self.region = utils.get_region(gene_name)
         self.gene_name = gene_name
+        self.saniname = utils.sanitize_name(self.gene_name)
         self.naivety = naivety
         self.germline_seq = germline_seq
         self.insertion = ''
@@ -80,10 +73,6 @@ class HmmWriter(object):
             self.insertion = 'vd'
         elif self.region == 'j':
             self.insertion = 'dj'
-
-
-        self.overall_gene_prob = utils.read_overall_gene_prob(self.indir, self.region, self.gene_name)
-        self.hmm = HMM(utils.sanitize_name(gene_name), self.overall_gene_prob, list(utils.nukes))
 
         self.erosion_probs = {}
         try:
@@ -115,6 +104,11 @@ class HmmWriter(object):
         self.mute_freqs = {}  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
         if self.naivety == 'M':  # mutate if not naive
             self.read_mute_freqs()
+
+        self.overall_gene_prob = utils.read_overall_gene_prob(self.indir, self.region, self.gene_name)
+        self.track = Track('nukes', list(utils.nukes))
+        self.hmm = HMM(self.saniname, {'nukes':list(utils.nukes)})  # pass the track as a dict rather than a Track object to keep the yaml file a bit simpler
+        self.hmm.extras['gene_prob'] = self.overall_gene_prob
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_probs(self, use_other_alleles=False, use_other_primary_versions=False):
@@ -203,7 +197,7 @@ class HmmWriter(object):
         
     # ----------------------------------------------------------------------------------------
     def read_mute_freqs(self):
-        mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(self.gene_name) + '.csv'
+        mutefname = self.indir + '/mute-freqs/' + self.saniname + '.csv'
         i_try = 0
         if not os.path.exists(mutefname):
             print '  no mute file for',self.gene_name,'so try other alleles'
@@ -242,23 +236,18 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def write(self):
-        emis = Emission(list(utils.nukes))
-        pair_emis = PairEmission(list(utils.nukes))
-        trans = {'insert':0.1, '0':0.9}
-        insert_state = State('insert', 'i', trans, emis, pair_emis)
-        # with opener('w')('foop.yaml') as yamlfile:
-        #     yaml.dump(insert_state, yamlfile)
-        print yaml.dump(insert_state)
-        sys.exit()
-        self.add_header()
         self.add_states()
-        self.text = ''.join(self.text_list)
-        outfname = self.outdir + '/' + utils.sanitize_name(self.gene_name) + '.hmm'
+        # for state in self.hmm.states:
+        #     print '----------------------------------------------------------------------------------------'
+        #     print yaml.dump(state, width=200)
+        # print yaml.dump(self.hmm)
+        # sys.exit()
+        outfname = self.outdir + '/' + self.saniname + '.hmm'
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
         with opener('w')(outfname) as outfile:
-            outfile.write(self.text)
-        self.text = ''
+            yaml.dump(self.hmm, outfile)
+        # self.text = ''  TODO wait, what?
 
     # # ----------------------------------------------------------------------------------------
     # def get_erosion_prob(self):  
@@ -276,8 +265,8 @@ class HmmWriter(object):
     #             print '  %4d%4d  hrg' % (inuke, erosion_length)
                         
     # ----------------------------------------------------------------------------------------
-    def add_region_entry_probs(self, for_insert_state=False):
-        """
+    def add_region_entry_transitions(self, state):
+        """  TODO update docs
         Probabilities to enter germline gene at point <inuke>.
         In the hmm file they appear as lines with the prob to go from INIT to the <inuke> state.
         For v, this is (mostly) the prob that our reads stop after <inuke> (going from right to left).
@@ -289,20 +278,22 @@ class HmmWriter(object):
         # prob for non-zero-length insertion (i.e. prob to *not* go directly into the region
         non_zero_insertion_prob = 1.0
         if self.region != 'v':  # no insertion state in v hmm
-            if for_insert_state:  # for the insert state, we want the prob of *leaving* the insert state to be 1./insertion_length, so multiply all the region entry probs by this
+            if state.name == 'insert':  # for the insert state, we want the prob of *leaving* the insert state to be 1./insertion_length, so multiply all the region entry probs by this
                 inverse_length = 0.0
                 try:
                     inverse_length = 1./self.get_mean_insert_length()
                 except ZeroDivisionError:
                     pass
-                self.text_list.append((' insert: %.' + self.precision + 'f\n') % (1.0 - inverse_length))
+                # self.text_list.append((' insert: %.' + self.precision + 'f\n') % (1.0 - inverse_length))
+                state.add_transition('insert', (1.0 - inverse_length))
                 non_zero_insertion_prob -= inverse_length  # TODO I have no real idea if this is right. well, it's probably ok, but I really need to read through it again
             else:
                 if 0 in self.insertion_probs[self.insertion]:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0       *giggle*
                     non_zero_insertion_prob -= self.insertion_probs[self.insertion][0]
                 else:
                     pass  # TODO think of something to check here
-                self.text_list.append((' insert: %.' + self.precision + 'f\n') % non_zero_insertion_prob)
+                # self.text_list.append((' insert: %.' + self.precision + 'f\n') % non_zero_insertion_prob)
+                state.add_transition('insert', non_zero_insertion_prob)
 
         # assert False  # arg, just realized I can't use the insertion length probs like this. It's an *hmm*, after all.
         #               # Well, looking at the distributions I made before... it's not a *horrible* approximation to use a geometric distribution or whatever the hell I get if I just use 1./<mean length>
@@ -330,7 +321,8 @@ class HmmWriter(object):
                 test_total += probs[inuke]
             assert utils.is_normed(test_total)
             for inuke in probs:  # add to text
-                self.text_list.append(('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke]))
+                # self.text_list.append(('  %18s_%s: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, probs[inuke]))
+                state.add_transition('%s_%d' % (self.saniname, inuke), probs[inuke])
         else:  # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d. EDIT it's bad! and this also applies to mutation freqs!
             # self.smallest_entry_index = 0
             total = 0.0
@@ -343,7 +335,8 @@ class HmmWriter(object):
                         continue
                     total += prob * (1.0 - non_zero_insertion_prob)
                     if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
-                        self.text_list.append(('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob)))
+                        # self.text_list.append(('  %18s_%d: %.' + self.precision + 'f\n') % (utils.sanitize_name(self.gene_name), inuke, prob * (1.0 - non_zero_insertion_prob)))
+                        state.add_transition('%s_%d' % (self.saniname, inuke), prob * (1.0 - non_zero_insertion_prob))
                         if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # keep track of the first state that has a chance of being entered from INIT -- we want to start writing (with add_internal_state) from there
                             self.smallest_entry_index = inuke
             assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))
@@ -371,31 +364,10 @@ class HmmWriter(object):
             return 0.0
     
     # ----------------------------------------------------------------------------------------
-    def add_state_header(self, name, label='', germline_nuke=''):
-        self.text_list.append('#############################################\n')
-        self.text_list.append('STATE:\n')
-        self.text_list.append('  NAME:        %s\n' % name)
-        if label != '':
-            self.text_list.append('  PATH_LABEL:  %s\n' % label)
-            self.text_list.append('  GFF_DESC:    %s\n' % germline_nuke)
-    
-    # ----------------------------------------------------------------------------------------
-    def add_transition_header(self):
-        self.text_list.append('TRANSITION: STANDARD: P(X)\n')
-
-    # ----------------------------------------------------------------------------------------
-    def add_emission_header(self, pair=False):
-        self.text_list.append('EMISSION: NUKES: P(X)')
-        if pair:
-            self.text_list.append(' PAIR')  # soooo tired of all the capital letters
-        self.text_list.append('\n')
-        self.text_list.append('@ %18s %18s %18s %18s\n' % utils.nukes)
-
-    # ----------------------------------------------------------------------------------------
     def add_init_state(self):
-        self.add_state_header('INIT')
-        self.add_transition_header()
-        self.add_region_entry_probs()
+        init_state = State('init', 'n')
+        self.add_region_entry_transitions(init_state)
+        self.hmm.add_state(init_state)
 
     # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self):
@@ -406,10 +378,10 @@ class HmmWriter(object):
         return total / n_tot
 
     # ----------------------------------------------------------------------------------------
-    def get_emission_prob(self, nuke1, nuke2='', insert=True, inuke=-1, germline_nuke=''):
+    def get_emission_prob(self, nuke1, nuke2='', is_insert=True, inuke=-1, germline_nuke=''):
         prob = 0.0
-        if insert:
-            if nuke2 == '':
+        if is_insert:
+            if nuke2 == '':  # single (non-pair) emission
                 prob = 1./len(utils.nukes)
             else:
                 if nuke1 == nuke2:
@@ -449,28 +421,29 @@ class HmmWriter(object):
         return prob
             
     # ----------------------------------------------------------------------------------------
-    def add_emissions(self, insert=True, inuke=-1, germline_nuke=''):
-        # first add single emission probs
-        self.add_emission_header(pair=False)
-        self.text_list.append(' ')
+    def add_emissions(self, state, inuke=-1, germline_nuke=''):
+        # first add single emission
+        emission_probs = {}
         for nuke in utils.nukes:
-            self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke, insert=insert, inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
-        self.text_list.append('\n')
+            # self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
+            emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)
+        state.add_emission(self.track, emission_probs)
 
         # then the pair emission
-        self.add_emission_header(pair=True)
+        pair_emission_probs = {}
         for nuke1 in utils.nukes:
-            self.text_list.append(nuke1)
+            pair_emission_probs[nuke1] = {}
             for nuke2 in utils.nukes:
-                self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke1, nuke2, insert=insert, inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
-            self.text_list.append('\n')
+                # self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke1, nuke2, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
+                pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)
+        state.add_pair_emission(self.track, pair_emission_probs)
 
     # ----------------------------------------------------------------------------------------
     def add_insert_state(self):
-        self.add_state_header('insert', 'i')
-        self.add_transition_header()
-        self.add_region_entry_probs(True)  # TODO allow d region to be entirely eroded? Um, I don't think I have any probabilities for how frequently this happens though.
-        self.add_emissions(insert=True)
+        insert_state = State('insert', 'i')
+        self.add_region_entry_transitions(insert_state)  # TODO allow d region to be entirely eroded? Um, I don't think I have any probabilities for how frequently this happens though.
+        self.add_emissions(insert_state)
+        self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, seq, inuke, germline_nuke):
@@ -478,20 +451,22 @@ class HmmWriter(object):
         # TODO the transition probs out of a state should add to one. But should this sum include the transitions to END, which stochhm requires
         #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?
 
-        saniname = utils.sanitize_name(self.gene_name)
-        self.add_state_header('%s_%d' % (saniname, inuke), '%s_%d' % (saniname, inuke), germline_nuke=germline_nuke)  # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states
+        # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states. EDIT I have no idea what this comment means
+        state = State('%s_%d' % (self.saniname, inuke))
+        state.extras['germline'] = germline_nuke
 
         # transitions
-        self.add_transition_header()
         exit_probability = self.get_exit_probability(seq, inuke) # probability of ending this region here, i.e. excising the rest of the germline gene
         if inuke < len(seq) - 1:  # if we're not at the end of this germline gene, add a transition to the next state
-            self.text_list.append(('  %s_%d:  %.' + self.precision + 'f\n') % (saniname, inuke+1, 1 - exit_probability))
+            # self.text_list.append(('  %s_%d:  %.' + self.precision + 'f\n') % (self.saniname, inuke+1, 1 - exit_probability))
+            state.add_transition('%s_%d' % (self.saniname, inuke+1), 1 - exit_probability)
         distance_to_end = len(seq) - inuke - 1
         if exit_probability >= utils.eps or distance_to_end == 0:
-            self.text_list.append(('  END: %.' + self.precision + 'f\n') % exit_probability)
+            # self.text_list.append(('  END: %.' + self.precision + 'f\n') % exit_probability)
+            state.add_transition('end', exit_probability)
 
         # emissions
-        self.add_emissions(insert=False, inuke=inuke, germline_nuke=germline_nuke)
+        self.add_emissions(state, inuke=inuke, germline_nuke=germline_nuke)
         # self.add_emission_header(pair=False)
         # emission_probability_string = ' '  # then add the line with actual probabilities
         # for nuke in utils.nukes:
@@ -506,10 +481,10 @@ class HmmWriter(object):
         #     emission_probability_string += (' %18.' + self.precision + 'f') % prob
         # emission_probability_string = emission_probability_string.rstrip()
         # self.text_list.append(emission_probability_string + '\n')
+        self.hmm.add_state(state)
     
     # ----------------------------------------------------------------------------------------
     def add_states(self):
-        self.text_list.append('\nSTATE DEFINITIONS\n')
         self.add_init_state()
 
         # for d and j regions add insert state to left-hand side of hmm
@@ -523,7 +498,3 @@ class HmmWriter(object):
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             nuke = self.germline_seq[inuke]
             self.add_internal_state(self.germline_seq, inuke, nuke)
-    
-        # finish up
-        self.text_list.append('#############################################\n')
-        self.text_list.append('//END\n')
