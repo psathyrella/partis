@@ -54,7 +54,7 @@ class PartitionDriver(object):
             return
         if not self.args.read_cached_parameters:  # ha ha I don't have this arg any more
             waterer.clean()  # remove all the parameter files that the waterer's ParameterCounter made
-            for fname in glob.glob(waterer.parameter_dir + '/hmms/*.hmm'):  # remove all the hmm files from the same directory
+            for fname in glob.glob(waterer.parameter_dir + '/hmms/*.yaml'):  # remove all the hmm files from the same directory
                 os.remove(fname)
             os.rmdir(waterer.parameter_dir + '/hmms')
             os.rmdir(waterer.parameter_dir)
@@ -265,7 +265,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir, sw_matches):
         hmm_dir = parameter_dir + '/hmms'
-        utils.prep_dir(hmm_dir, '*.hmm')
+        utils.prep_dir(hmm_dir, '*.yaml')
 
         gene_list = self.args.only_genes
         if gene_list == None:  # if specific genes weren't specified, do the ones for which we have matches

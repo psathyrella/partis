@@ -22,22 +22,32 @@ class State(object):
         self.label = label
         if label == '':
             self.label = name
-        self.transitions = []
+        self.transitions = {}
         self.emissions = {}  # partially implement emission to multiple tracks (I say 'partially' because I think I haven't written it into stochhmm yet)
         self.pair_emissions = {}
         self.extras = {}  # any extra info you want to add
-    def add_emission(self, track, emission_probs):
+
+    def add_emission(self, track, emission_probs):  # NOTE we only allow one (single, non-pair) emission a.t.m
         for letter in track.letters:
             assert letter in emission_probs
-        self.emissions[track.name] = emission_probs
-    def add_pair_emission(self, track, pair_emission_probs):
+        assert 'track' not in self.emissions
+        assert 'probs' not in self.emissions
+        self.emissions['track'] = track.name
+        self.emissions['probs'] = emission_probs
+
+    def add_pair_emission(self, track, pair_emission_probs):  # NOTE we only allow one pair emission a.t.m
         for letter1 in track.letters:
             assert letter1 in pair_emission_probs
             for letter2 in track.letters:
                 assert letter2 in pair_emission_probs[letter1]
-        self.pair_emissions[track.name] = pair_emission_probs
+        assert 'tracks' not in self.pair_emissions
+        assert 'probs' not in self.pair_emissions
+        self.pair_emissions['tracks'] = [track.name, track.name]
+        self.pair_emissions['probs'] = pair_emission_probs
+
     def add_transition(self, to_name, prob):
-        self.transitions.append({to_name:prob})
+        assert to_name not in self.transitions
+        self.transitions[to_name] = prob
 
 class HMM(object):
     def __init__(self, name, tracks):
@@ -242,7 +252,7 @@ class HmmWriter(object):
         #     print yaml.dump(state, width=200)
         # print yaml.dump(self.hmm)
         # sys.exit()
-        outfname = self.outdir + '/' + self.saniname + '.hmm'
+        outfname = self.outdir + '/' + self.saniname + '.yaml'
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
         with opener('w')(outfname) as outfile:
