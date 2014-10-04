@@ -19,7 +19,9 @@ public:
 
   void addTrack(track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
-      
+
+  inline double getValue(size_t letter) { assert(letter < (*logProb)[0].size()); return (*logProb)[0][letter]; }
+  inline double getValue(size_t letter1, size_t letter2) { assert(letter1 < logProb->size()); assert(letter2 < (*logProb)[letter1].size()); return (*logProb)[letter1][letter2]; }
   inline double getValue(Sequences &seqs, size_t pos) { return (*logProb)[seqs[0][pos]][seqs[1][pos]]; }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
   inline double getValue(Sequence &seq, size_t pos) { return (*logProb)[0][seq[pos]]; }  // see NOTE above
   vector<vector<double> >* getProbabilityTable() { return prob; }

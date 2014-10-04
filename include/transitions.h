@@ -23,7 +23,7 @@ public:
   inline void setName(string& txt) { stateName = txt; }
   inline void setState(state* st) { toState = st; }
   inline void setTransType(transType type) { transition_type = type; }
-  inline void setTransProb(double value){log_trans=value;};
+  // inline void setTransProb(double value){log_trans=value;};
   inline string& getName(){return stateName;};
   inline state* getState(){return toState;};
   inline transType getTransitionType(){return transition_type;};

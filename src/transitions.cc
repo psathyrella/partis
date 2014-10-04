@@ -8,8 +8,6 @@ transition::transition(string to_state, double prob) : stateName(to_state), log_
   
 // ----------------------------------------------------------------------------------------
 string transition::stringify() {
-  string transString;
-  transString+="\t" + stateName + ":\t" + double_to_string(log_trans);
-  return transString;
+  return "      " + stateName + " " + double_to_string(exp(log_trans));
 }
 }

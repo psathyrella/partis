@@ -16,7 +16,7 @@ class emm {
   friend class model;
 public:
   emm();
-  bool parse(YAML::Node config, string is_pair, tracks model_tracks);
+  void parse(YAML::Node config, string is_pair, tracks model_tracks);
   ~emm();
               
   // accessors

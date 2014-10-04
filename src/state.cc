@@ -36,7 +36,7 @@ void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
     else
       transi->push_back(trans);
   }
-      
+
   if (name == "init")
     return;
       
@@ -47,56 +47,28 @@ void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
 }
   
 // ----------------------------------------------------------------------------------------
-string state::stringify(){
-  string stateString;
-  stateString+="STATE:\n";
-  stateString+="\tNAME:\t" + name + "\n";
-      
-  if (name.compare("INIT")!=0){
-    stateString+="\tPATH_LABEL:\t" + label + "\n";
+string state::stringify() {
+  string return_str;
+  return_str += "state: " + name + " (" + label + ")\n";
+
+  return_str += "  transitions:\n";
+  for(size_t i=0; i<transi->size(); ++i) {
+    if ((*transi)[i]==NULL){ assert(0); continue;}  // wait wtf would this happen?
+    return_str += (*transi)[i]->stringify() + "\n";
   }
+
+  if (endi)
+    return_str += endi->stringify() + "\n";
       
-  string standardString;
-  string distribString;
-  string lexicalString;
-  string pdfString;
+  if (name == "init")
+    return return_str;
+
+  return_str += "  emissions:\n";
+  return_str += emission_.stringify();  // TODO allow state to have only one or the other of these
+  return_str += "  pair emissions:\n";
+  return_str += pair_emission_.stringify();
       
-  //Get Transitions Standard, Distribution, Lexical
-  for(size_t i=0;i<transi->size();i++){
-    if ((*transi)[i]==NULL){ continue;}
-          
-    transType tp = (*transi)[i]->getTransitionType();
-    assert(tp == STANDARD);
-    if (standardString.empty()){
-      standardString+="TRANSITION:\tSTANDARD:\tLOG\n";
-    }
-    standardString+=(*transi)[i]->stringify() + "\n";
-  }
-      
-      
-  //Process Transition to Ending;
-  if (endi!=NULL){
-    if (standardString.empty()){
-	standardString+="TRANSITIONS:\tSTANDARD:\tLOG\n";
-    }
-    standardString+=endi->stringify();
-  }
-      
-      
-  if (name.compare("INIT")==0){
-    stateString+=standardString + "\n\n";
-    return stateString;
-  }
-  else{
-    if (!standardString.empty()){
-	stateString+=standardString + "\n";
-    }
-  }
-      
-  //Print Emissions
-  stateString += emission_.stringify();
-      
-  return stateString;
+  return return_str;
 }
       
 // // ----------------------------------------------------------------------------------------

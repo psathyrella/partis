@@ -15,7 +15,7 @@ emm::~emm(){
 }
   
 // ----------------------------------------------------------------------------------------
-bool emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
+void emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
   scores.init();
   // NOTE at this point we only allow one track per emission (in particular, we require that pair emissions be on the same track). kinda TODO This'd be easy to change later, of course
   tracks_ = new vector<track*>();  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
@@ -72,33 +72,36 @@ bool emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
       
 // ----------------------------------------------------------------------------------------
 string emm::stringify() {
-  string emissionString("EMISSION:\t");
-  for(size_t i=0;i<scores.getNTracks();i++){
-    if (i>0){
-      emissionString+=",";
-    }
-    emissionString+=scores.getTrack(i)->getName();
-  }
-          
-  emissionString+=":\t";
-          
-  emissionString+="LOG";
-          
-  emissionString+="\n\tORDER:\t";
-          
-  for(size_t i=0;i<scores.getNTracks();i++){
-    if (i>0){
-      emissionString+=",";
-    }
-    emissionString+=int_to_string(0// scores.getOrder(i)
-				  );
-  }
-          
-  emissionString+="\n";
+  string emissionString;
 
-  emissionString+="FOOP";//scores.stringify();
-  emissionString+="\n";
-      
+  for(size_t i=0; i<scores.getNTracks(); ++i)
+    emissionString += "    " + scores.getTrack(i)->getName();
+  emissionString += "\n";
+
+  if (!pair_) {
+    assert(tracks_->size() == 1);
+    emissionString += "    ";
+    for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir)
+      emissionString += "    " + (*tracks_)[0]->getAlpha(ir);
+    emissionString += "\n";
+    emissionString += "    ";
+    for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir)
+      emissionString += "  " + double_to_string(exp(scores.getValue(ir)));
+    emissionString += "\n";
+  } else {
+    assert(tracks_->size() == 2);
+    emissionString += "    ";
+    for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir)
+      emissionString += "    " + (*tracks_)[0]->getAlpha(ir);
+    emissionString += "\n";
+    emissionString += "    ";
+    for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir) {
+      emissionString += "    " + (*tracks_)[0]->getAlpha(ir);
+      for (size_t ic=0; ic<(*tracks_)[1]->getAlphaSize(); ++ic)
+	emissionString += "  " + double_to_string(exp(scores.getValue(ir, ic)));
+      emissionString += "\n";
+    }
+  }
   return emissionString;
 }
 }
