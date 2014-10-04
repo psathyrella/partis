@@ -2,7 +2,7 @@
 namespace stochhmm {
   
 // ----------------------------------------------------------------------------------------
-transition::transition(string to_state, double prob) : stateName(name), log_trans(log(prob)) {
+transition::transition(string to_state, double prob) : stateName(to_state), log_trans(log(prob)) {
   toState = NULL;
 }
   

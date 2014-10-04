@@ -54,7 +54,6 @@ public:
   inline void addFromState(state* st){from[st->getIterator()]=1;};
   inline void setIter(size_t val){stateIterator=val;};
               
-  void checkLabels(set<string>& ,set<string>& ,set<string>& );
   void _finalizeTransitions(map<string,state*>& state_index);
 
 private:
@@ -67,7 +66,7 @@ private:
   emm pair_emission_;
 
   //Linking State Information (These are assigned at model finalization)
-  size_t stateIterator;  //index of state in HMM
+  size_t stateIterator;  //index of state in HMM (set in model:finalize)
   bitset<STATE_MAX> to;
   bitset<STATE_MAX> from;
               

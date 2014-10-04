@@ -2,15 +2,15 @@
 namespace stochhmm {
 
 // ----------------------------------------------------------------------------------------
-state::state():endi(NULL), stateIterator(SIZE_MAX) {
+state::state() : endi(NULL), stateIterator(SIZE_MAX) {
   transi = new (nothrow) vector<transition*>;
 }
 
-// ----------------------------------------------------------------------------------------
-state::state(string& txt, stringList& names,tracks& trcks) : endi(NULL), stateIterator(SIZE_MAX) {
-  transi = new vector<transition*>;
-  parse(txt,names,trcks);
-}
+// // ----------------------------------------------------------------------------------------
+// state::state(string& txt, stringList& names,tracks& trcks) : endi(NULL), stateIterator(SIZE_MAX) {
+//   transi = new vector<transition*>;
+//   parse(txt,names,trcks);
+// }
   
 // ----------------------------------------------------------------------------------------
 state::~state(){
@@ -20,22 +20,25 @@ state::~state(){
 
 // ----------------------------------------------------------------------------------------
 void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
-  size_t idx;
   name = node["name"].as<string>();
-  if (name == "init")
-    return;
   label = node["label"].as<string>();
-      
+
   for (YAML::const_iterator it=node["transitions"].begin(); it!=node["transitions"].end(); ++it) {
     string to_state(it->first.as<string>());
-    assert(state_names.find(to_state) != state_names.end()); // make sure transition is to a state that we know about
+    if (to_state != "end" && find(state_names.begin(), state_names.end(), to_state) == state_names.end()) {  // make sure transition is either to "end", or to a state that we know about
+      cout << "ERROR attempted to add transition to unknown state \"" << to_state << "\"" << endl;
+      assert(0);
+    }
     double prob(it->second.as<double>());
-    transition* tmp_trans = new transition(to_state, prob);
-    if (tmp_trans->getName() == "end")
-      endi = tmp_trans;
+    transition *trans = new transition(to_state, prob);
+    if (trans->getName() == "end")
+      endi = trans;
     else
-      transi->push_back(tmp_trans);
+      transi->push_back(trans);
   }
+      
+  if (name == "init")
+    return;
       
   if (node["emissions"])
     emission_.parse(node["emissions"], "single", trks);
@@ -158,12 +161,6 @@ double state::getEndTrans(){
     return -INFINITY;
   }
   return endi->log_trans;
-}
-  
-//TODO: complete the checkLabels function
-//! Checks the label tags for traceback and combine identifiers
-void state::checkLabels(set<string>& labels, set<string>& gff, set<string>& name){
-  return;
 }
   
   

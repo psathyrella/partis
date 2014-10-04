@@ -36,138 +36,21 @@ void model::parse(string infname) {
   for (size_t ist=0; ist<state_names.size(); ++ist) {
     state *st(new state);
     st->parse(config["states"][ist], state_names, tracks_);
-          
-    if (!st->parse(stats[iter], NameList, tracks_)){
-      delete st;
-      return false;
-    }
-          
-          
-    if (st->getName() == "INIT"){
-      initial=st;
-      stateByName[st->getName()]=st;
-    }
-    else{
-  	assert(states.size() < STATE_MAX);
+
+    if (st->getName() == "init") {
+      initial = st;
+      stateByName[st->getName()] = st;  // TODO is this (stateByName) actually used?
+    } else {
+      assert(states.size() < STATE_MAX);
       states.push_back(st);
-      stateByName[st->getName()]=st;
+      stateByName[st->getName()] = st;
     }
   }
-      
       
   //Post process states to create final state with only transitions from filled out.
   finalize();
 }
       
-// ----------------------------------------------------------------------------------------
-bool model::_parseHeader(string& txt) {
-  stringList lst;
-  size_t index;
-  bool first(false);
-  bool second(false);
-  string headers[] = {"NAME", "DESCRIPTION", "CREATION_DATE","CREATION_COMMAND", "AUTHOR","NUM_ATTRIB","UPPER","LOWER"};
-  string* head[] = {&name, &desc, &date, &command, &author};
-      
-  lst.fromTxt(txt);
-  for(int i=0; i<5; i++) {
-    if (lst.contains(headers[i])) {
-      index = lst.indexOf(headers[i]);
-      if (index+1 < lst.size()) {
-        index++;
-        (*head[i]) = lst[index];
-	if (headers[i] == "DESCRIPTION") {
-	  stringstream ss(lst[index]);
-	  ss >> overall_gene_prob_;
-	  assert(overall_gene_prob_ > 0.0 && overall_gene_prob_ < 1.0);
-	}
-      } else {
-        cerr << "Couldn't parse " << headers[i] << " from \"MODEL INFORMATION\" section." << endl;
-        return false;
-      }
-    }
-  }
-      
-  //Set Numerical Attributes of Model
-  if (lst.contains(headers[5])){
-    index = lst.indexOf(headers[5]);
-    if (index+1 < lst.size()) {
-      index++;
-      double tempValue;
-      if (!stringToDouble(lst[index], tempValue)) {
-        cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
-        return false;
-      }
-    } else {
-      cerr << "Couldn't parse " << headers[5] << " value from \"MODEL INFORMATION\" section." << endl;
-      return false;
-    }
-  } else if (lst.contains(headers[6]) && lst.contains(headers[7])) {
-    index = lst.indexOf(headers[6]);
-    if (index+1<lst.size()) {
-      index++;
-      double tempValue;
-      if (!stringToDouble(lst[index], tempValue)) {
-        cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
-        return false;
-      }
-      second=true;
-    } else {
-      cerr << "Couldn't parse " << headers[6] << " value from \"MODEL INFORMATION\" section." << endl;
-      return false;
-    }
-          
-    index = lst.indexOf(headers[7]);
-    if (index+1<lst.size()) {
-      index++;
-      double tempValue;
-      if (!stringToDouble(lst[index], tempValue)) {
-        cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
-        return false;
-      }
-      first=true;
-    } else {
-      cerr << "Couldn't parse " << headers[6] << " value from \"MODEL INFORMATION\" section." << endl;
-      return false;
-    }
-          
-    if (first && second) {
-      assert(0);
-    } else {
-      cerr << "Unable to parse both UPPER and LOWER" << endl;
-      return false;
-    }
-  } else if (lst.contains(headers[6])) {
-    index = lst.indexOf(headers[6]);
-    if (index+1<lst.size()) {
-      index++;
-      double tempValue;
-      if (!stringToDouble(lst[index], tempValue)) {
-        cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
-        return false;
-      }
-    } else {
-      cerr << "Couldn't parse " << headers[6] << " value from \"MODEL INFORMATION\" section." << endl;
-      return false;
-    }
-  } else if (lst.contains(headers[7])) {
-    index = lst.indexOf(headers[6]);
-    if (index+1<lst.size()) {
-      index++;
-      double tempValue;
-      if (!stringToDouble(lst[index], tempValue)) {
-        cerr << "Numerical attribute couldn't be converted to numerical value: " << lst[index] << endl;
-        return false;
-      }
-    } else {
-      cerr << "Couldn't parse " << headers[7] << " value from \"MODEL INFORMATION\" section." << endl;
-      return false;
-    }
-  }
-      
-  return true;
-}
-  
-  
 // ----------------------------------------------------------------------------------------
 void model::addState(state* st){
   assert(states.size() < STATE_MAX);
@@ -190,13 +73,13 @@ state* model::getState(const string& txt){
 }
       
   
+// ----------------------------------------------------------------------------------------
 //!Finalize the model before performing decoding
 //!Sets transitions, checks labels, Determines if model is basic or requires intermittent tracebacks
-void model::finalize(){
-  if (!finalized){
+void model::finalize() {
+  if (!finalized) {
     //Add States To Transitions
     set<string> labels;
-    set<string> gff;
     set<string> name;
                       
     //Create temporary hash of states for layout
@@ -209,19 +92,13 @@ void model::finalize(){
     for (size_t i=0; i < states.size() ; ++i){
       states[i]->setIter(i);
     }
-                      
-          
           
     //Add states To and From transition
-          
     for(size_t i=0;i<states.size();i++){
-      states[i]->checkLabels(labels,gff,name);
       _addStateToFromTransition(states[i]);
-              
     }
                       
     _addStateToFromTransition(initial);
-                      
                       
     //Now that we've seen all the states in the model
     //We need to fix the States transitions vector transi, so that the state

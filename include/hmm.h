@@ -50,7 +50,7 @@ public:
   void print();
   string stringify();
 
-  bool parse(string);
+  void parse(string);
 		
   void addState(state*);
   inline void setInit(state* st) { initial=st; }
@@ -78,13 +78,6 @@ private:
 		
   state* initial; //!Initial state q0
   state* ending;	//!Ending state
-		
-  bool _parseHeader(string&);	//! Function to parse header of the model from text file
-  bool _parseTracks(string&);	//! Parse Tracks definitions from text file
-		
-  bool _parseStates(string&); //!Parse state from text file
-  bool _splitStates(string&,stringList&); //!Split the state definitions into individual states from text file
-  bool _getOrderedStateNames(stringList&,stringList&); //! Gets list of states names from model
 		
   string _stringifyHeader();	//!Converts Header information from model to string representation found in text file
   string _stringifyTracks(); //!Converts Tracks information from model to string representation found in text file
