@@ -1,10 +1,10 @@
-#ifndef STOCHHHMM_SEQUENCES_H
-#define STOCHHHMM_SEQUENCES_H
+#ifndef HAM_SEQUENCES_H
+#define HAM_SEQUENCES_H
 
 #include "sequence.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
 
 class Sequences{
 public:

@@ -1,6 +1,6 @@
 #include "tracebackpath.h"
 
-namespace stochhmm {
+namespace ham {
 
 
   int WID=80;
@@ -261,7 +261,7 @@ namespace stochhmm {
       string new_label="FOOP";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
-	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
+	  cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
 	  start=0;
 	  current_label=new_label;
 	}
@@ -271,7 +271,7 @@ namespace stochhmm {
       }
       else {
 	if(k==0){
-	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
+	  cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
 	}
 	else if (start==0){
 	  start=path_size-k;
@@ -281,7 +281,7 @@ namespace stochhmm {
 	  continue;
 	}
 	else {
-	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
+	  cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t" << score << "\t+\t.\tRank:"<<ranking<<",Counts:" << times<<",Posterior:"<<posterior<<endl;
 	  start=path_size-k;
 	  current_label=new_label;
 	}
@@ -313,7 +313,7 @@ namespace stochhmm {
       //If no label then print 
       if (new_label.compare("")==0){
 	if (start>0){
-	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<endl;
+	  cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<endl;
 	  start=0;
 	  current_label=new_label;
 	}
@@ -328,20 +328,20 @@ namespace stochhmm {
 	}
 	else if (new_label.compare(current_label)==0){
 	  if(k==0){
-	    cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<endl;
+	    cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<endl;
                                                 
 	  }
                                         
 	  continue;
 	}
 	else {
-	  cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<endl;
+	  cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size-(k+1) << "\t.\t+\t."<<endl;
                                         
 	  start=path_size-k;
 	  current_label=new_label;
                                         
 	  if(k==0){
-	    cout << sequence_name << "\tStochHMM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<endl;
+	    cout << sequence_name << "\tHAM\t" << current_label <<"\t"<< start << "\t" << path_size << "\t.\t+\t."<<endl;
 	  }
                     
 	}

@@ -1,6 +1,6 @@
 #include "trellis.h"
 
-namespace stochhmm {
+namespace ham {
       
 // ----------------------------------------------------------------------------------------
 trellis::trellis(model* h, Sequences* sqs){

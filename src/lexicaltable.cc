@@ -1,5 +1,5 @@
 #include "lexicaltable.h"
-namespace stochhmm {
+namespace ham {
   
 // ----------------------------------------------------------------------------------------
 LexicalTable::LexicalTable() : prob(NULL), counts(NULL), logProb(NULL) {

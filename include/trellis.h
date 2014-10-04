@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_TRELLIS_H
-#define STOCHHMM_TRELLIS_H
+#ifndef HAM_TRELLIS_H
+#define HAM_TRELLIS_H
 
 #include <vector>
 #include <stdint.h>
@@ -8,7 +8,7 @@
 #include "tracebackpath.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
       
 typedef vector<vector<int16_t> > int_2D;
 typedef vector<vector<float> > float_2D;

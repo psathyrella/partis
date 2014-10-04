@@ -13,7 +13,7 @@
 #include "germlines.h"
 
 using namespace std;
-using namespace stochhmm;
+using namespace ham;
 
 typedef pair<string,string> StrPair;
 

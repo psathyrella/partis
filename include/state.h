@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_STATE_H
-#define STOCHHMM_STATE_H
+#ifndef HAM_STATE_H
+#define HAM_STATE_H
 
 #include <string>
 #include <vector>
@@ -14,7 +14,7 @@
 #include "yaml-cpp/yaml.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
 class transition;
   
 class state {

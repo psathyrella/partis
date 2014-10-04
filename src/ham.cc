@@ -10,7 +10,7 @@
 #include "germlines.h"
 #include "tclap/CmdLine.h"
 using namespace TCLAP;
-using namespace stochhmm;
+using namespace ham;
 using namespace std;
 
 // ----------------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ Args::Args(int argc, const char * argv[]):
   int_headers_{"k_v_min", "k_v_max", "k_d_min", "k_d_max"}
 {
   try {  
-    CmdLine cmd("stochhmm -- the stochastofantastic HMM compiler", ' ', "");
+    CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmdir_arg_);
     cmd.add(datadir_arg_);
     cmd.add(infile_arg_);
@@ -155,7 +155,7 @@ int main(int argc, const char * argv[]) {
   else
     ofs << "unique_id,second_unique_id,score,errors" << endl;
 
-  // init some stochhmm infrastructure
+  // init some infrastructure
   size_t n_seqs_per_track(args.pair() ? 2 : 1);
   vector<string> characters{"A","C","G","T"};
   track trk("NUKES", n_seqs_per_track, characters);

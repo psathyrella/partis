@@ -1,5 +1,5 @@
 #include "transitions.h"
-namespace stochhmm {
+namespace ham {
   
 // ----------------------------------------------------------------------------------------
 transition::transition(string to_state, double prob) : stateName(to_state), log_trans(log(prob)) {

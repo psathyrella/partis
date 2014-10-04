@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_HMM_H
-#define STOCHHMM_HMM_H
+#ifndef HAM_HMM_H
+#define HAM_HMM_H
 
 #include <iostream>
 #include <string>
@@ -18,7 +18,7 @@
 #include "yaml-cpp/yaml.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
 /*! \class model
   Hidden Markov Model Class
   model class combines the States, and model information together in a single unit.

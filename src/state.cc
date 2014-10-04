@@ -1,5 +1,5 @@
 #include "state.h"
-namespace stochhmm {
+namespace ham {
 
 // ----------------------------------------------------------------------------------------
 state::state() : endi(NULL), stateIterator(SIZE_MAX) {

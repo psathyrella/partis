@@ -1,5 +1,5 @@
 #include "text.h"
-namespace stochhmm {
+namespace ham {
     
   //! Create a new stringList
   //! Remove whitespace set to true by default.

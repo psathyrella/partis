@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_TRACEBACKPATH_H
-#define STOCHHMM_TRACEBACKPATH_H
+#ifndef HAM_TRACEBACKPATH_H
+#define HAM_TRACEBACKPATH_H
 
 #include <vector>
 #include <string>
@@ -18,7 +18,7 @@
 
 using namespace std;
 
-namespace stochhmm {
+namespace ham {
 
   //! \struct gff_feature
   //!Each gff_feature represents a single GFF line

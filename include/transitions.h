@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_TRANSITIONS_H
-#define STOCHHMM_TRANSITIONS_H
+#ifndef HAM_TRANSITIONS_H
+#define HAM_TRANSITIONS_H
 
 #include <vector> 
 #include <string>
@@ -12,7 +12,7 @@
 
 using namespace std;
 
-namespace stochhmm {
+namespace ham {
 class state;
 class transition{
   friend class model;

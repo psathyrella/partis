@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_TEXT_H
-#define STOCHHMM_TEXT_H
+#ifndef HAM_TEXT_H
+#define HAM_TEXT_H
 
 #include <iostream>
 #include <fstream>
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 
 using namespace std;
-namespace stochhmm{
+namespace ham{
         
   /*! \defgroup Text  Text Handling
    *  

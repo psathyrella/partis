@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_SEQUENCE_H
-#define STOCHHMM_SEQUENCE_H
+#ifndef HAM_SEQUENCE_H
+#define HAM_SEQUENCE_H
 
 #include <vector>
 #include <stdlib.h>
@@ -10,7 +10,7 @@
 #include "track.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
 
 class Sequence {
   friend class Sequences;

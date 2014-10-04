@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_TRACK_H
-#define STOCHHMM_TRACK_H
+#ifndef HAM_TRACK_H
+#define HAM_TRACK_H
 
 #include <vector>
 #include <string>
@@ -13,7 +13,7 @@
 
 using namespace std;
 
-namespace stochhmm{
+namespace ham{
   class track;
   class tracks;
 

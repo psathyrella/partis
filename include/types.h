@@ -1,9 +1,8 @@
-#ifndef STOCHHMM_TYPES_H
-#define STOCHHMM_TYPES_H
+#ifndef HAM_TYPES_H
+#define HAM_TYPES_H
 
-namespace stochhmm {
-  //! \file stochTypes.h
-  //! Stores enumerated types used in StochHMM library
+namespace ham {
+  //! Stores enumerated types used in HAM library
 
   //Enumerated Transition identifiers
   //!\enum enum transType {STANDARD , USER , INTERNAL , LEXICAL};
@@ -16,7 +15,7 @@ namespace stochhmm {
     
     
   //!\enum tracebackIdentifier { DIFF_STATE , STATE_NAME , STATE_LABEL , STATE_GFF , START_INIT };
-  //! Traceback identifier describe how stochHMM will traceback when using duration dependent distributions
+  //! Traceback identifier describe how ham will traceback when using duration dependent distributions
   //! Types of Tracebacks
   //! DIFF_STATE = Traceback current state until a different state is encountered
   //! STATE_NAME = Traceback until STATE_NAME changes from current state, essentially the same as DIFF_STATE

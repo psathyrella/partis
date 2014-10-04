@@ -1,5 +1,5 @@
 #include "track.h"
-namespace stochhmm {
+namespace ham {
     
   // FIXME:  Check if ambiguous before allowing to get character.
   //!Create an ambiguous character

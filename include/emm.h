@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_EMM_H
-#define STOCHHMM_EMM_H
+#ifndef HAM_EMM_H
+#define HAM_EMM_H
 
 #include <iostream>
 #include <string>
@@ -10,7 +10,7 @@
 #include "lexicaltable.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
 class emm {
   friend class state;
   friend class model;

@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_LEXICALTABLE_H
-#define STOCHHMM_LEXICALTABLE_H
+#ifndef HAM_LEXICALTABLE_H
+#define HAM_LEXICALTABLE_H
 
 #include <string>
 #include <vector>
@@ -9,7 +9,7 @@
 #include "types.h"
 
 using namespace std;
-namespace stochhmm {
+namespace ham {
       
 class LexicalTable {
 public:

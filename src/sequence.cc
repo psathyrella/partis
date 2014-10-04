@@ -1,6 +1,6 @@
 #include "sequence.h"
 
-namespace stochhmm {
+namespace ham {
 
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(string& seq_str, track* trk, string name):

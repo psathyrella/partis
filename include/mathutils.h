@@ -1,5 +1,5 @@
-#ifndef STOCHHMM_MATHUTILS_H
-#define STOCHHMM_MATHUTILS_H
+#ifndef HAM_MATHUTILS_H
+#define HAM_MATHUTILS_H
 
 #include <math.h>
 #include <iostream>
@@ -10,7 +10,7 @@
 
 using namespace std;
 
-namespace stochhmm{
+namespace ham{
     
   //FIXME: Need to generate dynamically once upon initialization of HMM. System differences between (int,long,...);
   //Or just leave it. It may work well enough;

@@ -1,6 +1,6 @@
 #include "sequences.h"
 
-namespace stochhmm {
+namespace ham {
 Sequences::~Sequences() {
   for(size_t i=0;i<seqs.size();i++){
     delete seqs[i];

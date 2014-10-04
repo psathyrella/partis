@@ -1,6 +1,6 @@
 #include "hmm.h"
 
-namespace stochhmm {
+namespace ham {
 // ----------------------------------------------------------------------------------------
 model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
   ending = new state;
@@ -182,7 +182,7 @@ void model::_addStateToFromTransition(state* st){
 string model::stringify(){
   string model;
   string lnSep(50,'=');
-  model+="#STOCHHMM MODEL FILE\n\n";
+  model+="#MODEL FILE\n\n";
       
   model+=_stringifyHeader();
   model+=_stringifyTracks();
