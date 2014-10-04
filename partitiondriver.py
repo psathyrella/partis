@@ -164,7 +164,7 @@ class PartitionDriver(object):
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, stripped=stripped)
-        self.run_stochhmm(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+        self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
         self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter)
 
         if count_parameters:
@@ -366,11 +366,11 @@ class PartitionDriver(object):
                 print '    not in best sw matches, skipping: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])
 
     # ----------------------------------------------------------------------------------------
-    def run_stochhmm(self, algorithm, csv_infname, csv_outfname, parameter_dir):
+    def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir):
         start = time.time()
 
         # build the command line
-        cmd_str = self.args.stochhmm_dir + '/stochhmm'
+        cmd_str = self.args.ham_dir + '/ham'
         cmd_str += ' --algorithm ' + algorithm
         if self.args.pair:
             cmd_str += ' --pair 1'

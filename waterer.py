@@ -227,7 +227,7 @@ class Waterer(object):
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
 
-                # check consistency with best match (since the best match is excised in s-w code, and because stochhmm is run with *one* k_v k_d set)
+                # check consistency with best match (since the best match is excised in s-w code, and because ham is run with *one* k_v k_d set)
                 if region not in best:
                     best[region] = gene
                     best[region + '_gl_seq'] = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]

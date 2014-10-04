@@ -23,7 +23,7 @@ class State(object):
         if label == '':
             self.label = name
         self.transitions = {}
-        self.emissions = {}  # partially implement emission to multiple tracks (I say 'partially' because I think I haven't written it into stochhmm yet)
+        self.emissions = {}  # partially implement emission to multiple tracks (I say 'partially' because I think I haven't written it into ham yet)
         self.pair_emissions = {}
         self.extras = {}  # any extra info you want to add
 
@@ -458,8 +458,8 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, seq, inuke, germline_nuke):
         # TODO unify utils.eps and self.precision
-        # TODO the transition probs out of a state should add to one. But should this sum include the transitions to END, which stochhm requires
-        #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does stochhmm do?
+        # TODO the transition probs out of a state should add to one. But should this sum include the transitions to END, which ham requires
+        #   to be 1 by themselves? AAAGGGGHGHGHHGHG I don't know. What the hell does ham do?
 
         # NOTE this doesn't actually mean mute prob is 1... it means I only really want to multiply by the mute prob for insert states. EDIT I have no idea what this comment means
         state = State('%s_%d' % (self.saniname, inuke))
