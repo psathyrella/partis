@@ -21,10 +21,9 @@ class Transition {
 public:
   Transition(string to_state, double prob);
   
-  inline void setName(string& txt) { to_state_name_ = txt; }
-  inline void setState(State* st) { to_state_ = st; }
+  inline void set_name(string& txt) { to_state_name_ = txt; }
+  inline void set_state(State* st) { to_state_ = st; }
   inline void setTransType(transType type) { transition_type = type; }
-  // inline void setTransProb(double value){log_trans=value;};
   inline string& to_state_name(){return to_state_name_;};
   inline State* to_state(){return to_state_;};
   inline transType getTransitionType(){return transition_type;};

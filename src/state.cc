@@ -66,6 +66,7 @@ void State::print() {
   pair_emission_.print();
 }
       
+// ----------------------------------------------------------------------------------------
 //! Get the log probability transitioning to end from the state.
 double State::getEndTrans(){
   if (end_trans_==NULL){
@@ -76,35 +77,25 @@ double State::getEndTrans(){
   
   
 // ----------------------------------------------------------------------------------------
-/* On initial import of the states they are pushed on the transi vector in
-   the order written in model.   However, the analysis requires that they be
-   in the particular position defined by state iterator.
-   
-   This function puts the transitions in the proper order for analysis
-*/
-void State::_finalizeTransitions(map<string,State*>& state_index){
-              
-  //Get size # of states, but correct by -1 because
-  //initial state will be kept separate.
-  size_t number_of_states = state_index.size();
-  vector<Transition*>* fixed_trans = new vector<Transition*>(number_of_states-1,NULL);
+// On initial import of the states they are pushed onto <transitions_> in
+// the order written in the model file. But later on we need them to be in the order specified by <index_>.   
+// So here we replace make a new vector <fixed_trans> with the proper ordering and replace <transitions_> with this
+// new vector.
+void State::reorder_transitions(map<string,State*> &state_indices) {
+  size_t n_states(state_indices.size());
+  vector<Transition*> *fixed_trans = new vector<Transition*>(n_states-1, NULL);  // subtract 1 because initial state is kept separate
       
-  //Find the proper place for the transition and put it in the correct position
-  for(size_t i = 0; i < transitions_->size(); i++){
+  // find the proper place for the transition and put it in the correct position
+  for(size_t i=0; i<transitions_->size(); ++i) {
     Transition* temp = (*transitions_)[i];
-    string name = temp->to_state_name();
-    State* st = state_index[name];
-    if (st == NULL){
-	cerr << "State: " << name << " was declared but not defined in the model." << endl;
-	exit(2);
-    }
-    size_t index = st->index();
-    (*fixed_trans)[index]=temp;
-    (*transitions_)[i]=NULL;
+    string to_state_name(temp->to_state_name());
+    assert(state_indices.count(to_state_name));
+    State *st(state_indices[to_state_name]);
+    (*fixed_trans)[st->index()] = temp;
   }
       
-  delete transitions_;  //Don't need the old transition vector anymore
+  delete transitions_;  // don't need old transition vector anymore
   transitions_ = fixed_trans;
-  return;
 }
+
 }

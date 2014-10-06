@@ -64,23 +64,20 @@ void model::add_state(State* state) {
 void model::finalize() {
   assert(!finalized_);  // well it wouldn't *hurt* to call this twice, but you still *oughtn't* to
 
+  // set each state's index within this model
   for (size_t i=0; i<states_.size(); ++i)
     states_[i]->set_index(i);
-          
-  //Add states To and From transition
-  for(size_t i=0;i<states_.size();i++){
-    _addStateToFromTransition(states_[i]);
-  }
-                      
-  _addStateToFromTransition(initial_);
+  // set each state's various transition pointers
+  for(size_t i=0; i<states_.size(); ++i)
+    finalize_state(states_[i]);
+  finalize_state(initial_);
                       
   //Now that we've seen all the states in the model
   //We need to fix the States transitions vector transi, so that the state
   //iterator correlates to the position within the vector
-  for(size_t i=0;i<states_.size();i++){
-    states_[i]->_finalizeTransitions(states_by_name_);
-  }
-  initial_->_finalizeTransitions(states_by_name_);
+  for(size_t i=0; i<states_.size(); ++i)
+    states_[i]->reorder_transitions(states_by_name_);
+  initial_->reorder_transitions(states_by_name_);
           
   checkTopology();
                       
@@ -89,21 +86,22 @@ void model::finalize() {
       
 
 // ----------------------------------------------------------------------------------------
-void model::_addStateToFromTransition(State *st) {
-  // Process Initial State
+void model::finalize_state(State *st) {
+  // Set the bitsets in <st> that say which states we can go to from <st>, and from which we can arrive at <st>.
+  // Also set to-state pointers in <st>'s transitions
   vector<Transition*>* transitions(st->getTransitions());
   for(size_t it=0; it<transitions->size(); ++it) {  // loops over the transitions out of <st>
     string to_state_name(transitions->at(it)->to_state_name());
     assert(states_by_name_.count(to_state_name));
     State* to_state(states_by_name_[to_state_name]);
-    st->addToState(to_state); // add <to_state> to the list of states that you can go to from <st>
-    transitions->at(it)->setState(to_state);  // set <to_state> as the state corresponding to to_state_name_ in <transitions>
+    st->add_to_state(to_state); // add <to_state> to the list of states that you can go to from <st>
+    transitions->at(it)->set_state(to_state);  // set <to_state> as the state corresponding to to_state_name_ in <transitions>
     if (st != initial_)
-      to_state->addFromState(st);  // add <st> to the list of states from which you can reach <to_state>
+      to_state->add_from_state(st);  // add <st> to the list of states from which you can reach <to_state>
   }
       
   if (st->end_trans())
-    ending_->addFromState(st);
+    ending_->add_from_state(st);
 }
   
 // ----------------------------------------------------------------------------------------

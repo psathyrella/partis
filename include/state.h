@@ -44,10 +44,10 @@ public:
   double getEndTrans();
               
   // property-setters for use in model::finalize()
-  inline void addToState(State* st){to_states_[st->index()]=1;}
-  inline void addFromState(State* st){from_states_[st->index()]=1;}
+  inline void add_to_state(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>
+  inline void add_from_state(State *st) { from_states_[st->index()] = 1; }  // set bit in <from_states_> corresponding to <st>
   inline void set_index(size_t val){ index_ = val; }
-  void _finalizeTransitions(map<string,State*>& state_index);
+  void reorder_transitions(map<string,State*>& state_indices);
 
   void print();
 

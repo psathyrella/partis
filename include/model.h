@@ -32,7 +32,7 @@ private:
   State* ending_;
   bool finalized_;
 		
-  void _addStateToFromTransition(State*);
+  void finalize_state(State*);
   bool checkTopology();
   void _checkTopology(State* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there
 };
