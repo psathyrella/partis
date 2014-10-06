@@ -17,6 +17,7 @@ void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
   name = node["name"].as<string>();
   label = node["label"].as<string>();
 
+  double total(0.0); // make sure things add to 1.0
   for (YAML::const_iterator it=node["transitions"].begin(); it!=node["transitions"].end(); ++it) {
     string to_state(it->first.as<string>());
     if (to_state != "end" && find(state_names.begin(), state_names.end(), to_state) == state_names.end()) {  // make sure transition is either to "end", or to a state that we know about
@@ -24,12 +25,15 @@ void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
       assert(0);
     }
     double prob(it->second.as<double>());
+    total += prob;
     transition *trans = new transition(to_state, prob);
     if (trans->getName() == "end")
       endi = trans;
     else
       transi->push_back(trans);
   }
+  // TODO use something cleverer than a random hard coded EPS
+  assert(fabs(total-1.0) < EPS);  // make sure transition probs sum to 1.0
 
   if (name == "init")
     return;
@@ -62,7 +66,7 @@ void state::print() {
   pair_emission_.print();
 }
       
-//! Get the log probability transitioning to end from the state
+//! Get the log probability transitioning to end from the state.
 double state::getEndTrans(){
   if (endi==NULL){
     return -INFINITY;

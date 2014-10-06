@@ -2,6 +2,7 @@
 #define HAM_EMM_H
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -27,6 +28,7 @@ public:
   inline double score(Sequences& seqs, size_t pos) { return scores.getValue(seqs, pos); }
   
   void print();
+  double total_;
 private:
   bool pair_;
   LexicalTable scores;

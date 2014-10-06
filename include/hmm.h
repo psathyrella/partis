@@ -13,22 +13,11 @@
 #include <bitset>
 
 #include "state.h"
-// #include "yaml-cpp/node/node.h"
-// #include "yaml-cpp/node/parse.h"
 #include "yaml-cpp/yaml.h"
 
 using namespace std;
 namespace ham {
-/*! \class model
-  Hidden Markov Model Class
-  model class combines the States, and model information together in a single unit.
-  This includes the states(emissions, transitions), initial and ending states, track 
-  information(alphabet and ambiguous character definitions).
-	 
-  Provides functions to import the model from a text file
-	 
-  Model is used by trellis class to evaluates sequences.  
-*/
+
 class model {
 public:
   model();
@@ -78,5 +67,6 @@ private:
   void _addStateToFromTransition(state*);
   void _checkTopology(state* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there
 };
+
 }
 #endif

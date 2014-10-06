@@ -36,7 +36,7 @@ void model::parse(string infname) {
   for (size_t ist=0; ist<state_names.size(); ++ist) {
     state *st(new state);
     st->parse(config["states"][ist], state_names, tracks_);
-    // cout << st->stringify() << endl;
+    st->print();
 
     if (st->getName() == "init") {
       initial = st;
@@ -47,8 +47,9 @@ void model::parse(string infname) {
       stateByName[st->getName()] = st;
     }
   }
+    assert(0);
       
-  //Post process states to create final state with only transitions from filled out.
+  //Post process states to create final state with only transitions from filled out
   finalize();
 }
       
