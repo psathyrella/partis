@@ -2,14 +2,14 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-State::State() : endi(NULL), index_(SIZE_MAX) {
-  transi = new (nothrow) vector<Transition*>;
+State::State() : end_trans_(NULL), index_(SIZE_MAX) {
+  transitions_ = new (nothrow) vector<Transition*>;
 }
   
 // ----------------------------------------------------------------------------------------
 State::~State(){
-  delete transi;
-  transi=NULL;
+  delete transitions_;
+  transitions_=NULL;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -27,10 +27,10 @@ void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     double prob(it->second.as<double>());
     total += prob;
     Transition *trans = new Transition(to_state, prob);
-    if (trans->getName() == "end")
-      endi = trans;
+    if (trans->to_state_name() == "end")
+      end_trans_ = trans;
     else
-      transi->push_back(trans);
+      transitions_->push_back(trans);
   }
   // TODO use something cleverer than a random hard coded EPS
   assert(fabs(total-1.0) < EPS);  // make sure transition probs sum to 1.0
@@ -49,13 +49,13 @@ void State::print() {
   cout << "state: " << name_ << " (" << label_ << ")" << endl;;
 
   cout << "  transitions:" << endl;;
-  for(size_t i=0; i<transi->size(); ++i) {
-    if ((*transi)[i]==NULL){ assert(0); continue;}  // wait wtf would this happen?
-    (*transi)[i]->print();
+  for(size_t i=0; i<transitions_->size(); ++i) {
+    if ((*transitions_)[i]==NULL){ assert(0); continue;}  // wait wtf would this happen?
+    (*transitions_)[i]->print();
   }
 
-  if (endi)
-    endi->print();
+  if (end_trans_)
+    end_trans_->print();
       
   if (name_ == "init")
     return;
@@ -68,10 +68,10 @@ void State::print() {
       
 //! Get the log probability transitioning to end from the state.
 double State::getEndTrans(){
-  if (endi==NULL){
+  if (end_trans_==NULL){
     return -INFINITY;
   }
-  return endi->log_trans;
+  return end_trans_->log_trans;
 }
   
   
@@ -90,9 +90,9 @@ void State::_finalizeTransitions(map<string,State*>& state_index){
   vector<Transition*>* fixed_trans = new vector<Transition*>(number_of_states-1,NULL);
       
   //Find the proper place for the transition and put it in the correct position
-  for(size_t i = 0; i < transi->size(); i++){
-    Transition* temp = (*transi)[i];
-    string name = temp->getName();
+  for(size_t i = 0; i < transitions_->size(); i++){
+    Transition* temp = (*transitions_)[i];
+    string name = temp->to_state_name();
     State* st = state_index[name];
     if (st == NULL){
 	cerr << "State: " << name << " was declared but not defined in the model." << endl;
@@ -100,11 +100,11 @@ void State::_finalizeTransitions(map<string,State*>& state_index){
     }
     size_t index = st->index();
     (*fixed_trans)[index]=temp;
-    (*transi)[i]=NULL;
+    (*transitions_)[i]=NULL;
   }
       
-  delete transi;  //Don't need the old transition vector anymore
-  transi = fixed_trans;
+  delete transitions_;  //Don't need the old transition vector anymore
+  transitions_ = fixed_trans;
   return;
 }
 }

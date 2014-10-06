@@ -64,9 +64,8 @@ void model::add_state(State* state) {
 void model::finalize() {
   assert(!finalized_);  // well it wouldn't *hurt* to call this twice, but you still *oughtn't* to
 
-  for (size_t i=0; i < states_.size() ; ++i){
-    states_[i]->setIter(i);
-  }
+  for (size_t i=0; i<states_.size(); ++i)
+    states_[i]->set_index(i);
           
   //Add states To and From transition
   for(size_t i=0;i<states_.size();i++){
@@ -83,69 +82,28 @@ void model::finalize() {
   }
   initial_->_finalizeTransitions(states_by_name_);
           
-  //Check to see if model is basic model
-  //Meaning that the model doesn't call outside functions or perform
-  //Tracebacks for explicit duration.
-  //If explicit duration exist then we'll keep track of which states
-  //they are in explicit_duration_states
-  //            for(size_t i=0;i<states.size();i++){
-  //                vector<transition*>* transitions = states[i]->getTransitions();
-  //                for(size_t trans=0;trans<transitions->size();trans++){
-  //                                      if ((*transitions)[trans] == NULL){
-  //                                              continue;
-  //                                      }
-  //                                      
-  //                    if ((*transitions)[trans]->FunctionDefined()){
-  //                        basicModel=false;
-  //                        break;
-  //                    }
-  //                    else if ((*transitions)[trans]->getTransitionType()!=STANDARD || (*transitions)[trans]->getTransitionType()!=LEXICAL){
-  //                                              
-  //                                              if ((*transitions)[trans]->getTransitionType() == DURATION){
-  //                                                      (*explicit_duration_states)[i]=true;
-  //                                              }
-  //                                              
-  //                        basicModel=false;
-  //                        break;
-  //                    }
-  //                }
-  //            }
-                      
   checkTopology();
                       
-                      
-  // //Assign StateInfo
-  // for(size_t i=0; i < states.size();i++){
-  //   string& st_name = states[i]->getName();
-  //   info.stateIterByName[st_name]=i;
-  //   info.stateIterByLabel[st_name].push_back(i);
-  //   info.stateIterByGff[st_name].push_back(i);
-  // }
   finalized_ = true;
 }
       
 
 // ----------------------------------------------------------------------------------------
-void model::_addStateToFromTransition(State* st){
-  vector<Transition*>* trans;
-      
-  //Process Initial State
-  trans = st->getTransitions();
-  for(size_t i=0;i<trans->size();i++){
-    State* temp;
-    temp=this->state((*trans)[i]->getName());
-    if (temp){
-      st->addToState(temp); //Also add the ptr to state vector::to
-      (*trans)[i]->setState(temp);
-      if (st!=initial_){
-        temp->addFromState(st);
-      }
-    }
+void model::_addStateToFromTransition(State *st) {
+  // Process Initial State
+  vector<Transition*>* transitions(st->getTransitions());
+  for(size_t it=0; it<transitions->size(); ++it) {  // loops over the transitions out of <st>
+    string to_state_name(transitions->at(it)->to_state_name());
+    assert(states_by_name_.count(to_state_name));
+    State* to_state(states_by_name_[to_state_name]);
+    st->addToState(to_state); // add <to_state> to the list of states that you can go to from <st>
+    transitions->at(it)->setState(to_state);  // set <to_state> as the state corresponding to to_state_name_ in <transitions>
+    if (st != initial_)
+      to_state->addFromState(st);  // add <st> to the list of states from which you can reach <to_state>
   }
       
-  if (st->getEnding()){
+  if (st->end_trans())
     ending_->addFromState(st);
-  }
 }
   
 // ----------------------------------------------------------------------------------------
@@ -179,7 +137,7 @@ bool model::checkTopology(){
       }
       else if (num_visited == 1 && tmp_visited[0] == st_iter){
         //Orphaned
-        if(states_[st_iter]->getEnding() == NULL){
+        if(states_[st_iter]->end_trans() == NULL){
           cerr << "State: "  << states_[st_iter]->name() << " is an orphaned state that has only transition to itself\n";
         }
         //                                      else{
@@ -199,7 +157,7 @@ bool model::checkTopology(){
               
   //Check for defined ending
   for(size_t i=0; i< states_.size() ; i++){
-    if ( states_[i]->getEnding() != NULL){
+    if (states_[i]->end_trans()) {
       ending_defined = true;
       break;
     }
@@ -224,9 +182,8 @@ void model::_checkTopology(State* st, vector<uint16_t>& visited){
   //Follow transitions to see if every state is visited
   for(size_t i = 0 ; i < st->getTransitions()->size() ; i++){
     if (st->getTransitions()->at(i) != NULL){
-      visited.push_back(st->getTransitions()->at(i)->getState()->index());
+      visited.push_back(st->getTransitions()->at(i)->to_state()->index());
     }
-                      
   }
   return;
 }

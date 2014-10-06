@@ -2,12 +2,12 @@
 namespace ham {
   
 // ----------------------------------------------------------------------------------------
-Transition::Transition(string to_state, double prob) : stateName(to_state), log_trans(log(prob)) {
-  toState = NULL;
+Transition::Transition(string to_state, double prob) : to_state_name_(to_state), log_trans(log(prob)) {
+  to_state_ = NULL;
 }
   
 // ----------------------------------------------------------------------------------------
 void Transition::print() {
-  printf("%30s%14.3e\n", stateName.c_str(), exp(log_trans));
+  printf("%30s%14.3e\n", to_state_name_.c_str(), exp(log_trans));
 }
 }
