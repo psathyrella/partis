@@ -13,20 +13,20 @@ public:
   void parse(string);
   void finalize();
 
-  inline string& getName() { return name; }
+  inline string& name() { return name_; }
   inline size_t n_states() { return states_.size(); }
-  inline string& getStateName(size_t iter){ return states_[iter]->getName(); }
-  inline string& getStateLabel(size_t iter){ return states_[iter]->getLabel(); }
+  // inline string& getStateName(size_t iter){ return states_[iter]->getName(); }
+  // inline string& getStateLabel(size_t iter){ return states_[iter]->getLabel(); }
   State* state(const string&);
-  inline State*  state(size_t iter) { return states_[iter]; }
-  inline bitset<STATE_MAX>* getInitialTo() { return &(initial->to); }  //!Get vector of states that the initial state transitions to
-  inline State*  getInitial() { return initial; }  //!Get pointer to the initial state
-  inline State*  getEnding() { return ending; }  //!Get pointer to the ending state
+  inline State* state(size_t iter) { return states_[iter]; }
+  inline bitset<STATE_MAX>* initial_to_states() { return &(initial_->to); }  //!Get vector of states that the initial state transitions to
+  inline State* init_state() { return initial_; }  //!Get pointer to the initial state
+  inline State* end_state() { return ending_; }  //!Get pointer to the ending state
   inline double overall_gene_prob() { return overall_gene_prob_; }
 
-  void addState(State*);
-  inline void setInit(State* st) { initial=st; }
-  inline void setEnd(State* st) { ending=st; }
+  void add_state(State*);
+  inline void set_init(State* st) { initial_=st; }
+  inline void set_end(State* st) { ending_=st; }
   bool checkTopology();
 		
 private:
@@ -36,11 +36,7 @@ private:
   //!state.  Model is also checked for correct order of states
   bool finalized;   
 		
-  string name;	//! Model Name
-  string desc;	//! Model Description
-  string date;   //! Model Creation Date
-  string command; //! Model Creation Command
-  string author;  //! Model Author
+  string name_;	//! Model Name
 		
   Tracks tracks_;
 
@@ -48,8 +44,8 @@ private:
 
   map<string,State*> stateByName; //Ptr to state stored by State name;
 		
-  State* initial; //!Initial state q0
-  State* ending;	//!Ending state
+  State* initial_; //!Initial state q0
+  State* ending_;	//!Ending state
 		
   void _addStateToFromTransition(State*);
   void _checkTopology(State* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there

@@ -39,7 +39,7 @@ namespace ham {
   void TracebackPath::label(vector<string>& pth){
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
       State* st = hmm->state(trace_path[k]);
-      pth.push_back(st->getLabel());
+      pth.push_back(st->label());
     }
     return;
   }
@@ -55,7 +55,7 @@ namespace ham {
         
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
       State* st = hmm->state(trace_path[k]);
-      pth+=st->getLabel();
+      pth+=st->label();
     }
     return;
   }
@@ -71,7 +71,7 @@ namespace ham {
                 
     for(size_t k = trace_path.size()-1; k != SIZE_MAX; k--){
       State* st = hmm->state(trace_path[k]);
-      pth.push_back(st->getName());
+      pth.push_back(st->name());
     }
     return;
   }
@@ -96,7 +96,7 @@ namespace ham {
 	if (start>0){
 	  gff_feature ln;
 	  ln.seqname=sequenceName;
-	  ln.source=hmm->getName();
+	  ln.source=hmm->name();
 	  ln.feature=current_label;
 	  ln.start=start;
 	  ln.end=path_size-(k+1);
@@ -118,7 +118,7 @@ namespace ham {
 	if(k==0){
 	  gff_feature ln;
 	  ln.seqname=sequenceName;
-	  ln.source=hmm->getName();
+	  ln.source=hmm->name();
 	  ln.feature=current_label;
 	  ln.start=start;
 	  ln.end=path_size-(k+1);
@@ -139,7 +139,7 @@ namespace ham {
 	else {
 	  gff_feature ln;
 	  ln.seqname=sequenceName;
-	  ln.source=hmm->getName();
+	  ln.source=hmm->name();
 	  ln.feature=current_label;
 	  ln.start=start;
 	  ln.end=path_size-(k+1);
@@ -239,7 +239,7 @@ namespace ham {
     assert(hmm);
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--) {
       State* st = hmm->state(trace_path[k]);
-      cout << st->getLabel() << " ";
+      cout << st->label() << " ";
       cout.flush();
     }
     cout << endl;
@@ -538,7 +538,7 @@ namespace ham {
     model* hmm = ((*pathAccess[0]).first).getModel();
     for (size_t state_iter =0; state_iter<hmm->n_states(); state_iter++){
       header_row+="\t";
-      header_row+=hmm->getStateName(state_iter);
+      header_row+=hmm->state(state_iter)->name();
     }
 
     cout << header_row << endl;

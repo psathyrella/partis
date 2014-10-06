@@ -44,9 +44,9 @@ void trellis::viterbi() {
   ending_viterbi_tb = -1;
   ending_viterbi_score = -INFINITY;
               
-  State* init = hmm->getInitial();
+  State* init = hmm->init_state();
               
-  bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
+  bitset<STATE_MAX>* initial_to = hmm->initial_to_states();
   bitset<STATE_MAX>* from_trans(NULL);
               
   //Calculate Viterbi from transitions from INIT (initial) state
@@ -145,8 +145,8 @@ void trellis::forward() {
   bitset<STATE_MAX> current_states;
   double  forward_temp(-INFINITY);
   double  emission(-INFINITY);
-  State* init = hmm->getInitial();
-  bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
+  State* init = hmm->init_state();
+  bitset<STATE_MAX>* initial_to = hmm->initial_to_states();
   bitset<STATE_MAX>* from_trans(NULL);
 		
   // calculate forward scores from INIT state, and initialize next_states

@@ -14,8 +14,8 @@ State::~State(){
 
 // ----------------------------------------------------------------------------------------
 void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
-  name = node["name"].as<string>();
-  label = node["label"].as<string>();
+  name_ = node["name"].as<string>();
+  label_ = node["label"].as<string>();
 
   double total(0.0); // make sure things add to 1.0
   for (YAML::const_iterator it=node["transitions"].begin(); it!=node["transitions"].end(); ++it) {
@@ -35,7 +35,7 @@ void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   // TODO use something cleverer than a random hard coded EPS
   assert(fabs(total-1.0) < EPS);  // make sure transition probs sum to 1.0
 
-  if (name == "init")
+  if (name_ == "init")
     return;
       
   if (node["emissions"])
@@ -46,7 +46,7 @@ void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   
 // ----------------------------------------------------------------------------------------
 void State::print() {
-  cout << "state: " << name << " (" << label << ")" << endl;;
+  cout << "state: " << name_ << " (" << label_ << ")" << endl;;
 
   cout << "  transitions:" << endl;;
   for(size_t i=0; i<transi->size(); ++i) {
@@ -57,7 +57,7 @@ void State::print() {
   if (endi)
     endi->print();
       
-  if (name == "init")
+  if (name_ == "init")
     return;
 
   cout << "  emissions:" << endl;;

@@ -2,14 +2,14 @@
 
 namespace ham {
 // ----------------------------------------------------------------------------------------
-model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
-  ending = new State;
+model::model() : overall_gene_prob_(0),finalized(false),initial_(NULL) {
+  ending_ = new State;
 }
 
 // ----------------------------------------------------------------------------------------
 void model::parse(string infname) {
   YAML::Node config = YAML::LoadFile(infname);
-  name = config["name"].as<string>();
+  name_ = config["name"].as<string>();
   overall_gene_prob_ = config["extras"]["gene_prob"].as<double>();
   
   YAML::Node tracks(config["tracks"]);
@@ -38,13 +38,13 @@ void model::parse(string infname) {
     st->parse(config["states"][ist], state_names, tracks_);
     // st->print();
 
-    if (st->getName() == "init") {
-      initial = st;
-      stateByName[st->getName()] = st;  // TODO is this (stateByName) actually used?
+    if (st->name() == "init") {
+      initial_ = st;
+      stateByName[st->name()] = st;  // TODO is this (stateByName) actually used?
     } else {
       assert(states_.size() < STATE_MAX);
       states_.push_back(st);
-      stateByName[st->getName()] = st;
+      stateByName[st->name()] = st;
     }
   }
       
@@ -53,10 +53,10 @@ void model::parse(string infname) {
 }
       
 // ----------------------------------------------------------------------------------------
-void model::addState(State* st){
+void model::add_state(State* st){
   assert(states_.size() < STATE_MAX);
   states_.push_back(st);
-  stateByName[st->getName()]=st;
+  stateByName[st->name()]=st;
   return;
 };
   
@@ -85,7 +85,7 @@ void model::finalize() {
                       
     //Create temporary hash of states for layout
     for(size_t i=0;i<states_.size();i++){
-      labels.insert(states_[i]->getLabel());
+      labels.insert(states_[i]->label());
       // gff.insert(states_[i]->getGFF());
       // gff.insert(states_[i]->getName());
     }
@@ -99,7 +99,7 @@ void model::finalize() {
       _addStateToFromTransition(states_[i]);
     }
                       
-    _addStateToFromTransition(initial);
+    _addStateToFromTransition(initial_);
                       
     //Now that we've seen all the states in the model
     //We need to fix the States transitions vector transi, so that the state
@@ -107,7 +107,7 @@ void model::finalize() {
     for(size_t i=0;i<states_.size();i++){
       states_[i]->_finalizeTransitions(stateByName);
     }
-    initial->_finalizeTransitions(stateByName);
+    initial_->_finalizeTransitions(stateByName);
           
     //Check to see if model is basic model
     //Meaning that the model doesn't call outside functions or perform
@@ -165,14 +165,14 @@ void model::_addStateToFromTransition(State* st){
     if (temp){
       st->addToState(temp); //Also add the ptr to state vector::to
       (*trans)[i]->setState(temp);
-      if (st!=initial){
+      if (st!=initial_){
         temp->addFromState(st);
       }
     }
   }
       
   if (st->endi){
-    ending->addFromState(st);
+    ending_->addFromState(st);
   }
 }
   
@@ -189,7 +189,7 @@ bool model::checkTopology(){
               
   bool ending_defined(false);
               
-  _checkTopology(initial, visited);
+  _checkTopology(initial_, visited);
               
   while (visited.size()>0){
     uint16_t st_iter = visited.back();
@@ -208,7 +208,7 @@ bool model::checkTopology(){
       else if (num_visited == 1 && tmp_visited[0] == st_iter){
         //Orphaned
         if(states_[st_iter]->getEnding() == NULL){
-          cerr << "State: "  << states_[st_iter]->getName() << " is an orphaned state that has only transition to itself\n";
+          cerr << "State: "  << states_[st_iter]->name() << " is an orphaned state that has only transition to itself\n";
         }
         //                                      else{
         //                                              cerr << "State: "  << states_[st_iter]->getName() << " may be an orphaned state that only has transitions to itself and END state.\n";
@@ -239,7 +239,7 @@ bool model::checkTopology(){
               
   for(size_t i=0; i< states_visited.size(); i++){
     if (!states_visited[i]){
-      cerr << "State: "  << states_[i]->getName() << " doesn't have valid model topology\n\
+      cerr << "State: "  << states_[i]->name() << " doesn't have valid model topology\n\
                               Please check the model transitions\n";
       return false;
     }

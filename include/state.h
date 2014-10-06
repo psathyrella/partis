@@ -27,8 +27,8 @@ public:
 
   // accessors
   inline size_t getIterator(){return stateIterator;};
-  inline string& getName(){return name;};
-  inline string& getLabel(){return label;};
+  inline string& name(){return name_;};
+  inline string& label(){return label_;};
   inline vector<transition*>* getTransitions(){return transi;};
   inline bitset<STATE_MAX>* getTo(){return &to;};
   inline bitset<STATE_MAX>* getFrom(){return &from;};
@@ -47,8 +47,8 @@ public:
   void print();
               
   inline void setEndingTransition(transition* trans){endi=trans;};
-  inline void setName(string& txt){name=txt;};
-  inline void setLabel(string& txt){label=txt;};
+  inline void setName(string& txt){name_=txt;};
+  inline void setLabel(string& txt){label_=txt;};
   inline void addToState(State* st){to[st->getIterator()]=1;};
   inline void addFromState(State* st){from[st->getIterator()]=1;};
   inline void setIter(size_t val){stateIterator=val;};
@@ -56,8 +56,8 @@ public:
   void _finalizeTransitions(map<string,State*>& state_index);
 
 private:
-  string name;       /* State name */
-  string label;      /* State feature path label */
+  string name_;       /* State name */
+  string label_;      /* State feature path label */
               
   vector<transition*>* transi;
   transition* endi;
