@@ -21,8 +21,8 @@ class State {
   friend class model;
 public:
   State();
-  State(string&,stringList&,tracks&); //!Create state from string
-  void parse(YAML::Node node, vector<string> state_names, tracks trks);
+  State(string&,stringList&,Tracks&); //!Create state from string
+  void parse(YAML::Node node, vector<string> state_names, Tracks trks);
   ~State();
 
   // accessors
@@ -70,8 +70,8 @@ private:
   bitset<STATE_MAX> from;
               
   bool _parseHeader(string&);
-  bool _parseTransition(string&,stringList&, tracks&);
-  bool _parseEmissions(string&,stringList&, tracks&);
+  bool _parseTransition(string&,stringList&, Tracks&);
+  bool _parseEmissions(string&,stringList&, Tracks&);
 };
 }
 #endif

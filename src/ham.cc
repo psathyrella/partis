@@ -118,7 +118,7 @@ Args::Args(int argc, const char * argv[]):
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
-vector<Sequences*> GetSeqs(Args &args, track *trk) {
+vector<Sequences*> GetSeqs(Args &args, Track *trk) {
   vector<Sequences*> all_seqs;
   for (size_t iseq=0; iseq<args.strings_["seq"].size(); ++iseq) {
     Sequences *seqs = new Sequences;
@@ -158,7 +158,7 @@ int main(int argc, const char * argv[]) {
   // init some infrastructure
   size_t n_seqs_per_track(args.pair() ? 2 : 1);
   vector<string> characters{"A","C","G","T"};
-  track trk("NUKES", n_seqs_per_track, characters);
+  Track trk("NUKES", n_seqs_per_track, characters);
   vector<Sequences*> seqs(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), n_seqs_per_track, gl);

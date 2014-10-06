@@ -14,16 +14,14 @@ public:
   void finalize();
 
   inline string& getName() { return name; }
-  inline size_t n_states() { return states.size(); }
-  inline string& getStateName(size_t iter){ return states[iter]->getName(); }
-  inline string& getStateLabel(size_t iter){ return states[iter]->getLabel(); }
-  State* getState(const string&);
-  inline State*  getState(size_t iter) { return states[iter]; }
-  // inline State* operator[](size_t iter) { return states[iter]; }
+  inline size_t n_states() { return states_.size(); }
+  inline string& getStateName(size_t iter){ return states_[iter]->getName(); }
+  inline string& getStateLabel(size_t iter){ return states_[iter]->getLabel(); }
+  State* state(const string&);
+  inline State*  state(size_t iter) { return states_[iter]; }
   inline bitset<STATE_MAX>* getInitialTo() { return &(initial->to); }  //!Get vector of states that the initial state transitions to
   inline State*  getInitial() { return initial; }  //!Get pointer to the initial state
   inline State*  getEnding() { return ending; }  //!Get pointer to the ending state
-  inline track* trck() { return tracks_[0]; }  // this is why we don't name classes with lowercase letters
   inline double overall_gene_prob() { return overall_gene_prob_; }
 
   void addState(State*);
@@ -44,9 +42,9 @@ private:
   string command; //! Model Creation Command
   string author;  //! Model Author
 		
-  tracks tracks_;
+  Tracks tracks_;
 
-  vector<State*> states; //!  All the states contained in the model
+  vector<State*> states_; //!  All the states contained in the model
 
   map<string,State*> stateByName; //Ptr to state stored by State name;
 		

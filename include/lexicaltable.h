@@ -17,7 +17,7 @@ public:
   void init();
   ~LexicalTable();
 
-  void addTrack(track* trk, int order) { tracks.push_back(trk); }
+  void addTrack(Track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
 
   inline double getValue(size_t letter) { assert(letter < (*logProb)[0].size()); return (*logProb)[0][letter]; }
@@ -27,12 +27,12 @@ public:
   vector<vector<double> >* getProbabilityTable() { return prob; }
   vector<vector<double> >* getLogProbabilityTable() { return logProb; }
   vector<vector<double> >* getCountsTable() { return counts; }
-  inline track* getTrack(size_t iter) { return tracks[iter]; }
+  inline Track* getTrack(size_t iter) { return tracks[iter]; }
   inline size_t getNTracks(){ return tracks.size(); }
   inline uint8_t getAlphaSize(size_t i){ return tracks[i]->getAlphaSize(); }
   inline size_t getNumberOfAlphabets(){ return tracks.size(); }
 private:
-  vector<track*> tracks;  // tracks which are used by emissions in this table
+  vector<Track*> tracks;  // tracks which are used by emissions in this table
   // first index: seq 1 emission
   // second index: seq 2 emission
   // NOTE the two sequences cannot be distinguishable

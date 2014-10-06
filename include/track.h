@@ -14,8 +14,8 @@
 using namespace std;
 
 namespace ham{
-  class track;
-  class tracks;
+  class Track;
+  class Tracks;
 
   // ----------------------------------------------------------------------------------------
   // ! \class ambigCharacter
@@ -23,7 +23,7 @@ namespace ham{
   // !  For example in DNA N = [ACGT] = [0,1,2,3]
   class ambigCharacter {
   public:
-    ambigCharacter(track*, string&, vector<string>& ); //track, ambiguous character, unambiguous characters
+    ambigCharacter(Track*, string&, vector<string>& ); //track, ambiguous character, unambiguous characters
     inline string getSymbol(){return symbol;};
     inline vector<size_t>& getDef(){return setDefinition;};
   private:
@@ -36,14 +36,14 @@ namespace ham{
   //! Defines types of data (real-value, text-sequence) used in the model
   //! and the alphabet that a text-sequence uses.  Tracks are used to digitize
   //! the sequence before decoding in HMM
-  class track {
+  class Track {
   public:
-    track();
-    track(string, size_t, vector<string>&);
+    Track();
+    Track(string, size_t, vector<string>&);
         
     friend class State;
     friend class model;
-    friend class tracks;
+    friend class Tracks;
         
     // bool parse(string&);
     bool parseAmbiguous(string&);
@@ -221,24 +221,24 @@ namespace ham{
   };
         
     
-  class tracks{
+  class Tracks{
   public:
         
     //MUTATOR
-    void push_back(track*);
+    void push_back(Track*);
         
     //ACCESSOR
     size_t indexOf(const string&);
     size_t size(){return trks.size();};
-    track* getTrack(const string&);
+    Track* getTrack(const string&);
     bool isTrackDefined(const string&);
-    track* operator[](size_t i){return trks[i];};
+    Track* operator[](size_t i){return trks[i];};
         
     void print();
     string stringify();
         
   private:
-    vector<track*> trks;
+    vector<Track*> trks;
     map<string,size_t> index;
   };
         

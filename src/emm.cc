@@ -16,13 +16,13 @@ emm::~emm(){
 }
   
 // ----------------------------------------------------------------------------------------
-void emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
+void emm::parse(YAML::Node config, string is_pair, Tracks model_tracks) {
   scores.init();
   // NOTE at this point we only allow one track per emission (in particular, we require that pair emissions be on the same track). kinda TODO This'd be easy to change later, of course
-  tracks_ = new vector<track*>();  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
+  tracks_ = new vector<Track*>();  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
   if (is_pair=="single") {
     pair_ = false;
-    track *tk(model_tracks.getTrack(config["track"].as<string>()));
+    Track *tk(model_tracks.getTrack(config["track"].as<string>()));
     assert(tk);  // assures we actualy found the track in model_tracks
     tracks_->push_back(tk);
     scores.addTrack(tk, 0);
@@ -43,7 +43,7 @@ void emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
     pair_ = true;
     assert(config["tracks"].size() == 2);
     for (size_t it=0; it<config["tracks"].size(); ++it) {
-      track *tk(model_tracks.getTrack(config["tracks"][it].as<string>()));
+      Track *tk(model_tracks.getTrack(config["tracks"][it].as<string>()));
       assert(tk);  // assures we actualy found the track in model_tracks
       tracks_->push_back(tk);
       scores.addTrack(tk, 0);

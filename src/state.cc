@@ -13,7 +13,7 @@ State::~State(){
 }
 
 // ----------------------------------------------------------------------------------------
-void State::parse(YAML::Node node, vector<string> state_names, tracks trks) {
+void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   name = node["name"].as<string>();
   label = node["label"].as<string>();
 

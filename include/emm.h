@@ -19,7 +19,7 @@ class emm {
   friend class model;
 public:
   emm();
-  void parse(YAML::Node config, string is_pair, tracks model_tracks);
+  void parse(YAML::Node config, string is_pair, Tracks model_tracks);
   ~emm();
               
   bool pair() { return pair_; }
@@ -32,7 +32,7 @@ private:
   double total_;
   bool pair_;
   LexicalTable scores;
-  vector<track*>* tracks_;             //Tracks used
+  vector<Track*>* tracks_;             //Tracks used
   vector<size_t>* track_indices; //Indices of tracks used
 };
 

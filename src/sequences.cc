@@ -45,7 +45,7 @@ string Sequences::stringifyWOHeader() {
 string Sequences::stringify() {
   string tmp_str;
   for(size_t i=0; i<seqs.size(); i++) {
-    track* trk = seqs[i]->getTrack();
+    Track* trk = seqs[i]->getTrack();
     tmp_str += ">" + trk->getName() + "\n";
     tmp_str += seqs[i]->stringifyWOHeader();
   }
@@ -56,7 +56,7 @@ string Sequences::stringify() {
 string Sequences::undigitize() {
   string output;
   for(size_t i=0; i<seqs.size(); i++) {
-    track* trk = seqs[i]->getTrack();
+    Track* trk = seqs[i]->getTrack();
     output += ">" + trk->getName();
     output += seqs[i]->undigitize();
   }

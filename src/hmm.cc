@@ -14,7 +14,7 @@ void model::parse(string infname) {
   
   YAML::Node tracks(config["tracks"]);
   for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
-    track *trk = new track;
+    Track *trk = new Track;
     trk->setName(it->first.as<string>());
     for (size_t ic=0; ic<it->second.size(); ++ic)
       trk->addAlphabetChar(it->second[ic].as<string>());
@@ -42,8 +42,8 @@ void model::parse(string infname) {
       initial = st;
       stateByName[st->getName()] = st;  // TODO is this (stateByName) actually used?
     } else {
-      assert(states.size() < STATE_MAX);
-      states.push_back(st);
+      assert(states_.size() < STATE_MAX);
+      states_.push_back(st);
       stateByName[st->getName()] = st;
     }
   }
@@ -54,8 +54,8 @@ void model::parse(string infname) {
       
 // ----------------------------------------------------------------------------------------
 void model::addState(State* st){
-  assert(states.size() < STATE_MAX);
-  states.push_back(st);
+  assert(states_.size() < STATE_MAX);
+  states_.push_back(st);
   stateByName[st->getName()]=st;
   return;
 };
@@ -64,7 +64,7 @@ void model::addState(State* st){
 //!\param txt String name of state
 //!\return pointer to state if it exists;
 //!\return NULL if state doesn't exist in model
-State* model::getState(const string& txt){
+State* model::state(const string& txt){
   if (stateByName.count(txt)){
     return stateByName[txt];
   }
@@ -84,19 +84,19 @@ void model::finalize() {
     set<string> name;
                       
     //Create temporary hash of states for layout
-    for(size_t i=0;i<states.size();i++){
-      labels.insert(states[i]->getLabel());
-      // gff.insert(states[i]->getGFF());
-      // gff.insert(states[i]->getName());
+    for(size_t i=0;i<states_.size();i++){
+      labels.insert(states_[i]->getLabel());
+      // gff.insert(states_[i]->getGFF());
+      // gff.insert(states_[i]->getName());
     }
                       
-    for (size_t i=0; i < states.size() ; ++i){
-      states[i]->setIter(i);
+    for (size_t i=0; i < states_.size() ; ++i){
+      states_[i]->setIter(i);
     }
           
     //Add states To and From transition
-    for(size_t i=0;i<states.size();i++){
-      _addStateToFromTransition(states[i]);
+    for(size_t i=0;i<states_.size();i++){
+      _addStateToFromTransition(states_[i]);
     }
                       
     _addStateToFromTransition(initial);
@@ -104,8 +104,8 @@ void model::finalize() {
     //Now that we've seen all the states in the model
     //We need to fix the States transitions vector transi, so that the state
     //iterator correlates to the position within the vector
-    for(size_t i=0;i<states.size();i++){
-      states[i]->_finalizeTransitions(stateByName);
+    for(size_t i=0;i<states_.size();i++){
+      states_[i]->_finalizeTransitions(stateByName);
     }
     initial->_finalizeTransitions(stateByName);
           
@@ -161,7 +161,7 @@ void model::_addStateToFromTransition(State* st){
   trans = st->getTransitions();
   for(size_t i=0;i<trans->size();i++){
     State* temp;
-    temp=this->getState((*trans)[i]->getName());
+    temp=this->state((*trans)[i]->getName());
     if (temp){
       st->addToState(temp); //Also add the ptr to state vector::to
       (*trans)[i]->setState(temp);
@@ -184,7 +184,7 @@ bool model::checkTopology(){
   //! 2. Dead end States
   //! 3. Uncompleted States
               
-  vector<bool> states_visited (states.size(),false);
+  vector<bool> states_visited (states_.size(),false);
   vector<uint16_t> visited;
               
   bool ending_defined(false);
@@ -197,21 +197,21 @@ bool model::checkTopology(){
                       
     if (!states_visited[st_iter]){
       vector<uint16_t> tmp_visited;
-      _checkTopology(states[st_iter],tmp_visited);
+      _checkTopology(states_[st_iter],tmp_visited);
       size_t num_visited = tmp_visited.size();
                               
       //Check orphaned
       if (num_visited == 0 ){
         //No transitions
-        //cerr << "Warning: State: "  << states[st_iter]->getName() << " has no transitions defined\n";
+        //cerr << "Warning: State: "  << states_[st_iter]->getName() << " has no transitions defined\n";
       }
       else if (num_visited == 1 && tmp_visited[0] == st_iter){
         //Orphaned
-        if(states[st_iter]->getEnding() == NULL){
-          cerr << "State: "  << states[st_iter]->getName() << " is an orphaned state that has only transition to itself\n";
+        if(states_[st_iter]->getEnding() == NULL){
+          cerr << "State: "  << states_[st_iter]->getName() << " is an orphaned state that has only transition to itself\n";
         }
         //                                      else{
-        //                                              cerr << "State: "  << states[st_iter]->getName() << " may be an orphaned state that only has transitions to itself and END state.\n";
+        //                                              cerr << "State: "  << states_[st_iter]->getName() << " may be an orphaned state that only has transitions to itself and END state.\n";
         //                                      }
       }
                               
@@ -226,8 +226,8 @@ bool model::checkTopology(){
   }
               
   //Check for defined ending
-  for(size_t i=0; i< states.size() ; i++){
-    if ( states[i]->getEnding() != NULL){
+  for(size_t i=0; i< states_.size() ; i++){
+    if ( states_[i]->getEnding() != NULL){
       ending_defined = true;
       break;
     }
@@ -239,7 +239,7 @@ bool model::checkTopology(){
               
   for(size_t i=0; i< states_visited.size(); i++){
     if (!states_visited[i]){
-      cerr << "State: "  << states[i]->getName() << " doesn't have valid model topology\n\
+      cerr << "State: "  << states_[i]->getName() << " doesn't have valid model topology\n\
                               Please check the model transitions\n";
       return false;
     }

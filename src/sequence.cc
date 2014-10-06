@@ -3,7 +3,7 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(string& seq_str, track* trk, string name):
+Sequence::Sequence(string& seq_str, Track* trk, string name):
   name_(name),
   undigitized_(seq_str),
   track_(trk)
@@ -90,7 +90,7 @@ string Sequence::undigitize() {
 }
   
 // ----------------------------------------------------------------------------------------
-bool Sequence::getFasta(ifstream& file, track* trk) {
+bool Sequence::getFasta(ifstream& file, Track* trk) {
   if (seq_) this->clear();
   track_ = trk;
   assert(file.good());
@@ -162,7 +162,7 @@ bool Sequence::_digitize() {
 //! \param file File stream to file
 //! \param trk Track to used to digitize
 //! \return true if the sequence was successfully imported
-bool Sequence::getFastq(ifstream& file, track* trk){
+bool Sequence::getFastq(ifstream& file, Track* trk){
               
   if (seq_!=NULL){
     this->clear();
