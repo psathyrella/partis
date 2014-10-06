@@ -3,7 +3,7 @@
 namespace ham {
 // ----------------------------------------------------------------------------------------
 model::model() : overall_gene_prob_(0),finalized(false),initial(NULL) {
-  ending = new state;
+  ending = new State;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -34,9 +34,9 @@ void model::parse(string infname) {
   }
 
   for (size_t ist=0; ist<state_names.size(); ++ist) {
-    state *st(new state);
+    State *st(new State);
     st->parse(config["states"][ist], state_names, tracks_);
-    st->print();
+    // st->print();
 
     if (st->getName() == "init") {
       initial = st;
@@ -47,14 +47,13 @@ void model::parse(string infname) {
       stateByName[st->getName()] = st;
     }
   }
-    assert(0);
       
   //Post process states to create final state with only transitions from filled out
   finalize();
 }
       
 // ----------------------------------------------------------------------------------------
-void model::addState(state* st){
+void model::addState(State* st){
   assert(states.size() < STATE_MAX);
   states.push_back(st);
   stateByName[st->getName()]=st;
@@ -65,7 +64,7 @@ void model::addState(state* st){
 //!\param txt String name of state
 //!\return pointer to state if it exists;
 //!\return NULL if state doesn't exist in model
-state* model::getState(const string& txt){
+State* model::getState(const string& txt){
   if (stateByName.count(txt)){
     return stateByName[txt];
   }
@@ -155,13 +154,13 @@ void model::finalize() {
       
 
 // ----------------------------------------------------------------------------------------
-void model::_addStateToFromTransition(state* st){
+void model::_addStateToFromTransition(State* st){
   vector<transition*>* trans;
       
   //Process Initial State
   trans = st->getTransitions();
   for(size_t i=0;i<trans->size();i++){
-    state* temp;
+    State* temp;
     temp=this->getState((*trans)[i]->getName());
     if (temp){
       st->addToState(temp); //Also add the ptr to state vector::to
@@ -249,7 +248,7 @@ bool model::checkTopology(){
 }
       
 // ----------------------------------------------------------------------------------------
-void model::_checkTopology(state* st, vector<uint16_t>& visited){
+void model::_checkTopology(State* st, vector<uint16_t>& visited){
   //Follow transitions to see if every state is visited
   for(size_t i = 0 ; i < st->transi->size() ; i++){
     if (st->transi->at(i) != NULL){

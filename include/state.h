@@ -17,13 +17,13 @@ using namespace std;
 namespace ham {
 class transition;
   
-class state {
+class State {
   friend class model;
 public:
-  state();
-  state(string&,stringList&,tracks&); //!Create state from string
+  State();
+  State(string&,stringList&,tracks&); //!Create state from string
   void parse(YAML::Node node, vector<string> state_names, tracks trks);
-  ~state();
+  ~State();
 
   // accessors
   inline size_t getIterator(){return stateIterator;};
@@ -49,11 +49,11 @@ public:
   inline void setEndingTransition(transition* trans){endi=trans;};
   inline void setName(string& txt){name=txt;};
   inline void setLabel(string& txt){label=txt;};
-  inline void addToState(state* st){to[st->getIterator()]=1;};
-  inline void addFromState(state* st){from[st->getIterator()]=1;};
+  inline void addToState(State* st){to[st->getIterator()]=1;};
+  inline void addFromState(State* st){from[st->getIterator()]=1;};
   inline void setIter(size_t val){stateIterator=val;};
               
-  void _finalizeTransitions(map<string,state*>& state_index);
+  void _finalizeTransitions(map<string,State*>& state_index);
 
 private:
   string name;       /* State name */

@@ -44,7 +44,7 @@ void trellis::viterbi() {
   ending_viterbi_tb = -1;
   ending_viterbi_score = -INFINITY;
               
-  state* init = hmm->getInitial();
+  State* init = hmm->getInitial();
               
   bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
   bitset<STATE_MAX>* from_trans(NULL);
@@ -52,12 +52,12 @@ void trellis::viterbi() {
   //Calculate Viterbi from transitions from INIT (initial) state
   for(size_t st = 0; st < hmm->n_states(); ++st) {
     if ((*initial_to)[st]) {  //if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      viterbi_temp = (*hmm)[st]->emission_score(*seqs,0) + init->transition_score(st);
+      viterbi_temp = hmm->getState(st)->emission_score(*seqs,0) + init->transition_score(st);
       if (viterbi_temp > -INFINITY) {
 	if ((*scoring_current)[st] < viterbi_temp) {  // NOTE this is always true since all we've done to scoring_current so far is initialize it to -INFINITY
 	  (*scoring_current)[st] = viterbi_temp;
 	}
-	next_states |= (*(*hmm)[st]->getTo());  // no effect right here, but leaves next_states set to the OR of all transitions out of all states
+	next_states |= (*hmm->getState(st)->getTo());  // no effect right here, but leaves next_states set to the OR of all transitions out of all states
       }
     }
   }
@@ -82,13 +82,13 @@ void trellis::viterbi() {
 	continue;
                               
       // Get emission of current state
-      emission = (*hmm)[st_current]->emission_score(*seqs, position);
+      emission = hmm->getState(st_current)->emission_score(*seqs, position);
                               
       if (emission == -INFINITY)  // zero probabiility, may as will stop
 	continue;
                               
       // get list of states that are valid previous states
-      from_trans = (*hmm)[st_current]->getFrom();
+      from_trans = hmm->getState(st_current)->getFrom();
                               
       for (size_t st_previous=0; st_previous<hmm->n_states() ; ++st_previous) {  //for previous states
 	if (!(*from_trans)[st_previous])
@@ -97,14 +97,14 @@ void trellis::viterbi() {
 	//Check that previous state has transition to current state
 	//and that the previous viterbi score is not -INFINITY
 	if ((*scoring_previous)[st_previous] != -INFINITY) {
-	  viterbi_temp = (*hmm)[st_previous]->transition_score(st_current) + emission + (*scoring_previous)[st_previous];
+	  viterbi_temp = hmm->getState(st_previous)->transition_score(st_current) + emission + (*scoring_previous)[st_previous];
                                               
 	  if (viterbi_temp > (*scoring_current)[st_current]) {
 	    (*scoring_current)[st_current] = viterbi_temp;
 	    (*traceback_table)[position][st_current] = st_previous;
 	  }
                                               
-	  next_states |= (*(*hmm)[st_current]->getTo());
+	  next_states |= (*hmm->getState(st_current)->getTo());
 	}
       }
     }
@@ -120,7 +120,7 @@ void trellis::viterbi() {
   //Calculate ending viterbi score and traceback from END state
   for(size_t st_previous = 0; st_previous < hmm->n_states() ;++st_previous) {
     if ((*scoring_previous)[st_previous] > -INFINITY) {
-      viterbi_temp = (*scoring_previous)[st_previous] + (*hmm)[st_previous]->getEndTrans();
+      viterbi_temp = (*scoring_previous)[st_previous] + hmm->getState(st_previous)->getEndTrans();
                               
       if (viterbi_temp > ending_viterbi_score) {
 	ending_viterbi_score = viterbi_temp;
@@ -145,19 +145,19 @@ void trellis::forward() {
   bitset<STATE_MAX> current_states;
   double  forward_temp(-INFINITY);
   double  emission(-INFINITY);
-  state* init = hmm->getInitial();
+  State* init = hmm->getInitial();
   bitset<STATE_MAX>* initial_to = hmm->getInitialTo();
   bitset<STATE_MAX>* from_trans(NULL);
 		
   // calculate forward scores from INIT state, and initialize next_states
   for(size_t st=0; st<hmm->n_states(); ++st) {
     if ((*initial_to)[st]) {  // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      double emscore = (*hmm)[st]->emission_score(*seqs, 0);
+      double emscore = hmm->getState(st)->emission_score(*seqs, 0);
       forward_temp = emscore + init->getTrans(st)->score();
       if (forward_temp > -INFINITY) {
 	(*forward_score)[0][st] = forward_temp;
 	(*scoring_current)[st] = forward_temp;
-	next_states |= (*(*hmm)[st]->getTo());
+	next_states |= (*hmm->getState(st)->getTo());
       }
     }
   }
@@ -179,14 +179,14 @@ void trellis::forward() {
       if (!current_states[st_current])
 	continue;
               
-      emission = (*hmm)[st_current]->emission_score(*seqs, position);
-      from_trans = (*hmm)[st_current]->getFrom();
+      emission = hmm->getState(st_current)->emission_score(*seqs, position);
+      from_trans = hmm->getState(st_current)->getFrom();
       for (size_t previous=0; previous<hmm->n_states(); ++previous) {  //j is previous state
 	if (!(*from_trans)[previous])
 	  continue;
 					
 	if ((*scoring_previous)[previous] != -INFINITY) {
-	  forward_temp = (*scoring_previous)[previous] + emission + (*hmm)[previous]->transition_score(st_current);
+	  forward_temp = (*scoring_previous)[previous] + emission + hmm->getState(previous)->transition_score(st_current);
 	  if ((*scoring_current)[st_current] == -INFINITY) {
 	    (*scoring_current)[st_current] = forward_temp;
 	    (*forward_score)[position][st_current] = forward_temp;
@@ -194,7 +194,7 @@ void trellis::forward() {
 	    (*scoring_current)[st_current] = AddInLogSpace(forward_temp, (*scoring_current)[st_current]);
 	    (*forward_score)[position][st_current] = (*scoring_current)[st_current];
 	  }
-	  next_states |= (*(*hmm)[st_current]->getTo());
+	  next_states |= (*hmm->getState(st_current)->getTo());
 	}
       }
     }
@@ -209,7 +209,7 @@ void trellis::forward() {
   ending_forward_prob = -INFINITY;
   for(size_t st_previous=0; st_previous<hmm->n_states(); ++st_previous) {
     if ((*scoring_previous)[st_previous] != -INFINITY) {
-      forward_temp = (*scoring_previous)[st_previous] + (*hmm)[st_previous]->getEndTrans();
+      forward_temp = (*scoring_previous)[st_previous] + hmm->getState(st_previous)->getEndTrans();
       if (forward_temp > -INFINITY) {
 	if (ending_forward_prob == -INFINITY){
 	  ending_forward_prob = forward_temp;

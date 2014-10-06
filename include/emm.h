@@ -15,7 +15,7 @@ using namespace std;
 namespace ham {
 
 class emm {
-  friend class state;
+  friend class State;
   friend class model;
 public:
   emm();
@@ -28,8 +28,8 @@ public:
   inline double score(Sequences& seqs, size_t pos) { return scores.getValue(seqs, pos); }
   
   void print();
-  double total_;
 private:
+  double total_;
   bool pair_;
   LexicalTable scores;
   vector<track*>* tracks_;             //Tracks used

@@ -2,18 +2,18 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-state::state() : endi(NULL), stateIterator(SIZE_MAX) {
+State::State() : endi(NULL), stateIterator(SIZE_MAX) {
   transi = new (nothrow) vector<transition*>;
 }
   
 // ----------------------------------------------------------------------------------------
-state::~state(){
+State::~State(){
   delete transi;
   transi=NULL;
 }
 
 // ----------------------------------------------------------------------------------------
-void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
+void State::parse(YAML::Node node, vector<string> state_names, tracks trks) {
   name = node["name"].as<string>();
   label = node["label"].as<string>();
 
@@ -45,7 +45,7 @@ void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
 }
   
 // ----------------------------------------------------------------------------------------
-void state::print() {
+void State::print() {
   cout << "state: " << name << " (" << label << ")" << endl;;
 
   cout << "  transitions:" << endl;;
@@ -67,7 +67,7 @@ void state::print() {
 }
       
 //! Get the log probability transitioning to end from the state.
-double state::getEndTrans(){
+double State::getEndTrans(){
   if (endi==NULL){
     return -INFINITY;
   }
@@ -82,7 +82,7 @@ double state::getEndTrans(){
    
    This function puts the transitions in the proper order for analysis
 */
-void state::_finalizeTransitions(map<string,state*>& state_index){
+void State::_finalizeTransitions(map<string,State*>& state_index){
               
   //Get size # of states, but correct by -1 because
   //initial state will be kept separate.
@@ -93,7 +93,7 @@ void state::_finalizeTransitions(map<string,state*>& state_index){
   for(size_t i = 0; i < transi->size(); i++){
     transition* temp = (*transi)[i];
     string name = temp->getName();
-    state* st = state_index[name];
+    State* st = state_index[name];
     if (st == NULL){
 	cerr << "State: " << name << " was declared but not defined in the model." << endl;
 	exit(2);

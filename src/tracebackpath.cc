@@ -38,7 +38,7 @@ namespace ham {
   //! Get the label of the TracebackPath and assigns to vector<string> ref
   void TracebackPath::label(vector<string>& pth){
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
-      state* st = hmm->getState(trace_path[k]);
+      State* st = hmm->getState(trace_path[k]);
       pth.push_back(st->getLabel());
     }
     return;
@@ -54,7 +54,7 @@ namespace ham {
         
         
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--){
-      state* st = hmm->getState(trace_path[k]);
+      State* st = hmm->getState(trace_path[k]);
       pth+=st->getLabel();
     }
     return;
@@ -70,7 +70,7 @@ namespace ham {
     }
                 
     for(size_t k = trace_path.size()-1; k != SIZE_MAX; k--){
-      state* st = hmm->getState(trace_path[k]);
+      State* st = hmm->getState(trace_path[k]);
       pth.push_back(st->getName());
     }
     return;
@@ -90,7 +90,7 @@ namespace ham {
     }
         
     for(size_t k = path_size-1;k != SIZE_MAX; k--){
-      // state* st = hmm->getState(trace_path[k]);
+      // State* st = hmm->getState(trace_path[k]);
       string new_label="FOO";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
@@ -238,7 +238,7 @@ namespace ham {
   void TracebackPath::print_label() const {
     assert(hmm);
     for(size_t k=trace_path.size()-1; k!=SIZE_MAX; k--) {
-      state* st = hmm->getState(trace_path[k]);
+      State* st = hmm->getState(trace_path[k]);
       cout << st->getLabel() << " ";
       cout.flush();
     }
@@ -257,7 +257,7 @@ namespace ham {
     }
         
     for(size_t k=path_size-1;k != SIZE_MAX;k--){
-      // state* st = hmm->getState(trace_path[k]);
+      // State* st = hmm->getState(trace_path[k]);
       string new_label="FOOP";//st->getGFF();
       if (new_label.compare("")==0){
 	if (start>0){
@@ -307,7 +307,7 @@ namespace ham {
     }
         
     for(size_t k = path_size-1; k != SIZE_MAX; k--){
-      // state* st = hmm->getState(trace_path[k]);
+      // State* st = hmm->getState(trace_path[k]);
       string new_label="FOOP";//st->getGFF();
                         
       //If no label then print 
