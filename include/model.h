@@ -14,12 +14,12 @@ public:
   void add_state(State*);
   void finalize();
 		
-  inline string& name() { return name_; }
+  inline string &name() { return name_; }
   inline size_t n_states() { return states_.size(); }
-  inline State* state(string name) { assert(states_by_name_.count(name)); return states_by_name_[name]; }
-  inline State* state(size_t ist) { assert(ist < states_.size()); return states_[ist]; }
-  inline bitset<STATE_MAX>* initial_to_states() { return initial_->to_states(); }  //!Get vector of states that the initial state transitions to
-  inline State* init_state() { return initial_; }  //!Get pointer to the initial state
+  inline State *state(string name) { assert(states_by_name_.count(name)); return states_by_name_[name]; }
+  inline State *state(size_t ist) { assert(ist < states_.size()); return states_[ist]; }
+  inline bitset<STATE_MAX> *initial_to_states() { return initial_->to_states(); }  //!Get vector of states that the initial state transitions to
+  inline State *init_state() { return initial_; }  //!Get pointer to the initial state
   inline double overall_prob() { return overall_prob_; }
 
 private:
@@ -32,9 +32,9 @@ private:
   State* ending_;
   bool finalized_;
 		
-  void finalize_state(State*);
-  bool checkTopology();
-  void _checkTopology(State* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there
+  void finalize_state(State *st);
+  void check_topology();
+  void add_to_state_indices(State* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there
 };
 
 }

@@ -79,11 +79,11 @@ double State::getEndTrans(){
 // ----------------------------------------------------------------------------------------
 // On initial import of the states they are pushed onto <transitions_> in
 // the order written in the model file. But later on we need them to be in the order specified by <index_>.   
-// So here we replace make a new vector <fixed_trans> with the proper ordering and replace <transitions_> with this
+// So here we replace make a new vector <fixed_transitions> with the proper ordering and replace <transitions_> with this
 // new vector.
 void State::reorder_transitions(map<string,State*> &state_indices) {
   size_t n_states(state_indices.size());
-  vector<Transition*> *fixed_trans = new vector<Transition*>(n_states-1, NULL);  // subtract 1 because initial state is kept separate
+  vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states-1, NULL);  // subtract 1 because initial state is kept separate
       
   // find the proper place for the transition and put it in the correct position
   for(size_t i=0; i<transitions_->size(); ++i) {
@@ -91,11 +91,11 @@ void State::reorder_transitions(map<string,State*> &state_indices) {
     string to_state_name(temp->to_state_name());
     assert(state_indices.count(to_state_name));
     State *st(state_indices[to_state_name]);
-    (*fixed_trans)[st->index()] = temp;
+    (*fixed_transitions)[st->index()] = temp;
   }
       
-  delete transitions_;  // don't need old transition vector anymore
-  transitions_ = fixed_trans;
+  delete transitions_;
+  transitions_ = fixed_transitions;
 }
 
 }

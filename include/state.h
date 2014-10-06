@@ -28,7 +28,7 @@ public:
   inline string& name(){return name_;}
   inline string& label(){return label_;}
   inline size_t index(){return index_;}  // index of this state in the HMM model
-  inline vector<Transition*>* getTransitions(){return transitions_;}
+  inline vector<Transition*>* transitions(){return transitions_;}
   inline bitset<STATE_MAX>* to_states(){return &to_states_;}
   inline bitset<STATE_MAX>* from_states(){return &from_states_;}
   inline Transition* getTrans(size_t iter) { return (*transitions_)[iter]; }

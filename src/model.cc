@@ -72,14 +72,12 @@ void model::finalize() {
     finalize_state(states_[i]);
   finalize_state(initial_);
                       
-  //Now that we've seen all the states in the model
-  //We need to fix the States transitions vector transi, so that the state
-  //iterator correlates to the position within the vector
+  // now we need to fix state::transitions_ so that it agrees with state:index_
   for(size_t i=0; i<states_.size(); ++i)
     states_[i]->reorder_transitions(states_by_name_);
   initial_->reorder_transitions(states_by_name_);
           
-  checkTopology();
+  check_topology();
                       
   finalized_ = true;
 }
@@ -89,7 +87,7 @@ void model::finalize() {
 void model::finalize_state(State *st) {
   // Set the bitsets in <st> that say which states we can go to from <st>, and from which we can arrive at <st>.
   // Also set to-state pointers in <st>'s transitions
-  vector<Transition*>* transitions(st->getTransitions());
+  vector<Transition*>* transitions(st->transitions());
   for(size_t it=0; it<transitions->size(); ++it) {  // loops over the transitions out of <st>
     string to_state_name(transitions->at(it)->to_state_name());
     assert(states_by_name_.count(to_state_name));
@@ -105,84 +103,73 @@ void model::finalize_state(State *st) {
 }
   
 // ----------------------------------------------------------------------------------------
-bool model::checkTopology(){
+void model::check_topology(){
   //!Check model topology
   //!Iterates through all states to check to see if there are any:
   //! 1. Orphaned States
   //! 2. Dead end States
   //! 3. Uncompleted States
               
-  vector<bool> states_visited (states_.size(),false);
   vector<uint16_t> visited;
+  add_to_state_indices(initial_, visited);  // add <initial_>'s transition to-states to <visited>
               
-  bool ending_defined(false);
-              
-  _checkTopology(initial_, visited);
-              
-  while (visited.size()>0){
-    uint16_t st_iter = visited.back();
+  vector<bool> states_visited(states_.size(), false);
+  while (visited.size()>0) {
+    uint16_t st_iter(visited.back());
     visited.pop_back();
-                      
-    if (!states_visited[st_iter]){
+    if (!states_visited[st_iter]) {
       vector<uint16_t> tmp_visited;
-      _checkTopology(states_[st_iter],tmp_visited);
-      size_t num_visited = tmp_visited.size();
+      add_to_state_indices(states_[st_iter], tmp_visited);
+      size_t num_visited(tmp_visited.size());
                               
-      //Check orphaned
+      // check orphaned
       if (num_visited == 0 ){
-        //No transitions
-        //cerr << "Warning: State: "  << states_[st_iter]->getName() << " has no transitions defined\n";
-      }
-      else if (num_visited == 1 && tmp_visited[0] == st_iter){
-        //Orphaned
-        if(states_[st_iter]->end_trans() == NULL){
-          cerr << "State: "  << states_[st_iter]->name() << " is an orphaned state that has only transition to itself\n";
-        }
-        //                                      else{
-        //                                              cerr << "State: "  << states_[st_iter]->getName() << " may be an orphaned state that only has transitions to itself and END state.\n";
-        //                                      }
+	// we get here if the state only has a transition to the end state. TODO reinstate this check
+        // cerr << "Warning: State: "  << states_[st_iter]->name() << " has no transitions defined\n";
+      } else if (num_visited == 1 && tmp_visited[0] == st_iter) {
+        if (states_[st_iter]->end_trans() == NULL) {
+          cerr << "State: "  << states_[st_iter]->name() << " is an orphaned state that has only transition to itself" << endl;
+	} else {
+	  cerr << "State: "  << states_[st_iter]->name() << " may be an orphaned state that only has transitions to itself and END state." << endl;
+	}
       }
                               
-      for(size_t i=0; i < tmp_visited.size(); i++){
-        if (!states_visited[tmp_visited[i]]){
+      for(size_t i=0; i<tmp_visited.size(); ++i) {
+        if (!states_visited[tmp_visited[i]])
           visited.push_back(tmp_visited[i]);
-        }
       }
-                              
+
       states_visited[st_iter] = true;
     }
   }
               
-  //Check for defined ending
-  for(size_t i=0; i< states_.size() ; i++){
+  // make sure that ending is defined
+  bool ending_defined(false);
+  for(size_t i=0; i<states_.size(); ++i) {
     if (states_[i]->end_trans()) {
       ending_defined = true;
       break;
     }
   }
-              
-  if (!ending_defined){
+  if (!ending_defined) {
     cerr << "No END state defined in the model\n";
+    assert(0);
   }
               
-  for(size_t i=0; i< states_visited.size(); i++){
-    if (!states_visited[i]){
-      cerr << "State: "  << states_[i]->name() << " doesn't have valid model topology\n\
-                              Please check the model transitions\n";
-      return false;
+  for(size_t i=0; i<states_visited.size(); ++i) {
+    if (!states_visited[i]) {
+      cerr << "ERROR state \""  << states_[i]->name() << "\" has bad topology. Check its transitions.\n";
+      assert(0);
     }
   }
-  return true;
 }
       
 // ----------------------------------------------------------------------------------------
-void model::_checkTopology(State* st, vector<uint16_t>& visited){
-  //Follow transitions to see if every state is visited
-  for(size_t i = 0 ; i < st->getTransitions()->size() ; i++){
-    if (st->getTransitions()->at(i) != NULL){
-      visited.push_back(st->getTransitions()->at(i)->to_state()->index());
-    }
+void model::add_to_state_indices(State *st, vector<uint16_t> &visited) {
+  // for each transition out of <st>, add the index of its to-state to <visited>
+  for(size_t i=0; i<st->transitions()->size(); ++i) {
+    if (st->transitions()->at(i))
+      visited.push_back(st->transitions()->at(i)->to_state()->index());
   }
-  return;
 }
 }
