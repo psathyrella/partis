@@ -57,7 +57,7 @@ void trellis::viterbi() {
 	if ((*scoring_current)[st] < viterbi_temp) {  // NOTE this is always true since all we've done to scoring_current so far is initialize it to -INFINITY
 	  (*scoring_current)[st] = viterbi_temp;
 	}
-	next_states |= (*hmm->state(st)->getTo());  // no effect right here, but leaves next_states set to the OR of all transitions out of all states
+	next_states |= (*hmm->state(st)->to_states());  // no effect right here, but leaves next_states set to the OR of all transitions out of all states
       }
     }
   }
@@ -88,7 +88,7 @@ void trellis::viterbi() {
 	continue;
                               
       // get list of states that are valid previous states
-      from_trans = hmm->state(st_current)->getFrom();
+      from_trans = hmm->state(st_current)->from_states();
                               
       for (size_t st_previous=0; st_previous<hmm->n_states() ; ++st_previous) {  //for previous states
 	if (!(*from_trans)[st_previous])
@@ -104,7 +104,7 @@ void trellis::viterbi() {
 	    (*traceback_table)[position][st_current] = st_previous;
 	  }
                                               
-	  next_states |= (*hmm->state(st_current)->getTo());
+	  next_states |= (*hmm->state(st_current)->to_states());
 	}
       }
     }
@@ -157,7 +157,7 @@ void trellis::forward() {
       if (forward_temp > -INFINITY) {
 	(*forward_score)[0][st] = forward_temp;
 	(*scoring_current)[st] = forward_temp;
-	next_states |= (*hmm->state(st)->getTo());
+	next_states |= (*hmm->state(st)->to_states());
       }
     }
   }
@@ -180,7 +180,7 @@ void trellis::forward() {
 	continue;
               
       emission = hmm->state(st_current)->emission_score(*seqs, position);
-      from_trans = hmm->state(st_current)->getFrom();
+      from_trans = hmm->state(st_current)->from_states();
       for (size_t previous=0; previous<hmm->n_states(); ++previous) {  //j is previous state
 	if (!(*from_trans)[previous])
 	  continue;
@@ -194,7 +194,7 @@ void trellis::forward() {
 	    (*scoring_current)[st_current] = AddInLogSpace(forward_temp, (*scoring_current)[st_current]);
 	    (*forward_score)[position][st_current] = (*scoring_current)[st_current];
 	  }
-	  next_states |= (*hmm->state(st_current)->getTo());
+	  next_states |= (*hmm->state(st_current)->to_states());
 	}
       }
     }

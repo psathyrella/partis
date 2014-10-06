@@ -1,8 +1,8 @@
-#include "hmm.h"
+#include "model.h"
 
 namespace ham {
 // ----------------------------------------------------------------------------------------
-model::model() : overall_gene_prob_(0),finalized(false),initial_(NULL) {
+model::model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
   ending_ = new State;
 }
 
@@ -10,7 +10,7 @@ model::model() : overall_gene_prob_(0),finalized(false),initial_(NULL) {
 void model::parse(string infname) {
   YAML::Node config = YAML::LoadFile(infname);
   name_ = config["name"].as<string>();
-  overall_gene_prob_ = config["extras"]["gene_prob"].as<double>();
+  overall_prob_ = config["extras"]["gene_prob"].as<double>();
   
   YAML::Node tracks(config["tracks"]);
   for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
@@ -40,122 +40,94 @@ void model::parse(string infname) {
 
     if (st->name() == "init") {
       initial_ = st;
-      stateByName[st->name()] = st;  // TODO is this (stateByName) actually used?
+      states_by_name_[st->name()] = st;
     } else {
       assert(states_.size() < STATE_MAX);
       states_.push_back(st);
-      stateByName[st->name()] = st;
+      states_by_name_[st->name()] = st;
     }
   }
       
-  //Post process states to create final state with only transitions from filled out
-  finalize();
+  finalize(); // post process states and/to create an end state with only transitions-from
 }
       
 // ----------------------------------------------------------------------------------------
-void model::add_state(State* st){
+void model::add_state(State* state) {
   assert(states_.size() < STATE_MAX);
-  states_.push_back(st);
-  stateByName[st->name()]=st;
+  states_.push_back(state);
+  states_by_name_[state->name()] = state;
   return;
-};
-  
-//!Get pointer to state by state name
-//!\param txt String name of state
-//!\return pointer to state if it exists;
-//!\return NULL if state doesn't exist in model
-State* model::state(const string& txt){
-  if (stateByName.count(txt)){
-    return stateByName[txt];
-  }
-  else {
-    return NULL;
-  }
 }
       
-  
 // ----------------------------------------------------------------------------------------
-//!Finalize the model before performing decoding
-//!Sets transitions, checks labels, Determines if model is basic or requires intermittent tracebacks
+// set transitions, check labels, and perform other checks
 void model::finalize() {
-  if (!finalized) {
-    //Add States To Transitions
-    set<string> labels;
-    set<string> name;
-                      
-    //Create temporary hash of states for layout
-    for(size_t i=0;i<states_.size();i++){
-      labels.insert(states_[i]->label());
-      // gff.insert(states_[i]->getGFF());
-      // gff.insert(states_[i]->getName());
-    }
-                      
-    for (size_t i=0; i < states_.size() ; ++i){
-      states_[i]->setIter(i);
-    }
-          
-    //Add states To and From transition
-    for(size_t i=0;i<states_.size();i++){
-      _addStateToFromTransition(states_[i]);
-    }
-                      
-    _addStateToFromTransition(initial_);
-                      
-    //Now that we've seen all the states in the model
-    //We need to fix the States transitions vector transi, so that the state
-    //iterator correlates to the position within the vector
-    for(size_t i=0;i<states_.size();i++){
-      states_[i]->_finalizeTransitions(stateByName);
-    }
-    initial_->_finalizeTransitions(stateByName);
-          
-    //Check to see if model is basic model
-    //Meaning that the model doesn't call outside functions or perform
-    //Tracebacks for explicit duration.
-    //If explicit duration exist then we'll keep track of which states
-    //they are in explicit_duration_states
-    //            for(size_t i=0;i<states.size();i++){
-    //                vector<transition*>* transitions = states[i]->getTransitions();
-    //                for(size_t trans=0;trans<transitions->size();trans++){
-    //                                      if ((*transitions)[trans] == NULL){
-    //                                              continue;
-    //                                      }
-    //                                      
-    //                    if ((*transitions)[trans]->FunctionDefined()){
-    //                        basicModel=false;
-    //                        break;
-    //                    }
-    //                    else if ((*transitions)[trans]->getTransitionType()!=STANDARD || (*transitions)[trans]->getTransitionType()!=LEXICAL){
-    //                                              
-    //                                              if ((*transitions)[trans]->getTransitionType() == DURATION){
-    //                                                      (*explicit_duration_states)[i]=true;
-    //                                              }
-    //                                              
-    //                        basicModel=false;
-    //                        break;
-    //                    }
-    //                }
-    //            }
-                      
-    checkTopology();
-                      
-                      
-    // //Assign StateInfo
-    // for(size_t i=0; i < states.size();i++){
-    //   string& st_name = states[i]->getName();
-    //   info.stateIterByName[st_name]=i;
-    //   info.stateIterByLabel[st_name].push_back(i);
-    //   info.stateIterByGff[st_name].push_back(i);
-    // }
-    finalized = true;
+  assert(!finalized_);  // well it wouldn't *hurt* to call this twice, but you still *oughtn't* to
+
+  for (size_t i=0; i < states_.size() ; ++i){
+    states_[i]->setIter(i);
   }
-  return;
+          
+  //Add states To and From transition
+  for(size_t i=0;i<states_.size();i++){
+    _addStateToFromTransition(states_[i]);
+  }
+                      
+  _addStateToFromTransition(initial_);
+                      
+  //Now that we've seen all the states in the model
+  //We need to fix the States transitions vector transi, so that the state
+  //iterator correlates to the position within the vector
+  for(size_t i=0;i<states_.size();i++){
+    states_[i]->_finalizeTransitions(states_by_name_);
+  }
+  initial_->_finalizeTransitions(states_by_name_);
+          
+  //Check to see if model is basic model
+  //Meaning that the model doesn't call outside functions or perform
+  //Tracebacks for explicit duration.
+  //If explicit duration exist then we'll keep track of which states
+  //they are in explicit_duration_states
+  //            for(size_t i=0;i<states.size();i++){
+  //                vector<transition*>* transitions = states[i]->getTransitions();
+  //                for(size_t trans=0;trans<transitions->size();trans++){
+  //                                      if ((*transitions)[trans] == NULL){
+  //                                              continue;
+  //                                      }
+  //                                      
+  //                    if ((*transitions)[trans]->FunctionDefined()){
+  //                        basicModel=false;
+  //                        break;
+  //                    }
+  //                    else if ((*transitions)[trans]->getTransitionType()!=STANDARD || (*transitions)[trans]->getTransitionType()!=LEXICAL){
+  //                                              
+  //                                              if ((*transitions)[trans]->getTransitionType() == DURATION){
+  //                                                      (*explicit_duration_states)[i]=true;
+  //                                              }
+  //                                              
+  //                        basicModel=false;
+  //                        break;
+  //                    }
+  //                }
+  //            }
+                      
+  checkTopology();
+                      
+                      
+  // //Assign StateInfo
+  // for(size_t i=0; i < states.size();i++){
+  //   string& st_name = states[i]->getName();
+  //   info.stateIterByName[st_name]=i;
+  //   info.stateIterByLabel[st_name].push_back(i);
+  //   info.stateIterByGff[st_name].push_back(i);
+  // }
+  finalized_ = true;
 }
       
 
 // ----------------------------------------------------------------------------------------
 void model::_addStateToFromTransition(State* st){
-  vector<transition*>* trans;
+  vector<Transition*>* trans;
       
   //Process Initial State
   trans = st->getTransitions();
@@ -171,7 +143,7 @@ void model::_addStateToFromTransition(State* st){
     }
   }
       
-  if (st->endi){
+  if (st->getEnding()){
     ending_->addFromState(st);
   }
 }
@@ -250,9 +222,9 @@ bool model::checkTopology(){
 // ----------------------------------------------------------------------------------------
 void model::_checkTopology(State* st, vector<uint16_t>& visited){
   //Follow transitions to see if every state is visited
-  for(size_t i = 0 ; i < st->transi->size() ; i++){
-    if (st->transi->at(i) != NULL){
-      visited.push_back(st->transi->at(i)->getState()->getIterator());
+  for(size_t i = 0 ; i < st->getTransitions()->size() ; i++){
+    if (st->getTransitions()->at(i) != NULL){
+      visited.push_back(st->getTransitions()->at(i)->getState()->index());
     }
                       
   }

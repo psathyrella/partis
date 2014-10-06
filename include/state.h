@@ -15,10 +15,9 @@
 
 using namespace std;
 namespace ham {
-class transition;
+class Transition;
   
 class State {
-  friend class model;
 public:
   State();
   State(string&,stringList&,Tracks&); //!Create state from string
@@ -26,14 +25,14 @@ public:
   ~State();
 
   // accessors
-  inline size_t getIterator(){return stateIterator;};
-  inline string& name(){return name_;};
-  inline string& label(){return label_;};
-  inline vector<transition*>* getTransitions(){return transi;};
-  inline bitset<STATE_MAX>* getTo(){return &to;};
-  inline bitset<STATE_MAX>* getFrom(){return &from;};
-  inline transition* getTrans(size_t iter) { return (*transi)[iter]; }
-  inline transition* getEnding(){return endi;};
+  inline size_t index(){return index_;}  // index of this state in the HMM model
+  inline string& name(){return name_;}
+  inline string& label(){return label_;}
+  inline vector<Transition*>* getTransitions(){return transi;}
+  inline bitset<STATE_MAX>* to_states(){return &to_states_;}
+  inline bitset<STATE_MAX>* from_states(){return &from_states_;}
+  inline Transition* getTrans(size_t iter) { return (*transi)[iter]; }
+  inline Transition* getEnding(){return endi;}
               
   inline double emission_score(Sequences& seqs, size_t pos) {  // seqs better have 1 or 2 seqs, 'cause I ain't checkin it here
     if (seqs.n_seqs() == 2)
@@ -46,12 +45,12 @@ public:
               
   void print();
               
-  inline void setEndingTransition(transition* trans){endi=trans;};
+  inline void setEndingTransition(Transition* trans){endi=trans;};
   inline void setName(string& txt){name_=txt;};
   inline void setLabel(string& txt){label_=txt;};
-  inline void addToState(State* st){to[st->getIterator()]=1;};
-  inline void addFromState(State* st){from[st->getIterator()]=1;};
-  inline void setIter(size_t val){stateIterator=val;};
+  inline void addToState(State* st){to_states_[st->index()]=1;};
+  inline void addFromState(State* st){from_states_[st->index()]=1;};
+  inline void setIter(size_t val){index_=val;};
               
   void _finalizeTransitions(map<string,State*>& state_index);
 
@@ -59,15 +58,15 @@ private:
   string name_;       /* State name */
   string label_;      /* State feature path label */
               
-  vector<transition*>* transi;
-  transition* endi;
+  vector<Transition*>* transi;
+  Transition* endi;
   emm emission_;
   emm pair_emission_;
 
-  //Linking State Information (These are assigned at model finalization)
-  size_t stateIterator;  //index of state in HMM (set in model:finalize)
-  bitset<STATE_MAX> to;
-  bitset<STATE_MAX> from;
+  // hmm model-level information (assigned in model::finalize)
+  size_t index_;  //index of state in HMM (set in model:finalize)
+  bitset<STATE_MAX> to_states_;
+  bitset<STATE_MAX> from_states_;
               
   bool _parseHeader(string&);
   bool _parseTransition(string&,stringList&, Tracks&);

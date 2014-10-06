@@ -2,8 +2,8 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-State::State() : endi(NULL), stateIterator(SIZE_MAX) {
-  transi = new (nothrow) vector<transition*>;
+State::State() : endi(NULL), index_(SIZE_MAX) {
+  transi = new (nothrow) vector<Transition*>;
 }
   
 // ----------------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     }
     double prob(it->second.as<double>());
     total += prob;
-    transition *trans = new transition(to_state, prob);
+    Transition *trans = new Transition(to_state, prob);
     if (trans->getName() == "end")
       endi = trans;
     else
@@ -87,18 +87,18 @@ void State::_finalizeTransitions(map<string,State*>& state_index){
   //Get size # of states, but correct by -1 because
   //initial state will be kept separate.
   size_t number_of_states = state_index.size();
-  vector<transition*>* fixed_trans = new vector<transition*>(number_of_states-1,NULL);
+  vector<Transition*>* fixed_trans = new vector<Transition*>(number_of_states-1,NULL);
       
   //Find the proper place for the transition and put it in the correct position
   for(size_t i = 0; i < transi->size(); i++){
-    transition* temp = (*transi)[i];
+    Transition* temp = (*transi)[i];
     string name = temp->getName();
     State* st = state_index[name];
     if (st == NULL){
 	cerr << "State: " << name << " was declared but not defined in the model." << endl;
 	exit(2);
     }
-    size_t index = st->getIterator();
+    size_t index = st->index();
     (*fixed_trans)[index]=temp;
     (*transi)[i]=NULL;
   }

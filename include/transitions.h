@@ -13,12 +13,13 @@
 using namespace std;
 
 namespace ham {
+
 class State;
-class transition{
+class Transition {
   friend class model;
   friend class State;
 public:
-  transition(string to_state, double prob);
+  Transition(string to_state, double prob);
   
   inline void setName(string& txt) { stateName = txt; }
   inline void setState(State* st) { toState = st; }
@@ -38,5 +39,6 @@ private:
   double log_trans; //Log of standard transition probability
   bool _parseStandard(string&,stringList&, valueType);
 };
+
 }
 #endif

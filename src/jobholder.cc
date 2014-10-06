@@ -386,7 +386,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 	  PrintPath(query_strs, gene, *gene_score, "(cached)");
       } else {
 	FillTrellis(&subseqs[region], query_strs, gene, gene_score);  // set *gene_score to uncorrected score
-	double gene_choice_score = log(hmms_.Get(gene)->overall_gene_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
+	double gene_choice_score = log(hmms_.Get(gene)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
 	*gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
 

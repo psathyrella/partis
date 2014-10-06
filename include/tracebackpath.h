@@ -11,9 +11,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <cassert>
-#include "text.h"
 
-#include "hmm.h"
+#include "text.h"
+#include "model.h"
 #include "mathutils.h"
 
 using namespace std;

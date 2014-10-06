@@ -4,7 +4,7 @@
 #include <vector>
 #include <stdint.h>
 #include "sequences.h"
-#include "hmm.h"
+#include "model.h"
 #include "tracebackpath.h"
 
 using namespace std;
