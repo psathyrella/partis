@@ -65,43 +65,36 @@ void emm::parse(YAML::Node config, string is_pair, tracks model_tracks) {
   }
 }
       
-// // ----------------------------------------------------------------------------------------
-// double emm::get_emission(sequences& seqs,size_t pos) {
-//   return scores.getValue(seqs, pos);
-// }
-      
 // ----------------------------------------------------------------------------------------
-string emm::stringify() {
-  string emissionString;
-
+void emm::print() {
   for(size_t i=0; i<scores.getNTracks(); ++i)
-    emissionString += "    " + scores.getTrack(i)->getName();
-  emissionString += "\n";
+    cout << "    " << scores.getTrack(i)->getName();
+  cout << endl;
 
   if (!pair_) {
     assert(tracks_->size() == 1);
-    emissionString += "    ";
+    cout << "    ";
     for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir)
-      emissionString += "    " + (*tracks_)[0]->getAlpha(ir);
-    emissionString += "\n";
-    emissionString += "    ";
+      cout << "    " << (*tracks_)[0]->getAlpha(ir);
+    cout << "\n";
+    cout << "    ";
     for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir)
-      emissionString += "  " + double_to_string(exp(scores.getValue(ir)));
-    emissionString += "\n";
+      cout << "  " << double_to_string(exp(scores.getValue(ir)));
+    cout << "\n";
   } else {
     assert(tracks_->size() == 2);
-    emissionString += "    ";
+    cout << "    ";
     for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir)
-      emissionString += "    " + (*tracks_)[0]->getAlpha(ir);
-    emissionString += "\n";
-    emissionString += "    ";
+      cout << "    " << (*tracks_)[0]->getAlpha(ir);
+    cout << "\n";
+    cout << "    ";
     for (size_t ir=0; ir<(*tracks_)[0]->getAlphaSize(); ++ir) {
-      emissionString += "    " + (*tracks_)[0]->getAlpha(ir);
+      cout << "    " << (*tracks_)[0]->getAlpha(ir);
       for (size_t ic=0; ic<(*tracks_)[1]->getAlphaSize(); ++ic)
-	emissionString += "  " + double_to_string(exp(scores.getValue(ir, ic)));
-      emissionString += "\n";
+	cout << "  " << double_to_string(exp(scores.getValue(ir, ic)));
+      cout << "\n";
     }
   }
-  return emissionString;
 }
+
 }

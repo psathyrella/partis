@@ -32,6 +32,7 @@ namespace ham {
 class model {
 public:
   model();
+  void parse(string);
   void finalize();
 
   inline string& getName() { return name; }
@@ -47,11 +48,6 @@ public:
   inline track* trck() { return tracks_[0]; }  // this is why we don't name classes with lowercase letters
   inline double overall_gene_prob() { return overall_gene_prob_; }
 
-  void print();
-  string stringify();
-
-  void parse(string);
-		
   void addState(state*);
   inline void setInit(state* st) { initial=st; }
   inline void setEnd(state* st) { ending=st; }
@@ -79,12 +75,6 @@ private:
   state* initial; //!Initial state q0
   state* ending;	//!Ending state
 		
-  string _stringifyHeader();	//!Converts Header information from model to string representation found in text file
-  string _stringifyTracks(); //!Converts Tracks information from model to string representation found in text file
-  string _stringifyAmbig();  //!Converts Ambiguous Character information from model to text string
-  string _stringifyScaling();//!Converts Scaling definitions from model to text string
-  string _stringifyStates(); //!Converts States definitions from model to text string
-
   void _addStateToFromTransition(state*);
   void _checkTopology(state* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there
 };

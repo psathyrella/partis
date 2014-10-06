@@ -30,11 +30,7 @@ public:
   
   inline double score() { return log_trans; }
   
-  inline bool isSimple() { return true; }
-  inline bool isComplex() { return false; }
-  
   void print();
-  string stringify();
 private:    
   transType transition_type;  //0: standard  1:USER DISTRIBUTION  2:INTERNAL DISTRIBUTION 3:LEXICAL
   string stateName;  //What state we are transitioning to (Fill out when parsing)

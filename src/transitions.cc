@@ -7,7 +7,7 @@ transition::transition(string to_state, double prob) : stateName(to_state), log_
 }
   
 // ----------------------------------------------------------------------------------------
-string transition::stringify() {
-  return "      " + stateName + " " + double_to_string(exp(log_trans));
+void transition::print() {
+  cout << "      " << stateName << " " << double_to_string(exp(log_trans));
 }
 }

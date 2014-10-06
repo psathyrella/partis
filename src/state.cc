@@ -5,12 +5,6 @@ namespace ham {
 state::state() : endi(NULL), stateIterator(SIZE_MAX) {
   transi = new (nothrow) vector<transition*>;
 }
-
-// // ----------------------------------------------------------------------------------------
-// state::state(string& txt, stringList& names,tracks& trcks) : endi(NULL), stateIterator(SIZE_MAX) {
-//   transi = new vector<transition*>;
-//   parse(txt,names,trcks);
-// }
   
 // ----------------------------------------------------------------------------------------
 state::~state(){
@@ -47,86 +41,27 @@ void state::parse(YAML::Node node, vector<string> state_names, tracks trks) {
 }
   
 // ----------------------------------------------------------------------------------------
-string state::stringify() {
-  string return_str;
-  return_str += "state: " + name + " (" + label + ")\n";
+void state::print() {
+  cout << "state: " << name << " (" << label << ")" << endl;;
 
-  return_str += "  transitions:\n";
+  cout << "  transitions:" << endl;;
   for(size_t i=0; i<transi->size(); ++i) {
     if ((*transi)[i]==NULL){ assert(0); continue;}  // wait wtf would this happen?
-    return_str += (*transi)[i]->stringify() + "\n";
+    (*transi)[i]->print();
   }
 
   if (endi)
-    return_str += endi->stringify() + "\n";
+    endi->print();
       
   if (name == "init")
-    return return_str;
+    return;
 
-  return_str += "  emissions:\n";
-  return_str += emission_.stringify();  // TODO allow state to have only one or the other of these
-  return_str += "  pair emissions:\n";
-  return_str += pair_emission_.stringify();
-      
-  return return_str;
+  cout << "  emissions:" << endl;;
+  emission_.print();  // TODO allow state to have only one or the other of these
+  cout << "  pair emissions:" << endl;
+  pair_emission_.print();
 }
       
-// // ----------------------------------------------------------------------------------------
-// //! Get the emission value from a state at a particular position in the sequence
-// //! \param seqs Sequences the model is analyzing
-// //! \param iter Position in the sequences
-// double state::emission_score(sequences &seqs, size_t iter) {
-//   // double value(-INFINITY);
-//   // for (size_t iseq=0; iseq<seqs.n_seqs(); ++iseq) {
-//   //   double tmp_val = emission_.score(seqs[iseq], iter);  // get_emission should really be called get_emission_log_prob
-//   //   if (iseq==0)
-//   // 	value = tmp_val;
-//   //   else
-//   // 	value += tmp_val;
-//   // }
-
-//   // // TODO make these less hacky
-//   // if (seqs.n_seqs()==2 && seqs[0][iter]!=seqs[1][iter])  // for pair hmm, multiply by the total mute prob if the nukes in the two seqs are different. NOTE this is a pretty approximate way to do this
-//   //   value += log(mute_prob_);  // NOTE mute prob should only be non-1.0 for insert states
-//   // if (seqs.size()==2 && seqs[0][iter]==seqs[1][iter] && seqs[0].get_undigitized(iter)!=getGFF()[0] && seqs[1].get_undigitized(iter)!=getGFF()[0])  // for *non*-insert states, if *both* seqs are mutated, but they're mutated to the *same* nucleotide, only apply *one* power of the mutation prob. we approximate this number by just taking the square root of the two. TODO don't need both of the last two clauses
-//   //   value /= 2;
-
-//   // return value;
-// }
-
-// // ----------------------------------------------------------------------------------------
-// double state::get_emission_prob(sequence &seq1, sequence &seq2, size_t iter) {
-//   return emissions[0]->get_emission(seq1, iter) + emissions[0]->get_emission(seq2, iter);
-// }
-
-// // ----------------------------------------------------------------------------------------
-// double state::get_emission_prob(sequence &seq, size_t iter) {
-//   return emissions[0]->get_emission(seq, iter);
-// }
-  
-// ----------------------------------------------------------------------------------------
-//! Get the transition value from a state at a particular position in the sequence
-//! \param seqs Sequences the model is analyzing
-//! \param to State that transition is being calculated to
-//! \param iter Position in the sequence
-// double state::transition_score(sequences &seqs, size_t to, size_t iter){
-//   double value;
-      
-//   if ((*transi)[to]==NULL){
-//     return -INFINITY;
-//   }
-//   else if ((*transi)[to]->transition_type==STANDARD){
-//     value = (*transi)[to]->log_trans;
-//   }
-//   else{
-//     // cerr << "Need to implement this functionality" <<endl;
-//     assert(0);
-//     // value = (*transi)[to]->getTransition(iter,&seqs);
-          
-//   }
-//   return value;
-// }
-  
 //! Get the log probability transitioning to end from the state
 double state::getEndTrans(){
   if (endi==NULL){

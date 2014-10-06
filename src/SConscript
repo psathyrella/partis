@@ -8,6 +8,8 @@ env.Append(CPPDEFINES={'STATE_MAX':'1024', 'SIZE_MAX':'\(\(size_t\)-1\)', 'UINT1
 
 binary_name = 'ham'
 binary_src = binary_name + '.cc'
+
 sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/src') if ('.cc' in fname and binary_name not in fname)]
 env.Library(target='ham', source=sources)
+
 env.Program(target='../ham', source=binary_src, LIBS=['ham', 'yaml-cpp'], LIBPATH=['.', 'yaml-cpp'])

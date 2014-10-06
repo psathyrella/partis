@@ -45,7 +45,6 @@ public:
   double getEndTrans();
               
   void print();
-  string stringify();
               
   inline void setEndingTransition(transition* trans){endi=trans;};
   inline void setName(string& txt){name=txt;};

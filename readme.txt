@@ -1,2 +1,2 @@
 # -----------------------------------------------
-ham -- the fantastic HMM compiler
+ham -- the fantabulous HMM compiler
