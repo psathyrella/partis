@@ -8,7 +8,8 @@ Sequence::Sequence(string name, string& seq_str, Track* trk):
   undigitized_(seq_str),
   track_(trk)
 {
-  clear_whitespace(undigitized_, "\n");
+
+  ClearWhitespace("\n", &undigitized_);
   seq_ = new vector<uint8_t>(undigitized_.size());
   for (size_t i=0; i<undigitized_.size(); ++i) {
     uint8_t symbl = track_->symbolIndex(undigitized_[i]);

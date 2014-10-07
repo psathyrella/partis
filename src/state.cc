@@ -45,6 +45,16 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 }
   
 // ----------------------------------------------------------------------------------------
+  double State::emission_logprob(Sequences &seqs, size_t pos) {
+  if (seqs.n_seqs() == 2) {
+    return pair_emission_.score(seqs, pos);
+  } else {
+    assert(seqs.n_seqs() == 1);
+    return emission_.score(seqs[0], pos);
+  }
+}
+
+// ----------------------------------------------------------------------------------------
 void State::Print() {
   cout << "state: " << name_ << " (" << label_ << ")" << endl;;
 
@@ -68,13 +78,11 @@ void State::Print() {
       
 // ----------------------------------------------------------------------------------------
 //! Get the log probability transitioning to end from the state.
-double State::getEndTrans(){
-  if (end_trans_==NULL){
+double State::end_transition_logprob() {
+  if (end_trans_ == NULL)
     return -INFINITY;
-  }
   return end_trans_->log_trans;
 }
-  
   
 // ----------------------------------------------------------------------------------------
 // On initial import of the states they are pushed onto <transitions_> in

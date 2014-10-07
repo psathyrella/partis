@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <cassert>
+
 #include "text.h"
 #include "types.h"
 #include "mathutils.h"

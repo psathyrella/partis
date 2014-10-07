@@ -281,22 +281,23 @@ namespace ham {
   //! Get the string representation of the track
   //! \return string Definition of the track as in model
   string Track::stringify(){
-    string output;
-    output+=name + ":\t";
+    assert(0);
+    // string output;
+    // output+=name + ":\t";
         
-    if (alpha_type == ALPHA_NUM){
-      output+=join(alphabet,',');
-    }
-    else{
-      output+="REAL_NUMBER";
-      if (trackFunctionDefined){
-	output+="\t[FUNCTION:\t" + trackFunction;
-	output+="\tUSE:\t" + trackToUse + "]";
-      }
-    }
-    output+="\n";
+    // if (alpha_type == ALPHA_NUM){
+    //   output+=Join(alphabet,',');
+    // }
+    // else{
+    //   output+="REAL_NUMBER";
+    //   if (trackFunctionDefined){
+    // 	output+="\t[FUNCTION:\t" + trackFunction;
+    // 	output+="\tUSE:\t" + trackToUse + "]";
+    //   }
+    // }
+    // output+="\n";
         
-    return output;
+    return "oops";
   }
     
   //!Get the string representation of the ambiguous character definitions as in model file
@@ -427,12 +428,14 @@ namespace ham {
     while(opening!=string::npos){
       pair<string,vector<string> > amb;
       amb.first=text.substr(start,opening-start);
-      clear_whitespace(amb.first, "\t ");
+      assert(0);
+      // ClearWhitespace(amb.first, "\t ");
             
       closing=text.find_first_of(']',opening);
       if (closing!=string::npos){
 	string tempString=text.substr(opening+1,closing-opening-1);
-	split_line(amb.second, tempString);
+	assert(0);
+	// SplitLine(amb.second, tempString);
       }
       start=text.find_first_not_of(',',closing+1);
       results.push_back(amb);

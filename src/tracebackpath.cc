@@ -2,7 +2,6 @@
 
 namespace ham {
 
-
   int WID=80;
   //!Create a TracebackPath
   //!\param modl Pointer to model file 
@@ -43,6 +42,7 @@ namespace ham {
     }
     return;
   }
+
     
   //!Get string of path label traceback
   //! \param[out] pth string
@@ -496,7 +496,7 @@ namespace ham {
     cout << header_row << endl;
         
     for(size_t position = 0; position < table->size(); position++){
-      string line = join((*table)[position], '\t');
+      string line = Join((*table)[position], '\t');
       cout << position+1 << "\t" << line << endl;
     }
         
