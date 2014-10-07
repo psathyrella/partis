@@ -353,54 +353,6 @@ namespace ham {
   }
 
 
-  /* Need to re-write to handle new HMM Types
-  //fix to handle higher order model 
-  double TracebackPath::path_prob (const HMM &model){
-  int size= trace_path.size();
-        
-  int seq_size= model.seq_size();
-  int alpha_size=model.alpha.size();
-        
-        
-  if (size!=seq_size){
-  cerr << "Sequence and Path different sizes\n";
-  exit(1);
-  }
-        
-  vector<vector<double> > log_emm=convert_order(model, trace_path[size-1], 0);
-  double prob=model.initial.get_trans(trace_path[size-1]) + log_emm[0][seq.val(0)];
-        
-        
-  for (unsigned int i=1;i<size;i++){
-  int index=0;
-            
-  if (model.states[trace_path[size-i-1]].order>i){
-  vector<vector<double> > emmiss=convert_order(model, trace_path[size-i-1], i);
-  for(int n=i;n>=1;n--){
-  index+=POWER[n-1][alpha_size-1]*seq.val(i-n);
-  }
-                
-  //cout <<i<<"\t"<<prob <<endl;
-  prob+=model.states[trace_path[size-i]].get_trans(trace_path[size-i-1])+emmiss[index][seq.val(i)];
-  }
-            
-            
-  else{
-                
-  for(int n=model.states[trace_path[size-i-1]].order;n>=1;n--){
-  index+=POWER[n-1][alpha_size-1]*seq.val(i-n);
-  //cout <<"Index\t"<< index<<"\t"<< k << endl;
-  }
-  //cout <<i<<"\t"<<prob <<endl;
-  prob+=model.states[trace_path[size-i]].get_trans(trace_path[size-i-1])+model.states[trace_path[size-i-1]].log_emm[index][seq.val(i)];
-  }
-  }
-        
-  return prob;    
-  }
-  */
-
-
   //!Create multiTraceback()
   multiTraceback::multiTraceback(){
     maxSize=0;

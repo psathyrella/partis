@@ -9,7 +9,7 @@
 #include <bitset>
 
 #include "text.h"
-#include "emm.h"
+#include "emission.h"
 #include "transitions.h"
 #include "yaml-cpp/yaml.h"
 
@@ -57,8 +57,8 @@ private:
               
   vector<Transition*>* transitions_;
   Transition* end_trans_;
-  emm emission_;
-  emm pair_emission_;
+  Emission emission_;
+  Emission pair_emission_;
 
   // hmm model-level information (assigned in model::finalize)
   size_t index_;  // index of state in HMM (set in model:finalize)

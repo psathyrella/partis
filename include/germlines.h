@@ -9,6 +9,10 @@
 using namespace std;
 
 // ----------------------------------------------------------------------------------------
+// A collection of utilities for the b cell clustering project.
+// Yeah, I would love to put them in a separate dir, but I can't get the darn thing
+// to compile when I do that, so I'm punting on it for the moment.
+// ----------------------------------------------------------------------------------------
 class TermColors {
  public:
   TermColors() {

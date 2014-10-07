@@ -39,9 +39,9 @@ void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     return;
       
   if (node["emissions"])
-    emission_.parse(node["emissions"], "single", trks);
+    emission_.Parse(node["emissions"], "single", trks);
   if (node["pair_emissions"])
-    pair_emission_.parse(node["pair_emissions"], "pair", trks);
+    pair_emission_.Parse(node["pair_emissions"], "pair", trks);
 }
   
 // ----------------------------------------------------------------------------------------
@@ -61,9 +61,9 @@ void State::print() {
     return;
 
   cout << "  emissions:" << endl;;
-  emission_.print();  // TODO allow state to have only one or the other of these
+  emission_.Print();  // TODO allow state to have only one or the other of these
   cout << "  pair emissions:" << endl;
-  pair_emission_.print();
+  pair_emission_.Print();
 }
       
 // ----------------------------------------------------------------------------------------

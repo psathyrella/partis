@@ -105,7 +105,7 @@ namespace ham{
         
     //! Get the number of characters defined in the track
     //! \return size_t Number of characters/words defined in the track
-    inline size_t getAlphaSize(){return alphabet.size();};
+    inline size_t alphabet_size(){return alphabet.size();};
                 
     //! Get alphabet size including ambiguous characters
     inline size_t getTotalAlphabetSize(){return symbolIndices.size();}

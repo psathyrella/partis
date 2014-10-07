@@ -377,7 +377,7 @@ namespace ham {
   size_t Track::convertAlphaWordToIndex(string word) {
     size_t index(0);
     uint64_t exponent(0);
-    uint64_t base(getAlphaSize());
+    uint64_t base(alphabet_size());
     for (int ichar=(int)word.size()-1; ichar>=0; --ichar) {
       index += POWER[exponent][base-1] * symbolIndex(word[ichar]);  // POWER[b][a-1] = a**b
       exponent++;
@@ -390,7 +390,7 @@ namespace ham {
   size_t Track::convertDigiWordToIndex(vector<uint8_t> word) {
     size_t index(0);
     uint64_t exponent(0);
-    uint64_t base(getAlphaSize());
+    uint64_t base(alphabet_size());
     for (int ichar=(int)word.size()-1; ichar>=0; --ichar) {
       index += POWER[exponent][base-1] * word[ichar];  // POWER[b][a-1] = a**b
       exponent++;

@@ -2,27 +2,22 @@
 namespace ham {
   
 // ----------------------------------------------------------------------------------------
-LexicalTable::LexicalTable() : prob(NULL), counts(NULL), logProb(NULL) {
+LexicalTable::LexicalTable() : log_probs_(NULL) {
 }
 
 // ----------------------------------------------------------------------------------------
-void LexicalTable::init() {
-  prob = new vector<vector<double> >;
-  counts = new vector<vector<double> >;
-  logProb = new vector<vector<double> >;
+void LexicalTable::Init() {
+  log_probs_ = new vector<vector<double> >;
 }
   
 // ----------------------------------------------------------------------------------------
 LexicalTable::~LexicalTable() {
-  delete logProb;
-  delete prob;
-  delete counts;
+  delete log_probs_;
 }
 
 // ----------------------------------------------------------------------------------------
 void LexicalTable::AddColumn(vector<double> logprobs) {
-  logProb->push_back(logprobs);
-  prob->push_back(get_exp_vector(logprobs));
+  log_probs_->push_back(logprobs);
 }
   
 }
