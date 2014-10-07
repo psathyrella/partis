@@ -232,10 +232,10 @@ void trellis::forward() {
 void trellis::traceback(TracebackPath& path) {
   assert(seqs->GetSequenceLength() != 0);
   assert(traceback_table);
-  if (path.getModel() == NULL)
-    path.setModel(hmm);
+  assert(path.model());
+  path.set_model(hmm);
   if(ending_viterbi_score == -INFINITY) return;  // no valid path through this hmm
-  path.setScore(ending_viterbi_score);
+  path.set_score(ending_viterbi_score);
   path.push_back(ending_viterbi_tb);  // push back the state that led to END state
           
   int16_t pointer = ending_viterbi_tb;

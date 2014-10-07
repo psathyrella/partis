@@ -218,7 +218,7 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
     } else {
       paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene));
       trell->traceback(*paths_[gene][query_strs]);
-      assert(trell->ending_viterbi_score == paths_[gene][query_strs]->getScore());  // TODO remove this assertion
+      assert(trell->ending_viterbi_score == paths_[gene][query_strs]->score());  // TODO remove this assertion
       if (debug_ == 2) PrintPath(query_strs, gene, *score);
     }
     assert(fabs(*score) > 1e-200);
@@ -239,7 +239,7 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
     return;
   }
   vector<string> path_labels;
-  paths_[gene][query_strs]->label(path_labels);
+  paths_[gene][query_strs]->path_of_labels(path_labels);
   if (path_labels.size() == 0) {
     if (debug_) cout << "                     " << gene << " has no valid path" << endl;
     return; // TODO fix this upstream. well, it isn't *broken*, but, you know, whatever
@@ -261,7 +261,7 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
     << "                    "
     << (left_erosion_length>0 ? ".." : "  ") << tc.ColorMutants("red", query_strs.first, modified_seq, query_strs.second) << (right_erosion_length>0 ? ".." : "  ")
     << "  " << extra_str
-    << setw(12) << paths_[gene][query_strs]->getScore()
+    << setw(12) << paths_[gene][query_strs]->score()
     << setw(25) << gene
     << endl;
 }
@@ -284,7 +284,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string,string
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
     vector<string> path_labels;
-    paths_[gene][query_strs]->label(path_labels);
+    paths_[gene][query_strs]->path_of_labels(path_labels);
     if (path_labels.size() == 0) {
       if (debug_) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
