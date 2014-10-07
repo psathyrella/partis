@@ -29,9 +29,10 @@ public:
   inline uint8_t alphabet_size(size_t i){ return tracks[i]->alphabet_size(); }
 private:
   vector<Track*> tracks;  // tracks which are used by emissions in this table
-  // first index: seq 1 emission
-  // second index: seq 2 emission
-  // NOTE the two sequences cannot (in current implementation) be distinguishable
+  // log_probs_ scheme:
+  //   first index: seq 1 emission
+  //   second index: seq 2 emission
+  //   NOTE the two sequences cannot (in current implementation) be distinguishable
   vector<vector<double> >* log_probs_;
 };
 

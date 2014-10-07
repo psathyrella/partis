@@ -30,13 +30,12 @@ public:
   
   inline double score() { return log_trans; }
   
-  void print();
+  void Print();
 private:    
   transType transition_type;  //0: standard  1:USER DISTRIBUTION  2:INTERNAL DISTRIBUTION 3:LEXICAL
   string to_state_name_;  //What state we are transitioning to (Fill out when parsing)
   State* to_state_;    // pointer to the to-state (Filled during HMM finalization)
   double log_trans; //Log of standard transition probability
-  bool _parseStandard(string&,stringList&, valueType);
 };
 
 }

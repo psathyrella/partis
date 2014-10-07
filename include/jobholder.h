@@ -45,12 +45,12 @@ class HMMHolder {
 public:
   HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines &gl):hmm_dir_(hmm_dir),n_seqs_per_track_(n_seqs_per_track),gl_(gl) {}
   ~HMMHolder();
-  model *Get(string gene);
+  Model *Get(string gene);
 private:
   string hmm_dir_;
   size_t n_seqs_per_track_;
   GermLines &gl_;  // TODO kind of hackey to have a separate one of these in HMMHolder. Then again, I don't think it's really that expensive.
-  map<string,model*> hmms_;  // map of gene name to hmm pointer
+  map<string,Model*> hmms_;  // map of gene name to hmm pointer
 };
 
 // ----------------------------------------------------------------------------------------

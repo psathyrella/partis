@@ -18,10 +18,10 @@ typedef vector<vector<double> > double_2D;
 class trellis{
 public:
   double  ending_viterbi_score;
-  trellis(model* h , Sequences* sqs);
+  trellis(Model* h , Sequences* sqs);
   ~trellis();
 
-  inline model* getModel(){return hmm;}
+  inline Model* model(){ return hmm; }
   inline Sequences* getSeq(){return seqs;}
   inline float_2D* getForwardTable(){return forward_score;}
   inline double getForwardProbability(){return ending_forward_prob;}
@@ -30,7 +30,7 @@ public:
   void forward();
   void traceback(TracebackPath& path);
 private:
-  model* hmm;
+  Model* hmm;
   Sequences* seqs; //Digitized Sequences
   int_2D*         traceback_table;        //Simple traceback table
               

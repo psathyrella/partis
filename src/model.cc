@@ -2,12 +2,12 @@
 
 namespace ham {
 // ----------------------------------------------------------------------------------------
-model::model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
+Model::Model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
   ending_ = new State;
 }
 
 // ----------------------------------------------------------------------------------------
-void model::parse(string infname) {
+void Model::Parse(string infname) {
   YAML::Node config = YAML::LoadFile(infname);
   name_ = config["name"].as<string>();
   overall_prob_ = config["extras"]["gene_prob"].as<double>();
@@ -35,8 +35,8 @@ void model::parse(string infname) {
 
   for (size_t ist=0; ist<state_names.size(); ++ist) {
     State *st(new State);
-    st->parse(config["states"][ist], state_names, tracks_);
-    // st->print();
+    st->Parse(config["states"][ist], state_names, tracks_);
+    // st->Print();
 
     if (st->name() == "init") {
       initial_ = st;
@@ -48,11 +48,11 @@ void model::parse(string infname) {
     }
   }
       
-  finalize(); // post process states and/to create an end state with only transitions-from
+  Finalize(); // post process states and/to create an end state with only transitions-from
 }
       
 // ----------------------------------------------------------------------------------------
-void model::add_state(State* state) {
+void Model::AddState(State* state) {
   assert(states_.size() < STATE_MAX);
   states_.push_back(state);
   states_by_name_[state->name()] = state;
@@ -61,30 +61,30 @@ void model::add_state(State* state) {
       
 // ----------------------------------------------------------------------------------------
 // set transitions, check labels, and perform other checks
-void model::finalize() {
+void Model::Finalize() {
   assert(!finalized_);  // well it wouldn't *hurt* to call this twice, but you still *oughtn't* to
 
   // set each state's index within this model
   for (size_t i=0; i<states_.size(); ++i)
-    states_[i]->set_index(i);
+    states_[i]->SetIndex(i);
   // set each state's various transition pointers
   for(size_t i=0; i<states_.size(); ++i)
-    finalize_state(states_[i]);
-  finalize_state(initial_);
+    FinalizeState(states_[i]);
+  FinalizeState(initial_);
                       
   // now we need to fix state::transitions_ so that it agrees with state:index_
   for(size_t i=0; i<states_.size(); ++i)
-    states_[i]->reorder_transitions(states_by_name_);
-  initial_->reorder_transitions(states_by_name_);
+    states_[i]->ReorderTransitions(states_by_name_);
+  initial_->ReorderTransitions(states_by_name_);
           
-  check_topology();
+  CheckTopology();
                       
   finalized_ = true;
 }
       
 
 // ----------------------------------------------------------------------------------------
-void model::finalize_state(State *st) {
+void Model::FinalizeState(State *st) {
   // Set the bitsets in <st> that say which states we can go to from <st>, and from which we can arrive at <st>.
   // Also set to-state pointers in <st>'s transitions
   vector<Transition*>* transitions(st->transitions());
@@ -92,18 +92,18 @@ void model::finalize_state(State *st) {
     string to_state_name(transitions->at(it)->to_state_name());
     assert(states_by_name_.count(to_state_name));
     State* to_state(states_by_name_[to_state_name]);
-    st->add_to_state(to_state); // add <to_state> to the list of states that you can go to from <st>
+    st->AddToState(to_state); // add <to_state> to the list of states that you can go to from <st>
     transitions->at(it)->set_state(to_state);  // set <to_state> as the state corresponding to to_state_name_ in <transitions>
     if (st != initial_)
-      to_state->add_from_state(st);  // add <st> to the list of states from which you can reach <to_state>
+      to_state->AddFromState(st);  // add <st> to the list of states from which you can reach <to_state>
   }
       
   if (st->end_trans())
-    ending_->add_from_state(st);
+    ending_->AddFromState(st);
 }
   
 // ----------------------------------------------------------------------------------------
-void model::check_topology(){
+void Model::CheckTopology(){
   //!Check model topology
   //!Iterates through all states to check to see if there are any:
   //! 1. Orphaned States
@@ -111,7 +111,7 @@ void model::check_topology(){
   //! 3. Uncompleted States
               
   vector<uint16_t> visited;
-  add_to_state_indices(initial_, visited);  // add <initial_>'s transition to-states to <visited>
+  AddToStateIndices(initial_, visited);  // add <initial_>'s transition to-states to <visited>
               
   vector<bool> states_visited(states_.size(), false);
   while (visited.size()>0) {
@@ -119,7 +119,7 @@ void model::check_topology(){
     visited.pop_back();
     if (!states_visited[st_iter]) {
       vector<uint16_t> tmp_visited;
-      add_to_state_indices(states_[st_iter], tmp_visited);
+      AddToStateIndices(states_[st_iter], tmp_visited);
       size_t num_visited(tmp_visited.size());
                               
       // check orphaned
@@ -165,7 +165,7 @@ void model::check_topology(){
 }
       
 // ----------------------------------------------------------------------------------------
-void model::add_to_state_indices(State *st, vector<uint16_t> &visited) {
+void Model::AddToStateIndices(State *st, vector<uint16_t> &visited) {
   // for each transition out of <st>, add the index of its to-state to <visited>
   for(size_t i=0; i<st->transitions()->size(); ++i) {
     if (st->transitions()->at(i))

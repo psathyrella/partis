@@ -6,7 +6,7 @@ namespace ham {
   int WID=80;
   //!Create a TracebackPath
   //!\param modl Pointer to model file 
-  TracebackPath::TracebackPath(model* modl){
+  TracebackPath::TracebackPath(Model* modl){
     hmm=modl;
   }
 
@@ -459,7 +459,7 @@ namespace ham {
     }
         
     // Over the length of the sequence
-    model* hmm = ((*pathAccess[0]).first).getModel();
+    Model* hmm = ((*pathAccess[0]).first).getModel();
     size_t sequenceSize=((*pathAccess[0]).first).size();
     size_t stateSize=hmm->n_states();
         
@@ -487,7 +487,7 @@ namespace ham {
     }
         
     string header_row = "pos";
-    model* hmm = ((*pathAccess[0]).first).getModel();
+    Model* hmm = ((*pathAccess[0]).first).getModel();
     for (size_t state_iter =0; state_iter<hmm->n_states(); state_iter++){
       header_row+="\t";
       header_row+=hmm->state(state_iter)->name();

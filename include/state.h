@@ -21,7 +21,7 @@ class State {
 public:
   State();
   State(string&,stringList&,Tracks&); //!Create state from string
-  void parse(YAML::Node node, vector<string> state_names, Tracks trks);
+  void Parse(YAML::Node node, vector<string> state_names, Tracks trks);
   ~State();
 
   // accessors
@@ -44,12 +44,12 @@ public:
   double getEndTrans();
               
   // property-setters for use in model::finalize()
-  inline void add_to_state(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>
-  inline void add_from_state(State *st) { from_states_[st->index()] = 1; }  // set bit in <from_states_> corresponding to <st>
-  inline void set_index(size_t val){ index_ = val; }
-  void reorder_transitions(map<string,State*>& state_indices);
+  inline void AddToState(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>
+  inline void AddFromState(State *st) { from_states_[st->index()] = 1; }  // set bit in <from_states_> corresponding to <st>
+  inline void SetIndex(size_t val){ index_ = val; }
+  void ReorderTransitions(map<string,State*>& state_indices);
 
-  void print();
+  void Print();
 
 private:
   string name_;       /* State name */

@@ -41,8 +41,6 @@ namespace ham{
     Track();
     Track(string, size_t, vector<string>&);
         
-    friend class State;
-    friend class model;
     friend class Tracks;
         
     // bool parse(string&);

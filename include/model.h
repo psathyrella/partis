@@ -1,5 +1,5 @@
-#ifndef HAM_HMM_H
-#define HAM_HMM_H
+#ifndef HAM_MODEL_H
+#define HAM_MODEL_H
 
 #include "state.h"
 #include "yaml-cpp/yaml.h"
@@ -7,12 +7,12 @@
 using namespace std;
 namespace ham {
 
-class model {
+class Model {
 public:
-  model();
-  void parse(string);
-  void add_state(State*);
-  void finalize();
+  Model();
+  void Parse(string);
+  void AddState(State*);
+  void Finalize();
 		
   inline string &name() { return name_; }
   inline size_t n_states() { return states_.size(); }
@@ -32,9 +32,9 @@ private:
   State* ending_;
   bool finalized_;
 		
-  void finalize_state(State *st);
-  void check_topology();
-  void add_to_state_indices(State* st, vector<uint16_t>& visited); //!Checks to see that all states are connected and there
+  void FinalizeState(State *st);
+  void CheckTopology();
+  void AddToStateIndices(State* st, vector<uint16_t>& visited); // that's 'to-state', as in, 'here we push back the to-state indices onto <visited>'
 };
 
 }

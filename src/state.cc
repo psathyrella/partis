@@ -13,7 +13,7 @@ State::~State(){
 }
 
 // ----------------------------------------------------------------------------------------
-void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
+void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   name_ = node["name"].as<string>();
   label_ = node["label"].as<string>();
 
@@ -45,17 +45,17 @@ void State::parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 }
   
 // ----------------------------------------------------------------------------------------
-void State::print() {
+void State::Print() {
   cout << "state: " << name_ << " (" << label_ << ")" << endl;;
 
   cout << "  transitions:" << endl;;
   for(size_t i=0; i<transitions_->size(); ++i) {
     if ((*transitions_)[i]==NULL){ assert(0); continue;}  // wait wtf would this happen?
-    (*transitions_)[i]->print();
+    (*transitions_)[i]->Print();
   }
 
   if (end_trans_)
-    end_trans_->print();
+    end_trans_->Print();
       
   if (name_ == "init")
     return;
@@ -81,7 +81,7 @@ double State::getEndTrans(){
 // the order written in the model file. But later on we need them to be in the order specified by <index_>.   
 // So here we replace make a new vector <fixed_transitions> with the proper ordering and replace <transitions_> with this
 // new vector.
-void State::reorder_transitions(map<string,State*> &state_indices) {
+void State::ReorderTransitions(map<string,State*> &state_indices) {
   size_t n_states(state_indices.size());
   vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states-1, NULL);  // subtract 1 because initial state is kept separate
       

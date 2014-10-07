@@ -39,7 +39,7 @@ namespace ham {
   //! Stores one traceback path for a sequence
   class TracebackPath{
   public:
-    TracebackPath(model*);
+    TracebackPath(Model*);
         
     //!Add state to traceback
     void push_back(int);
@@ -62,8 +62,8 @@ namespace ham {
                 
     //!Get the model used for the decoding
     //! \return model
-    inline model* getModel() const {return hmm;};
-    inline void setModel(model* mdl){hmm=mdl;};
+    inline Model* getModel() const {return hmm;};
+    inline void setModel(Model* mdl){hmm=mdl;};
         
                 
     //!Print the path to file stream
@@ -130,7 +130,7 @@ namespace ham {
     bool operator<= (const TracebackPath&) const;
     bool operator>= (const TracebackPath&) const;
   private:
-    model* hmm;
+    Model* hmm;
     vector<int> trace_path;
     double score;
   };

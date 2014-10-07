@@ -27,10 +27,10 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
-model *HMMHolder::Get(string gene) {
+Model *HMMHolder::Get(string gene) {
   if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
-    hmms_[gene] = new model;
-    hmms_[gene]->parse(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
+    hmms_[gene] = new Model;
+    hmms_[gene]->Parse(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
   }
   return hmms_[gene];
 }  
@@ -92,11 +92,11 @@ Sequences JobHolder::GetSubSeqs(Sequences &seqs, KSet kset, string region) {
   // get subsequences for one region
   size_t k_v(kset.v),k_d(kset.d);
   if (region=="v")
-    return seqs.getSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
+    return seqs.GetSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
   else if (region=="d")
-    return seqs.getSubSequences(k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
+    return seqs.GetSubSequences(k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
   else if (region=="j")
-    return seqs.getSubSequences(k_v + k_d, seqs.GetSequenceLength() - k_v - k_d);  // j region runs from k_v + k_d to end
+    return seqs.GetSubSequences(k_v + k_d, seqs.GetSequenceLength() - k_v - k_d);  // j region runs from k_v + k_d to end
   else
     assert(0);
 }

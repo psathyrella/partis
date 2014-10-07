@@ -3,7 +3,7 @@
 namespace ham {
       
 // ----------------------------------------------------------------------------------------
-trellis::trellis(model* h, Sequences* sqs){
+trellis::trellis(Model* h, Sequences* sqs){
   hmm = h;
   seqs = sqs;
               
