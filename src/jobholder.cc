@@ -114,7 +114,7 @@ map<string,Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
 Result JobHolder::Run(Sequence &seq, KBounds kbounds) {
   Sequences seqs;
   Sequence *newseq = new Sequence(seq);  // seriously wtf does <Sequences> need to own its Sequences?
-  seqs.addSeq(newseq);
+  seqs.AddSeq(newseq);
   return Run(seqs, kbounds);
 }
 
@@ -279,7 +279,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string,string
   for (auto &region: gl_.regions_) {
     StrPair query_strs(GetQueryStrs(seqs, kset, region));
     if (best_genes.find(region) == best_genes.end()) {
-      cout << seqs.stringifyWOHeader() << endl;
+      seqs.Print();
     }
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
@@ -322,10 +322,10 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string,string
 StrPair JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
   Sequences query_seqs(GetSubSeqs(seqs, kset,region));
   StrPair query_strs;
-  query_strs.first = query_seqs[0].undigitize();
+  query_strs.first = query_seqs[0].undigitized();
   if (query_seqs.n_seqs() == 2) {  // the Sequences class should already ensure that both seqs are the same length
     assert(seqs.n_seqs() == 2);
-    query_strs.second = query_seqs[1].undigitize();
+    query_strs.second = query_seqs[1].undigitized();
   }
   return query_strs;  
 }

@@ -122,15 +122,13 @@ vector<Sequences*> GetSeqs(Args &args, Track *trk) {
   vector<Sequences*> all_seqs;
   for (size_t iseq=0; iseq<args.strings_["seq"].size(); ++iseq) {
     Sequences *seqs = new Sequences;
-    Sequence *sq = new(nothrow) Sequence(args.strings_["seq"][iseq], trk, args.strings_["name"][iseq]);
-    assert(sq);
-    seqs->addSeq(sq);
+    Sequence *sq = new Sequence(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
+    seqs->AddSeq(sq);
     if (trk->n_seqs == 2) {
       assert(args.strings_["second_seq"][iseq].size() > 0);
       assert(args.strings_["second_seq"][iseq] != "x");
-      Sequence *second_sq = new(nothrow) Sequence(args.strings_["second_seq"][iseq], trk, args.strings_["second_name"][iseq]);
-      assert(second_sq);
-      seqs->addSeq(second_sq);
+      Sequence *second_sq = new Sequence(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
+      seqs->AddSeq(second_sq);
     } else {
       assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
     }
