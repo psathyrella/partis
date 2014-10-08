@@ -12,7 +12,7 @@ Sequence::Sequence(string name, string& seq_str, Track* trk):
   ClearWhitespace("\n", &undigitized_);
   seq_ = new vector<uint8_t>(undigitized_.size());
   for (size_t i=0; i<undigitized_.size(); ++i) {
-    uint8_t symbl = track_->symbolIndex(undigitized_[i]);
+    uint8_t symbl = track_->symbol_index(undigitized_.substr(i,1));
     (*seq_)[i] = symbl;
   }
 }
@@ -61,7 +61,7 @@ Sequences::~Sequences() {
 void Sequences::Print() {
   for(size_t i=0; i<seqs_.size(); ++i) {
     Track* trk = seqs_[i]->track();
-    cout << ">" << trk->getName() << endl;
+    cout << ">" << trk->name() << endl;
     seqs_[i]->Print();
   }
 }

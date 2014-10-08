@@ -17,7 +17,7 @@ public:
   inline string name() const { return name_; }
   inline uint8_t operator[](size_t index) { return seq_->at(index); }  // digitized value at position <index>
   inline uint8_t value(size_t pos) const { return (*seq_)[pos]; }  // get digitized value at <pos>
-  inline string symbol(size_t pos) const { return track_->getAlpha((*seq_)[pos]); }  // get undigitized value at <pos>
+  inline string symbol(size_t pos) const { return track_->symbol((*seq_)[pos]); }  // get undigitized value at <pos>
   inline size_t size() const { return seq_->size(); }  // length of sequence
   inline Track* track() const { return track_; }
   inline string undigitized() { return undigitized_; }

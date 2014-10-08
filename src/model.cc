@@ -15,9 +15,9 @@ void Model::Parse(string infname) {
   YAML::Node tracks(config["tracks"]);
   for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
     Track *trk = new Track;
-    trk->setName(it->first.as<string>());
+    trk->set_name(it->first.as<string>());
     for (size_t ic=0; ic<it->second.size(); ++ic)
-      trk->addAlphabetChar(it->second[ic].as<string>());
+      trk->AddSymbol(it->second[ic].as<string>());
     tracks_.push_back(trk);
   }
 

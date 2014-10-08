@@ -124,7 +124,7 @@ vector<Sequences*> GetSeqs(Args &args, Track *trk) {
     Sequences *seqs = new Sequences;
     Sequence *sq = new Sequence(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
     seqs->AddSeq(sq);
-    if (trk->n_seqs == 2) {
+    if (trk->n_seqs() == 2) {
       assert(args.strings_["second_seq"][iseq].size() > 0);
       assert(args.strings_["second_seq"][iseq] != "x");
       Sequence *second_sq = new Sequence(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
