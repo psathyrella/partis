@@ -373,7 +373,7 @@ class PartitionDriver(object):
         cmd_str = self.args.ham_dir + '/ham'
         cmd_str += ' --algorithm ' + algorithm
         if self.args.pair:
-            cmd_str += ' --pair 1'
+            cmd_str += ' --pair '
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
@@ -381,6 +381,7 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         # cmd_str += ' >/dev/null'
+        # print cmd_str
 
         if self.args.debug == 2:  # not sure why, but popen thing hangs with debug 2
             check_call(cmd_str, shell=True)  # um, not sure which I want here, but it doesn't really matter. TODO kinda
