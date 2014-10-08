@@ -66,7 +66,6 @@ Actually doing stuff, quickly
 ==============
 
 Run viterbi to get the (by default five-) most likely annotations on one of the (simulated) seqs in test/simu.csv
---------------
 ```
 ./runpart.py --point_estimate --seqfile ./test/simu.csv --parameter_dir ./caches/parameters/hmm_parameters --n_max_queries 1 --debug 1
 ```
@@ -97,7 +96,6 @@ I only cache it \'cause to get reliable parameter estimates you have to run over
 So now we go back and create the parameter files that we used in the previous steps, starting from some data in ./test/data.tsv
 
 run on data to cache parameters and model files in <parameter_dir>
---------------
 ```
 ./runpart.py --cache_parameters --seqfile ./test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir ./caches/new-parameters --ighutil_dir ~/.local/bin
 ```
@@ -115,7 +113,6 @@ NOTE
 when it finishes, you can poke around in <parameter_dir>/hmm_parameters/ and see what is going into the model
 
 Now you can run the simulator with these new parameters, too, to make six clusters/clones of five sequences each:
---------------
 ```
 ./runpart.py --simulate --parameter_dir ./caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir ./caches/recombinator --debug 1
 ```
