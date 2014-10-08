@@ -190,7 +190,7 @@ class Waterer(object):
             match_names[region] = []
         codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         if self.args.debug:
-            print '  %s %s' % (query_name, '')  #query_seq)
+            print '  smith waterman matches for %s:' % query_name
         for region in utils.regions:
             n_matches[region] = len(all_match_names[region])
             n_skipped = 0
@@ -242,7 +242,7 @@ class Waterer(object):
             print '         used',
             for region in utils.regions:
                 if region != 'v':
-                    print '            ',
+                    print '             ',
                 print ' %d / %d in %s' % (n_used[region], n_matches[region], region)
 
         for region in utils.regions:

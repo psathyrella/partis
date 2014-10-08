@@ -49,7 +49,7 @@ class Clusterer(object):
                 self.id_clusters[cluster_id] = []
             self.id_clusters[cluster_id].append(query)
 
-        print self.nearest_true_mate
+        # print 'nearest',self.nearest_true_mate
         
         if True:  #self.debug:
             for cluster_id in self.id_clusters:
