@@ -3,10 +3,10 @@ dependecies
 required
 --------------
   - bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
-  - pysam
   - scons
   - pip
-  - pyyaml (ubuntu package python-yaml)
+  - pysam
+  - pyyaml
   - cython
   - networkx
   - decorator
@@ -16,7 +16,7 @@ optional
 --------------
   - ROOT
 
-included
+included in ham/
 --------------
   - tclap   
   - yaml-cpp
@@ -27,12 +27,13 @@ installation
 samtools
 --------------
 
-looks like you need a very recent version. download from here: http://sourceforge.net/projects/samtools/files/samtools/1.1/, bunzip2 and untar, then:
+you need a very recent version. Download, say, 1.1: http://sourceforge.net/projects/samtools/files/samtools/1.1/
+bunzip2 and untar it, then:
 ```
 cd samtools-1.1
 make
 cd ..
-ln -s $PWD/samtools-1.1/samtools ~/bin/  # get the samtools binary in your path. I do it like this:
+ln -s $PWD/samtools-1.1/samtools ~/bin/  # get the samtools binary in your path. I do it like this
 ```
 
 ighutil
@@ -59,8 +60,11 @@ partis
 ```
 git clone git@github.com:psathyrella/partis
 cd partis/
-./runpart.py --cache_parameters --seqfile test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir tmp/parameters --ham_dir ../ham --ighutil_dir ~/.local/bin
 ```
+
+run on data to cache parameters and model files in <parameter_dir>
+--------------
+./runpart.py --cache_parameters --seqfile ./test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir ./caches/parameters --ham_dir ../ham --ighutil_dir ~/.local/bin
 
 this does the following:
   - runs smith-waterman on the data in test/data.tsv in order to estimate model parameters, which are written to tmp/parameters/sw_parameters
@@ -71,14 +75,17 @@ NOTE
       seqs just as a test, because you need lots of seqs to get information on all the positions in all the gene versions
   - ignore all the warnings and errors about bad conserved codons and messed up cysteines and tryptophans. This is just telling you that there is unproductive rearrangements in the data.
       
-when it finishes, you can poke around in tmp/parameters/hmm_parameters/ and see what is going into the model
+when it finishes, you can poke around in caches/parameters/hmm_parameters/ and see what is going into the model
 
-Then run the simulator (using the parameter files you just made) to make six clusters/clones of five sequences each:
+
+run the simulator (using the parameter files in <parameter_dir>) to make six clusters/clones of five sequences each:
+--------------
 ```
-./runpart.py --simulate --parameter_dir tmp/parameters/hmm_parameters --n_max_queries 30 --outdir tmp/recombinator --debug 0 --ham_dir ../ham
+./runpart.py --simulate --parameter_dir ./caches/parameters/hmm_parameters --n_max_queries 30 --outdir ./caches/recombinator --debug 0 --ham_dir ../ham
 ```
 
-Then run viterbi on one of the simulated seqs you just made:
+Run viterbi on one of the (simulated) seqs in 
+--------------
 ```
 ./runpart.py --point_estimate --seqfile tmp/recombinator/simu.csv --parameter_dir tmp/parameters/hmm_parameters --n_max_queries 1 --debug 1 --ham_dir ../ham
 ```
