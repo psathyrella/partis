@@ -1,6 +1,7 @@
 #ifndef HAM_MODEL_H
 #define HAM_MODEL_H
 
+#include <fstream>
 #include "state.h"
 #include "yaml-cpp/yaml.h"
 
