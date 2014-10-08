@@ -12,8 +12,11 @@ required
 
 required only for simulator
 --------------
-  - bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification). You can install the development version with these instructions: http://biopp.univ-montp2.fr/wiki/index.php/Installation#Development_version
+  - dendropy
   - TreeSim (R package, needed to generate trees)
+  - bppseqgen: you need a version newer than april 2014. Easiest is clone the binaries/headers from a copy I made of a copy Connor made:
+    ```git clone git@github.com:psathyrella/bpp-master-20140414.git```
+
 
 optional
 --------------
@@ -117,5 +120,5 @@ when it finishes, you can poke around in parameter_dir/hmm_parameters/ and see w
 
 Now you can run the simulator with these new parameters, too, to make six clusters/clones of five sequences each:
 ```
-./runpart.py --simulate --parameter_dir ./caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir ./caches/recombinator --debug 1
+./runpart.py --simulate --parameter_dir ./caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir ./caches/recombinator --debug 1 --bpp_dir ../bpp-master-20140414
 ```
