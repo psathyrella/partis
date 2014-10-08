@@ -278,8 +278,9 @@ class PartitionDriver(object):
                         gene_list.append(gene)
 
         for gene in gene_list:
-            if self.args.debug:
-                print '   ',gene
+            # if self.args.debug:
+            print '   ', utils.color_gene(gene),
+            sys.stdout.flush()
             # if len(re.findall('J[123]P', gene)) > 0 or 'OR16' in gene or 'OR21' in gene or 'OR15' in gene or 'IGHV1-46*0' in gene or 'IGHV1-68' in gene or 'IGHV1-NL1' in gene or 'IGHV1-c' in gene or 'IGHV1-f' in gene:
             #     try:
             #         writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
