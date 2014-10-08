@@ -98,7 +98,9 @@ So now we go back and create the parameter files that we used in the previous st
 
 run on data to cache parameters and model files in <parameter_dir>
 --------------
+```
 ./runpart.py --cache_parameters --seqfile ./test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir ./caches/new-parameters --ighutil_dir ~/.local/bin
+```
 
 this does the following:
   - runs smith-waterman on the data in test/data.tsv in order to estimate model parameters, which are written to <parameter_dir>/sw_parameters
