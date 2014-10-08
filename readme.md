@@ -1,6 +1,6 @@
-dependecies:
+dependecies
 ==============
-required:
+required
 --------------
   - bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
   - pysam
@@ -10,13 +10,13 @@ required:
   - cython
   - networkx
   - decorator
-
-optional:
---------------
-  - ROOT
   - TreeSim (R package, needed to generate trees)
 
-included:
+optional
+--------------
+  - ROOT
+
+included
 --------------
   - tclap   
   - yaml-cpp
@@ -24,13 +24,14 @@ included:
 installation
 ==============
 
-# samtools
-# (looks like you need a very recent version. download from here: http://sourceforge.net/projects/samtools/files/samtools/1.1/
-cd samtools-1.1
-make
-cd ..
+samtools
+--------------
+looks like you need a very recent version. download from here: http://sourceforge.net/projects/samtools/files/samtools/1.1/
+    cd samtools-1.1
+    make
+    cd ..
 # get the samtools binary in your path. I do it like this:
-ln -s $PWD/samtools-1.1/samtools ~/bin/
+    ln -s $PWD/samtools-1.1/samtools ~/bin/
 
 # ighutil
 git clone git@github.com:cmccoy/ighutil.git
