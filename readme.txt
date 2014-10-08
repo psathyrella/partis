@@ -1,7 +1,7 @@
 dependecies:
-========
+==============
 required:
---------
+--------------
   - bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
   - pysam
   - scons
@@ -12,17 +12,17 @@ required:
   - decorator
 
 optional:
---------
+--------------
   - ROOT
   - TreeSim (R package, needed to generate trees)
 
 included:
---------
+--------------
   - tclap   
   - yaml-cpp
 
 installation
-========
+==============
 
 # samtools
 # (looks like you need a very recent version. download from here: http://sourceforge.net/projects/samtools/files/samtools/1.1/
