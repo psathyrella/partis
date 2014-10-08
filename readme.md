@@ -2,7 +2,6 @@ dependecies
 ==============
 required
 --------------
-  - bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
   - scons
   - pip
   - pysam
@@ -10,6 +9,10 @@ required
   - cython
   - networkx
   - decorator
+
+required only for simulator
+--------------
+  - bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification). You can install the development version with these instructions: http://biopp.univ-montp2.fr/wiki/index.php/Installation#Development_version
   - TreeSim (R package, needed to generate trees)
 
 optional
