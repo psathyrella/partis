@@ -15,7 +15,7 @@ required only for simulator
   - dendropy
   - TreeSim (R package, needed to generate trees)
   - bppseqgen: you need a version newer than april 2014. Easiest is clone the binaries/headers from a copy I made of a copy Connor made:
-    ```git clone git@github.com:psathyrella/bpp-master-20140414.git```
+    ```git clone git@github.com:psathyrella/bpp-master-20140414.git```. Wherever you clone this to, set it as --bpp_dir in the simulator command below
 
 
 optional
