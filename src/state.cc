@@ -81,7 +81,7 @@ void State::Print() {
 double State::end_transition_logprob() {
   if (end_trans_ == NULL)
     return -INFINITY;
-  return end_trans_->log_trans;
+  return end_trans_->log_prob();
 }
   
 // ----------------------------------------------------------------------------------------

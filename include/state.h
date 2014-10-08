@@ -33,7 +33,7 @@ public:
   inline Transition *end_trans() { return end_trans_; }
               
   double emission_logprob(Sequences &seqs, size_t pos);
-  inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->score(); }
+  inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->log_prob(); }
   double end_transition_logprob();
               
   // property-setters for use in model::finalize()

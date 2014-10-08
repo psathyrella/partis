@@ -210,23 +210,23 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
   trellis *trell(trellisi_[gene][query_strs]);
 
   if (algorithm_=="viterbi") {
-    trell->viterbi();
-    *score = trell->ending_viterbi_score;  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
-    if (trell->ending_viterbi_score == -INFINITY) {  // no valid path through hmm. TODO fix this in a more general way
+    trell->Viterbi();
+    *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
+    if (trell->ending_viterbi_log_prob() == -INFINITY) {  // no valid path through hmm. TODO fix this in a more general way
       paths_[gene][query_strs] = nullptr;
       if (debug_ == 2) cout << "                    " << gene << " " << *score << endl;
     } else {
       paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene));
-      trell->traceback(*paths_[gene][query_strs]);
-      assert(trell->ending_viterbi_score == paths_[gene][query_strs]->score());  // TODO remove this assertion
+      trell->Traceback(*paths_[gene][query_strs]);
+      assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // TODO remove this assertion
       if (debug_ == 2) PrintPath(query_strs, gene, *score);
     }
     assert(fabs(*score) > 1e-200);
     assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);
   } else if (algorithm_=="forward") {
-    trell->forward();
+    trell->Forward();
     paths_[gene][query_strs] = nullptr;  // avoids violating the assumption that paths_ and trellisi_ have the same entries
-    *score = trell->getForwardProbability();  // NOTE still need to add the gene choice prob to this score
+    *score = trell->forward_log_prob();  // NOTE still need to add the gene choice prob to this score
   } else {
     assert(0);
   }

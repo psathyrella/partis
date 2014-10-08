@@ -15,40 +15,35 @@ typedef vector<vector<float> > float_2D;
 typedef vector<vector<double> > double_2D;
 
 // ----------------------------------------------------------------------------------------
-class trellis{
+class trellis {
 public:
-  double  ending_viterbi_score;
-  trellis(Model* h , Sequences* sqs);
+  trellis(Model* hmm, Sequences* seqs);
   ~trellis();
 
-  inline Model* model(){ return hmm; }
-  inline Sequences* getSeq(){return seqs;}
-  inline float_2D* getForwardTable(){return forward_score;}
-  inline double getForwardProbability(){return ending_forward_prob;}
+  Model *model(){ return hmm_; }
+  double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
+  Sequences *seqs() { return seqs_; }
+  float_2D* forward_table() { return forward_table_; }
+  double forward_log_prob() { return ending_forward_log_prob_; }
               
-  void viterbi();
-  void forward();
-  void traceback(TracebackPath& path);
+  void Viterbi();
+  void Forward();
+  void Traceback(TracebackPath &path);
 private:
-  Model* hmm;
-  Sequences* seqs; //Digitized Sequences
-  int_2D*         traceback_table;        //Simple traceback table
+  Model *hmm_;
+  Sequences *seqs_;
+  int_2D *traceback_table_;
               
-  //Score Tables
-  // float_2D*       viterbi_score;      //Storing Viterbi scores
-  float_2D*       forward_score;      //Storing Forward scores
-  float_2D*       backward_score;     //Storing Backward scores
-  double_2D*      posterior_score;        //Storing Posterior scores
-              
-  //Ending Cells
-  int16_t ending_viterbi_tb;
-  double  ending_forward_prob;
-              
-  //Cells used for scoring each cell
-  vector<double>* scoring_current;
-  vector<double>* scoring_previous;
-              
-  vector<double>* swap_ptr;
+  double ending_viterbi_log_prob_;
+  int16_t ending_viterbi_pointer_;
+  float_2D* forward_table_;
+  double  ending_forward_log_prob_;
+
+  // internal loop variables TODO wouldn't it make more sense to put these somewhere else?
+  vector<double> *scoring_current_;
+  vector<double> *scoring_previous_;
+  vector<double> *swap_ptr_;
 };
+
 }
 #endif
