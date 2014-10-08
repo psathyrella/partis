@@ -6,7 +6,6 @@
 #include <cassert>
 #include "track.h"
 #include "sequences.h"
-#include "types.h"
 
 using namespace std;
 namespace ham {
