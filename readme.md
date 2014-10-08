@@ -95,14 +95,14 @@ I only cache it \'cause to get reliable parameter estimates you have to run over
 
 So now we go back and create the parameter files that we used in the previous steps, starting from some data in ./test/data.tsv
 
-run on data to cache parameters and model files in <parameter_dir>
+run on data to cache parameters and model files in parameter_dir
 ```
 ./runpart.py --cache_parameters --seqfile ./test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir ./caches/new-parameters --ighutil_dir ~/.local/bin
 ```
 
 this does the following:
-  - runs smith-waterman on the data in test/data.tsv in order to estimate model parameters, which are written to <parameter_dir>/sw_parameters
-  - read these parameters and use them to run the viterbi hmm on the same data file. This gives you better estimates of the parameters, which are written to <parameter_dir>/hmm_parameters
+  - runs smith-waterman on the data in test/data.tsv in order to estimate model parameters, which are written to parameter_dir/sw_parameters
+  - read these parameters and use them to run the viterbi hmm on the same data file. This gives you better estimates of the parameters, which are written to parameter_dir/hmm_parameters
 NOTE
   - ignore all the warnings about 'v right' (this tells you that a lot of the sequences have crappy best-v-matches, but you do not care a.t.m.)
   - should take ten or twenty minutes, maybe. the ham binary should be taking 100 percent cpu for most of that. We cannot really run this part with fewer
@@ -110,7 +110,7 @@ NOTE
   - ignore all the warnings and errors about bad conserved codons and messed up cysteines and tryptophans. This is just telling you that there is unproductive rearrangements in the data.
     Well, and that my germline versions suck.
       
-when it finishes, you can poke around in <parameter_dir>/hmm_parameters/ and see what is going into the model
+when it finishes, you can poke around in parameter_dir/hmm_parameters/ and see what is going into the model
 
 Now you can run the simulator with these new parameters, too, to make six clusters/clones of five sequences each:
 ```
