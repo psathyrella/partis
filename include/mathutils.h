@@ -10,7 +10,7 @@
 
 using namespace std;
 
-namespace ham{
+namespace ham {
     
   //FIXME: Need to generate dynamically once upon initialization of HMM. System differences between (int,long,...);
   //Or just leave it. It may work well enough;
@@ -89,140 +89,149 @@ namespace ham{
   };
 #endif
     
-  //! Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
-  //! i.e. a *or* b
-  //! \param first  log'd Double value
-  //! \param second log'd Double value
-  //! \return Log'd sum of two values
-  template<typename T>
-  T AddInLogSpace(T first, T second){
-    if (first==-INFINITY){
-      return second;
-    }
-    else if (second==-INFINITY){
-      return first;
-    }
-    else if (first>second){
-      return first+log(1+exp(second-first));
+//! Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
+//! i.e. a *or* b
+//! \param first  log'd Double value
+//! \param second log'd Double value
+//! \return Log'd sum of two values
+template<typename T>
+T AddInLogSpace(T first, T second){
+  if (first==-INFINITY){
+    return second;
+  }
+  else if (second==-INFINITY){
+    return first;
+  }
+  else if (first>second){
+    return first+log(1+exp(second-first));
+  }
+  else{
+    return second+log(1+exp(first-second));
+  }
+}
+
+
+  
+/*! \fn T sumVector(vector<T>& data)
+  \brief Sum the vector and return the sum
+  \param data Vector of doubles
+*/
+template<class T>
+T sumVector(vector<T>& data){
+  double sum=0;
+  for(size_t i=0;i<data.size();i++){
+    sum+=data[i];
+  }
+  return sum;
+}
+      
+/*! \fn T sumVector(vector<T>& data)
+  \brief Sum the vector and return the sum
+  \param data Vector of doubles
+*/
+template<class T>
+T sumVector(const vector<T>& data){
+  double sum=0;
+  for(size_t i=0;i<data.size();i++){
+    sum+=data[i];
+  }
+  return sum;
+}
+      
+/*! \fn T productVector(vector<T>& data)
+  \brief Multiply terms in vector and return the product
+  \param data Vector of T
+*/
+template<class T>
+T productVector(vector<T>& data){
+  double product=data[0];
+  for(size_t i=1;i<data.size();++i){
+    product*=data[i];
+  }
+  return product;
+}
+      
+  
+/*! \fn double minVector(vector<double>& data)
+  \brief Get Minimum of the vector
+  \param data Vector of doubles
+*/
+template<typename T>
+T minVector(vector<T>& data){
+  return *min_element(data.begin(), data.end());
+}
+  
+/*! \fn double maxVector(vector<doubles>& data)
+  \brief Get the Maximum of the vector
+  \param data Vector of doubles
+*/
+template<typename T>
+T maxVector(vector<T>& data){
+  return *max_element(data.begin(), data.end());
+}
+  
+/*! \fn T avgVector(vector<double>& data)
+  \brief Get the average of the vector
+  \param data Vector of doubles
+*/
+template<typename T>
+T avgVector(vector<T>& data){
+  return sumVector(data) / T(data.size());
+}
+      
+          
+/*! \fn void logVector(vector<double>& data)
+  \brief Take log of each element in vector
+  \param data Vector of doubles
+*/
+template<typename T>
+void logVector(vector<T>& data){
+  for(size_t i=0;i<data.size();i++){
+    data[i]=log(data[i]);
+  }
+  return;
+}
+  
+template<typename T>
+vector<double> get_exp_vector(vector<T> data) {
+  vector<double> newvec;
+  for(size_t i=0; i<data.size(); i++)
+    newvec.push_back(exp(data[i]));
+  return newvec;
+}
+      
+/*! \fn void probVector(vector<double>& data)
+  \brief Convert the vector to probilities.  Divide each indice by the sum of the vector
+  \param data Vecor of doubles
+*/
+template<typename T>
+void probVector(vector<T>& data){
+  T sum=sumVector(data);
+  for(size_t iter=0;iter<data.size();iter++){
+    if (sum==0){
+	data[iter]=0;
     }
     else{
-      return second+log(1+exp(first-second));
-    }
-  }
-
-
-    
-  /*! \fn T sumVector(vector<T>& data)
-    \brief Sum the vector and return the sum
-    \param data Vector of doubles
-  */
-  template<class T>
-  T sumVector(vector<T>& data){
-    double sum=0;
-    for(size_t i=0;i<data.size();i++){
-      sum+=data[i];
-    }
-    return sum;
-  }
-        
-  /*! \fn T sumVector(vector<T>& data)
-    \brief Sum the vector and return the sum
-    \param data Vector of doubles
-  */
-  template<class T>
-  T sumVector(const vector<T>& data){
-    double sum=0;
-    for(size_t i=0;i<data.size();i++){
-      sum+=data[i];
-    }
-    return sum;
-  }
-        
-  /*! \fn T productVector(vector<T>& data)
-    \brief Multiply terms in vector and return the product
-    \param data Vector of T
-  */
-  template<class T>
-  T productVector(vector<T>& data){
-    double product=data[0];
-    for(size_t i=1;i<data.size();++i){
-      product*=data[i];
-    }
-    return product;
-  }
-        
-    
-  /*! \fn double minVector(vector<double>& data)
-    \brief Get Minimum of the vector
-    \param data Vector of doubles
-  */
-  template<typename T>
-  T minVector(vector<T>& data){
-    return *min_element(data.begin(), data.end());
-  }
-    
-  /*! \fn double maxVector(vector<doubles>& data)
-    \brief Get the Maximum of the vector
-    \param data Vector of doubles
-  */
-  template<typename T>
-  T maxVector(vector<T>& data){
-    return *max_element(data.begin(), data.end());
-  }
-    
-  /*! \fn T avgVector(vector<double>& data)
-    \brief Get the average of the vector
-    \param data Vector of doubles
-  */
-  template<typename T>
-  T avgVector(vector<T>& data){
-    return sumVector(data) / T(data.size());
-  }
-        
-            
-  /*! \fn void logVector(vector<double>& data)
-    \brief Take log of each element in vector
-    \param data Vector of doubles
-  */
-  template<typename T>
-  void logVector(vector<T>& data){
-    for(size_t i=0;i<data.size();i++){
-      data[i]=log(data[i]);
-    }
-    return;
-  }
-    
-  template<typename T>
-  vector<double> get_exp_vector(vector<T> data) {
-    vector<double> newvec;
-    for(size_t i=0; i<data.size(); i++)
-      newvec.push_back(exp(data[i]));
-    return newvec;
-  }
-        
-  /*! \fn void probVector(vector<double>& data)
-    \brief Convert the vector to probilities.  Divide each indice by the sum of the vector
-    \param data Vecor of doubles
-  */
-  template<typename T>
-  void probVector(vector<T>& data){
-    T sum=sumVector(data);
-    for(size_t iter=0;iter<data.size();iter++){
-      if (sum==0){
-	data[iter]=0;
-      }
-      else{
 	data[iter]/=sum;
-      }
     }
-    return;
   }
-        
-  template <typename T>
-  void addVector(vector<T>& lhs, vector<T>& rhs){
-    transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), plus<T>());
-    return;
-  }
-        
+  return;
+}
+      
+template <typename T>
+void addVector(vector<T>& lhs, vector<T>& rhs){
+  transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), plus<T>());
+  return;
+}
+
+// // ----------------------------------------------------------------------------------------
+// // check that total is within EPS of 1.0 TODO use something cleverer than a random hard coded EPS
+// void CheckNorm(double total) {
+//   if(fabs(total-1.0) >= EPS) {
+//     cerr << "ERROR total too far from 1.0 (" << total << ")" << endl;
+//     assert(fabs(total-1.0) < EPS);
+//   }
+// }
+
 }
 #endif

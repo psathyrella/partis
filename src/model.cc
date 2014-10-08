@@ -8,10 +8,7 @@ Model::Model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
 
 // ----------------------------------------------------------------------------------------
 void Model::Parse(string infname) {
-  if(!ifstream(infname)) {
-    cerr << "ERROR file " << infname << " d.n.e." << endl;
-    assert(0);
-  }
+  assert(ifstream(infname));
   YAML::Node config = YAML::LoadFile(infname);
   name_ = config["name"].as<string>();
   overall_prob_ = config["extras"]["gene_prob"].as<double>();

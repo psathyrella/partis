@@ -45,7 +45,7 @@ class HMMHolder {
 public:
   HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines &gl):hmm_dir_(hmm_dir),n_seqs_per_track_(n_seqs_per_track),gl_(gl) {}
   ~HMMHolder();
-  Model *Get(string gene);
+  Model *Get(string gene, bool debug);
 private:
   string hmm_dir_;
   size_t n_seqs_per_track_;

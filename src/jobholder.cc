@@ -27,10 +27,12 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
-Model *HMMHolder::Get(string gene) {
+Model *HMMHolder::Get(string gene, bool debug) {
   if (hmms_.find(gene) == hmms_.end()) {  // if we don't already have it, read it from disk
     hmms_[gene] = new Model;
-    hmms_[gene]->Parse(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
+    string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
+    if (debug) cout << "    read " << infname << endl;
+    hmms_[gene]->Parse(infname);
   }
   return hmms_[gene];
 }  
@@ -206,7 +208,7 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
     trellisi_[gene] = map<StrPair,trellis*>();
     paths_[gene] = map<StrPair,TracebackPath*>();
   }
-  trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene), query_seqs);
+  trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
   trellis *trell(trellisi_[gene][query_strs]);
 
   if (algorithm_=="viterbi") {
@@ -216,7 +218,7 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
       paths_[gene][query_strs] = nullptr;
       if (debug_ == 2) cout << "                    " << gene << " " << *score << endl;
     } else {
-      paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene));
+      paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene, debug_));
       trell->Traceback(*paths_[gene][query_strs]);
       assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // TODO remove this assertion
       if (debug_ == 2) PrintPath(query_strs, gene, *score);
@@ -386,7 +388,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 	  PrintPath(query_strs, gene, *gene_score, "(cached)");
       } else {
 	FillTrellis(&subseqs[region], query_strs, gene, gene_score);  // set *gene_score to uncorrected score
-	double gene_choice_score = log(hmms_.Get(gene)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
+	double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
 	*gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
 
