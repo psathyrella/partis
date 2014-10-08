@@ -59,8 +59,6 @@ partis
 ```
 git clone git@github.com:psathyrella/partis
 cd partis/
-
-```
 ./runpart.py --cache_parameters --seqfile test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir tmp/parameters --ham_dir ../ham --ighutil_dir ~/.local/bin
 ```
 
