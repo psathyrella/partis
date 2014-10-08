@@ -3,6 +3,11 @@
   bppseqgen (*very* recent version necessary in order to allow per-residue mutation frequency specification)
   pysam
   scons
+  pip
+  pyyaml (ubuntu package python-yaml)
+  cython
+  networkx
+  decorator
 # optional:
   ROOT
   TreeSim (R package, needed to generate trees)
@@ -13,17 +18,25 @@
 # ----------------------------------------------------------------------------------------
 # installation
 
+# samtools
+# (looks like you need a very recent version. download from here: http://sourceforge.net/projects/samtools/files/samtools/1.1/
+cd samtools-1.1
+make
+cd ..
+# get the samtools binary in your path. I do it like this:
+ln -s $PWD/samtools-1.1/samtools ~/bin/
+
 # ighutil
 git clone git@github.com:cmccoy/ighutil.git
 cd ighutil
 make -C clj  # NOTE requires java 7
-sudo pip install ./python  # install vdjalign in /usr/local/bin/. NOTE not the only way to install -- see the ighutil readme
+pip install --user ./python  # NOTE without the './' this will do something very different
 cd ..
 
 # ham
 git clone git@github.com:psathyrella/ham
 cd ham/
-scons  # TODO just run this scons stuff from inside the partis scons. you know, once you write a sconstruct for partis
+scons
 cd ..
 
 # partis
@@ -32,7 +45,7 @@ cd partis/
 
 # Run this command:
 # NOTE ighutil_dir should be wherever you pip installed ighutil above
-./runpart.py --cache_parameters --seqfile test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir tmp/parameters --ham_dir ../ham --ighutil_dir /usr/local
+./runpart.py --cache_parameters --seqfile test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir tmp/parameters --ham_dir ../ham --ighutil_dir ~/.local/bin
 # this does the following:
 #   1) runs smith-waterman on the data in test/data.tsv in order to estimate model parameters, which are written to tmp/parameters/sw_parameters
 #   2) read these parameters and use 'em to run the viterbi hmm on the same data file. This gives you better estimates of the parameters, which

@@ -98,13 +98,15 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self, parameter_dir=''):
 
+        sw_plotdir, hmm_plotdir = '', ''
+        if os.getenv('www') != None:
+            sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
+            hmm_plotdir = os.getenv('www') + '/partis/hmm_parameters'
+
         if parameter_dir == '':
             parameter_dir = self.args.parameter_dir
 
         sw_parameter_dir = parameter_dir + '/sw_parameters'
-        sw_plotdir = ''
-        if os.getenv('www') != None:
-            sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
         waterer.run()
 
@@ -113,7 +115,7 @@ class PartitionDriver(object):
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
         assert not self.args.pair  # er, could probably do it for forward pair, but I'm not really sure what it would mean
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=hmm_plotdir)
 
         print 'writing hmms with hmm info'
         self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
