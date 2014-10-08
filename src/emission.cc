@@ -36,8 +36,11 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
       log_probs.push_back(log(prob));
       total_ += prob;
     }
-    assert(fabs(total_-1.0) < EPS);  // make sure emissions probs sum to 1.0
-    // CheckNorm(total_);
+    if(fabs(total_-1.0) >= EPS) {  // make sure emissions probs sum to 1.0
+      cout << "ERROR normalization failed for" << endl;
+      cout << config << endl;
+      assert(0);
+    }
     scores_.AddColumn(log_probs);  // NOTE <log_probs> must already be logged
   } else if (is_pair=="pair") {
     pair_ = true;
@@ -67,7 +70,11 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
       scores_.AddColumn(log_probs);  // NOTE <log_probs> must already be logged. also NOTE that a column in <scores_> is maybe a row in the yaml file. I didn't choose it!
     }
     // TODO use something cleverer than a random hard coded EPS
-    assert(fabs(total_-1.0) < EPS);  // make sure emissions probs sum to 1.0
+    if(fabs(total_-1.0) >= EPS) {  // make sure emissions probs sum to 1.0
+      cout << "ERROR normalization failed for" << endl;
+      cout << config << endl;
+      assert(0);
+    }
   } else {
     assert(0);
   }
