@@ -98,13 +98,15 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self, parameter_dir=''):
 
+        sw_plotdir, hmm_plotdir = '', ''
+        if os.getenv('www') != None:
+            sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
+            hmm_plotdir = os.getenv('www') + '/partis/hmm_parameters'
+
         if parameter_dir == '':
             parameter_dir = self.args.parameter_dir
 
         sw_parameter_dir = parameter_dir + '/sw_parameters'
-        sw_plotdir = ''
-        if os.getenv('www') != None:
-            sw_plotdir = os.getenv('www') + '/partis/sw_parameters'
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
         waterer.run()
 
@@ -113,7 +115,7 @@ class PartitionDriver(object):
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
         assert not self.args.pair  # er, could probably do it for forward pair, but I'm not really sure what it would mean
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=os.getenv('www') + '/partis/hmm_parameters')
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=hmm_plotdir)
 
         print 'writing hmms with hmm info'
         self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
@@ -276,8 +278,9 @@ class PartitionDriver(object):
                         gene_list.append(gene)
 
         for gene in gene_list:
-            if self.args.debug:
-                print '   ',gene
+            # if self.args.debug:
+            print '   ', utils.color_gene(gene),
+            sys.stdout.flush()
             # if len(re.findall('J[123]P', gene)) > 0 or 'OR16' in gene or 'OR21' in gene or 'OR15' in gene or 'IGHV1-46*0' in gene or 'IGHV1-68' in gene or 'IGHV1-NL1' in gene or 'IGHV1-c' in gene or 'IGHV1-f' in gene:
             #     try:
             #         writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)

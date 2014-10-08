@@ -62,6 +62,7 @@ class HmmWriter(object):
     def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, v_right_length=-1):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
+        self.eps = 1e-6
 
         # crappy parameters I made up:
         self.null_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
@@ -427,25 +428,35 @@ class HmmWriter(object):
                 #     prob = cryptic_factor_from_normalization
                 # else:
                 #     prob = cryptic_factor_from_normalization**2
-                    
+        # print '  prob',prob,'for',nuke1,nuke2,is_insert,inuke,germline_nuke
         return prob
             
     # ----------------------------------------------------------------------------------------
     def add_emissions(self, state, inuke=-1, germline_nuke=''):
         # first add single emission
         emission_probs = {}
+        total = 0.0
         for nuke in utils.nukes:
             # self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
             emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)
+            total += emission_probs[nuke]
+        if math.fabs(total - 1.0) >= self.eps:
+            print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, utils.color_gene(self.gene_name), total)
+            assert False
         state.add_emission(self.track, emission_probs)
 
         # then the pair emission
         pair_emission_probs = {}
+        total = 0.0
         for nuke1 in utils.nukes:
             pair_emission_probs[nuke1] = {}
             for nuke2 in utils.nukes:
                 # self.text_list.append((' %18.' + self.precision + 'f') % (self.get_emission_prob(nuke1, nuke2, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)))  # TODO use insertion base composition from data
                 pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)
+                total += pair_emission_probs[nuke1][nuke2]
+        if math.fabs(total - 1.0) >= self.eps:
+            print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, utils.color_gene(self.gene_name), total)
+            assert False
         state.add_pair_emission(self.track, pair_emission_probs)
 
     # ----------------------------------------------------------------------------------------
@@ -507,4 +518,7 @@ class HmmWriter(object):
         #     istart = len(self.germline_seq) - self.v_right_length
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             nuke = self.germline_seq[inuke]
+            if nuke == 'N':
+                nuke = 'A'
+                print 'WARNING replacing N with A'
             self.add_internal_state(self.germline_seq, inuke, nuke)
