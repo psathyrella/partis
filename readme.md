@@ -22,6 +22,8 @@ installation
 scons
 ```
 
+examples
+--------
 I need to write some standalone examples!
 
 Until I do, yer kinda up a creek, which is ok cause no one is actually going to read this.
