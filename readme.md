@@ -9,14 +9,12 @@ required
   - cython
   - networkx
   - decorator
+  - java 7 (for ighutil)
 
 required only for simulator
 --------------
   - dendropy
   - TreeSim (R package, needed to generate trees)
-  - bppseqgen: you need a version newer than april 2014. Easiest is clone the binaries/headers from a copy I made of a copy Connor made:
-    ```git clone git@github.com:psathyrella/bpp-master-20140414.git```. Wherever you clone this to, set it as --bpp_dir in the simulator command below
-
 
 optional
 --------------
@@ -28,50 +26,24 @@ included
   - yaml-cpp
   - ham
   - samtools
+  - bppseqgen
 
 installation
 ==============
 
-ham
---------------
-```
-cd ham/
-scons
-cd ..
-```
-
-samtools
---------------
-```
-cd samtools/
-make
-cd ..
-```
-
-ighutil
---------------
-```
-git clone git@github.com:cmccoy/ighutil.git
-cd ighutil
-make -C clj  # NOTE requires java 7
-pip install --user ./python  # NOTE without the './' this will do something very different
-cd ..
-```
-
-ham
---------------
-```
-git clone git@github.com:psathyrella/ham
-cd ham/
-scons
-cd ..
-```
-
-partis
---------------
 ```
 git clone git@github.com:psathyrella/partis
 cd partis/
+cd ham/
+scons
+cd ..
+cd samtools/
+make
+cd ..
+cd ighutil/
+make -C clj
+pip install --user ./python
+cd ..
 ```
 
 Actually doing stuff, quickly
