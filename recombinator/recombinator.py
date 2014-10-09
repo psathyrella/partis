@@ -268,12 +268,9 @@ class Recombinator(object):
 
         leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
 
-        assert ';' not in self.args.bpp_dir
-        assert os.path.exists(self.args.bpp_dir)  # NOTE you need a version of bio++ from at least 2014 for the mute-freqs-per-base to work. Either copy the binary from dkralph@gmail.com, or get a development version from: http://biopp.univ-montp2.fr/wiki/index.php/Installation
-
         # build up the command line
-        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.bpp_dir + '/lib\n'
-        command += self.args.bpp_dir + '/bin/bppseqgen'
+        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + os.getcwd() + '/bpp/lib\n'
+        command += os.getcwd() + '/bpp/bin/bppseqgen'
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
         command += ' number_of_sites=' + str(len(seq))

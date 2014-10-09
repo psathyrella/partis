@@ -45,8 +45,6 @@ parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around
 parser.add_argument('--default_d_fuzz', type=int, default=2)
 parser.add_argument('--v_right_length', type=int, default=89)  # length of v gene starting from junction with d (used mainly for writing hmms model files)
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information
-parser.add_argument('--ham_dir', default='../ham')
-parser.add_argument('--bpp_dir', default='/home/matsengrp/local/encap/bpp-master-20140414')    # NOTE you need a version of bio++ from at least 2014 for the mute-freqs-per-base to work. Either copy the binary from dkralph@gmail.com, or get a development version from: http://biopp.univ-montp2.fr/wiki/index.php/Installation
 parser.add_argument('--ighutil_dir', default=os.getenv('HOME') + '/.local')
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
@@ -56,6 +54,7 @@ parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Ma
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 args = parser.parse_args()
+assert os.path.exists(args.parameter_dir)
 
 # ----------------------------------------------------------------------------------------
 if args.simulate:
@@ -65,7 +64,6 @@ if args.simulate:
         sys.exit(0)
     from recombinator.recombinator import Recombinator
     assert args.parameter_dir != None and args.outdir != None
-    assert os.path.exists(args.bpp_dir)
     reco = Recombinator(args, total_length_from_right=130)
     for ievt in range(args.n_max_queries):
         if args.debug:
@@ -83,7 +81,6 @@ else:
     assert args.seqfile != None
     assert args.cache_parameters or args.point_estimate or args.partition
     assert args.parameter_dir != None
-    assert os.path.exists(args.ham_dir)
     from partitiondriver import PartitionDriver
 
     args.queries = get_arg_list(args.queries)

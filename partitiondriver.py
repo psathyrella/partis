@@ -373,7 +373,7 @@ class PartitionDriver(object):
         start = time.time()
 
         # build the command line
-        cmd_str = self.args.ham_dir + '/ham'
+        cmd_str = './ham/ham'
         cmd_str += ' --algorithm ' + algorithm
         if self.args.pair:
             cmd_str += ' --pair '
