@@ -1,0 +1,38 @@
+name: cpg
+tracks:
+  nukes: [A,C,G,T]
+states:
+-
+  name: init
+  label: i
+  transitions:
+    rich: 0.5
+    notrich: 0.5
+-
+  name: rich
+  label: r
+  emissions:
+    track: nukes
+    probs:
+      A: 0.1
+      C: 0.4
+      G: 0.4
+      T: 0.1
+  transitions:
+    rich: 0.8
+    notrich: 0.1
+    end: 0.1
+-
+  name: notrich
+  label: n
+  emissions:
+    track: nukes
+    probs:
+      A: 0.25
+      C: 0.25
+      G: 0.25
+      T: 0.25
+  transitions:
+    rich: 0.3
+    notrich: 0.6
+    end: 0.1
