@@ -3,7 +3,8 @@ import argparse
 import sys
 import os
 
-from utils import utils
+sys.path.insert(1, './python')
+import utils
 
 # run on data:
 #./runpart.py --n_bases_skip 9 --v_right_length 56 --is_data --parameter_dir tmp/data/parameters-100000/hmm_parameters --human A --n_max_queries 1000 --debug 1 --seqfile /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2 --point_estimate --queries '04-A-M_0000184' --n_max_per_region 10
@@ -49,7 +50,7 @@ parser.add_argument('--ighutil_dir', default=os.getenv('HOME') + '/.local')
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
-parser.add_argument('--hackey_extra_data_dir', default='recombinator/data')  # dir for tree parameters that I'm not yet inferring. TODO fix that, obviously
+parser.add_argument('--hackey_extra_data_dir', default='data/recombinator')  # dir for tree parameters that I'm not yet inferring. TODO fix that, obviously
 parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
@@ -59,10 +60,10 @@ assert os.path.exists(args.parameter_dir)
 # ----------------------------------------------------------------------------------------
 if args.simulate:
     if args.generate_trees:
-        from recombinator.treegenerator import TreeGenerator, Hist
+        from treegenerator import TreeGenerator, Hist
         treegen = TreeGenerator(args)
         sys.exit(0)
-    from recombinator.recombinator import Recombinator
+    from recombinator import Recombinator
     assert args.parameter_dir != None and args.outdir != None
     reco = Recombinator(args, total_length_from_right=130)
     for ievt in range(args.n_max_queries):
