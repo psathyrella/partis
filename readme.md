@@ -22,24 +22,30 @@ optional
 --------------
   - ROOT
 
-included in ham/
+included
 --------------
   - tclap   
   - yaml-cpp
+  - ham
+  - samtools
 
 installation
 ==============
 
+ham
+--------------
+```
+cd ham/
+scons
+cd ..
+```
+
 samtools
 --------------
-
-you need a very recent version. Download, say, 1.1: http://sourceforge.net/projects/samtools/files/samtools/1.1/
-bunzip2 and untar it, then:
 ```
-cd samtools-1.1
+cd samtools/
 make
 cd ..
-ln -s $PWD/samtools-1.1/samtools ~/bin/  # get the samtools binary in your path. I do it like this
 ```
 
 ighutil
