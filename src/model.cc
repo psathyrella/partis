@@ -11,7 +11,8 @@ void Model::Parse(string infname) {
   assert(ifstream(infname));
   YAML::Node config = YAML::LoadFile(infname);
   name_ = config["name"].as<string>();
-  overall_prob_ = config["extras"]["gene_prob"].as<double>();
+  if (config["extras"] && config["extras"]["gene_prob"])
+    overall_prob_ = config["extras"]["gene_prob"].as<double>();
   
   YAML::Node tracks(config["tracks"]);
   for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
@@ -71,6 +72,10 @@ void Model::Finalize() {
   // set each state's various transition pointers
   for(size_t i=0; i<states_.size(); ++i)
     FinalizeState(states_[i]);
+  if (!initial_) {
+    cerr << "ERROR no \"init\" was state specified" << endl;
+    assert(0);
+  }
   FinalizeState(initial_);
                       
   // now we need to fix state::transitions_ so that it agrees with state:index_

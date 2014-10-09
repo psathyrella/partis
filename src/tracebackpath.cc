@@ -30,17 +30,19 @@ void TracebackPath::path_of_names(vector<string> &str_path) {
   
 // ----------------------------------------------------------------------------------------
 void TracebackPath::print_names() const {
-  for(size_t k=path_.size()-1; k!=SIZE_MAX; --k)
-    cout << path_[k] << " ";
+  for(size_t k=path_.size()-1; k!=SIZE_MAX; --k) {
+    State* st = hmm_->state(path_[k]);
+    cout << st->name() << " ";
+  }
   cout << endl;
 }
 
 // ----------------------------------------------------------------------------------------
-void TracebackPath::print_labels() const {
+void TracebackPath::print_labels(string separator) const {
   assert(hmm_);
   for(size_t k=path_.size()-1; k!=SIZE_MAX; --k) {
     State* st = hmm_->state(path_[k]);
-    cout << st->label() << " ";
+    cout << st->label() << separator;
     cout.flush();
   }
   cout << endl;

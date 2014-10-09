@@ -16,6 +16,7 @@ public:
   void Finalize();
 		
   inline string &name() { return name_; }
+  inline Track *track(size_t it) { return tracks_[it]; }
   inline size_t n_states() { return states_.size(); }
   inline State *state(string name) { assert(states_by_name_.count(name)); return states_by_name_[name]; }
   inline State *state(size_t ist) { assert(ist < states_.size()); return states_[ist]; }

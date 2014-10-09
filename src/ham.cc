@@ -70,6 +70,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
     cmd.add(pair_arg_);
+
     cmd.parse(argc, argv);
   } catch (ArgException &e) {
     cerr << "error: " << e.error() << " for arg " << e.argId() << endl;

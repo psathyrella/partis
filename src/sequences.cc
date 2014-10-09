@@ -3,7 +3,7 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(string name, string& seq_str, Track* trk):
+Sequence::Sequence(string name, string seq_str, Track* trk):
   name_(name),
   undigitized_(seq_str),
   track_(trk)
@@ -44,10 +44,13 @@ Sequence Sequence::GetSubSequence(size_t pos, size_t len) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Sequence::Print() {
+void Sequence::Print(string separator) {
   if (!header_.empty())
     cout << header_ << endl;
-  cout << undigitized_ << endl;
+  for (auto &symbol : undigitized_)
+    cout << symbol << separator;
+  cout << endl;
+  // cout << undigitized_ << endl;
 }
 
 // ****************************************************************************************

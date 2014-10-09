@@ -35,7 +35,7 @@ public:
   inline void set_score(double score) { score_ = score; }  // set score associated with this path
       
   void print_names() const ;
-  void print_labels() const ;
+  void print_labels(string separator="") const ;  // if separator is specified, print it between each element in the sequence
 private:
   Model* hmm_;
   vector<int> path_;

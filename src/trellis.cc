@@ -3,18 +3,33 @@
 namespace ham {
       
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequences* seqs) :
+trellis::trellis(Model* hmm, Sequence *seq) :
   hmm_(hmm),
-  seqs_(seqs),
-  traceback_table_(NULL),
-  ending_viterbi_log_prob_(-INFINITY),
-  ending_viterbi_pointer_(-1),
-  forward_table_(NULL),
-  ending_forward_log_prob_(-INFINITY),
-  scoring_current_(NULL),
-  scoring_previous_(NULL),
-  swap_ptr_(NULL)
+  seqs_(NULL)
 {
+  seqs_ = new Sequences;
+  seqs_->AddSeq(seq);
+  Init();
+}
+
+// ----------------------------------------------------------------------------------------
+trellis::trellis(Model* hmm, Sequences *seqs) :
+  hmm_(hmm),
+  seqs_(seqs)
+{
+  Init();
+}
+
+// ----------------------------------------------------------------------------------------
+void trellis::Init() {
+  traceback_table_ = NULL;
+  ending_viterbi_log_prob_ = -INFINITY;
+  ending_viterbi_pointer_ = -1;
+  forward_table_ = NULL;
+  ending_forward_log_prob_ = -INFINITY;
+  scoring_current_ = NULL;
+  scoring_previous_ = NULL;
+  swap_ptr_ = NULL;
 }
 
 // ----------------------------------------------------------------------------------------

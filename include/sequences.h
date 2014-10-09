@@ -10,7 +10,7 @@ namespace ham {
 class Sequence {
   friend class Sequences;
 public:
-  Sequence(string name, string& seq_str, Track* trk);
+  Sequence(string name, string seq_str, Track* trk);
   Sequence(const Sequence&);
   ~Sequence();
       
@@ -23,7 +23,7 @@ public:
   inline string undigitized() { return undigitized_; }
   Sequence GetSubSequence(size_t pos, size_t len);
   
-  void Print();
+  void Print(string separator="");  // if separator is specified, print it between each element in the sequence
 private:
   string name_;
   string header_;

@@ -17,7 +17,9 @@ typedef vector<vector<double> > double_2D;
 // ----------------------------------------------------------------------------------------
 class trellis {
 public:
-  trellis(Model* hmm, Sequences* seqs);
+  trellis(Model* hmm, Sequence *seq);
+  trellis(Model* hmm, Sequences *seqs);
+  void Init();
   ~trellis();
 
   Model *model(){ return hmm_; }
