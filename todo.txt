@@ -1,5 +1,6 @@
   - compare other people\'s 'viterbi' codes
     - imgt/vquest: http://www.imgt.org/IMGT_vquest/vquest
+      convert recombinator csv to fasta: % grep -v unique caches/recombinator/simu.csv|cut -d, -f1,13 |csv|awk '{print ">",$1,"\n",$2}' | tr '\r' '\n' >caches/recombinator/simu.fa
     - ihmmunealign
     - soda[12]
     - joinsolver

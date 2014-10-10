@@ -56,6 +56,7 @@ parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Ma
 
 args = parser.parse_args()
 assert os.path.exists(args.parameter_dir)
+args.only_genes = get_arg_list(args.only_genes)
 
 # ----------------------------------------------------------------------------------------
 if args.simulate:
@@ -67,9 +68,8 @@ if args.simulate:
     assert args.parameter_dir != None and args.outdir != None
     reco = Recombinator(args, total_length_from_right=130)
     for ievt in range(args.n_max_queries):
-        if args.debug:
-            print ievt,
-            sys.stdout.flush()
+        print ievt,
+        sys.stdout.flush()
         reco.combine()
     os.rmdir(reco.workdir)
         
@@ -80,7 +80,6 @@ else:
 
     args.queries = get_arg_list(args.queries)
     args.reco_ids = get_arg_list(args.reco_ids)
-    args.only_genes = get_arg_list(args.only_genes)
 
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)

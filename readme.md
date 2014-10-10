@@ -14,7 +14,7 @@ required
 required only for simulator
 --------------
   - dendropy
-  - TreeSim (R package, needed to generate trees)
+  - TreeSim
 
 optional
 --------------

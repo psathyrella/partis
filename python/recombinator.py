@@ -109,12 +109,18 @@ class Recombinator(object):
                 if int(line['cdr3_length']) == -1:
                     continue  # couldn't find conserved codons when we were inferring things
                 if self.args.only_genes != None:  # are we restricting ourselves to a subset of genes?
-                    for region in utils.regions:
-                        if line[region + '_gene'] not in self.args.only_genes: continue
+                    if line['v_gene'] not in self.args.only_genes: continue  # oops, don't change this to a loop, 'cause you won't continue out of the right thing then
+                    if line['d_gene'] not in self.args.only_genes: continue
+                    if line['j_gene'] not in self.args.only_genes: continue
                 total += float(line['count'])
                 index = tuple(line[column] for column in utils.index_columns)
                 assert index not in self.version_freq_table
                 self.version_freq_table[index] = float(line['count'])
+
+            if len(self.version_freq_table) == 0:
+                print 'ERROR didn\'t find any matching gene combinations'
+                assert False
+
             # then normalize
             test_total = 0.0
             for index in self.version_freq_table:
@@ -222,6 +228,8 @@ class Recombinator(object):
 
         if total == 0.0:  # I am not yet hip enough to divide by zero
             print 'ERROR zero total frequency in %s (probably really an insert)' % mutefname
+            print 'seq:',seq
+            assert len(seq) == 0  # I think this happens mostly if we eroded off all the positions for which we had decent information
             assert False
         for inuke in range(len(seq)):  # normalize to the number of sites (this is how bppseqgen likes it)
             rates[inuke] *= float(len(seq)) / total
