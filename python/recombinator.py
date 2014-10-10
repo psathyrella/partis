@@ -39,7 +39,7 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        # first read info that doesn't depend on which human we're looking at
+        # first read info that doesn't depend on which person we're looking at
         self.all_seqs = utils.read_germlines(self.args.datadir)
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -47,7 +47,7 @@ class Recombinator(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
-        # then read stuff that's specific to each human
+        # then read stuff that's specific to each person
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
         if self.args.naivety == 'M':  # read shm info if non-naive is requested
             # TODO I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals

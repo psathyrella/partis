@@ -148,11 +148,3 @@ class TreeGenerator(object):
            # r_command += 'plot.phylo(tree); '
            # r_command += 'add.scale.bar(); '
            # r_command += 'dev.off(); '
-        
-
-#----------------------------------------------------------------------------------------    
-# make_branch_length_hists()
-# sys.exit()
-# naivety = 'M'
-# for human in utils.humans:
-#     generate_trees(human, naivety)

@@ -70,18 +70,12 @@ if args.simulate:
         if args.debug:
             print ievt,
             sys.stdout.flush()
-        success = False
-        while not success:  # returns False on failure, so keep trying (failure usually means we chose inconsistent cdr3 length and gene choices)
-            success = reco.combine()
-            if not success:  # er, I think I've rewritten everything so it shouldn't fail, but let's just make sure, shall we?
-                print 'failed!'
-                sys.exit()
+        reco.combine()
     os.rmdir(reco.workdir)
         
 else:
     assert args.seqfile != None
     assert args.cache_parameters or args.point_estimate or args.partition
-    assert args.parameter_dir != None
     from partitiondriver import PartitionDriver
 
     args.queries = get_arg_list(args.queries)
