@@ -6,14 +6,8 @@ from subprocess import check_call
 import csv
 
 from scipy.stats import beta
-has_root = True
-try:
-    sys.argv.append('-b')
-    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine
-    gROOT.Macro("plotting/MitStyleRemix.cc+")
-except ImportError:
-    print ' ROOT not found, proceeding without plotting'
-    has_root = False
+import plotting
+has_root = plotting.check_root()
 
 import utils
 from opener import opener

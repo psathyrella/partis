@@ -9,11 +9,7 @@ import utils
 from opener import opener
 import plotting
 from mutefreqer import MuteFreqer
-has_root = True
-try:
-    from ROOT import kRed
-except ImportError:
-    has_root = False
+has_root = plotting.check_root()
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):

@@ -14,6 +14,7 @@ from hmmwriter import HmmWriter
 from clusterer import Clusterer
 from waterer import Waterer
 from parametercounter import ParameterCounter
+import plotting
 
 print 'import time: %.3f' % (time.time() - import_start)
 
@@ -148,16 +149,27 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir)
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir, plot_performance=self.args.plot_performance)
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
 
+        if self.args.plot_performance:
+            plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-waterman', xtitle='inferred - true')
+
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir=''):
+    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
         pcounter = None
         if count_parameters:
             pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir)
         if plotdir != '':
             utils.prep_dir(plotdir + '/plots', '*.svg')
+
+        perfplotter = None
+        if plot_performance:
+            assert not self.args.is_data
+            assert not self.args.pair  # well, you *could* check the performance of pair viterbi, but I haven't implemented it yet
+            assert algorithm == 'viterbi'  # same deal as previous assert
+            from performanceplotter import PerformancePlotter
+            perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/performance', 'hmm')
 
         if prefix == '' and stripped:
             prefix = 'stripped'
@@ -165,9 +177,9 @@ class PartitionDriver(object):
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, stripped=stripped)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, stripped=stripped, parameter_dir=parameter_in_dir)
         self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
-        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter)
+        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter)
 
         if count_parameters:
             pcounter.write_counts()
@@ -299,7 +311,16 @@ class PartitionDriver(object):
             print 'WARNING %s sw v right: %d  (expecting about %d)' % (query_name, sw_v_right, self.args.v_right_length)
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
+    def check_hmm_existence(self, gene_list, parameter_dir):
+        """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
+        for gene in gene_list:
+            hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
+            if not os.path.exists(hmmfname):
+                print 'WARNING removing match %s from gene list (d.n.e.: %s)' % (gene, hmmfname)
+                gene_list.remove(gene)
+
+    # ----------------------------------------------------------------------------------------
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
         with opener('w')(csv_fname) as csvfile:
             # write header
             header = ['name', 'second_name', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
@@ -341,6 +362,7 @@ class PartitionDriver(object):
                             skipped_gene_matches.add(gene)
                             continue
                         only_genes.append(gene)
+                    self.check_hmm_existence(only_genes, parameter_dir)
                     csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
                                   (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(only_genes),
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
@@ -363,6 +385,7 @@ class PartitionDriver(object):
                             skipped_gene_matches.add(gene)
                             continue
                         only_genes.append(gene)
+                    self.check_hmm_existence(only_genes, parameter_dir)
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
@@ -404,7 +427,7 @@ class PartitionDriver(object):
         print '    hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter):
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter):
         # TODO the input and output files for this function are almost identical at this point
 
         # write header for pairwise score file
@@ -429,6 +452,8 @@ class PartitionDriver(object):
                         if pcounter != None:  # increment counters
                             utils.get_match_seqs(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
                             pcounter.increment(line)
+                        if perfplotter != None:
+                            perfplotter.evaluate(self.reco_info[line['unique_id']], line)
 
                         if self.args.debug > 0: # print stuff
                             print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
@@ -455,3 +480,5 @@ class PartitionDriver(object):
                 last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
         if n_boundary_errors > 0:
             print '    %d boundary errors' % n_boundary_errors
+        if perfplotter != None:
+            perfplotter.plot()

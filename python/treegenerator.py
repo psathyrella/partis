@@ -12,7 +12,7 @@ from opener import opener
 import utils
 
 # ----------------------------------------------------------------------------------------
-class Hist(object):
+class Hist(object):  # NOTE I wrote this class when I couldn't get pyroot to work. Now it does, so...
     """ a simple histogram """
     def __init__(self, n_bins = 20, xmin = 0.0, xmax = 30.0):
         self.n_bins = n_bins

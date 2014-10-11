@@ -46,7 +46,7 @@ class Waterer(object):
     def run(self):
         outfname = self.args.workdir + '/query-seqs.bam'
         self.run_smith_waterman(outfname)
-        self.read_output(outfname)
+        self.read_output(outfname, plot_performance=self.args.plot_performance)
         if self.pcounter != None:
             self.pcounter.write_counts()
 
@@ -76,12 +76,23 @@ class Waterer(object):
         print '    s-w time: %.3f' % (time.time()-start)
     
     # ----------------------------------------------------------------------------------------
-    def read_output(self, outfname):
+    def read_output(self, outfname, plot_performance=False):
         start = time.time()
+
+        perfplotter = None
+        if plot_performance:
+            assert not self.args.is_data
+            from performanceplotter import PerformancePlotter
+            perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/sw_performance', 'sw')
+
         with contextlib.closing(pysam.Samfile(outfname)) as bam:
             grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
             for _, reads in grouped:  # loop over query sequences
-                self.process_query(bam, list(reads))
+                self.process_query(bam, list(reads), perfplotter)
+
+        if perfplotter != None:
+            perfplotter.plot()
+
         print '    sw read time: %.3f' % (time.time() - start)
         if not self.args.no_clean:
             os.remove(outfname)
@@ -97,7 +108,7 @@ class Waterer(object):
         return choice_prob
 
     # ----------------------------------------------------------------------------------------
-    def process_query(self, bam, reads):
+    def process_query(self, bam, reads, perfplotter=None):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
@@ -121,7 +132,7 @@ class Waterer(object):
             # TODO the s-w allows the j right edge to be chopped off -- I should skip the matches where different amounts are chopped off in the query and germline
             all_germline_bounds[gene] = (read.pos, read.aend)
 
-        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds)
+        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter)
 
     # ----------------------------------------------------------------------------------------
     def get_conserved_codon_position(self, region, gene, glbounds, qrbounds):
@@ -179,7 +190,7 @@ class Waterer(object):
             print ''                
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds):
+    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter):
         # best_scores = {}
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
@@ -306,3 +317,5 @@ class Waterer(object):
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
+        if perfplotter != None:
+            perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])

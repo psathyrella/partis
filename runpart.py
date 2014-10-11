@@ -17,6 +17,7 @@ def get_arg_list(arg):  # make lists from args that are passed as strings of col
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+sys.argv.append('-b')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no_clean', action='store_true')  # don't remove the various temp files
 # actions:
@@ -27,6 +28,7 @@ parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--partition', action='store_true')
 parser.add_argument('--parameter_dir')
 parser.add_argument('--outdir')
+parser.add_argument('--plot_performance', action='store_true')
 
 parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
 
