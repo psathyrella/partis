@@ -23,40 +23,46 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 self.values[column]['right'] = 0
                 self.values[column]['wrong'] = 0
-            else:
-                self.values[column] = {}
+            # else:
+            #     self.values[column] = {}
+        self.values['hamming_to_true_naive'] = {}
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_naive(self, true_line, line):
-        original_seqs = {}  # original (non-eroded) germline seqs
-        lengths = {}  # length of each match (including erosion)
-        eroded_seqs = {}  # eroded germline seqs
-        utils.get_reco_event_seqs(self.germlines, line, original_seqs, lengths, eroded_seqs)
-        for seq in eroded_seqs.items():
-            print seq
+    def hamming_distance_to_true_naive(self, true_line, line, query_name):
+        """ hamming distance between the inferred naive sequence and the tue naive sequence """
+        true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
+        inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
+        # utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
+        if len(true_naive_seq) != len(inferred_naive_seq):
+            print 'ERROR %s different naive lengths' % query_name
+            print true_naive_seq
+            print inferred_naive_seq
+            sys.exit()
+        return utils.hamming(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
-    def evaluate(self, true_line, line):
-        self.hamming_distance_to_naive(true_line, line)
+    def evaluate(self, true_line, line, query_name):
         for column in self.values:
-            trueval = true_line[column]
-            guessval = line[column]
             if column in bool_columns:
-                # if utils.are_alleles(guessval, trueval):
-                if guessval == trueval:
+                if true_line[column] == line[column]:
                     self.values[column]['right'] += 1
                 else:
                     self.values[column]['wrong'] += 1
             else:
+                trueval, guessval = 0, 0
                 if 'insertion' in column:
-                    trueval = len(trueval)
-                    guessval = len(guessval)
+                    trueval = len(true_line[column])
+                    guessval = len(line[column])
+                elif column == 'hamming_to_true_naive':
+                    trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
+                    guessval = self.hamming_distance_to_true_naive(true_line, line, query_name)
                 else:
-                    trueval = int(trueval)
-                    guessval = int(guessval)
+                    trueval = int(true_line[column])
+                    guessval = int(line[column])
                 diff = guessval - trueval
                 if diff not in self.values[column]:
                     self.values[column][diff] = 0
                 self.values[column][diff] += 1
+
     # ----------------------------------------------------------------------------------------
     def plot(self):
         for column in self.values:

@@ -88,7 +88,7 @@ def color(col, seq):
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False):
-    # assert len(ref_seq) == len(seq)
+    assert len(ref_seq) == len(seq)
     return_str = ''
     for inuke in range(len(seq)):
         if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
@@ -96,8 +96,8 @@ def color_mutants(ref_seq, seq, print_result=False):
         else:
             return_str += color('red', seq[inuke])
     if print_result:
-        print '%75s %s' % ('', ref_seq)
-        print '%75s %s' % ('', return_str)
+        print '%0s %s' % ('', ref_seq)
+        print '%0s %s' % ('', return_str)
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -276,12 +276,17 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
     d_5p_del = int(line['d_5p_del'])
     d_3p_del = int(line['d_3p_del'])
     j_5p_del = int(line['j_5p_del'])
+    j_3p_del = 0
+    if 'j_3p_del' in line:
+        j_3p_del = int(line['j_3p_del'])
 
     for region in regions:
         original_seqs[region] = germlines[region][line[region+'_gene']]
     if 'v_5p_del' not in line:  # try to infer the left-hand v 'deletion'
         line['v_5p_del'] = get_v_5p_del(original_seqs, line)
     original_seqs['v'] = original_seqs['v'][line['v_5p_del']:]  # TODO erm, should the 5p v erosion be off the original, or eroded sequence?
+    if j_3p_del > 0:
+        original_seqs['j'] = original_seqs['j'][:j_3p_del]  # TODO erm, should the 5p v erosion be off the original, or eroded sequence?
 
     # length (in the query sequence) which is assigned to each region
     lengths['v'] = len(original_seqs['v']) - v_3p_del
@@ -291,7 +296,7 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
     # the eroded germline sequences
     eroded_seqs['v'] = original_seqs['v'][:lengths['v']]
     eroded_seqs['d'] = original_seqs['d'][d_5p_del : len(original_seqs['d']) - d_3p_del]
-    eroded_seqs['j'] = original_seqs['j'][j_5p_del :]
+    eroded_seqs['j'] = original_seqs['j'][j_5p_del : len(original_seqs['j']) - j_3p_del]
 
 # ----------------------------------------------------------------------------------------
 def add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs):
@@ -307,6 +312,14 @@ def add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs):
         print '    bad codon, setting cdr3_length to -1'
         line['cdr3_length'] = -1
     
+# ----------------------------------------------------------------------------------------
+def get_full_naive_seq(germlines, line):
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+    return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']
+
 # ----------------------------------------------------------------------------------------
 def get_match_seqs(germlines, line, cyst_positions, tryp_positions):
     """
@@ -331,7 +344,7 @@ def get_match_seqs(germlines, line, cyst_positions, tryp_positions):
     line['j_qr_seq'] = line['seq'][len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']) : len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']) + len(eroded_seqs['j'])]
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_line=False, extra_str=''):
+def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, one_line=False, extra_str=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -340,24 +353,28 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
     d_5p_del = int(line['d_5p_del'])
     d_3p_del = int(line['d_3p_del'])
     j_5p_del = int(line['j_5p_del'])
+    j_3p_del = 0
+    if 'j_3p_del' in line:
+        j_3p_del = int(line['j_3p_del'])
 
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
+
     germline_v_end = len(original_seqs['v']) - 1
     germline_d_start = lengths['v'] + len(line['vd_insertion']) - d_5p_del
     germline_d_end = germline_d_start + len(original_seqs['d'])
     germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
 
-    if 'j_3p_del' in line:
-        for _ in range(j_3p_del):
-            line['seq'] += '.'
+    # if 'j_3p_del' in line:
+    #     for _ in range(line['j_3p_del']):
+    #         line['seq'] += '.'
 
     final_seq = ''
     n_muted, n_total = 0,0
-    for inuke in range(len(line['seq'])):
+    for inuke in range(len(line['seq']) - j_3p_del):
         ilocal = inuke
         new_nuke = ''
         if ilocal < lengths['v']:
@@ -387,13 +404,13 @@ def print_reco_event(germlines, line, cyst_position, final_tryp_position, one_li
                     new_nuke = new_nuke + '\033[m'
         final_seq += new_nuke
 
-    # pad with dots
+    # pad with dots  TODO note that if the sum of v_3p_del and j_5p_del are larger than the d length (er, plus insertions? whatever) the middle line doesn't line up
     eroded_seqs['v'] = eroded_seqs['v'] + v_3p_del * '.'
     eroded_seqs['d'] = d_5p_del * '.' + eroded_seqs['d'] + d_3p_del * '.'
-    eroded_seqs['j'] = j_5p_del * '.' + eroded_seqs['j']
+    eroded_seqs['j'] = j_5p_del * '.' + eroded_seqs['j'] + j_3p_del * '.'
 
     insertions = lengths['v'] * ' ' + line['vd_insertion'] + lengths['d'] * ' ' + line['dj_insertion'] + lengths['j'] * ' '
-    d = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - j_5p_del + len(line['dj_insertion']) - d_3p_del) * ' '
+    d = germline_d_start * ' ' + eroded_seqs['d'] + (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del) * ' '
     vj = eroded_seqs['v'] + (germline_j_start - germline_v_end - 2) * ' ' + eroded_seqs['j']
 
     if 'score' not in line:

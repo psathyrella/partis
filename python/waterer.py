@@ -114,6 +114,7 @@ class Waterer(object):
         query_name = primary.qname
         raw_best = {}
         all_match_names = {}
+        warnings = {}  # ick, this is a messy way to pass stuff around
         for region in utils.regions:
             all_match_names[region] = []
         all_query_bounds, all_germline_bounds = {}, {}
@@ -121,18 +122,44 @@ class Waterer(object):
             read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
             gene = bam.references[read.tid]
             region = utils.get_region(gene)
+            warnings[gene] = ''
 
             if region not in raw_best:  # best v, d, and j before multiplying by gene choice probs. needed 'cause *these* are the v and j that get excised
                 raw_best[region] = gene
 
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
             score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
-            all_match_names[region].append((score,gene))
-            all_query_bounds[gene] = (read.qstart, read.qend)
-            # TODO the s-w allows the j right edge to be chopped off -- I should skip the matches where different amounts are chopped off in the query and germline
-            all_germline_bounds[gene] = (read.pos, read.aend)
+            # set bounds  TODO the s-w allows the j right edge to be chopped off -- I should skip the matches where different amounts are chopped off in the query and germline. EDIT well, maybe. I dunno
+            qrbounds = (read.qstart, read.qend)
+            glbounds = (read.pos, read.aend)
 
-        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter)
+            # check for left-side v erosion  TODO it would make sense to change the score when you expand the boundaries
+            if region == 'v' and read.qstart != 0:  # s-w allows the v match to start to the right of the lefthand base in the query sequence, which makes little sense in most cases. So, we artificially expand the left v boundaries, presumably adding a few mutated bases. TODO think about whether this is the proper long-term solution
+                qrbounds = (0, read.qend)
+                glbounds = (read.pos - read.qstart, read.aend)
+                warnings[gene] += 'v left expanded %d -> %d, %d -> %d' % (read.qstart, 0, read.pos, read.pos - read.qstart)
+            # check for right-side j erosion  TODO it would make sense to change the score when you expand the boundaries
+            gl_length = len(self.germline_seqs[region][gene])
+            if region == 'j' and read.aend != gl_length:
+                # print 'whoa!', gene, read.pos, read.aend, gl_length
+                length_to_end_of_query_seq = len(query_seq) - read.qstart
+                new_match_length = min(gl_length, length_to_end_of_query_seq + read.pos)  # don't want to expand beyond the number of query bases we have left
+                # print gene, read.qstart, '-', read.qend, '   ', read.pos, '-', read.aend, '    ', gl_length, length_to_end_of_query_seq, new_match_length
+                qrbounds = (read.qstart, read.qstart + new_match_length - read.pos)
+                glbounds = (read.pos, new_match_length)
+                warnings[gene] += 'j right expanded %d -> %d, %d -> %d' % (read.qend, read.qstart + new_match_length - read.pos, read.aend, new_match_length)
+            assert qrbounds[1] <= len(query_seq)
+            assert glbounds[1] <= len(self.germline_seqs[region][gene])
+
+            # if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
+            #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
+            #     continue
+            
+            all_match_names[region].append((score,gene))
+            all_query_bounds[gene] = qrbounds
+            all_germline_bounds[gene] = glbounds
+
+        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings)
 
     # ----------------------------------------------------------------------------------------
     def get_conserved_codon_position(self, region, gene, glbounds, qrbounds):
@@ -169,7 +196,7 @@ class Waterer(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, skipping=False):
+    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
         if self.args.debug:
             buff_str = (17 - len(gene)) * ' '
             tmp_val = 0.0
@@ -185,12 +212,26 @@ class Waterer(object):
             print ''
             print '%48s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
             print '  %s (%d)' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]), codon_pos),
+            if warnings[gene] != '':
+                print 'WARNING',warnings[gene],
             if skipping:
                 print 'skipping!',
             print ''                
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter):
+    def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, best):
+        """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so arbitrarily give the disputed territory to the righthand region  """  # TODO do something better than using the righthand one
+        for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
+            left_gene = best[rpairs['left']]
+            right_gene = best[rpairs['right']]
+            overlap = qrbounds[left_gene][1] - qrbounds[right_gene][0]
+            if overlap > 0:
+                print 'WARNING %s giving %d bases from %s match to %s match' % (query_name, overlap, rpairs['left'], rpairs['right'])
+                qrbounds[left_gene] = (qrbounds[left_gene][0], qrbounds[left_gene][1] - overlap)
+                glbounds[left_gene] = (glbounds[left_gene][0], glbounds[left_gene][1] - overlap)
+
+    # ----------------------------------------------------------------------------------------
+    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings):
         # best_scores = {}
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
@@ -208,10 +249,16 @@ class Waterer(object):
             for score,gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
+                assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up avove as well (in process_query), so in time I should remove them from here
+                assert glbounds[1] <= len(self.germline_seqs[region][gene])
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                 if codon_positions[region] == -1:  # set to the position in the best match
                     codon_positions[region] = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
 
+                if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
+                    print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
+                    continue
+            
                 # only use the best few matches
                 if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
                     break
@@ -221,13 +268,20 @@ class Waterer(object):
                     n_skipped += 1
                     continue
 
-                # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
-                assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think)
-
                 # add match to the list
                 n_used[region] += 1
                 match_names[region].append(gene)
-                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, codon_positions[region], skipping=False)
+                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, codon_positions[region], warnings, skipping=False)
+
+                # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
+                if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):
+                    print glmatchseq
+                    print '',query_seq[qrbounds[0]:qrbounds[1]]
+                    print gene,query_name
+                    print qrbounds[0],qrbounds[1]
+                    print glbounds[0],glbounds[1]
+                    print warnings[gene]
+                assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think) EDIT hey this totally saved my ass
 
                 if region == 'v':
                     this_k_v = all_query_bounds[gene][1]
@@ -263,6 +317,9 @@ class Waterer(object):
                     print '    true:'
                     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0, extra_str='    ')
                 return
+
+        # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
+        self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, best)
 
         # best k_v, k_d:
         k_v = all_query_bounds[best['v']][1]  # end of v match
@@ -306,6 +363,10 @@ class Waterer(object):
         self.info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
         self.info[query_name]['d_3p_del'] = len(self.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
+        if all_germline_bounds[best['j']][1] != len(self.germline_seqs['j'][best['j']]):
+            self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
+            print 'WARNING j 3p deletion %d' % self.info[query_name]['j_3p_del']
+
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
         self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
 
@@ -315,7 +376,11 @@ class Waterer(object):
             self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
             self.info['all_best_matches'].add(best[region])
 
+        self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
+        if self.args.debug:
+            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ')
+
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
         if perfplotter != None:
-            perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])
+            perfplotter.evaluate(self.reco_info[query_name], self.info[query_name], query_name)

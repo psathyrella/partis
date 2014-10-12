@@ -453,7 +453,7 @@ class PartitionDriver(object):
                             utils.get_match_seqs(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
                             pcounter.increment(line)
                         if perfplotter != None:
-                            perfplotter.evaluate(self.reco_info[line['unique_id']], line)
+                            perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
 
                         if self.args.debug > 0: # print stuff
                             print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
