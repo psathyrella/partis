@@ -349,23 +349,19 @@ class Waterer(object):
         self.info[query_name]['k_v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         self.info[query_name]['k_d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
         self.info[query_name]['v_right_length'] = v_right_length
-        # self.info[query_name]['best'] = best
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
         assert codon_positions['v'] != -1
         assert codon_positions['j'] != -1
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+
         # erosion, insertion, mutation info for best match
-        assert 'v_5p_del' not in self.info[query_name]  # TODO use a better method of getting v_5p (and j_3p)
-        self.info[query_name]['v_5p_del'] = self.germline_seqs['v'][best['v']].find(best['v_gl_seq'])
-        assert self.info[query_name]['v_5p_del'] > 0
+        self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
         self.info[query_name]['v_3p_del'] = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
         self.info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
         self.info[query_name]['d_3p_del'] = len(self.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
-        if all_germline_bounds[best['j']][1] != len(self.germline_seqs['j'][best['j']]):
-            self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
-            print 'WARNING j 3p deletion %d' % self.info[query_name]['j_3p_del']
+        self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
 
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
         self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]

@@ -260,6 +260,7 @@ def is_mutated(original, final, n_muted=-1, n_total=-1):
 
 # ----------------------------------------------------------------------------------------
 def get_v_5p_del(original_seqs, line):
+    assert False  # this method will no longer work when I need to get v left *and* j right 'deletions'
     original_length = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j'])
     total_deletion_length = int(line['v_3p_del']) + int(line['d_5p_del']) + int(line['d_3p_del']) + int(line['j_5p_del'])
     total_insertion_length = len(line['vd_insertion']) + len(line['dj_insertion'])
@@ -271,14 +272,13 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
     get original and eroded germline seqs
     damn these function names kinda suck. TODO rejigger the function and variable names hereabouts
     """
-    
+
+    assert 'v_5p_del' in line  # that shoud remind me this function needs some tlc
     v_3p_del = int(line['v_3p_del'])
     d_5p_del = int(line['d_5p_del'])
     d_3p_del = int(line['d_3p_del'])
     j_5p_del = int(line['j_5p_del'])
-    j_3p_del = 0
-    if 'j_3p_del' in line:
-        j_3p_del = int(line['j_3p_del'])
+    j_3p_del = int(line['j_3p_del'])
 
     for region in regions:
         original_seqs[region] = germlines[region][line[region+'_gene']]
@@ -349,6 +349,8 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
 
     If <one_line>, then only print out the final_seq line.
     """
+
+    # assert False  # ok, and did you grep through everything from v_5p_del and j_3p_del?
     v_3p_del = int(line['v_3p_del'])  # TODO hurg don't really want these any more
     d_5p_del = int(line['d_5p_del'])
     d_3p_del = int(line['d_3p_del'])
