@@ -186,6 +186,7 @@ public:
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
   void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false, bool print_second_seq=false, string extra_indent="") {
+    assert(0);  // this needs to be updated to match the python version
     string print_seq = seq_;
     if (print_second_seq)
       print_seq = second_seq_;
