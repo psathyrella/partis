@@ -290,7 +290,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string,string
     if (path_labels.size() == 0) {
       if (debug_) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
-      return event; // TODO fix this upstream. well, it isn't *broken*, but, you know, whatever
+      return event; // TODO fix this upstream. well, it isn't *broken*, but, you know, could be cleaner
     }
     assert(path_labels.size() > 0);
     assert(path_labels.size() == query_strs.first.size());

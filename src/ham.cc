@@ -212,12 +212,14 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
     size_t n_max = min(size_t(args.n_best_events()), events.size());
     for (size_t ievt=0; ievt<n_max; ++ievt) {
       RecoEvent *event = &events[ievt];
+      cout << event->genes_["x"] << endl;
+      assert(0);
       string second_seq_name,second_seq;
       if (args.pair()) {
 	second_seq_name = event->second_seq_name_;
 	second_seq = event->second_seq_;
       }
-      ofs
+      ofs  // be very, very careful to change this *and* the csv header above at the same time
 	<< event->seq_name_
 	<< "," << second_seq_name
 	<< "," << event->genes_["v"]
