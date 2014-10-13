@@ -150,7 +150,7 @@ int main(int argc, const char * argv[]) {
   ofs.open(args.outfile());
   assert(ofs.is_open());
   if (args.algorithm() == "viterbi")
-    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_3p_del,d_5p_del,d_3p_del,j_5p_del,score,seq,second_seq,errors" << endl;
+    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seq,second_seq,errors" << endl;
   else
     ofs << "unique_id,second_unique_id,score,errors" << endl;
 
@@ -212,8 +212,6 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
     size_t n_max = min(size_t(args.n_best_events()), events.size());
     for (size_t ievt=0; ievt<n_max; ++ievt) {
       RecoEvent *event = &events[ievt];
-      cout << event->genes_["x"] << endl;
-      assert(0);
       string second_seq_name,second_seq;
       if (args.pair()) {
 	second_seq_name = event->second_seq_name_;
@@ -227,10 +225,12 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
 	<< "," << event->genes_["j"]
 	<< "," << event->insertions_["vd"]
 	<< "," << event->insertions_["dj"]
+	<< "," << event->deletions_["v_5p"]
 	<< "," << event->deletions_["v_3p"]
 	<< "," << event->deletions_["d_5p"]
 	<< "," << event->deletions_["d_3p"]
 	<< "," << event->deletions_["j_5p"]
+	<< "," << event->deletions_["j_3p"]
 	<< "," << event->score_
 	<< "," << event->seq_
 	<< "," << second_seq
