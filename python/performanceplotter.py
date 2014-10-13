@@ -34,9 +34,13 @@ class PerformancePlotter(object):
         # utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
         if len(true_naive_seq) != len(inferred_naive_seq):
             print 'ERROR %s different naive lengths' % query_name
-            print true_naive_seq
-            print inferred_naive_seq
-            sys.exit()
+            print '    ', true_naive_seq
+            print '    ', inferred_naive_seq
+            print '   cropping the longer one (it\'s probably because the j match doesn\'t go all the way to the right side of the sequence)'
+            # TODO should really penalize if it's wrong
+            min_length = min(len(true_naive_seq), len(inferred_naive_seq))
+            true_naive_seq = true_naive_seq[:min_length]
+            inferred_naive_seq = inferred_naive_seq[:min_length]
         return utils.hamming(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
@@ -72,7 +76,10 @@ class PerformancePlotter(object):
                 print '  %s\n    correct: %4d / %-4d = %4.2f' % (column, right, right+wrong, float(right) / (right + wrong))
             else:
                 hist = plotting.make_hist(self.values[column], 'int', self.name + '-' + column, normalize=True)
-                hist.GetXaxis().SetTitle('inferred - true')
+                if column == 'hamming_to_true_naive':
+                    hist.GetXaxis().SetTitle('hamming distance')
+                else:
+                    hist.GetXaxis().SetTitle('inferred - true')
                 plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir)
         check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
         check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])

@@ -153,7 +153,7 @@ class PartitionDriver(object):
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
 
         if self.args.plot_performance:
-            plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-waterman', xtitle='inferred - true')
+            plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-water', xtitle='inferred - true')
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
@@ -438,7 +438,6 @@ class PartitionDriver(object):
             last_id = None
             n_boundary_errors = 0
             for line in reader:
-
                 # check for errors
                 boundary_error = False
                 if line['errors'] != None and 'boundary' in line['errors'].split(':'):
@@ -450,7 +449,7 @@ class PartitionDriver(object):
                 if algorithm == 'viterbi':
                     if last_id != utils.get_key(line['unique_id'], line['second_unique_id']):  # if this is the first line for this query (or query pair), print the true event
                         if pcounter != None:  # increment counters
-                            utils.get_match_seqs(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
+                            utils.add_match_seqs(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
                             pcounter.increment(line)
                         if perfplotter != None:
                             perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])

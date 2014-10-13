@@ -187,7 +187,7 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         hist2.SetLineWidth(4);
         hist2.Draw("hist same");
 
-    leg = TLegend(0.6, 0.75, 0.9, 0.9)
+    leg = TLegend(0.6, 0.78, 0.9, 0.9)
     leg.SetFillColor(0)
     leg.SetBorderSize(0)
     leg.AddEntry(hist, hist.GetTitle() , 'l')

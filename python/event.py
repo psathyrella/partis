@@ -74,7 +74,7 @@ class RecombinationEvent(object):
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, total_length_from_right=0):
         """ Write out all info to csv file. """
-        columns = ('unique_id', 'reco_id', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'vd_insertion', 'dj_insertion', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'seq')
+        columns = ('unique_id', 'reco_id', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'vd_insertion', 'dj_insertion', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'seq')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'
@@ -104,6 +104,8 @@ class RecombinationEvent(object):
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
                 row['seq'] = self.final_seqs[imute]
+                row['v_5p_del'] = len(row['seq']) - total_length_from_right
+                row['j_3p_del'] = 0  # until further notice I'm not simulating stuff with a righthand deletion
                 if total_length_from_right > 0:
                     row['seq'] = row['seq'][len(row['seq'])-total_length_from_right : ]
                 unique_id = ''  # Hash to uniquely identify the sequence.
