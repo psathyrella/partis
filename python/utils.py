@@ -355,7 +355,7 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
     n_muted, n_total = 0, 0
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     # TODO allow v match to start to right of start of query sequence
-    for inuke in range(len(line['seq']) - j_3p_del):
+    for inuke in range(len(line['seq'])):  # - j_3p_del):
         ilocal = inuke
         new_nuke = ''
         if ilocal < lengths['v']:
@@ -405,11 +405,13 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
     insertions += line['dj_insertion']
     insertions += ' ' * lengths['j']
     insertions += j_right_extra
+    insertions += ' ' * j_3p_del
 
     d_line = ' ' * germline_d_start  # len(original_seqs['j']) - j_5p_del - j_3p_del
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
     d_line += j_right_extra
+    d_line += ' ' * j_3p_del
 
     vj_line = eroded_seqs_dots['v']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
@@ -422,7 +424,7 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
 
     if len(insertions) != len(d_line) or len(insertions) != len(vj_line):
         print 'ERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
-        # assert no_space
+        assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
     if 'score' not in line:

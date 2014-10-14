@@ -56,7 +56,7 @@ def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
                     candidates.append(candidate_gene)
         
     if len(candidates) == 0:
-        print 'ERROR didn\'t find jack for', gene_name, seq
+        print '    ERROR didn\'t find jack for', gene_name, seq
         assert False
     # elif len(candidates) > 1:
     #     print 'NOTE found',len(candidates),'candidates, just using the first one'
@@ -69,9 +69,9 @@ def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
 # ----------------------------------------------------------------------------------------
 class JoinParser(object):
     def __init__(self, seqfname, joinfname, datadir):  # <seqfname>: input to joinsolver, <joinfname> output from joinsolver (I only need both because they don't seem to put the full query seq in the output)
-        self.debug = 2
+        self.debug = 0
         n_max_queries = 100
-        queries = ['6277911766586377041']
+        queries = []
 
         self.germline_seqs = utils.read_germlines(datadir)
 
@@ -83,7 +83,7 @@ class JoinParser(object):
             for line in reader:
                 if len(queries) > 0 and line['unique_id'] not in queries:
                     continue
-                self.seqinfo[line['unique_id']] = line['seq']
+                self.seqinfo[line['unique_id']] = line
                 iline += 1
                 if iline >= n_max_queries:
                     break
@@ -94,32 +94,33 @@ class JoinParser(object):
         self.info = {}
         iline = 0
         for query in root:
+            iline += 1
+            if iline > n_max_queries:
+                break
+
             unique_id = query.attrib['id'].replace('>', '').replace(' ', '')
+            print iline, unique_id
             if len(queries) > 0 and  unique_id not in queries:
                 continue
             # number_header = query.find('vmatches').find('userSeq').find('cdntitle').text  # hopefully don't need to use this
-            print unique_id
             self.info[unique_id] = {}
             line = self.info[unique_id]
             line['unique_id'] = unique_id
-            line['seq'] = self.seqinfo[unique_id]
+            line['seq'] = self.seqinfo[unique_id]['seq']
             for region in utils.regions:
                 if self.debug:
                     print ' ', region
                 self.get_region_matches(region, query, line)
+            if 'v_gene' not in line or 'd_gene' not in line or 'j_gene' not in line:
+                print '  ERROR giving up on %s' % unique_id
+                continue
 
             self.add_insertions(line)
             self.resolve_overlapping_matches(line)
 
-            total_match_length = len(line['v_qr_seq'] + line['d_qr_seq'] + line['j_qr_seq'])
+            if self.debug:
+                utils.print_reco_event(self.germline_seqs, line)
 
-            # for stuff in line:
-            #     print stuff, line[stuff]
-            utils.print_reco_event(self.germline_seqs, line)
-
-            iline += 1
-            if iline >= n_max_queries:
-                break
 
     # ----------------------------------------------------------------------------------------
     def resolve_overlapping_matches(self, line):
@@ -191,6 +192,11 @@ class JoinParser(object):
                 assert gl_match_seq[inuke] in utils.nukes
                 new_glseq.append(gl_match_seq[inuke])
         gl_match_seq = ''.join(new_glseq)
+        
+        if '-' in region_query_seq:
+            print '    WARNING removing gaps in query seq'
+            region_query_seq = region_query_seq.replace('-', '')
+
         if self.debug > 1:
             print '     query', region_query_seq
             print '        gl', gl_match_seq
@@ -200,6 +206,10 @@ class JoinParser(object):
     # ----------------------------------------------------------------------------------------
     def get_region_matches(self, region, query, line):
         """ get info for <region> and add it to <line> """
+        if query.find(region + 'matches').find('nomatches') != None:  # no matches!
+            print '  ERROR no %s matches' % region
+            return
+
         region_query_seq = query.find(region + 'matches').find('userSeq').find('bases').text
         matches = [ match for match in query.find(region + 'matches') if match.tag == 'germline' ]
         if len(matches) == 0:
@@ -222,6 +232,9 @@ class JoinParser(object):
 
         if self.debug > 1:
             print '     ', match_name
+        if region_query_seq not in line['seq']:
+            print region_query_seq
+            print line['seq']
         assert region_query_seq in line['seq']  # they're not coming from the same file, so may as well make sure
             
 
