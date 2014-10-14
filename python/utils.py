@@ -113,13 +113,14 @@ def color_gene(gene):
     else:
         return_str += color('purple', n_version) + '-' + color('purple', n_subversion)
 
-    allele_end = gene.find('_')
-    if allele_end < 0:
-        allele_end = len(gene)
-    allele = gene[gene.find('*')+1 : allele_end]
-    return_str += '*' + color('yellow', allele)
-    if '_' in gene:  # _F or _P in j gene names
-        return_str += gene[gene.find('_') :]
+    if gene.find('*') != -1:
+        allele_end = gene.find('_')
+        if allele_end < 0:
+            allele_end = len(gene)
+        allele = gene[gene.find('*')+1 : allele_end]
+        return_str += '*' + color('yellow', allele)
+        if '_' in gene:  # _F or _P in j gene names
+            return_str += gene[gene.find('_') :]
 
     # now remove extra characters
     return_str = return_str.replace('IGH','  ').lower()

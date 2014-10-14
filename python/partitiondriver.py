@@ -153,7 +153,7 @@ class PartitionDriver(object):
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
 
         if self.args.plot_performance:
-            plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-water', xtitle='inferred - true')
+            plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):

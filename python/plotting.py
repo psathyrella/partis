@@ -156,7 +156,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=True):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=True, stats=''):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
@@ -187,11 +187,15 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         hist2.SetLineWidth(4);
         hist2.Draw("hist same");
 
-    leg = TLegend(0.6, 0.78, 0.9, 0.9)
+    leg = TLegend(0.5, 0.78, 0.9, 0.9)
     leg.SetFillColor(0)
     leg.SetBorderSize(0)
+    if 'rms' in stats:
+        hist.SetTitle(hist.GetTitle() + (' (%.2f)' % hist.GetRMS()))
     leg.AddEntry(hist, hist.GetTitle() , 'l')
     if hist2 != None:
+        if 'rms' in stats:
+            hist2.SetTitle(hist2.GetTitle() + (' (%.2f)' % hist2.GetRMS()))
         leg.AddEntry(hist2, hist2.GetTitle() , 'l')
     leg.Draw()
 
@@ -206,7 +210,7 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(dir1, name1, dir2, name2, xtitle=''):
+def compare_directories(dir1, name1, dir2, name2, xtitle='', stats=''):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     plotdir = os.getenv('www') + '/partis/compare-performance'
     utils.prep_dir(plotdir + '/plots', '*.svg')
@@ -232,7 +236,7 @@ def compare_directories(dir1, name1, dir2, name2, xtitle=''):
             print 'WARNING %s not found in %s' % (varname, dir2)
             continue
         hist2 = dir2_hists[varname]
-        draw(hist, 'int', plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False)
+        draw(hist, 'int', plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False, stats=stats)
     check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', plotdir, '3', 'null', 'svg'])
         
