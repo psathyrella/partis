@@ -422,7 +422,7 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
 
     if len(insertions) != len(d_line) or len(insertions) != len(vj_line):
         print 'ERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
-        assert no_space
+        # assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
     if 'score' not in line:

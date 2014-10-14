@@ -220,6 +220,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best):
+        # TODO split this in half rather than giving all of it to one side, like in the joinsolver parser
         """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so arbitrarily give the disputed territory to the righthand region  """  # TODO do something better than using the righthand one
         for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
             left_gene = best[rpairs['left']]
@@ -227,8 +228,10 @@ class Waterer(object):
             overlap = qrbounds[left_gene][1] - qrbounds[right_gene][0]
             if overlap > 0:
                 print 'WARNING %s giving %d bases from %s match to %s match' % (query_name, overlap, rpairs['left'], rpairs['right'])
+                assert overlap <= len(self.germline_seqs[rpairs['left']][left_gene])
                 qrbounds[left_gene] = (qrbounds[left_gene][0], qrbounds[left_gene][1] - overlap)
                 glbounds[left_gene] = (glbounds[left_gene][0], glbounds[left_gene][1] - overlap)
+                # TODO wait, why am I modifying *both* of them? the righthand one shouldn't need to change, right?
                 best[rpairs['left'] + '_gl_seq'] = self.germline_seqs[rpairs['left']][left_gene][glbounds[left_gene][0]:glbounds[left_gene][1]]
                 best[rpairs['left'] + '_qr_seq'] = query_seq[qrbounds[left_gene][0]:qrbounds[left_gene][1]]
                 best[rpairs['right'] + '_gl_seq'] = self.germline_seqs[rpairs['right']][right_gene][glbounds[right_gene][0]:glbounds[right_gene][1]]
