@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import sys
 import csv
+import os
 import math
-import utils
-from opener import opener
-
 import xml.etree.ElementTree as ET
+
+import utils
+import plotting
+from opener import opener
+from performanceplotter import PerformancePlotter
 
 # ----------------------------------------------------------------------------------------
 def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
@@ -70,10 +73,11 @@ def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
 class JoinParser(object):
     def __init__(self, seqfname, joinfname, datadir):  # <seqfname>: input to joinsolver, <joinfname> output from joinsolver (I only need both because they don't seem to put the full query seq in the output)
         self.debug = 0
-        n_max_queries = 100
+        n_max_queries = -1
         queries = []
 
-        self.germline_seqs = utils.read_germlines(datadir)
+        self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)
+        perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/joinsolver_performance', 'sw')
 
         # get info that was passed to joinsolver
         self.seqinfo = {}
@@ -85,7 +89,7 @@ class JoinParser(object):
                     continue
                 self.seqinfo[line['unique_id']] = line
                 iline += 1
-                if iline >= n_max_queries:
+                if n_max_queries > 0 and iline >= n_max_queries:
                     break
 
         tree = ET.parse(joinfname)
@@ -95,7 +99,7 @@ class JoinParser(object):
         iline = 0
         for query in root:
             iline += 1
-            if iline > n_max_queries:
+            if n_max_queries > 0 and iline > n_max_queries:
                 break
 
             unique_id = query.attrib['id'].replace('>', '').replace(' ', '')
@@ -118,9 +122,12 @@ class JoinParser(object):
             self.add_insertions(line)
             self.resolve_overlapping_matches(line)
 
+            perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
+
             if self.debug:
                 utils.print_reco_event(self.germline_seqs, line)
 
+        perfplotter.plot()
 
     # ----------------------------------------------------------------------------------------
     def resolve_overlapping_matches(self, line):
@@ -168,6 +175,8 @@ class JoinParser(object):
     # ----------------------------------------------------------------------------------------
     def parse_match_seqs(self, match, region_query_seq):
         gl_match_seq = match.text
+        if gl_match_seq == None:
+            return (None, None)
         if self.debug > 1:
             print '     query', region_query_seq
             print '        gl', gl_match_seq
@@ -220,6 +229,8 @@ class JoinParser(object):
         match = matches[imatch]
         # just take the first (best) match
         region_query_seq, gl_match_seq = self.parse_match_seqs(match, region_query_seq)
+        if region_query_seq == None or gl_match_seq == None:
+            return
 
         match_name = match.attrib['id'].replace(' ', '')
         try:
@@ -237,22 +248,21 @@ class JoinParser(object):
             print line['seq']
         assert region_query_seq in line['seq']  # they're not coming from the same file, so may as well make sure
             
+        del_5p = self.germline_seqs[region][match_name].find(gl_match_seq)
+        del_3p = len(self.germline_seqs[region][match_name]) - del_5p - len(gl_match_seq)
+        if del_5p < 0 or del_3p < 0:
+            print 'ERROR couldn\'t figure out deletions in', region
+            print '    germline', self.germline_seqs[region][match_name], match_name
+            print '    germline match', gl_match_seq
+            print '   ', del_5p, del_3p
+            return
 
+        line[region + '_5p_del'] = del_5p
+        line[region + '_3p_del'] = del_3p
         line[region + '_gene'] = match_name
         line[region + '_gl_seq'] = gl_match_seq
         line[region + '_qr_seq'] = region_query_seq
-        del_5p = self.germline_seqs[region][match_name].find(gl_match_seq)
-        del_3p = len(self.germline_seqs[region][match_name]) - del_5p - len(gl_match_seq)
-        try:
-            assert del_5p >= 0 and del_3p >= 0
-        except:
-            print 'ERROR couldn\'t figure out deletions'
-            print '    germline',self.germline_seqs[region][match_name], match_name
-            print '    germline match',gl_match_seq
-            sys.exit()
-        assert del_3p >= 0
-        line[region + '_5p_del'] = del_5p
-        line[region + '_3p_del'] = del_3p
+
 
     # ----------------------------------------------------------------------------------------
     def add_insertions(self, line):
@@ -263,4 +273,5 @@ class JoinParser(object):
             right_match_start = line['seq'].find(line[right_region + '_qr_seq'])  # first base of right region match
             line[boundary + '_insertion'] = line['seq'][left_match_end : right_match_start]
 
-jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/multijoin.xml', datadir='./data')
+plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
+# jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')

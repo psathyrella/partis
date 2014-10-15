@@ -453,7 +453,7 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir, remove_fp=False):
+def read_germlines(data_dir, remove_fp=False, remove_N_nukes=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     germlines = {}
     for region in regions:
@@ -462,7 +462,10 @@ def read_germlines(data_dir, remove_fp=False):
             gene_name = seq_record.name
             if remove_fp and region == 'j':
                 gene_name = gene_name[:-2]
-            germlines[region][gene_name] = str(seq_record.seq)
+            seq_str = str(seq_record.seq)
+            if remove_N_nukes and 'N' in seq_str:
+                seq_str = seq_str.replace('N', 'A')
+            germlines[region][gene_name] = seq_str
     return germlines
 
 # ----------------------------------------------------------------------------------------
