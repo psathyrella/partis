@@ -44,6 +44,14 @@ class PerformancePlotter(object):
         return utils.hamming(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
+    def add_fail(self):
+        for column in self.values:
+            if column in bool_columns:
+                self.values[column]['wrong'] += 1
+            else:
+                print 'perfplotter: not sure what to do with a fail'
+
+    # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, line, query_name):
         for column in self.values:
             if column in bool_columns:

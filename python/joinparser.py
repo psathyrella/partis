@@ -64,7 +64,7 @@ def resolve_overlapping_matches(line, debug=False):
 def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
     region = utils.get_region(gene_name)
     seq = seq.replace(' ', '')
-    if gene_name in germline_seqs[region]:  # already have it
+    if gene_name in germline_seqs[region]:  # already have it, but maybe when we added it before it was a shorter match, so substitute with the new longer match
         if len(seq) > len(germline_seqs[region][gene_name]):
             print '      gl match longer than gl!'
             print '       ', seq
@@ -98,7 +98,7 @@ def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
     if len(candidates) == 0:
         for candidate_gene in germline_seqs[region]:
             if gene_name + '_F' == candidate_gene or gene_name + '_P' == candidate_gene:
-                if seq in germline_seqs[region][candidate_gene]:
+                if seq[ : len(germline_seqs[region][candidate_gene])] in germline_seqs[region][candidate_gene]:  # shorten <seq> to account for extra bases on right of imgt j versions
                     candidates.append(candidate_gene)
 
     # try removing the darn R at the end (and remove the zero). I hope it doesn't mean anything important
@@ -270,5 +270,5 @@ class JoinParser(object):
         line[region + '_qr_seq'] = region_query_seq
 
 
-plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
-# jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')
+# plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
+jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')

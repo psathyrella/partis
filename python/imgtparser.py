@@ -9,17 +9,17 @@ from opener import opener
 import utils
 import joinparser
 
-# from performanceplotter import PerformancePlotter
+from performanceplotter import PerformancePlotter
 
 class IMGTParser(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, seqfname, infname, datadir):
-        self.debug = 1
-        n_max_queries = 10
+        self.debug = 0
+        n_max_queries = -1
         queries = []
 
         self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)
-        # perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/imgt_performance', 'imgt')
+        perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/imgt_performance', 'imgt')
 
         # get info that was passed to joinsolver
         self.seqinfo = {}
@@ -34,24 +34,35 @@ class IMGTParser(object):
                 if n_max_queries > 0 and iline >= n_max_queries:
                     break
 
-        n_failed = 0
+        n_failed, n_total = 0, 0
         with opener('r')(infname) as infile:
             soup = BeautifulSoup(infile)
             for unique_id in self.seqinfo:
-                print unique_id
+                print unique_id,
                 imgtinfo = []
                 for pre in soup.find_all('pre'):  # NOTE this loops over everything an awful lot of times. shouldn't really matter for now
                     if unique_id in pre.text:
                         imgtinfo.append(pre.text)
+                if len(imgtinfo) == 0:
+                    print ' no info'
+                    continue
+                else:
+                    print ''
                 line = self.parse_query(unique_id, imgtinfo)
+                n_total += 1
                 if len(line) == 0:
                     print '    giving up'
                     n_failed += 1
+                    perfplotter.add_fail()
+                    continue
                 joinparser.add_insertions(line)
                 joinparser.resolve_overlapping_matches(line, debug=True)
-                # perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
+                perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
                 if self.debug:
                     utils.print_reco_event(self.germline_seqs, line)
+
+        perfplotter.plot()
+        print 'failed: %d / %d = %f' % (n_failed, n_total, float(n_failed) / n_total)
 
     # ----------------------------------------------------------------------------------------
     def parse_query(self, unique_id, query_info):
@@ -143,16 +154,29 @@ class IMGTParser(object):
             # qrbounds[region] = (qr_start, qr_start + len(qr_seq))
             match_name = joinparser.figure_out_which_damn_gene(self.germline_seqs, match_name, gl_seq, debug=self.debug)
 
+            # remove the extra righthand bases in the imgt version
             adaptive_gl_seq = self.germline_seqs[region][match_name]
-            if region == 'j':  # remove the extra righthand bases in the imgt version
-                assert adaptive_gl_seq[del_5p : ].find(gl_seq) == 0  # left hand side of the two should be the same now
+            if region == 'j':
+                if adaptive_gl_seq[del_5p : ].find(gl_seq) != 0:  # left hand side of the two should be the same now
+                    return {}  # if it isn't, imgt kicked up a nonsense match
                 assert len(adaptive_gl_seq[del_5p : ]) == len(gl_seq)  # should be ok for now
                 del_3p = 0
+
+            # ad-hoc in extra deletions that don't show up in imgt's format (@&^##!!)
+            extra_5p_del = adaptive_gl_seq[del_5p : ].find(gl_seq)
+            if extra_5p_del > 0:
+                del_5p += extra_5p_del
+                if self.debug:
+                    print '    WARNING jacking in an extra 5p deletion of %d' % extra_5p_del
+                
+
             if gl_seq != adaptive_gl_seq[del_5p : len(adaptive_gl_seq) - del_3p]:
-                print 'ERROR doesn\'t match adaptive gl version'
+                print 'ERROR %s doesn\'t match adaptive gl version' % match_name
                 print 'imgt              ', gl_seq
                 print 'adaptive          ', adaptive_gl_seq[del_5p : len(adaptive_gl_seq) - del_3p]
                 print 'adaptive untrimmed', adaptive_gl_seq
+                for info in query_info:
+                    print info
                 sys.exit()
             line[region + '_gene'] = match_name
             line[region + '_qr_seq'] = qr_seq
