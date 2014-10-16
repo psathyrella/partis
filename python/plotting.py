@@ -15,9 +15,9 @@ def check_root():
     except ImportError:
         return False
 
+sys.argv.append('-b')  # root just loves its stupid little splashes
 has_root = check_root()
 if has_root:
-    sys.argv.append('-b')
     from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue
     gROOT.Macro("plotting/MitStyleRemix.cc+")
 else:

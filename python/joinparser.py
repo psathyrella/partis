@@ -10,6 +10,18 @@ import plotting
 from opener import opener
 from performanceplotter import PerformancePlotter
 
+
+# ----------------------------------------------------------------------------------------
+def cut_matches(seq1, seq2):
+    """ if <seq1> has white space on either end, cut both seqs down to size so it doesn't """
+    i_first_match = len(seq1) - len(seq1.lstrip())  # position of first non-space character in seq1
+    seq1 = seq1[i_first_match:]
+    seq2 = seq2[i_first_match:]
+    i_last_match = len(seq1.rstrip())
+    seq1 = seq1[:i_last_match]
+    seq2 = seq2[:i_last_match]
+    return (seq1, seq2)
+
 # ----------------------------------------------------------------------------------------
 def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
     region = utils.get_region(gene_name)
@@ -162,17 +174,6 @@ class JoinParser(object):
                 line[rpairs['right'] + '_5p_del'] += righthand_portion
 
     # ----------------------------------------------------------------------------------------
-    def cut_matches(self, seq1, seq2):
-        """ if <seq1> has white space on either end, cut both seqs down to size so it doesn't """
-        i_first_match = len(seq1) - len(seq1.lstrip())  # position of first non-space character in seq1
-        seq1 = seq1[i_first_match:]
-        seq2 = seq2[i_first_match:]
-        i_last_match = len(seq1.rstrip())
-        seq1 = seq1[:i_last_match]
-        seq2 = seq2[:i_last_match]
-        return (seq1, seq2)
-
-    # ----------------------------------------------------------------------------------------
     def parse_match_seqs(self, match, region_query_seq):
         gl_match_seq = match.text
         if gl_match_seq == None:
@@ -182,9 +183,9 @@ class JoinParser(object):
             print '        gl', gl_match_seq
 
         # if gl match extends outside of query seq, strip off that part
-        region_query_seq, gl_match_seq = self.cut_matches(region_query_seq, gl_match_seq)
+        region_query_seq, gl_match_seq = cut_matches(region_query_seq, gl_match_seq)
         # and if region_query_seq extends to left of gl match, strip off that stuff as well
-        gl_match_seq, region_query_seq = self.cut_matches(gl_match_seq, region_query_seq)
+        gl_match_seq, region_query_seq = cut_matches(gl_match_seq, region_query_seq)
         # and remove the rest of the spaces
         region_query_seq = region_query_seq.replace(' ', '')
         gl_match_seq = gl_match_seq.replace(' ', '')
