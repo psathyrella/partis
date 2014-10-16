@@ -270,5 +270,5 @@ class JoinParser(object):
         line[region + '_qr_seq'] = region_query_seq
 
 
-# plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
-jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')
+plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
+# jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')

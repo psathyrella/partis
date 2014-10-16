@@ -5,28 +5,11 @@ import os
 from subprocess import check_call
 import csv
 
-from scipy.stats import beta
 import plotting
-has_root = plotting.check_root()
+has_root = plotting.has_root
 
 import utils
 from opener import opener
-
-# ----------------------------------------------------------------------------------------
-def fraction_uncertainty(obs, total):
-    """ Return uncertainty on the ratio n / total """
-    assert obs <= total
-    if total == 0.0:
-        return 0.0
-    lo = beta.ppf(1./6, 1 + obs, 1 + total - obs)
-    hi = beta.ppf(1. - 1./6, 1 + obs, 1 + total - obs)
-    if float(obs) / total < lo:  # if k/n very small (probably zero), take a one-sided c.i. with 2/3 the mass
-        lo = 0.
-        hi = beta.ppf(2./3, 1 + obs, 1 + total - obs)
-    if float(obs) / total > hi:  # same deal if k/n very large (probably one)
-        lo = beta.ppf(1./3, 1 + obs, 1 + total - obs)
-        hi = 1.
-    return (lo,hi)
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
@@ -75,11 +58,11 @@ class MuteFreqer(object):
                         n_conserved += mute_counts[position][nuke]
                     else:
                         n_mutated += mute_counts[position][nuke]
-                    # uncert = fraction_uncertainty(obs, total)  # uncertainty for each nuke
+                    # uncert = utils.fraction_uncertainty(obs, total)  # uncertainty for each nuke
                 mute_counts[position]['freq'] = float(n_mutated) / mute_counts[position]['total']
                 mutated_fraction_err = (0.0, 0.0)
                 if calculate_uncertainty:  # it's kinda slow
-                    mutated_fraction_err = fraction_uncertainty(n_mutated, mute_counts[position]['total'])
+                    mutated_fraction_err = utils.fraction_uncertainty(n_mutated, mute_counts[position]['total'])
                 mute_counts[position]['freq_lo_err'] = mutated_fraction_err[0]
                 mute_counts[position]['freq_hi_err'] = mutated_fraction_err[1]
 

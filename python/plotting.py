@@ -104,6 +104,28 @@ def make_hist_from_observation_file(fname, column, hist_label='', n_bins=30, log
     return hist
 
 # ----------------------------------------------------------------------------------------
+def make_bool_hist(n_true, n_false, hist_label):
+    """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
+    hist = TH1F(hist_label, '', 2, -0.5, 1.5)
+    hist.Sumw2()
+
+    true_frac = float(n_true) / (n_true + n_false)
+    hist.SetBinContent(1, true_frac)
+    true_bounds = utils.fraction_uncertainty(n_true, n_true + n_false)
+    hist.SetBinError(1, max(abs(true_frac - true_bounds[0]), abs(true_bounds[1] - true_bounds[1])))
+    false_frac = float(n_false) / (n_true + n_false)
+    hist.SetBinContent(2, false_frac)
+    false_bounds = utils.fraction_uncertainty(n_false, n_true + n_false)
+    hist.SetBinError(2, max(abs(false_frac - false_bounds[0]), abs(false_bounds[1] - false_bounds[1])))
+
+    hist.GetXaxis().SetNdivisions(0)
+    hist.GetXaxis().SetBinLabel(1, 'right')
+    hist.GetXaxis().SetBinLabel(2, 'wrong')
+    hist.GetXaxis().SetLabelSize(0.1)
+
+    return hist
+
+# ----------------------------------------------------------------------------------------
 def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False):
     """ fill a histogram with values from a dictionary """
     if not has_root:
@@ -166,7 +188,7 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         xmin = min(xmin, hist2.GetBinLowEdge(1))
         xmax = max(xmax, hist2.GetXaxis().GetBinUpEdge(hist2.GetNbinsX()))
     hframe = TH1F('hframe', '', hist.GetNbinsX(), xmin, xmax)
-    if var_type == 'string':
+    if var_type == 'string' or var_type == 'bool':
         for ib in range(1, hframe.GetNbinsX()+1):
             hframe.GetXaxis().SetBinLabel(ib, hist.GetXaxis().GetBinLabel(ib))
 
@@ -174,6 +196,9 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
     if hist2 != None:
         ymax = max(ymax, hist2.GetMaximum())
     hframe.SetMaximum(1.35*ymax)
+    if var_type == 'bool':
+        hframe.GetXaxis().SetLabelSize(0.1)
+        hframe.SetMaximum(1.0)
     hframe.SetTitle(plotname + ';' + hist.GetXaxis().GetTitle() + ';')
     hframe.Draw("txt")
 

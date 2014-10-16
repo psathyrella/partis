@@ -82,6 +82,8 @@ class PerformancePlotter(object):
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
                 print '  %s\n    correct: %4d / %-4d = %4.2f' % (column, right, right+wrong, float(right) / (right + wrong))
+                hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
+                plotting.draw(hist, 'bool', plotname=column, plotdir=self.plotdir)
             else:
                 hist = plotting.make_hist(self.values[column], 'int', self.name + '-' + column, normalize=True)
                 if column == 'hamming_to_true_naive':
