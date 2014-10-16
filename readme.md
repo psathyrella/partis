@@ -4,12 +4,15 @@ required
 --------------
   - scons
   - pip
-  - pysam
-  - pyyaml
-  - cython
-  - networkx
-  - decorator
   - java 7 (for ighutil)
+  python packages
+    - pysam
+    - pyyaml
+    - cython
+    - networkx
+    - decorator
+    - lxml
+    - bs4 (beautiful soup)
 
 required only for simulator
 --------------
