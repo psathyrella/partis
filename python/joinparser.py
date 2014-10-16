@@ -12,6 +12,16 @@ from performanceplotter import PerformancePlotter
 
 
 # ----------------------------------------------------------------------------------------
+def add_insertions(line):
+    for boundary in utils.boundaries:
+        left_region = boundary[0]
+        right_region = boundary[1]
+        left_match_end = line['seq'].find(line[left_region + '_qr_seq']) + len(line[left_region + '_qr_seq'])  # base *after* last base of left region match
+        right_match_start = line['seq'].find(line[right_region + '_qr_seq'])  # first base of right region match
+        line[boundary + '_insertion'] = line['seq'][left_match_end : right_match_start]
+
+
+# ----------------------------------------------------------------------------------------
 def cut_matches(seq1, seq2):
     """ if <seq1> has white space on either end, cut both seqs down to size so it doesn't """
     i_first_match = len(seq1) - len(seq1.lstrip())  # position of first non-space character in seq1
@@ -23,6 +33,34 @@ def cut_matches(seq1, seq2):
     return (seq1, seq2)
 
 # ----------------------------------------------------------------------------------------
+def resolve_overlapping_matches(line, debug=False):
+    """
+    joinsolver allows d and j matches (and v and d matches) to overlap... which makes no sense, so
+    arbitrarily split the disputed territory in two.
+    """
+    # NOTE this is basically a cut and paste job from waterer.py
+    for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
+        left_gene = line[rpairs['left'] + '_gene']
+        right_gene = line[rpairs['right'] + '_gene']
+        left_match_end = line['seq'].find(line[rpairs['left'] + '_qr_seq']) + len(line[rpairs['left'] + '_qr_seq'])  # base after the last left-gene-matched base
+        right_match_start = line['seq'].find(line[rpairs['right'] + '_qr_seq'])  # first base of right-hand match
+        overlap = left_match_end - right_match_start
+        if overlap > 0:
+            if debug:
+                print '     WARNING %s apportioning %d overlapping bases between %s and %s matches' % (line['unique_id'], overlap, rpairs['left'], rpairs['right'])
+            lefthand_portion = int(math.floor(overlap / 2.0))
+            righthand_portion = int(math.ceil(overlap / 2.0))
+            assert lefthand_portion <= len(line[rpairs['left'] + '_gl_seq'])
+            assert righthand_portion <= len(line[rpairs['right'] + '_gl_seq'])
+            line[rpairs['left'] + '_gl_seq'] = line[rpairs['left'] + '_gl_seq'][:-lefthand_portion]
+            line[rpairs['left'] + '_qr_seq'] = line[rpairs['left'] + '_qr_seq'][:-lefthand_portion]
+            line[rpairs['left'] + '_3p_del'] += lefthand_portion
+
+            line[rpairs['right'] + '_gl_seq'] = line[rpairs['right'] + '_gl_seq'][righthand_portion:]
+            line[rpairs['right'] + '_qr_seq'] = line[rpairs['right'] + '_qr_seq'][righthand_portion:]
+            line[rpairs['right'] + '_5p_del'] += righthand_portion
+
+#--------------------------------------------------------------------------------------
 def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
     region = utils.get_region(gene_name)
     seq = seq.replace(' ', '')
@@ -107,7 +145,7 @@ class JoinParser(object):
         tree = ET.parse(joinfname)
         root = tree.getroot()
 
-        self.info = {}
+        # self.info = {}
         iline = 0
         for query in root:
             iline += 1
@@ -118,9 +156,8 @@ class JoinParser(object):
             print iline, unique_id
             if len(queries) > 0 and  unique_id not in queries:
                 continue
-            # number_header = query.find('vmatches').find('userSeq').find('cdntitle').text  # hopefully don't need to use this
-            self.info[unique_id] = {}
-            line = self.info[unique_id]
+            # self.info[unique_id] = {}
+            line = {}  # self.info[unique_id] TODO make sure that still works with this stuff commented out
             line['unique_id'] = unique_id
             line['seq'] = self.seqinfo[unique_id]['seq']
             for region in utils.regions:
@@ -131,8 +168,8 @@ class JoinParser(object):
                 print '  ERROR giving up on %s' % unique_id
                 continue
 
-            self.add_insertions(line)
-            self.resolve_overlapping_matches(line)
+            add_insertions(line)
+            resolve_overlapping_matches(line, self.debug)
 
             perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
 
@@ -140,38 +177,6 @@ class JoinParser(object):
                 utils.print_reco_event(self.germline_seqs, line)
 
         perfplotter.plot()
-
-    # ----------------------------------------------------------------------------------------
-    def resolve_overlapping_matches(self, line):
-        """
-        joinsolver allows d and j matches (and v and d matches) to overlap... which makes no sense, so
-        arbitrarily split the disputed territory in two.
-        """
-        # NOTE this is basically a cut and paste job from waterer.py
-        for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
-            left_gene = line[rpairs['left'] + '_gene']
-            right_gene = line[rpairs['right'] + '_gene']
-            # left_match_start = line['seq'].find(line[rpairs['left'] + '_qr_seq'])  # first base of left-hand match
-            left_match_end = line['seq'].find(line[rpairs['left'] + '_qr_seq']) + len(line[rpairs['left'] + '_qr_seq'])  # base after the last left-gene-matched base
-            right_match_start = line['seq'].find(line[rpairs['right'] + '_qr_seq'])  # first base of right-hand match
-            overlap = left_match_end - right_match_start
-            # if left_match_start > right_match_start:
-            #     overlap += left_match_start - right_match_start
-            #     print '    adding %d to overlap in %s' % (left_match_start - right_match_start, rpairs)
-            if overlap > 0:
-                if self.debug:
-                    print '     WARNING %s removing %d overlapping bases between %s and %s matches' % (line['unique_id'], overlap, rpairs['left'], rpairs['right'])
-                lefthand_portion = int(math.floor(overlap / 2.0))
-                righthand_portion = int(math.ceil(overlap / 2.0))
-                assert lefthand_portion <= len(line[rpairs['left'] + '_gl_seq'])
-                assert righthand_portion <= len(line[rpairs['right'] + '_gl_seq'])
-                line[rpairs['left'] + '_gl_seq'] = line[rpairs['left'] + '_gl_seq'][:-lefthand_portion]
-                line[rpairs['left'] + '_qr_seq'] = line[rpairs['left'] + '_qr_seq'][:-lefthand_portion]
-                line[rpairs['left'] + '_3p_del'] += lefthand_portion
-
-                line[rpairs['right'] + '_gl_seq'] = line[rpairs['right'] + '_gl_seq'][righthand_portion:]
-                line[rpairs['right'] + '_qr_seq'] = line[rpairs['right'] + '_qr_seq'][righthand_portion:]
-                line[rpairs['right'] + '_5p_del'] += righthand_portion
 
     # ----------------------------------------------------------------------------------------
     def parse_match_seqs(self, match, region_query_seq):
@@ -264,15 +269,6 @@ class JoinParser(object):
         line[region + '_gl_seq'] = gl_match_seq
         line[region + '_qr_seq'] = region_query_seq
 
-
-    # ----------------------------------------------------------------------------------------
-    def add_insertions(self, line):
-        for boundary in utils.boundaries:
-            left_region = boundary[0]
-            right_region = boundary[1]
-            left_match_end = line['seq'].find(line[left_region + '_qr_seq']) + len(line[left_region + '_qr_seq'])  # base *after* last base of left region match
-            right_match_start = line['seq'].find(line[right_region + '_qr_seq'])  # first base of right region match
-            line[boundary + '_insertion'] = line['seq'][left_match_end : right_match_start]
 
 plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
 # jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')
