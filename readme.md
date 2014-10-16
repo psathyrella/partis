@@ -15,22 +15,21 @@
 ham -- the fantabulous HMM compiler
 --------
 
-based on StochHMM: https://github.com/KorfLab/StochHMM
+`ham` is based on [StochHMM](https://github.com/KorfLab/StochHMM).
 
-installation
+building
 --------
-```
-scons
-```
+Install [SCons](http://www.scons.org/) and then run
+
+    scons
 
 examples
 --------
 
-an example of the occasionally dishonest casino is in ```examples/casino.yaml```. Run it with:
+The occasionally dishonest casino example is in `examples/casino.yaml`. Run it with:
 
-```./hample --hmmfname examples/casino.yaml --seq 666655666613423414513666666666666```
+    ./hample --hmmfname examples/casino.yaml --seq 666655666613423414513666666666666
 
-while the similarly-canonical CPG island may be found in ```examples/cpg.yaml```. Run it with:
+The similarly-canonical CPG island example may be found in `examples/cpg.yaml`. Run it with:
 
-```./hample --hmmfname examples/cpg.yaml --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT```
-
+    ./hample --hmmfname examples/cpg.yaml --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT
