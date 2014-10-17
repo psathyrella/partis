@@ -5,7 +5,7 @@ required
   - scons
   - pip
   - java 7 (for ighutil)
-  python packages
+  - python packages
     - pysam
     - pyyaml
     - cython
