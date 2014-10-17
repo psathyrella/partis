@@ -36,11 +36,15 @@ class IMGTParser(object):
 
         n_failed, n_total = 0, 0
         with opener('r')(infname) as infile:
-            soup = BeautifulSoup(infile)
+            paragraphs = None
+            if '.html' in infname:
+                soup = BeautifulSoup(infile)
+                paragraphs = soup.find_all('pre'):  # NOTE this loops over everything an awful lot of times. shouldn't really matter for now
             for unique_id in self.seqinfo:
                 print unique_id,
                 imgtinfo = []
-                for pre in soup.find_all('pre'):  # NOTE this loops over everything an awful lot of times. shouldn't really matter for now
+                if '.html'
+                for pre in paragraphs:
                     if unique_id in pre.text:
                         imgtinfo.append(pre.text)
                 if len(imgtinfo) == 0:
