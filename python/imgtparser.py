@@ -43,7 +43,7 @@ class IMGTParser(object):
             for unique_id in self.seqinfo:
                 print unique_id,
                 imgtinfo = []
-                if '.html'
+                if '.html'''
                 for pre in paragraphs:
                     if unique_id in pre.text:
                         imgtinfo.append(pre.text)
