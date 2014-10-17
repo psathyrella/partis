@@ -2,14 +2,12 @@ name: casino
 tracks:
   dice: [1,2,3,4,5,6]
 states:
--
-  name: init
+- name: init
   label: i
   transitions:
     honest: 0.5
     dishonest: 0.5
--
-  name: honest
+- name: honest
   label: h
   emissions:
     track: dice
@@ -24,8 +22,7 @@ states:
     honest: 0.8
     dishonest: 0.1
     end: 0.1
--
-  name: dishonest
+- name: dishonest
   label: d
   emissions:
     track: dice

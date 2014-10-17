@@ -5,7 +5,6 @@
 
 using namespace std;
 namespace ham {
-
 // ----------------------------------------------------------------------------------------
 class Sequence {
   friend class Sequences;
@@ -33,6 +32,7 @@ private:
 };
 
 // ----------------------------------------------------------------------------------------
+// NOTE Sequences owns its constituent Sequence pointers, i.e. it deletes them when it dies
 class Sequences {
 public:
   Sequences() : sequence_length_(0) {}

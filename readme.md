@@ -30,9 +30,21 @@ The occasionally dishonest casino example is in `examples/casino.yaml`. Run it w
 
     ./hample --hmmfname examples/casino.yaml --seq 666655666613423414513666666666666
 
+This runs the Viterbi algorithm and prints the Viterbi (most probable) path and its log probability.
+It then runs the Forward algorithm and prints the total log probability of having taken any path.
+
 The similarly-canonical CPG island example may be found in `examples/cpg.yaml`. Run it with:
 
     ./hample --hmmfname examples/cpg.yaml --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT
+
+
+Finally, you will find a pair HMM variant of the CPG island example in `examples/pair-cpg.yaml`:
+
+    ./hample --pair --hmmfname examples/pair-cpg.yaml --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 CCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT
+
+The Viterbi path should now be thought of as the most probable single path that the two sequences could
+have taken together. Similarly, the Forward probability is now the total probability, summed over all paths,
+of these two sequences having taken the same path.
 
 why ham?
 --------
@@ -57,4 +69,3 @@ While trying to implement pair HMMS in StochHMM, it became clear that it was goi
 From a useability standpoint, the biggest difference is yaml config files. These are plain text files that are
 incredibly concise (the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
 is 480 characters). Yaml is also emminently scriptable from within python.
-.
