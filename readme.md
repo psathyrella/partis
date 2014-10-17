@@ -57,3 +57,4 @@ While trying to implement pair HMMS in StochHMM, it became clear that it was goi
 From a useability standpoint, the biggest difference is yaml config files. These are plain text files that are
 incredibly concise (the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
 is 480 characters). Yaml is also emminently scriptable from within python.
+.
