@@ -56,21 +56,30 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 # ----------------------------------------------------------------------------------------
 def write_hist_to_file(fname, hist):
     with opener('w')(fname) as histfile:
-        writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents'))
+        writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
         writer.writeheader()
         for ibin in range(hist.GetNbinsX() + 2):
-            writer.writerow({'bin_low_edge':hist.GetXaxis().GetBinLowEdge(ibin), 'contents':hist.GetBinContent(ibin)})
+            writer.writerow({'bin_low_edge' : hist.GetXaxis().GetBinLowEdge(ibin),
+                             'contents' : hist.GetBinContent(ibin),
+                             'xtitle' : hist.GetXaxis().GetTitle(),
+                             'binlabel' : hist.GetXaxis().GetBinLabel(ibin)})
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
     """ return root histogram with each bin low edge and bin content read from <fname> """
-    low_edges = []
-    contents = []
+    low_edges, contents, bin_labels = [], [], []
+    xtitle = ''
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
         for line in reader:
             low_edges.append(float(line['bin_low_edge']))
             contents.append(float(line['contents']))
+            if 'binlabel' in line:
+                bin_labels.append(line['binlabel'])
+            else:
+                bin_labels.append('')
+            if 'xtitle' in line:
+                xtitle = line['xtitle']
 
     n_bins = len(low_edges) - 2  # file should have a line for the under- and overflow bins
     xbins = array('f', [0.0 for i in range(n_bins+1)])  # NOTE has to be n bins *plus* 1
@@ -78,8 +87,11 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
     for ib in range(n_bins+1):
         xbins[ib] = low_edges[ib+1]  # low_edges[1] is the lower edge of the first bin, i.e. the first bin after the underflow bin, and this will set the last entry in xbins to lower[n_bins+1], i.e. the lower edge of the overflow bin. Which, I bloody well think, is correct
     hist = TH1F(hist_label, '', n_bins, xbins)  # this will barf if the csv file wasn't sorted by bin low edge
+    hist.GetXaxis().SetTitle(xtitle)
     for ib in range(n_bins+2):
         hist.SetBinContent(ib, contents[ib])
+        if bin_labels[ib] != '':
+            hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
 
     return hist
     
@@ -256,12 +268,16 @@ def compare_directories(dir1, name1, dir2, name2, xtitle='', stats=''):
         print 'ERROR no hists in',dir2
         sys.exit()
     for varname, hist in dir1_hists.iteritems():
-        hist.GetXaxis().SetTitle(xtitle)
+        if xtitle != '':
+            hist.GetXaxis().SetTitle(xtitle)
         if varname not in dir2_hists:
             print 'WARNING %s not found in %s' % (varname, dir2)
             continue
         hist2 = dir2_hists[varname]
-        draw(hist, 'int', plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False, stats=stats)
+        var_type = 'int'
+        if hist.GetXaxis().GetBinLabel(1) != '':
+            var_type = 'bool'
+        draw(hist, var_type, plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False, stats=stats)
     check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', plotdir, '3', 'null', 'svg'])
         

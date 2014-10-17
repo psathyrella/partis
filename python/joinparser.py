@@ -121,13 +121,13 @@ def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
 
 # ----------------------------------------------------------------------------------------
 class JoinParser(object):
-    def __init__(self, seqfname, joinfname, datadir):  # <seqfname>: input to joinsolver, <joinfname> output from joinsolver (I only need both because they don't seem to put the full query seq in the output)
+    def __init__(self, seqfname, joinfnames, datadir):  # <seqfname>: input to joinsolver, <joinfname> output from joinsolver (I only need both because they don't seem to put the full query seq in the output)
         self.debug = 0
-        n_max_queries = -1
-        queries = []
+        self.n_max_queries = -1
+        self.queries = []
 
         self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)
-        perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/joinsolver_performance', 'js')
+        self.perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/joinsolver_performance', 'js')
 
         # get info that was passed to joinsolver
         self.seqinfo = {}
@@ -135,29 +135,36 @@ class JoinParser(object):
             reader = csv.DictReader(seqfile)
             iline = 0
             for line in reader:
-                if len(queries) > 0 and line['unique_id'] not in queries:
+                if len(self.queries) > 0 and line['unique_id'] not in self.queries:
                     continue
                 self.seqinfo[line['unique_id']] = line
                 iline += 1
-                if n_max_queries > 0 and iline >= n_max_queries:
+                if self.n_max_queries > 0 and iline >= self.n_max_queries:
                     break
 
-        tree = ET.parse(joinfname)
+        self.n_failed, self.n_total = 0, 0
+        for joinfname in joinfnames:
+            self.parse_file(joinfname)
+
+        self.perfplotter.plot()
+        print 'failed: %d / %d = %f' % (self.n_failed, self.n_total, float(self.n_failed) / self.n_total)
+
+    # ----------------------------------------------------------------------------------------
+    def parse_file(self, infname):
+        tree = ET.parse(infname)
         root = tree.getroot()
 
-        # self.info = {}
-        iline = 0
         for query in root:
-            iline += 1
-            if n_max_queries > 0 and iline > n_max_queries:
+            self.n_total += 1
+            if self.n_max_queries > 0 and self.n_total > self.n_max_queries:
                 break
 
             unique_id = query.attrib['id'].replace('>', '').replace(' ', '')
-            print iline, unique_id
-            if len(queries) > 0 and  unique_id not in queries:
+            if len(self.queries) > 0 and  unique_id not in self.queries:
                 continue
-            # self.info[unique_id] = {}
-            line = {}  # self.info[unique_id] TODO make sure that still works with this stuff commented out
+            if self.debug:
+                print self.n_total, unique_id
+            line = {}
             line['unique_id'] = unique_id
             line['seq'] = self.seqinfo[unique_id]['seq']
             for region in utils.regions:
@@ -166,17 +173,21 @@ class JoinParser(object):
                 self.get_region_matches(region, query, line)
             if 'v_gene' not in line or 'd_gene' not in line or 'j_gene' not in line:
                 print '  ERROR giving up on %s' % unique_id
+                self.n_failed += 1
                 continue
 
             add_insertions(line)
-            resolve_overlapping_matches(line, self.debug)
+            try:
+                resolve_overlapping_matches(line, self.debug)
+            except:
+                print 'ERROR apportionment failed on %s' % unique_id
+                self.n_failed += 1
+                continue
 
-            perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
+            self.perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
 
             if self.debug:
                 utils.print_reco_event(self.germline_seqs, line)
-
-        perfplotter.plot()
 
     # ----------------------------------------------------------------------------------------
     def parse_match_seqs(self, match, region_query_seq):
@@ -256,6 +267,13 @@ class JoinParser(object):
             
         del_5p = self.germline_seqs[region][match_name].find(gl_match_seq)
         del_3p = len(self.germline_seqs[region][match_name]) - del_5p - len(gl_match_seq)
+        if region == 'j' and del_5p < 0:
+            print '    WARNING adding to right side of germline j'
+            # assert len(gl_match_seq) > len(self.germline_seqs[region][match_name])
+            self.germline_seqs[region][match_name] = gl_match_seq
+            del_5p = self.germline_seqs[region][match_name].find(gl_match_seq)
+            del_3p = len(self.germline_seqs[region][match_name]) - del_5p - len(gl_match_seq)
+            
         if del_5p < 0 or del_3p < 0:
             print 'ERROR couldn\'t figure out deletions in', region
             print '    germline', self.germline_seqs[region][match_name], match_name
@@ -270,5 +288,7 @@ class JoinParser(object):
         line[region + '_qr_seq'] = region_query_seq
 
 
-plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
-# jparser = JoinParser('caches/recombinator/simu.csv', '/home/dralph/Dropbox/multijoin.xml', datadir='./data')
+filelist = [ '/home/dralph/Dropbox/join-output-' + str(ifile) + '.xml' for ifile in range(1,6)]
+# jparser = JoinParser('caches/recombinator/simu.csv', filelist, datadir='./data')
+# plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
+plotting.compare_directories('/var/www/sharing/dralph/partis/imgt_performance/plots/', 'imgt', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver')

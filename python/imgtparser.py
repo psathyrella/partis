@@ -15,7 +15,7 @@ class IMGTParser(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, seqfname, infname, datadir):
         self.debug = 0
-        n_max_queries = -1
+        n_max_queries = 50
         queries = []
 
         self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)

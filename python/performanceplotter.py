@@ -14,7 +14,7 @@ class PerformancePlotter(object):
         self.germlines = germlines
         self.plotdir = plotdir
         self.name = name
-        utils.prep_dir(self.plotdir + '/plots', wildling=None, multilings=['*.csv','*.svg'])
+        utils.prep_dir(self.plotdir + '/plots', wildling=None, multilings=['*.csv', '*.svg', '*.root'])
         self.values = {}
         for column in utils.index_columns:
             if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
