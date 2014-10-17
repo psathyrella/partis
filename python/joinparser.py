@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import csv
+import re
 import os
 import math
 import xml.etree.ElementTree as ET
@@ -16,10 +17,9 @@ def add_insertions(line):
     for boundary in utils.boundaries:
         left_region = boundary[0]
         right_region = boundary[1]
-        left_match_end = line['seq'].find(line[left_region + '_qr_seq']) + len(line[left_region + '_qr_seq'])  # base *after* last base of left region match
+        left_match_end = line['seq'].rfind(line[left_region + '_qr_seq']) + len(line[left_region + '_qr_seq'])  # base *after* last base of left region match
         right_match_start = line['seq'].find(line[right_region + '_qr_seq'])  # first base of right region match
         line[boundary + '_insertion'] = line['seq'][left_match_end : right_match_start]
-
 
 # ----------------------------------------------------------------------------------------
 def cut_matches(seq1, seq2):
@@ -42,9 +42,30 @@ def resolve_overlapping_matches(line, debug=False):
     for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
         left_gene = line[rpairs['left'] + '_gene']
         right_gene = line[rpairs['right'] + '_gene']
-        left_match_end = line['seq'].find(line[rpairs['left'] + '_qr_seq']) + len(line[rpairs['left'] + '_qr_seq'])  # base after the last left-gene-matched base
-        right_match_start = line['seq'].find(line[rpairs['right'] + '_qr_seq'])  # first base of right-hand match
+        l_qr_seq = line[rpairs['left'] + '_qr_seq']
+        r_qr_seq = line[rpairs['right'] + '_qr_seq']
+        all_l_matches = re.findall(l_qr_seq, line['seq'])
+        all_r_matches = re.findall(r_qr_seq, line['seq'])
+        lpos = line['seq'].find(l_qr_seq)
+        rpos = line['seq'].find(r_qr_seq)
+        left_match_end = lpos + len(l_qr_seq)  # base after the last left-gene-matched base
+        right_match_start = rpos  # first base of right-hand match
         overlap = left_match_end - right_match_start
+        if len(all_l_matches) > 1 or len(all_r_matches) > 1:  # darn, the match occurs more than once, so we have to figure out which one to use. Choose the one that gives the smallest overlap
+            min_delta = 9999
+            lpos, rpos = -1, -1
+            for il in range(len(all_l_matches)):  # loop over all the combinations to find the smallest difference
+                lpos = line['seq'].find(l_qr_seq, lpos + 1)
+                for ir in range(len(all_r_matches)):
+                    rpos = line['seq'].find(r_qr_seq, rpos + 1)
+                    if overlap > lpos + len(l_qr_seq) - rpos:
+                        overlap = lpos + len(l_qr_seq) - rpos
+            if len(all_l_matches) > 1:
+                print '    WARNING %d occurences of %s in %s' % (len(all_l_matches), l_qr_seq, line['seq'])
+            if len(all_r_matches) > 1:
+                print '    WARNING %d occurences of %s in %s' % (len(all_r_matches), r_qr_seq, line['seq'])
+        else:
+            assert len(all_l_matches) == 1 and len(all_r_matches) == 1
         if overlap > 0:
             if debug:
                 print '     WARNING %s apportioning %d overlapping bases between %s and %s matches' % (line['unique_id'], overlap, rpairs['left'], rpairs['right'])
@@ -53,11 +74,11 @@ def resolve_overlapping_matches(line, debug=False):
             assert lefthand_portion <= len(line[rpairs['left'] + '_gl_seq'])
             assert righthand_portion <= len(line[rpairs['right'] + '_gl_seq'])
             line[rpairs['left'] + '_gl_seq'] = line[rpairs['left'] + '_gl_seq'][:-lefthand_portion]
-            line[rpairs['left'] + '_qr_seq'] = line[rpairs['left'] + '_qr_seq'][:-lefthand_portion]
+            line[rpairs['left'] + '_qr_seq'] = l_qr_seq[:-lefthand_portion]
             line[rpairs['left'] + '_3p_del'] += lefthand_portion
 
             line[rpairs['right'] + '_gl_seq'] = line[rpairs['right'] + '_gl_seq'][righthand_portion:]
-            line[rpairs['right'] + '_qr_seq'] = line[rpairs['right'] + '_qr_seq'][righthand_portion:]
+            line[rpairs['right'] + '_qr_seq'] = r_qr_seq[righthand_portion:]
             line[rpairs['right'] + '_5p_del'] += righthand_portion
 
 #--------------------------------------------------------------------------------------
@@ -288,7 +309,11 @@ class JoinParser(object):
         line[region + '_qr_seq'] = region_query_seq
 
 
-filelist = [ '/home/dralph/Dropbox/join-output-' + str(ifile) + '.xml' for ifile in range(1,6)]
-# jparser = JoinParser('caches/recombinator/simu.csv', filelist, datadir='./data')
-# plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
-plotting.compare_directories('/var/www/sharing/dralph/partis/imgt_performance/plots/', 'imgt', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver')
+if __name__ == "__main__":
+    filelist = [ '/home/dralph/Dropbox/join-output-' + str(ifile) + '.xml' for ifile in range(1,6)]
+    # jparser = JoinParser('caches/recombinator/simu.csv', filelist, datadir='./data')
+    # plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/joinsolver_performance/plots/', 'jsolver', xtitle='inferred - true', stats='')
+    base_plotdir = '/var/www/sharing/dralph/partis'
+    plotting.compare_directories(base_plotdir + '/performance/plots', 'partis',
+                                 base_plotdir + '/imgt_performance/plots', 'imgt',
+                                 dir3=base_plotdir + '/joinsolver_performance/plots', name3='joinsolver')

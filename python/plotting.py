@@ -18,7 +18,7 @@ def check_root():
 sys.argv.append('-b')  # root just loves its stupid little splashes
 has_root = check_root()
 if has_root:
-    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue
+    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen
     gROOT.Macro("plotting/MitStyleRemix.cc+")
 else:
     print ' ROOT not found, proceeding without plotting'
@@ -190,7 +190,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=True, stats=''):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=True, stats='', hist3=None):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
@@ -199,6 +199,9 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
     if hist2 != None:
         xmin = min(xmin, hist2.GetBinLowEdge(1))
         xmax = max(xmax, hist2.GetXaxis().GetBinUpEdge(hist2.GetNbinsX()))
+    if hist3 != None:
+        xmin = min(xmin, hist3.GetBinLowEdge(1))
+        xmax = max(xmax, hist3.GetXaxis().GetBinUpEdge(hist3.GetNbinsX()))
     hframe = TH1F('hframe', '', hist.GetNbinsX(), xmin, xmax)
     if var_type == 'string' or var_type == 'bool':
         for ib in range(1, hframe.GetNbinsX()+1):
@@ -207,22 +210,29 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
     ymax = hist.GetMaximum()
     if hist2 != None:
         ymax = max(ymax, hist2.GetMaximum())
+    if hist3 != None:
+        ymax = max(ymax, hist3.GetMaximum())
     hframe.SetMaximum(1.35*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
-        hframe.SetMaximum(1.0)
+        # hframe.SetMaximum(1.0)
     hframe.SetTitle(plotname + ';' + hist.GetXaxis().GetTitle() + ';')
     hframe.Draw("txt")
 
-    hist.SetLineColor(kBlue);
+    hist.SetLineColor(kRed);
     # hist.SetMarkerSize(0);
     hist.SetLineWidth(4);
     hist.Draw("hist same");
     if hist2 != None:
-        hist2.SetLineColor(kRed+2)  #419);
+        hist2.SetLineColor(kBlue)  #419);
         # hist2.SetMarkerSize(0);
         hist2.SetLineWidth(4);
         hist2.Draw("hist same");
+    if hist3 != None:
+        hist3.SetLineColor(kGreen+2)  #419);
+        # hist3.SetMarkerSize(0);
+        hist3.SetLineWidth(4);
+        hist3.Draw("hist same");
 
     leg = TLegend(0.5, 0.78, 0.9, 0.9)
     leg.SetFillColor(0)
@@ -234,6 +244,10 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         if 'rms' in stats:
             hist2.SetTitle(hist2.GetTitle() + (' (%.2f)' % hist2.GetRMS()))
         leg.AddEntry(hist2, hist2.GetTitle() , 'l')
+    if hist3 != None:
+        if 'rms' in stats:
+            hist3.SetTitle(hist3.GetTitle() + (' (%.2f)' % hist3.GetRMS()))
+        leg.AddEntry(hist3, hist3.GetTitle() , 'l')
     leg.Draw()
 
     cvn.SetLogx('x' in log)
@@ -247,37 +261,38 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(dir1, name1, dir2, name2, xtitle='', stats=''):
+def get_hists_from_dir(dirname, histname):
+    hists = {}
+    for fname in glob.glob(dirname + '/*.csv'):
+        varname = os.path.basename(fname).replace('.csv', '')
+        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname)
+        hists[varname].SetTitle(histname)
+    if len(hists) == 0:
+        print 'ERROR no hists in',dirname
+        sys.exit()
+    return hists
+
+# ----------------------------------------------------------------------------------------
+def compare_directories(dir1, name1, dir2, name2, xtitle='', stats='', dir3='', name3=''):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     plotdir = os.getenv('www') + '/partis/compare-performance'
     utils.prep_dir(plotdir + '/plots', '*.svg')
-    dir1_hists = {}
-    for fname in glob.glob(dir1 + '/*.csv'):
-        varname = os.path.basename(fname).replace('.csv', '')
-        dir1_hists[varname] = make_hist_from_bin_entry_file(fname, name1 + '-csv-' + varname)
-        dir1_hists[varname].SetTitle(name1)
-    if len(dir1_hists) == 0:
-        print 'ERROR no hists in',dir1
-        sys.exit()
-    dir2_hists = {}
-    for fname in glob.glob(dir2 + '/*.csv'):
-        varname = os.path.basename(fname).replace('.csv', '')
-        dir2_hists[varname] = make_hist_from_bin_entry_file(fname, name2 + '-csv-' + varname)
-        dir2_hists[varname].SetTitle(name2)
-    if len(dir2_hists) == 0:
-        print 'ERROR no hists in',dir2
-        sys.exit()
+    dir1_hists = get_hists_from_dir(dir1, name1)
+    dir2_hists = get_hists_from_dir(dir2, name2)
+    dir3_hists = None
+    if dir3 != '':
+        dir3_hists = get_hists_from_dir(dir3, name3)
     for varname, hist in dir1_hists.iteritems():
         if xtitle != '':
             hist.GetXaxis().SetTitle(xtitle)
-        if varname not in dir2_hists:
-            print 'WARNING %s not found in %s' % (varname, dir2)
-            continue
         hist2 = dir2_hists[varname]
+        hist3 = None
+        if dir3_hists != None:
+            hist3 = dir3_hists[varname]
         var_type = 'int'
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
-        draw(hist, var_type, plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False, stats=stats)
+        draw(hist, var_type, plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3)
     check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', plotdir, '3', 'null', 'svg'])
         

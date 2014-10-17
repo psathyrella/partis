@@ -33,10 +33,10 @@ class PerformancePlotter(object):
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
         # utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
         if len(true_naive_seq) != len(inferred_naive_seq):
-            print 'ERROR %s different naive lengths' % query_name
-            print '    ', true_naive_seq
-            print '    ', inferred_naive_seq
-            print '   cropping the longer one (it\'s probably because the j match doesn\'t go all the way to the right side of the sequence)'
+            # print 'ERROR %s different naive lengths' % query_name
+            # print '    ', true_naive_seq
+            # print '    ', inferred_naive_seq
+            # print '   cropping the longer one (it\'s probably because the j match doesn\'t go all the way to the right side of the sequence)'
             # TODO should really penalize if it's wrong
             min_length = min(len(true_naive_seq), len(inferred_naive_seq))
             true_naive_seq = true_naive_seq[:min_length]
