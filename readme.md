@@ -40,8 +40,8 @@ The similarly-canonical CPG island example may be found in `examples/cpg.yaml`. 
 
 Finally, you will find a pair HMM variant of the CPG island example in `examples/pair-cpg.yaml`:
 
-    ./hample --pair --hmmfname examples/pair-cpg.yaml --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 CCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT
-
+    ./hample --pair --hmmfname examples/pair-cpg.yaml --seq CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT
+    
 The Viterbi path should now be thought of as the most probable single path that the two sequences could
 have taken together. Similarly, the Forward probability is now the total probability, summed over all paths,
 of these two sequences having taken the same path.
