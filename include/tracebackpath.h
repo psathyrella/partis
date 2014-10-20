@@ -34,8 +34,17 @@ public:
   inline void set_model(Model* model) { hmm_ = model; }
   inline void set_score(double score) { score_ = score; }  // set score associated with this path
 
-  void print_names() const ;
+  friend std::ostream& operator<<(std::ostream &os, const TracebackPath &self)
+  {
+    for(size_t k=self.path_.size()-1; k!=SIZE_MAX; --k) {
+      State* st = self.hmm_->state(self.path_[k]);
+      os << st->name() << " ";
+    }
+    os << std::endl;
+    return os;
+  }
   void print_labels(string separator="") const ;  // if separator is specified, print it between each element in the sequence
+
 private:
   Model* hmm_;
   vector<int> path_;
