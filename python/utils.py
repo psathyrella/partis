@@ -27,6 +27,7 @@ humans = ('A', 'B', 'C')
 nukes = ('A', 'C', 'G', 'T')
 maturities = ['memory', 'naive']  # NOTE eveywhere else I call this 'naivety' and give it the values 'M' or 'N'
 naivities = ['M', 'N']
+conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'vd_insertion', 'dj_insertion')
@@ -384,11 +385,11 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
 
         for pos in (cyst_position, final_tryp_position):  # reverse video for the conserved codon positions
             if pos > 0:
-                adjusted_pos = pos - v_5p_del  # adjust positions to allow for reads not extending all the way to left side of v
-                if inuke == adjusted_pos:
-                    new_nuke = '\033[7m' + new_nuke
-                elif inuke == adjusted_pos + 2:
-                    new_nuke = new_nuke + '\033[m'
+                # adjusted_pos = pos - v_5p_del  # adjust positions to allow for reads not extending all the way to left side of v
+                adjusted_pos = pos  # don't need to subtract it for smith-waterman stuff... gr, need to make it general
+                if inuke >= adjusted_pos and inuke < adjusted_pos+3:
+                    new_nuke = '\033[7m' + new_nuke + '\033[m'
+
         final_seq += new_nuke
 
     # check if there isn't enough space for dots in the vj line
@@ -596,8 +597,12 @@ def prep_dir(dirname, wildling=None, multilings=None):
     else:
         os.makedirs(dirname)
     if len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) != 0:  # make sure there's no other files in the dir
-        print 'ERROR files already in',dirname
-        sys.exit()
+        print 'ERROR files remain in',dirname,'despite wildling',
+        if wildling != None:
+            print wildling
+        if multilings != None:
+            print multilings
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def fraction_uncertainty(obs, total):

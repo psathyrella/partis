@@ -7,6 +7,8 @@ import csv
 
 import plotting
 has_root = plotting.has_root
+if has_root:
+    from ROOT import TCanvas, TH1F, TLine, kRed
 
 import utils
 from opener import opener

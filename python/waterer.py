@@ -27,7 +27,7 @@ class Waterer(object):
         if write_parameters:
             self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
             if plotdir != '':
-                utils.prep_dir(plotdir + '/plots', '*.svg')
+                utils.prep_dir(plotdir + '/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found
         self.from_scratch = from_scratch
@@ -211,7 +211,9 @@ class Waterer(object):
                 print '(v right %d)' % v_right_length,
             print ''
             print '%48s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
-            print '  %s (%d)' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]]), codon_pos),
+            print '  %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])),
+            if region != 'd':
+                print '(%s %d)' % (utils.conserved_codon_names[region], codon_pos),
             if warnings[gene] != '':
                 print 'WARNING',warnings[gene],
             if skipping:
@@ -269,7 +271,7 @@ class Waterer(object):
 
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.args.debug:
-            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ')
+            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ', cyst_position=codon_positions['v'], final_tryp_position=codon_positions['j'])
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
