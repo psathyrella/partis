@@ -13,7 +13,7 @@ Emission::Emission() {
 Emission::~Emission(){
   if (tracks_) delete tracks_;
 }
-  
+
 // ----------------------------------------------------------------------------------------
 void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
   scores_.Init();
@@ -25,7 +25,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     assert(tk);  // assures we actualy found the track in model_tracks
     tracks_->push_back(tk);
     scores_.AddTrack(tk, 0);
-    
+
     YAML::Node probs(config["probs"]);
     assert(probs.size() == scores_.alphabet_size(0));  // TODO actually I don't need these either, since I'm looping over the track
     assert(scores_.alphabet_size(0) == tk->alphabet_size()); // TODO arg I shouldn't need this. so complicated...
@@ -51,7 +51,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
       tracks_->push_back(tk);
       scores_.AddTrack(tk, 0);
     }
-    
+
     YAML::Node probs(config["probs"]);
     assert(probs.size() == scores_.alphabet_size(0));  // TODO actually I don't need these either, since I'm looping over the track
     assert(tracks_->size() == 2);
@@ -79,7 +79,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     assert(0);
   }
 }
-      
+
 // ----------------------------------------------------------------------------------------
 void Emission::Print() {
   for(size_t i=0; i<scores_.n_tracks(); ++i)  // TODO dammit I'm confused by having a vector of tracks in the lexical table *and* every freaking where else

@@ -1,6 +1,6 @@
 #include "text.h"
 namespace ham {
-    
+
 // ----------------------------------------------------------------------------------------
 void ClearWhitespace(string white, string *input) {
   size_t found = input->find_first_of(white);

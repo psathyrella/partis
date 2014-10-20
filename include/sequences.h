@@ -12,7 +12,7 @@ public:
   Sequence(string name, string seq_str, Track* trk);
   Sequence(const Sequence&);
   ~Sequence();
-      
+
   inline string name() const { return name_; }
   inline uint8_t operator[](size_t index) { return seq_->at(index); }  // digitized value at position <index>
   inline uint8_t value(size_t pos) const { return (*seq_)[pos]; }  // get digitized value at <pos>
@@ -21,7 +21,7 @@ public:
   inline Track* track() const { return track_; }
   inline string undigitized() { return undigitized_; }
   Sequence GetSubSequence(size_t pos, size_t len);
-  
+
   void Print(string separator="");  // if separator is specified, print it between each element in the sequence
 private:
   string name_;

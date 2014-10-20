@@ -9,7 +9,7 @@
 
 using namespace std;
 namespace ham {
-      
+
 typedef vector<vector<int16_t> > int_2D;
 typedef vector<vector<float> > float_2D;
 typedef vector<vector<double> > double_2D;
@@ -27,7 +27,7 @@ public:
   Sequences *seqs() { return seqs_; }
   float_2D* forward_table() { return forward_table_; }
   double forward_log_prob() { return ending_forward_log_prob_; }
-              
+
   void Viterbi();
   void Forward();
   void Traceback(TracebackPath &path);
@@ -35,7 +35,7 @@ private:
   Model *hmm_;
   Sequences *seqs_;
   int_2D *traceback_table_;
-              
+
   double ending_viterbi_log_prob_;
   int16_t ending_viterbi_pointer_;
   float_2D* forward_table_;

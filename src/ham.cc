@@ -60,7 +60,7 @@ Args::Args(int argc, const char * argv[]):
   str_headers_{"only_genes", "name", "seq", "second_name", "second_seq"},
   int_headers_{"k_v_min", "k_v_max", "k_d_min", "k_d_max"}
 {
-  try {  
+  try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmdir_arg_);
     cmd.add(datadir_arg_);
@@ -80,7 +80,7 @@ Args::Args(int argc, const char * argv[]):
     strings_[head] = vector<string>();
   for (auto &head: int_headers_)
     integers_[head] = vector<int>();
-  
+
   ifstream ifs(infile());
   assert(ifs.is_open());
   string line;
@@ -185,7 +185,7 @@ int main(int argc, const char * argv[]) {
     if (args.algorithm() == "forward" && args.pair()) {
       Result result_a = jh.Run((*seqs[is])[0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
       Result result_b = jh.Run((*seqs[is])[1], kbounds);
-      
+
       if (result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << (*seqs[is])[0].name() << " " << (*seqs[is])[1].name() << endl;
       if (args.debug()) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score(), result_b.total_score(), score - result_a.total_score() - result_b.total_score());
       if (args.debug()) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score()), exp(result_b.total_score()), exp(score) / (exp(result_a.total_score())*exp(result_b.total_score())));

@@ -14,7 +14,7 @@ public:
   void Parse(string);
   void AddState(State*);
   void Finalize();
-		
+
   inline string &name() { return name_; }
   inline Track *track(size_t it) { return tracks_[it]; }
   inline size_t n_states() { return states_.size(); }
@@ -33,7 +33,7 @@ private:
   State* initial_;
   State* ending_;
   bool finalized_;
-		
+
   void FinalizeState(State *st);
   void CheckTopology();
   void AddToStateIndices(State* st, vector<uint16_t>& visited); // that's 'to-state', as in, 'here we push back the to-state indices onto <visited>'
