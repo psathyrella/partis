@@ -1,6 +1,6 @@
 name: cpg
 tracks:
-  nukes: [A,C,G,T]
+  nucs: [A,C,G,T]
 states:
 - name: init
   label: i
@@ -10,7 +10,7 @@ states:
 - name: rich
   label: r
   pair_emissions:
-    tracks: [nukes, nukes]
+    tracks: [nucs, nucs]
     probs:
       A: {A: 0.01, C: 0.04, G: 0.04, T: 0.01}
       C: {A: 0.04, C: 0.16, G: 0.16, T: 0.04}
@@ -23,7 +23,7 @@ states:
 - name: notrich
   label: n
   pair_emissions:
-    tracks: [nukes, nukes]
+    tracks: [nucs, nucs]
     probs:
       A: {A: 0.0625, C: 0.0625, G: 0.0625, T: 0.0625}
       C: {A: 0.0625, C: 0.0625, G: 0.0625, T: 0.0625}

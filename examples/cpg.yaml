@@ -1,6 +1,6 @@
 name: cpg
 tracks:
-  nukes: [A,C,G,T]
+  nucs: [A,C,G,T]
 states:
 - name: init
   label: i
@@ -10,7 +10,7 @@ states:
 - name: rich
   label: r
   emissions:
-    track: nukes
+    track: nucs
     probs:
       A: 0.1
       C: 0.4
@@ -23,7 +23,7 @@ states:
 - name: notrich
   label: n
   emissions:
-    track: nukes
+    track: nucs
     probs:
       A: 0.25
       C: 0.25
