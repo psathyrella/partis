@@ -146,36 +146,36 @@ def int_to_nucleotide(number):
         sys.exit()
 
 # ----------------------------------------------------------------------------------------                    
-def check_conserved_cysteine(seq, cyst_position, debug=False):
+def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str=''):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     if len(seq) < cyst_position+3:
         if debug:
-            print 'ERROR seq not long enough in cysteine checker %d %s' % (cyst_position, seq)
+            print '%sERROR seq not long enough in cysteine checker %d %s' % (extra_str, cyst_position, seq)
         assert False
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
         if debug:
-            print 'ERROR cysteine in V is messed up: %s' % cyst_word
+            print '%sERROR cysteine in V is messed up: %s' % (extra_str, cyst_word)
         assert False
 
 # ----------------------------------------------------------------------------------------
-def check_conserved_tryptophan(seq, tryp_position, debug=False):
+def check_conserved_tryptophan(seq, tryp_position, debug=False, extra_str=''):
     """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
     if len(seq) < tryp_position+3:
         if debug:
-            print 'ERROR seq not long enough in tryp checker %d %s' % (tryp_position, seq)
+            print '%sERROR seq not long enough in tryp checker %d %s' % (extra_str, tryp_position, seq)
         assert False
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
         if debug:
-            print 'ERROR tryptophan in J is messed up: %s' % tryp_word
+            print '%sERROR tryptophan in J is messed up: %s' % (extra_str, tryp_word)
         assert False
 
 # ----------------------------------------------------------------------------------------
-def check_conserved_codons(seq, cyst_position, tryp_position, debug=False):
+def check_both_conserved_codons(seq, cyst_position, tryp_position, debug=False, extra_str=''):
     """ Double check that we conserved the cysteine and the tryptophan. """
-    check_conserved_cysteine(seq, cyst_position, debug)
-    check_conserved_tryptophan(seq, tryp_position, debug)
+    check_conserved_cysteine(seq, cyst_position, debug, extra_str=extra_str)
+    check_conserved_tryptophan(seq, tryp_position, debug, extra_str=extra_str)
 
 # ----------------------------------------------------------------------------------------
 def are_conserved_codons_screwed_up(reco_event):
@@ -187,11 +187,28 @@ def are_conserved_codons_screwed_up(reco_event):
         return True
     for seq in reco_event.final_seqs:
         try:
-            check_conserved_codons(seq, reco_event.cyst_position, reco_event.final_tryp_position)
-        except:
+            check_both_conserved_codons(seq, reco_event.cyst_position, reco_event.final_tryp_position)
+        except AssertionError:
             return True
 
     return False
+
+# ----------------------------------------------------------------------------------------
+def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds):
+    """
+    Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
+    its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
+    """
+    if region == 'v':
+        gl_cpos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
+        query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
+        return query_cpos
+    elif region == 'j':
+        gl_tpos = int(tryp_positions[gene])
+        query_tpos = gl_tpos - glbounds[0] + qrbounds[0]
+        return query_tpos
+    else:
+        return -1
 
 #----------------------------------------------------------------------------------------
 def is_position_protected(protected_positions, prospective_position):

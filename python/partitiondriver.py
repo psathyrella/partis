@@ -447,31 +447,20 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 if algorithm == 'viterbi':
-                    if last_id != utils.get_key(line['unique_id'], line['second_unique_id']):  # if this is the first line for this query (or query pair), print the true event
+                    this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
+                    if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
+                        print '%-20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
                         if pcounter != None:  # increment counters
                             utils.add_match_seqs(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
                             pcounter.increment(line)
                         if perfplotter != None:
                             perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
 
-                        if self.args.debug > 0: # print stuff
-                            print '%20s %20s   %d' % (line['unique_id'], line['second_unique_id'], from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
-                            print '    true:'
-                            cpos = -1
-                            if not self.args.is_data:
-                                cpos = self.cyst_positions[self.reco_info[line['unique_id']]['v_gene']]['cysteine-position']
-                                # TODO fix this, i.e. figure out the number to add to it so it's correct: tpos = int(self.tryp_positions[self.reco_info[line['unique_id']]['j_gene']]) + 
-                                utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], cpos, 0, extra_str='    ')
-                                if self.args.pair:
-                                    utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']), '    ')
-                            print '    inferred:'
-                    if self.args.debug > 0: # print stuff
-                        utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
-                        if self.args.pair:
-                            tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
-                            line['seq'] = line['second_seq']
-                            utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
-                            line['seq'] = tmpseq
+                            # cpos = -1
+                            #     cpos = self.cyst_positions[self.reco_info[line['unique_id']]['v_gene']]['cysteine-position']
+                            #     # TODO fix this, i.e. figure out the number to add to it so it's correct: tpos = int(self.tryp_positions[self.reco_info[line['unique_id']]['j_gene']]) +
+                    if self.args.debug:
+                        self.print_hmm_output(line, print_true=(last_id != this_id))
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
@@ -481,3 +470,20 @@ class PartitionDriver(object):
             print '    %d boundary errors' % n_boundary_errors
         if perfplotter != None:
             perfplotter.plot()
+
+    # ----------------------------------------------------------------------------------------
+    def print_hmm_output(self, line, print_true=False):
+        if print_true and not self.args.is_data:
+            print '    true:'
+            utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], extra_str='    ')
+            if self.args.pair:
+                utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], 0, 0, from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']), '    ')
+            print '    inferred:'
+
+        utils.print_reco_event(self.germline_seqs, line, 0, 0, extra_str='    ')
+        if self.args.pair:
+            tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
+            line['seq'] = line['second_seq']
+            utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
+            line['seq'] = tmpseq
+

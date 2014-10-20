@@ -68,7 +68,7 @@ class RecombinationEvent(object):
         final_cdr3_length = self.final_tryp_position - self.cyst_position + 3
         if debug:
             print '  final_tryp_position - cyst_position + 3 = %d - %d + 3 = %d (should be %d)' % (self.final_tryp_position, self.cyst_position, final_cdr3_length, self.cdr3_length)
-        utils.check_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.cyst_position, self.final_tryp_position)
+        utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.cyst_position, self.final_tryp_position)
         assert final_cdr3_length == int(self.cdr3_length)
 
     # ----------------------------------------------------------------------------------------

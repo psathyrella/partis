@@ -155,45 +155,11 @@ class Waterer(object):
             #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
             #     continue
             
-            all_match_names[region].append((score,gene))
+            all_match_names[region].append((score,gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
 
         self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings)
-
-    # ----------------------------------------------------------------------------------------
-    def get_conserved_codon_position(self, region, gene, glbounds, qrbounds):
-        """
-        Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
-        its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
-        """
-        if region == 'v':
-            gl_cpos = self.cyst_positions[gene]['cysteine-position']  # germline cysteine position
-            query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
-            # print '%d - %d ( + %d ) = %d (%d)' % (gl_cpos, glbounds[0], qrbounds[0], query_cpos, query_cpos + qrbounds[0])
-            return query_cpos
-        elif region == 'j':
-            gl_tpos = int(self.tryp_positions[gene])
-            query_tpos = gl_tpos - glbounds[0]  #+ qrbounds[0]  # NOTE this coordinate is w/ respect to the j query *only*. Adjust below for coord in the whole query sequence
-            query_tpos += qrbounds[0]  # add the length of the v match, and the length of query seq we'll be matching to d
-            return query_tpos
-            # print '%3d %s' % (tpos - glbounds[0], query_match_seq[tpos - glbounds[0]: tpos - glbounds[0] + 3])
-        else:
-            return -1
-
-    # ----------------------------------------------------------------------------------------
-    def check_conserved_codons(self, region, gene, query_seq, glbounds, qrbounds):  # TODO fix name conflict with fcn in utils
-        codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
-        try:
-            if region == 'v':
-                utils.check_conserved_cysteine(query_seq[:qrbounds[1]], codon_pos, debug=False)  # don't use qrbounds[0] at start of slice so query_cpos is the same for all v matches, even if they don't start at the same place in the query sequence
-            elif region == 'j':
-                codon_pos -= qrbounds[0]  # subtract back of the length of the v match and prospective d match
-                utils.check_conserved_tryptophan(query_seq[qrbounds[0]:qrbounds[1]], codon_pos, debug=False)
-            return True
-        except AssertionError:
-            return False
-
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
@@ -229,7 +195,7 @@ class Waterer(object):
             right_gene = best[rpairs['right']]
             overlap = qrbounds[left_gene][1] - qrbounds[right_gene][0]
             if overlap > 0:
-                print 'WARNING %s giving %d bases from %s match to %s match' % (query_name, overlap, rpairs['left'], rpairs['right'])
+                print '      WARNING %s giving %d bases from %s match to %s match' % (query_name, overlap, rpairs['left'], rpairs['right'])
                 assert overlap <= len(self.germline_seqs[rpairs['left']][left_gene])
                 qrbounds[left_gene] = (qrbounds[left_gene][0], qrbounds[left_gene][1] - overlap)
                 glbounds[left_gene] = (glbounds[left_gene][0], glbounds[left_gene][1] - overlap)
@@ -280,7 +246,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings):
-        # best_scores = {}
+        if self.args.debug:
+            print '%s' % query_name
+
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
         k_v_min, k_d_min = 999, 999
@@ -289,19 +257,33 @@ class Waterer(object):
             all_match_names[region] = sorted(all_match_names[region], reverse=True)
             match_names[region] = []
         codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
-        if self.args.debug:
-            print '  smith waterman matches for %s:' % query_name
         for region in utils.regions:
             n_matches[region] = len(all_match_names[region])
             n_skipped = 0
-            for score,gene in all_match_names[region]:
+            for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
                 assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up avove as well (in process_query), so in time I should remove them from here
                 assert glbounds[1] <= len(self.germline_seqs[region][gene])
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
-                if codon_positions[region] == -1:  # set to the position in the best match
-                    codon_positions[region] = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
+                if codon_positions[region] == -1:  # set to the position in the best (first) match
+                    codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, gene, glbounds, qrbounds)  # position in the query sequence, that is
+                else:
+                    assert best[region + '_score'] >= score  # make sure all_match_names is ordered with the best match first
+
+    # # ----------------------------------------------------------------------------------------
+    # def check_conserved_codons(self, region, gene, query_seq, glbounds, qrbounds):  # TODO fix name conflict with fcn in utils
+    #     codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
+    #     try:
+    #         if region == 'v':
+    #             utils.check_conserved_cysteine(query_seq[:qrbounds[1]], codon_pos, debug=False)  # don't use qrbounds[0] at start of slice so query_cpos is the same for all v matches, even if they don't start at the same place in the query sequence
+    #         elif region == 'j':
+    #             codon_pos -= qrbounds[0]  # subtract back of the length of the v match and prospective d match
+    #             utils.check_conserved_tryptophan(query_seq[qrbounds[0]:qrbounds[1]], codon_pos, debug=False)
+    #         return True
+    #     except AssertionError:
+    #         return False
+
 
                 # if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
                 #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
@@ -338,7 +320,7 @@ class Waterer(object):
                     best[region] = gene
                     best[region + '_gl_seq'] = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                     best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
-                    # best_scores[region] = score
+                    best[region + '_score'] = score
 
             if self.args.debug and n_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_skipped, region)
@@ -361,6 +343,14 @@ class Waterer(object):
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
         self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+
+        # check for unproductive rearrangements
+        try:
+            utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=True, extra_str='      ')
+        except AssertionError:
+            if self.args.skip_unproductive:
+                print '      skipping unproductive rearrangement'
+                return
 
         # best k_v, k_d:
         k_v = all_query_bounds[best['v']][1]  # end of v match
