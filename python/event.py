@@ -125,12 +125,14 @@ class RecombinationEvent(object):
             line[boundary + '_insertion'] = self.insertions[boundary]
         for erosion_location in utils.erosions:
             line[erosion_location + '_del'] = self.erosions[erosion_location]
+        line['cyst_position'] = self.cyst_position
+        line['tryp_position'] = self.final_tryp_position
         for imute in range(len(self.final_seqs)):
             line['seq'] = self.final_seqs[imute]
             if total_length_from_right > 0:
                 line['v_5p_del'] = len(line['seq']) - total_length_from_right
                 line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
-            utils.print_reco_event(self.germlines, line, self.cyst_position, self.final_tryp_position, one_line=(imute!=0))
+            utils.print_reco_event(self.germlines, line, one_line=(imute!=0))
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):

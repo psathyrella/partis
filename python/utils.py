@@ -155,7 +155,7 @@ def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str=''):
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
         if debug:
-            print '%sERROR cysteine in V is messed up: %s' % (extra_str, cyst_word)
+            print '%sERROR cysteine in v is messed up: %s (%s %d)' % (extra_str, cyst_word, seq, cyst_position)
         assert False
 
 # ----------------------------------------------------------------------------------------
@@ -168,7 +168,7 @@ def check_conserved_tryptophan(seq, tryp_position, debug=False, extra_str=''):
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
         if debug:
-            print '%sERROR tryptophan in J is messed up: %s' % (extra_str, tryp_word)
+            print '%sERROR tryptophan in j is messed up: %s (%s %d)' % (extra_str, tryp_word, seq, tryp_position)
         assert False
 
 # ----------------------------------------------------------------------------------------
@@ -193,22 +193,21 @@ def are_conserved_codons_screwed_up(reco_event):
 
     return False
 
-# ----------------------------------------------------------------------------------------
-def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds):
-    """
-    Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
-    its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
-    """
-    if region == 'v':
-        gl_cpos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
-        query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
-        return query_cpos
-    elif region == 'j':
-        gl_tpos = int(tryp_positions[gene])
-        query_tpos = gl_tpos - glbounds[0] + qrbounds[0]
-        return query_tpos
-    else:
-        return -1
+#----------------------------------------------------------------------------------------
+def check_for_stop_codon(seq, cyst_position):
+    """ make sure there is no in-frame stop codon, where frame is inferred from <cyst_position> """
+    assert cyst_position < len(seq)
+    # jump leftward in steps of three until we reach the start of the sequence
+    ipos = cyst_position
+    while ipos > 2:
+        ipos -= 3
+    # ipos should now bet the index of the start of the first complete codon
+    while ipos + 2 < len(seq):  # then jump forward in steps of three bases making sure none of them are stop codons
+        codon = seq[ipos:ipos+3]
+        if codon == 'TAG' or codon == 'TAA' or codon == 'TGA':
+            print '      ERROR stop codon %s at %d in %s' % (codon, ipos, seq)
+            assert False
+        ipos += 3
 
 #----------------------------------------------------------------------------------------
 def is_position_protected(protected_positions, prospective_position):
@@ -302,16 +301,37 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
         # assert del_5p + lengths[region] != 0
         eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
 
+
 # ----------------------------------------------------------------------------------------
-def add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs):
-    """ Add the cdr3_length to <line> based on the information already in <line> """
+def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds):
+    """
+    Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
+    its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
+    """
+    # NOTE see add_cdr3_info -- they do similar things, but start from different information
+    if region == 'v':
+        gl_cpos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
+        query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
+        return query_cpos
+    elif region == 'j':
+        gl_tpos = int(tryp_positions[gene])
+        query_tpos = gl_tpos - glbounds[0] + qrbounds[0]
+        return query_tpos
+    else:
+        return -1
+# ----------------------------------------------------------------------------------------
+def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs):
+    """ Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line> """
+    # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
     eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position'] - int(line['v_5p_del'])  # cysteine position in eroded germline sequence
     eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
     try:
-        check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=True)
-        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=True)
-        tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])  # TODO dammit didn't I already do this somewhere up there?
-        line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+        line['cyst_position'] = eroded_gl_cpos
+        tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
+        line['tryp_position'] = tpos_in_joined_seq
+        line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
+        check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=True, extra_str='      ')
+        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=True, extra_str='      ')
     except AssertionError:
         print '    bad codon, setting cdr3_length to -1'
         line['cdr3_length'] = -1
@@ -325,7 +345,7 @@ def get_full_naive_seq(germlines, line):
     return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']
 
 # ----------------------------------------------------------------------------------------
-def add_match_seqs(germlines, line, cyst_positions, tryp_positions):
+def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unproductive):
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
 
@@ -335,7 +355,7 @@ def add_match_seqs(germlines, line, cyst_positions, tryp_positions):
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    add_cdr3_length(cyst_positions, tryp_positions, line, eroded_seqs)
+    add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs)  # add cyst and tryp positions, and cdr3 length
 
     # add the <eroded_seqs> to <line> so we can find them later
     for region in regions:
@@ -349,11 +369,12 @@ def add_match_seqs(germlines, line, cyst_positions, tryp_positions):
     line['j_qr_seq'] = line['seq'][j_start : j_start + len(eroded_seqs['j'])]
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, one_line=False, extra_str=''):
+def print_reco_event(germlines, line, one_line=False, extra_str=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
     """
+    
     v_5p_del = int(line['v_5p_del'])
     v_3p_del = int(line['v_3p_del'])
     d_5p_del = int(line['d_5p_del'])
@@ -400,8 +421,8 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
                             new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total+1
                             j_right_extra += ' '
 
-        for pos in (cyst_position, final_tryp_position):  # reverse video for the conserved codon positions
-            if pos > 0:
+        if 'cyst_position' in line and 'tryp_position' in line:
+            for pos in (line['cyst_position'], line['tryp_position']):  # reverse video for the conserved codon positions
                 # adjusted_pos = pos - v_5p_del  # adjust positions to allow for reads not extending all the way to left side of v
                 adjusted_pos = pos  # don't need to subtract it for smith-waterman stuff... gr, need to make it general
                 if inuke >= adjusted_pos and inuke < adjusted_pos+3:
@@ -447,13 +468,20 @@ def print_reco_event(germlines, line, cyst_position=-1, final_tryp_position=-1, 
         assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
-    if 'score' not in line:
-        line['score'] = ''
+    # print insert, d, and vj lines
     if not one_line:
         print '%s    %s   inserts' % (extra_str, insertions)
         print '%s    %s   %s' % (extra_str, d_line, color_gene(line['d_gene']))
         print '%s    %s   %s,%s' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene']))
-    print '%s    %s   %-10s muted: %5.2f' % (extra_str, final_seq, line['score'], float(n_muted) / n_total)
+    # print query sequence
+    print '%s    %s' % (extra_str, final_seq),
+    # and then some extra info
+    print '   muted: %4.2f' % (float(n_muted) / n_total),
+    if 'score' in line:
+        print '  score: %s' % line['score'],
+    if 'cdr3_length' in line:
+        print '   cdr3: %d' % line['cdr3_length'],
+    print ''
 
     line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']

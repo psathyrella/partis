@@ -42,11 +42,16 @@ class Waterer(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
+        self.n_unproductive = 0
+        self.n_total = 0
+
     # ----------------------------------------------------------------------------------------
     def run(self):
         outfname = self.args.workdir + '/query-seqs.bam'
         self.run_smith_waterman(outfname)
         self.read_output(outfname, plot_performance=self.args.plot_performance)
+        if self.n_unproductive > 0:
+            print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write_counts()
 
@@ -88,6 +93,7 @@ class Waterer(object):
         with contextlib.closing(pysam.Samfile(outfname)) as bam:
             grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
             for _, reads in grouped:  # loop over query sequences
+                self.n_total += 1
                 self.process_query(bam, list(reads), perfplotter)
 
         if perfplotter != None:
@@ -217,6 +223,8 @@ class Waterer(object):
         assert codon_positions['v'] != -1
         assert codon_positions['j'] != -1
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+        self.info[query_name]['cyst_position'] = codon_positions['v']
+        self.info[query_name]['tryp_position'] = codon_positions['j']
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
@@ -237,7 +245,7 @@ class Waterer(object):
 
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.args.debug:
-            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ', cyst_position=codon_positions['v'], final_tryp_position=codon_positions['j'])
+            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ')
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
@@ -271,24 +279,6 @@ class Waterer(object):
                 else:
                     assert best[region + '_score'] >= score  # make sure all_match_names is ordered with the best match first
 
-    # # ----------------------------------------------------------------------------------------
-    # def check_conserved_codons(self, region, gene, query_seq, glbounds, qrbounds):  # TODO fix name conflict with fcn in utils
-    #     codon_pos = self.get_conserved_codon_position(region, gene, glbounds, qrbounds)  # position in the query sequence, that is
-    #     try:
-    #         if region == 'v':
-    #             utils.check_conserved_cysteine(query_seq[:qrbounds[1]], codon_pos, debug=False)  # don't use qrbounds[0] at start of slice so query_cpos is the same for all v matches, even if they don't start at the same place in the query sequence
-    #         elif region == 'j':
-    #             codon_pos -= qrbounds[0]  # subtract back of the length of the v match and prospective d match
-    #             utils.check_conserved_tryptophan(query_seq[qrbounds[0]:qrbounds[1]], codon_pos, debug=False)
-    #         return True
-    #     except AssertionError:
-    #         return False
-
-
-                # if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
-                #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
-                #     continue
-            
                 # only use the best few matches
                 if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
                     break
@@ -347,9 +337,15 @@ class Waterer(object):
         # check for unproductive rearrangements
         try:
             utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=True, extra_str='      ')
+            cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
+            if cdr3_length % 3 != 0:  # make sure we've stayed in frame
+                print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
+                assert False
+            utils.check_for_stop_codon(query_seq, codon_positions['v'])
         except AssertionError:
             if self.args.skip_unproductive:
                 print '      skipping unproductive rearrangement'
+                self.n_unproductive += 1
                 return
 
         # best k_v, k_d:

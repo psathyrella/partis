@@ -46,7 +46,7 @@ parser.add_argument('--n_max_queries', type=int, default=-1)  # stop after this 
 parser.add_argument('--only_genes')  # skip all gene matches except for these when parsing the sw output  #'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F',
 
 parser.add_argument('--n_max_per_region', type=int, default=3)  # number of best smith-waterman matches (per region) to keep and pass on to the hmm
-parser.add_argument('--n_best_events', type=int, default=5)
+parser.add_argument('--n_best_events', type=int, default=3)
 parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around with these default fuzzes
 parser.add_argument('--default_d_fuzz', type=int, default=2)
 parser.add_argument('--v_right_length', type=int, default=89)  # length of v gene starting from junction with d (used mainly for writing hmms model files)
