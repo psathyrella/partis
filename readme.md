@@ -68,7 +68,7 @@ temp files in /tmp/$USER/hmms/$pid. The pairwise scores are in files with 'pairs
 
 You can also run viterbi pair, to see how pairs of sequences line up (it should be apparent which of these three are from the same event, and which are not)
 ```
-./runpart.py --point_estimate --pair --seqfile ./data/test/simu.csv --parameter_dir ./caches/parameters/hmm_parameters --debug 1 --queries ' -2033231110707066258:-3607518299203022984:5202023666234387374'  # NOTE for negative hash, put a space after open single quote but before minus sign
+./runpart.py --point_estimate --pair --seqfile ./data/test/simu.csv --parameter_dir ./caches/parameters/hmm_parameters --debug 1 --queries ' -2996237710674838049:1722533587157826946:1516698783101435629'  # NOTE for negative hash, put a space after open single quote but before minus sign
 ```
 Doing stuff that takes longer
 ==============

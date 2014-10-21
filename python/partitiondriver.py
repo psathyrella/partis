@@ -396,7 +396,7 @@ class PartitionDriver(object):
         start = time.time()
 
         # build the command line
-        cmd_str = './ham/ham'
+        cmd_str = './packages/ham/ham'
         cmd_str += ' --algorithm ' + algorithm
         if self.args.pair:
             cmd_str += ' --pair '
@@ -485,6 +485,6 @@ class PartitionDriver(object):
         if self.args.pair:
             tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
             line['seq'] = line['second_seq']
-            utils.print_reco_event(self.germline_seqs, line, 0, 0, True, extra_str='    ')
+            utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ')
             line['seq'] = tmpseq
 

@@ -301,7 +301,6 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
         # assert del_5p + lengths[region] != 0
         eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
 
-
 # ----------------------------------------------------------------------------------------
 def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds):
     """
@@ -480,7 +479,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
     if 'score' in line:
         print '  score: %s' % line['score'],
     if 'cdr3_length' in line:
-        print '   cdr3: %d' % line['cdr3_length'],
+        print '   cdr3: %d' % int(line['cdr3_length']),
     print ''
 
     line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
