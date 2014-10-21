@@ -16,7 +16,7 @@ Sequence::Sequence(string name, string seq_str, Track* trk):
     (*seq_)[i] = symbl;
   }
 }
-  
+
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(const Sequence& rhs) {
   name_ = rhs.name_;
@@ -27,12 +27,12 @@ Sequence::Sequence(const Sequence& rhs) {
   if (rhs.seq_)
     seq_ = new vector<uint8_t>(*rhs.seq_);
 }
-      
+
 // ----------------------------------------------------------------------------------------
 Sequence::~Sequence() {
   delete seq_;
 }
-  
+
 // ----------------------------------------------------------------------------------------
 //! \return a copy of the sequence from <pos> of size <len>
 Sequence Sequence::GetSubSequence(size_t pos, size_t len) {
@@ -59,7 +59,7 @@ Sequences::~Sequences() {
   for(size_t i=0; i<seqs_.size(); ++i)
     delete seqs_[i];
 }
-  
+
 // ----------------------------------------------------------------------------------------
 void Sequences::Print() {
   for(size_t i=0; i<seqs_.size(); ++i) {
@@ -79,7 +79,7 @@ Sequences Sequences::GetSubSequences(size_t pos, size_t len) {
     new_seqs.AddSeq(tmp_seq);
   }
   return new_seqs;
-}    
+}
 
 // ----------------------------------------------------------------------------------------
 void Sequences::AddSeq(Sequence* sq) {

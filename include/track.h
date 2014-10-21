@@ -21,7 +21,7 @@ public:
   void set_index(size_t index) { assert(index < numeric_limits<size_t>::max());  track_index_ = index; }
   void AddSymbol(string symbol);
   void AddSymbols(vector<string> &symbols);
-      
+
   string name() { return name_; }
   size_t n_seqs() { return n_seqs_; }
   size_t index() { return track_index_; }
@@ -36,7 +36,7 @@ private:
   vector<string> alphabet_;  // vector of this track's allowed symbols (eg {A,C,G,T})
   map<string,uint8_t> symbol_indices_;
 };
-      
+
 // ----------------------------------------------------------------------------------------
 class Tracks {
 public:

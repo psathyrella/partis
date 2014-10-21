@@ -16,7 +16,7 @@
 using namespace std;
 namespace ham {
 class Transition;
-  
+
 class State {
 public:
   State();
@@ -31,11 +31,11 @@ public:
   inline bitset<STATE_MAX> *from_states() { return &from_states_; }
   inline Transition *transition(size_t iter) { return (*transitions_)[iter]; }
   inline Transition *end_trans() { return end_trans_; }
-              
+
   double emission_logprob(Sequences &seqs, size_t pos);
   inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->log_prob(); }
   double end_transition_logprob();
-              
+
   // property-setters for use in model::finalize()
   inline void AddToState(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>
   inline void AddFromState(State *st) { from_states_[st->index()] = 1; }  // set bit in <from_states_> corresponding to <st>
@@ -46,7 +46,7 @@ public:
 private:
   string name_;       /* State name */
   string label_;      /* State feature path label */
-              
+
   vector<Transition*>* transitions_;
   Transition* end_trans_;
   Emission emission_;

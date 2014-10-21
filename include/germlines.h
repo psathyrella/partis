@@ -61,7 +61,7 @@ class TermColors {
     for (size_t inuke=0; inuke<seq.size(); ++inuke) {
       if (seq[inuke] == 'i') {
 	return_str += Color("yellow", seq.substr(inuke,1));
-      } else if (seq[inuke] == ref_1[inuke]) {  // nuke same as ref 1 
+      } else if (seq[inuke] == ref_1[inuke]) {  // nuke same as ref 1
 	if (ref_2.size()==0 || seq[inuke]==ref_2[inuke])
 	  return_str += seq[inuke];
 	else
@@ -237,7 +237,7 @@ public:
       for (size_t i=0; i<deletions_["j_3p"]; ++i)
 	print_seq += ".";
     }
-    
+
     string final_seq;
     TermColors tc;
     for (size_t inuke=0; inuke<print_seq.size(); ++inuke) {

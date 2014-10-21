@@ -13,7 +13,7 @@ void Model::Parse(string infname) {
   name_ = config["name"].as<string>();
   if (config["extras"] && config["extras"]["gene_prob"])
     overall_prob_ = config["extras"]["gene_prob"].as<double>();
-  
+
   YAML::Node tracks(config["tracks"]);
   for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
     Track *trk = new Track;
@@ -49,10 +49,10 @@ void Model::Parse(string infname) {
       states_by_name_[st->name()] = st;
     }
   }
-      
+
   Finalize(); // post process states and/to create an end state with only transitions-from
 }
-      
+
 // ----------------------------------------------------------------------------------------
 void Model::AddState(State* state) {
   assert(states_.size() < STATE_MAX);
@@ -60,7 +60,7 @@ void Model::AddState(State* state) {
   states_by_name_[state->name()] = state;
   return;
 }
-      
+
 // ----------------------------------------------------------------------------------------
 // set transitions, check labels, and perform other checks
 void Model::Finalize() {
@@ -77,17 +77,17 @@ void Model::Finalize() {
     assert(0);
   }
   FinalizeState(initial_);
-                      
+
   // now we need to fix state::transitions_ so that it agrees with state:index_
   for(size_t i=0; i<states_.size(); ++i)
     states_[i]->ReorderTransitions(states_by_name_);
   initial_->ReorderTransitions(states_by_name_);
-          
+
   CheckTopology();
-                      
+
   finalized_ = true;
 }
-      
+
 
 // ----------------------------------------------------------------------------------------
 void Model::FinalizeState(State *st) {
@@ -103,11 +103,11 @@ void Model::FinalizeState(State *st) {
     if (st != initial_)
       to_state->AddFromState(st);  // add <st> to the list of states from which you can reach <to_state>
   }
-      
+
   if (st->end_trans())
     ending_->AddFromState(st);
 }
-  
+
 // ----------------------------------------------------------------------------------------
 void Model::CheckTopology(){
   //!Check model topology
@@ -115,10 +115,10 @@ void Model::CheckTopology(){
   //! 1. Orphaned States
   //! 2. Dead end States
   //! 3. Uncompleted States
-              
+
   vector<uint16_t> visited;
   AddToStateIndices(initial_, visited);  // add <initial_>'s transition to-states to <visited>
-              
+
   vector<bool> states_visited(states_.size(), false);
   while (visited.size()>0) {
     uint16_t st_iter(visited.back());
@@ -127,7 +127,7 @@ void Model::CheckTopology(){
       vector<uint16_t> tmp_visited;
       AddToStateIndices(states_[st_iter], tmp_visited);
       size_t num_visited(tmp_visited.size());
-                              
+
       // check orphaned
       if (num_visited == 0 ){
 	// we get here if the state only has a transition to the end state. TODO reinstate this check
@@ -139,7 +139,7 @@ void Model::CheckTopology(){
 	  cerr << "State: "  << states_[st_iter]->name() << " may be an orphaned state that only has transitions to itself and END state." << endl;
 	}
       }
-                              
+
       for(size_t i=0; i<tmp_visited.size(); ++i) {
         if (!states_visited[tmp_visited[i]])
           visited.push_back(tmp_visited[i]);
@@ -148,7 +148,7 @@ void Model::CheckTopology(){
       states_visited[st_iter] = true;
     }
   }
-              
+
   // make sure that ending is defined
   bool ending_defined(false);
   for(size_t i=0; i<states_.size(); ++i) {
@@ -161,7 +161,7 @@ void Model::CheckTopology(){
     cerr << "No END state defined in the model\n";
     assert(0);
   }
-              
+
   for(size_t i=0; i<states_visited.size(); ++i) {
     if (!states_visited[i]) {
       cerr << "ERROR state \""  << states_[i]->name() << "\" has bad topology. Check its transitions.\n";
@@ -169,7 +169,7 @@ void Model::CheckTopology(){
     }
   }
 }
-      
+
 // ----------------------------------------------------------------------------------------
 void Model::AddToStateIndices(State *st, vector<uint16_t> &visited) {
   // for each transition out of <st>, add the index of its to-state to <visited>

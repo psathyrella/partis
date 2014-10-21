@@ -19,7 +19,7 @@ void TracebackPath::path_of_labels(string &str_path) {
     str_path += st->label();
   }
 }
-  
+
 // ----------------------------------------------------------------------------------------
 void TracebackPath::path_of_names(vector<string> &str_path) {
   for (size_t k=path_.size()-1; k!=SIZE_MAX; --k) {
@@ -27,7 +27,7 @@ void TracebackPath::path_of_names(vector<string> &str_path) {
     str_path.push_back(st->name());
   }
 }
-  
+
 // ----------------------------------------------------------------------------------------
 void TracebackPath::print_names() const {
   for(size_t k=path_.size()-1; k!=SIZE_MAX; --k) {

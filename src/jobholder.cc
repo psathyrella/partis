@@ -35,7 +35,7 @@ Model *HMMHolder::Get(string gene, bool debug) {
     hmms_[gene]->Parse(infname);
   }
   return hmms_[gene];
-}  
+}
 
 // ----------------------------------------------------------------------------------------
 HMMHolder::~HMMHolder() {
@@ -329,9 +329,9 @@ StrPair JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
     assert(seqs.n_seqs() == 2);
     query_strs.second = query_seqs[1].undigitized();
   }
-  return query_strs;  
+  return query_strs;
 }
-        
+
 // ----------------------------------------------------------------------------------------
 // add two numbers, treating -INFINITY as zero, i.e. calculates log a*b = log a + log b, i.e. a *and* b
 double JobHolder::AddWithMinusInfinities(double first, double second) {
@@ -372,7 +372,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
       if (only_genes_[region].size()>0 and only_genes_[region].find(gene)==only_genes_[region].end())
 	continue;
       igene++;
-      
+
       if (region=="v" && query_strs.first.size()>gl_.seqs_[gene].size()) {  // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
 	if (debug_ == 2) cout << "                     " << gene << " too short" << endl;
 	n_short_v++;
@@ -380,7 +380,7 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
       }
       if (query_strs.first.size() < gl_.seqs_[gene].size() - 10)  // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
 	n_long_erosions++;
-	
+
       double *gene_score(&all_scores_[gene][query_strs]);
       bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
       if (already_cached) {
