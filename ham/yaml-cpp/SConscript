@@ -1,9 +1,0 @@
-import os
-import sys
-
-env = Environment()
-env.Append(CPPFLAGS = ['-Wall'])
-env.Append(CPPPATH = ['../../include'])
-
-sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/yaml-cpp') if '.cpp' in fname]
-env.Library(target='yaml-cpp', source=sources)
