@@ -9,7 +9,7 @@
 
 using namespace std;
 namespace ham {
-      
+
 class LexicalTable {
 public:
   LexicalTable();

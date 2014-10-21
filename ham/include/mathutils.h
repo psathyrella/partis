@@ -11,10 +11,10 @@
 using namespace std;
 
 namespace ham {
-    
+
   //FIXME: Need to generate dynamically once upon initialization of HMM. System differences between (int,long,...);
   //Or just leave it. It may work well enough;
-    
+
 // POWER[b][a-1] = a**b
 #if __LP64__
   const uint64_t POWER[32][128] = {
@@ -52,7 +52,7 @@ namespace ham {
     {1ULL, 2147483648ULL, 617673396283947ULL, 4611686018427387904ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL}
   };
 #else
-    
+
   const uint32_t POWER[32][128] = {
     {1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL, 1UL},
     {1UL, 2UL, 3UL, 4UL, 5UL, 6UL, 7UL, 8UL, 9UL, 10UL, 11UL, 12UL, 13UL, 14UL, 15UL, 16UL, 17UL, 18UL, 19UL, 20UL, 21UL, 22UL, 23UL, 24UL, 25UL, 26UL, 27UL, 28UL, 29UL, 30UL, 31UL, 32UL, 33UL, 34UL, 35UL, 36UL, 37UL, 38UL, 39UL, 40UL, 41UL, 42UL, 43UL, 44UL, 45UL, 46UL, 47UL, 48UL, 49UL, 50UL, 51UL, 52UL, 53UL, 54UL, 55UL, 56UL, 57UL, 58UL, 59UL, 60UL, 61UL, 62UL, 63UL, 64UL, 65UL, 66UL, 67UL, 68UL, 69UL, 70UL, 71UL, 72UL, 73UL, 74UL, 75UL, 76UL, 77UL, 78UL, 79UL, 80UL, 81UL, 82UL, 83UL, 84UL, 85UL, 86UL, 87UL, 88UL, 89UL, 90UL, 91UL, 92UL, 93UL, 94UL, 95UL, 96UL, 97UL, 98UL, 99UL, 100UL, 101UL, 102UL, 103UL, 104UL, 105UL, 106UL, 107UL, 108UL, 109UL, 110UL, 111UL, 112UL, 113UL, 114UL, 115UL, 116UL, 117UL, 118UL, 119UL, 120UL, 121UL, 122UL, 123UL, 124UL, 125UL, 126UL, 127UL, 128UL},
@@ -88,7 +88,7 @@ namespace ham {
     {1UL, 2147483648UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL},
   };
 #endif
-    
+
 //! Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
 //! i.e. a *or* b
 //! \param first  log'd Double value
@@ -111,7 +111,7 @@ T AddInLogSpace(T first, T second){
 }
 
 
-  
+
 /*! \fn T sumVector(vector<T>& data)
   \brief Sum the vector and return the sum
   \param data Vector of doubles
@@ -124,7 +124,7 @@ T sumVector(vector<T>& data){
   }
   return sum;
 }
-      
+
 /*! \fn T sumVector(vector<T>& data)
   \brief Sum the vector and return the sum
   \param data Vector of doubles
@@ -137,7 +137,7 @@ T sumVector(const vector<T>& data){
   }
   return sum;
 }
-      
+
 /*! \fn T productVector(vector<T>& data)
   \brief Multiply terms in vector and return the product
   \param data Vector of T
@@ -150,8 +150,8 @@ T productVector(vector<T>& data){
   }
   return product;
 }
-      
-  
+
+
 /*! \fn double minVector(vector<double>& data)
   \brief Get Minimum of the vector
   \param data Vector of doubles
@@ -160,7 +160,7 @@ template<typename T>
 T minVector(vector<T>& data){
   return *min_element(data.begin(), data.end());
 }
-  
+
 /*! \fn double maxVector(vector<doubles>& data)
   \brief Get the Maximum of the vector
   \param data Vector of doubles
@@ -169,7 +169,7 @@ template<typename T>
 T maxVector(vector<T>& data){
   return *max_element(data.begin(), data.end());
 }
-  
+
 /*! \fn T avgVector(vector<double>& data)
   \brief Get the average of the vector
   \param data Vector of doubles
@@ -178,8 +178,8 @@ template<typename T>
 T avgVector(vector<T>& data){
   return sumVector(data) / T(data.size());
 }
-      
-          
+
+
 /*! \fn void logVector(vector<double>& data)
   \brief Take log of each element in vector
   \param data Vector of doubles
@@ -191,7 +191,7 @@ void logVector(vector<T>& data){
   }
   return;
 }
-  
+
 template<typename T>
 vector<double> get_exp_vector(vector<T> data) {
   vector<double> newvec;
@@ -199,7 +199,7 @@ vector<double> get_exp_vector(vector<T> data) {
     newvec.push_back(exp(data[i]));
   return newvec;
 }
-      
+
 /*! \fn void probVector(vector<double>& data)
   \brief Convert the vector to probilities.  Divide each indice by the sum of the vector
   \param data Vecor of doubles
@@ -217,7 +217,7 @@ void probVector(vector<T>& data){
   }
   return;
 }
-      
+
 template <typename T>
 void addVector(vector<T>& lhs, vector<T>& rhs){
   transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), plus<T>());
