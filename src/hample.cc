@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "model.h"
 #include "trellis.h"
@@ -13,12 +14,14 @@ int main(int argc, const char *argv[]) {
   ValueArg<string> hmmfname_arg("f", "hmmfname", "hmm (.yaml) model file", true, "", "string");
   ValueArg<string> seq_arg("s", "seq", "sequence of symbols", true, "", "string");
   ValueArg<string> seq2_arg("t", "seq2", "second sequence", false, "", "string");
+  ValueArg<string> outfile_arg("o", "outfile", "output text file", false, "", "string");
   SwitchArg pair_arg("p", "pair", "is this a pair hmm?", false);
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmfname_arg);
     cmd.add(seq_arg);
     cmd.add(seq2_arg);
+    cmd.add(outfile_arg);
     cmd.add(pair_arg);
     cmd.parse(argc, argv);
     if (pair_arg.getValue())
@@ -55,10 +58,19 @@ int main(int argc, const char *argv[]) {
     cout << "         2: ";
     seq2->Print();
   }
-  cout << "  path:     ";
-  path.print_labels();
   trell.Forward();
+  cout << "  path:     ";
+  cout << path;
   cout << "\nforward log prob: " << trell.forward_log_prob() << endl;
+
+  if (outfile_arg.getValue().length() > 0) {
+    ofstream ofs;
+    ofs.open(outfile_arg.getValue());
+    assert(ofs.is_open());
+    ofs << path;
+    ofs << "\nforward log prob: " << trell.forward_log_prob() << endl;
+    ofs.close();
+  }
 
   delete seqs;  // also deletes constituent sequences
 }
