@@ -1,6 +1,8 @@
 import time
 import sys
 import json
+from multiprocessing import Process, active_children
+import math
 import os
 import glob
 import csv
@@ -178,7 +180,22 @@ class PartitionDriver(object):
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, stripped=stripped, parameter_dir=parameter_in_dir)
-        self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+        if self.args.n_procs > 1:
+            self.split_hmm_input(csv_infname)
+            for iproc in range(self.args.n_procs):
+                p = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
+                # p.daemon = True
+                p.start()
+                print 'started %d' % iproc
+                # p.join()
+            while len(active_children()) > 0:
+                print ' wait %s' % len(active_children()),
+                sys.stdout.flush()
+                time.sleep(1)
+                # self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc)
+            self.merge_hmm_outputs(csv_outfname)
+        else:
+            self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
         self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter)
 
         if count_parameters:
@@ -194,11 +211,55 @@ class PartitionDriver(object):
                         print '    singleton ', query_name
 
         if not self.args.no_clean:
-            os.remove(csv_infname)
+            if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
+                os.remove(csv_infname)
             os.remove(csv_outfname)
             os.remove(pairscorefname)
+            os.rmdir(self.args.workdir)
 
         return clusters
+
+    # ----------------------------------------------------------------------------------------
+    def split_hmm_input(self, infname):
+        """ split the hmm input in <infname> into <self.args.n_procs> input files in subdirectories within <self.args.workdir> """
+        info = []
+        with opener('r')(infname) as infile:
+            reader = csv.DictReader(infile)
+            for line in reader:
+                info.append(line)
+        queries_per_proc = float(len(info)) / self.args.n_procs
+        n_queries_per_proc = int(math.ceil(queries_per_proc))
+        for iproc in range(self.args.n_procs):
+            workdir = self.args.workdir + '/hmm-' + str(iproc)
+            utils.prep_dir(workdir)
+            with opener('w')(workdir + '/' + os.path.basename(infname)) as sub_outfile:
+                writer = csv.DictWriter(sub_outfile, reader.fieldnames)
+                writer.writeheader()
+                for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
+                    if iquery >= len(info):
+                        break
+                    writer.writerow(info[iquery])
+
+    # ----------------------------------------------------------------------------------------
+    def merge_hmm_outputs(self, outfname):
+        header = None
+        outfo = []
+        for iproc in range(self.args.n_procs):
+            workdir = self.args.workdir + '/hmm-' + str(iproc)
+            with opener('r')(workdir + '/' + os.path.basename(outfname)) as sub_outfile:
+                reader = csv.DictReader(sub_outfile)
+                header = reader.fieldnames
+                for line in reader:
+                    outfo.append(line)
+            if not self.args.no_clean:
+                os.remove(workdir + '/' + os.path.basename(outfname))
+                os.rmdir(workdir)
+                        
+        with opener('w')(outfname) as outfile:
+            writer = csv.DictWriter(outfile, header)
+            writer.writeheader()
+            for line in outfo:
+                writer.writerow(line)
 
     # ----------------------------------------------------------------------------------------
     def cdr3_length_precluster(self, waterer, preclusters=None):
@@ -363,7 +424,7 @@ class PartitionDriver(object):
                             continue
                         only_genes.append(gene)
                     self.check_hmm_existence(only_genes, parameter_dir)
-                    csvfile.write('%s %s %d %d %d %d %s %s %s\n' %
+                    csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # ha ha, cool! I just realized csv.DictWriter can handle space-separated files TODO switch over
                                   (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(only_genes),
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
             else:
@@ -392,7 +453,7 @@ class PartitionDriver(object):
                 print '    not in best sw matches, skipping: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir):
+    def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
         start = time.time()
 
         # build the command line
@@ -406,23 +467,16 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        # cmd_str += ' >/dev/null'
-        # print cmd_str
 
-        if self.args.debug == 2:  # not sure why, but popen thing hangs with debug 2
-            check_call(cmd_str, shell=True)  # um, not sure which I want here, but it doesn't really matter. TODO kinda
-            sys.exit()
+        workdir = self.args.workdir
+        if iproc >= 0:
+            workdir += '/hmm-' + str(iproc)
+            cmd_str = cmd_str.replace(self.args.workdir, workdir)
 
-        # run hmm
         check_call(cmd_str, shell=True)
-        # hmm_proc = Popen(cmd_str, shell=True, stdout=PIPE, stderr=PIPE)
-        # hmm_proc.wait()
-        # hmm_out, hmm_err = hmm_proc.communicate()
-        # print hmm_out,
-        # print hmm_err,
-        # if hmm_proc.returncode != 0:
-        #     print 'aaarrrrrrrgggggh\n', hmm_out, hmm_err
-        #     sys.exit()
+
+        if not self.args.no_clean:
+            os.remove(csv_infname.replace(self.args.workdir, workdir))
 
         print '    hmm run time: %.3f' % (time.time() - start)
 

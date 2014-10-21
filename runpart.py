@@ -39,6 +39,7 @@ parser.add_argument('--plot_performance', action='store_true')
 parser.add_argument('--seqfile')  # input file
 
 parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
+parser.add_argument('--n_procs', type=int, default=1)  # number of processes over which to parallelize
 parser.add_argument('--naivety', default='M', choices=['N', 'M'])
 parser.add_argument('--queries')  # restrict to certain query seqs
 parser.add_argument('--reco_ids')  # or recombination events
