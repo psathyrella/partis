@@ -91,7 +91,8 @@ Args::Args(int argc, const char * argv[]):
   while (!ss.eof()) {
     string head;
     ss >> head;
-    headers.push_back(head);
+    if (head != "")  // make sure not to add a blank header at the end of the file
+      headers.push_back(head);
   }
   while (getline(ifs,line)) {
     stringstream ss(line);
@@ -111,6 +112,7 @@ Args::Args(int argc, const char * argv[]):
 	ss >> tmpint;
 	integers_[head].push_back(tmpint);
       } else {
+	cerr << "ERROR header \'" << head << "\' not found" << endl;
 	assert(0);
       }
     }
