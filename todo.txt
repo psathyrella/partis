@@ -11,6 +11,7 @@
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
   - figure out how you really want to treat base content in insertions
+  - remove all the *@#$&@!jing extra history from subtrees
   - allow j right erosions, and allow the query sequence to extend beyond the right edge of the j
   - disallow stop codons in simulator
   - use hamming-to-naive, but *also* add a measure of how accurately we inferred which positions were mutated
@@ -76,3 +77,26 @@ simulator
     the plots I made so far are only for the first thousand lines in the data files
 hmmer
   - only use half of data for training
+
+
+  dev                                251e1fe Merge commit 'a1ff0f9ea212e601e0e8d2552bcea719579f3093' into dev
+* master                             a910212 Merge commit 'c9b952e861fcdb880aaebee7d61d39e1c79c202b'
+  remotes/bpp-master-20140414/master a0e2d00 first commit
+  remotes/htslib/master              5a0ee03 Release 1.1: various minor bug fixes
+  remotes/ighutil/master             92348dc docs
+  remotes/origin/dev                 251e1fe Merge commit 'a1ff0f9ea212e601e0e8d2552bcea719579f3093' into dev
+  remotes/origin/master              251e1fe Merge commit 'a1ff0f9ea212e601e0e8d2552bcea719579f3093' into dev
+  remotes/samtools/master            68ca977 Release 1.1: bug fixes
+
+ 1972  git remote add ham git@github.com:psathyrella/ham
+ 1973  git subtree add --prefix ham ham master
+ 2037  #git subtree add --prefix bpp bpp-master-20140414 master
+ 2038  #git remote add ham git@github.com:psathyrella/ham
+ 2039  #git remote add samtools git@github.com:samtools/samtools.git
+ 2041  git remote add samtools git@github.com:samtools/samtools.git -t master
+ 2043  git subtree add --prefix samtools samtools master
+ 2047  git remote add ighutil git@github.com:cmccoy/ighutil.git
+ 2048  git subtree add --prefix ighutil ighutil master
+ 2049  git remote add htslib git@github.com:samtools/htslib.git -t master
+ 2050  git subtree add --prefix htslib htslib master --squash
+ 2969  history|grep 'remote add\|subtree add'
