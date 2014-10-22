@@ -147,7 +147,7 @@ class HmmWriter(object):
                         elif line[self.region + '_gene'] != self.gene_name:  # skip other genes
                             continue
                     if int(line[erosion + '_del']) >= len(self.germline_seq):  # j erosion lengths don't depend on j gene, so we have to skip the ones that're too long
-                        assert self.region == 'j'
+                        assert self.region == 'j' or use_other_alleles or use_other_primary_versions
                         continue
                     n_eroded = int(line[erosion + '_del'])
                     if n_eroded not in self.erosion_probs[erosion]:  # d erosion lengths depend on each other, but with the current hmm structure we cannot model this, so for the time being we integrate over the erosion on the other side. TODO fix that (well... maybe. it's kinda probably really not a big deal)

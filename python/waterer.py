@@ -139,11 +139,16 @@ class Waterer(object):
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
 
+            assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
+            
             # check for left-side v erosion  TODO it would make sense to change the score when you expand the boundaries
-            if region == 'v' and read.qstart != 0:  # s-w allows the v match to start to the right of the lefthand base in the query sequence, which makes little sense in most cases. So, we artificially expand the left v boundaries, presumably adding a few mutated bases. TODO think about whether this is the proper long-term solution
-                qrbounds = (0, read.qend)
-                glbounds = (read.pos - read.qstart, read.aend)
-                warnings[gene] += 'v left expanded %d -> %d, %d -> %d' % (read.qstart, 0, read.pos, read.pos - read.qstart)
+            #     S-W allows the v match to start to the right of the lefthand base in the query sequence, which makes little sense in most cases.
+            #     So, we artificially expand the left v boundaries, presumably adding a few mutated bases. TODO think about whether this is the proper long-term solution
+            if region == 'v' and read.qstart != 0:
+                n_to_subtract = min(read.pos, read.qstart)
+                qrbounds = (read.qstart - n_to_subtract, read.qend)
+                glbounds = (read.pos - n_to_subtract, read.aend)
+                warnings[gene] += 'v left expanded qr: %d -> %d, gl: %d -> %d' % (read.qstart, read.qstart-n_to_subtract, read.pos, read.pos - n_to_subtract)
             # check for right-side j erosion  TODO it would make sense to change the score when you expand the boundaries
             gl_length = len(self.germline_seqs[region][gene])
             if region == 'j' and read.aend != gl_length:
@@ -157,6 +162,7 @@ class Waterer(object):
             assert qrbounds[1] <= len(query_seq)
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
 
+            assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
             # if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
             #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
             #     continue
@@ -194,22 +200,47 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best):
-        # TODO split this in half rather than giving all of it to one side, like in the joinsolver parser
-        """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so arbitrarily give the disputed territory to the righthand region  """  # TODO do something better than using the righthand one
-        for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
-            left_gene = best[rpairs['left']]
-            right_gene = best[rpairs['right']]
-            overlap = qrbounds[left_gene][1] - qrbounds[right_gene][0]
+        # NOTE this does pretty much the same thing as a function in joinparse.py
+        """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions """
+        for region_pairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
+            l_reg = region_pairs['left']
+            r_reg = region_pairs['right']
+            l_gene = best[l_reg]
+            r_gene = best[r_reg]
+            overlap = qrbounds[l_gene][1] - qrbounds[r_gene][0]
             if overlap > 0:
-                print '      WARNING %s giving %d bases from %s match to %s match' % (query_name, overlap, rpairs['left'], rpairs['right'])
-                assert overlap <= len(self.germline_seqs[rpairs['left']][left_gene])
-                qrbounds[left_gene] = (qrbounds[left_gene][0], qrbounds[left_gene][1] - overlap)
-                glbounds[left_gene] = (glbounds[left_gene][0], glbounds[left_gene][1] - overlap)
-                # TODO wait, why am I modifying *both* of them? the righthand one shouldn't need to change, right?
-                best[rpairs['left'] + '_gl_seq'] = self.germline_seqs[rpairs['left']][left_gene][glbounds[left_gene][0]:glbounds[left_gene][1]]
-                best[rpairs['left'] + '_qr_seq'] = query_seq[qrbounds[left_gene][0]:qrbounds[left_gene][1]]
-                best[rpairs['right'] + '_gl_seq'] = self.germline_seqs[rpairs['right']][right_gene][glbounds[right_gene][0]:glbounds[right_gene][1]]
-                best[rpairs['right'] + '_qr_seq'] = query_seq[qrbounds[right_gene][0]:qrbounds[right_gene][1]]
+                l_length = qrbounds[l_gene][1] - qrbounds[l_gene][0]
+                r_length = qrbounds[r_gene][1] - qrbounds[r_gene][0]
+                l_portion, r_portion = 0, 0
+                while l_portion + r_portion < overlap:
+                    if l_length == 0 and r_length == 0:
+                        print '      ERROR both lengths went to zero'
+                        assert False
+                    elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
+                      if (l_portion + r_portion) % 2 == 0:
+                          l_portion += 1  # give one base to the left
+                          l_length -= 1
+                      else:
+                          r_portion += 1  # and one to the right
+                          r_length -= 1
+                    elif l_length > 1:
+                        l_portion += 1
+                        l_length -= 1
+                    elif r_length > 1:
+                        r_portion += 1
+                        r_length -= 1
+                    
+                print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+                assert l_portion + r_portion == overlap
+                qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
+                glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
+                qrbounds[r_gene] = (qrbounds[r_gene][0], qrbounds[r_gene][1] - r_portion)
+                glbounds[r_gene] = (glbounds[r_gene][0], glbounds[r_gene][1] - r_portion)
+                
+                best[l_reg + '_gl_seq'] = self.germline_seqs[l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
+                best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
+                best[r_reg + '_gl_seq'] = self.germline_seqs[r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
+                best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
 
     # ----------------------------------------------------------------------------------------
     def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions, v_right_length, perfplotter=None):
@@ -273,6 +304,8 @@ class Waterer(object):
                 qrbounds = all_query_bounds[gene]
                 assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up avove as well (in process_query), so in time I should remove them from here
                 assert glbounds[1] <= len(self.germline_seqs[region][gene])
+                assert qrbounds[0] >= 0
+                assert glbounds[0] >= 0
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
                 if codon_positions[region] == -1:  # set to the position in the best (first) match
                     codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, gene, glbounds, qrbounds)  # position in the query sequence, that is
@@ -294,7 +327,10 @@ class Waterer(object):
                 self.print_match(region, gene, query_seq, score, glbounds, qrbounds, codon_positions[region], warnings, skipping=False)
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
-                assert len(glmatchseq) == len(query_seq[qrbounds[0]:qrbounds[1]])  # neurotic double check (um, I think) EDIT hey this totally saved my ass
+                if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):  # neurotic double check (um, I think) EDIT hey this totally saved my ass
+                    print 'ERROR %s not same length' % query_name
+                    print glmatchseq, glbounds[0], glbounds[1]
+                    print query_seq[qrbounds[0]:qrbounds[1]]
 
                 if region == 'v':
                     this_k_v = all_query_bounds[gene][1]
@@ -332,19 +368,28 @@ class Waterer(object):
                 return
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
-        self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+        try:
+            self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+        except AssertionError:
+            print '      ERROR %s apportionment failed' % query_name
+            return
 
         # check for unproductive rearrangements
         try:
-            utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=True, extra_str='      ')
+            # NOTE it's actually expected that this'll fail with a 'sequence too short' error, since the s-w doesn't know it's supposed to make sure the match contains the conserved codons
+            utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.args.debug, extra_str='      ')
             cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
             if cdr3_length % 3 != 0:  # make sure we've stayed in frame
-                print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
+                if self.args.debug:
+                    print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
                 assert False
             utils.check_for_stop_codon(query_seq, codon_positions['v'])
         except AssertionError:
+            if self.args.debug:
+                print '      unproductive rearrangement in waterer'
             if self.args.skip_unproductive:
-                print '      skipping unproductive rearrangement'
+                if self.args.debug:
+                    print '            ...skipping'
                 self.n_unproductive += 1
                 return
 

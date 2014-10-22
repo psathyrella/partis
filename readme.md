@@ -80,7 +80,7 @@ So now we go back and create the parameter files that we used in the previous st
 
 run on data to cache parameters and model files in `parameter_dir`
 ```
-./runpart.py --cache_parameters --seqfile ./data/test/data.tsv --is_data --n_bases_skip 9 --v_right_length 56 --parameter_dir ./caches/new-parameters
+./runpart.py --cache_parameters --seqfile ./data/test/data.tsv --is_data --v_right_length 70 --parameter_dir ./caches/new-parameters --n_procs 10 --skip_unproductive
 ```
 
 this does the following:
@@ -100,4 +100,3 @@ If you want to run the simulator without running the parameter-generation step a
 ```
 ./runpart.py --simulate --parameter_dir ./caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir ./caches/recombinator --debug 1
 ```
-

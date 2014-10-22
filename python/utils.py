@@ -194,7 +194,7 @@ def are_conserved_codons_screwed_up(reco_event):
     return False
 
 #----------------------------------------------------------------------------------------
-def check_for_stop_codon(seq, cyst_position):
+def check_for_stop_codon(seq, cyst_position, debug=False):
     """ make sure there is no in-frame stop codon, where frame is inferred from <cyst_position> """
     assert cyst_position < len(seq)
     # jump leftward in steps of three until we reach the start of the sequence
@@ -205,7 +205,8 @@ def check_for_stop_codon(seq, cyst_position):
     while ipos + 2 < len(seq):  # then jump forward in steps of three bases making sure none of them are stop codons
         codon = seq[ipos:ipos+3]
         if codon == 'TAG' or codon == 'TAA' or codon == 'TGA':
-            print '      ERROR stop codon %s at %d in %s' % (codon, ipos, seq)
+            if debug:
+                print '      ERROR stop codon %s at %d in %s' % (codon, ipos, seq)
             assert False
         ipos += 3
 

@@ -124,6 +124,7 @@ class PartitionDriver(object):
         self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
 
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
+        os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
@@ -144,6 +145,7 @@ class PartitionDriver(object):
         final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=stripped_clusters, stripped=False)
 
         # self.clean(waterer)
+        os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def point_estimate(self):
@@ -156,6 +158,7 @@ class PartitionDriver(object):
 
         if self.args.plot_performance:
             plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-water', xtitle='inferred - true', stats='rms')
+        os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
@@ -215,7 +218,6 @@ class PartitionDriver(object):
                 os.remove(csv_infname)
             os.remove(csv_outfname)
             os.remove(pairscorefname)
-            os.rmdir(self.args.workdir)
 
         return clusters
 
@@ -430,7 +432,8 @@ class PartitionDriver(object):
             else:
                 for query_name in self.input_info:
                     if query_name not in sw_info:
-                        print '    %s not found in sw info' % query_name
+                        if self.args.debug:
+                            print '    %s not found in sw info' % query_name
                         continue
                     info = sw_info[query_name]
     

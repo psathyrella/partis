@@ -60,7 +60,8 @@ parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Ma
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 args = parser.parse_args()
-assert os.path.exists(args.parameter_dir)
+if not args.cache_parameters:
+    assert os.path.exists(args.parameter_dir)
 args.only_genes = get_arg_list(args.only_genes)
 
 # ----------------------------------------------------------------------------------------
