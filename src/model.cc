@@ -62,7 +62,7 @@ void Model::AddState(State* state) {
 }
 
 // ----------------------------------------------------------------------------------------
-// set transitions, check labels, and perform other checks
+// set transitions and perform some other checks
 void Model::Finalize() {
   assert(!finalized_);  // well it wouldn't *hurt* to call this twice, but you still *oughtn't* to
 

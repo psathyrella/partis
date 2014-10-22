@@ -15,7 +15,7 @@ State::~State(){
 // ----------------------------------------------------------------------------------------
 void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   name_ = node["name"].as<string>();
-  label_ = node["label"].as<string>();
+  assert(name_.size() > 0);
 
   double total(0.0); // make sure things add to 1.0
   for (YAML::const_iterator it=node["transitions"].begin(); it!=node["transitions"].end(); ++it) {
@@ -56,7 +56,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 
 // ----------------------------------------------------------------------------------------
 void State::Print() {
-  cout << "state: " << name_ << " (" << label_ << ")" << endl;;
+  cout << "state: " << name_ << endl;
 
   cout << "  transitions:" << endl;;
   for(size_t i=0; i<transitions_->size(); ++i) {

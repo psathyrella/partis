@@ -23,8 +23,8 @@ public:
   void Parse(YAML::Node node, vector<string> state_names, Tracks trks);
   ~State();
 
-  inline string &name() { return name_; }
-  inline string &label() { return label_; }
+  inline string name() { return name_; }
+  inline string abbreviation() { return name_.substr(0,1); }
   inline size_t index() { return index_; }  // index of this state in the HMM model
   inline vector<Transition*> *transitions() { return transitions_; }
   inline bitset<STATE_MAX> *to_states() { return &to_states_; }
@@ -45,7 +45,6 @@ public:
   void Print();
 private:
   string name_;       /* State name */
-  string label_;      /* State feature path label */
 
   vector<Transition*>* transitions_;
   Transition* end_trans_;

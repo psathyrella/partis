@@ -240,17 +240,16 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
     cout << "                    " << gene << " " << score << endl;
     return;
   }
-  vector<string> path_labels;
-  paths_[gene][query_strs]->path_of_labels(path_labels);
-  if (path_labels.size() == 0) {
+  vector<string> path_names = paths_[gene][query_strs]->name_vector();
+  if (path_names.size() == 0) {
     if (debug_) cout << "                     " << gene << " has no valid path" << endl;
-    return; // TODO fix this upstream. well, it isn't *broken*, but, you know, whatever
+    return; // TODO fix this upstream. well, it isn't *broken*, but, you know, could be cleaner
   }
-  assert(path_labels.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
-  assert(path_labels.size() == query_strs.first.size());
-  size_t insert_length = GetInsertLength(path_labels);
-  size_t left_erosion_length = GetErosionLength("left", path_labels, gene);
-  size_t right_erosion_length = GetErosionLength("right", path_labels, gene);
+  assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
+  assert(path_names.size() == query_strs.first.size());
+  size_t insert_length = GetInsertLength(path_names);
+  size_t left_erosion_length = GetErosionLength("left", path_names, gene);
+  size_t right_erosion_length = GetErosionLength("right", path_names, gene);
 
   string germline(gl_.seqs_[gene]);
   string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
@@ -285,25 +284,24 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string,string
     }
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
-    vector<string> path_labels;
-    paths_[gene][query_strs]->path_of_labels(path_labels);
-    if (path_labels.size() == 0) {
+    vector<string> path_names = paths_[gene][query_strs]->name_vector();
+    if (path_names.size() == 0) {
       if (debug_) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
       return event; // TODO fix this upstream. well, it isn't *broken*, but, you know, could be cleaner
     }
-    assert(path_labels.size() > 0);
-    assert(path_labels.size() == query_strs.first.size());
+    assert(path_names.size() > 0);
+    assert(path_names.size() == query_strs.first.size());
     event.SetGene(region, gene);
 
     // set right-hand deletions
-    event.SetDeletion(region + "_3p", GetErosionLength("right", path_labels, gene));
+    event.SetDeletion(region + "_3p", GetErosionLength("right", path_names, gene));
     // and left-hand deletions
-    event.SetDeletion(region + "_5p", GetErosionLength("left", path_labels, gene));
+    event.SetDeletion(region + "_5p", GetErosionLength("left", path_names, gene));
     if (region=="d")
-      event.SetInsertion("vd", query_strs.first.substr(0, GetInsertLength(path_labels)));
+      event.SetInsertion("vd", query_strs.first.substr(0, GetInsertLength(path_names)));
     if (region=="j")
-      event.SetInsertion("dj", query_strs.first.substr(0, GetInsertLength(path_labels)));
+      event.SetInsertion("dj", query_strs.first.substr(0, GetInsertLength(path_names)));
     seq_strs.first += query_strs.first;
     seq_strs.second += query_strs.second;
   }
@@ -438,25 +436,25 @@ double JobHolder::AddWithMinusInfinities(double first, double second) {
 }
 
 // ----------------------------------------------------------------------------------------
-size_t JobHolder::GetInsertLength(vector<string> labels) {
+size_t JobHolder::GetInsertLength(vector<string> names) {
   size_t n_inserts(0);
-  for (auto &label: labels) {
-    if (label=="i")
+  for (auto &name: names) {
+    if (name=="insert")
       n_inserts++;
   }
   return n_inserts;
 }
 
 // ----------------------------------------------------------------------------------------
-size_t JobHolder::GetErosionLength(string side, vector<string> labels, string gene_name) {
+size_t JobHolder::GetErosionLength(string side, vector<string> names, string gene_name) {
   string germline(gl_.seqs_[gene_name]);
-  // first find the index in <labels> up to which we eroded
+  // first find the index in <names> up to which we eroded
   size_t istate(0);  // index (in path) of first non-eroded state
   if (side=="left") { // to get left erosion length we look at the first non-insert state in the path
-    if (labels[labels.size()-1] == "i") return floor(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
+    if (names[names.size()-1] == "insert") return floor(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
                                                                                    // TODO here (*and* below) do something better than floor/ceil to divide it up.
-    for (size_t il=0; il<labels.size(); ++il) {  // loop over each state from left to right
-      if (labels[il] == "i") {  // skip any insert states on the left
+    for (size_t il=0; il<names.size(); ++il) {  // loop over each state from left to right
+      if (names[il] == "insert") {  // skip any insert states on the left
 	continue;
       } else {  // found the leftmost non-insert state -- that's the one we want
 	istate = il;
@@ -464,15 +462,15 @@ size_t JobHolder::GetErosionLength(string side, vector<string> labels, string ge
       }
     }
   } else if (side=="right") {  // and for the righthand one we need the last non-insert state
-    if (labels[labels.size()-1] == "i") return ceil(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
-    istate = labels.size()-1;
+    if (names[names.size()-1] == "insert") return ceil(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
+    istate = names.size()-1;
   } else {
     assert(0);
   }
 
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
-  assert(labels[istate].find("IGH") == 0);  // start of state label should be IGH[VDJ]
-  string state_index_str = labels[istate].substr(labels[istate].find_last_of("_") + 1);
+  assert(names[istate].find("IGH") == 0);  // start of state name should be IGH[VDJ]
+  string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);
   size_t state_index = atoi(state_index_str.c_str());
 
   size_t length(0);
