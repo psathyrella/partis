@@ -1,7 +1,6 @@
 #ifndef HAM_SEQUENCE_H
 #define HAM_SEQUENCE_H
 
-#include <iomanip>
 #include "track.h"
 
 using namespace std;
