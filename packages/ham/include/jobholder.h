@@ -94,8 +94,8 @@ private:
   void PrintPath(StrPair query_strs, string gene, double score, string extra_str="");
   Sequences GetSubSeqs(Sequences &seqs, KSet kset, string region);
   map<string,Sequences> GetSubSeqs(Sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
-  size_t GetInsertLength(vector<string> labels);
-  size_t GetErosionLength(string side, vector<string> path_labels, string gene_name);
+  size_t GetInsertLength(vector<string> names);
+  size_t GetErosionLength(string side, vector<string> names, string gene_name);
   double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files

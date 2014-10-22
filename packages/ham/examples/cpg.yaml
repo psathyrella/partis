@@ -3,12 +3,10 @@ tracks:
   nucs: [A,C,G,T]
 states:
 - name: init
-  label: i
   transitions:
     rich: 0.5
-    notrich: 0.5
+    not_rich: 0.5
 - name: rich
-  label: r
   emissions:
     track: nucs
     probs:
@@ -18,10 +16,9 @@ states:
       T: 0.1
   transitions:
     rich: 0.8
-    notrich: 0.1
+    not_rich: 0.1
     end: 0.1
-- name: notrich
-  label: n
+- name: not_rich
   emissions:
     track: nucs
     probs:
@@ -31,5 +28,5 @@ states:
       T: 0.25
   transitions:
     rich: 0.3
-    notrich: 0.6
+    not_rich: 0.6
     end: 0.1

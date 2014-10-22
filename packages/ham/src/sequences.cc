@@ -50,7 +50,6 @@ void Sequence::Print(string separator) {
   for (auto &symbol : undigitized_)
     cout << symbol << separator;
   cout << endl;
-  // cout << undigitized_ << endl;
 }
 
 // ****************************************************************************************

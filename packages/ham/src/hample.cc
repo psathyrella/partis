@@ -59,6 +59,8 @@ int main(int argc, const char *argv[]) {
     seq2->Print();
   }
   trell.Forward();
+
+  path.abbreviate();
   cout << "  path:     ";
   cout << path;
   cout << "\nforward log prob: " << trell.forward_log_prob() << endl;
