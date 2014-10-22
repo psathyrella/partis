@@ -1,0 +1,5 @@
+from SCons.Script import Command
+
+Command("_results/one.out",
+        ["../hample", "../examples/casino.yaml"],
+        "./${SOURCES[0]} --hmmfname ${SOURCES[1]} --seq 666655666613423414513666666666666 -o $TARGET")
