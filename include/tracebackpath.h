@@ -2,7 +2,6 @@
 #define HAM_TRACEBACKPATH_H
 
 #include <iostream>
-#include <iomanip>
 #include <fstream>
 
 #include "text.h"
@@ -38,10 +37,7 @@ public:
   {
     for(size_t k=self.path_.size()-1; k!=SIZE_MAX; --k) {
       State* st = self.hmm_->state(self.path_[k]);
-      if (self.abbreviate_)
-	os << st->abbreviation() << " ";
-      else
-	os << st->name() << " ";
+      os << (self.abbreviate_ ? st->abbreviation() : st->name()) << " ";
     }
     os << endl;
     return os;
