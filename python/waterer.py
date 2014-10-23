@@ -34,7 +34,7 @@ class Waterer(object):
         if not self.from_scratch:
             if self.args.debug:
                 print '  reading gene choice probs from',parameter_dir
-            self.gene_choice_probs = utils.read_overall_gene_prob(parameter_dir)
+            self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -213,7 +213,7 @@ class Waterer(object):
                 r_length = qrbounds[r_gene][1] - qrbounds[r_gene][0]
                 l_portion, r_portion = 0, 0
                 while l_portion + r_portion < overlap:
-                    if l_length == 0 and r_length == 0:
+                    if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
                         print '      ERROR both lengths went to zero'
                         assert False
                     elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
@@ -229,8 +229,9 @@ class Waterer(object):
                     elif r_length > 1:
                         r_portion += 1
                         r_length -= 1
-                    
-                print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+
+                if self.args.debug:
+                    print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
                 assert l_portion + r_portion == overlap
                 qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
                 glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)

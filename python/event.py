@@ -42,7 +42,7 @@ class RecombinationEvent(object):
         self.cdr3_length = int(vdj_combo_label[utils.index_keys['cdr3_length']])
         for boundary in utils.boundaries:
             self.insertion_lengths[boundary] = int(vdj_combo_label[utils.index_keys[boundary + '_insertion']])
-        for erosion_location in utils.erosions:
+        for erosion_location in utils.real_erosions:
             self.erosions[erosion_location] = int(vdj_combo_label[utils.index_keys[erosion_location + '_del']])
 
         # set the original conserved codon words, so we can revert them if they get mutated
@@ -92,7 +92,7 @@ class RecombinationEvent(object):
                 row[region + '_gene'] = self.genes[region]
             for boundary in utils.boundaries:
                 row[boundary + '_insertion'] = self.insertions[boundary]
-            for erosion_location in utils.erosions:
+            for erosion_location in utils.real_erosions:
                 row[erosion_location + '_del'] = self.erosions[erosion_location]
             # hash the information that uniquely identifies each recombination event
             reco_id = ''
@@ -123,7 +123,7 @@ class RecombinationEvent(object):
             line[region + '_gene'] = self.genes[region]
         for boundary in utils.boundaries:
             line[boundary + '_insertion'] = self.insertions[boundary]
-        for erosion_location in utils.erosions:
+        for erosion_location in utils.real_erosions:
             line[erosion_location + '_del'] = self.erosions[erosion_location]
         line['cyst_position'] = self.cyst_position
         line['tryp_position'] = self.final_tryp_position

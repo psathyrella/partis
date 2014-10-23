@@ -142,6 +142,9 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     """ fill a histogram with values from a dictionary """
     if not has_root:
         return
+    if len(values) == 0:
+        print 'WARNING no values for %s in make_hist' % hist_label
+        return TH1F(hist_label, '', 1, 0, 1)
 
     bin_labels = sorted(values)
     if var_type == 'string':  # for strings, sort so most common value is to left side

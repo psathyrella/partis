@@ -52,13 +52,13 @@ Actually doing stuff, quickly
 
 Run viterbi to get the (by default five-) most likely annotations on one of the (simulated) seqs in data/test/simu.csv
 ```
-./runpart.py --point_estimate --seqfile ./data/test/simu.csv --parameter_dir ./caches/parameters/hmm_parameters --n_max_queries 1 --debug 1
+./runpart.py --point_estimate --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters --n_max_queries 1 --debug 1
 ```
 p.s. did I use 'annotations' correctly? I don\'t know!
 
 And, you can run the forward pair algorithm to partition the simulated sequences:
 ```
-./runpart.py --partition --pair --seqfile ./data/test/simu.csv --parameter_dir ./caches/parameters/hmm_parameters
+./runpart.py --partition --pair --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters
 ```
 This runs a hamming preclustering step, then a stripped-down (fast) HMM preclustering step, then a final HMM step. The last few rows of the output are the clusters.
 Since the simulator ran with clones of 5 seqs, there should be six clusters of five sequences each.
@@ -68,7 +68,7 @@ temp files in /tmp/$USER/hmms/$pid. The pairwise scores are in files with 'pairs
 
 You can also run viterbi pair, to see how pairs of sequences line up (it should be apparent which of these three are from the same event, and which are not)
 ```
-./runpart.py --point_estimate --pair --seqfile ./data/test/simu.csv --parameter_dir ./caches/parameters/hmm_parameters --debug 1 --queries ' -2996237710674838049:1722533587157826946:1516698783101435629'  # NOTE for negative hash, put a space after open single quote but before minus sign
+./runpart.py --point_estimate --pair --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters --debug 1 --queries ' -2996237710674838049:1722533587157826946:1516698783101435629'  # NOTE for negative hash, put a space after open single quote but before minus sign
 ```
 Doing stuff that takes longer
 ==============
@@ -80,7 +80,7 @@ So now we go back and create the parameter files that we used in the previous st
 
 run on data to cache parameters and model files in `parameter_dir`
 ```
-./runpart.py --cache_parameters --seqfile ./data/test/data.tsv --is_data --v_right_length 70 --parameter_dir ./caches/new-parameters --n_procs 10 --skip_unproductive
+./runpart.py --cache_parameters --seqfile data/test/data.tsv --is_data --v_right_length 70 --parameter_dir caches/new-parameters --n_procs 10 --skip_unproductive
 ```
 
 this does the following:
@@ -98,5 +98,5 @@ when it finishes, you can poke around in `parameter_dir`/hmm_parameters/ and see
 Now you can run the simulator with these new parameters, too, to make six clusters/clones of five sequences each.
 If you want to run the simulator without running the parameter-generation step above, replace 'new-parameters' with 'parameters'.
 ```
-./runpart.py --simulate --parameter_dir ./caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir ./caches/recombinator --debug 1
+./runpart.py --simulate --parameter_dir caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir caches/recombinator --debug 1
 ```

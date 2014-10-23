@@ -16,12 +16,14 @@ from Bio import SeqIO
 
 #----------------------------------------------------------------------------------------
 eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
+# TODO I also have an eps defined in hmmwriter
 def is_normed(prob):
     return math.fabs(prob - 1.0) < eps  #*1000000000
 
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
-erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
+real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
+effective_erosions = ['v_5p', 'j_3p']
 boundaries = ('vd', 'dj')
 humans = ('A', 'B', 'C')
 nukes = ('A', 'C', 'G', 'T')
@@ -30,12 +32,12 @@ naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
-index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'vd_insertion', 'dj_insertion')
+index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'vd_insertion', 'dj_insertion')
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
 
-all_gene_tuple = ('IGHD1-1*01', 'IGHD1-14*01', 'IGHD1-20*01', 'IGHD1-26*01', 'IGHD1-7*01', 'IGHD1/OR15-1a*01', 'IGHD1/OR15-1b*01', 'IGHD2-15*01', 'IGHD2-2*01', 'IGHD2-2*02', 'IGHD2-2*03', 'IGHD2-21*01', 'IGHD2-21*02', 'IGHD2-8*01', 'IGHD2-8*02', 'IGHD2/OR15-2a*01', 'IGHD2/OR15-2b*01', 'IGHD3-10*01', 'IGHD3-10*02', 'IGHD3-16*01', 'IGHD3-16*02', 'IGHD3-22*01', 'IGHD3-3*01', 'IGHD3-3*02', 'IGHD3-9*01', 'IGHD3/OR15-3a*01', 'IGHD3/OR15-3b*01', 'IGHD4-11*01', 'IGHD4-17*01', 'IGHD4-23*01', 'IGHD4-4*01', 'IGHD4/OR15-4a*01', 'IGHD4/OR15-4b*01', 'IGHD5-12*01', 'IGHD5-18*01', 'IGHD5-24*01', 'IGHD5-5*01', 'IGHD5/OR15-5a*01', 'IGHD5/OR15-5b*01', 'IGHD6-13*01', 'IGHD6-19*01', 'IGHD6-25*01', 'IGHD6-6*01', 'IGHD7-27*01', 'IGHJ1*01_F', 'IGHJ1P*01_P', 'IGHJ2*01_F', 'IGHJ2P*01_P', 'IGHJ3*01_F', 'IGHJ3*02_F', 'IGHJ3P*01_P', 'IGHJ3P*02_P', 'IGHJ4*01_F', 'IGHJ4*02_F', 'IGHJ4*03_F', 'IGHJ5*01_F', 'IGHJ5*02_F', 'IGHJ6*01_F', 'IGHJ6*02_F', 'IGHJ6*03_F', 'IGHJ6*04_F', 'IGHV1-18*01', 'IGHV1-18*03', 'IGHV1-2*01', 'IGHV1-2*02', 'IGHV1-2*03', 'IGHV1-2*04', 'IGHV1-2*05', 'IGHV1-24*01', 'IGHV1-3*01', 'IGHV1-3*02', 'IGHV1-45*01', 'IGHV1-45*02', 'IGHV1-45*03', 'IGHV1-46*01', 'IGHV1-46*02', 'IGHV1-46*03', 'IGHV1-58*01', 'IGHV1-58*02', 'IGHV1-68*01', 'IGHV1-69*01', 'IGHV1-69*02', 'IGHV1-69*04', 'IGHV1-69*05', 'IGHV1-69*06', 'IGHV1-69*08', 'IGHV1-69*09', 'IGHV1-69*10', 'IGHV1-69*11', 'IGHV1-69*12', 'IGHV1-69*13', 'IGHV1-8*01', 'IGHV1-8*02', 'IGHV1-NL1*01', 'IGHV1-c*01', 'IGHV1-f*01', 'IGHV1/OR15-1*01', 'IGHV1/OR15-1*02', 'IGHV1/OR15-1*03', 'IGHV1/OR15-1*04', 'IGHV1/OR15-2*01', 'IGHV1/OR15-2*02', 'IGHV1/OR15-2*03', 'IGHV1/OR15-3*01', 'IGHV1/OR15-3*02', 'IGHV1/OR15-3*03', 'IGHV1/OR15-4*01', 'IGHV1/OR15-5*01', 'IGHV1/OR15-5*02', 'IGHV1/OR15-9*01', 'IGHV1/OR21-1*01', 'IGHV2-10*01', 'IGHV2-26*01', 'IGHV2-5*01', 'IGHV2-5*04', 'IGHV2-5*05', 'IGHV2-5*06', 'IGHV2-5*07', 'IGHV2-5*08', 'IGHV2-5*09', 'IGHV2-5*10', 'IGHV2-70*01', 'IGHV2-70*09', 'IGHV2-70*10', 'IGHV2-70*11', 'IGHV2-70*12', 'IGHV2-70*13', 'IGHV2/OR16-5*01', 'IGHV3-11*01', 'IGHV3-11*03', 'IGHV3-11*04', 'IGHV3-11*05', 'IGHV3-13*01', 'IGHV3-13*02', 'IGHV3-13*03', 'IGHV3-13*04', 'IGHV3-15*01', 'IGHV3-15*02', 'IGHV3-15*03', 'IGHV3-15*04', 'IGHV3-15*05', 'IGHV3-15*06', 'IGHV3-15*07', 'IGHV3-15*08', 'IGHV3-16*01', 'IGHV3-16*02', 'IGHV3-19*01', 'IGHV3-20*01', 'IGHV3-21*01', 'IGHV3-21*02', 'IGHV3-21*03', 'IGHV3-21*04', 'IGHV3-22*01', 'IGHV3-22*02', 'IGHV3-23*01', 'IGHV3-23*02', 'IGHV3-23*03', 'IGHV3-23*04', 'IGHV3-25*01', 'IGHV3-25*02', 'IGHV3-25*03', 'IGHV3-25*04', 'IGHV3-25*05', 'IGHV3-30*01', 'IGHV3-30*02', 'IGHV3-30*03', 'IGHV3-30*04', 'IGHV3-30*05', 'IGHV3-30*06', 'IGHV3-30*07', 'IGHV3-30*08', 'IGHV3-30*09', 'IGHV3-30*10', 'IGHV3-30*11', 'IGHV3-30*12', 'IGHV3-30*13', 'IGHV3-30*14', 'IGHV3-30*15', 'IGHV3-30*16', 'IGHV3-30*17', 'IGHV3-30*18', 'IGHV3-30*19', 'IGHV3-30-3*01', 'IGHV3-30-3*02', 'IGHV3-32*01', 'IGHV3-33*01', 'IGHV3-33*02', 'IGHV3-33*03', 'IGHV3-33*04', 'IGHV3-33*05', 'IGHV3-33*06', 'IGHV3-35*01', 'IGHV3-38*01', 'IGHV3-38*02', 'IGHV3-43*01', 'IGHV3-43*02', 'IGHV3-47*01', 'IGHV3-47*02', 'IGHV3-48*01', 'IGHV3-48*02', 'IGHV3-48*03', 'IGHV3-48*04', 'IGHV3-49*01', 'IGHV3-49*02', 'IGHV3-49*03', 'IGHV3-49*04', 'IGHV3-49*05', 'IGHV3-52*01', 'IGHV3-53*01', 'IGHV3-53*02', 'IGHV3-53*03', 'IGHV3-53*04', 'IGHV3-54*01', 'IGHV3-54*02', 'IGHV3-54*04', 'IGHV3-62*01', 'IGHV3-63*01', 'IGHV3-63*02', 'IGHV3-64*01', 'IGHV3-64*02', 'IGHV3-64*03', 'IGHV3-64*04', 'IGHV3-64*05', 'IGHV3-66*01', 'IGHV3-66*02', 'IGHV3-66*03', 'IGHV3-66*04', 'IGHV3-7*01', 'IGHV3-7*02', 'IGHV3-7*03', 'IGHV3-71*01', 'IGHV3-71*02', 'IGHV3-71*03', 'IGHV3-72*01', 'IGHV3-73*01', 'IGHV3-73*02', 'IGHV3-74*01', 'IGHV3-74*02', 'IGHV3-74*03', 'IGHV3-9*01', 'IGHV3-9*02', 'IGHV3-NL1*01', 'IGHV3-d*01', 'IGHV3-h*01', 'IGHV3-h*02', 'IGHV3/OR15-7*01', 'IGHV3/OR15-7*02', 'IGHV3/OR15-7*03', 'IGHV3/OR15-7*05', 'IGHV3/OR16-10*01', 'IGHV3/OR16-10*02', 'IGHV3/OR16-10*03', 'IGHV3/OR16-12*01', 'IGHV3/OR16-13*01', 'IGHV3/OR16-14*01', 'IGHV3/OR16-15*01', 'IGHV3/OR16-15*02', 'IGHV3/OR16-16*01', 'IGHV3/OR16-6*02', 'IGHV3/OR16-8*01', 'IGHV3/OR16-8*02', 'IGHV3/OR16-9*01', 'IGHV4-28*01', 'IGHV4-28*02', 'IGHV4-28*03', 'IGHV4-28*04', 'IGHV4-28*06', 'IGHV4-30-2*01', 'IGHV4-30-2*02', 'IGHV4-30-2*03', 'IGHV4-30-2*04', 'IGHV4-30-2*05', 'IGHV4-30-4*01', 'IGHV4-30-4*02', 'IGHV4-30-4*05', 'IGHV4-30-4*06', 'IGHV4-31*01', 'IGHV4-31*02', 'IGHV4-31*03', 'IGHV4-31*04', 'IGHV4-31*05', 'IGHV4-31*10', 'IGHV4-34*01', 'IGHV4-34*02', 'IGHV4-34*04', 'IGHV4-34*05', 'IGHV4-34*08', 'IGHV4-34*09', 'IGHV4-34*10', 'IGHV4-34*11', 'IGHV4-34*12', 'IGHV4-34*13', 'IGHV4-39*01', 'IGHV4-39*02', 'IGHV4-39*05', 'IGHV4-39*06', 'IGHV4-39*07', 'IGHV4-4*01', 'IGHV4-4*02', 'IGHV4-4*06', 'IGHV4-4*07', 'IGHV4-55*01', 'IGHV4-55*02', 'IGHV4-55*08', 'IGHV4-55*09', 'IGHV4-59*01', 'IGHV4-59*02', 'IGHV4-59*03', 'IGHV4-59*04', 'IGHV4-59*05', 'IGHV4-59*06', 'IGHV4-59*07', 'IGHV4-59*08', 'IGHV4-59*09', 'IGHV4-59*10', 'IGHV4-61*01', 'IGHV4-61*02', 'IGHV4-61*03', 'IGHV4-61*05', 'IGHV4-61*06', 'IGHV4-61*07', 'IGHV4-61*08', 'IGHV4-b*01', 'IGHV4-b*02', 'IGHV4/OR15-8*01', 'IGHV4/OR15-8*02', 'IGHV4/OR15-8*03', 'IGHV5-51*01', 'IGHV5-51*02', 'IGHV5-51*03', 'IGHV5-51*04', 'IGHV5-78*01', 'IGHV5-a*01', 'IGHV5-a*02', 'IGHV5-a*03', 'IGHV5-a*04', 'IGHV6-1*01', 'IGHV6-1*02', 'IGHV7-34-1*02', 'IGHV7-4-1*01', 'IGHV7-4-1*02', 'IGHV7-4-1*04', 'IGHV7-4-1*05', 'IGHV7-40*03', 'IGHV7-81*01', 'IGHV1-8*91', 'IGHV1-NL1*91', 'IGHV2-5*91', 'IGHV3-20*91', 'IGHV3-43*91', 'IGHV3-53*91', 'IGHV3-9*91', 'IGHV4-30-2*91', 'IGHV7-4-1*91', 'IGHV7-4-1*92', 'IGHV1-3*91', 'IGHV3-64*91', 'IGHV3/OR16-13*91', 'IGHV3/OR16-14*91', 'IGHV7-4-1*93', 'IGHV4-39*91', 'IGHV4-4*91', 'IGHV4-59*91')
+# all_gene_tuple = ('IGHD1-1*01', 'IGHD1-14*01', 'IGHD1-20*01', 'IGHD1-26*01', 'IGHD1-7*01', 'IGHD1/OR15-1a*01', 'IGHD1/OR15-1b*01', 'IGHD2-15*01', 'IGHD2-2*01', 'IGHD2-2*02', 'IGHD2-2*03', 'IGHD2-21*01', 'IGHD2-21*02', 'IGHD2-8*01', 'IGHD2-8*02', 'IGHD2/OR15-2a*01', 'IGHD2/OR15-2b*01', 'IGHD3-10*01', 'IGHD3-10*02', 'IGHD3-16*01', 'IGHD3-16*02', 'IGHD3-22*01', 'IGHD3-3*01', 'IGHD3-3*02', 'IGHD3-9*01', 'IGHD3/OR15-3a*01', 'IGHD3/OR15-3b*01', 'IGHD4-11*01', 'IGHD4-17*01', 'IGHD4-23*01', 'IGHD4-4*01', 'IGHD4/OR15-4a*01', 'IGHD4/OR15-4b*01', 'IGHD5-12*01', 'IGHD5-18*01', 'IGHD5-24*01', 'IGHD5-5*01', 'IGHD5/OR15-5a*01', 'IGHD5/OR15-5b*01', 'IGHD6-13*01', 'IGHD6-19*01', 'IGHD6-25*01', 'IGHD6-6*01', 'IGHD7-27*01', 'IGHJ1*01_F', 'IGHJ1P*01_P', 'IGHJ2*01_F', 'IGHJ2P*01_P', 'IGHJ3*01_F', 'IGHJ3*02_F', 'IGHJ3P*01_P', 'IGHJ3P*02_P', 'IGHJ4*01_F', 'IGHJ4*02_F', 'IGHJ4*03_F', 'IGHJ5*01_F', 'IGHJ5*02_F', 'IGHJ6*01_F', 'IGHJ6*02_F', 'IGHJ6*03_F', 'IGHJ6*04_F', 'IGHV1-18*01', 'IGHV1-18*03', 'IGHV1-2*01', 'IGHV1-2*02', 'IGHV1-2*03', 'IGHV1-2*04', 'IGHV1-2*05', 'IGHV1-24*01', 'IGHV1-3*01', 'IGHV1-3*02', 'IGHV1-45*01', 'IGHV1-45*02', 'IGHV1-45*03', 'IGHV1-46*01', 'IGHV1-46*02', 'IGHV1-46*03', 'IGHV1-58*01', 'IGHV1-58*02', 'IGHV1-68*01', 'IGHV1-69*01', 'IGHV1-69*02', 'IGHV1-69*04', 'IGHV1-69*05', 'IGHV1-69*06', 'IGHV1-69*08', 'IGHV1-69*09', 'IGHV1-69*10', 'IGHV1-69*11', 'IGHV1-69*12', 'IGHV1-69*13', 'IGHV1-8*01', 'IGHV1-8*02', 'IGHV1-NL1*01', 'IGHV1-c*01', 'IGHV1-f*01', 'IGHV1/OR15-1*01', 'IGHV1/OR15-1*02', 'IGHV1/OR15-1*03', 'IGHV1/OR15-1*04', 'IGHV1/OR15-2*01', 'IGHV1/OR15-2*02', 'IGHV1/OR15-2*03', 'IGHV1/OR15-3*01', 'IGHV1/OR15-3*02', 'IGHV1/OR15-3*03', 'IGHV1/OR15-4*01', 'IGHV1/OR15-5*01', 'IGHV1/OR15-5*02', 'IGHV1/OR15-9*01', 'IGHV1/OR21-1*01', 'IGHV2-10*01', 'IGHV2-26*01', 'IGHV2-5*01', 'IGHV2-5*04', 'IGHV2-5*05', 'IGHV2-5*06', 'IGHV2-5*07', 'IGHV2-5*08', 'IGHV2-5*09', 'IGHV2-5*10', 'IGHV2-70*01', 'IGHV2-70*09', 'IGHV2-70*10', 'IGHV2-70*11', 'IGHV2-70*12', 'IGHV2-70*13', 'IGHV2/OR16-5*01', 'IGHV3-11*01', 'IGHV3-11*03', 'IGHV3-11*04', 'IGHV3-11*05', 'IGHV3-13*01', 'IGHV3-13*02', 'IGHV3-13*03', 'IGHV3-13*04', 'IGHV3-15*01', 'IGHV3-15*02', 'IGHV3-15*03', 'IGHV3-15*04', 'IGHV3-15*05', 'IGHV3-15*06', 'IGHV3-15*07', 'IGHV3-15*08', 'IGHV3-16*01', 'IGHV3-16*02', 'IGHV3-19*01', 'IGHV3-20*01', 'IGHV3-21*01', 'IGHV3-21*02', 'IGHV3-21*03', 'IGHV3-21*04', 'IGHV3-22*01', 'IGHV3-22*02', 'IGHV3-23*01', 'IGHV3-23*02', 'IGHV3-23*03', 'IGHV3-23*04', 'IGHV3-25*01', 'IGHV3-25*02', 'IGHV3-25*03', 'IGHV3-25*04', 'IGHV3-25*05', 'IGHV3-30*01', 'IGHV3-30*02', 'IGHV3-30*03', 'IGHV3-30*04', 'IGHV3-30*05', 'IGHV3-30*06', 'IGHV3-30*07', 'IGHV3-30*08', 'IGHV3-30*09', 'IGHV3-30*10', 'IGHV3-30*11', 'IGHV3-30*12', 'IGHV3-30*13', 'IGHV3-30*14', 'IGHV3-30*15', 'IGHV3-30*16', 'IGHV3-30*17', 'IGHV3-30*18', 'IGHV3-30*19', 'IGHV3-30-3*01', 'IGHV3-30-3*02', 'IGHV3-32*01', 'IGHV3-33*01', 'IGHV3-33*02', 'IGHV3-33*03', 'IGHV3-33*04', 'IGHV3-33*05', 'IGHV3-33*06', 'IGHV3-35*01', 'IGHV3-38*01', 'IGHV3-38*02', 'IGHV3-43*01', 'IGHV3-43*02', 'IGHV3-47*01', 'IGHV3-47*02', 'IGHV3-48*01', 'IGHV3-48*02', 'IGHV3-48*03', 'IGHV3-48*04', 'IGHV3-49*01', 'IGHV3-49*02', 'IGHV3-49*03', 'IGHV3-49*04', 'IGHV3-49*05', 'IGHV3-52*01', 'IGHV3-53*01', 'IGHV3-53*02', 'IGHV3-53*03', 'IGHV3-53*04', 'IGHV3-54*01', 'IGHV3-54*02', 'IGHV3-54*04', 'IGHV3-62*01', 'IGHV3-63*01', 'IGHV3-63*02', 'IGHV3-64*01', 'IGHV3-64*02', 'IGHV3-64*03', 'IGHV3-64*04', 'IGHV3-64*05', 'IGHV3-66*01', 'IGHV3-66*02', 'IGHV3-66*03', 'IGHV3-66*04', 'IGHV3-7*01', 'IGHV3-7*02', 'IGHV3-7*03', 'IGHV3-71*01', 'IGHV3-71*02', 'IGHV3-71*03', 'IGHV3-72*01', 'IGHV3-73*01', 'IGHV3-73*02', 'IGHV3-74*01', 'IGHV3-74*02', 'IGHV3-74*03', 'IGHV3-9*01', 'IGHV3-9*02', 'IGHV3-NL1*01', 'IGHV3-d*01', 'IGHV3-h*01', 'IGHV3-h*02', 'IGHV3/OR15-7*01', 'IGHV3/OR15-7*02', 'IGHV3/OR15-7*03', 'IGHV3/OR15-7*05', 'IGHV3/OR16-10*01', 'IGHV3/OR16-10*02', 'IGHV3/OR16-10*03', 'IGHV3/OR16-12*01', 'IGHV3/OR16-13*01', 'IGHV3/OR16-14*01', 'IGHV3/OR16-15*01', 'IGHV3/OR16-15*02', 'IGHV3/OR16-16*01', 'IGHV3/OR16-6*02', 'IGHV3/OR16-8*01', 'IGHV3/OR16-8*02', 'IGHV3/OR16-9*01', 'IGHV4-28*01', 'IGHV4-28*02', 'IGHV4-28*03', 'IGHV4-28*04', 'IGHV4-28*06', 'IGHV4-30-2*01', 'IGHV4-30-2*02', 'IGHV4-30-2*03', 'IGHV4-30-2*04', 'IGHV4-30-2*05', 'IGHV4-30-4*01', 'IGHV4-30-4*02', 'IGHV4-30-4*05', 'IGHV4-30-4*06', 'IGHV4-31*01', 'IGHV4-31*02', 'IGHV4-31*03', 'IGHV4-31*04', 'IGHV4-31*05', 'IGHV4-31*10', 'IGHV4-34*01', 'IGHV4-34*02', 'IGHV4-34*04', 'IGHV4-34*05', 'IGHV4-34*08', 'IGHV4-34*09', 'IGHV4-34*10', 'IGHV4-34*11', 'IGHV4-34*12', 'IGHV4-34*13', 'IGHV4-39*01', 'IGHV4-39*02', 'IGHV4-39*05', 'IGHV4-39*06', 'IGHV4-39*07', 'IGHV4-4*01', 'IGHV4-4*02', 'IGHV4-4*06', 'IGHV4-4*07', 'IGHV4-55*01', 'IGHV4-55*02', 'IGHV4-55*08', 'IGHV4-55*09', 'IGHV4-59*01', 'IGHV4-59*02', 'IGHV4-59*03', 'IGHV4-59*04', 'IGHV4-59*05', 'IGHV4-59*06', 'IGHV4-59*07', 'IGHV4-59*08', 'IGHV4-59*09', 'IGHV4-59*10', 'IGHV4-61*01', 'IGHV4-61*02', 'IGHV4-61*03', 'IGHV4-61*05', 'IGHV4-61*06', 'IGHV4-61*07', 'IGHV4-61*08', 'IGHV4-b*01', 'IGHV4-b*02', 'IGHV4/OR15-8*01', 'IGHV4/OR15-8*02', 'IGHV4/OR15-8*03', 'IGHV5-51*01', 'IGHV5-51*02', 'IGHV5-51*03', 'IGHV5-51*04', 'IGHV5-78*01', 'IGHV5-a*01', 'IGHV5-a*02', 'IGHV5-a*03', 'IGHV5-a*04', 'IGHV6-1*01', 'IGHV6-1*02', 'IGHV7-34-1*02', 'IGHV7-4-1*01', 'IGHV7-4-1*02', 'IGHV7-4-1*04', 'IGHV7-4-1*05', 'IGHV7-40*03', 'IGHV7-81*01', 'IGHV1-8*91', 'IGHV1-NL1*91', 'IGHV2-5*91', 'IGHV3-20*91', 'IGHV3-43*91', 'IGHV3-53*91', 'IGHV3-9*91', 'IGHV4-30-2*91', 'IGHV7-4-1*91', 'IGHV7-4-1*92', 'IGHV1-3*91', 'IGHV3-64*91', 'IGHV3/OR16-13*91', 'IGHV3/OR16-14*91', 'IGHV7-4-1*93', 'IGHV4-39*91', 'IGHV4-4*91', 'IGHV4-59*91')
 
 # ----------------------------------------------------------------------------------------
 # Info specifying which parameters are assumed to correlate with which others. Taken from mutual
@@ -44,12 +46,14 @@ all_gene_tuple = ('IGHD1-1*01', 'IGHD1-14*01', 'IGHD1-20*01', 'IGHD1-26*01', 'IG
 # key is parameter of interest, and associated list gives the parameters (other than itself) which are necessary to predict it
 column_dependencies = {}
 column_dependencies['v_gene'] = [] # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
+column_dependencies['v_5p_del'] = ['v_gene']
 column_dependencies['v_3p_del'] = ['v_gene']
 column_dependencies['d_gene'] = []  # ['d_5p_del', 'd_3p_del'] TODO stop ignoring this correlation. Well, maybe. See note in hmmwriter.py
 column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']  # NOTE at least for now there's no way to specify the d erosion correlations
 column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']  #   in the hmm, so they're integrated out
 column_dependencies['j_gene'] = []  # ['dj_insertion']  TODO see note above
 column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice. NOTE this makes normalization kinda fun when you read these out
+column_dependencies['j_3p_del'] = ['j_gene']
 column_dependencies['vd_insertion'] = []
 column_dependencies['dj_insertion'] = ['j_gene']
 
@@ -320,7 +324,7 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     else:
         return -1
 # ----------------------------------------------------------------------------------------
-def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs):
+def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False):
     """ Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line> """
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
     eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position'] - int(line['v_5p_del'])  # cysteine position in eroded germline sequence
@@ -330,10 +334,11 @@ def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs):
         tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
         line['tryp_position'] = tpos_in_joined_seq
         line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
-        check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=True, extra_str='      ')
-        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=True, extra_str='      ')
+        check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
+        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
     except AssertionError:
-        print '    bad codon, setting cdr3_length to -1'
+        if debug:
+            print '    bad codon, setting cdr3_length to -1'
         line['cdr3_length'] = -1
     
 # ----------------------------------------------------------------------------------------
@@ -345,7 +350,7 @@ def get_full_naive_seq(germlines, line):
     return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']
 
 # ----------------------------------------------------------------------------------------
-def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unproductive):
+def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unproductive, debug=False):
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
 
@@ -355,7 +360,7 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unprodu
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs)  # add cyst and tryp positions, and cdr3 length
+    add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=debug)  # add cyst and tryp positions, and cdr3 length
 
     # add the <eroded_seqs> to <line> so we can find them later
     for region in regions:
@@ -570,7 +575,7 @@ def are_same_primary_version(gene1, gene2):
     return str_1 == str_2
 
 # ----------------------------------------------------------------------------------------
-def read_overall_gene_prob(indir, only_region='', only_gene=''):
+def read_overall_gene_probs(indir, only_region='', only_gene=''):
     counts = {}
     for region in regions:
         if only_region != '' and region != only_region:
@@ -589,13 +594,12 @@ def read_overall_gene_prob(indir, only_region='', only_gene=''):
                 if gene not in counts[region]:
                     counts[region][gene] = 0
                 counts[region][gene] += line_count
+        if total < 1:
+            assert total == 0
+            print 'ERROR zero counts in %s' % indir + '/' + region + '_gene-probs.csv'
+            assert False
         if only_gene != '' and only_gene not in counts[region]:  # didn't find this gene
             counts[region][only_gene] = smallest_count
-        # if region == 'v':
-        #     for gene in ['IGHV3-30*12', 'IGHV3-30*07', 'IGHV3-30*03', 'IGHV3-30*10', 'IGHV3-30*11', 'IGHV3-30*06', 'IGHV3-30*19', 'IGHV3-30*17']:  # list of genes for which we don't have info
-        #         print gene
-        #         assert gene not in counts[get_region(gene)]
-        #         counts[get_region(gene)][gene] = smallest_count
         for gene in counts[region]:
             counts[region][gene] /= float(total)
     # print 'return: %d / %d = %f' % (this_count, total, float(this_count) / total)
@@ -608,7 +612,7 @@ def read_overall_gene_prob(indir, only_region='', only_gene=''):
 def hamming(seq1, seq2):
     assert len(seq1) == len(seq2)
     total = 0
-    for ch1,ch2 in zip(seq1,seq2):
+    for ch1, ch2 in zip(seq1, seq2):
         if ch1 != ch2:
             total += 1
     return total

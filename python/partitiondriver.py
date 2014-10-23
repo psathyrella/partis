@@ -12,7 +12,6 @@ from subprocess import Popen, check_call, PIPE
 import_start = time.time()
 import utils
 from opener import opener
-from hmmwriter import HmmWriter
 from clusterer import Clusterer
 from waterer import Waterer
 from parametercounter import ParameterCounter
@@ -71,6 +70,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_input_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
+        assert self.args.seqfile != None
         with opener('r')(self.args.seqfile) as seqfile:
             delimiter = ','
             name_column = 'unique_id'
@@ -128,6 +128,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
+        assert os.path.exists(self.args.parameter_dir)
 
         # run smith-waterman
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
@@ -149,6 +150,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def point_estimate(self):
+        assert os.path.exists(self.args.parameter_dir)
         """ get a point estimate for each query sequence (or pair). i.e. run viterbi """
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
@@ -177,8 +179,8 @@ class PartitionDriver(object):
             perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/performance', 'hmm')
 
         if prefix == '' and stripped:
-            prefix = 'stripped'
-        print prefix,'hmm'
+            prefix = 'stripped '
+        print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
@@ -187,15 +189,11 @@ class PartitionDriver(object):
             self.split_hmm_input(csv_infname)
             for iproc in range(self.args.n_procs):
                 p = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
-                # p.daemon = True
                 p.start()
-                print 'started %d' % iproc
-                # p.join()
             while len(active_children()) > 0:
                 print ' wait %s' % len(active_children()),
                 sys.stdout.flush()
                 time.sleep(1)
-                # self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc)
             self.merge_hmm_outputs(csv_outfname)
         else:
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
@@ -256,7 +254,7 @@ class PartitionDriver(object):
             if not self.args.no_clean:
                 os.remove(workdir + '/' + os.path.basename(outfname))
                 os.rmdir(workdir)
-                        
+
         with opener('w')(outfname) as outfile:
             writer = csv.DictWriter(outfile, header)
             writer.writeheader()
@@ -341,6 +339,7 @@ class PartitionDriver(object):
     
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir, sw_matches):
+        from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
 
@@ -353,17 +352,8 @@ class PartitionDriver(object):
                         gene_list.append(gene)
 
         for gene in gene_list:
-            # if self.args.debug:
             print '   ', utils.color_gene(gene),
             sys.stdout.flush()
-            # if len(re.findall('J[123]P', gene)) > 0 or 'OR16' in gene or 'OR21' in gene or 'OR15' in gene or 'IGHV1-46*0' in gene or 'IGHV1-68' in gene or 'IGHV1-NL1' in gene or 'IGHV1-c' in gene or 'IGHV1-f' in gene:
-            #     try:
-            #         writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
-            #         writer.write()
-            #     except AssertionError:
-            #         print '  giving up on',gene
-            #         continue
-            # else:
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
             writer.write()
 
@@ -453,7 +443,7 @@ class PartitionDriver(object):
                     # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
-                print '    not in best sw matches, skipping: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])
+                print '    were never the best sw match for any query, so removing from consideration for hmm: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])
 
     # ----------------------------------------------------------------------------------------
     def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
@@ -504,25 +494,29 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 if algorithm == 'viterbi':
-                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive)
                     this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
+                        last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                         if self.args.debug:
                             print '%-20s %20s' % (line['unique_id'], line['second_unique_id']),
                             if self.args.pair:
                                 print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']),
                             print ''
-                        if pcounter != None:  # increment counters (but only for the best [first] match)
-                            pcounter.increment(line)
-                        if perfplotter != None:
-                            perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
+                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=True)
+                        if line['cdr3_length'] == -1:
+                            print '      ERROR %s failed to add match info' % line['unique_id']
+                        if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
+                            if pcounter != None:  # increment counters (but only for the best [first] match)
+                                pcounter.increment(line)
+                            if perfplotter != None:
+                                perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
                     if self.args.debug:
+                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=False)
                         self.print_hmm_output(line, print_true=(last_id != this_id))
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
 
-                last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
         if n_boundary_errors > 0:
             print '    %d boundary errors' % n_boundary_errors
         if perfplotter != None:

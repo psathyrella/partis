@@ -11,13 +11,13 @@
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
   - figure out how you really want to treat base content in insertions
-  - remove all the *@#$&@!jing extra history from subtrees
   - allow j right erosions, and allow the query sequence to extend beyond the right edge of the j (this is in the hmm)
   - disallow stop codons in simulator
   - v left and j right deletions: allow them *only* if they run beyond the query sequence
   - use hamming-to-naive, but *also* add a measure of how accurately we inferred which positions were mutated
   - test with lots of different read lengths, i.e. extending waaaay left of the whole v, and so on
   - parallelize that shit!
+  - hmmwriter: TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d. EDIT it\'s bad! and this also applies to mutation freqs!
   - really, really need to add a way to ignore parameters from genes that we hardly ever saw that have huge uncertainties
   - oops. data is here: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/data/r2/01-LMP-N
   - look at changing gcc options in stochhmm (-g, -02...)  UPDATE well removing -g didn\'t speed it up any

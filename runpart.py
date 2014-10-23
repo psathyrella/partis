@@ -32,7 +32,7 @@ parser.add_argument('--pair', action='store_true')
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--skip_unproductive', action='store_true')  # skip unproductive rearrangements
 
-parser.add_argument('--parameter_dir')  # sample-specific parameters (mutation rates, gene version freqs, ...)
+parser.add_argument('--parameter_dir', required=True)  # sample-specific parameters (mutation rates, gene version freqs, ...)
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information (e.g. germline gene versions)
 parser.add_argument('--outdir')
 parser.add_argument('--plot_performance', action='store_true')
@@ -60,8 +60,6 @@ parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Ma
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 args = parser.parse_args()
-if not args.cache_parameters:
-    assert os.path.exists(args.parameter_dir)
 args.only_genes = get_arg_list(args.only_genes)
 
 # ----------------------------------------------------------------------------------------
@@ -80,8 +78,7 @@ if args.simulate:
     os.rmdir(reco.workdir)
         
 else:
-    assert args.seqfile != None
-    assert args.cache_parameters or args.point_estimate or args.partition
+    # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
 
     args.queries = get_arg_list(args.queries)
@@ -89,8 +86,10 @@ else:
 
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
-    # parter.write_hmms('tmp/parameters/sw_parameters', None)
+
+    # parter.write_hmms(args.parameter_dir, None)
     # sys.exit()
+
     if args.cache_parameters:
         parter.cache_parameters()
     elif args.point_estimate:

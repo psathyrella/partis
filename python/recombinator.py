@@ -24,6 +24,8 @@ class Recombinator(object):
     #    writing mute freqs and running bppseqgen five times for each recombination event
 
     def __init__(self, args, total_length_from_right=0):
+        assert os.path.exists(self.args.parameter_dir)
+
         self.workdir = '/tmp/' + os.getenv('USER') + '/recombinator/' + str(os.getpid())
         utils.prep_dir(self.workdir)
         self.args = args
@@ -181,7 +183,7 @@ class Recombinator(object):
             print '  eroding'
         for region in utils.regions:
             reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
-        for erosion in utils.erosions:
+        for erosion in utils.real_erosions:
             self.erode(erosion, reco_event)
         for boundary in utils.boundaries:
             self.insert(boundary, reco_event)
