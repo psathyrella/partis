@@ -8,7 +8,10 @@ Model::Model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
 
 // ----------------------------------------------------------------------------------------
 void Model::Parse(string infname) {
-  assert(ifstream(infname));
+  if(!ifstream(infname)) {
+    cerr << "ERROR " << infname << " d.n.e." << endl;
+    assert(0);
+  }
   YAML::Node config = YAML::LoadFile(infname);
   name_ = config["name"].as<string>();
   if (config["extras"] && config["extras"]["gene_prob"])
@@ -134,9 +137,9 @@ void Model::CheckTopology(){
         // cerr << "Warning: State: "  << states_[st_iter]->name() << " has no transitions defined\n";
       } else if (num_visited == 1 && tmp_visited[0] == st_iter) {
         if (states_[st_iter]->end_trans() == NULL) {
-          cerr << "State: "  << states_[st_iter]->name() << " is an orphaned state that has only transition to itself" << endl;
+          cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " is an orphaned state that has only transition to itself" << endl;
 	} else {
-	  cerr << "State: "  << states_[st_iter]->name() << " may be an orphaned state that only has transitions to itself and END state." << endl;
+	  cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " may be an orphaned state that only has transitions to itself and END state." << endl;
 	}
       }
 
