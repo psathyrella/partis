@@ -1,6 +1,7 @@
 import time
 import sys
 import json
+from multiprocessing import Process, active_children
 import math
 import csv
 import os
@@ -59,9 +60,13 @@ class Waterer(object):
             self.run_vdjalign(base_infname, base_outfname, -1)
         else:
             for iproc in range(self.args.n_procs):
-                self.run_vdjalign(base_infname, base_outfname, iproc)
-            self.merge_output(base_outfname)
-        self.read_output(self.args.workdir + '/' + base_outfname, plot_performance=self.args.plot_performance)
+                proc = Process(target=self.run_vdjalign, args=(base_infname, base_outfname, iproc))
+                proc.start()
+            while len(active_children()) > 0:
+                print ' wait %s' % len(active_children()),
+                sys.stdout.flush()
+                time.sleep(1)
+        self.read_output(base_outfname, plot_performance=self.args.plot_performance)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
@@ -111,45 +116,31 @@ class Waterer(object):
         print '    s-w time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def merge_output(self, base_outfname):
-        samtools_binary = os.getcwd() + '/packages/samtools/samtools'
-        if not os.path.exists(samtools_binary):
-            print 'ERROR samtools not found in %s' % os.path.dirname(samtools_binary)
-            assert False
-        arg_list = [samtools_binary, 'merge', self.args.workdir + '/' + base_outfname]
-        for iproc in range(self.args.n_procs):
-            arg_list.append(self.args.workdir + '/sw-' + str(iproc) + '/' + base_outfname)
-
-        check_call(arg_list)
-
-        if not self.args.no_clean:
-            for iproc in range(self.args.n_procs):
-                os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_outfname)
-                os.rmdir(self.args.workdir + '/sw-' + str(iproc))
-
-    # ----------------------------------------------------------------------------------------
-    def read_output(self, outfname, plot_performance=False):
-        start = time.time()
-
+    def read_output(self, base_outfname, plot_performance=False):
         perfplotter = None
         if plot_performance:
             assert not self.args.is_data
             from performanceplotter import PerformancePlotter
             perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/sw_performance', 'sw')
 
-        with contextlib.closing(pysam.Samfile(outfname)) as bam:
-            grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
-            for _, reads in grouped:  # loop over query sequences
-                self.n_total += 1
-                print 'processing...'
-                self.process_query(bam, list(reads), perfplotter)
+        for iproc in range(self.args.n_procs):
+            workdir = self.args.workdir
+            if self.args.n_procs > 1:
+                workdir += '/sw-' + str(iproc)
+            outfname = workdir + '/' + base_outfname
+            with contextlib.closing(pysam.Samfile(outfname)) as bam:
+                grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
+                for _, reads in grouped:  # loop over query sequences
+                    self.n_total += 1
+                    self.process_query(bam, list(reads), perfplotter)
+
+            if not self.args.no_clean:
+                os.remove(outfname)
+                if self.args.n_procs > 1:  # still need the top-level workdir
+                    os.rmdir(workdir)
 
         if perfplotter != None:
             perfplotter.plot()
-
-        print '    sw read time: %.3f' % (time.time() - start)
-        if not self.args.no_clean:
-            os.remove(outfname)
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):

@@ -122,7 +122,8 @@ class PartitionDriver(object):
         self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
 
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
-        os.rmdir(self.args.workdir)
+        if not self.args.no_clean:
+            os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
@@ -144,7 +145,8 @@ class PartitionDriver(object):
         final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=False)
 
         # self.clean(waterer)
-        os.rmdir(self.args.workdir)
+        if not self.args.no_clean:
+            os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def point_estimate(self):
@@ -155,10 +157,11 @@ class PartitionDriver(object):
 
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir, plot_performance=self.args.plot_performance)
         # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
+        if not self.args.no_clean:
+            os.rmdir(self.args.workdir)
 
         if self.args.plot_performance:
             plotting.compare_directories('/var/www/sharing/dralph/partis/performance/plots/', 'hmm', '/var/www/sharing/dralph/partis/sw_performance/plots/', 'smith-water', xtitle='inferred - true', stats='rms')
-        os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
@@ -186,8 +189,8 @@ class PartitionDriver(object):
         if self.args.n_procs > 1:
             self.split_hmm_input(csv_infname)
             for iproc in range(self.args.n_procs):
-                p = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
-                p.start()
+                proc = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
+                proc.start()
             while len(active_children()) > 0:
                 print ' wait %s' % len(active_children()),
                 sys.stdout.flush()
