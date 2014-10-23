@@ -279,8 +279,12 @@ class Recombinator(object):
         leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
 
         # build up the command line
+        bpp_binary = os.getcwd() + '/packages/bpp/bin/bppseqgen'
+        if not os.path.exists(bpp_binary):
+            print 'ERROR bpp not found in %s' % os.path.dirname(bpp_binary)
+            assert False
         command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + os.getcwd() + '/bpp/lib\n'
-        command += os.getcwd() + '/bpp/bin/bppseqgen'
+        command += bpp_binary
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
         command += ' number_of_sites=' + str(len(seq))

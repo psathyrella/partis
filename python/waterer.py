@@ -1,6 +1,7 @@
 import time
 import sys
 import json
+import math
 import csv
 import os
 import itertools
@@ -45,40 +46,87 @@ class Waterer(object):
         self.n_total = 0
 
     # ----------------------------------------------------------------------------------------
+    def clean(self):
+        if self.pcounter != None:
+            self.pcounter.clean()
+
+    # ----------------------------------------------------------------------------------------
     def run(self):
-        outfname = self.args.workdir + '/query-seqs.bam'
-        self.run_smith_waterman(outfname)
-        self.read_output(outfname, plot_performance=self.args.plot_performance)
+        base_infname = 'query-seqs.fa'
+        base_outfname = 'query-seqs.bam'
+        self.write_vdjalign_input(base_infname)
+        if self.args.n_procs == 1:
+            self.run_vdjalign(base_infname, base_outfname, -1)
+        else:
+            for iproc in range(self.args.n_procs):
+                self.run_vdjalign(base_infname, base_outfname, iproc)
+            self.merge_output(base_outfname)
+        self.read_output(self.args.workdir + '/' + base_outfname, plot_performance=self.args.plot_performance)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write_counts()
 
     # ----------------------------------------------------------------------------------------
-    def clean(self):
-        if self.pcounter != None:
-            self.pcounter.clean()
+    def write_vdjalign_input(self, base_infname):
+        # first make a list of query names so we can iterate over an ordered collection
+        ordered_info = []
+        for query_name in self.input_info:
+            ordered_info.append(query_name)
+
+        queries_per_proc = float(len(self.input_info)) / self.args.n_procs
+        n_queries_per_proc = int(math.ceil(queries_per_proc))
+        if self.args.n_procs == 1:  # double check for rounding problems or whatnot
+            assert n_queries_per_proc == len(self.input_info)
+        for iproc in range(self.args.n_procs):
+            workdir = self.args.workdir
+            if self.args.n_procs > 1:
+                workdir += '/sw-' + str(iproc)
+                utils.prep_dir(workdir)
+            infname = workdir + '/' + base_infname
+            with opener('w')(workdir + '/' + base_infname) as sub_infile:
+                for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
+                    if iquery >= len(ordered_info):
+                        break
+                    query_name = ordered_info[iquery]
+                    sub_infile.write('>' + query_name + ' NUKES\n')
+                    sub_infile.write(self.input_info[query_name]['seq'] + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def run_smith_waterman(self, outfname):
+    def run_vdjalign(self, base_infname, base_outfname, iproc=-1):
         """
-        Run smith-waterman alignment on the seqs in <infname>, and toss all the top matches into <outfname>.
-        Then run through <outfname> to get the top hits and their locations to pass to the hmm.
-        Then run the hmm on each gene set.
+        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
-        infname = self.args.workdir + '/query-seqs.fa'
-        with opener('w')(infname) as swinfile:  # write *all* the input seqs to file, i.e. run s-w on all of 'em at once
-            for query_name, line in self.input_info.iteritems():
-                swinfile.write('>' + query_name + ' NUKES\n')
-                swinfile.write(line['seq'] + '\n')
-        start = time.time()
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
+        start = time.time()
+        workdir = self.args.workdir
+        if iproc >= 0:
+            workdir += '/sw-' + str(iproc)
+        infname = workdir + '/' + base_infname
+        outfname = workdir + '/' + base_outfname
         check_call(self.args.ighutil_dir + '/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 5 --mismatch 3 --gap-open 1000 ' + infname + ' ' + outfname, shell=True)
         if not self.args.no_clean:
             os.remove(infname)
         print '    s-w time: %.3f' % (time.time()-start)
-    
+
+    # ----------------------------------------------------------------------------------------
+    def merge_output(self, base_outfname):
+        samtools_binary = os.getcwd() + '/packages/samtools/samtools'
+        if not os.path.exists(samtools_binary):
+            print 'ERROR samtools not found in %s' % os.path.dirname(samtools_binary)
+            assert False
+        arg_list = [samtools_binary, 'merge', self.args.workdir + '/' + base_outfname]
+        for iproc in range(self.args.n_procs):
+            arg_list.append(self.args.workdir + '/sw-' + str(iproc) + '/' + base_outfname)
+
+        check_call(arg_list)
+
+        if not self.args.no_clean:
+            for iproc in range(self.args.n_procs):
+                os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_outfname)
+                os.rmdir(self.args.workdir + '/sw-' + str(iproc))
+
     # ----------------------------------------------------------------------------------------
     def read_output(self, outfname, plot_performance=False):
         start = time.time()
@@ -93,6 +141,7 @@ class Waterer(object):
             grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
             for _, reads in grouped:  # loop over query sequences
                 self.n_total += 1
+                print 'processing...'
                 self.process_query(bam, list(reads), perfplotter)
 
         if perfplotter != None:

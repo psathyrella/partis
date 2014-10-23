@@ -239,6 +239,34 @@ class PartitionDriver(object):
                     writer.writerow(info[iquery])
 
     # ----------------------------------------------------------------------------------------
+    def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
+        start = time.time()
+
+        # build the command line
+        cmd_str = './packages/ham/ham'
+        cmd_str += ' --algorithm ' + algorithm
+        if self.args.pair:
+            cmd_str += ' --pair '
+        cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
+        cmd_str += ' --debug ' + str(self.args.debug)
+        cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
+        cmd_str += ' --datadir ' + self.args.datadir
+        cmd_str += ' --infile ' + csv_infname
+        cmd_str += ' --outfile ' + csv_outfname
+
+        workdir = self.args.workdir
+        if iproc >= 0:
+            workdir += '/hmm-' + str(iproc)
+            cmd_str = cmd_str.replace(self.args.workdir, workdir)
+
+        check_call(cmd_str, shell=True)
+
+        if not self.args.no_clean:
+            os.remove(csv_infname.replace(self.args.workdir, workdir))
+
+        print '    hmm run time: %.3f' % (time.time() - start)
+
+    # ----------------------------------------------------------------------------------------
     def merge_hmm_outputs(self, outfname):
         header = None
         outfo = []
@@ -453,34 +481,6 @@ class PartitionDriver(object):
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
                 print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm: %s' % (parameter_dir, ','.join([utils.color_gene(gene) for gene in skipped_gene_matches]))
-
-    # ----------------------------------------------------------------------------------------
-    def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
-        start = time.time()
-
-        # build the command line
-        cmd_str = './packages/ham/ham'
-        cmd_str += ' --algorithm ' + algorithm
-        if self.args.pair:
-            cmd_str += ' --pair '
-        cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
-        cmd_str += ' --debug ' + str(self.args.debug)
-        cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
-        cmd_str += ' --datadir ' + self.args.datadir
-        cmd_str += ' --infile ' + csv_infname
-        cmd_str += ' --outfile ' + csv_outfname
-
-        workdir = self.args.workdir
-        if iproc >= 0:
-            workdir += '/hmm-' + str(iproc)
-            cmd_str = cmd_str.replace(self.args.workdir, workdir)
-
-        check_call(cmd_str, shell=True)
-
-        if not self.args.no_clean:
-            os.remove(csv_infname.replace(self.args.workdir, workdir))
-
-        print '    hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter):
