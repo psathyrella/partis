@@ -470,7 +470,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
 
     if len(insertions) != len(d_line) or len(insertions) != len(vj_line):
         print 'ERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
-        assert no_space
+        # assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
     # print insert, d, and vj lines

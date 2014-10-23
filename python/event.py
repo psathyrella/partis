@@ -21,6 +21,7 @@ class RecombinationEvent(object):
         self.tryp_position = -1  # NOTE this is the position *within* the j gene *only*
         self.final_tryp_position = -1  # while *this* is the tryp position in the final recombined sequence
         self.erosions = {}  # erosion lengths for the event
+        self.effective_erosions = {}  # v left and j right erosions
         self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
         self.insertion_lengths = {}
         self.insertions = {}
@@ -44,6 +45,7 @@ class RecombinationEvent(object):
             self.insertion_lengths[boundary] = int(vdj_combo_label[utils.index_keys[boundary + '_insertion']])
         for erosion_location in utils.real_erosions:
             self.erosions[erosion_location] = int(vdj_combo_label[utils.index_keys[erosion_location + '_del']])
+        # NOTE set effective erosions later
 
         # set the original conserved codon words, so we can revert them if they get mutated
         self.original_cyst_word = str(self.original_seqs['v'][self.cyst_position : self.cyst_position + 3 ])
@@ -53,7 +55,7 @@ class RecombinationEvent(object):
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_tryp_position(self, debug=False):
+    def set_final_tryp_position(self, debug=False, total_length_from_right=0):
         """ Set tryp position in the final, combined sequence. """
         self.final_tryp_position = utils.find_tryp_in_joined_seq(self.tryp_position,
                                                                 self.eroded_seqs['v'],
@@ -70,6 +72,11 @@ class RecombinationEvent(object):
             print '  final_tryp_position - cyst_position + 3 = %d - %d + 3 = %d (should be %d)' % (self.final_tryp_position, self.cyst_position, final_cdr3_length, self.cdr3_length)
         utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.cyst_position, self.final_tryp_position)
         assert final_cdr3_length == int(self.cdr3_length)
+
+        # for erosion_location in utils.effective_erosions:
+            # self.effective_erosions[erosion_location + '_del'] = 0
+        self.effective_erosions['j_3p'] = 0  # TODO make this less hackey
+        self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right  # TODO make this less hackey
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, total_length_from_right=0):
@@ -104,8 +111,8 @@ class RecombinationEvent(object):
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
                 row['seq'] = self.final_seqs[imute]
-                row['v_5p_del'] = len(row['seq']) - total_length_from_right
-                row['j_3p_del'] = 0  # until further notice I'm not simulating stuff with a righthand deletion
+                row['v_5p_del'] = self.effective_erosions['v_5p']
+                row['j_3p_del'] = self.effective_erosions['j_3p']
                 if total_length_from_right > 0:
                     row['seq'] = row['seq'][len(row['seq'])-total_length_from_right : ]
                 unique_id = ''  # Hash to uniquely identify the sequence.
@@ -125,12 +132,13 @@ class RecombinationEvent(object):
             line[boundary + '_insertion'] = self.insertions[boundary]
         for erosion_location in utils.real_erosions:
             line[erosion_location + '_del'] = self.erosions[erosion_location]
+        for erosion_location in utils.effective_erosions:
+            line[erosion_location + '_del'] = self.effective_erosions[erosion_location]
         line['cyst_position'] = self.cyst_position
         line['tryp_position'] = self.final_tryp_position
         for imute in range(len(self.final_seqs)):
             line['seq'] = self.final_seqs[imute]
             if total_length_from_right > 0:
-                line['v_5p_del'] = len(line['seq']) - total_length_from_right
                 line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
             utils.print_reco_event(self.germlines, line, one_line=(imute!=0))
 

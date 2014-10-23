@@ -24,11 +24,10 @@ class Recombinator(object):
     #    writing mute freqs and running bppseqgen five times for each recombination event
 
     def __init__(self, args, total_length_from_right=0):
-        assert os.path.exists(self.args.parameter_dir)
-
         self.workdir = '/tmp/' + os.getenv('USER') + '/recombinator/' + str(os.getpid())
         utils.prep_dir(self.workdir)
         self.args = args
+        assert os.path.exists(self.args.parameter_dir)
         # parameters that control recombination, erosion, and whatnot
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
     
@@ -84,7 +83,7 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_tryp_position()
+        reco_event.set_final_tryp_position(total_length_from_right=self.total_length_from_right)
 
         if self.args.naivety == 'M':
             self.add_mutants(reco_event)  # toss a bunch of clones: add point mutations
@@ -283,7 +282,7 @@ class Recombinator(object):
         if not os.path.exists(bpp_binary):
             print 'ERROR bpp not found in %s' % os.path.dirname(bpp_binary)
             assert False
-        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + os.getcwd() + '/bpp/lib\n'
+        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + os.getcwd() + '/packages/bpp/lib\n'
         command += bpp_binary
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
