@@ -29,7 +29,7 @@ class Waterer(object):
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
         self.info = {}
-        self.info['all_best_matches'] = set()  # set of all the matches we found
+        self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from',parameter_dir

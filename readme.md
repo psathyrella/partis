@@ -58,10 +58,11 @@ p.s. did I use 'annotations' correctly? I don\'t know!
 
 And, you can run the forward pair algorithm to partition the simulated sequences:
 ```
-./runpart.py --partition --pair --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters
+./runpart.py --partition --pair --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters --n_procs 10 --n_max_per_region 2
 ```
 This runs a hamming preclustering step, then a stripped-down (fast) HMM preclustering step, then a final HMM step. The last few rows of the output are the clusters.
-Since the simulator ran with clones of 5 seqs, there should be six clusters of five sequences each.
+Since the simulator ran with clones of 5 seqs, there should be six clusters of five sequences each. Note that we reduce <n_max_per_region> from the default 5 to 2
+because when we run on pairs of sequences, we take the OR of their best matches.
 
 To see the bayes factors that this is clustering on, you can add '--debug 1', although that\'s a bit verbose, so you can also add '--no_clean', which tells it not to clean up its
 temp files in /tmp/$USER/hmms/$pid. The pairwise scores are in files with 'pairscores' in the name.
@@ -78,7 +79,7 @@ I only cache it \'cause to get reliable parameter estimates you have to run over
 
 So now we go back and create the parameter files that we used in the previous steps, starting from some data in ./data/test/data.tsv
 
-run on data to cache parameters and model files in `parameter_dir`
+run on data to cache parameters and model files in `parameter_dir` (adjust <n_procs> as appropriate)
 ```
 ./runpart.py --cache_parameters --seqfile data/test/data.tsv --is_data --v_right_length 70 --parameter_dir caches/new-parameters --n_procs 10 --skip_unproductive
 ```

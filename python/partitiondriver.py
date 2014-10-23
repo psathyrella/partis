@@ -142,8 +142,8 @@ class PartitionDriver(object):
 
         assert self.args.pair
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
-        stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=stripped_clusters, stripped=False)
+        # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
+        final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=False)
 
         # self.clean(waterer)
         os.rmdir(self.args.workdir)
@@ -364,22 +364,27 @@ class PartitionDriver(object):
             print 'WARNING %s sw v right: %d  (expecting about %d)' % (query_name, sw_v_right, self.args.v_right_length)
 
     # ----------------------------------------------------------------------------------------
-    def check_hmm_existence(self, gene_list, parameter_dir):
+    def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir, query_name, second_query_name=None):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
         # first get the list of genes for which we don't have hmm files
         genes_to_remove = []
         for gene in gene_list:
             hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
             if not os.path.exists(hmmfname):
-                print 'WARNING removing match %s from gene list (d.n.e.: %s)' % (gene, hmmfname)
+                if self.args.debug:
+                    print '    WARNING %s removed from match list for %s %s (not in %s)' % (utils.color_gene(gene), query_name, '' if second_query_name==None else second_query_name, os.path.dirname(hmmfname))
+                skipped_gene_matches.add(gene)
                 genes_to_remove.append(gene)
+
         # then remove 'em from <gene_list>
         for gene in genes_to_remove:
             gene_list.remove(gene)
+
         # and finally, make sure we're left with at least one gene in each region
         for region in utils.regions:
             if 'IGH' + region.upper() not in ':'.join(gene_list):
-                print 'ERROR no %s genes in %s' % (region, ':'.join(gene_list))
+                print 'ERROR no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if second_query_name==None else second_query_name)
+                print '    skipped %s' % (':'.join(skipped_gene_matches))
                 assert False
 
     # ----------------------------------------------------------------------------------------
@@ -408,26 +413,34 @@ class PartitionDriver(object):
                     k_d['min'] = min(info['k_d']['min'], second_info['k_d']['min'])
                     k_d['max'] = max(info['k_d']['max'], second_info['k_d']['max'])
 
-                    only_genes = info['all']
-                    second_only_genes = second_info['all']
+                    only_genes = info['all'].split(':')
+                    second_only_genes = second_info['all'].split(':')
+                    self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
+                    self.check_hmm_existence(second_only_genes, skipped_gene_matches, parameter_dir, second_query_name)
                     if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
-                        only_genes = info['v_gene'] + ':' + info['d_gene'] + ':' + info['j_gene']
-                        second_only_genes = second_info['v_gene'] + ':' + second_info['d_gene'] + ':' + second_info['j_gene']
+                        assert False  # need to check some things here
+                        only_genes = [ info[region + '_gene'] for region in utils.regions ]
+                        second_only_genes = [ second_info[region + '_gene'] for region in utils.regions ]
                         k_v['min'] = info['k_v']['best']
                         k_v['max'] = k_v['min'] + 1
                         k_d['min'] = info['k_d']['best']
                         k_d['max'] = k_d['min'] + 1
 
-                    only_genes = []
-                    tmp_set = set(info['all'].split(':')) | set(second_info['all'].split(':'))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
-                    for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, skip genes for which this didn't happen
-                        if gene not in sw_info['all_best_matches']:
-                            skipped_gene_matches.add(gene)
-                            continue
-                        only_genes.append(gene)
-                    self.check_hmm_existence(only_genes, parameter_dir)
+                    final_only_genes = []
+                    tmp_set = set(only_genes) | set(second_only_genes)  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
+                    # for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match in at least one query. Skip genes for which this didn't happen
+                    #     if gene not in sw_info['all_best_matches']:
+                    #         # NOTE this shouldn't happen much any more since now I'm skipping matches for which we don't have hmm files
+                    #         if self.args.debug:
+                    #             print '     WARNING removing %s (not in best sw matches)' % utils.color_gene(gene)
+                    #         skipped_gene_matches.add(gene)
+                    #         continue
+                    #     final_only_genes.append(gene)
+                    # print only_genes, second_only_genes
+                    final_only_genes = list(tmp_set)
+                    self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, query_name, second_query_name)
                     csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # ha ha, cool! I just realized csv.DictWriter can handle space-separated files TODO switch over
-                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(only_genes),
+                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes),
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
             else:
                 for query_name in self.input_info:
@@ -441,15 +454,17 @@ class PartitionDriver(object):
     
                     only_genes = []
                     tmp_set = set(info['all'].split(':'))
-                    for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, so skip genes for which this didn't happen
-                        if self.args.cache_parameters and gene not in sw_info['all_best_matches']:  # except if we're *not* caching parameters, then we hopefully *do* have the gene's hmm written... *sigh* this is getting complicated
-                            skipped_gene_matches.add(gene)
-                            continue
-                        only_genes.append(gene)
-                    self.check_hmm_existence(only_genes, parameter_dir)
+                    # for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, so skip genes for which this didn't happen
+                    #     if self.args.cache_parameters and gene not in sw_info['all_best_matches']:  # except if we're *not* caching parameters, then we hopefully *do* have the gene's hmm written... *sigh* this is getting complicated
+                    #         # NOTE this shouldn't happen much any more since now I'm skipping matches for which we don't have hmm files
+                    #         skipped_gene_matches.add(gene)
+                    #         continue
+                    #     only_genes.append(gene)
+                    only_genes = list(tmp_set)
+                    self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
-                print '    were never the best sw match for any query, so removing from consideration for hmm: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])
+                print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm: %s' % (parameter_dir, ','.join([utils.color_gene(gene) for gene in skipped_gene_matches]))
 
     # ----------------------------------------------------------------------------------------
     def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
