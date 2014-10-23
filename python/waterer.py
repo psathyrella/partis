@@ -186,9 +186,6 @@ class Waterer(object):
             else:
                 print '%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score),
             print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]),
-            if region == 'v':
-                v_right_length = len(self.germline_seqs[region][gene]) - glbounds[0]  # germline v length minus (germline) start of v match
-                print '(v right %d)' % v_right_length,
             print ''
             print '%51s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
             print '  %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])),
@@ -246,12 +243,11 @@ class Waterer(object):
                 best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions, v_right_length, perfplotter=None):
+    def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions, perfplotter=None):
         assert query_name not in self.info
         self.info[query_name] = {}
         self.info[query_name]['k_v'] = kvals['v']
         self.info[query_name]['k_d'] = kvals['d']
-        self.info[query_name]['v_right_length'] = v_right_length
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
         assert codon_positions['v'] != -1
@@ -364,7 +360,7 @@ class Waterer(object):
 
         for region in utils.regions:
             if region not in best:
-                print ' no',region,'match found for',query_name  # TODO if no d match found, should just assume entire d was eroded
+                print '    no',region,'match found for',query_name  # TODO if no d match found, should just assume entire d was eroded
                 if not self.args.is_data:
                     print '    true:'
                     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0, extra_str='    ')
@@ -405,7 +401,6 @@ class Waterer(object):
                 print '  expanding k_d'
             k_d_max = max(8, k_d_max)
             
-        v_right_length = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][0]  # germline v length minus (germline) start of v match
         if 'IGHJ4*' in best['j'] and self.germline_seqs['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
             if self.args.debug:
                 print '  doubly expanding k_d'
@@ -417,9 +412,9 @@ class Waterer(object):
         k_v_max += self.args.default_v_fuzz
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz
-        assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0 and v_right_length > 0
+        assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
         kvals = {}
         kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
 
-        self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions, v_right_length=v_right_length, perfplotter=perfplotter)
+        self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions, perfplotter=perfplotter)

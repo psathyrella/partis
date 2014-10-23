@@ -34,8 +34,6 @@ class PartitionDriver(object):
         self.args = args
         self.germline_seqs = utils.read_germlines(self.args.datadir)
 
-        self.safety_buffer_that_I_should_not_need = 35  # the default one is plugged into the cached hmm files, so if this v_right_length is really different, we'll have to rewrite the hmms TODO fix this
-
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
         with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
@@ -354,14 +352,8 @@ class PartitionDriver(object):
         for gene in gene_list:
             print '   ', utils.color_gene(gene),
             sys.stdout.flush()
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], v_right_length=self.args.v_right_length)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene])
             writer.write()
-
-    # ----------------------------------------------------------------------------------------
-    def check_v_right(self, sw_v_right, query_name):
-        """ make sure the v_right_length from smith waterman isn't too different to the one we assume when writing the hmm files """
-        if abs(sw_v_right - self.args.v_right_length) >= self.safety_buffer_that_I_should_not_need:
-            print 'WARNING %s sw v right: %d  (expecting about %d)' % (query_name, sw_v_right, self.args.v_right_length)
 
     # ----------------------------------------------------------------------------------------
     def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir, query_name, second_query_name=None):
@@ -400,8 +392,6 @@ class PartitionDriver(object):
                 for query_name, second_query_name in self.get_pairs(preclusters):  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
                     info = sw_info[query_name]
                     second_info = sw_info[second_query_name]
-    
-                    self.check_v_right(info['v_right_length'], query_name)
     
                     # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
                     assert len(re.findall('J[123]P', info['j_gene'])) == 0
@@ -449,8 +439,6 @@ class PartitionDriver(object):
                             print '    %s not found in sw info' % query_name
                         continue
                     info = sw_info[query_name]
-    
-                    self.check_v_right(info['v_right_length'], query_name)
     
                     only_genes = []
                     tmp_set = set(info['all'].split(':'))
@@ -522,16 +510,17 @@ class PartitionDriver(object):
                             if self.args.pair:
                                 print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']),
                             print ''
-                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=True)
-                        if line['cdr3_length'] == -1:
-                            print '      ERROR %s failed to add match info' % line['unique_id']
+                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=(self.args.debug > 0))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
                             if perfplotter != None:
                                 perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
                     if self.args.debug:
-                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=False)
+                        if last_id == this_id:
+                            utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=False)
+                        if line['cdr3_length'] == -1:
+                            print '      ERROR %s failed to add match info' % line['unique_id']
                         self.print_hmm_output(line, print_true=(last_id != this_id))
                     last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                 else:  # for forward, write the pair scores to file to be read by the clusterer

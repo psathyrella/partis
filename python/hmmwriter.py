@@ -58,7 +58,7 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, v_right_length=-1):
+    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
@@ -66,7 +66,6 @@ class HmmWriter(object):
         # crappy parameters I made up:
         self.null_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
         self.insert_mute_prob = 0.1  # TODO don't pull this ooya
-        self.v_right_length = v_right_length  # only take *this* much of the v gene, starting from the *right* end. mimics the fact that our reads don't extend all the way through v
         self.fuzz_around_v_left_edge = 20.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
         self.default_mute_rate = self.insert_mute_prob
 

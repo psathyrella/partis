@@ -54,9 +54,8 @@ Run viterbi to get the (by default five-) most likely annotations on one of the 
 ```
 ./runpart.py --point_estimate --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters --n_max_queries 1 --debug 1
 ```
-p.s. did I use 'annotations' correctly? I don\'t know!
 
-And, you can run the forward pair algorithm to partition the simulated sequences:
+And, you can run the forward pair algorithm to partition the simulated sequences (adjust <n_procs> as appropriate):
 ```
 ./runpart.py --partition --pair --seqfile data/test/simu.csv --parameter_dir caches/parameters/hmm_parameters --n_procs 10 --n_max_per_region 2
 ```
