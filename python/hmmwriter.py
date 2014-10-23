@@ -63,11 +63,8 @@ class HmmWriter(object):
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
 
-        # crappy parameters I made up:
-        self.null_mute_freq = 1e-6  # TODO switch to something more sensible than a random hardcoded eps
-        self.insert_mute_prob = 0.1  # TODO don't pull this ooya
-        self.fuzz_around_v_left_edge = 20.0  # width of the normal distribution I'm using to account for uncertainty about where we jump into the v on the left side. TODO maybe change this?
-        self.default_mute_rate = self.insert_mute_prob
+        self.insert_mute_prob = 0.0
+        self.mean_mute_freq = 0.0
 
         self.outdir = outdir
         self.region = utils.get_region(gene_name)
@@ -317,17 +314,25 @@ class HmmWriter(object):
         if i_try > 0:
             print ''
         
-        if os.path.exists(mutefname):
-            with opener('r')(mutefname) as mutefile:
-                reader = csv.DictReader(mutefile)
-                for line in reader:
-                    freq = float(line['mute_freq'])
-                    if freq == 0.0:
-                        freq = self.null_mute_freq
-                    self.mute_freqs[int(line['position'])] = freq
-        else:
-            for ipos in range(len(self.germline_seq)):
-                self.mute_freqs[ipos] = self.default_mute_rate
+        assert os.path.exists(mutefname)
+
+        total = 0.0
+        n_positions = 0
+        with opener('r')(mutefname) as mutefile:
+            reader = csv.DictReader(mutefile)
+            for line in reader:
+                freq = float(line['mute_freq'])
+                lo_err = float(line['lo_err'])
+                hi_err = float(line['hi_err'])
+                assert freq >= 0.0 and lo_err >= 0.0 and hi_err >= 0.0  # you just can't be too careful
+                if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
+                    freq = 0.5 * (lo_err + hi_err)
+                self.mute_freqs[int(line['position'])] = freq
+                total += freq
+                n_positions += 1
+        assert n_positions > 0
+        self.mean_mute_freq = total / n_positions
+        self.insert_mute_prob = self.mean_mute_freq
 
     # ----------------------------------------------------------------------------------------
     def add_region_entry_transitions(self, state):
@@ -437,6 +442,7 @@ class HmmWriter(object):
         assert nuke2 == '' or nuke2 in utils.nukes
         prob = 1.0
         if is_insert:
+            assert self.insert_mute_prob != 0.0
             if nuke2 == '':  # single (non-pair) emission
                 prob = 1./len(utils.nukes)
             else:
@@ -449,13 +455,14 @@ class HmmWriter(object):
             assert germline_nuke != ''
 
             # first figure out the mutation frequency we're going to use
-            mute_freq = self.null_mute_freq
+            mute_freq = self.mean_mute_freq
             if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
                 mute_freq = self.mute_freqs[inuke]
 
             # then calculate the probability
             if nuke2 == '':
-                if nuke1 == germline_nuke:
+                assert mute_freq != 1.0 and mute_freq != 0.0
+                if nuke1 == germline_nuke:  # TODO note that if mute_freq is 1.0 this gives zero
                     prob = 1.0 - mute_freq
                 else:
                     prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases

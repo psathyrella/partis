@@ -80,7 +80,7 @@ So now we go back and create the parameter files that we used in the previous st
 
 run on data to cache parameters and model files in `parameter_dir` (adjust <n_procs> as appropriate)
 ```
-./runpart.py --cache_parameters --seqfile data/test/data.tsv --is_data --v_right_length 70 --parameter_dir caches/new-parameters --n_procs 10 --skip_unproductive
+./runpart.py --cache_parameters --seqfile data/test/data.tsv --is_data --parameter_dir caches/new-parameters --n_procs 10 --skip_unproductive
 ```
 
 this does the following:

@@ -27,7 +27,6 @@ effective_erosions = ['v_5p', 'j_3p']
 boundaries = ('vd', 'dj')
 humans = ('A', 'B', 'C')
 nukes = ('A', 'C', 'G', 'T')
-maturities = ['memory', 'naive']  # NOTE eveywhere else I call this 'naivety' and give it the values 'M' or 'N'
 naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
