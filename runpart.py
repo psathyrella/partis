@@ -2,12 +2,10 @@
 import argparse
 import sys
 import os
-
 sys.path.insert(1, './python')
+
 import utils
 
-# run on data:
-#./runpart.py --v_right_length 56 --is_data --parameter_dir tmp/data/parameters-100000/hmm_parameters --human A --n_max_queries 1000 --debug 1 --seqfile /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2 --point_estimate --queries '04-A-M_0000184' --n_max_per_region 10
 # ----------------------------------------------------------------------------------------
 def get_arg_list(arg):  # make lists from args that are passed as strings of colon-separated values
     if arg == None:
@@ -28,6 +26,7 @@ parser.add_argument('--cache_parameters', action='store_true')  # cache paramete
 parser.add_argument('--point_estimate', action='store_true')
 parser.add_argument('--partition', action='store_true')
 
+# action flags
 parser.add_argument('--pair', action='store_true')
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--skip_unproductive', action='store_true')  # skip unproductive rearrangements
@@ -51,7 +50,6 @@ parser.add_argument('--n_max_per_region', type=int, default=5)  # number of best
 parser.add_argument('--n_best_events', type=int, default=3)
 parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around with these default fuzzes
 parser.add_argument('--default_d_fuzz', type=int, default=2)
-parser.add_argument('--v_right_length', type=int, default=89)  # length of v gene starting from junction with d (used mainly for writing hmms model files)
 parser.add_argument('--ighutil_dir', default=os.getenv('HOME') + '/.local')  # this is where '% pip install --user' puts things by default
 parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
 
