@@ -86,17 +86,18 @@ class HmmWriter(object):
         self.erosion_probs = {}
         self.read_erosion_probs()  # try this exact gene, but...
         if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other alleles
-            print '\n  no erosion probs for', self.gene_name, 'so try other alleles'
+            print '\n    no erosion probs for', self.gene_name, 'so try other alleles'
             self.read_erosion_probs(use_other_alleles=True)
             if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other 'primary versions'
                 print '    couldn\'t find any alleles, either, so try other primary versions'
                 self.read_erosion_probs(use_other_alleles=False, use_other_primary_versions=True)
+        assert len(self.erosion_probs) > 0
 
         self.insertion_probs = {}
         if self.region != 'v':
             self.read_insertion_probs(use_other_alleles=False)
             if len(self.insertion_probs) == 0:  # try again using all the alleles for this gene
-                print '\n  no insertion probs found for', self.gene_name, 'so try other alleles'
+                print '\n    no insertion probs found for', self.gene_name, 'so try other alleles'
                 self.read_insertion_probs(use_other_alleles=True)
                 if len(self.insertion_probs) == 0:  # ...if we don't have info for it use other 'primary versions'
                     print '    couldn\'t find any alleles, either, so try other primary versions'
@@ -105,6 +106,7 @@ class HmmWriter(object):
                         assert self.region == 'j'
                         print '     hrg, can\'t find that either. Using IGHJ4*02_F, he\'s a popular fellow'
                         self.read_insertion_probs(use_other_alleles=False, use_other_primary_versions=False, use_specific_version='IGHJ4*02_F')
+            assert len(self.insertion_probs) > 0
 
         self.mute_freqs = {}  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
         if self.naivety == 'M':  # mutate if not naive
@@ -211,7 +213,18 @@ class HmmWriter(object):
                     print '    used', ' '.join(genes_used)
 
                 if len(self.erosion_probs[erosion]) == 0:  # if we didn't find any erosion information return without doing anything else (we'll try again, looking at other genes)
+                    self.erosion_probs = {}
                     return
+
+
+                # # for fake v_5p and j_3p, interpolate the bases for which we didn't find info
+                # if erosion in utils.effective_erosions:
+                #     for inuke in range(len(self.germline_seq)):
+                #         n_eroded = inuke if '5p' in erosion else len(self.germline_seq)) - inuke - 1
+                #         nearest_left_neighbor = -1
+                #         ipos = inuke
+                #         while ipos >= 0
+                #             if 
 
                 # and finally, normalize
                 test_total = 0.0
@@ -259,7 +272,17 @@ class HmmWriter(object):
                 print '    used', ' '.join(genes_used)
 
             if len(self.insertion_probs[self.insertion]) == 0:  # if we didn't find any insertion information, return without doing anything else (we'll try again, looking at other genes)
+                self.insertion_probs = {}
                 return
+
+            if 0 not in self.insertion_probs[self.insertion] or len(self.insertion_probs[self.insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information. May as well just use another gene
+                print '\n    resetting insertion probs', self.insertion_probs[self.insertion]
+                self.insertion_probs = {}
+                return
+
+            # if 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) == 1:  # if we only observed zero-length insertions, add a single 1-insertion TODO shouldn't need this if you're running on lots of sequences
+            #     self.insertion_probs[self.insertion][1] = 1
+            #     total += 1
 
             # and finally, normalize
             test_total = 0.0
@@ -347,19 +370,16 @@ class HmmWriter(object):
         # first add transitions to the insert state
         if self.region != 'v':
             if state.name == 'init':
-                if 0 in self.insertion_probs[self.insertion]:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0
-                    non_zero_insertion_prob = 1.0 - self.insertion_probs[self.insertion][0]
-                else:
-                    print 'WARNING did not observe zero-length insertion in %s. This better be because you have very little data.' % self.gene_name  #  otherwise it means a geometric distribution is a crappy approximation
-                    non_zero_insertion_prob = 1.0 - self.eps
+                if 0 not in self.insertion_probs[self.insertion] or self.insertion_probs[self.insertion][0] == 1.0:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0
+                    print 'arg',self.insertion_probs[self.insertion]
+                    assert False
+                non_zero_insertion_prob = 1.0 - self.insertion_probs[self.insertion][0]
             elif state.name == 'insert':  # we want the prob of *leaving* the insert state to be 1/insertion_length, so multiply all the region entry probs (below) by this
                 mean_length = self.get_mean_insert_length()
                 inverse_length = 0.0
                 if mean_length > 0.0:
                     inverse_length = 1.0 / mean_length
                 non_zero_insertion_prob = 1.0 - inverse_length  # set the prob of *remaining* in the insert state to [1 - 1/mean_insert_length]
-            if state.name == 'init':
-                print self.gene_name, non_zero_insertion_prob
             state.add_transition('insert', non_zero_insertion_prob)
 
         # then add transitions to the region's internal states
@@ -367,7 +387,7 @@ class HmmWriter(object):
         for inuke in range(len(self.germline_seq)):
             erosion = self.region + '_5p'
             erosion_length = inuke
-            if erosion_length in self.erosion_probs[erosion]:  # NOTE this disallows erosion lengths that we didn't see in data
+            if erosion_length in self.erosion_probs[erosion]:  # TODO this disallows erosions that we didn't see in data
                 prob = self.erosion_probs[erosion][erosion_length]
                 # if prob < utils.eps:
                 #     continue

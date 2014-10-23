@@ -179,8 +179,8 @@ class PartitionDriver(object):
             perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/performance', 'hmm')
 
         if prefix == '' and stripped:
-            prefix = 'stripped '
-        print '\n%shmm' % prefix
+            prefix = 'stripped'
+        print '\nhmm %s' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
@@ -371,6 +371,10 @@ class PartitionDriver(object):
             if not os.path.exists(hmmfname):
                 print 'WARNING removing match %s from gene list (d.n.e.: %s)' % (gene, hmmfname)
                 gene_list.remove(gene)
+        for region in utils.regions:
+            if 'IGH' + region.upper() not in ':'.join(gene_list):
+                print 'ERROR no %s genes in %s' % (region, ':'.join(gene_list))
+                assert False
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
@@ -496,7 +500,6 @@ class PartitionDriver(object):
                 if algorithm == 'viterbi':
                     this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
-                        last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                         if self.args.debug:
                             print '%-20s %20s' % (line['unique_id'], line['second_unique_id']),
                             if self.args.pair:
@@ -513,6 +516,7 @@ class PartitionDriver(object):
                     if self.args.debug:
                         utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=False)
                         self.print_hmm_output(line, print_true=(last_id != this_id))
+                    last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))

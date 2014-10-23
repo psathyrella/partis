@@ -105,6 +105,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
+# ----------------------------------------------------------------------------------------
+        return 1.0  # TODO yah decide this
+# ----------------------------------------------------------------------------------------
         choice_prob = 1.0
         if not self.from_scratch:
             if gene in self.gene_choice_probs[region]:
@@ -140,7 +143,8 @@ class Waterer(object):
             glbounds = (read.pos, read.aend)
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
-            
+
+            # TODO do I really want to expand v left and j right?
             # check for left-side v erosion  TODO it would make sense to change the score when you expand the boundaries
             #     S-W allows the v match to start to the right of the lefthand base in the query sequence, which makes little sense in most cases.
             #     So, we artificially expand the left v boundaries, presumably adding a few mutated bases. TODO think about whether this is the proper long-term solution
