@@ -16,8 +16,8 @@ from parametercounter import ParameterCounter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs, from_scratch=True, parameter_dir='', write_parameters=False, plotdir=''):
-        if write_parameters or not from_scratch:
+    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir='', write_parameters=False, plotdir=''):
+        if write_parameters:
             assert parameter_dir != ''
         self.args = args
         self.input_info = input_info
@@ -30,8 +30,7 @@ class Waterer(object):
                 utils.prep_dir(plotdir + '/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found
-        self.from_scratch = from_scratch
-        if not self.from_scratch:
+        if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from',parameter_dir
             self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
@@ -105,15 +104,11 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
-# ----------------------------------------------------------------------------------------
-        return 1.0  # TODO yah decide this
-# ----------------------------------------------------------------------------------------
         choice_prob = 1.0
-        if not self.from_scratch:
-            if gene in self.gene_choice_probs[region]:
-                choice_prob = self.gene_choice_probs[region][gene]
-            else:
-                choice_prob = 0.0  # TODO choose something else?
+        if gene in self.gene_choice_probs[region]:
+            choice_prob = self.gene_choice_probs[region][gene]
+        else:
+            choice_prob = 0.0  # TODO choose something else?
         return choice_prob
 
     # ----------------------------------------------------------------------------------------
@@ -137,7 +132,9 @@ class Waterer(object):
                 raw_best[region] = gene
 
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
-            score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
+            score = raw_score
+            if self.args.apply_choice_probs_in_sw:
+                score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
             # set bounds  TODO the s-w allows the j right edge to be chopped off -- I should skip the matches where different amounts are chopped off in the query and germline. EDIT well, maybe. I dunno
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
@@ -180,19 +177,20 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
         if self.args.debug:
-            buff_str = (17 - len(gene)) * ' '
-            tmp_val = 0.0
-            try:
+            buff_str = (20 - len(gene)) * ' '
+            tmp_val = score
+            if self.args.apply_choice_probs_in_sw and self.get_choice_prob(region, gene) != 0.0:
                 tmp_val = score / self.get_choice_prob(region, gene)
-            except ZeroDivisionError:
-                pass
-            print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score),
+            if self.args.apply_choice_probs_in_sw:
+                print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score),
+            else:
+                print '%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score),
             print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]),
             if region == 'v':
                 v_right_length = len(self.germline_seqs[region][gene]) - glbounds[0]  # germline v length minus (germline) start of v match
                 print '(v right %d)' % v_right_length,
             print ''
-            print '%48s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
+            print '%51s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
             print '  %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])),
             if region != 'd':
                 print '(%s %d)' % (utils.conserved_codon_names[region], codon_pos),

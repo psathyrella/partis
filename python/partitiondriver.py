@@ -110,7 +110,7 @@ class PartitionDriver(object):
             parameter_dir = self.args.parameter_dir
 
         sw_parameter_dir = parameter_dir + '/sw_parameters'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=True, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
         waterer.run()
 
         print 'writing hmms with sw info'
@@ -131,7 +131,7 @@ class PartitionDriver(object):
         assert os.path.exists(self.args.parameter_dir)
 
         # run smith-waterman
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
         # cdr3 length partitioning
@@ -152,7 +152,7 @@ class PartitionDriver(object):
     def point_estimate(self):
         assert os.path.exists(self.args.parameter_dir)
         """ get a point estimate for each query sequence (or pair). i.e. run viterbi """
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, from_scratch=False, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir, plot_performance=self.args.plot_performance)
@@ -366,11 +366,17 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_hmm_existence(self, gene_list, parameter_dir):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
+        # first get the list of genes for which we don't have hmm files
+        genes_to_remove = []
         for gene in gene_list:
             hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
             if not os.path.exists(hmmfname):
                 print 'WARNING removing match %s from gene list (d.n.e.: %s)' % (gene, hmmfname)
-                gene_list.remove(gene)
+                genes_to_remove.append(gene)
+        # then remove 'em from <gene_list>
+        for gene in genes_to_remove:
+            gene_list.remove(gene)
+        # and finally, make sure we're left with at least one gene in each region
         for region in utils.regions:
             if 'IGH' + region.upper() not in ':'.join(gene_list):
                 print 'ERROR no %s genes in %s' % (region, ':'.join(gene_list))
@@ -433,9 +439,6 @@ class PartitionDriver(object):
     
                     self.check_v_right(info['v_right_length'], query_name)
     
-                    # # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
-                    # assert len(re.findall('J[123]P', info['j_gene'])) == 0
-    
                     only_genes = []
                     tmp_set = set(info['all'].split(':'))
                     for gene in tmp_set:  # we only write hmm model files for genes that showed up at least once as a best match, so skip genes for which this didn't happen
@@ -444,7 +447,6 @@ class PartitionDriver(object):
                             continue
                         only_genes.append(gene)
                     self.check_hmm_existence(only_genes, parameter_dir)
-                    # assert self.args.algorithm == 'viterbi'  # TODO hm, was that really all I had to do to allow non-pair forward?
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
                 print '    were never the best sw match for any query, so removing from consideration for hmm: %s' % ','.join([utils.color_gene(gene) for gene in skipped_gene_matches])

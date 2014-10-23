@@ -31,6 +31,7 @@ parser.add_argument('--partition', action='store_true')
 parser.add_argument('--pair', action='store_true')
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--skip_unproductive', action='store_true')  # skip unproductive rearrangements
+parser.add_argument('--apply_choice_probs_in_sw', action='store_true')
 
 parser.add_argument('--parameter_dir', required=True)  # sample-specific parameters (mutation rates, gene version freqs, ...)
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information (e.g. germline gene versions)
