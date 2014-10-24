@@ -4,9 +4,9 @@ tracks:
 states:
 - name: init
   transitions:
-    rich: 0.5
-    not_rich: 0.5
-- name: rich
+    island: 0.5
+    ocean: 0.5
+- name: island
   emissions:
     track: nucs
     probs:
@@ -15,10 +15,10 @@ states:
       G: 0.4
       T: 0.1
   transitions:
-    rich: 0.8
-    not_rich: 0.1
+    island: 0.8
+    ocean: 0.1
     end: 0.1
-- name: not_rich
+- name: ocean
   emissions:
     track: nucs
     probs:
@@ -27,6 +27,6 @@ states:
       G: 0.25
       T: 0.25
   transitions:
-    rich: 0.3
-    not_rich: 0.6
+    island: 0.3
+    ocean: 0.6
     end: 0.1
