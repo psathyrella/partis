@@ -57,43 +57,32 @@ def add_empty_bins(values):
             values[ib] = 0.0
 
 # ----------------------------------------------------------------------------------------
-def zero_suppress(values, eps):
-    print '---- zero suppressing'
-    for x in sorted(values.keys()):
-        print '     %3d %f' % (x, values[x])
-    add_empty_bins(values)
-    print '----'
-    for x in sorted(values.keys()):
-        print '     %3d %f' % (x, values[x])
-    for empty_bin in get_bin_list(values, 'empty'):
-        values[empty_bin] = eps
-    print '----'
-    for x in sorted(values.keys()):
-        print '     %3d %f' % (x, values[x])
-
-# ----------------------------------------------------------------------------------------
-def interpolate_bins(values):
-    """ interpolate the empty (<eps) bins in <values>. NOTE there's some shenanigans if you have empty bins on the edges """
-    print '---- interpolating'
-    for x in sorted(values.keys()):
-        print '    %3d %f' % (x, values[x])
+def interpolate_bins(values, n_max_to_interpolate, bin_eps):
+    """
+    Interpolate the empty (less than utils.eps) bins in <values> if the neighboring full bins have less than <n_max_to_interpolate> entries,
+    otherwise fill with <bin_eps>. NOTE there's some shenanigans if you have empty bins on the edges
+    """
+    # print '---- interpolating with %d' % n_max_to_interpolate
+    # for x in sorted(values.keys()):
+    #     print '    %3d %f' % (x, values[x])
     add_empty_bins(values)
     full_bins = get_bin_list(values, 'full')
-    print '----'
-    for x in sorted(values.keys()):
-        print '     %3d %f' % (x, values[x])
+    # print '----'
+    # for x in sorted(values.keys()):
+    #     print '     %3d %f' % (x, values[x])
     for empty_bin in get_bin_list(values, 'empty'):
         lower_full_bin = find_full_bin(empty_bin, full_bins, side='lower')
         upper_full_bin = find_full_bin(empty_bin, full_bins, side='upper')
-        # lower_val = values[lower_full_bin]
-        # upper_val = values[upper_full_bin]
-        lower_weight = 1.0 / abs(empty_bin - lower_full_bin)
-        upper_weight = 1.0 / abs(empty_bin - upper_full_bin)
-        values[empty_bin] = lower_weight*values[lower_full_bin] + upper_weight*values[upper_full_bin]
-        values[empty_bin] /= lower_weight + upper_weight
-    print '----'
-    for x in sorted(values.keys()):
-        print '     %3d %f' % (x, values[x])
+        if n_max_to_interpolate == -1 or values[lower_full_bin] + values[upper_full_bin] < n_max_to_interpolate:
+            lower_weight = 1.0 / max(1, abs(empty_bin - lower_full_bin))
+            upper_weight = 1.0 / max(1, abs(empty_bin - upper_full_bin))
+            values[empty_bin] = lower_weight*values[lower_full_bin] + upper_weight*values[upper_full_bin]
+            values[empty_bin] /= lower_weight + upper_weight
+        else:
+            values[empty_bin] = bin_eps
+    # print '----'
+    # for x in sorted(values.keys()):
+    #     print '     %3d %f' % (x, values[x])
 
 # ----------------------------------------------------------------------------------------
 class Track(object):
@@ -149,6 +138,7 @@ class HmmWriter(object):
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
         self.min_occurences = 10
+        self.n_max_to_interpolate = 20
 
         self.insert_mute_prob = 0.0
         self.mean_mute_freq = 0.0
@@ -167,10 +157,10 @@ class HmmWriter(object):
         self.insertion_probs = {}
         self.mute_freqs = {}
 
-        n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+        self.n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
         replacement_genes = None
-        if n_occurences < self.min_occurences:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
-            print '    only saw it %d times, use info from other genes' % n_occurences
+        if self.n_occurences < self.min_occurences:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+            print '    only saw it %d times, use info from other genes' % self.n_occurences
             replacement_genes = utils.find_replacement_genes(self.indir, gene_name, self.min_occurences, single_gene=False, debug=True)
 
         self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
@@ -277,10 +267,12 @@ class HmmWriter(object):
             assert len(self.erosion_probs[erosion]) > 0
 
             # do some smoothingy things NOTE that we normalize *after* interpolating
-            if erosion in utils.effective_erosions:  # interpolate for v left and j right
-                interpolate_bins(self.erosion_probs[erosion])
-            else:
-                zero_suppress(self.erosion_probs[erosion], self.eps)  # but for the real erosions just add pseudocounts
+            if erosion in utils.real_erosions:  # for real erosions, don't interpolate if we lots of information about neighboring bins (i.e. we're pretty confident this bin should actually be zero)
+                n_max = self.n_max_to_interpolate
+            else:  # for fake erosions, always interpolate
+                n_max = -1
+            # print '   interpolate erosions'
+            interpolate_bins(self.erosion_probs[erosion], n_max, bin_eps=self.eps)
 
             # and finally, normalize
             total = 0.0
@@ -322,13 +314,14 @@ class HmmWriter(object):
 
         assert len(self.insertion_probs[self.insertion]) > 0
 
-        zero_suppress(self.insertion_probs[self.insertion], self.eps)  # NOTE that we normalize *after* this
+        # print '   interpolate insertions'
+        interpolate_bins(self.insertion_probs[self.insertion], self.n_max_to_interpolate, bin_eps=self.eps)  # NOTE that we normalize *after* this
 
         assert 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
         # and finally, normalize
         total = 0.0
-        for _, val in self.insertion_probs[insertion].iteritems():
+        for _, val in self.insertion_probs[self.insertion].iteritems():
             total += val
         test_total = 0.0
         for n_inserted in self.insertion_probs[self.insertion]:

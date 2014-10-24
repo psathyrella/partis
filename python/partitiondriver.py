@@ -394,8 +394,8 @@ class PartitionDriver(object):
         for gene in gene_list:
             hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
             if not os.path.exists(hmmfname):
-                if self.args.debug:
-                    print '    WARNING %s removed from match list for %s %s (not in %s)' % (utils.color_gene(gene), query_name, '' if second_query_name==None else second_query_name, os.path.dirname(hmmfname))
+                # if self.args.debug:
+                #     print '    WARNING %s removed from match list for %s %s (not in %s)' % (utils.color_gene(gene), query_name, '' if second_query_name==None else second_query_name, os.path.dirname(hmmfname))
                 skipped_gene_matches.add(gene)
                 genes_to_remove.append(gene)
 
@@ -485,7 +485,7 @@ class PartitionDriver(object):
             if len(skipped_gene_matches) > 0:
                 print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
                 for region in utils.regions:
-                    print '    %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
+                    print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter):
