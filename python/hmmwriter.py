@@ -10,6 +10,63 @@ import utils
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
+def get_bin_list(values, bin_type):
+    assert bin_type == 'all' or bin_type == 'empty' or bin_type == 'full'
+    lists = {}
+    lists['all'] = []
+    lists['empty'] = []
+    lists['full'] = []
+    for bin_val, bin_contents in values.iteritems():
+        lists['all'].append(bin_val)
+        if bin_contents < utils.eps:
+            lists['empty'].append(bin_val)
+        else:
+            lists['full'].append(bin_val)
+
+    return sorted(lists[bin_type])
+
+# ----------------------------------------------------------------------------------------
+def find_full_bin(bin_val, full_bins, side):
+    """
+    Find the member of <full_bins> which is closest to <bin_val> on the <side>.
+    NOTE if it can't find it, i.e. if <bin_val> is equal to or outside the limits of <full_bins>, returns the outermost value of <full_bins>
+    """
+    assert full_bins == sorted(full_bins)
+    assert len(full_bins) > 0
+    assert side == 'lower' or side == 'upper'
+
+    if side == 'lower':
+        nearest_bin = full_bins[0]
+        for ib in full_bins:
+            if ib < bin_val and ib > nearest_bin:
+                nearest_bin = ib
+    elif side == 'upper':
+        nearest_bin = full_bins[-1]
+        for ib in sorted(full_bins, reverse=True):
+            if ib > bin_val and ib < nearest_bin:
+                nearest_bin = ib
+
+    return nearest_bin
+
+# ----------------------------------------------------------------------------------------
+def zero_suppress(values):
+    pass
+
+# ----------------------------------------------------------------------------------------
+def interpolate_bins(values):
+    """ interpolate the empty (<eps) bins in <values>. NOTE there's some shenanigans if you have empty bins on the edges """
+    full_bins = get_bin_list(values, 'full')
+    for empty_bin in get_bin_list(values, 'empty'):
+        lower_full_bin = find_full_bin(empty_bin, full_bins, side='lower')
+        upper_full_bin = find_full_bin(empty_bin, full_bins, side='upper')
+        # lower_val = values[lower_full_bin]
+        # upper_val = values[upper_full_bin]
+        lower_weight = 1.0 / abs(empty_bin - lower_full_bin)
+        upper_weight = 1.0 / abs(empty_bin - upper_full_bin)
+        values[empty_bin] = lower_weight*values[lower_full_bin] + upper_weight*values[upper_full_bin]
+        values[empty_bin] /= lower_weight + upper_weight
+
+# ----------------------------------------------------------------------------------------
 class Track(object):
     def __init__(self, name, letters):
         self.name = name
@@ -87,15 +144,15 @@ class HmmWriter(object):
             print '    only saw it %d times, use info from other genes' % n_occurences
             replacement_genes = utils.find_replacement_genes(self.indir, gene_name, self.min_occurences, single_gene=False, debug=True)
 
-        self.read_erosion_probs(gene_name, replacement_genes)  # try this exact gene, but...
+        self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
         assert len(self.erosion_probs) > 0
 
         if self.region != 'v':
-            self.read_insertion_probs(gene_name, replacement_genes)
+            self.read_insertion_info(gene_name, replacement_genes)
             assert len(self.insertion_probs) > 0
 
         if self.naivety == 'M':  # mutate if not naive
-            self.read_mute_freqs(gene_name, replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
+            self.read_mute_info(gene_name, replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
 
         self.track = Track('nukes', list(utils.nukes))
         self.saniname = utils.sanitize_name(gene_name)  # TODO make this not a member variable to make absolutely sure you don't confuse gene_name and replacement_gene
@@ -107,7 +164,7 @@ class HmmWriter(object):
         self.add_states()
         assert os.path.exists(self.outdir)
         with opener('w')(self.outdir + '/' + self.saniname + '.yaml') as outfile:
-            yaml.dump(self.hmm, outfile, width=200)
+            yaml.dump(self.hmm, outfile, width=150)
     
     # ----------------------------------------------------------------------------------------
     def add_states(self):
@@ -158,10 +215,8 @@ class HmmWriter(object):
         self.hmm.add_state(state)
 
     # ----------------------------------------------------------------------------------------
-    def read_erosion_probs(self, this_gene, approved_genes=None):
-        # NOTE reads info for <gene_name>, which is *not* necessarily the gene for which we're writing an hmm
+    def read_erosion_info(self, this_gene, approved_genes=None):
         # TODO in cases where the bases which are eroded are the same as those inserted (i.e. cases that *suck*) I seem to *always* decide on the choice with the shorter insertion. not good!
-        # TODO fill in cases where we don't have info from data with some (small) default value
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
         if approved_genes == None:
             approved_genes = [this_gene,]
@@ -192,30 +247,26 @@ class HmmWriter(object):
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
 
-                assert len(self.erosion_probs[erosion]) > 0
+            assert len(self.erosion_probs[erosion]) > 0
 
-                # # for fake v_5p and j_3p, interpolate the bases for which we didn't find info
-                # if erosion in utils.effective_erosions:
-                #     for inuke in range(len(self.germline_seq)):
-                #         n_eroded = inuke if '5p' in erosion else len(self.germline_seq)) - inuke - 1
-                #         nearest_left_neighbor = -1
-                #         ipos = inuke
-                #         while ipos >= 0
-                #             if 
+            # do some smoothingy things NOTE that we normalize *after* interpolating
+            if erosion in utils.effective_erosions:  # interpolate for v left and j right
+                interpolate_bins(self.erosion_probs[erosion])
+            else:
+                zero_suppress(self.erosion_probs[erosion])  # but for the real erosions just add pseudocounts
 
-                # and finally, normalize
-                test_total = 0.0
-                for n_eroded in self.erosion_probs[erosion]:
-                    self.erosion_probs[erosion][n_eroded] /= total
-                    test_total += self.erosion_probs[erosion][n_eroded]
-                assert utils.is_normed(test_total)
-        if len(genes_used) > 1:
-            print '    erosions:', ' '.join(genes_used)
+            # and finally, normalize
+            test_total = 0.0
+            for n_eroded in self.erosion_probs[erosion]:
+                self.erosion_probs[erosion][n_eroded] /= total
+                test_total += self.erosion_probs[erosion][n_eroded]
+            assert utils.is_normed(test_total)
+
+        if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
+            print '    erosions used:', ' '.join(genes_used)
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_probs(self, this_gene, approved_genes=None):
-        # NOTE reads info for <gene_name>, which is *not* necessarily the gene for which we're writing an hmm
-        # TODO fill in cases where we don't have info from data with some (small) default value
+    def read_insertion_info(self, this_gene, approved_genes=None):
         if approved_genes == None:
             approved_genes = [this_gene,]
         self.insertion_probs[self.insertion] = {}
@@ -240,24 +291,24 @@ class HmmWriter(object):
                 if self.region + '_gene' in line:
                     genes_used.add(line[self.region + '_gene'])
 
-            if len(self.insertion_probs[self.insertion]) == 0:  # if we didn't find any insertion information, return without doing anything else (we'll try again, looking at other genes)
-                self.insertion_probs = {}
-                return
+        assert len(self.insertion_probs[self.insertion]) > 0
 
-            assert 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
+        zero_suppress(self.insertion_probs[self.insertion])  # NOTE that we normalize *after* this
 
-            # and finally, normalize
-            test_total = 0.0
-            for n_inserted in self.insertion_probs[self.insertion]:
-                self.insertion_probs[self.insertion][n_inserted] /= total
-                test_total += self.insertion_probs[self.insertion][n_inserted]
-            assert utils.is_normed(test_total)
+        assert 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
-        if len(genes_used) > 1:
-            print '    insertions:', ' '.join(genes_used)
+        # and finally, normalize
+        test_total = 0.0
+        for n_inserted in self.insertion_probs[self.insertion]:
+            self.insertion_probs[self.insertion][n_inserted] /= total
+            test_total += self.insertion_probs[self.insertion][n_inserted]
+        assert utils.is_normed(test_total)
+
+        if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
+            print '    insertions used:', ' '.join(genes_used)
         
     # ----------------------------------------------------------------------------------------
-    def read_mute_freqs(self, this_gene, approved_genes=None):
+    def read_mute_info(self, this_gene, approved_genes=None):
         if approved_genes == None:
             approved_genes = [this_gene,]
         observed_freqs = {}  # of the form {0:(0.4, 0.38, 0.42), ...} (for position 0 with freq 0.4 with uncertainty 0.02)
