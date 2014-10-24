@@ -76,7 +76,7 @@ class HmmWriter(object):
         if n_occurences < self.min_occurences:  # if we didn't see it enough, use <replacement_gene> for all the parameters
             replacement_gene = utils.find_replacement_gene(self.indir, gene_name, self.min_occurences)
             print '\n    only saw it %d times, use info from %s instead' % (n_occurences, replacement_gene)
-        self.saniname = utils.sanitize_name(gene_name)
+        self.saniname = utils.sanitize_name(gene_name)  # TODO make this not a member variable to make absolutely sure you don't confuse gene_name and replacement_gene
         self.naivety = naivety
         self.germline_seq = germline_seq
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
@@ -88,9 +88,9 @@ class HmmWriter(object):
 
         self.erosion_probs = {}
         self.read_erosion_probs(replacement_gene)  # try this exact gene, but...
-        # if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other alleles
-        #     print '\n    no erosion probs for', self.gene_name, 'so try other alleles'
-        #     self.read_erosion_probs(use_other_alleles=True)
+        if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other alleles
+            print '\n    no erosion probs for', self.gene_name, 'so try other alleles'
+            self.read_erosion_probs(use_other_alleles=True)
         #     if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other 'primary versions'
         #         print '    couldn\'t find any alleles, either, so try other primary versions'
         #         self.read_erosion_probs(use_other_alleles=False, use_other_primary_versions=True)
@@ -299,8 +299,9 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_mute_freqs(self, gene_name):
         # NOTE reads info for <gene_name>, which is *not* necessarily the gene for which we're writing an hmm
-        mutefname = self.indir + '/mute-freqs/' + self.saniname + '.csv'
+        mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
         i_try = 0
+        assert os.path.exists(mutefname)
         if not os.path.exists(mutefname):
             print '\n    no mute file for',gene_name,'so try other alleles:',
         while not os.path.exists(mutefname):  # loop through other possible alleles
