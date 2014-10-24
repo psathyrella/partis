@@ -100,3 +100,4 @@ If you want to run the simulator without running the parameter-generation step a
 ```
 ./runpart.py --simulate --parameter_dir caches/new-parameters/hmm_parameters --n_max_queries 30 --outdir caches/recombinator --debug 1
 ```
+?
