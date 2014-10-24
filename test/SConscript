@@ -1,8 +1,9 @@
 from SCons.Script import Command
 
 hample_test = [
-    ["casino", "666655666613423414513666666666666"],
-    ["cpg", "ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT"]
+    ["casino", "666655666613423414513666666666666", "", ""],
+    ["cpg", "ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT", "", ""],
+    ["pair-cpg", "CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT", "--pair", "--seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT"]
 ]
 
 for c in hample_test:
@@ -13,6 +14,8 @@ for c in hample_test:
             "./${{SOURCES[0]}}\
             --hmmfname ${{SOURCES[1]}}\
             --seq {1}\
+            {2}\
+            {3}\
             -o $TARGET".format(*c))
     # Touch a sentinel `passed` file if we get what we expect.
     Command("_results/{}.passed".format(c[0]),
