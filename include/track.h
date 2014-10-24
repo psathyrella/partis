@@ -3,6 +3,7 @@
 
 #include <map>
 #include <cassert>
+#include <stdexcept>
 
 #include "text.h"
 #include "mathutils.h"
