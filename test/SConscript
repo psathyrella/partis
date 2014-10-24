@@ -1,5 +1,20 @@
 from SCons.Script import Command
 
-Command("_results/one.out",
-        ["../hample", "../examples/casino.yaml"],
-        "./${SOURCES[0]} --hmmfname ${SOURCES[1]} --seq 666655666613423414513666666666666 -o $TARGET")
+hample_test = [
+    ["casino", "666655666613423414513666666666666"],
+    ["cpg", "ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT"]
+]
+
+for c in hample_test:
+    out = "_results/{0}.out".format(*c)
+    # Run hample with specified conditions.
+    Command(out,
+            ["../hample", "../examples/{0}.yaml".format(*c)],
+            "./${{SOURCES[0]}}\
+            --hmmfname ${{SOURCES[1]}}\
+            --seq {1}\
+            -o $TARGET".format(*c))
+    # Touch a sentinel `passed` file if we get what we expect.
+    Command("_results/{}.passed".format(c[0]),
+            [out, "data/regression/{}.out".format(c[0])],
+            "diff ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET")
