@@ -69,8 +69,7 @@ int main(int argc, const char *argv[]) {
     ofstream ofs;
     ofs.open(outfile_arg.getValue());
     assert(ofs.is_open());
-    ofs << path;
-    ofs << "\nforward log prob: " << trell.forward_log_prob() << endl;
+    ofs << trell.forward_log_prob() << "\t" << path << endl;
     ofs.close();
   }
 
