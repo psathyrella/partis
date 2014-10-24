@@ -1,4 +1,5 @@
 #include "state.h"
+
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
@@ -22,7 +23,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     string to_state(it->first.as<string>());
     if (to_state != "end" && find(state_names.begin(), state_names.end(), to_state) == state_names.end()) {  // make sure transition is either to "end", or to a state that we know about
       cout << "ERROR attempted to add transition to unknown state \"" << to_state << "\"" << endl;
-      assert(0);
+      throw runtime_error("configuration");
     }
     double prob(it->second.as<double>());
     total += prob;
@@ -36,7 +37,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   if(fabs(total-1.0) >= EPS) {  // make sure transition probs sum to 1.0
     cerr << "ERROR normalization failed on transitions in state \"" << name_ << "\"" << endl;
     cerr << node << endl;
-    assert(0);
+    throw runtime_error("configuration");
   }
 
   if (name_ == "init")
@@ -47,9 +48,9 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   if (node["pair_emissions"])
     pair_emission_.Parse(node["pair_emissions"], "pair", trks);
   if (!node["emissions"] && !node["pair_emissions"]) {
-    cerr << "ERROR no emissions found in" << endl;
-    cerr << node << endl;
-    assert(0);
+    stringstream node_ss;
+    node_ss << node;
+    throw runtime_error("ERROR no emissions found in "+node_ss.str());
   }
 }
 

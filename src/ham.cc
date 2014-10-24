@@ -73,7 +73,8 @@ Args::Args(int argc, const char * argv[]):
 
     cmd.parse(argc, argv);
   } catch (ArgException &e) {
-    cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
+    cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
+    throw;
   }
 
   for (auto &head: str_headers_)
@@ -112,8 +113,7 @@ Args::Args(int argc, const char * argv[]):
 	ss >> tmpint;
 	integers_[head].push_back(tmpint);
       } else {
-	cerr << "ERROR header \'" << head << "\' not found" << endl;
-	assert(0);
+	throw runtime_error("ERROR header "+head+"' not found");
       }
     }
   }

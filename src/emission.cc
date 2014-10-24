@@ -39,7 +39,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     if(fabs(total_-1.0) >= EPS) {  // make sure emissions probs sum to 1.0
       cerr << "ERROR normalization failed for emissions:" << endl;
       cerr << config << endl;
-      assert(0);
+      throw runtime_error("configuration");
     }
     scores_.AddColumn(log_probs);  // NOTE <log_probs> must already be logged
   } else if (is_pair=="pair") {
@@ -73,7 +73,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     if(fabs(total_-1.0) >= EPS) {  // make sure emissions probs sum to 1.0
       cerr << "ERROR normalization failed for" << endl;
       cerr << config << endl;
-      assert(0);
+      throw runtime_error("configuration");
     }
   } else {
     assert(0);

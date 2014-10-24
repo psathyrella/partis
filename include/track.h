@@ -42,7 +42,13 @@ class Tracks {
 public:
   void push_back(Track*);
   size_t size() { return tracks_.size(); }
-  Track *track(const string &name) { assert(indices_.count(name)); return tracks_[indices_[name]]; }
+  Track *track(const string &name) {
+    if(!indices_.count(name)) {
+	  cerr << "ERROR: track '" << name << "' not found!" << endl;
+      throw runtime_error("configuration");
+    }
+    return tracks_[indices_[name]];
+  }
   Track *operator[](size_t i) { return tracks_.at(i); }
 private:
   vector<Track*> tracks_;

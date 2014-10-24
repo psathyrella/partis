@@ -9,8 +9,7 @@ Model::Model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
 // ----------------------------------------------------------------------------------------
 void Model::Parse(string infname) {
   if(!ifstream(infname)) {
-    cerr << "ERROR " << infname << " d.n.e." << endl;
-    assert(0);
+    throw runtime_error("ERROR "+infname+" does not exist.");
   }
 
   // load yaml
@@ -22,7 +21,7 @@ void Model::Parse(string infname) {
       overall_prob_ = config["extras"]["gene_prob"].as<double>();
   } catch (...) {
     cerr << "ERROR invalid model header info in " << infname << endl;
-    assert(0);
+    throw;
   }
 
   try {
@@ -37,7 +36,7 @@ void Model::Parse(string infname) {
     }
   } catch (...) {
     cerr << "ERROR invalid track specifications in " << infname << endl;
-    assert(0);
+    throw;
   }
 
   // then push back each state name
@@ -48,12 +47,12 @@ void Model::Parse(string infname) {
       name = config["states"][is]["name"].as<string>();
     } catch (...) {
       cerr << "ERROR invalid state name in " << infname << endl;
-      assert(0);
+      throw;
     }
     for (auto chkname: state_names) {
       if (name == chkname) {
-	cerr << "ERROR added two states with name \"" << name << "\"" << endl;
-	assert(0);
+	cerr << "ERROR added two states with name '" << name << "'" << endl;
+	throw;
       }
     }
     state_names.push_back(name);
@@ -65,8 +64,8 @@ void Model::Parse(string infname) {
     try {
       st->Parse(config["states"][ist], state_names, tracks_);
     } catch (...) {
-      cerr << "ERROR invalid specification for state \"" << state_names[ist] << "\" in " << infname << endl;
-      assert(0);
+      cerr << "ERROR invalid specification for state '" << state_names[ist] << "' in " << infname << endl;
+      throw;
     }
 
     if (st->name() == "init") {
@@ -102,8 +101,7 @@ void Model::Finalize() {
   for(size_t i=0; i<states_.size(); ++i)
     FinalizeState(states_[i]);
   if (!initial_) {
-    cerr << "ERROR no \"init\" state was specified" << endl;
-    assert(0);
+    throw runtime_error("ERROR no 'init' state was specified");
   }
   FinalizeState(initial_);
 
@@ -187,14 +185,12 @@ void Model::CheckTopology(){
     }
   }
   if (!ending_defined) {
-    cerr << "No END state defined in the model\n";
-    assert(0);
+    throw runtime_error("No END state defined in the model");
   }
 
   for(size_t i=0; i<states_visited.size(); ++i) {
     if (!states_visited[i]) {
-      cerr << "ERROR state \""  << states_[i]->name() << "\" has bad topology. Check its transitions.\n";
-      assert(0);
+      throw runtime_error("ERROR state '"+states_[i]->name()+"' has bad topology. Check its transitions.");
     }
   }
 }

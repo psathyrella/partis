@@ -29,7 +29,8 @@ int main(int argc, const char *argv[]) {
     if (seq2_arg.getValue() != "")
       assert(pair_arg.getValue());
   } catch (ArgException &e) {
-    cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
+    cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
+    throw;
   }
 
   // read hmm model file
