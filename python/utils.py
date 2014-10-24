@@ -6,7 +6,7 @@ import os
 import re
 import math
 import glob
-import collections
+from collections import OrderedDict
 import csv
 from scipy.stats import beta
 
@@ -511,7 +511,7 @@ def read_germlines(data_dir, remove_fp=False, remove_N_nukes=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     germlines = {}
     for region in regions:
-        germlines[region] = collections.OrderedDict()
+        germlines[region] = OrderedDict()
         for seq_record in SeqIO.parse(data_dir + '/igh'+region+'.fasta', "fasta"):
             gene_name = seq_record.name
             if remove_fp and region == 'j':
@@ -588,15 +588,12 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
     probs = { region:{} for region in regions }
     for region in regions:
         total = 0
-        smallest_count = -1  # if we don't find the gene we're looking for, assume it occurs at the lowest rate at which we see any gene
         with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
             reader = csv.DictReader(infile)
             for line in reader:
                 line_count = int(line['count'])
                 gene = line[region + '_gene']
                 total += line_count
-                if line_count < smallest_count or smallest_count == -1:
-                    smallest_count = line_count
                 if gene not in counts[region]:
                     counts[region][gene] = 0
                 counts[region][gene] += line_count
@@ -604,10 +601,15 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
             assert total == 0
             print 'ERROR zero counts in %s' % indir + '/' + region + '_gene-probs.csv'
             assert False
-        if only_gene != '' and only_gene not in counts[region]:  # didn't find this gene
-            counts[region][only_gene] = smallest_count
         for gene in counts[region]:
             probs[region][gene] = float(counts[region][gene]) / total
+
+    if only_gene not in counts[get_region(only_gene)]:
+        print '      %s not found, returning 0' % only_gene
+        if normalize:
+            return 0.0
+        else:
+            return 0
 
     if only_gene == '':
         if normalize:
@@ -621,37 +623,54 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
             return counts[get_region(only_gene)][only_gene]
 
 # ----------------------------------------------------------------------------------------
-def find_replacement_gene(indir, gene_name, min_counts):
+def find_replacement_genes(indir, gene_name, min_counts, single_gene=False, debug=False):
     region = get_region(gene_name)
-    allele_list = []  # list of genes that are alleles of <gene_name>
-    primary_version_list = []  # same primary version as <gene_name>
+    lists = OrderedDict()  # we want to try alleles first, then primary versions, then everything and it's mother
+    lists['allele'] = []  # list of genes that are alleles of <gene_name>
+    lists['primary_version'] = []  # same primary version as <gene_name>
+    lists['all'] = []  # give up and return everything
     with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
         reader = csv.DictReader(infile)
         for line in reader:
             gene = line[region + '_gene']
             count = int(line['count'])
+            vals = {'gene':gene, 'count':count}
             if are_alleles(gene, gene_name):
-                allele_list.append((gene, count))
+                lists['allele'].append(vals)
             if are_same_primary_version(gene, gene_name):
-                primary_version_list.append((gene, count))
+                lists['primary_version'].append(vals)
+            lists['all'].append(vals)
 
-    # return the first allele which has at least <min_counts> counts
-    allele_list.sort(reverse=True, key=lambda pair: pair[1])  # sort by score
-    for pair in allele_list:
-        if pair[1] >= min_counts:
-            return pair[0]
+    if single_gene:
+        for list_type in lists:
+            # return the first which has at least <min_counts> counts
+            lists[list_type].sort(reverse=True, key=lambda vals: vals['count'])  # sort by score
+            for vals in lists[list_type]:
+                if vals['count'] >= min_counts:
+                    if debug:
+                        print '    return replacement %s %s' % (list_type, color_gene(vals['gene']))
+                    return vals['gene']
 
-    # failing that, return the first primary version that meets the same criterion
-    primary_version_list.sort(reverse=True, key=lambda pair: pair[1])  # sort by score
-    for pair in primary_version_list:
-        if pair[1] >= min_counts:
-            return pair[0]
+        print 'ERROR didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir)
+        assert False
+    else:
+        # return the whole list NOTE we're including here <gene_name>
+        for list_type in lists:
+            total_counts = sum([vals['count'] for vals in lists[list_type]])
+            if total_counts >= min_counts:
+                return_list = [vals['gene'] for vals in lists[list_type]]
+                if debug:
+                    print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
+                return return_list
+            else:
+                print '      not enough counts in %s' % (list_type + 's')
 
-    print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
-    return hackey_default_gene_versions[region]
+        print 'ERROR couldn\'t find genes for %s in %s' % (gene_name, indir)
+        assert False
+    
+    # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
+    # return hackey_default_gene_versions[region]
 
-    # print 'ERROR didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir)
-    # assert False
 
 # ----------------------------------------------------------------------------------------
 def hamming(seq1, seq2):

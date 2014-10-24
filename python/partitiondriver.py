@@ -381,7 +381,7 @@ class PartitionDriver(object):
                         gene_list.append(gene)
 
         for gene in gene_list:
-            print '   ', utils.color_gene(gene),
+            print '   ', utils.color_gene(gene)
             sys.stdout.flush()
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene])
             writer.write()
@@ -483,7 +483,9 @@ class PartitionDriver(object):
                     self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
                     csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
-                print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm: %s' % (parameter_dir, ','.join([utils.color_gene(gene) for gene in skipped_gene_matches]))
+                print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
+                for region in utils.regions:
+                    print '    %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter):

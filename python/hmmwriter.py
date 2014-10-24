@@ -69,14 +69,6 @@ class HmmWriter(object):
 
         self.outdir = outdir
         self.region = utils.get_region(gene_name)
-
-        n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
-        # self.gene_name = gene_name
-        replacement_gene = gene_name
-        if n_occurences < self.min_occurences:  # if we didn't see it enough, use <replacement_gene> for all the parameters
-            replacement_gene = utils.find_replacement_gene(self.indir, gene_name, self.min_occurences)
-            print '\n    only saw it %d times, use info from %s instead' % (n_occurences, replacement_gene)
-        self.saniname = utils.sanitize_name(gene_name)  # TODO make this not a member variable to make absolutely sure you don't confuse gene_name and replacement_gene
         self.naivety = naivety
         self.germline_seq = germline_seq
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
@@ -85,39 +77,30 @@ class HmmWriter(object):
             self.insertion = 'vd'
         elif self.region == 'j':
             self.insertion = 'dj'
-
         self.erosion_probs = {}
-        self.read_erosion_probs(replacement_gene)  # try this exact gene, but...
-        if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other alleles
-            print '\n    no erosion probs for', self.gene_name, 'so try other alleles'
-            self.read_erosion_probs(use_other_alleles=True)
-        #     if len(self.erosion_probs) == 0:  # ...if we don't have info for it use other 'primary versions'
-        #         print '    couldn\'t find any alleles, either, so try other primary versions'
-        #         self.read_erosion_probs(use_other_alleles=False, use_other_primary_versions=True)
+        self.insertion_probs = {}
+        self.mute_freqs = {}
+
+        n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+        replacement_genes = None
+        if n_occurences < self.min_occurences:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+            print '    only saw it %d times, use info from other genes' % n_occurences
+            replacement_genes = utils.find_replacement_genes(self.indir, gene_name, self.min_occurences, single_gene=False, debug=True)
+
+        self.read_erosion_probs(gene_name, replacement_genes)  # try this exact gene, but...
         assert len(self.erosion_probs) > 0
 
-        self.insertion_probs = {}
         if self.region != 'v':
-            self.read_insertion_probs(replacement_gene)
-            # if len(self.insertion_probs) == 0:  # try again using all the alleles for this gene
-            #     print '\n    no insertion probs found for', self.gene_name, 'so try other alleles'
-            #     self.read_insertion_probs(use_other_alleles=True)
-            #     if len(self.insertion_probs) == 0:  # ...if we don't have info for it use other 'primary versions'
-            #         print '    couldn\'t find any alleles, either, so try other primary versions'
-            #         self.read_insertion_probs(use_other_alleles=False, use_other_primary_versions=True)
-            #         if len(self.insertion_probs) == 0:  # ...totally punt and just use info for some random version
-            #             assert self.region == 'j'
-            #             print '     hrg, can\'t find that either. Using IGHJ4*02_F, he\'s a popular fellow'
-            #             self.read_insertion_probs(use_other_alleles=False, use_other_primary_versions=False, use_specific_version='IGHJ4*02_F')
+            self.read_insertion_probs(gene_name, replacement_genes)
             assert len(self.insertion_probs) > 0
 
-        self.mute_freqs = {}  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
         if self.naivety == 'M':  # mutate if not naive
-            self.read_mute_freqs(replacement_gene)
+            self.read_mute_freqs(gene_name, replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
 
         self.track = Track('nukes', list(utils.nukes))
+        self.saniname = utils.sanitize_name(gene_name)  # TODO make this not a member variable to make absolutely sure you don't confuse gene_name and replacement_gene
         self.hmm = HMM(self.saniname, {'nukes':list(utils.nukes)})  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
-        self.hmm.extras['gene_prob'] = utils.read_overall_gene_probs(self.indir, only_gene=gene_name)
+        self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
 
     # ----------------------------------------------------------------------------------------
     def write(self):
@@ -175,11 +158,14 @@ class HmmWriter(object):
         self.hmm.add_state(state)
 
     # ----------------------------------------------------------------------------------------
-    def read_erosion_probs(self, gene_name, use_other_alleles=False, use_other_primary_versions=False):
+    def read_erosion_probs(self, this_gene, approved_genes=None):
         # NOTE reads info for <gene_name>, which is *not* necessarily the gene for which we're writing an hmm
         # TODO in cases where the bases which are eroded are the same as those inserted (i.e. cases that *suck*) I seem to *always* decide on the choice with the shorter insertion. not good!
         # TODO fill in cases where we don't have info from data with some (small) default value
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
+        if approved_genes == None:
+            approved_genes = [this_gene,]
+        genes_used = set()
         for erosion in utils.real_erosions + utils.effective_erosions:
             if erosion[0] != self.region:
                 continue
@@ -188,22 +174,12 @@ class HmmWriter(object):
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
                 total = 0.0
-                genes_used = set()
                 for line in reader:
-                    # first see if we want to skip this line
-                    if self.region != 'j':  # j erosion doesn't depend on gene choice, so we use everything
-                        if use_other_primary_versions:
-                            if not utils.are_same_primary_version(line[self.region + '_gene'], gene_name):
-                                continue
-                            genes_used.add(line[self.region + '_gene'])
-                        elif use_other_alleles:
-                            if not utils.are_alleles(line[self.region + '_gene'], gene_name):
-                                continue
-                            genes_used.add(line[self.region + '_gene'])
-                        elif line[self.region + '_gene'] != gene_name:  # skip other genes
-                            continue
-                    if int(line[erosion + '_del']) >= len(self.germline_seq):  # nonsense erosions (that're too long) should only occur if we're looking at other genes
-                        assert self.region == 'j' or use_other_alleles or use_other_primary_versions
+                    # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
+                    if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
+                        continue
+                    # the skip nonsense erosions that're too long for this gene, but were ok for another
+                    if int(line[erosion + '_del']) >= len(self.germline_seq):
                         continue
 
                     # then add in this erosion's counts
@@ -213,13 +189,10 @@ class HmmWriter(object):
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
                     total += float(line['count'])
 
-                if len(genes_used) > 0:
-                    print '    used', ' '.join(genes_used)
+                    if self.region + '_gene' in line:
+                        genes_used.add(line[self.region + '_gene'])
 
-                if len(self.erosion_probs[erosion]) == 0:  # if we didn't find any erosion information return without doing anything else (we'll try again, looking at other genes)
-                    self.erosion_probs = {}
-                    return
-
+                assert len(self.erosion_probs[erosion]) > 0
 
                 # # for fake v_5p and j_3p, interpolate the bases for which we didn't find info
                 # if erosion in utils.effective_erosions:
@@ -236,34 +209,25 @@ class HmmWriter(object):
                     self.erosion_probs[erosion][n_eroded] /= total
                     test_total += self.erosion_probs[erosion][n_eroded]
                 assert utils.is_normed(test_total)
+        if len(genes_used) > 1:
+            print '    erosions:', ' '.join(genes_used)
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_probs(self, gene_name, use_other_alleles=False, use_other_primary_versions=False, use_specific_version=''):
+    def read_insertion_probs(self, this_gene, approved_genes=None):
         # NOTE reads info for <gene_name>, which is *not* necessarily the gene for which we're writing an hmm
         # TODO fill in cases where we don't have info from data with some (small) default value
+        if approved_genes == None:
+            approved_genes = [this_gene,]
         self.insertion_probs[self.insertion] = {}
         deps = utils.column_dependencies[self.insertion + '_insertion']
+        genes_used = set()
         with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=self.insertion + '_insertion', deps=deps)) as infile:
             reader = csv.DictReader(infile)
             total = 0.0
-            genes_used = set()
             for line in reader:
-                # first see if we should skip this line
-                if self.insertion == 'dj':  # for dj insertion, skip rows for genes other than the current one (vd insertion doesn't depend on gene choice, so use everything for it)
-                    if use_other_primary_versions:
-                        if not utils.are_same_primary_version(line[self.region + '_gene'], gene_name):
-                            continue
-                        genes_used.add(line[self.region + '_gene'])
-                    if use_other_alleles:
-                        if not utils.are_alleles(line['j_gene'], gene_name):
-                            continue
-                        genes_used.add(line[self.region + '_gene'])
-                    elif use_specific_version != '':
-                        if line['j_gene'] != use_specific_version:
-                            continue
-                        genes_used.add(line[self.region + '_gene'])
-                    elif line['j_gene'] != gene_name:
-                        continue
+                # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
+                if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
+                    continue
 
                 # then add in this insertion's counts
                 n_inserted = 0
@@ -273,21 +237,14 @@ class HmmWriter(object):
                 self.insertion_probs[self.insertion][n_inserted] += float(line['count'])
                 total += float(line['count'])
 
-            if len(genes_used) > 0:
-                print '    used', ' '.join(genes_used)
+                if self.region + '_gene' in line:
+                    genes_used.add(line[self.region + '_gene'])
 
             if len(self.insertion_probs[self.insertion]) == 0:  # if we didn't find any insertion information, return without doing anything else (we'll try again, looking at other genes)
                 self.insertion_probs = {}
                 return
 
-            if 0 not in self.insertion_probs[self.insertion] or len(self.insertion_probs[self.insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information. May as well just use another gene
-                print '\n    resetting insertion probs', self.insertion_probs[self.insertion]
-                self.insertion_probs = {}
-                return
-
-            # if 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) == 1:  # if we only observed zero-length insertions, add a single 1-insertion TODO shouldn't need this if you're running on lots of sequences
-            #     self.insertion_probs[self.insertion][1] = 1
-            #     total += 1
+            assert 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
             # and finally, normalize
             test_total = 0.0
@@ -295,54 +252,48 @@ class HmmWriter(object):
                 self.insertion_probs[self.insertion][n_inserted] /= total
                 test_total += self.insertion_probs[self.insertion][n_inserted]
             assert utils.is_normed(test_total)
+
+        if len(genes_used) > 1:
+            print '    insertions:', ' '.join(genes_used)
         
     # ----------------------------------------------------------------------------------------
-    def read_mute_freqs(self, gene_name):
-        # NOTE reads info for <gene_name>, which is *not* necessarily the gene for which we're writing an hmm
-        mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
-        i_try = 0
-        assert os.path.exists(mutefname)
-        if not os.path.exists(mutefname):
-            print '\n    no mute file for',gene_name,'so try other alleles:',
-        while not os.path.exists(mutefname):  # loop through other possible alleles
-            # TODO double check and unify how I look for other alleles/versions when I don't have info for a particular gene version
-            # TODO if I have *no* info for a position, I should really use an average rather than a very small value
-            allele_id = re.findall('_star_[0-9][0-9]*', mutefname)
-            assert len(allele_id) == 1  # make sure we found only one match
-            allele_id = allele_id[0]
-            if i_try == 0:
-                allele_number = 1
-            else:
-                allele_number = int(allele_id.replace('_star_', ''))
-                # assert allele_number > 0 and allele_number < 100
-                allele_number += 1
-            mutefname = mutefname.replace(allele_id, '_star_%02d' % allele_number)
-            print allele_number,
-            if i_try > 99:
-                assert False  # er, shouldn't need this any more
-                break
-            i_try += 1
-        if i_try > 0:
-            print ''
-        
-        assert os.path.exists(mutefname)
+    def read_mute_freqs(self, this_gene, approved_genes=None):
+        if approved_genes == None:
+            approved_genes = [this_gene,]
+        observed_freqs = {}  # of the form {0:(0.4, 0.38, 0.42), ...} (for position 0 with freq 0.4 with uncertainty 0.02)
+        for gene in approved_genes:
+            mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
+            if not os.path.exists(mutefname):
+                continue
+            with opener('r')(mutefname) as mutefile:
+                reader = csv.DictReader(mutefile)
+                for line in reader:
+                    pos = int(line['position'])
+                    freq = float(line['mute_freq'])
+                    lo_err = float(line['lo_err'])  # NOTE lo_err in the file is really the lower *bound*
+                    hi_err = float(line['hi_err'])  #   same deal
+                    assert freq >= 0.0 and lo_err >= 0.0 and hi_err >= 0.0  # you just can't be too careful
+                    if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
+                        freq = 0.5 * (lo_err + hi_err)
+                    if pos not in observed_freqs:
+                        observed_freqs[pos] = []
+                    observed_freqs[pos].append({'freq':freq, 'err':max(abs(freq-lo_err), abs(freq-hi_err))})
 
-        total = 0.0
-        n_positions = 0
-        with opener('r')(mutefname) as mutefile:
-            reader = csv.DictReader(mutefile)
-            for line in reader:
-                freq = float(line['mute_freq'])
-                lo_err = float(line['lo_err'])
-                hi_err = float(line['hi_err'])
-                assert freq >= 0.0 and lo_err >= 0.0 and hi_err >= 0.0  # you just can't be too careful
-                if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
-                    freq = 0.5 * (lo_err + hi_err)
-                self.mute_freqs[int(line['position'])] = freq
-                total += freq
-                n_positions += 1
-        assert n_positions > 0
-        self.mean_mute_freq = total / n_positions
+        overall_total, overall_sum_of_weights = 0.0, 0.0
+        for pos in observed_freqs:
+            total, sum_of_weights = 0.0, 0.0
+            for obs in observed_freqs[pos]:
+                assert obs['err'] > 0.0
+                weight = 1.0 / obs['err']
+                total += weight * obs['freq']
+                sum_of_weights += weight
+            assert sum_of_weights > 0.0
+            mean_freq = total / sum_of_weights
+            self.mute_freqs[pos] = mean_freq
+            overall_total += total
+            overall_sum_of_weights += sum_of_weights
+
+        self.mean_mute_freq = overall_total / overall_sum_of_weights
         self.insert_mute_prob = self.mean_mute_freq
 
     # ----------------------------------------------------------------------------------------
