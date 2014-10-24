@@ -49,13 +49,39 @@ def find_full_bin(bin_val, full_bins, side):
     return nearest_bin
 
 # ----------------------------------------------------------------------------------------
-def zero_suppress(values):
-    pass
+def add_empty_bins(values):
+    # add an empty bin between any full ones
+    all_bins = get_bin_list(values, 'all')
+    for ib in range(all_bins[0], all_bins[-1]):
+        if ib not in values:
+            values[ib] = 0.0
+
+# ----------------------------------------------------------------------------------------
+def zero_suppress(values, eps):
+    print '---- zero suppressing'
+    for x in sorted(values.keys()):
+        print '     %3d %f' % (x, values[x])
+    add_empty_bins(values)
+    print '----'
+    for x in sorted(values.keys()):
+        print '     %3d %f' % (x, values[x])
+    for empty_bin in get_bin_list(values, 'empty'):
+        values[empty_bin] = eps
+    print '----'
+    for x in sorted(values.keys()):
+        print '     %3d %f' % (x, values[x])
 
 # ----------------------------------------------------------------------------------------
 def interpolate_bins(values):
     """ interpolate the empty (<eps) bins in <values>. NOTE there's some shenanigans if you have empty bins on the edges """
+    print '---- interpolating'
+    for x in sorted(values.keys()):
+        print '    %3d %f' % (x, values[x])
+    add_empty_bins(values)
     full_bins = get_bin_list(values, 'full')
+    print '----'
+    for x in sorted(values.keys()):
+        print '     %3d %f' % (x, values[x])
     for empty_bin in get_bin_list(values, 'empty'):
         lower_full_bin = find_full_bin(empty_bin, full_bins, side='lower')
         upper_full_bin = find_full_bin(empty_bin, full_bins, side='upper')
@@ -65,6 +91,9 @@ def interpolate_bins(values):
         upper_weight = 1.0 / abs(empty_bin - upper_full_bin)
         values[empty_bin] = lower_weight*values[lower_full_bin] + upper_weight*values[upper_full_bin]
         values[empty_bin] /= lower_weight + upper_weight
+    print '----'
+    for x in sorted(values.keys()):
+        print '     %3d %f' % (x, values[x])
 
 # ----------------------------------------------------------------------------------------
 class Track(object):
@@ -228,7 +257,6 @@ class HmmWriter(object):
             deps = utils.column_dependencies[erosion + '_del']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
-                total = 0.0
                 for line in reader:
                     # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
                     if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
@@ -242,7 +270,6 @@ class HmmWriter(object):
                     if n_eroded not in self.erosion_probs[erosion]:
                         self.erosion_probs[erosion][n_eroded] = 0.0
                     self.erosion_probs[erosion][n_eroded] += float(line['count'])
-                    total += float(line['count'])
 
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
@@ -253,9 +280,13 @@ class HmmWriter(object):
             if erosion in utils.effective_erosions:  # interpolate for v left and j right
                 interpolate_bins(self.erosion_probs[erosion])
             else:
-                zero_suppress(self.erosion_probs[erosion])  # but for the real erosions just add pseudocounts
+                zero_suppress(self.erosion_probs[erosion], self.eps)  # but for the real erosions just add pseudocounts
 
             # and finally, normalize
+            total = 0.0
+            for _, val in self.erosion_probs[erosion].iteritems():
+                total += val
+
             test_total = 0.0
             for n_eroded in self.erosion_probs[erosion]:
                 self.erosion_probs[erosion][n_eroded] /= total
@@ -274,7 +305,6 @@ class HmmWriter(object):
         genes_used = set()
         with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=self.insertion + '_insertion', deps=deps)) as infile:
             reader = csv.DictReader(infile)
-            total = 0.0
             for line in reader:
                 # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
                 if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
@@ -286,18 +316,20 @@ class HmmWriter(object):
                 if n_inserted not in self.insertion_probs[self.insertion]:
                     self.insertion_probs[self.insertion][n_inserted] = 0.0
                 self.insertion_probs[self.insertion][n_inserted] += float(line['count'])
-                total += float(line['count'])
 
                 if self.region + '_gene' in line:
                     genes_used.add(line[self.region + '_gene'])
 
         assert len(self.insertion_probs[self.insertion]) > 0
 
-        zero_suppress(self.insertion_probs[self.insertion])  # NOTE that we normalize *after* this
+        zero_suppress(self.insertion_probs[self.insertion], self.eps)  # NOTE that we normalize *after* this
 
         assert 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
         # and finally, normalize
+        total = 0.0
+        for _, val in self.insertion_probs[insertion].iteritems():
+            total += val
         test_total = 0.0
         for n_inserted in self.insertion_probs[self.insertion]:
             self.insertion_probs[self.insertion][n_inserted] /= total
