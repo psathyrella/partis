@@ -44,7 +44,7 @@ public:
   size_t size() { return tracks_.size(); }
   Track *track(const string &name) {
     if(!indices_.count(name)) {
-	  cerr << "ERROR: track '" << name << "' not found!" << endl;
+      cerr << "ERROR: track '" << name << "' not found!" << endl;
       throw runtime_error("configuration");
     }
     return tracks_[indices_[name]];
