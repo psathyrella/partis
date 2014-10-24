@@ -37,8 +37,8 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
       total_ += prob;
     }
     if(fabs(total_-1.0) >= EPS) {  // make sure emissions probs sum to 1.0
-      cout << "ERROR normalization failed for" << endl;
-      cout << config << endl;
+      cerr << "ERROR normalization failed for emissions:" << endl;
+      cerr << config << endl;
       assert(0);
     }
     scores_.AddColumn(log_probs);  // NOTE <log_probs> must already be logged
@@ -71,8 +71,8 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     }
     // TODO use something cleverer than a random hard coded EPS
     if(fabs(total_-1.0) >= EPS) {  // make sure emissions probs sum to 1.0
-      cout << "ERROR normalization failed for" << endl;
-      cout << config << endl;
+      cerr << "ERROR normalization failed for" << endl;
+      cerr << config << endl;
       assert(0);
     }
   } else {

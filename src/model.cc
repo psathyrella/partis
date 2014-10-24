@@ -12,23 +12,44 @@ void Model::Parse(string infname) {
     cerr << "ERROR " << infname << " d.n.e." << endl;
     assert(0);
   }
-  YAML::Node config = YAML::LoadFile(infname);
-  name_ = config["name"].as<string>();
-  if (config["extras"] && config["extras"]["gene_prob"])
-    overall_prob_ = config["extras"]["gene_prob"].as<double>();
 
-  YAML::Node tracks(config["tracks"]);
-  for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
-    Track *trk = new Track;
-    trk->set_name(it->first.as<string>());
-    for (size_t ic=0; ic<it->second.size(); ++ic)
-      trk->AddSymbol(it->second[ic].as<string>());
-    tracks_.push_back(trk);
+  // load yaml
+  YAML::Node config = YAML::LoadFile(infname);
+  // first get model-wide information
+  try {
+    name_ = config["name"].as<string>();
+    if (config["extras"] && config["extras"]["gene_prob"])
+      overall_prob_ = config["extras"]["gene_prob"].as<double>();
+  } catch (...) {
+    cerr << "ERROR invalid model header info in " << infname << endl;
+    assert(0);
   }
 
+  try {
+    // and the tracks
+    YAML::Node tracks(config["tracks"]);
+    for (YAML::const_iterator it=tracks.begin(); it!=tracks.end(); ++it) {
+      Track *trk = new Track;
+      trk->set_name(it->first.as<string>());
+      for (size_t ic=0; ic<it->second.size(); ++ic)
+	trk->AddSymbol(it->second[ic].as<string>());
+      tracks_.push_back(trk);
+    }
+  } catch (...) {
+    cerr << "ERROR invalid track specifications in " << infname << endl;
+    assert(0);
+  }
+
+  // then push back each state name
   vector<string> state_names;
   for (size_t is=0; is<config["states"].size(); ++is) {
-    string name = config["states"][is]["name"].as<string>();
+    string name;
+    try {
+      name = config["states"][is]["name"].as<string>();
+    } catch (...) {
+      cerr << "ERROR invalid state name in " << infname << endl;
+      assert(0);
+    }
     for (auto chkname: state_names) {
       if (name == chkname) {
 	cerr << "ERROR added two states with name \"" << name << "\"" << endl;
@@ -38,10 +59,15 @@ void Model::Parse(string infname) {
     state_names.push_back(name);
   }
 
+  // then actually parse the info for each state
   for (size_t ist=0; ist<state_names.size(); ++ist) {
     State *st(new State);
-    st->Parse(config["states"][ist], state_names, tracks_);
-    // st->Print();
+    try {
+      st->Parse(config["states"][ist], state_names, tracks_);
+    } catch (...) {
+      cerr << "ERROR invalid specification for state \"" << state_names[ist] << "\" in " << infname << endl;
+      assert(0);
+    }
 
     if (st->name() == "init") {
       initial_ = st;
@@ -76,7 +102,7 @@ void Model::Finalize() {
   for(size_t i=0; i<states_.size(); ++i)
     FinalizeState(states_[i]);
   if (!initial_) {
-    cerr << "ERROR no \"init\" was state specified" << endl;
+    cerr << "ERROR no \"init\" state was specified" << endl;
     assert(0);
   }
   FinalizeState(initial_);

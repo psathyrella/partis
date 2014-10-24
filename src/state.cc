@@ -33,7 +33,11 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
       transitions_->push_back(trans);
   }
   // TODO use something cleverer than a random hard coded EPS
-  assert(fabs(total-1.0) < EPS);  // make sure transition probs sum to 1.0
+  if(fabs(total-1.0) >= EPS) {  // make sure transition probs sum to 1.0
+    cerr << "ERROR normalization failed on transitions in state \"" << name_ << "\"" << endl;
+    cerr << node << endl;
+    assert(0);
+  }
 
   if (name_ == "init")
     return;
@@ -42,6 +46,11 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     emission_.Parse(node["emissions"], "single", trks);
   if (node["pair_emissions"])
     pair_emission_.Parse(node["pair_emissions"], "pair", trks);
+  if (!node["emissions"] && !node["pair_emissions"]) {
+    cerr << "ERROR no emissions found in" << endl;
+    cerr << node << endl;
+    assert(0);
+  }
 }
 
 // ----------------------------------------------------------------------------------------
