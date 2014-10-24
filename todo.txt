@@ -19,7 +19,7 @@
   - v left and j right deletions: allow them *only* if they run beyond the query sequence
   - use hamming-to-naive, but *also* add a measure of how accurately we inferred which positions were mutated
   - test with lots of different read lengths, i.e. extending waaaay left of the whole v, and so on
-  - parallelize that shit!
+  - interpolate at least v_5p, and probably everything else
   - hmmwriter: TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d. EDIT it\'s bad! and this also applies to mutation freqs!
   - really, really need to add a way to ignore parameters from genes that we hardly ever saw that have huge uncertainties
   - oops. data is here: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/data/r2/01-LMP-N

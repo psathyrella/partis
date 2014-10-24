@@ -21,6 +21,8 @@ def is_normed(prob):
     return math.fabs(prob - 1.0) < eps  #*1000000000
 
 # ----------------------------------------------------------------------------------------
+hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
+# ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 effective_erosions = ['v_5p', 'j_3p']
@@ -523,11 +525,14 @@ def read_germlines(data_dir, remove_fp=False, remove_N_nukes=False):
 # ----------------------------------------------------------------------------------------
 def get_region(gene_name):
     """ return v, d, or j of gene"""
-    assert 'IGH' in gene_name
-    region = gene_name[3:4].lower()
-    assert region in regions
-    return region
-
+    try:
+        assert 'IGH' in gene_name
+        region = gene_name[3:4].lower()
+        assert region in regions
+        return region
+    except:
+        print 'ERROR faulty gene name %s ' % gene_name
+        assert False
 # ----------------------------------------------------------------------------------------
 def maturity_to_naivety(maturity):
     if maturity == 'memory':
@@ -574,12 +579,14 @@ def are_same_primary_version(gene1, gene2):
     return str_1 == str_2
 
 # ----------------------------------------------------------------------------------------
-def read_overall_gene_probs(indir, only_region='', only_gene=''):
-    counts = {}
+def read_overall_gene_probs(indir, only_gene='', normalize=True):
+    """
+    Return the observed counts/probabilities of choosing each gene version.
+    If <normalize> then return probabilities
+    """
+    counts = { region:{} for region in regions }
+    probs = { region:{} for region in regions }
     for region in regions:
-        if only_region != '' and region != only_region:
-            continue
-        counts[region] = {}
         total = 0
         smallest_count = -1  # if we don't find the gene we're looking for, assume it occurs at the lowest rate at which we see any gene
         with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
@@ -600,12 +607,51 @@ def read_overall_gene_probs(indir, only_region='', only_gene=''):
         if only_gene != '' and only_gene not in counts[region]:  # didn't find this gene
             counts[region][only_gene] = smallest_count
         for gene in counts[region]:
-            counts[region][gene] /= float(total)
-    # print 'return: %d / %d = %f' % (this_count, total, float(this_count) / total)
+            probs[region][gene] = float(counts[region][gene]) / total
+
     if only_gene == '':
-        return counts  # oops, now they're probs, not counts. *sigh*
+        if normalize:
+            return probs
+        else:
+            return counts
     else:
-        return counts[only_region][only_gene]
+        if normalize:
+            return probs[get_region(only_gene)][only_gene]
+        else:
+            return counts[get_region(only_gene)][only_gene]
+
+# ----------------------------------------------------------------------------------------
+def find_replacement_gene(indir, gene_name, min_counts):
+    region = get_region(gene_name)
+    allele_list = []  # list of genes that are alleles of <gene_name>
+    primary_version_list = []  # same primary version as <gene_name>
+    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+        reader = csv.DictReader(infile)
+        for line in reader:
+            gene = line[region + '_gene']
+            count = int(line['count'])
+            if are_alleles(gene, gene_name):
+                allele_list.append((gene, count))
+            if are_same_primary_version(gene, gene_name):
+                primary_version_list.append((gene, count))
+
+    # return the first allele which has at least <min_counts> counts
+    allele_list.sort(reverse=True, key=lambda pair: pair[1])  # sort by score
+    for pair in allele_list:
+        if pair[1] >= min_counts:
+            return pair[0]
+
+    # failing that, return the first primary version that meets the same criterion
+    primary_version_list.sort(reverse=True, key=lambda pair: pair[1])  # sort by score
+    for pair in primary_version_list:
+        if pair[1] >= min_counts:
+            return pair[0]
+
+    print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
+    return hackey_default_gene_versions[region]
+
+    # print 'ERROR didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir)
+    # assert False
 
 # ----------------------------------------------------------------------------------------
 def hamming(seq1, seq2):
