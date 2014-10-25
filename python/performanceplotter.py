@@ -83,13 +83,13 @@ class PerformancePlotter(object):
                 wrong = self.values[column]['wrong']
                 print '  %s\n    correct: %4d / %-4d = %4.2f' % (column, right, right+wrong, float(right) / (right + wrong))
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
-                plotting.draw(hist, 'bool', plotname=column, plotdir=self.plotdir)
+                plotting.draw(hist, 'bool', plotname=column, plotdir=self.plotdir, write_csv=True)
             else:
                 hist = plotting.make_hist(self.values[column], 'int', self.name + '-' + column, normalize=True)
                 if column == 'hamming_to_true_naive':
                     hist.GetXaxis().SetTitle('hamming distance')
                 else:
                     hist.GetXaxis().SetTitle('inferred - true')
-                plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir)
+                plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True)
         check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
         check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])

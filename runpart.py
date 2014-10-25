@@ -31,12 +31,13 @@ parser.add_argument('--pair', action='store_true')
 parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--skip_unproductive', action='store_true')  # skip unproductive rearrangements
 parser.add_argument('--apply_choice_probs_in_sw', action='store_true')
+parser.add_argument('--plot_performance', action='store_true')
 
+parser.add_argument('--seqfile')  # input file
 parser.add_argument('--parameter_dir', required=True)  # sample-specific parameters (mutation rates, gene version freqs, ...)
 parser.add_argument('--datadir', default='./data')  # non-sample-specific information (e.g. germline gene versions)
 parser.add_argument('--outdir')
-parser.add_argument('--plot_performance', action='store_true')
-parser.add_argument('--seqfile')  # input file
+parser.add_argument('--plotdir')
 
 parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
 parser.add_argument('--n_procs', type=int, default=1)  # number of processes over which to parallelize

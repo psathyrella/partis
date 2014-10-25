@@ -119,9 +119,10 @@ class Waterer(object):
     def read_output(self, base_outfname, plot_performance=False):
         perfplotter = None
         if plot_performance:
+            assert self.args.plotdir != None
             assert not self.args.is_data
             from performanceplotter import PerformancePlotter
-            perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/sw_performance', 'sw')
+            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw', 'sw')
 
         for iproc in range(self.args.n_procs):
             workdir = self.args.workdir

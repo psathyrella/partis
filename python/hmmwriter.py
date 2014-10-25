@@ -382,29 +382,6 @@ class HmmWriter(object):
         For insert states, 
         """
         assert state.name == 'init' or state.name == 'insert'
-
-        # if self.region == 'v':
-        #     # probability to enter v at a given base is given by a normal distribution with mean <mean_start_pos> and width <fuzz_around_v_left_edge>
-        #     assert self.v_right_length != -1
-        #     mean_start_pos = len(self.germline_seq) - self.v_right_length
-        #     probs = collections.OrderedDict()
-        #     total = 0.0
-        #     for inuke in range(len(self.germline_seq)):  # start at far left side of v, but only write out probs that are greater than self.eps
-        #         tmp_prob = float(norm.pdf(float(inuke), float(mean_start_pos), self.fuzz_around_v_left_edge))  # NOTE not yet normalized
-        #         if tmp_prob < self.eps:
-        #             continue
-        #         probs[inuke] = tmp_prob
-        #         total += tmp_prob
-        #         if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:
-        #             self.smallest_entry_index = inuke
-        #     test_total = 0.0
-        #     for inuke in probs:  # normalize and check
-        #         probs[inuke] /= total
-        #         test_total += probs[inuke]
-        #     assert utils.is_normed(test_total)
-        #     for inuke in probs:
-        #         state.add_transition('%s_%d' % (self.saniname, inuke), probs[inuke])
-        # else:
         non_zero_insertion_prob = 0.0  # Prob of a non-zero-length insertion (i.e. prob to *not* go directly into the region)
                                        # The sum of the region entry probs must be (1 - non_zero_insertion_prob) for d and j
                                        # (i.e. such that [prob of transitions to insert] + [prob of transitions *not* to insert] is 1.0)
@@ -431,8 +408,6 @@ class HmmWriter(object):
             erosion_length = inuke
             if erosion_length in self.erosion_probs[erosion]:  # TODO this disallows erosions that we didn't see in data
                 prob = self.erosion_probs[erosion][erosion_length]
-                # if prob < utils.eps:
-                #     continue
                 total += prob * (1.0 - non_zero_insertion_prob)
                 if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
                     state.add_transition('%s_%d' % (self.saniname, inuke), prob * (1.0 - non_zero_insertion_prob))
@@ -450,8 +425,6 @@ class HmmWriter(object):
         distance_to_end = len(self.germline_seq) - inuke - 1
         if distance_to_end == 0:  # last state has to go to END
             return 1.0
-        # if self.region == 'j':  # always go to end of germline j region
-        #     return 0.0
         erosion = self.region + '_3p'
         erosion_length = distance_to_end
         if erosion_length in self.erosion_probs[erosion]:

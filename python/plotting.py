@@ -276,10 +276,9 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(dir1, name1, dir2, name2, xtitle='', stats='', dir3='', name3=''):
+def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', dir3='', name3=''):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
-    plotdir = os.getenv('www') + '/partis/compare-performance'
-    utils.prep_dir(plotdir + '/plots', '*.svg')
+    utils.prep_dir(outdir + '/plots', '*.svg')
     dir1_hists = get_hists_from_dir(dir1, name1)
     dir2_hists = get_hists_from_dir(dir2, name2)
     dir3_hists = None
@@ -295,7 +294,7 @@ def compare_directories(dir1, name1, dir2, name2, xtitle='', stats='', dir3='', 
         var_type = 'int'
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
-        draw(hist, var_type, plotname=varname, plotdir=plotdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3)
-    check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
-    check_call(['makeHtml', plotdir, '3', 'null', 'svg'])
+        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3)
+    check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
+    check_call(['makeHtml', outdir, '3', 'null', 'svg'])
         
