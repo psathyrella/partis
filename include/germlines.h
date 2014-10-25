@@ -14,7 +14,7 @@ using namespace std;
 // to compile when I do that, so I'm punting on it for the moment.
 // ----------------------------------------------------------------------------------------
 class TermColors {
- public:
+public:
   TermColors() {
     codes_["bold"] = "\033[1m";
     codes_["reverse"] = "\033[7m";
@@ -33,10 +33,10 @@ class TermColors {
   }
   // ----------------------------------------------------------------------------------------
   string RedifyIfMuted(char germline_nuke, char nuke) {
-    if (nuke==germline_nuke)
-      return string(1,nuke);
+    if(nuke == germline_nuke)
+      return string(1, nuke);
     else
-      return Color("red", string(1,nuke));
+      return Color("red", string(1, nuke));
   }
 
   // ----------------------------------------------------------------------------------------
@@ -46,97 +46,96 @@ class TermColors {
     assert(gene.find("IGH") != string::npos);
     char region_char(tolower(gene[3]));
     string region(1, region_char);
-    assert(region=="v" || region=="d" || region=="j");
+    assert(region == "v" || region == "d" || region == "j");
     return region;
   }
   // ----------------------------------------------------------------------------------------
-  string ColorMutants(string color, string ref_1, string seq, string ref_2="") {  // return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal
-    if (ref_1.size() == 0)
+  string ColorMutants(string color, string ref_1, string seq, string ref_2 = "") { // return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal
+    if(ref_1.size() == 0)
       return seq;
-    if (ref_1.size() != seq.size()) {
+    if(ref_1.size() != seq.size()) {
       cout << "ERROR seqs not same length in color_mutants: " << ref_1 << endl
-	   << "                                              " << seq << endl;
+           << "                                              " << seq << endl;
     }
     string return_str;
-    for (size_t inuke=0; inuke<seq.size(); ++inuke) {
-      if (seq[inuke] == 'i') {
-	return_str += Color("yellow", seq.substr(inuke,1));
-      } else if (seq[inuke] == ref_1[inuke]) {  // nuke same as ref 1
-	if (ref_2.size()==0 || seq[inuke]==ref_2[inuke])
-	  return_str += seq[inuke];
-	else
-	  return_str += Color(color, seq.substr(inuke,1));
+    for(size_t inuke = 0; inuke < seq.size(); ++inuke) {
+      if(seq[inuke] == 'i') {
+        return_str += Color("yellow", seq.substr(inuke, 1));
+      } else if(seq[inuke] == ref_1[inuke]) {   // nuke same as ref 1
+        if(ref_2.size() == 0 || seq[inuke] == ref_2[inuke])
+          return_str += seq[inuke];
+        else
+          return_str += Color(color, seq.substr(inuke, 1));
       } else {  // nuke different to ref 1
-	if (ref_2.size()==0 || seq[inuke]==ref_2[inuke])
-	  return_str += Color(color, seq.substr(inuke,1));
-	else
-	  return_str += Color("reverse", Color(color, seq.substr(inuke,1)));
+        if(ref_2.size() == 0 || seq[inuke] == ref_2[inuke])
+          return_str += Color(color, seq.substr(inuke, 1));
+        else
+          return_str += Color("reverse", Color(color, seq.substr(inuke, 1)));
       }
     }
     return return_str;
   }
   // ----------------------------------------------------------------------------------------
   string ColorGene(string gene) {
-    string return_str = gene.substr(0,3) + Color("purple", gene.substr(3,1));
+    string return_str = gene.substr(0, 3) + Color("purple", gene.substr(3, 1));
     string n_version = gene.substr(4, gene.find("-") - 4);
     string n_subversion = gene.substr(gene.find("-") + 1, gene.find("*") - gene.find("-") - 1);
-    if (GetRegion(gene) == "j") {
-        n_version = gene.substr(4, gene.find("*") - 4);
-        n_subversion = "";
-        return_str += Color("red", n_version);
+    if(GetRegion(gene) == "j") {
+      n_version = gene.substr(4, gene.find("*") - 4);
+      n_subversion = "";
+      return_str += Color("red", n_version);
     } else {
       return_str += Color("red", n_version) + "-" + Color("red", n_subversion);
     }
     string allele = gene.substr(gene.find("*") + 1, gene.find("_") - gene.find("*") - 1);
     return_str += "*" + Color("yellow", allele);
-    if (gene.find("_") != string::npos)  // _F or _P in j gene names
+    if(gene.find("_") != string::npos)   // _F or _P in j gene names
       return_str += gene.substr(gene.find("_"));
     return return_str;
   }
 
   // ----------------------------------------------------------------------------------------
-  map<string,string> codes_;
+  map<string, string> codes_;
 };
 
 // ----------------------------------------------------------------------------------------
 class GermLines {
- public:
+public:
   // ----------------------------------------------------------------------------------------
   GermLines(string input_dir):
-    regions_{"v","d","j"}
-    {
-      for (auto &region : regions_) {
-	names_[region] = vector<string>();
-	ifstream ifs(input_dir + "/igh" + region + ".fasta");
-	assert(ifs.is_open());
-	string line,name,seq;
-	while (getline(ifs,line)) {
-	  if (line[0] == '>') {  // read header lines
-	    assert(line[1] != ' ');   // make my life hard, will you?
-	    name = line.substr(1, line.find(" ") - 1);  // skip the '>', and run until the first blank. It *should* be the gene name. We'll find out later when we look for the file.
-	    names_[region].push_back(name);
-	  } else {
-	    // line.replace(line.find("\n"), 1, "");
-	    seq = (seq=="") ? line : seq + line;
-	    if (ifs.peek()=='>' || ifs.peek()==EOF) {  // if we're done with this sequence, add it to the map
-	      seqs_[name] = seq;
-	      seq = "";
-	    }
-	  }
-	}
-	ifs.close();
+    regions_ {"v", "d", "j"} {
+    for(auto & region : regions_) {
+      names_[region] = vector<string>();
+      ifstream ifs(input_dir + "/igh" + region + ".fasta");
+      assert(ifs.is_open());
+      string line, name, seq;
+      while(getline(ifs, line)) {
+        if(line[0] == '>') {   // read header lines
+          assert(line[1] != ' ');   // make my life hard, will you?
+          name = line.substr(1, line.find(" ") - 1);  // skip the '>', and run until the first blank. It *should* be the gene name. We'll find out later when we look for the file.
+          names_[region].push_back(name);
+        } else {
+          // line.replace(line.find("\n"), 1, "");
+          seq = (seq == "") ? line : seq + line;
+          if(ifs.peek() == '>' || ifs.peek() == EOF) { // if we're done with this sequence, add it to the map
+            seqs_[name] = seq;
+            seq = "";
+          }
+        }
       }
+      ifs.close();
     }
+  }
 
   // ----------------------------------------------------------------------------------------
   // replace * with _star_ and /OR15 with _slash_
   string SanitizeName(string gene_name) {
     size_t istar(gene_name.find("*"));
-    if (istar != string::npos)
+    if(istar != string::npos)
       gene_name.replace(istar, 1, "_star_");
 
     size_t islash(gene_name.find("/"));
-    if (islash != string::npos)
+    if(islash != string::npos)
       gene_name.replace(islash, 1, "_slash_");
 
     return gene_name;
@@ -148,23 +147,23 @@ class GermLines {
     assert(gene.find("IGH") != string::npos);
     char region_char(tolower(gene[3]));
     string region(1, region_char);
-    assert(region=="v" || region=="d" || region=="j");
+    assert(region == "v" || region == "d" || region == "j");
     return region;
   }
 
   // ----------------------------------------------------------------------------------------
   vector<string> regions_;
-  map<string,vector<string> > names_;
-  map<string,string> seqs_;
+  map<string, vector<string> > names_;
+  map<string, string> seqs_;
 };
 
 // ----------------------------------------------------------------------------------------
 class RecoEvent {  // class to keep track of recombination event. Initially, just to allow printing. Translation of print_reco_event in utils.py
 public:
   RecoEvent() { score_ = 999; }
-  map<string,string> genes_;
-  map<string,size_t> deletions_;
-  map<string,string> insertions_;
+  map<string, string> genes_;
+  map<string, size_t> deletions_;
+  map<string, string> insertions_;
   string seq_name_;
   string seq_;
   string second_seq_name_;
@@ -185,32 +184,32 @@ public:
 
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
-  void Print(GermLines &germlines, size_t cyst_position=0, size_t final_tryp_position=0, bool one_line=false, bool print_second_seq=false, string extra_indent="") {
+  void Print(GermLines &germlines, size_t cyst_position = 0, size_t final_tryp_position = 0, bool one_line = false, bool print_second_seq = false, string extra_indent = "") {
     assert(0);  // this needs to be updated to match the python version
     string print_seq = seq_;
-    if (print_second_seq)
+    if(print_second_seq)
       print_seq = second_seq_;
 
-    if (score_ == -INFINITY) {
+    if(score_ == -INFINITY) {
       cout << "    " << extra_indent << score_ << endl;
       return;
     }
     // make sure we remembered to fill all the necessary information
-    vector<string> deletion_names{"v_3p", "d_5p", "d_3p", "j_5p"};
-    vector<string> insertion_names{"vd", "dj"};
-    for (auto &region: germlines.regions_) assert(genes_.find(region) != genes_.end());
-    for (auto &name: deletion_names) assert(deletions_.find(name) != deletions_.end());
-    for (auto &name: insertion_names) assert(insertions_.find(name) != insertions_.end());
+    vector<string> deletion_names {"v_3p", "d_5p", "d_3p", "j_5p"};
+    vector<string> insertion_names {"vd", "dj"};
+    for(auto & region : germlines.regions_) assert(genes_.find(region) != genes_.end());
+    for(auto & name : deletion_names) assert(deletions_.find(name) != deletions_.end());
+    for(auto & name : insertion_names) assert(insertions_.find(name) != insertions_.end());
     assert(print_seq.size() > 0);
 
-    map<string,string> original_seqs;
-    for (auto &region: germlines.regions_)
+    map<string, string> original_seqs;
+    for(auto & region : germlines.regions_)
       original_seqs[region] = germlines.seqs_[genes_[region]];
 
-    if (deletions_.find("v_5p") == deletions_.end()) { // try to infer the left-hand v "deletion"
+    if(deletions_.find("v_5p") == deletions_.end()) {  // try to infer the left-hand v "deletion"
       deletions_["v_5p"] = original_seqs["v"].size() + original_seqs["d"].size() + original_seqs["j"].size()
-	- deletions_["v_3p"] - deletions_["d_5p"] - deletions_["d_3p"] - deletions_["j_5p"]
-	+ insertions_["vd"].size() + insertions_["dj"].size() - print_seq.size();
+                           - deletions_["v_3p"] - deletions_["d_5p"] - deletions_["d_3p"] - deletions_["j_5p"]
+                           + insertions_["vd"].size() + insertions_["dj"].size() - print_seq.size();
     }
     original_seqs["v"] = original_seqs["v"].substr(deletions_["v_5p"]);
 
@@ -218,7 +217,7 @@ public:
     size_t d_length = original_seqs["d"].size() - deletions_["d_5p"] - deletions_["d_3p"];
     size_t j_length = original_seqs["j"].size() - deletions_["j_5p"];
 
-    map<string,string> eroded_seqs;
+    map<string, string> eroded_seqs;
     eroded_seqs["v"] = original_seqs["v"].substr(0, original_seqs["v"].size() - deletions_["v_3p"]);
     eroded_seqs["d"] = original_seqs["d"].substr(deletions_["d_5p"], original_seqs["d"].size() - deletions_["d_3p"] - deletions_["d_5p"]);
     eroded_seqs["j"] = original_seqs["j"].substr(deletions_["j_5p"]);
@@ -233,88 +232,88 @@ public:
     //   for (size_t i=0; i<deletions_["v_5p"]; ++i)
     // 	print_seq = "." + print_seq;
     // }
-    if (deletions_.find("j_3p") != deletions_.end()) {
-      for (size_t i=0; i<deletions_["j_3p"]; ++i)
-	print_seq += ".";
+    if(deletions_.find("j_3p") != deletions_.end()) {
+      for(size_t i = 0; i < deletions_["j_3p"]; ++i)
+        print_seq += ".";
     }
 
     string final_seq;
     TermColors tc;
-    for (size_t inuke=0; inuke<print_seq.size(); ++inuke) {
+    for(size_t inuke = 0; inuke < print_seq.size(); ++inuke) {
       size_t ilocal = inuke;
       string new_nuke;
-      if (ilocal < v_length) {
-	new_nuke = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], print_seq[inuke]);
+      if(ilocal < v_length) {
+        new_nuke = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], print_seq[inuke]);
       } else {
-	ilocal -= v_length;
-	if (ilocal < insertions_["vd"].size()) {
-	  new_nuke = tc.RedifyIfMuted(insertions_["vd"][ilocal], print_seq[inuke]);
+        ilocal -= v_length;
+        if(ilocal < insertions_["vd"].size()) {
+          new_nuke = tc.RedifyIfMuted(insertions_["vd"][ilocal], print_seq[inuke]);
         } else {
-	  ilocal -= insertions_["vd"].size();
-	  if (ilocal < d_length) {
-	    new_nuke = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], print_seq[inuke]);
-	  } else {
-	    ilocal -= d_length;
-	    if (ilocal < insertions_["dj"].size()) {
-	      new_nuke = tc.RedifyIfMuted(insertions_["dj"][ilocal], print_seq[inuke]);
-	    } else {
-	      ilocal -= insertions_["dj"].size();
-	      new_nuke = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], print_seq[inuke]);
-	    }
-	  }
-	}
+          ilocal -= insertions_["vd"].size();
+          if(ilocal < d_length) {
+            new_nuke = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], print_seq[inuke]);
+          } else {
+            ilocal -= d_length;
+            if(ilocal < insertions_["dj"].size()) {
+              new_nuke = tc.RedifyIfMuted(insertions_["dj"][ilocal], print_seq[inuke]);
+            } else {
+              ilocal -= insertions_["dj"].size();
+              new_nuke = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], print_seq[inuke]);
+            }
+          }
+        }
       }
       // reverse video the conserved codons, if we have them
-      if (cyst_position > 0 && final_tryp_position > 0) {
-	if (inuke == cyst_position || inuke == final_tryp_position) {
-	  new_nuke = "\033[7m" + new_nuke;
-	} else if (inuke == cyst_position + 2 || inuke == final_tryp_position + 2) {
-	  new_nuke = new_nuke + "\033[m";
-	}
+      if(cyst_position > 0 && final_tryp_position > 0) {
+        if(inuke == cyst_position || inuke == final_tryp_position) {
+          new_nuke = "\033[7m" + new_nuke;
+        } else if(inuke == cyst_position + 2 || inuke == final_tryp_position + 2) {
+          new_nuke = new_nuke + "\033[m";
+        }
       }
       // and finally tack it onto the final sequence
       final_seq += new_nuke;
     }
 
     // pad with dots
-    for (size_t i=0; i<deletions_["v_3p"]; ++i)
+    for(size_t i = 0; i < deletions_["v_3p"]; ++i)
       eroded_seqs["v"] += ".";
-    for (size_t i=0; i<deletions_["d_5p"]; ++i)
+    for(size_t i = 0; i < deletions_["d_5p"]; ++i)
       eroded_seqs["d"] = "." + eroded_seqs["d"];
-    for (size_t i=0; i<deletions_["d_3p"]; ++i)
+    for(size_t i = 0; i < deletions_["d_3p"]; ++i)
       eroded_seqs["d"] += ".";
-    for (size_t i=0; i<deletions_["j_5p"]; ++i)
+    for(size_t i = 0; i < deletions_["j_5p"]; ++i)
       eroded_seqs["j"] = "." + eroded_seqs["j"];
 
     string insertion_str;
-    for (size_t iv=0; iv<v_length; ++iv)
+    for(size_t iv = 0; iv < v_length; ++iv)
       insertion_str += " ";
     insertion_str += insertions_["vd"];
-    for (size_t id=0; id<d_length; ++id)
+    for(size_t id = 0; id < d_length; ++id)
       insertion_str += " ";
     insertion_str += insertions_["dj"];
-    for (size_t ij=0; ij<j_length; ++ij)
+    for(size_t ij = 0; ij < j_length; ++ij)
       insertion_str += " ";
     string d_str;
-    for (size_t ig=0; ig<germline_d_start; ++ig)
+    for(size_t ig = 0; ig < germline_d_start; ++ig)
       d_str += " ";
     d_str += eroded_seqs["d"];
     int ij_max = original_seqs["j"].size() - deletions_["j_5p"] + insertions_["dj"].size() - deletions_["d_3p"];
     // assert(ij_max>=0);
-    if (ij_max < 0)  // TODO fix this somewhat more permanently
+    if(ij_max < 0)   // TODO fix this somewhat more permanently
       ij_max = 0;
-    for (int ij=0; ij<ij_max; ++ij)
+    for(int ij = 0; ij < ij_max; ++ij)
       d_str += " ";
     string vj_str(eroded_seqs["v"]);
     int ivj_max = germline_j_start - germline_v_end - 2;
     // assert(ivj_max >= 0);
-    if (ivj_max < 0)  // TODO fix this somewhat more permanently
+    if(ivj_max < 0)   // TODO fix this somewhat more permanently
       ivj_max = 0;
-    for (int ivj=0; ivj<ivj_max; ++ivj)
+    for(int ivj = 0; ivj < ivj_max; ++ivj)
       vj_str += " ";
     vj_str += eroded_seqs["j"];
 
-    if (!one_line) {
+    if(!one_line) {
       cout << extra_indent << "    " << insertion_str << "   inserts" << endl;
       cout << extra_indent <<  "    " << d_str << "   " << tc.ColorGene(genes_["d"]) << endl;
       cout << extra_indent << "    " << vj_str << "   " << tc.ColorGene(genes_["v"]) << "," << tc.ColorGene(genes_["j"]) << endl;

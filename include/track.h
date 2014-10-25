@@ -35,7 +35,7 @@ private:
   size_t n_seqs_;  // number of sequences for this track (eg two for a pair hmm)
   size_t track_index_;
   vector<string> alphabet_;  // vector of this track's allowed symbols (eg {A,C,G,T})
-  map<string,uint8_t> symbol_indices_;
+  map<string, uint8_t> symbol_indices_;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ public:
   Track *operator[](size_t i) { return tracks_.at(i); }
 private:
   vector<Track*> tracks_;
-  map<string,size_t> indices_;
+  map<string, size_t> indices_;
 };
 
 }
