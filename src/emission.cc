@@ -63,9 +63,9 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
       assert(these_probs.size() == scores_.alphabet_size(0));
       vector<double> log_probs;
       for (size_t ipp=0; ipp<scores_.alphabet_size(0); ++ipp) {
-	double prob(these_probs[(*tracks_)[1]->symbol(ipp)].as<double>());  // NOTE probs are stored as dicts in the file, so <probs> is unordered
-	log_probs.push_back(log(prob));
-	total_ += prob;
+    double prob(these_probs[(*tracks_)[1]->symbol(ipp)].as<double>());  // NOTE probs are stored as dicts in the file, so <probs> is unordered
+    log_probs.push_back(log(prob));
+    total_ += prob;
       }
       scores_.AddColumn(log_probs);  // NOTE <log_probs> must already be logged. also NOTE that a column in <scores_> is maybe a row in the yaml file. I didn't choose it!
     }
@@ -99,9 +99,9 @@ void Emission::Print() {
     for (size_t ir=0; ir<(*tracks_)[0]->alphabet_size(); ++ir) {
       double prob = exp(scores_.LogProb(ir));
       if (prob < 0.01)
-	printf("%12.3e", exp(scores_.LogProb(ir)));
+        printf("%12.3e", exp(scores_.LogProb(ir)));
       else
-	printf("%12.3f", exp(scores_.LogProb(ir)));
+        printf("%12.3f", exp(scores_.LogProb(ir)));
     }
     cout << "\n";
   } else {
@@ -109,7 +109,7 @@ void Emission::Print() {
     for (size_t ir=0; ir<(*tracks_)[0]->alphabet_size(); ++ir) {
       printf("%16s", (*tracks_)[0]->symbol(ir).c_str());
       for (size_t ic=0; ic<(*tracks_)[1]->alphabet_size(); ++ic)
-	printf("%12.3e", exp(scores_.LogProb(ir, ic)));
+        printf("%12.3e", exp(scores_.LogProb(ir, ic)));
       cout << "\n";
     }
   }

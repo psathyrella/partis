@@ -101,19 +101,19 @@ Args::Args(int argc, const char * argv[]):
     int tmpint;
     for (auto &head: headers) {
       if (str_headers_.find(head) != str_headers_.end()) {
-	ss >> tmpstr;
-	strings_[head].push_back(tmpstr);
-	if (head=="only_genes") {
-	  if (all_only_genes_.size() == 0)
-	    all_only_genes_ = tmpstr;
-	  else
-	    all_only_genes_ += ":" + tmpstr;
-	}
+    ss >> tmpstr;
+    strings_[head].push_back(tmpstr);
+    if (head=="only_genes") {
+      if (all_only_genes_.size() == 0)
+        all_only_genes_ = tmpstr;
+      else
+        all_only_genes_ += ":" + tmpstr;
+    }
       } else if (int_headers_.find(head) != int_headers_.end()) {
-	ss >> tmpint;
-	integers_[head].push_back(tmpint);
+    ss >> tmpint;
+    integers_[head].push_back(tmpint);
       } else {
-	throw runtime_error("ERROR header "+head+"' not found");
+    throw runtime_error("ERROR header "+head+"' not found");
       }
     }
   }
@@ -196,9 +196,9 @@ int main(int argc, const char * argv[]) {
 
     if (args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {  // if we were asked for more events than we found
       if (result.events_.size() > 0)
-	cout << "WARNING asked for " << args.n_best_events() << " events but only found " << result.events_.size() << endl;
+    cout << "WARNING asked for " << args.n_best_events() << " events but only found " << result.events_.size() << endl;
       else
-	assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
+    assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
     StreamOutput(ofs, args, result.events_, *seqs[is], score);
   }
@@ -216,28 +216,28 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
       RecoEvent *event = &events[ievt];
       string second_seq_name,second_seq;
       if (args.pair()) {
-	second_seq_name = event->second_seq_name_;
-	second_seq = event->second_seq_;
+    second_seq_name = event->second_seq_name_;
+    second_seq = event->second_seq_;
       }
       ofs  // be very, very careful to change this *and* the csv header above at the same time
-	<< event->seq_name_
-	<< "," << second_seq_name
-	<< "," << event->genes_["v"]
-	<< "," << event->genes_["d"]
-	<< "," << event->genes_["j"]
-	<< "," << event->insertions_["vd"]
-	<< "," << event->insertions_["dj"]
-	<< "," << event->deletions_["v_5p"]
-	<< "," << event->deletions_["v_3p"]
-	<< "," << event->deletions_["d_5p"]
-	<< "," << event->deletions_["d_3p"]
-	<< "," << event->deletions_["j_5p"]
-	<< "," << event->deletions_["j_3p"]
-	<< "," << event->score_
-	<< "," << event->seq_
-	<< "," << second_seq
-	<< "," << ""  //errors
-	<< endl;
+    << event->seq_name_
+    << "," << second_seq_name
+    << "," << event->genes_["v"]
+    << "," << event->genes_["d"]
+    << "," << event->genes_["j"]
+    << "," << event->insertions_["vd"]
+    << "," << event->insertions_["dj"]
+    << "," << event->deletions_["v_5p"]
+    << "," << event->deletions_["v_3p"]
+    << "," << event->deletions_["d_5p"]
+    << "," << event->deletions_["d_3p"]
+    << "," << event->deletions_["j_5p"]
+    << "," << event->deletions_["j_3p"]
+    << "," << event->score_
+    << "," << event->seq_
+    << "," << second_seq
+    << "," << ""  //errors
+    << endl;
     }
   } else {
     assert(seqs.n_seqs() == 2);  // er, at least for the moment

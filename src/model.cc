@@ -31,7 +31,7 @@ void Model::Parse(string infname) {
       Track *trk = new Track;
       trk->set_name(it->first.as<string>());
       for (size_t ic=0; ic<it->second.size(); ++ic)
-	trk->AddSymbol(it->second[ic].as<string>());
+        trk->AddSymbol(it->second[ic].as<string>());
       tracks_.push_back(trk);
     }
   } catch (...) {
@@ -51,8 +51,8 @@ void Model::Parse(string infname) {
     }
     for (auto chkname: state_names) {
       if (name == chkname) {
-	cerr << "ERROR added two states with name '" << name << "'" << endl;
-	throw;
+        cerr << "ERROR added two states with name '" << name << "'" << endl;
+        throw;
       }
     }
     state_names.push_back(name);
@@ -157,14 +157,14 @@ void Model::CheckTopology(){
 
       // check orphaned
       if (num_visited == 0 ){
-	// we get here if the state only has a transition to the end state. TODO reinstate this check
+      // we get here if the state only has a transition to the end state. TODO reinstate this check
         // cerr << "Warning: State: "  << states_[st_iter]->name() << " has no transitions defined\n";
       } else if (num_visited == 1 && tmp_visited[0] == st_iter) {
         if (states_[st_iter]->end_trans() == NULL) {
           cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " is an orphaned state that has only transition to itself" << endl;
-	} else {
-	  cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " may be an orphaned state that only has transitions to itself and END state." << endl;
-	}
+      } else {
+          cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " may be an orphaned state that only has transitions to itself and END state." << endl;
+      }
       }
 
       for(size_t i=0; i<tmp_visited.size(); ++i) {
