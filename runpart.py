@@ -5,7 +5,7 @@ import os
 sys.path.insert(1, './python')
 
 import utils
-
+# merged data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2
 # ----------------------------------------------------------------------------------------
 def get_arg_list(arg):  # make lists from args that are passed as strings of colon-separated values
     if arg == None:
