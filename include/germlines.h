@@ -32,11 +32,11 @@ public:
     return codes_[col] + seq + codes_["end"];
   }
   // ----------------------------------------------------------------------------------------
-  string RedifyIfMuted(char germline_nuke, char nuke) {
-    if(nuke == germline_nuke)
-      return string(1, nuke);
+  string RedifyIfMuted(char germline_nuc, char nuc) {
+    if(nuc == germline_nuc)
+      return string(1, nuc);
     else
-      return Color("red", string(1, nuke));
+      return Color("red", string(1, nuc));
   }
 
   // ----------------------------------------------------------------------------------------
@@ -58,19 +58,19 @@ public:
            << "                                              " << seq << endl;
     }
     string return_str;
-    for(size_t inuke = 0; inuke < seq.size(); ++inuke) {
-      if(seq[inuke] == 'i') {
-        return_str += Color("yellow", seq.substr(inuke, 1));
-      } else if(seq[inuke] == ref_1[inuke]) {   // nuke same as ref 1
-        if(ref_2.size() == 0 || seq[inuke] == ref_2[inuke])
-          return_str += seq[inuke];
+    for(size_t inuc = 0; inuc < seq.size(); ++inuc) {
+      if(seq[inuc] == 'i') {
+        return_str += Color("yellow", seq.substr(inuc, 1));
+      } else if(seq[inuc] == ref_1[inuc]) {   // nuc same as ref 1
+        if(ref_2.size() == 0 || seq[inuc] == ref_2[inuc])
+          return_str += seq[inuc];
         else
-          return_str += Color(color, seq.substr(inuke, 1));
-      } else {  // nuke different to ref 1
-        if(ref_2.size() == 0 || seq[inuke] == ref_2[inuke])
-          return_str += Color(color, seq.substr(inuke, 1));
+          return_str += Color(color, seq.substr(inuc, 1));
+      } else {  // nuc different to ref 1
+        if(ref_2.size() == 0 || seq[inuc] == ref_2[inuc])
+          return_str += Color(color, seq.substr(inuc, 1));
         else
-          return_str += Color("reverse", Color(color, seq.substr(inuke, 1)));
+          return_str += Color("reverse", Color(color, seq.substr(inuc, 1)));
       }
     }
     return return_str;
@@ -239,40 +239,40 @@ public:
 
     string final_seq;
     TermColors tc;
-    for(size_t inuke = 0; inuke < print_seq.size(); ++inuke) {
-      size_t ilocal = inuke;
-      string new_nuke;
+    for(size_t inuc = 0; inuc < print_seq.size(); ++inuc) {
+      size_t ilocal = inuc;
+      string new_nuc;
       if(ilocal < v_length) {
-        new_nuke = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], print_seq[inuke]);
+        new_nuc = tc.RedifyIfMuted(eroded_seqs["v"][ilocal], print_seq[inuc]);
       } else {
         ilocal -= v_length;
         if(ilocal < insertions_["vd"].size()) {
-          new_nuke = tc.RedifyIfMuted(insertions_["vd"][ilocal], print_seq[inuke]);
+          new_nuc = tc.RedifyIfMuted(insertions_["vd"][ilocal], print_seq[inuc]);
         } else {
           ilocal -= insertions_["vd"].size();
           if(ilocal < d_length) {
-            new_nuke = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], print_seq[inuke]);
+            new_nuc = tc.RedifyIfMuted(eroded_seqs["d"][ilocal], print_seq[inuc]);
           } else {
             ilocal -= d_length;
             if(ilocal < insertions_["dj"].size()) {
-              new_nuke = tc.RedifyIfMuted(insertions_["dj"][ilocal], print_seq[inuke]);
+              new_nuc = tc.RedifyIfMuted(insertions_["dj"][ilocal], print_seq[inuc]);
             } else {
               ilocal -= insertions_["dj"].size();
-              new_nuke = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], print_seq[inuke]);
+              new_nuc = tc.RedifyIfMuted(eroded_seqs["j"][ilocal], print_seq[inuc]);
             }
           }
         }
       }
       // reverse video the conserved codons, if we have them
       if(cyst_position > 0 && final_tryp_position > 0) {
-        if(inuke == cyst_position || inuke == final_tryp_position) {
-          new_nuke = "\033[7m" + new_nuke;
-        } else if(inuke == cyst_position + 2 || inuke == final_tryp_position + 2) {
-          new_nuke = new_nuke + "\033[m";
+        if(inuc == cyst_position || inuc == final_tryp_position) {
+          new_nuc = "\033[7m" + new_nuc;
+        } else if(inuc == cyst_position + 2 || inuc == final_tryp_position + 2) {
+          new_nuc = new_nuc + "\033[m";
         }
       }
       // and finally tack it onto the final sequence
-      final_seq += new_nuke;
+      final_seq += new_nuc;
     }
 
     // pad with dots
