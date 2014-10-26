@@ -283,8 +283,10 @@ class Waterer(object):
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
         self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
 
+        self.info[query_name]['fv_insertion'] = query_seq[ : all_query_bounds[best['v']][0]]
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
         self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+        self.info[query_name]['jf_insertion'] = query_seq[all_query_bounds[best['j']][1] : ]
 
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
@@ -349,9 +351,11 @@ class Waterer(object):
                     print 'ERROR %s not same length' % query_name
                     print glmatchseq, glbounds[0], glbounds[1]
                     print query_seq[qrbounds[0]:qrbounds[1]]
+                    assert False
 
                 if region == 'v':
-                    this_k_v = all_query_bounds[gene][1]
+                    this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there.
+                                                          # In other words, sw doesn't tell the hmm about it. TODO think about whether you want to tell it.
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 if region == 'd':
@@ -369,14 +373,6 @@ class Waterer(object):
             if self.args.debug and n_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_skipped, region)
                         
-        # print how many of the available matches we used
-        if self.args.debug:
-            print '         used',
-            for region in utils.regions:
-                if region != 'v':
-                    print '             ',
-                print ' %d / %d in %s' % (n_used[region], n_matches[region], region)
-
         for region in utils.regions:
             if region not in best:
                 print '    no',region,'match found for',query_name  # TODO if no d match found, should just assume entire d was eroded
@@ -432,8 +428,17 @@ class Waterer(object):
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
+
+        if self.args.debug:
+            print '         k_v: %d [%d-%d]' % (k_v, k_v_min, k_v_max)
+            print '         k_d: %d [%d-%d]' % (k_d, k_d_min, k_d_max)
+            print '         used',
+            for region in utils.regions:
+                print ' %s: %d/%d' % (region, n_used[region], n_matches[region]),
+            print ''
+
+
         kvals = {}
         kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-
         self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions, perfplotter=perfplotter)
