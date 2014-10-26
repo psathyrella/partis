@@ -182,25 +182,6 @@ class Waterer(object):
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
 
-            # TODO do I really want to expand v left and j right?
-            # check for left-side v erosion  TODO it would make sense to change the score when you expand the boundaries
-            #     S-W allows the v match to start to the right of the lefthand base in the query sequence, which makes little sense in most cases.
-            #     So, we artificially expand the left v boundaries, presumably adding a few mutated bases. TODO think about whether this is the proper long-term solution
-            if region == 'v' and read.qstart != 0:
-                n_to_subtract = min(read.pos, read.qstart)
-                qrbounds = (read.qstart - n_to_subtract, read.qend)
-                glbounds = (read.pos - n_to_subtract, read.aend)
-                warnings[gene] += 'v left expanded qr: %d -> %d, gl: %d -> %d' % (read.qstart, read.qstart-n_to_subtract, read.pos, read.pos - n_to_subtract)
-            # check for right-side j erosion  TODO it would make sense to change the score when you expand the boundaries
-            gl_length = len(self.germline_seqs[region][gene])
-            if region == 'j' and read.aend != gl_length:
-                # print 'whoa!', gene, read.pos, read.aend, gl_length
-                length_to_end_of_query_seq = len(query_seq) - read.qstart
-                new_match_length = min(gl_length, length_to_end_of_query_seq + read.pos)  # don't want to expand beyond the number of query bases we have left
-                # print gene, read.qstart, '-', read.qend, '   ', read.pos, '-', read.aend, '    ', gl_length, length_to_end_of_query_seq, new_match_length
-                qrbounds = (read.qstart, read.qstart + new_match_length - read.pos)
-                glbounds = (read.pos, new_match_length)
-                warnings[gene] += 'j right expanded %d -> %d, %d -> %d' % (read.qend, read.qstart + new_match_length - read.pos, read.aend, new_match_length)
             assert qrbounds[1] <= len(query_seq)
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
 
