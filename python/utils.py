@@ -445,11 +445,11 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         no_space = True
 
     eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = eroded_seqs['v'] + v_3p_del * '.'
-    eroded_seqs_dots['d'] = d_5p_del * '.' + eroded_seqs['d'] + d_3p_del * '.'
-    eroded_seqs_dots['j'] = j_5p_del * '.' + eroded_seqs['j'] + j_3p_del * '.'
+    eroded_seqs_dots['v'] = eroded_seqs['v'] + '.'*v_3p_del
+    eroded_seqs_dots['d'] = '.'*d_5p_del + '.'*eroded_seqs['d'] + d_3p_del
+    eroded_seqs_dots['j'] = '.'*j_5p_del + eroded_seqs['j'] + '.'*j_3p_del
 
-    insertions = ' '*len(line['fv_insertion']) + ' ' * lengths['v']
+    insertions = ' '*len(line['fv_insertion']) + ' '*lengths['v']
     insertions += line['vd_insertion']
     insertions += ' ' * lengths['d']
     insertions += line['dj_insertion']
@@ -463,7 +463,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
 
-    vj_line = ' '*len(line['fv_insertion']) + eroded_seqs_dots['v']
+    vj_line = ' ' * len(line['fv_insertion']) + eroded_seqs_dots['v']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
