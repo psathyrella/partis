@@ -446,7 +446,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
 
     eroded_seqs_dots = {}
     eroded_seqs_dots['v'] = eroded_seqs['v'] + '.'*v_3p_del
-    eroded_seqs_dots['d'] = '.'*d_5p_del + '.'*eroded_seqs['d'] + d_3p_del
+    eroded_seqs_dots['d'] = '.'*d_5p_del + eroded_seqs['d'] + '.'*d_3p_del
     eroded_seqs_dots['j'] = '.'*j_5p_del + eroded_seqs['j'] + '.'*j_3p_del
 
     insertions = ' '*len(line['fv_insertion']) + ' '*lengths['v']
@@ -483,7 +483,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         print '%s    %s   %s' % (extra_str, d_line, color_gene(line['d_gene']))
         print '%s    %s   %s,%s' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene']))
     # print query sequence
-    print '%s    %s' % (extra_str, final_seq),
+    print '%s    %s%s' % (extra_str, final_seq, ' ' * j_3p_del),
     # and then some extra info
     print '   muted: %4.2f' % (float(n_muted) / n_total),
     if 'score' in line:
@@ -492,7 +492,9 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         print '   cdr3: %d' % int(line['cdr3_length']),
     print ''
 
-    line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
+    # line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
+    assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
+    assert ' ' not in line['seq']
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
 
 #----------------------------------------------------------------------------------------
