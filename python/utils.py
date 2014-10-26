@@ -315,15 +315,14 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     """
     # NOTE see add_cdr3_info -- they do similar things, but start from different information
     if region == 'v':
-        gl_cpos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
-        query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
-        return query_cpos
+        gl_pos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
     elif region == 'j':
-        gl_tpos = int(tryp_positions[gene])
-        query_tpos = gl_tpos - glbounds[0] + qrbounds[0]
-        return query_tpos
+        gl_pos = int(tryp_positions[gene])
     else:
         return -1
+
+    query_pos = gl_pos - glbounds[0] + qrbounds[0]
+    return query_pos
 # ----------------------------------------------------------------------------------------
 def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False):
     """ Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line> """

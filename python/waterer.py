@@ -186,9 +186,6 @@ class Waterer(object):
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
-            # if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
-            #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
-            #     continue
             
             all_match_names[region].append((score,gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
