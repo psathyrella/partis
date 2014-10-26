@@ -456,17 +456,20 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
     insertions += ' ' * lengths['j']
     insertions += j_right_extra
     insertions += ' ' * j_3p_del
+    insertions += ' '*len(line['jf_insertion'])
 
     d_line = ' ' * germline_d_start
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
+    d_line += ' '*len(line['jf_insertion'])
 
     vj_line = ' ' * len(line['fv_insertion']) + eroded_seqs_dots['v']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
+    vj_line += ' '*len(line['jf_insertion'])
     if no_space:
         dot_matches = re.findall('[.][.]*', vj_line)
         assert len(dot_matches) == 1
