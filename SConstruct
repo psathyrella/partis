@@ -16,9 +16,13 @@ SConscript('_build/SConscript', duplicate=0)
 
 SConscript('test/SConscript', duplicate=0)
 
+# What just `scons` will build.
 Default('ham', 'hample')
 
+# `scons test`
+Alias('test', 'test/_results/ALL.passed')
 
+# Phony targets
 astyle = """
 astyle  -A2 \
         --pad-oper \
@@ -31,4 +35,7 @@ astyle  -A2 \
         --indent=spaces=2 \
 """
 ham_files = glob(getenv('PWD')+'/src/*.cc')+glob(getenv('PWD')+'/include/*.h')
+
+# `scons style`
 PhonyTarget('style', astyle + " ".join(ham_files))
+
