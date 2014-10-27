@@ -472,7 +472,7 @@ size_t JobHolder::GetInsertLength(string side, vector<string> names) {
 	break;
     }
   } else if (side == "right") {
-    for (size_t ip = names.size()-1; ip>=0; ++ip)
+    for (size_t ip = names.size()-1; ip>=0; --ip)
       if (names[ip].find("insert") == 0)
 	++n_inserts;
       else
@@ -487,11 +487,28 @@ size_t JobHolder::GetInsertLength(string side, vector<string> names) {
 // ----------------------------------------------------------------------------------------
 size_t JobHolder::GetErosionLength(string side, vector<string> names, string gene_name) {
   string germline(gl_.seqs_[gene_name]);
-  // first find the index in <names> up to which we eroded
+
+  // first check if we eroded the entire sequence. If so we can't say how much was left and how much was right, so just (integer) divide by two (arbitrarily giving one side the odd base if necessary)
+  bool its_inserts_all_the_way_down(true);
+  for (auto &name : names) {
+    if (name.find("insert") != 0) {
+      assert(name.find("IGH") == 0);  // Trust but verify, my little ducky, trust but verify.
+      its_inserts_all_the_way_down = false;
+      break;
+    }
+  }
+  if (its_inserts_all_the_way_down) {  // TODO here (*and* below) do something better than floor/ceil to divide it up.
+    if (side == "left")
+      return floor(float(germline.size()) / 2);
+    else if (side == "right")
+      return ceil(float(germline.size()) / 2);
+    else
+      throw runtime_error("ERROR bad side: " + side);
+  }
+
+  // find the index in <names> up to which we eroded
   size_t istate(0);  // index (in path) of first non-eroded state
   if (side=="left") { // to get left erosion length we look at the first non-insert state in the path
-    if (names[names.size()-1].find("insert") == 0) return floor(float(germline.size()) / 2);  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
-                                                                                   // TODO here (*and* below) do something better than floor/ceil to divide it up.
     for (size_t il=0; il<names.size(); ++il) {  // loop over each state from left to right
       if (names[il].find("insert") == 0) {  // skip any insert states on the left
 	continue;
@@ -501,14 +518,22 @@ size_t JobHolder::GetErosionLength(string side, vector<string> names, string gen
       }
     }
   } else if (side=="right") {  // and for the righthand one we need the last non-insert state
-    if (names[names.size()-1].find("insert") == 0)  // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
-      return ceil(float(germline.size()) / 2);
-    istate = names.size()-1;
+    for (size_t il = names.size()-1; il>=0; --il) {
+      if (names[il].find("insert") == 0) {  // skip any insert states on the left
+	continue;
+      } else {  // found the leftmost non-insert state -- that's the one we want
+	istate = il;
+	break;
+      }
+    }
   } else {
     assert(0);
   }
 
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
+  assert(istate >= 0 && istate < names.size());
+  if(names[istate].find("IGH") != 0)  // start of state name should be IGH[VDJ]
+    throw runtime_error("ERROR state not of the form IGH<gene>_<position>: " + names[istate]);
   assert(names[istate].find("IGH") == 0);  // start of state name should be IGH[VDJ]
   string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);
   size_t state_index = atoi(state_index_str.c_str());

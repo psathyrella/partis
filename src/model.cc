@@ -132,7 +132,7 @@ void Model::CheckTopology(){
       size_t num_visited(tmp_visited.size());
 
       // check orphaned
-      if (num_visited == 0 ){
+      if (num_visited == 0 ) {
 	// we get here if the state only has a transition to the end state. TODO reinstate this check
         // cerr << "Warning: State: "  << states_[st_iter]->name() << " has no transitions defined\n";
       } else if (num_visited == 1 && tmp_visited[0] == st_iter) {
