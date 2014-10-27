@@ -16,6 +16,8 @@ SConscript('_build/SConscript', duplicate=0)
 
 SConscript('test/SConscript', duplicate=0)
 
+Default('ham', 'hample')
+
 
 astyle = """
 astyle  -A2 \
