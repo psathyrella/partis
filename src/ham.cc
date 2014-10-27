@@ -151,7 +151,7 @@ int main(int argc, const char * argv[]) {
   ofs.open(args.outfile());
   assert(ofs.is_open());
   if(args.algorithm() == "viterbi")
-    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,vd_insertion,dj_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seq,second_seq,errors" << endl;
+    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seq,second_seq,errors" << endl;
   else
     ofs << "unique_id,second_unique_id,score,errors" << endl;
 
@@ -219,24 +219,26 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
         second_seq = event->second_seq_;
       }
       ofs  // be very, very careful to change this *and* the csv header above at the same time
-          << event->seq_name_
-          << "," << second_seq_name
-          << "," << event->genes_["v"]
-          << "," << event->genes_["d"]
-          << "," << event->genes_["j"]
-          << "," << event->insertions_["vd"]
-          << "," << event->insertions_["dj"]
-          << "," << event->deletions_["v_5p"]
-          << "," << event->deletions_["v_3p"]
-          << "," << event->deletions_["d_5p"]
-          << "," << event->deletions_["d_3p"]
-          << "," << event->deletions_["j_5p"]
-          << "," << event->deletions_["j_3p"]
-          << "," << event->score_
-          << "," << event->seq_
-          << "," << second_seq
-          << "," << ""  //errors
-          << endl;
+	<< event->seq_name_
+	<< "," << second_seq_name
+	<< "," << event->genes_["v"]
+	<< "," << event->genes_["d"]
+	<< "," << event->genes_["j"]
+	<< "," << event->insertions_["fv"]
+	<< "," << event->insertions_["vd"]
+	<< "," << event->insertions_["dj"]
+	<< "," << event->insertions_["jf"]
+	<< "," << event->deletions_["v_5p"]
+	<< "," << event->deletions_["v_3p"]
+	<< "," << event->deletions_["d_5p"]
+	<< "," << event->deletions_["d_3p"]
+	<< "," << event->deletions_["j_5p"]
+	<< "," << event->deletions_["j_3p"]
+	<< "," << event->score_
+	<< "," << event->seq_
+	<< "," << second_seq
+	<< "," << ""  //errors
+	<< endl;
     }
   } else {
     assert(seqs.n_seqs() == 2);  // er, at least for the moment

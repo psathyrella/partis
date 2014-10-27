@@ -246,16 +246,19 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
   assert(path_names.size() == query_strs.first.size());
-  size_t insert_length = GetInsertLength(path_names);
+  size_t left_insert_length = GetInsertLength("left", path_names);
+  size_t right_insert_length = GetInsertLength("right", path_names);
   size_t left_erosion_length = GetErosionLength("left", path_names, gene);
   size_t right_erosion_length = GetErosionLength("right", path_names, gene);
 
   string germline(gl_.seqs_[gene]);
   string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
-  for(size_t i = 0; i < insert_length; ++i)
+  for(size_t i = 0; i < left_insert_length; ++i)
     modified_seq = "i" + modified_seq;
+  for(size_t i = 0; i < right_insert_length; ++i)
+    modified_seq = modified_seq + "i";
   assert(modified_seq.size() == query_strs.first.size());
-  assert(germline.size() + insert_length - left_erosion_length - right_erosion_length == query_strs.first.size());
+  assert(germline.size() + left_insert_length - left_erosion_length - right_erosion_length + right_insert_length == query_strs.first.size());
   TermColors tc;
   cout
       << "                    "
@@ -297,10 +300,9 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     event.SetDeletion(region + "_3p", GetErosionLength("right", path_names, gene));
     // and left-hand deletions
     event.SetDeletion(region + "_5p", GetErosionLength("left", path_names, gene));
-    if(region == "d")
-      event.SetInsertion("vd", query_strs.first.substr(0, GetInsertLength(path_names)));
-    if(region == "j")
-      event.SetInsertion("dj", query_strs.first.substr(0, GetInsertLength(path_names)));
+
+    SetInsertions(region, query_strs.first, path_names, &event);
+
     seq_strs.first += query_strs.first;
     seq_strs.second += query_strs.second;
   }
@@ -435,39 +437,101 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
 }
 
 // ----------------------------------------------------------------------------------------
-size_t JobHolder::GetInsertLength(vector<string> names) {
-  size_t n_inserts(0);
-  for(auto & name : names) {
-    if(name == "insert")
-      n_inserts++;
+void JobHolder::SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event) {
+  Insertions ins;
+  for (auto &insertion : ins[region]) {
+    string side(insertion == "jf" ? "right" : "left");
+    size_t length(GetInsertLength(side, path_names));
+    string inserted_bases = query_str.substr(GetInsertStart(side, path_names.size(), length), length);  // TODO this is wrong for pair hmms
+    event->SetInsertion(insertion, inserted_bases);
   }
+}
+
+// ----------------------------------------------------------------------------------------
+size_t JobHolder::GetInsertStart(string side, size_t path_length, size_t insert_length) {
+  if (side == "left") {
+    return 0;
+  } else if (side == "right") {
+    return path_length - insert_length;
+  } else {
+    throw runtime_error("ERROR side must be left or right, not \"" + side + "\"");
+  }
+
+}
+
+// ----------------------------------------------------------------------------------------
+size_t JobHolder::GetInsertLength(string side, vector<string> names) {
+  size_t n_inserts(0);
+  if (side == "left") {
+    for (auto &name: names) {
+      if (name.find("insert") == 0)
+	++n_inserts;
+      else
+	break;
+    }
+  } else if (side == "right") {
+    for (size_t ip = names.size()-1; ip>=0; --ip)
+      if (names[ip].find("insert") == 0)
+	++n_inserts;
+      else
+	break;
+  } else {
+    throw runtime_error("ERROR side must be left or right, not \"" + side + "\"");
+  }
+
   return n_inserts;
 }
 
 // ----------------------------------------------------------------------------------------
 size_t JobHolder::GetErosionLength(string side, vector<string> names, string gene_name) {
   string germline(gl_.seqs_[gene_name]);
-  // first find the index in <names> up to which we eroded
+
+  // first check if we eroded the entire sequence. If so we can't say how much was left and how much was right, so just (integer) divide by two (arbitrarily giving one side the odd base if necessary)
+  bool its_inserts_all_the_way_down(true);
+  for (auto &name : names) {
+    if (name.find("insert") != 0) {
+      assert(name.find("IGH") == 0);  // Trust but verify, my little ducky, trust but verify.
+      its_inserts_all_the_way_down = false;
+      break;
+    }
+  }
+  if (its_inserts_all_the_way_down) {  // TODO here (*and* below) do something better than floor/ceil to divide it up.
+    if (side == "left")
+      return floor(float(germline.size()) / 2);
+    else if (side == "right")
+      return ceil(float(germline.size()) / 2);
+    else
+      throw runtime_error("ERROR bad side: " + side);
+  }
+
+  // find the index in <names> up to which we eroded
   size_t istate(0);  // index (in path) of first non-eroded state
-  if(side == "left") { // to get left erosion length we look at the first non-insert state in the path
-    if(names[names.size() - 1] == "insert") return floor(float(germline.size()) / 2); // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
-    // TODO here (*and* below) do something better than floor/ceil to divide it up.
-    for(size_t il = 0; il < names.size(); ++il) { // loop over each state from left to right
-      if(names[il] == "insert") {   // skip any insert states on the left
-        continue;
+  if (side=="left") { // to get left erosion length we look at the first non-insert state in the path
+    for (size_t il=0; il<names.size(); ++il) {  // loop over each state from left to right
+      if (names[il].find("insert") == 0) {  // skip any insert states on the left
+	continue;
       } else {  // found the leftmost non-insert state -- that's the one we want
         istate = il;
         break;
       }
     }
-  } else if(side == "right") { // and for the righthand one we need the last non-insert state
-    if(names[names.size() - 1] == "insert") return ceil(float(germline.size()) / 2); // eroded entire sequence -- can't say how much was left and how much was right, so just divide by two
-    istate = names.size() - 1;
+  } else if (side=="right") {  // and for the righthand one we need the last non-insert state
+    for (size_t il = names.size()-1; il>=0; --il) {
+      if (names[il].find("insert") == 0) {  // skip any insert states on the left
+	continue;
+      } else {  // found the leftmost non-insert state -- that's the one we want
+	istate = il;
+	break;
+      }
+    }
   } else {
     assert(0);
   }
 
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
+  assert(istate >= 0 && istate < names.size());
+  if(names[istate].find("IGH") != 0)  // start of state name should be IGH[VDJ]
+    throw runtime_error("ERROR state not of the form IGH<gene>_<position>: " + names[istate]);
   assert(names[istate].find("IGH") == 0);  // start of state name should be IGH[VDJ]
   string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);
   size_t state_index = atoi(state_index_str.c_str());
