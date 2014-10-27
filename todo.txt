@@ -1,4 +1,4 @@
-  - compare other people\'s 'viterbi' codes
+- compare other people\'s 'viterbi' codes
     - convert recombinator csv to fasta: /home/dralph/Dropbox/bin/csv2fasta
     - compare also with simulation restricted to only a few v genes, i.e. to get the average correct fraction higher
     - programs
@@ -10,9 +10,10 @@
     - first write outline and send to erick
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
-  - do I really want to expand v left and j right in waterer?
+  - replace non_zero_insertion_prob crap with (1 - )'prob of entering region'
   - figure out how you really want to treat base content in insertions
   - do I really want to apply the gene choice prob in waterer?
+  - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
   - allow j right erosions, and allow the query sequence to extend beyond the right edge of the j (this is in the hmm)
   - disallow stop codons in simulator
   - should do something to not write hmms for genes for which we have almost no information. What we\'re writing is just garbage anyway. Also use some average for all the default things I\'ve hardcoded in there

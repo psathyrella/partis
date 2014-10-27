@@ -57,19 +57,21 @@ def add_empty_bins(values):
             values[ib] = 0.0
 
 # ----------------------------------------------------------------------------------------
-def interpolate_bins(values, n_max_to_interpolate, bin_eps):
+def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False):
     """
     Interpolate the empty (less than utils.eps) bins in <values> if the neighboring full bins have less than <n_max_to_interpolate> entries,
     otherwise fill with <bin_eps>. NOTE there's some shenanigans if you have empty bins on the edges
     """
-    # print '---- interpolating with %d' % n_max_to_interpolate
-    # for x in sorted(values.keys()):
-    #     print '    %3d %f' % (x, values[x])
+    if debug:
+        print '---- interpolating with %d' % n_max_to_interpolate
+        for x in sorted(values.keys()):
+            print '    %3d %f' % (x, values[x])
     add_empty_bins(values)
     full_bins = get_bin_list(values, 'full')
-    # print '----'
-    # for x in sorted(values.keys()):
-    #     print '     %3d %f' % (x, values[x])
+    if debug:
+        print '----'
+        for x in sorted(values.keys()):
+            print '     %3d %f' % (x, values[x])
     for empty_bin in get_bin_list(values, 'empty'):
         lower_full_bin = find_full_bin(empty_bin, full_bins, side='lower')
         upper_full_bin = find_full_bin(empty_bin, full_bins, side='upper')
@@ -80,9 +82,10 @@ def interpolate_bins(values, n_max_to_interpolate, bin_eps):
             values[empty_bin] /= lower_weight + upper_weight
         else:
             values[empty_bin] = bin_eps
-    # print '----'
-    # for x in sorted(values.keys()):
-    #     print '     %3d %f' % (x, values[x])
+    if debug:
+        print '----'
+        for x in sorted(values.keys()):
+            print '     %3d %f' % (x, values[x])
 
 # ----------------------------------------------------------------------------------------
 class Track(object):
@@ -121,6 +124,29 @@ class State(object):
         assert to_name not in self.transitions
         self.transitions[to_name] = prob
 
+    def check(self):
+        total = 0.0
+        for _, prob in self.transitions.iteritems():
+            assert prob >= 0.0
+            total += prob
+        assert utils.is_normed(total)
+
+        if self.name == 'init':  # no emissions for 'init' state
+            return
+
+        total = 0.0
+        for _, prob in self.emissions['probs'].iteritems():
+            assert prob >= 0.0
+            total += prob
+        assert utils.is_normed(total)
+
+        total = 0.0
+        for letter1 in self.pair_emissions['probs']:
+            for _, prob in self.pair_emissions['probs'][letter1].iteritems():
+                assert prob >= 0.0
+                total += prob
+        assert utils.is_normed(total)
+
 # ----------------------------------------------------------------------------------------
 class HMM(object):
     def __init__(self, name, tracks):
@@ -129,6 +155,7 @@ class HMM(object):
         self.states = []
         self.extras = {}  # any extra info you want to add
     def add_state(self, state):
+        state.check()
         self.states.append(state)
 
 # ----------------------------------------------------------------------------------------
@@ -148,11 +175,15 @@ class HmmWriter(object):
         self.naivety = naivety
         self.germline_seq = germline_seq
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
-        self.insertion = ''
-        if self.region == 'd':
-            self.insertion = 'vd'
+
+        # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
+        if self.region == 'v':
+            self.insertions = ['fv', ]
+        elif self.region == 'd':
+            self.insertions = ['vd', ]
         elif self.region == 'j':
-            self.insertion = 'dj'
+            self.insertions = ['dj', 'jf']
+
         self.erosion_probs = {}
         self.insertion_probs = {}
         self.mute_freqs = {}
@@ -164,11 +195,8 @@ class HmmWriter(object):
             replacement_genes = utils.find_replacement_genes(self.indir, gene_name, self.min_occurences, single_gene=False, debug=True)
 
         self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
-        assert len(self.erosion_probs) > 0
 
-        if self.region != 'v':
-            self.read_insertion_info(gene_name, replacement_genes)
-            assert len(self.insertion_probs) > 0
+        self.read_insertion_info(gene_name, replacement_genes)
 
         if self.naivety == 'M':  # mutate if not naive
             self.read_mute_info(gene_name, replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
@@ -184,33 +212,41 @@ class HmmWriter(object):
         assert os.path.exists(self.outdir)
         with opener('w')(self.outdir + '/' + self.saniname + '.yaml') as outfile:
             yaml.dump(self.hmm, outfile, width=150)
-    
+
     # ----------------------------------------------------------------------------------------
     def add_states(self):
         self.add_init_state()
-        if self.region != 'v':  # for d and j regions add insert state on the left-hand side
-            self.add_insert_state()
+        # then left side insertions
+        for insertion in self.insertions:
+            if insertion == 'jf':
+                continue
+            self.add_lefthand_insert_state(insertion)
         # then write internal states
         assert self.smallest_entry_index >= 0  # should have been set in add_region_entry_transitions
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             self.add_internal_state(inuke)
+        # and finally right side insertions
+        if self.region == 'j':
+            self.add_righthand_insert_state()
 
     # ----------------------------------------------------------------------------------------
     def add_init_state(self):
         init_state = State('init')
-        self.add_region_entry_transitions(init_state)
+        lefthand_insertion = self.insertions[0]
+        assert 'jf' not in lefthand_insertion
+        self.add_region_entry_transitions(init_state, lefthand_insertion)
         self.hmm.add_state(init_state)
 
     # ----------------------------------------------------------------------------------------
-    def add_insert_state(self):
-        insert_state = State('insert')
-        self.add_region_entry_transitions(insert_state)  # TODO allow d region to be entirely eroded? Um, I don't think I have any probabilities for how frequently this happens though.
+    def add_lefthand_insert_state(self, insertion):
+        insert_state = State('insert_left')
+        self.add_region_entry_transitions(insert_state, insertion)  # TODO allow d region to be entirely eroded?
         self.add_emissions(insert_state)
         self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, inuke):
-        # arbitrarily replace ambiguous nucleotides with A TODO figger out something better
+        # arbitrarily replace ambiguous nucleotides with 'A' TODO figger out something better
         germline_nuke = self.germline_seq[inuke]
         if germline_nuke == 'N' or germline_nuke == 'Y':
             print '\n    WARNING replacing %s with A' % germline_nuke
@@ -224,14 +260,31 @@ class HmmWriter(object):
         exit_probability = self.get_exit_probability(inuke) # probability of ending this region here, i.e. excising the rest of the germline gene
         distance_to_end = len(self.germline_seq) - inuke - 1
         if distance_to_end > 0:  # if we're not at the end of this germline gene, add a transition to the next state
-            state.add_transition('%s_%d' % (self.saniname, inuke+1), 1 - exit_probability)
-        if exit_probability >= utils.eps or distance_to_end == 0:  # add transition to 'end' if there's a non-zero chance of eroding to, here or if we're at the end of the germline sequence
-            state.add_transition('end', exit_probability)
+            state.add_transition('%s_%d' % (self.saniname, inuke+1), 1.0 - exit_probability)
+        if exit_probability >= utils.eps or distance_to_end == 0:  # add transition to 'end' or 'insert_right' if there's a decent chance of eroding to here, or if we're at the end of the germline sequence
+            self.add_region_exit_transitions(state, exit_probability)
 
         # emissions
         self.add_emissions(state, inuke=inuke, germline_nuke=germline_nuke)
 
         self.hmm.add_state(state)
+
+    # ----------------------------------------------------------------------------------------
+    def add_righthand_insert_state(self):
+        insert_state = State('insert_right')
+        self_transition_prob = 1.0 - self.get_inverse_insert_length('jf')
+        if self_transition_prob < 0.0:  # if mean mean insertion length is less than zero, we can no longer use 1/mean_length as a probability
+            # TODO do something more permanent
+            # TODO at least use more than the second bin in the numerator
+            assert 0 in self.insertion_probs['jf']
+            assert 1 in self.insertion_probs['jf']
+            self_transition_prob = float(self.insertion_probs['jf'][1]) / self.insertion_probs['jf'][0]
+            assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
+            print '    WARNING using insert self-transition probability hack p(1) / p(0) = %f / %f = %f' % (self.insertion_probs['jf'][1], self.insertion_probs['jf'][0], self_transition_prob)
+        insert_state.add_transition('insert_right', self_transition_prob)
+        insert_state.add_transition('end', 1.0 - self_transition_prob)
+        self.add_emissions(insert_state)
+        self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, this_gene, approved_genes=None):
@@ -290,48 +343,54 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_info(self, this_gene, approved_genes=None):
-        if approved_genes == None:
+        if approved_genes == None:  # if we aren't explicitly passed a list of genes to use, we just use the gene for which we're actually writing the hmm
             approved_genes = [this_gene,]
-        self.insertion_probs[self.insertion] = {}
-        deps = utils.column_dependencies[self.insertion + '_insertion']
-        genes_used = set()
-        with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=self.insertion + '_insertion', deps=deps)) as infile:
-            reader = csv.DictReader(infile)
-            for line in reader:
-                # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
-                if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
-                    continue
 
-                # then add in this insertion's counts
-                n_inserted = 0
-                n_inserted = int(line[self.insertion + '_insertion'])
-                if n_inserted not in self.insertion_probs[self.insertion]:
-                    self.insertion_probs[self.insertion][n_inserted] = 0.0
-                self.insertion_probs[self.insertion][n_inserted] += float(line['count'])
+        for insertion in self.insertions:
+            self.insertion_probs[insertion] = {}
+            deps = utils.column_dependencies[insertion + '_insertion']
+            genes_used = set()
+            with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)) as infile:
+                reader = csv.DictReader(infile)
+                for line in reader:
+                    # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
+                    if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
+                        continue
 
-                if self.region + '_gene' in line:
-                    genes_used.add(line[self.region + '_gene'])
+                    # then add in this insertion's counts
+                    n_inserted = 0
+                    n_inserted = int(line[insertion + '_insertion'])
+                    if n_inserted not in self.insertion_probs[insertion]:
+                        self.insertion_probs[insertion][n_inserted] = 0.0
+                    self.insertion_probs[insertion][n_inserted] += float(line['count'])
 
-        assert len(self.insertion_probs[self.insertion]) > 0
+                    if self.region + '_gene' in line:
+                        genes_used.add(line[self.region + '_gene'])
 
-        # print '   interpolate insertions'
-        interpolate_bins(self.insertion_probs[self.insertion], self.n_max_to_interpolate, bin_eps=self.eps)  # NOTE that we normalize *after* this
+            assert len(self.insertion_probs[insertion]) > 0
 
-        assert 0 in self.insertion_probs[self.insertion] and len(self.insertion_probs[self.insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
+            # print '   interpolate insertions'
+            interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  # NOTE that we normalize *after* this
 
-        # and finally, normalize
-        total = 0.0
-        for _, val in self.insertion_probs[self.insertion].iteritems():
-            total += val
-        test_total = 0.0
-        for n_inserted in self.insertion_probs[self.insertion]:
-            self.insertion_probs[self.insertion][n_inserted] /= total
-            test_total += self.insertion_probs[self.insertion][n_inserted]
-        assert utils.is_normed(test_total)
+            assert 0 in self.insertion_probs[insertion] and len(self.insertion_probs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
+
+            # and finally, normalize
+            total = 0.0
+            for _, val in self.insertion_probs[insertion].iteritems():
+                total += val
+            test_total = 0.0
+            for n_inserted in self.insertion_probs[insertion]:
+                self.insertion_probs[insertion][n_inserted] /= total
+                test_total += self.insertion_probs[insertion][n_inserted]
+            assert utils.is_normed(test_total)
+
+            if 0 not in self.insertion_probs[insertion] or self.insertion_probs[insertion][0] == 1.0:
+                print 'ERROR cannot have all or none of the probability mass in the zero bin:', self.insertion_probs[insertion]
+                assert False
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
             print '    insertions used:', ' '.join(genes_used)
-        
+
     # ----------------------------------------------------------------------------------------
     def read_mute_info(self, this_gene, approved_genes=None):
         if approved_genes == None:
@@ -373,7 +432,29 @@ class HmmWriter(object):
         self.insert_mute_prob = self.mean_mute_freq
 
     # ----------------------------------------------------------------------------------------
-    def add_region_entry_transitions(self, state):
+    def get_inverse_insert_length(self, insertion):
+        mean_length = self.get_mean_insert_length(insertion)
+        inverse_length = 0.0
+        if mean_length > 0.0:
+            inverse_length = 1.0 / mean_length
+        if mean_length < 1.0:  # TODO do something more permanent here
+            print '    WARNING small mean insert length %f' % mean_length
+
+        return inverse_length
+
+    # ----------------------------------------------------------------------------------------
+    def get_non_zero_insertion_prob(self, state_name, insertion):
+        if state_name == 'init':
+            return 1.0 - self.insertion_probs[insertion][0]
+        elif state_name == 'insert_left':  # we want the prob of *leaving* the insert state to be 1/insertion_length, so multiply all the region entry probs (below) by this
+            inverse_length = self.get_inverse_insert_length(insertion)
+            assert inverse_length <= 1.0
+            return 1.0 - inverse_length  # set the prob of *remaining* in the insert state to [1 - 1/mean_insert_length]
+        else:
+            assert False
+
+    # ----------------------------------------------------------------------------------------
+    def add_region_entry_transitions(self, state, insertion):
         """
         Add transitions *into* the v, d, or j regions. Called from either the 'init' state or the 'insert' state.
         For v, this is (mostly) the prob that the read doesn't extend all the way to the left side of the v gene.
@@ -381,32 +462,25 @@ class HmmWriter(object):
         The two <mostly>s are there because in both cases, we're starting from *approximate* smith-waterman alignments, so we need to add some fuzz in case the s-w is off.
         For insert states, 
         """
-        assert state.name == 'init' or state.name == 'insert'
+        assert 'jf' not in insertion  # need these to only be *left*-hand insertions
+        assert state.name == 'init' or state.name == 'insert_left'
+
         non_zero_insertion_prob = 0.0  # Prob of a non-zero-length insertion (i.e. prob to *not* go directly into the region)
                                        # The sum of the region entry probs must be (1 - non_zero_insertion_prob) for d and j
                                        # (i.e. such that [prob of transitions to insert] + [prob of transitions *not* to insert] is 1.0)
 
         # first add transitions to the insert state
-        if self.region != 'v':
-            if state.name == 'init':
-                if 0 not in self.insertion_probs[self.insertion] or self.insertion_probs[self.insertion][0] == 1.0:  # if there is a non-zero prob of a zero-length insertion, subtract that prob from 1.0
-                    print 'arg',self.insertion_probs[self.insertion]
-                    assert False
-                non_zero_insertion_prob = 1.0 - self.insertion_probs[self.insertion][0]
-            elif state.name == 'insert':  # we want the prob of *leaving* the insert state to be 1/insertion_length, so multiply all the region entry probs (below) by this
-                mean_length = self.get_mean_insert_length()
-                inverse_length = 0.0
-                if mean_length > 0.0:
-                    inverse_length = 1.0 / mean_length
-                non_zero_insertion_prob = 1.0 - inverse_length  # set the prob of *remaining* in the insert state to [1 - 1/mean_insert_length]
-            state.add_transition('insert', non_zero_insertion_prob)
+        non_zero_insertion_prob = self.get_non_zero_insertion_prob(state.name, insertion)
+        # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
+        # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
+        state.add_transition('insert_left', non_zero_insertion_prob)
 
         # then add transitions to the region's internal states
         total = 0.0
         for inuke in range(len(self.germline_seq)):
             erosion = self.region + '_5p'
             erosion_length = inuke
-            if erosion_length in self.erosion_probs[erosion]:  # TODO this disallows erosions that we didn't see in data
+            if erosion_length in self.erosion_probs[erosion]:
                 prob = self.erosion_probs[erosion][erosion_length]
                 total += prob * (1.0 - non_zero_insertion_prob)
                 if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
@@ -416,14 +490,22 @@ class HmmWriter(object):
         assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))
 
     # ----------------------------------------------------------------------------------------
+    def add_region_exit_transitions(self, state, exit_probability):
+        non_zero_insertion_prob = 0.0
+        if self.region == 'j':  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
+            non_zero_insertion_prob = 1.0 - self.insertion_probs['jf'][0]
+            state.add_transition('insert_right', non_zero_insertion_prob * exit_probability)
+
+        state.add_transition('end', (1.0 - non_zero_insertion_prob) * exit_probability)  # and add a transition to 'end' with the complement, to allow zero-length insertions
+
+    # ----------------------------------------------------------------------------------------
     def get_exit_probability(self, inuke):
         """
         Prob of exiting the chain of states for this region at <inuke>.
         In other words, what is the prob that we will erode all the bases to the right of <inuke>.
         """
-        # TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d.
         distance_to_end = len(self.germline_seq) - inuke - 1
-        if distance_to_end == 0:  # last state has to go to END
+        if distance_to_end == 0:  # last state has to exit region
             return 1.0
         erosion = self.region + '_3p'
         erosion_length = distance_to_end
@@ -435,11 +517,11 @@ class HmmWriter(object):
                 return 0.0
         else:
             return 0.0
-    
+
     # ----------------------------------------------------------------------------------------
-    def get_mean_insert_length(self):
+    def get_mean_insert_length(self, insertion):
         total, n_tot = 0.0, 0.0
-        for length, count in self.insertion_probs[self.insertion].iteritems():
+        for length, count in self.insertion_probs[insertion].iteritems():
             total += count*length
             n_tot += count
         if n_tot == 0.0:
@@ -492,16 +574,16 @@ class HmmWriter(object):
                 #     prob = cryptic_factor_from_normalization
                 # else:
                 #     prob = cryptic_factor_from_normalization**2
-        # print '  prob',prob,'for',nuke1,nuke2,is_insert,inuke,germline_nuke
+
         return prob
-            
+
     # ----------------------------------------------------------------------------------------
     def add_emissions(self, state, inuke=-1, germline_nuke=''):
         # first add single emission
         emission_probs = {}
         total = 0.0
         for nuke in utils.nukes:
-            emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)
+            emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke)
             total += emission_probs[nuke]
         if math.fabs(total - 1.0) >= self.eps:
             print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
@@ -514,7 +596,7 @@ class HmmWriter(object):
         for nuke1 in utils.nukes:
             pair_emission_probs[nuke1] = {}
             for nuke2 in utils.nukes:
-                pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=(state.name=='insert'), inuke=inuke, germline_nuke=germline_nuke)
+                pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke)
                 total += pair_emission_probs[nuke1][nuke2]
         if math.fabs(total - 1.0) >= self.eps:
             print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
