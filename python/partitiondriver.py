@@ -90,6 +90,10 @@ class PartitionDriver(object):
 
                 self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][self.args.n_bases_skip:]}
                 if not self.args.is_data:
+                    assert 'fv_insertion' not in line  # TODO have recombinator spit this info out
+                    line['fv_insertion'] = ''
+                    assert 'jf_insertion' not in line
+                    line['jf_insertion'] = ''
                     self.reco_info[line['unique_id']] = line
                 n_queries += 1
                 if self.args.n_max_queries > 0 and n_queries >= self.args.n_max_queries:

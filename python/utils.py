@@ -33,7 +33,8 @@ naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
-index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'vd_insertion', 'dj_insertion')
+# NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. The allow query sequences that extend beyond the v or j regions
+index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
@@ -55,8 +56,10 @@ column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']  #   in the hmm, so the
 column_dependencies['j_gene'] = []  # ['dj_insertion']  TODO see note above
 column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice. NOTE this makes normalization kinda fun when you read these out
 column_dependencies['j_3p_del'] = ['j_gene']
+column_dependencies['fv_insertion'] = []
 column_dependencies['vd_insertion'] = []
 column_dependencies['dj_insertion'] = ['j_gene']
+column_dependencies['jf_insertion'] = []
 
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
@@ -297,7 +300,6 @@ def get_v_5p_del(original_seqs, line):
 def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
     """
     get original and eroded germline seqs
-    damn these function names kinda suck. TODO rejigger the function and variable names hereabouts
     """
     for region in regions:
         del_5p = int(line[region + '_5p_del'])
@@ -315,15 +317,14 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     """
     # NOTE see add_cdr3_info -- they do similar things, but start from different information
     if region == 'v':
-        gl_cpos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
-        query_cpos = gl_cpos - glbounds[0] + qrbounds[0]  # cysteine position in query sequence match
-        return query_cpos
+        gl_pos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
     elif region == 'j':
-        gl_tpos = int(tryp_positions[gene])
-        query_tpos = gl_tpos - glbounds[0] + qrbounds[0]
-        return query_tpos
+        gl_pos = int(tryp_positions[gene])
     else:
         return -1
+
+    query_pos = gl_pos - glbounds[0] + qrbounds[0]
+    return query_pos
 # ----------------------------------------------------------------------------------------
 def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False):
     """ Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line> """
@@ -393,39 +394,44 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
-    germline_v_end = len(original_seqs['v']) - v_5p_del - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
-    germline_d_start = lengths['v'] + len(line['vd_insertion']) - d_5p_del
+    germline_v_end = len(line['fv_insertion']) + len(original_seqs['v']) - v_5p_del - 1  # position in the query sequence at which we find the last base of the v match.
+                                                                                         # NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+    germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - d_5p_del
     germline_d_end = germline_d_start + len(original_seqs['d'])
     germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
 
+    # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
     n_muted, n_total = 0, 0
     j_right_extra = ''  # portion of query sequence to right of end of the j match
-    # TODO allow v match to start to right of start of query sequence
-    for inuke in range(len(line['seq'])):  # - j_3p_del):
+    for inuke in range(len(line['seq'])):
         ilocal = inuke
         new_nuke = ''
-        if ilocal < lengths['v']:
-            new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
+        if ilocal < len(line['fv_insertion']):  # haven't got to start of v match yet, so just add on the query seq nuke
+            new_nuke = line['seq'][inuke]
         else:
-            ilocal -= lengths['v']
-            if ilocal < len(line['vd_insertion']):
-                new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
+            ilocal -= len(line['fv_insertion'])
+            if ilocal < lengths['v']:
+                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
             else:
-                ilocal -= len(line['vd_insertion'])
-                if ilocal < lengths['d']:
-                    new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
+                ilocal -= lengths['v']
+                if ilocal < len(line['vd_insertion']):
+                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                 else:
-                    ilocal -= lengths['d']
-                    if ilocal < len(line['dj_insertion']):
-                        new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
+                    ilocal -= len(line['vd_insertion'])
+                    if ilocal < lengths['d']:
+                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
                     else:
-                        ilocal -= len(line['dj_insertion'])
-                        if ilocal < lengths['j']:
-                            new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
+                        ilocal -= lengths['d']
+                        if ilocal < len(line['dj_insertion']):
+                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                         else:
-                            new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total+1
-                            j_right_extra += ' '
+                            ilocal -= len(line['dj_insertion'])
+                            if ilocal < lengths['j']:
+                                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
+                            else:
+                                new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total+1
+                                j_right_extra += ' '
 
         if 'cyst_position' in line and 'tryp_position' in line:
             for pos in (line['cyst_position'], line['tryp_position']):  # reverse video for the conserved codon positions
@@ -442,35 +448,38 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         no_space = True
 
     eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = eroded_seqs['v'] + v_3p_del * '.'
-    eroded_seqs_dots['d'] = d_5p_del * '.' + eroded_seqs['d'] + d_3p_del * '.'
-    eroded_seqs_dots['j'] = j_5p_del * '.' + eroded_seqs['j'] + j_3p_del * '.'
+    eroded_seqs_dots['v'] = eroded_seqs['v'] + '.'*v_3p_del
+    eroded_seqs_dots['d'] = '.'*d_5p_del + eroded_seqs['d'] + '.'*d_3p_del
+    eroded_seqs_dots['j'] = '.'*j_5p_del + eroded_seqs['j'] + '.'*j_3p_del
 
-    insertions = ' ' * lengths['v']
+    insertions = ' '*len(line['fv_insertion']) + ' '*lengths['v']
     insertions += line['vd_insertion']
     insertions += ' ' * lengths['d']
     insertions += line['dj_insertion']
     insertions += ' ' * lengths['j']
     insertions += j_right_extra
     insertions += ' ' * j_3p_del
+    insertions += ' '*len(line['jf_insertion'])
 
-    d_line = ' ' * germline_d_start  # len(original_seqs['j']) - j_5p_del - j_3p_del
+    d_line = ' ' * germline_d_start
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
+    d_line += ' '*len(line['jf_insertion'])
 
-    vj_line = eroded_seqs_dots['v']
+    vj_line = ' ' * len(line['fv_insertion']) + eroded_seqs_dots['v']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
+    vj_line += ' '*len(line['jf_insertion'])
     if no_space:
         dot_matches = re.findall('[.][.]*', vj_line)
         assert len(dot_matches) == 1
         vj_line = vj_line.replace(dot_matches[0], color('red', '.no.space.'))
 
     if len(insertions) != len(d_line) or len(insertions) != len(vj_line):
-        print 'ERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
+        print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
         # assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
@@ -480,7 +489,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         print '%s    %s   %s' % (extra_str, d_line, color_gene(line['d_gene']))
         print '%s    %s   %s,%s' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene']))
     # print query sequence
-    print '%s    %s' % (extra_str, final_seq),
+    print '%s    %s%s' % (extra_str, final_seq, ' ' * j_3p_del),
     # and then some extra info
     print '   muted: %4.2f' % (float(n_muted) / n_total),
     if 'score' in line:
@@ -489,7 +498,9 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         print '   cdr3: %d' % int(line['cdr3_length']),
     print ''
 
-    line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
+    # line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
+    assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
+    assert ' ' not in line['seq']
 #    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
 
 #----------------------------------------------------------------------------------------

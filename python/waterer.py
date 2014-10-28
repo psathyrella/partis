@@ -182,32 +182,10 @@ class Waterer(object):
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
 
-            # TODO do I really want to expand v left and j right?
-            # check for left-side v erosion  TODO it would make sense to change the score when you expand the boundaries
-            #     S-W allows the v match to start to the right of the lefthand base in the query sequence, which makes little sense in most cases.
-            #     So, we artificially expand the left v boundaries, presumably adding a few mutated bases. TODO think about whether this is the proper long-term solution
-            if region == 'v' and read.qstart != 0:
-                n_to_subtract = min(read.pos, read.qstart)
-                qrbounds = (read.qstart - n_to_subtract, read.qend)
-                glbounds = (read.pos - n_to_subtract, read.aend)
-                warnings[gene] += 'v left expanded qr: %d -> %d, gl: %d -> %d' % (read.qstart, read.qstart-n_to_subtract, read.pos, read.pos - n_to_subtract)
-            # check for right-side j erosion  TODO it would make sense to change the score when you expand the boundaries
-            gl_length = len(self.germline_seqs[region][gene])
-            if region == 'j' and read.aend != gl_length:
-                # print 'whoa!', gene, read.pos, read.aend, gl_length
-                length_to_end_of_query_seq = len(query_seq) - read.qstart
-                new_match_length = min(gl_length, length_to_end_of_query_seq + read.pos)  # don't want to expand beyond the number of query bases we have left
-                # print gene, read.qstart, '-', read.qend, '   ', read.pos, '-', read.aend, '    ', gl_length, length_to_end_of_query_seq, new_match_length
-                qrbounds = (read.qstart, read.qstart + new_match_length - read.pos)
-                glbounds = (read.pos, new_match_length)
-                warnings[gene] += 'j right expanded %d -> %d, %d -> %d' % (read.qend, read.qstart + new_match_length - read.pos, read.aend, new_match_length)
             assert qrbounds[1] <= len(query_seq)
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
-            # if region == 'j' and qrbounds[1] != len(query_seq):  # TODO it's debatable whether this is a good idea. As far as I can tell, this is certainly going to be a crap match
-            #     print 'WARNING couldn\'t expand to right side of query seq, so skipping %s ' % utils.color_gene(gene)
-            #     continue
             
             all_match_names[region].append((score,gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
@@ -305,8 +283,10 @@ class Waterer(object):
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
         self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
 
+        self.info[query_name]['fv_insertion'] = query_seq[ : all_query_bounds[best['v']][0]]
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
         self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+        self.info[query_name]['jf_insertion'] = query_seq[all_query_bounds[best['j']][1] : ]
 
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
@@ -371,9 +351,11 @@ class Waterer(object):
                     print 'ERROR %s not same length' % query_name
                     print glmatchseq, glbounds[0], glbounds[1]
                     print query_seq[qrbounds[0]:qrbounds[1]]
+                    assert False
 
                 if region == 'v':
-                    this_k_v = all_query_bounds[gene][1]
+                    this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there.
+                                                          # In other words, sw doesn't tell the hmm about it. TODO think about whether you want to tell it.
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 if region == 'd':
@@ -391,14 +373,6 @@ class Waterer(object):
             if self.args.debug and n_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_skipped, region)
                         
-        # print how many of the available matches we used
-        if self.args.debug:
-            print '         used',
-            for region in utils.regions:
-                if region != 'v':
-                    print '             ',
-                print ' %d / %d in %s' % (n_used[region], n_matches[region], region)
-
         for region in utils.regions:
             if region not in best:
                 print '    no',region,'match found for',query_name  # TODO if no d match found, should just assume entire d was eroded
@@ -454,8 +428,17 @@ class Waterer(object):
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
+
+        if self.args.debug:
+            print '         k_v: %d [%d-%d]' % (k_v, k_v_min, k_v_max)
+            print '         k_d: %d [%d-%d]' % (k_d, k_d_min, k_d_max)
+            print '         used',
+            for region in utils.regions:
+                print ' %s: %d/%d' % (region, n_used[region], n_matches[region]),
+            print ''
+
+
         kvals = {}
         kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-
         self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions, perfplotter=perfplotter)
