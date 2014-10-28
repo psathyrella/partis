@@ -12,30 +12,35 @@ using namespace std;
 
 namespace ham {
 
-class TracebackPath{
+class TracebackPath {
 public:
   TracebackPath(Model* model) : hmm_(model), abbreviate_(false) {}
   void push_back(int state) { path_.push_back(state); }
   void clear() { path_.clear(); }
 
   inline size_t size() const { return path_.size(); }
-  inline void abbreviate(bool abb=true) { abbreviate_ = abb; }
+  inline void abbreviate(bool abb = true) { abbreviate_ = abb; }
   inline Model* model() const { return hmm_; }
   inline double score() { return score_; }  // get score associated with this path
   vector<string> name_vector();
   inline int operator[](size_t val) const {return path_[val];};
   bool operator== (const TracebackPath &rhs) const { return rhs.path_ == path_; }
-  bool operator<  (const TracebackPath &rhs) const { return rhs.path_ < path_; }
-  bool operator>  (const TracebackPath &rhs) const { return rhs.path_ > path_; }
+  bool operator< (const TracebackPath &rhs) const { return rhs.path_ < path_; }
+  bool operator> (const TracebackPath &rhs) const { return rhs.path_ > path_; }
   bool operator<= (const TracebackPath &rhs) const { return rhs.path_ <= path_; }
   bool operator>= (const TracebackPath &rhs) const { return rhs.path_ >= path_; }
 
   inline void set_model(Model* model) { hmm_ = model; }
   inline void set_score(double score) { score_ = score; }  // set score associated with this path
 
+<<<<<<< HEAD
   friend ostream& operator<<(ostream &os, const TracebackPath &self)
   {
     for(size_t k=self.path_.size()-1; k!=SIZE_MAX; --k) {
+=======
+  friend ostream& operator<<(ostream &os, const TracebackPath &self) {
+    for(size_t k = self.path_.size() - 1; k != SIZE_MAX; --k) {
+>>>>>>> 30b3b544a7556ee45c6b303fe4a8c519ed4b871f
       State* st = self.hmm_->state(self.path_[k]);
       os << (self.abbreviate_ ? st->abbreviation() : st->name()) << " ";
     }

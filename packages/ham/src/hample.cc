@@ -24,12 +24,13 @@ int main(int argc, const char *argv[]) {
     cmd.add(outfile_arg);
     cmd.add(pair_arg);
     cmd.parse(argc, argv);
-    if (pair_arg.getValue())
+    if(pair_arg.getValue())
       assert(seq2_arg.getValue() != "");
-    if (seq2_arg.getValue() != "")
+    if(seq2_arg.getValue() != "")
       assert(pair_arg.getValue());
-  } catch (ArgException &e) {
-    cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
+  } catch(ArgException &e) {
+    cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
+    throw;
   }
 
   // read hmm model file
@@ -41,7 +42,7 @@ int main(int argc, const char *argv[]) {
   Sequence *seq = new Sequence("seq", seq_arg.getValue(), hmm.track(0));
   seqs->AddSeq(seq);
   Sequence *seq2(0);
-  if (pair_arg.getValue()) {
+  if(pair_arg.getValue()) {
     seq2 = new Sequence("seq2", seq2_arg.getValue(), hmm.track(0));
     seqs->AddSeq(seq2);
   }
@@ -54,7 +55,7 @@ int main(int argc, const char *argv[]) {
   cout << "viterbi path (log prob " << trell.ending_viterbi_log_prob() << "):" << endl;
   cout << "  sequence: ";
   seq->Print();
-  if (pair_arg.getValue()) {
+  if(pair_arg.getValue()) {
     cout << "         2: ";
     seq2->Print();
   }
@@ -65,12 +66,11 @@ int main(int argc, const char *argv[]) {
   cout << path;
   cout << "\nforward log prob: " << trell.forward_log_prob() << endl;
 
-  if (outfile_arg.getValue().length() > 0) {
+  if(outfile_arg.getValue().length() > 0) {
     ofstream ofs;
     ofs.open(outfile_arg.getValue());
     assert(ofs.is_open());
-    ofs << path;
-    ofs << "\nforward log prob: " << trell.forward_log_prob() << endl;
+    ofs << trell.forward_log_prob() << "\t" << path << endl;
     ofs.close();
   }
 

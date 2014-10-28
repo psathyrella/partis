@@ -7,8 +7,8 @@
 
 using namespace std;
 namespace ham {
-  string Join(vector<int> &input, char c);
-  string IntToString(int input);
-  void ClearWhitespace(string white, string *input);
+string Join(vector<int> &input, char c);
+string IntToString(int input);
+void ClearWhitespace(string white, string *input);
 }
 #endif

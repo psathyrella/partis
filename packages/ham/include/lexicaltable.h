@@ -24,8 +24,8 @@ public:
   inline double LogProb(Sequences &seqs, size_t pos) { return (*log_probs_)[seqs[0][pos]][seqs[1][pos]]; }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
   inline double LogProb(Sequence &seq, size_t pos) { return (*log_probs_)[0][seq[pos]]; }  // see NOTE above
   inline Track* track(size_t iter) { return tracks.at(iter); }
-  inline size_t n_tracks(){ return tracks.size(); }
-  inline uint8_t alphabet_size(size_t i){ return tracks[i]->alphabet_size(); }
+  inline size_t n_tracks() { return tracks.size(); }
+  inline uint8_t alphabet_size(size_t i) { return tracks[i]->alphabet_size(); }
 private:
   vector<Track*> tracks;  // tracks which are used by emissions in this table
   // log_probs_ scheme:
