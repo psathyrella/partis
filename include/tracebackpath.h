@@ -33,14 +33,9 @@ public:
   inline void set_model(Model* model) { hmm_ = model; }
   inline void set_score(double score) { score_ = score; }  // set score associated with this path
 
-<<<<<<< HEAD
   friend ostream& operator<<(ostream &os, const TracebackPath &self)
   {
     for(size_t k=self.path_.size()-1; k!=SIZE_MAX; --k) {
-=======
-  friend ostream& operator<<(ostream &os, const TracebackPath &self) {
-    for(size_t k = self.path_.size() - 1; k != SIZE_MAX; --k) {
->>>>>>> 30b3b544a7556ee45c6b303fe4a8c519ed4b871f
       State* st = self.hmm_->state(self.path_[k]);
       os << (self.abbreviate_ ? st->abbreviation() : st->name()) << " ";
     }
