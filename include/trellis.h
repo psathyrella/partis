@@ -22,7 +22,7 @@ public:
   void Init();
   ~trellis();
 
-  Model *model(){ return hmm_; }
+  Model *model() { return hmm_; }
   double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
   Sequences *seqs() { return seqs_; }
   float_2D* forward_table() { return forward_table_; }

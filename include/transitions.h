@@ -18,8 +18,8 @@ public:
 
   inline void set_name(string& txt) { to_state_name_ = txt; }
   inline void set_state(State* st) { to_state_ = st; }
-  inline string &to_state_name(){return to_state_name_;};
-  inline State *to_state(){return to_state_;};
+  inline string &to_state_name() {return to_state_name_;};
+  inline State *to_state() {return to_state_;};
 
   inline double log_prob() { return log_prob_; }
 

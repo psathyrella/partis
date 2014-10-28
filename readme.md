@@ -12,19 +12,17 @@
              `-._  `--'  _,'
                  `------'
 
-ham -- the fantabulous HMM compiler
---------
+# ham -- the fantabulous HMM compiler
 
 `ham` is based on [StochHMM](https://github.com/KorfLab/StochHMM).
 
-building
---------
+# building
+
 Install [SCons](http://www.scons.org/) and then run
 
     scons
 
-examples
---------
+# examples
 
 The occasionally dishonest casino example is in `examples/casino.yaml`. Run it with:
 
@@ -45,8 +43,7 @@ The Viterbi path should now be thought of as the most probable single path that 
 have taken together. Similarly, the Forward probability is now the total probability, summed over all paths,
 of these two sequences having taken the same path.
 
-why ham?
---------
+# why ham?
 
 There are already lots of HMM compilers out there. Why do we need a new one?
 
@@ -67,4 +64,8 @@ very difficult to know what you are telling it to do. It also does not have pair
 While trying to implement pair HMMS in StochHMM, it became clear that it was going to be a complete rewrite.
 From a useability standpoint, the biggest difference is yaml config files. These are plain text files that are
 incredibly concise (the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
-is 442 characters). Yaml is also emminently scriptable from within python.
+is 438 characters). Yaml is also emminently scriptable from within python.
+
+# dependencies
+  - boost (just the headers)
+  - astyle

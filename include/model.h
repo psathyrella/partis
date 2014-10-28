@@ -29,7 +29,7 @@ private:
   double overall_prob_;  // overall (say, prior) probability of this hmm
   Tracks tracks_;
   vector<State*> states_; //!  All the states contained in the model
-  map<string,State*> states_by_name_; //Ptr to state stored by State name;
+  map<string, State*> states_by_name_; //Ptr to state stored by State name;
   State* initial_;
   State* ending_;
   bool finalized_;

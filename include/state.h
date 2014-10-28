@@ -24,7 +24,7 @@ public:
   ~State();
 
   inline string name() { return name_; }
-  inline string abbreviation() { return name_.substr(0,1); }
+  inline string abbreviation() { return name_.substr(0, 1); }
   inline size_t index() { return index_; }  // index of this state in the HMM model
   inline vector<Transition*> *transitions() { return transitions_; }
   inline bitset<STATE_MAX> *to_states() { return &to_states_; }
@@ -39,8 +39,8 @@ public:
   // property-setters for use in model::finalize()
   inline void AddToState(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>
   inline void AddFromState(State *st) { from_states_[st->index()] = 1; }  // set bit in <from_states_> corresponding to <st>
-  inline void SetIndex(size_t val){ index_ = val; }
-  void ReorderTransitions(map<string,State*>& state_indices);
+  inline void SetIndex(size_t val) { index_ = val; }
+  void ReorderTransitions(map<string, State*>& state_indices);
 
   void Print();
 private:
