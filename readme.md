@@ -69,3 +69,4 @@ is 438 characters). Yaml is also emminently scriptable from within python.
 # dependencies
   - boost (just the headers)
   - astyle
+...
