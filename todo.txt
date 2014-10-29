@@ -12,20 +12,22 @@
 
   - replace non_zero_insertion_prob crap with (1 - )'prob of entering region'
   - figure out how you really want to treat base content in insertions
-  - do I really want to apply the gene choice prob in waterer?
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
-  - allow j right erosions, and allow the query sequence to extend beyond the right edge of the j (this is in the hmm)
-  - disallow stop codons in simulator
+  - add testing framework to partis (include timing info)
+    - short reads, long reads, reads with v left and j right erosions
+    - single viterbi, viterbi pair, clustering
+    - parameter estimation from sw and hmm
   - check orphaned state code in model.cc
-  - should do something to not write hmms for genes for which we have almost no information. What we\'re writing is just garbage anyway. Also use some average for all the default things I\'ve hardcoded in there
-  - v left and j right deletions: allow them *only* if they run beyond the query sequence
-  - use hamming-to-naive, but *also* add a measure of how accurately we inferred which positions were mutated
-  - test with lots of different read lengths, i.e. extending waaaay left of the whole v, and so on
-  - interpolate at least v_5p, and probably everything else
-  - hmmwriter: TODO note that taking these numbers straight from data, with no smoothing, means that we are *forbidding* erosion lengths that we do not see in the training sample. Good? Bad? t.b.d. EDIT it\'s bad! and this also applies to mutation freqs!
   - add mean mutation rate to performance plots
-  - really, really need to add a way to ignore parameters from genes that we hardly ever saw that have huge uncertainties
-  - oops. data is here: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/data/r2/01-LMP-N
+  - v left and j right deletions: allow them *only* if they run beyond the query sequence
+  - make plots of emissions and transitions for each state in hmm
+  - lower priority
+    - use an N-HMM instead of a pair-HMM plus pairscore clustering
+    - disallow stop codons in simulator
+    - run performance profileing
+      - adding the gobbledygook states seems to have *really* slowed it down
+    - do I really want to apply the gene choice prob in waterer?
+
   - look at changing gcc options in stochhmm (-g, -02...)  UPDATE well removing -g didn\'t speed it up any
   - add to ham readme a description of why it\'s better
   - remove out of frame and frame-shifted rearrangements?
