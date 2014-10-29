@@ -11,6 +11,8 @@
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
   - replace non_zero_insertion_prob crap with (1 - )'prob of entering region'
+  - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
+  - account for different mutation frequencies to different bases
   - figure out how you really want to treat base content in insertions
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
   - add testing framework to partis (include timing info)
@@ -21,40 +23,23 @@
   - add mean mutation rate to performance plots
   - v left and j right deletions: allow them *only* if they run beyond the query sequence
   - make plots of emissions and transitions for each state in hmm
-  - lower priority
-    - use an N-HMM instead of a pair-HMM plus pairscore clustering
-    - disallow stop codons in simulator
-    - run performance profileing
-      - adding the gobbledygook states seems to have *really* slowed it down
-    - do I really want to apply the gene choice prob in waterer?
-
-  - look at changing gcc options in stochhmm (-g, -02...)  UPDATE well removing -g didn\'t speed it up any
-  - add to ham readme a description of why it\'s better
-  - remove out of frame and frame-shifted rearrangements?
-  - stop using hackey versions of gtr.txt and trees.tre in recombinator
-  - remove seqs with stop codons?
-  - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
-  - account for different mutation frequencies to different bases
-  - issue from erick: https://github.com/blab/immuno/issues/2
-  - you\'re still writing some files for every query sequence in Stochhmm.cpp, I think. Don\'t!
+  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
   - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
   - would it be faster with STATE_MAX less than 1024?
-  - number of clones per cluster in recombinator is just fixed at six now... er, may want to change that at some point
-  - I should really be able to construct the denominator in P(A,B) / (P(A) P(B)) from the numerator without recalculating much, right?
-  - add assertion in text parser that emission and transition probs add to 1.0
   - for k_v --> k_v + 1, don\'t recalculate the whole table
   - TODOs in code
-  - transitivity:
-    - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering?
-        (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
 
   - low priority
-    - rewrite parsing code/text files with http://www.yaml.org/
+    - disallow stop codons, out of frame and frame-shifted rearrangements in recombinator
+    - do I really want to apply the gene choice prob in waterer?
     - optimization
+      - run performance profiling
+      - adding the gobbledygook states seems to have *really* slowed it down (EDIT oh, wait, I think that was just removing the debug options)
       - hmm structure optimization
         - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
         - implement banding? I think I have this listed below but without using the word 'banding'
       - try pairwise s-w for preclustering (all against all -- align against each *other* using sw)
+    - I should really be able to construct the denominator in P(A,B) / (P(A) P(B)) from the numerator without recalculating much, right?
       - blast instead of s-w?
       - when we\'re doing pairs, it seems there should be some optimizations due to the fact we don\'t need to actually identify the gene versions, but only partition the sequences (EDIT wait, what?)
       - alleles: save chunks of dp tables and reuse \'em
@@ -63,9 +48,12 @@
       - the choices we make about which is the best reconstruction near the d/insertions is very dependent on how much mutation we think occurred
         - so try to use the amount of mutation in v to inform this decision (?)
         - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
-    - wait, what is stochhmm doing with the 'N's?
-    - add bfloats to stochhmm?
-
+    - clustering
+      - use an N-HMM instead of a pair-HMM plus pairscore clustering
+      - neighbor-joining
+      - transitivity:
+        - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering?
+            (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
 
 # ----------------------------------------------------------------------------------------
 misc
