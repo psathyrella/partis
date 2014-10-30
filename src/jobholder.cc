@@ -170,11 +170,11 @@ Result JobHolder::Run(Sequences &seqs, KBounds kbounds) {
     reverse(result.events_.begin(), result.events_.end());
     if(debug_ == 2) {
       assert(n_best_events_ <= result.events_.size());
-      for(size_t ievt = 0; ievt < n_best_events_; ++ievt) {
-        result.events_[ievt].Print(gl_, 0, 0, false, false, "          ");  // man, I wish I had keyword args
-        if(seqs.n_seqs() == 2)
-          result.events_[ievt].Print(gl_, 0, 0, true, true, "          ");
-      }
+      // for(size_t ievt = 0; ievt < n_best_events_; ++ievt) {
+      //   result.events_[ievt].Print(gl_, 0, 0, false, false, "          ");  // man, I wish I had keyword args
+      //   if(seqs.n_seqs() == 2)
+      //     result.events_[ievt].Print(gl_, 0, 0, true, true, "          ");
+      // }
     }
   }
   // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
