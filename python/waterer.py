@@ -260,8 +260,8 @@ class Waterer(object):
                 assert l_portion + r_portion == overlap
                 qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
                 glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
-                qrbounds[r_gene] = (qrbounds[r_gene][0], qrbounds[r_gene][1] - r_portion)
-                glbounds[r_gene] = (glbounds[r_gene][0], glbounds[r_gene][1] - r_portion)
+                qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
+                glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
                 
                 best[l_reg + '_gl_seq'] = self.germline_seqs[l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
                 best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
@@ -301,6 +301,9 @@ class Waterer(object):
             self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
             self.info['all_best_matches'].add(best[region])
 
+        # if best['v'] == 'IGHV3-33*03' and best['d'] == 'IGHD3/OR15-3b*01' and best['j'] == 'IGHJ4*02_F':
+        #     print 'QUERY',query_name
+        #     sys.exit()
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.args.debug:
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ')
@@ -334,10 +337,6 @@ class Waterer(object):
                 assert qrbounds[0] >= 0
                 assert glbounds[0] >= 0
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
-                if codon_positions[region] == -1:  # set to the position in the best (first) match
-                    codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, gene, glbounds, qrbounds)  # position in the query sequence, that is
-                else:
-                    assert best[region + '_score'] >= score  # make sure all_match_names is ordered with the best match first
 
                 # only use the best few matches
                 if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
@@ -351,7 +350,8 @@ class Waterer(object):
                 # add match to the list
                 n_used[region] += 1
                 match_names[region].append(gene)
-                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, codon_positions[region], warnings, skipping=False)
+
+                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, -1, warnings, skipping=False)
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
                 if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):  # neurotic double check (um, I think) EDIT hey this totally saved my ass
@@ -389,11 +389,16 @@ class Waterer(object):
                 return
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
+        print 'before', all_query_bounds[best['j']]
         try:
             self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
         except AssertionError:
             print '      ERROR %s apportionment failed' % query_name
             return
+
+        for region in utils.regions:
+            codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds, all_query_bounds)  # position in the query sequence, that is
+        print 'after', all_query_bounds[best['j']]
 
         # check for unproductive rearrangements
         try:
