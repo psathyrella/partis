@@ -35,6 +35,7 @@ conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Uses a tuple with the variables that are used to index selection frequencies
 # NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. The allow query sequences that extend beyond the v or j regions
 index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
+# not_used_for_simulation = ('fv_insertion', 'jf_insertion', 'v_5p_del')
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
@@ -468,6 +469,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
     d_line += ' ' * j_3p_del
     d_line += ' '*len(line['jf_insertion'])
 
+
     vj_line = ' ' * len(line['fv_insertion']) + eroded_seqs_dots['v']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
@@ -480,7 +482,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
 
     if len(insertions) != len(d_line) or len(insertions) != len(vj_line):
         print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
-        # assert no_space
+        assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
     # print insert, d, and vj lines
@@ -520,6 +522,7 @@ def unsanitize_name(name):
 #----------------------------------------------------------------------------------------
 def read_germlines(data_dir, remove_fp=False, remove_N_nukes=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
+    print 'read gl from', data_dir
     germlines = {}
     for region in regions:
         germlines[region] = OrderedDict()

@@ -110,7 +110,14 @@ class Waterer(object):
             workdir += '/sw-' + str(iproc)
         infname = workdir + '/' + base_infname
         outfname = workdir + '/' + base_outfname
-        check_call(self.args.ighutil_dir + '/bin/vdjalign align-fastq --j-subset adaptive --max-drop 50 --match 5 --mismatch 3 --gap-open 1000 ' + infname + ' ' + outfname, shell=True)
+        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq'
+        cmd_str += ' --max-drop 50'
+        cmd_str += ' --match 5 --mismatch 3'
+        cmd_str += ' --gap-open 1000'
+        if self.args.j_subset != None:
+            cmd_str += ' --j-subset ' + self.args.j_subset 
+        cmd_str += ' ' + infname + ' ' + outfname
+        check_call(cmd_str.split())
         if not self.args.no_clean:
             os.remove(infname)
         print '    s-w time: %.3f' % (time.time()-start)

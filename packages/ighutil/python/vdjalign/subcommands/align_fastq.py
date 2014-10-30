@@ -43,6 +43,8 @@ def fill_targets_alignment_options(p):
                       (currently: No options) [default: %(default)s]""")
     tgrp.add_argument('--j-subset', help="""Subset of J reads to use (e.g.,
                       adaptive) [default: %(default)s]""")
+    tgrp.add_argument('--vdj-dir', help="""Directory from which to read
+                      germline genes) [default: %(default)s]""")
 
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
@@ -79,6 +81,7 @@ def action(a):
                               max_drop=a.max_drop)
 
     log.info('aligning')
+    print 'HERE'
     with imgt.temp_fasta(a.locus, 'v', a.v_subset) as vf, \
             imgt.temp_fasta(a.locus, 'j', a.j_subset) as jf, \
             util.with_if(a.locus == 'IGH', imgt.temp_fasta, a.locus, 'd',

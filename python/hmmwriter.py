@@ -372,6 +372,12 @@ class HmmWriter(object):
             # print '   interpolate insertions'
             interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  # NOTE that we normalize *after* this
 
+            if 0 not in self.insertion_probs[insertion] or len(self.insertion_probs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
+                print '    WARNING adding pseudocount to 1-bin in insertion probs'
+                self.insertion_probs[insertion][0] = 1
+                self.insertion_probs[insertion][1] = 1
+                print '      ', self.insertion_probs[insertion]
+
             assert 0 in self.insertion_probs[insertion] and len(self.insertion_probs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
             # and finally, normalize
@@ -485,6 +491,9 @@ class HmmWriter(object):
                 total += prob * (1.0 - non_zero_insertion_prob)
                 if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
                     state.add_transition('%s_%d' % (self.saniname, inuke), prob * (1.0 - non_zero_insertion_prob))
+# ----------------------------------------------------------------------------------------
+                    # smallest_entry_index needs to be totally rejiggered
+# ----------------------------------------------------------------------------------------
                     if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:
                         self.smallest_entry_index = inuke
         assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))

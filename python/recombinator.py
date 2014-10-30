@@ -23,7 +23,7 @@ class Recombinator(object):
     # bottlenecks:
     #    writing mute freqs and running bppseqgen five times for each recombination event
 
-    def __init__(self, args, total_length_from_right=0):
+    def __init__(self, args, total_length_from_right=-1):
         self.workdir = '/tmp/' + os.getenv('USER') + '/recombinator/' + str(os.getpid())
         utils.prep_dir(self.workdir)
         self.args = args

@@ -76,12 +76,14 @@ class RecombinationEvent(object):
         # for erosion_location in utils.effective_erosions:
             # self.effective_erosions[erosion_location + '_del'] = 0
         self.effective_erosions['j_3p'] = 0  # TODO make this less hackey
-        self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right  # TODO make this less hackey
+        self.effective_erosions['v_5p'] = 0
+        if total_length_from_right >= 0:
+            self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right  # TODO make this less hackey
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, total_length_from_right=0):
         """ Write out all info to csv file. """
-        columns = ('unique_id', 'reco_id', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'vd_insertion', 'dj_insertion', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'seq')
+        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', )
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'
@@ -108,6 +110,8 @@ class RecombinationEvent(object):
                 assert 'seq' not in row
                 reco_id += str(row[column])
             row['reco_id'] = hash(reco_id)
+            row['fv_insertion'] = ''
+            row['jf_insertion'] = ''
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
                 row['seq'] = self.final_seqs[imute]
@@ -136,6 +140,8 @@ class RecombinationEvent(object):
             line[erosion_location + '_del'] = self.effective_erosions[erosion_location]
         line['cyst_position'] = self.cyst_position
         line['tryp_position'] = self.final_tryp_position
+        line['fv_insertion'] = ''
+        line['jf_insertion'] = ''
         for imute in range(len(self.final_seqs)):
             line['seq'] = self.final_seqs[imute]
             if total_length_from_right > 0:
