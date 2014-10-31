@@ -389,7 +389,6 @@ class Waterer(object):
                 return
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
-        print 'before', all_query_bounds[best['j']]
         try:
             self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
         except AssertionError:
@@ -398,7 +397,6 @@ class Waterer(object):
 
         for region in utils.regions:
             codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds, all_query_bounds)  # position in the query sequence, that is
-        print 'after', all_query_bounds[best['j']]
 
         # check for unproductive rearrangements
         try:

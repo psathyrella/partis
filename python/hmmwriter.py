@@ -272,15 +272,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_righthand_insert_state(self):
         insert_state = State('insert_right')
-        self_transition_prob = 1.0 - self.get_inverse_insert_length('jf')
-        if self_transition_prob < 0.0:  # if mean mean insertion length is less than zero, we can no longer use 1/mean_length as a probability
-            # TODO do something more permanent
-            # TODO at least use more than the second bin in the numerator
-            assert 0 in self.insertion_probs['jf']
-            assert 1 in self.insertion_probs['jf']
-            self_transition_prob = float(self.insertion_probs['jf'][1]) / self.insertion_probs['jf'][0]
-            assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
-            print '    WARNING using insert self-transition probability hack p(1) / p(0) = %f / %f = %f' % (self.insertion_probs['jf'][1], self.insertion_probs['jf'][0], self_transition_prob)
+        self_transition_prob = get_insert_self_transition_prob('jf')
         insert_state.add_transition('insert_right', self_transition_prob)
         insert_state.add_transition('end', 1.0 - self_transition_prob)
         self.add_emissions(insert_state)
@@ -438,8 +430,20 @@ class HmmWriter(object):
         self.insert_mute_prob = self.mean_mute_freq
 
     # ----------------------------------------------------------------------------------------
+    def get_mean_insert_length(self, insertion):
+        total, n_tot = 0.0, 0.0
+        for length, prob in self.insertion_probs[insertion].iteritems():
+            total += prob*length
+            n_tot += prob
+        if n_tot == 0.0:
+            return -1
+        else:
+            return total / n_tot
+
+    # ----------------------------------------------------------------------------------------
     def get_inverse_insert_length(self, insertion):
         mean_length = self.get_mean_insert_length(insertion)
+        assert mean_length >= 0.0
         inverse_length = 0.0
         if mean_length > 0.0:
             inverse_length = 1.0 / mean_length
@@ -449,54 +453,80 @@ class HmmWriter(object):
         return inverse_length
 
     # ----------------------------------------------------------------------------------------
-    def get_non_zero_insertion_prob(self, state_name, insertion):
-        if state_name == 'init':
-            return 1.0 - self.insertion_probs[insertion][0]
-        elif state_name == 'insert_left':  # we want the prob of *leaving* the insert state to be 1/insertion_length, so multiply all the region entry probs (below) by this
-            inverse_length = self.get_inverse_insert_length(insertion)
-            assert inverse_length <= 1.0
-            return 1.0 - inverse_length  # set the prob of *remaining* in the insert state to [1 - 1/mean_insert_length]
-        else:
-            assert False
+    def get_insert_self_transition_prob(self, insertion):
+        """ Probability of insert state transitioning to itself """
+        inverse_length = self.get_inverse_insert_length(insertion)
+        if inverse_length < 1.0:  # if (mean length) > 1, approximate insertion length as a geometric distribution
+            return 1.0 - inverse_length  # i.e. the prob of remaining in the insert state is [1 - 1/mean_insert_length]
+        else:  # while if (mean length) <=1, return the fraction of entries in bins greater than zero. NOTE this is a weird heuristic, *but* it captures the general features (it gets bigger if we have more insertions longer than zero)
+            non_zero_sum = 0.0
+            for length, prob in self.insertion_probs[insertion].iteritems():
+                if length != 0:
+                    non_zero_sum += prob
+            self_transition_prob = non_zero_sum / float(self.insertion_probs[insertion][0])  # NOTE this otter be less than 1, since we only get here if the mean length is less than 1
+            assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
+            print '    WARNING using insert self-transition probability hack for %s p(>0) / p(0) = %f / %f = %f' % (insertion, non_zero_sum, self.insertion_probs[insertion][0], self_transition_prob)
+            print '      ', self.insertion_probs[insertion]
+            return self_transition_prob
+
+    # # ----------------------------------------------------------------------------------------
+    # def get_non_zero_insertion_prob(self, state_name, insertion):
+    #     if state_name == 'init':
+    #         return 1.0 - self.insertion_probs[insertion][0]
+    #     elif state_name == 'insert_left':  # we want the prob of *leaving* the insert state to be 1/insertion_length
+    #         inverse_length = self.get_inverse_insert_length(insertion)
+    #         assert inverse_length <= 1.0
+    #         if inverse_length < 1.0:
+    #             return 1.0 - inverse_length  # set the prob of *remaining* in the insert state to [1 - 1/mean_insert_length]
+    #         else:
+    #             return 
+    #     else:
+    #         assert False
 
     # ----------------------------------------------------------------------------------------
     def add_region_entry_transitions(self, state, insertion):
         """
-        Add transitions *into* the v, d, or j regions. Called from either the 'init' state or the 'insert' state.
+        Add transitions *into* the v, d, or j regions. Called from either the 'init' state or the 'insert_left' state.
         For v, this is (mostly) the prob that the read doesn't extend all the way to the left side of the v gene.
         For d and j, this is (mostly) the prob to actually erode on the left side.
         The two <mostly>s are there because in both cases, we're starting from *approximate* smith-waterman alignments, so we need to add some fuzz in case the s-w is off.
-        For insert states, 
         """
         assert 'jf' not in insertion  # need these to only be *left*-hand insertions
         assert state.name == 'init' or state.name == 'insert_left'
 
-        non_zero_insertion_prob = 0.0  # Prob of a non-zero-length insertion (i.e. prob to *not* go directly into the region)
-                                       # The sum of the region entry probs must be (1 - non_zero_insertion_prob) for d and j
-                                       # (i.e. such that [prob of transitions to insert] + [prob of transitions *not* to insert] is 1.0)
+        region_entry_prob = 0.0  # Prob to go directly into the region (i.e. with no insertion)
+                                 # The sum of the region entry probs must be (1 - non_zero_insertion_prob) for d and j
+                                 # (i.e. such that [prob of transitions to insert] + [prob of transitions *not* to insert] is 1.0)
 
         # first add transitions to the insert state
-        non_zero_insertion_prob = self.get_non_zero_insertion_prob(state.name, insertion)
+        # non_zero_insertion_prob = self.get_non_zero_insertion_prob(state.name, insertion)
+        if state.name == 'init':
+            region_entry_prob = self.insertion_probs[insertion][0]  # prob of entering the region from 'init' is the prob of a zero-length insertion
+        elif state.name == 'insert_left':
+            region_entry_prob = 1.0 - self.get_insert_self_transition_prob(insertion)  # the 'insert_left' state has to either go to itself, or else enter the region
+        else:
+            assert False
+
         # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
         # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
-        state.add_transition('insert_left', non_zero_insertion_prob)
+        state.add_transition('insert_left', 1.0 - region_entry_prob)
 
         # then add transitions to the region's internal states
+        erosion = self.region + '_5p'
         total = 0.0
         for inuke in range(len(self.germline_seq)):
-            erosion = self.region + '_5p'
             erosion_length = inuke
             if erosion_length in self.erosion_probs[erosion]:
                 prob = self.erosion_probs[erosion][erosion_length]
-                total += prob * (1.0 - non_zero_insertion_prob)
-                if non_zero_insertion_prob != 1.0:  # only add the line if there's a chance of zero-length insertion
-                    state.add_transition('%s_%d' % (self.saniname, inuke), prob * (1.0 - non_zero_insertion_prob))
-# ----------------------------------------------------------------------------------------
-                    # smallest_entry_index needs to be totally rejiggered
-# ----------------------------------------------------------------------------------------
+                total += prob * region_entry_prob
+                if region_entry_prob != 0.0:  # only add the line if there's a chance of entering the region from this state
+                    state.add_transition('%s_%d' % (self.saniname, inuke), prob * region_entry_prob)
                     if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:
                         self.smallest_entry_index = inuke
-        assert non_zero_insertion_prob == 1.0 or utils.is_normed(total / (1.0 - non_zero_insertion_prob))
+                else:
+                    assert state.name == 'init'  # if there's *no* chance of entering the region, this better *not* be the 'insert_left' state
+
+        assert region_entry_prob == 0.0 or utils.is_normed(total / region_entry_prob)
 
     # ----------------------------------------------------------------------------------------
     def add_region_exit_transitions(self, state, exit_probability):
@@ -526,17 +556,6 @@ class HmmWriter(object):
                 return 0.0
         else:
             return 0.0
-
-    # ----------------------------------------------------------------------------------------
-    def get_mean_insert_length(self, insertion):
-        total, n_tot = 0.0, 0.0
-        for length, count in self.insertion_probs[insertion].iteritems():
-            total += count*length
-            n_tot += count
-        if n_tot == 0.0:
-            return -1
-        else:
-            return total / n_tot
 
     # ----------------------------------------------------------------------------------------
     def get_emission_prob(self, nuke1, nuke2='', is_insert=True, inuke=-1, germline_nuke=''):

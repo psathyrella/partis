@@ -311,7 +311,7 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
         eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
 
 # ----------------------------------------------------------------------------------------
-def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds):
+def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, all_glbounds, all_qrbounds):
     """
     Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
     its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
@@ -324,6 +324,8 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     else:
         return -1
 
+    glbounds = all_glbounds[gene]
+    qrbounds = all_qrbounds[gene]
     query_pos = gl_pos - glbounds[0] + qrbounds[0]
     return query_pos
 # ----------------------------------------------------------------------------------------

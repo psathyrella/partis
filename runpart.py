@@ -88,8 +88,8 @@ else:
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
 
-    parter.write_hmms(args.parameter_dir, None)
-    sys.exit()
+    # parter.write_hmms(args.parameter_dir, None)
+    # sys.exit()
 
     if args.cache_parameters:
         parter.cache_parameters()

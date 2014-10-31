@@ -83,7 +83,7 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_tryp_position(total_length_from_right=self.total_length_from_right)
+        reco_event.set_final_tryp_position(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
 
         if self.args.naivety == 'M':
             self.add_mutants(reco_event)  # toss a bunch of clones: add point mutations
