@@ -407,7 +407,7 @@ class Waterer(object):
                 if self.args.debug:
                     print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
                 assert False
-            utils.check_for_stop_codon(query_seq, codon_positions['v'])
+            utils.check_for_stop_codon(query_seq, codon_positions['v'], debug=self.args.debug)
         except AssertionError:
             if self.args.debug:
                 print '      unproductive rearrangement in waterer'

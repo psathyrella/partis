@@ -272,7 +272,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_righthand_insert_state(self):
         insert_state = State('insert_right')
-        self_transition_prob = get_insert_self_transition_prob('jf')
+        self_transition_prob = self.get_insert_self_transition_prob('jf')
         insert_state.add_transition('insert_right', self_transition_prob)
         insert_state.add_transition('end', 1.0 - self_transition_prob)
         self.add_emissions(insert_state)
@@ -469,20 +469,6 @@ class HmmWriter(object):
             print '      ', self.insertion_probs[insertion]
             return self_transition_prob
 
-    # # ----------------------------------------------------------------------------------------
-    # def get_non_zero_insertion_prob(self, state_name, insertion):
-    #     if state_name == 'init':
-    #         return 1.0 - self.insertion_probs[insertion][0]
-    #     elif state_name == 'insert_left':  # we want the prob of *leaving* the insert state to be 1/insertion_length
-    #         inverse_length = self.get_inverse_insert_length(insertion)
-    #         assert inverse_length <= 1.0
-    #         if inverse_length < 1.0:
-    #             return 1.0 - inverse_length  # set the prob of *remaining* in the insert state to [1 - 1/mean_insert_length]
-    #         else:
-    #             return 
-    #     else:
-    #         assert False
-
     # ----------------------------------------------------------------------------------------
     def add_region_entry_transitions(self, state, insertion):
         """
@@ -499,7 +485,6 @@ class HmmWriter(object):
                                  # (i.e. such that [prob of transitions to insert] + [prob of transitions *not* to insert] is 1.0)
 
         # first add transitions to the insert state
-        # non_zero_insertion_prob = self.get_non_zero_insertion_prob(state.name, insertion)
         if state.name == 'init':
             region_entry_prob = self.insertion_probs[insertion][0]  # prob of entering the region from 'init' is the prob of a zero-length insertion
         elif state.name == 'insert_left':
