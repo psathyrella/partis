@@ -12,12 +12,24 @@ import joinparser
 
 from performanceplotter import PerformancePlotter
 
+header_keys = {
+    'V-GENE and allele':'v_gene',
+    'D-GENE and allele':'d_gene',
+    'J-GENE and allele':'j_gene',
+    'V-REGION start':'v_start',  # NOTE these are *one* indexed, and *inclusive* of both endpoints
+    'V-REGION end':'v_end',
+    'D-REGION start':'d_start',
+    'D-REGION end':'d_end',
+    'J-REGION start':'j_start',
+    'J-REGION end':'j_end'
+}
+
 class IMGTParser(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, seqfname, datadir, indir='', infname=''):
-        self.debug = 0
+        self.debug = 1
         n_max_queries = -1
-        queries = []
+        queries = ['-3186447074198366744']
 
         self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)
         perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/imgt_performance', 'imgt')
@@ -36,19 +48,33 @@ class IMGTParser(object):
                     break
 
         n_failed, n_total = 0, 0
-        paragraphs = None
+        paragraphs, csv_info = None, None
         if '.html' in infname:
             with opener('r')(infname) as infile:
                 soup = BeautifulSoup(infile)
                 paragraphs = soup.find_all('pre')
+        elif '.txt' in infname:
+            with opener('r')(infname) as infile:
+                reader = csv.DictReader(infile, delimiter='\t')
+                csv_info = {}
+                for line in reader:
+                    csv_info[line['Sequence ID']] = line
         for unique_id in self.seqinfo:
             if self.debug:
                 print unique_id,
             imgtinfo = []
+            # print 'true'
+            # utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
             if '.html' in infname:
                 for pre in paragraphs:  # NOTE this loops over everything an awful lot of times. shouldn't really matter for now
                     if unique_id in pre.text:
                         imgtinfo.append(pre.text)
+            elif '.txt' in infname:
+                imgt_line = csv_info[unique_id]
+                useful_line = {}
+                assert False  # *sigh* I think there isn't actually enough info in here
+                for imgt_key, key in header_keys.iteritems():
+                    useful_line[key] = imgt_line[imgt_key]
             else:
                 assert infname == ''
                 infnames = glob.glob(indir + '/' + unique_id + '*')
@@ -73,7 +99,7 @@ class IMGTParser(object):
             else:
                 if self.debug:
                     print ''
-            line = self.parse_query(unique_id, imgtinfo)
+            line = self.parse_query_text(unique_id, imgtinfo)
             n_total += 1
             if len(line) == 0:
                 print '    giving up'
@@ -90,13 +116,13 @@ class IMGTParser(object):
                 continue
             perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
             if self.debug:
-                    utils.print_reco_event(self.germline_seqs, line)
+                utils.print_reco_event(self.germline_seqs, line)
 
         perfplotter.plot()
         print 'failed: %d / %d = %f' % (n_failed, n_total, float(n_failed) / n_total)
 
     # ----------------------------------------------------------------------------------------
-    def parse_query(self, unique_id, query_info):
+    def parse_query_text(self, unique_id, query_info):
         if len(query_info) == 0:  # one for the query sequence, then one for v, d, and j
             print 'no info for',unique_id
             return {}
@@ -230,4 +256,5 @@ class IMGTParser(object):
 #                 sys.exit()
 
 # iparser = IMGTParser('caches/recombinator/simu.csv', datadir='./data/imt', infname='/home/dralph/Dropbox/imgtvquest.html')
-iparser = IMGTParser('caches/recombinator/simu.csv', datadir='./data/imgt', indir='./woopidy/IMGT_HighV-QUEST_individual_files_folder')
+# iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='performance/imgt/foop3/IMGT_HighV-QUEST_individual_files_folder')
+iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='performance/imgt/foop3/3_Nt-sequences_foop3_311014.txt')
