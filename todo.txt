@@ -7,33 +7,31 @@
       - soda[12]
       - joinsolver
   - write shit up!
-    - first write outline and send to erick
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
-  - replace non_zero_insertion_prob crap with (1 - )'prob of entering region'
-  - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
   - hmm txt file visualizer. NO, REALLY THOUGH!
+  - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
+  - remove this stuff in recombinator: 'if region == 'v' and position < 200:  # don\'t really have any information here. TODO add some criterion to remove positions with really large uncertainties'
   - account for different mutation frequencies to different bases
-  - figure out how you really want to treat base content in insertions
+  - account for non-uniform base content in insertions
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
   - add testing framework to partis (include timing info)
     - short reads, long reads, reads with v left and j right erosions
     - single viterbi, viterbi pair, clustering
     - parameter estimation from sw and hmm
   - check orphaned state code in model.cc
-  - add mean mutation rate to performance plots
-  - v left and j right deletions: allow them *only* if they run beyond the query sequence
-  - make plots of emissions and transitions for each state in hmm
   - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
   - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
-  - would it be faster with STATE_MAX less than 1024?
-  - for k_v --> k_v + 1, don\'t recalculate the whole table
   - TODOs in code
 
   - low priority
+    - v left and j right deletions: allow them *only* if they run beyond the query sequence?
+    - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
     - disallow stop codons, out of frame and frame-shifted rearrangements in recombinator
     - do I really want to apply the gene choice prob in waterer?
     - optimization
+      - would it be faster with STATE_MAX less than 1024?
+        - for k_v --> k_v + 1, don\'t recalculate the whole table
       - run performance profiling
       - adding the gobbledygook states seems to have *really* slowed it down (EDIT oh, wait, I think that was just removing the debug options)
       - hmm structure optimization

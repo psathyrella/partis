@@ -200,8 +200,17 @@ class Recombinator(object):
             with opener('r')(mutefname) as mutefile:
                 reader = csv.DictReader(mutefile)
                 for line in reader:  # NOTE these positions are *zero* indexed
-                    mute_freqs[int(line['position'])] = float(line['mute_freq'])
-                    mean_freq += float(line['mute_freq'])
+                    pos = int(line['position'])
+                    freq = float(line['mute_freq'])
+                    lo_err = float(line['lo_err'])  # NOTE lo_err in the file is really the lower *bound*
+                    hi_err = float(line['hi_err'])  #   same deal
+
+                    if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
+                        freq = 0.5 * (lo_err + hi_err)
+
+                    mute_freqs[pos] = freq
+                    mean_freq += freq
+
                 mean_freq /= len(mute_freqs)  # TODO weight this calculation by the (inverse of the) uncertainty
     
         # calculate mute freqs for the positions in <seq>
@@ -229,7 +238,7 @@ class Recombinator(object):
 
         if total == 0.0:  # I am not yet hip enough to divide by zero
             print 'ERROR zero total frequency in %s (probably really an insert)' % mutefname
-            print 'seq:',seq
+            print 'seq:', seq
             assert len(seq) == 0  # I think this happens mostly if we eroded off all the positions for which we had decent information
             assert False
         for inuke in range(len(seq)):  # normalize to the number of sites (this is how bppseqgen likes it)

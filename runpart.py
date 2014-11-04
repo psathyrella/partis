@@ -71,7 +71,7 @@ if args.simulate:
         sys.exit(0)
     from recombinator import Recombinator
     assert args.parameter_dir != None and args.outdir != None
-    reco = Recombinator(args) #, total_length_from_right=130)
+    reco = Recombinator(args, total_length_from_right=130)
     for ievt in range(args.n_max_queries):
         print ievt,
         sys.stdout.flush()
