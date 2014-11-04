@@ -99,7 +99,7 @@ def color(col, seq):
     return Colors[col] + seq + Colors['end']
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str=''):
     assert len(ref_seq) == len(seq)
     return_str = ''
     for inuke in range(len(seq)):
@@ -108,8 +108,8 @@ def color_mutants(ref_seq, seq, print_result=False):
         else:
             return_str += color('red', seq[inuke])
     if print_result:
-        print '%0s %s' % ('', ref_seq)
-        print '%0s %s' % ('', return_str)
+        print '%s %s' % (extra_str, ref_seq)
+        print '%s %s' % (extra_str, return_str)
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -341,13 +341,13 @@ def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
     line['tryp_position'] = tpos_in_joined_seq
     line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
-    # try:
-    check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
-    check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
-    # except AssertionError:
-    #     if debug:
-    #         print '    bad codon, setting cdr3_length to -1'
-    #     line['cdr3_length'] = -1
+    try:
+        check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
+        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
+    except AssertionError:
+        if debug:
+            print '    bad codon, setting cdr3_length to -1'
+        line['cdr3_length'] = -1
     
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):
@@ -375,9 +375,10 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unprodu
         line[region + '_gl_seq'] = eroded_seqs[region]
 
     # the sections of the query sequence which are assigned to each region
-    d_start = len(eroded_seqs['v']) + len(line['vd_insertion'])
+    v_start = len(line['fv_insertion'])
+    d_start = v_start + len(eroded_seqs['v']) + len(line['vd_insertion'])
     j_start = d_start + len(eroded_seqs['d']) + len(line['dj_insertion'])
-    line['v_qr_seq'] = line['seq'][:len(eroded_seqs['v'])]
+    line['v_qr_seq'] = line['seq'][v_start : v_start + len(eroded_seqs['v'])]
     line['d_qr_seq'] = line['seq'][d_start : d_start + len(eroded_seqs['d'])]
     line['j_qr_seq'] = line['seq'][j_start : j_start + len(eroded_seqs['j'])]
 

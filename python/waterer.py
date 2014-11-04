@@ -306,7 +306,7 @@ class Waterer(object):
         #     sys.exit()
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.args.debug:
-            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='          ')
+            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ')
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])

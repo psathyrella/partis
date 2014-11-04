@@ -34,6 +34,7 @@ class MuteFreqer(object):
             mute_counts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
             germline_seq = info[region + '_gl_seq']
             query_seq = info[region + '_qr_seq']
+            # utils.color_mutants(germline_seq, query_seq, print_result=True, extra_str='  ')
             assert len(germline_seq) == len(query_seq)
             for inuke in range(len(germline_seq)):
                 i_germline = inuke + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
