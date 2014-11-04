@@ -47,7 +47,7 @@ class MuteFreqer(object):
     def write(self, calculate_uncertainty=True):
         cvn = None
         if has_root:
-            cvn = TCanvas("cvn", "", 1700, 600)
+            cvn = TCanvas("cvn", "", 6000, 1000)
         for gene in self.counts:
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)
@@ -101,6 +101,7 @@ class MuteFreqer(object):
                 line.SetLineColor(0)
                 line.Draw()  # can't figure out how to convince hframe not to draw a horizontal line at y=0, so... cover it up
                 hist.SetLineColor(419)
+                hist.SetLineWidth(2)
                 hist.Draw('same')
                 lo_err_hist.SetLineColor(kRed+2)
                 hi_err_hist.SetLineColor(kRed+2)
@@ -108,6 +109,8 @@ class MuteFreqer(object):
                 hi_err_hist.SetMarkerColor(kRed+2)
                 lo_err_hist.SetMarkerStyle(22)
                 hi_err_hist.SetMarkerStyle(23)
+                lo_err_hist.SetMarkerSize(1)
+                hi_err_hist.SetMarkerSize(1)
                 lo_err_hist.Draw('p same')
                 hi_err_hist.Draw('p same')
                 if self.base_plotdir != '':
@@ -118,7 +121,7 @@ class MuteFreqer(object):
             if self.base_plotdir != '':
                 check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
                 for region in utils.regions:
-                    check_call(['makeHtml', self.base_plotdir + '/' + region, '2', 'null', 'svg'])
+                    check_call(['makeHtml', self.base_plotdir + '/' + region, '1', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
