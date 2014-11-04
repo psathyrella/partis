@@ -23,9 +23,8 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 self.values[column]['right'] = 0
                 self.values[column]['wrong'] = 0
-            # else:
-            #     self.values[column] = {}
         self.values['hamming_to_true_naive'] = {}
+        self.values['mute_freqs'] = {}
     # ----------------------------------------------------------------------------------------
     def hamming_distance_to_true_naive(self, true_line, line, query_name):
         """ hamming distance between the inferred naive sequence and the tue naive sequence """
@@ -56,6 +55,15 @@ class PerformancePlotter(object):
         return utils.hamming(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
+    def mutation_rate(self, line):
+        naive_seq = utils.get_full_naive_seq(self.germlines, line)
+        muted_seq = line['seq']
+        # print ''
+        # utils.color_mutants(naive_seq, muted_seq, True)
+        n_mutes = utils.hamming(naive_seq, muted_seq)
+        return int(100 * float(n_mutes) / len(naive_seq))  # utils.hamming() asserts they're the same length
+
+    # ----------------------------------------------------------------------------------------
     def add_fail(self):
         for column in self.values:
             if column in bool_columns:
@@ -81,6 +89,9 @@ class PerformancePlotter(object):
                 elif column == 'hamming_to_true_naive':
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
                     guessval = self.hamming_distance_to_true_naive(true_line, line, query_name)
+                elif column == 'mute_freqs':
+                    trueval = self.mutation_rate(true_line)
+                    guessval = self.mutation_rate(line)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(line[column])
