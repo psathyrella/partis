@@ -110,6 +110,8 @@ class RecombinationEvent(object):
                 assert 'seq' not in row
                 reco_id += str(row[column])
             row['reco_id'] = hash(reco_id)
+            assert 'fv_insertion' not in row  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
+            assert 'jf_insertion' not in row
             row['fv_insertion'] = ''
             row['jf_insertion'] = ''
             # then the stuff that's particular to each mutant/clone
@@ -140,6 +142,8 @@ class RecombinationEvent(object):
             line[erosion_location + '_del'] = self.effective_erosions[erosion_location]
         line['cyst_position'] = self.cyst_position
         line['tryp_position'] = self.final_tryp_position
+        assert 'fv_insertion' not in line  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
+        assert 'jf_insertion' not in line
         line['fv_insertion'] = ''
         line['jf_insertion'] = ''
         for imute in range(len(self.final_seqs)):

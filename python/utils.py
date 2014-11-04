@@ -328,23 +328,26 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, a
     qrbounds = all_qrbounds[gene]
     query_pos = gl_pos - glbounds[0] + qrbounds[0]
     return query_pos
+
 # ----------------------------------------------------------------------------------------
 def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False):
     """ Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line> """
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
-    eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position'] - int(line['v_5p_del'])  # cysteine position in eroded germline sequence
+    eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
+    # if debug:
+    #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (cyst_positions[line['v_gene']]['cysteine-position'], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
     eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
-    try:
-        line['cyst_position'] = eroded_gl_cpos
-        tpos_in_joined_seq = eroded_gl_tpos + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
-        line['tryp_position'] = tpos_in_joined_seq
-        line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
-        check_conserved_cysteine(eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
-        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
-    except AssertionError:
-        if debug:
-            print '    bad codon, setting cdr3_length to -1'
-        line['cdr3_length'] = -1
+    line['cyst_position'] = eroded_gl_cpos
+    tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
+    line['tryp_position'] = tpos_in_joined_seq
+    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
+    # try:
+    check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
+    check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
+    # except AssertionError:
+    #     if debug:
+    #         print '    bad codon, setting cdr3_length to -1'
+    #     line['cdr3_length'] = -1
     
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):
@@ -352,7 +355,7 @@ def get_full_naive_seq(germlines, line):
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']
+    return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
 
 # ----------------------------------------------------------------------------------------
 def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unproductive, debug=False):
@@ -455,44 +458,53 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
     eroded_seqs_dots['d'] = '.'*d_5p_del + eroded_seqs['d'] + '.'*d_3p_del
     eroded_seqs_dots['j'] = '.'*j_5p_del + eroded_seqs['j'] + '.'*j_3p_del
 
-    insertions = ' '*len(line['fv_insertion']) + ' '*lengths['v']
-    insertions += line['vd_insertion']
-    insertions += ' ' * lengths['d']
-    insertions += line['dj_insertion']
-    insertions += ' ' * lengths['j']
-    insertions += j_right_extra
-    insertions += ' ' * j_3p_del
-    insertions += ' '*len(line['jf_insertion'])
+    v_5p_del_str = '.'*v_5p_del
+    if v_5p_del > 50:
+        v_5p_del_str = '...' + str(v_5p_del) + '...'
+
+    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v']
+    insert_line += ' '*len(v_5p_del_str)
+    insert_line += line['vd_insertion']
+    insert_line += ' ' * lengths['d']
+    insert_line += line['dj_insertion']
+    insert_line += ' ' * lengths['j']
+    insert_line += j_right_extra
+    insert_line += ' ' * j_3p_del
+    insert_line += ' '*len(line['jf_insertion'])
 
     d_line = ' ' * germline_d_start
+    d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
     d_line += ' '*len(line['jf_insertion'])
 
-
-    vj_line = ' ' * len(line['fv_insertion']) + eroded_seqs_dots['v']
+    vj_line = ' ' * len(line['fv_insertion'])
+    vj_line += v_5p_del_str
+    vj_line += eroded_seqs_dots['v']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
     vj_line += ' '*len(line['jf_insertion'])
     if no_space:
-        dot_matches = re.findall('[.][.]*', vj_line)
+        dot_matches = re.findall('[ACGT][.][.]*[ACGT]', vj_line)
         assert len(dot_matches) == 1
         vj_line = vj_line.replace(dot_matches[0], color('red', '.no.space.'))
 
-    if len(insertions) != len(d_line) or len(insertions) != len(vj_line):
-        print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insertions), len(d_line), len(vj_line)),
+    if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
+        print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
         assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
     # print insert, d, and vj lines
     if not one_line:
-        print '%s    %s   inserts' % (extra_str, insertions)
+        print '%s    %s   inserts' % (extra_str, insert_line)
         print '%s    %s   %s' % (extra_str, d_line, color_gene(line['d_gene']))
         print '%s    %s   %s,%s' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene']))
     # print query sequence
+
+    final_seq = ' '*len(v_5p_del_str) + final_seq
     print '%s    %s%s' % (extra_str, final_seq, ' ' * j_3p_del),
     # and then some extra info
     print '   muted: %4.2f' % (float(n_muted) / n_total),

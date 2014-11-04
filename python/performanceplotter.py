@@ -31,16 +31,28 @@ class PerformancePlotter(object):
         """ hamming distance between the inferred naive sequence and the tue naive sequence """
         true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
-        # utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
-        if len(true_naive_seq) != len(inferred_naive_seq):
-            # print 'ERROR %s different naive lengths' % query_name
-            # print '    ', true_naive_seq
-            # print '    ', inferred_naive_seq
-            # print '   cropping the longer one (it\'s probably because the j match doesn\'t go all the way to the right side of the sequence)'
-            # TODO should really penalize if it's wrong
-            min_length = min(len(true_naive_seq), len(inferred_naive_seq))
-            true_naive_seq = true_naive_seq[:min_length]
-            inferred_naive_seq = inferred_naive_seq[:min_length]
+        if line['fv_insertion'] != '':
+            assert true_line['fv_insertion'] == ''
+        # if len(true_naive_seq) != len(inferred_naive_seq):  # probably because we inferred a v left or j right deletion that wasn't there
+        #     assert False
+        #     # TODO should really penalize if the length is wrong, otherwise you can improve your hamming distance by making your match really short
+        #     print 'v_5p true %d inferred %d' % (int(true_line['v_5p_del']), int(line['v_5p_del']))
+        #     if int(line['v_5p_del']) > 0 and int(true_line['v_5p_del']) == 0:
+        #         true_naive_seq = true_naive_seq[int(line['v_5p_del']) : ]
+
+        #     print 'j_3p true %d inferred %d' % (int(true_line['j_3p_del']), int(line['j_3p_del']))
+        #     if int(line['j_3p_del']) > 0 and int(true_line['j_3p_del']) == 0:
+        #         true_naive_seq = true_naive_seq[ : -int(line['j_3p_del'])]
+
+        #     if len(true_naive_seq) != len(inferred_naive_seq):
+        #         print 'ERROR lengths still not equal in %s' % query_name
+        #         print true_naive_seq
+        #         print inferred_naive_seq
+
+        if utils.hamming(true_naive_seq, inferred_naive_seq) > 200:
+            print 'huge hamming %d for %s' % (utils.hamming(true_naive_seq, inferred_naive_seq), query_name)
+            utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
+
         return utils.hamming(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
@@ -59,6 +71,8 @@ class PerformancePlotter(object):
                     self.values[column]['right'] += 1
                 else:
                     self.values[column]['wrong'] += 1
+                    # if column == 'v_gene':
+                    #     print 'wrong', query_name
             else:
                 trueval, guessval = 0, 0
                 if 'insertion' in column:
