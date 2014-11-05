@@ -45,7 +45,7 @@ class ModelPlotter(object):
             gene_name = os.path.basename(infname).replace('.yaml', '')  # the sanitized name, actually
             with open(infname) as infile:
                 model = yaml.load(infile)
-                self.make_transition_hist(gene_name, model)
+                self.make_transition_plot(gene_name, model)
                 # for state in model.states:
                 #     self.plot_transitions(gene_name, state)
                 #     # self.plot_emissions(gene_name, state)
@@ -57,29 +57,7 @@ class ModelPlotter(object):
             # break
 
     # ----------------------------------------------------------------------------------------
-    def plot_transitions(self, gene_name, state):
-        hist = plotting.make_hist(state.transitions, 'string', state.name + '-transitions')
-        if hist.GetNbinsX() == 1:
-            if hist.GetXaxis().GetBinLabel(1) == 'end':
-                # print '%s only has transitions to end' % state.name
-                return
-            if state.name.find('IGH') != 0 or hist.GetXaxis().GetBinLabel(1).find('IGH') != 0:
-                print 'oops: %s %s' % (state.name, hist.GetXaxis().GetBinLabel(1))
-                sys.exit()
-            assert find_state_number(state.name) + 1 == find_state_number(hist.GetXaxis().GetBinLabel(1))
-            # print 'only one transtition for %s' % state.name
-            return
-
-        print 'plotting %s' % state.name
-        for ibin in range(1, hist.GetNbinsX()+1):
-            hist.GetXaxis().SetBinLabel(ibin, simplify_state_name(hist.GetXaxis().GetBinLabel(ibin)) + '\nFOO' )
-
-        hist.SetTitle(simplify_state_name(state.name))
-        hist.Draw('hist')
-        self.cvn.SaveAs(self.base_plotdir + '/transitions/plots/' + gene_name + '.png')
-        
-    # ----------------------------------------------------------------------------------------
-    def make_transition_hist(self, gene_name, model):
+    def make_transition_plot(self, gene_name, model):
         ibin = 0
         drawn_name_texts, lines, texts = {}, {}, {}
         for state in model.states:
