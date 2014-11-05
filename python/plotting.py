@@ -169,8 +169,8 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     for ival in range(len(values)):
         if var_type == 'string':
             label = bin_labels[ival]
-            if 'IGH' in label:
-                label = label.replace('IGH','').replace('*',' ').lower()
+            # if 'IGH' in label:
+            #     label = label.replace('IGH','').replace('*',' ').lower()
             hist.GetXaxis().SetBinLabel(ival+1, label)
             hist.SetBinContent(ival+1, values[bin_labels[ival]])
         else:

@@ -385,7 +385,7 @@ class Waterer(object):
                 print '    no',region,'match found for',query_name  # TODO if no d match found, should just assume entire d was eroded
                 if not self.args.is_data:
                     print '    true:'
-                    utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], 0, 0, extra_str='    ')
+                    utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
                 return
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
