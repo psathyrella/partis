@@ -7,7 +7,7 @@ import yaml
 import sys
 from subprocess import check_call
 sys.argv.append('-b')  # root just loves its stupid little splashes
-from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle
+from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import plotting
 import utils
@@ -34,21 +34,19 @@ def find_state_number(name):
 class ModelPlotter(object):
     def __init__(self, modeldir, base_plotdir):
         self.base_plotdir = base_plotdir
-        self.cvn = TCanvas('cvn', '', 4000, 1000)
+        self.cvn = TCanvas('cvn', '', 1000, 200)
         plot_types = ('transitions', 'emissions', 'pair-emissions')
         for ptype in plot_types:
             plotdir = self.base_plotdir + '/' + ptype + '/plots'
             utils.prep_dir(plotdir, '*.png')
 
-        filelist = glob.glob(modeldir + '/IGHJ*.yaml')
+        filelist = glob.glob(modeldir + '/*.yaml')
         for infname in filelist:
             gene_name = os.path.basename(infname).replace('.yaml', '')  # the sanitized name, actually
             with open(infname) as infile:
                 model = yaml.load(infile)
                 self.make_transition_plot(gene_name, model)
-                # for state in model.states:
-                #     self.plot_transitions(gene_name, state)
-                #     # self.plot_emissions(gene_name, state)
+                self.make_emission_plot(gene_name, model)
 
             for ptype in plot_types:
                 check_call(['makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
@@ -92,7 +90,7 @@ class ModelPlotter(object):
                 lines[state.name][-1].SetLineWidth(6)
 
                 midpoint = 0.5*(prob + 2*total)
-                texts[state.name].append(TPaveText(-0.5 + ibin, midpoint, 0.5 + ibin, midpoint + 0.05))
+                texts[state.name].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
                 texts[state.name][-1].AddText(-0.5 + ibin, midpoint, simplify_state_name(to_state))
                 texts[state.name][-1].SetBorderSize(0)
                 texts[state.name][-1].SetFillColor(0)
@@ -103,7 +101,7 @@ class ModelPlotter(object):
             ibin += 1
 
         n_bins = ibin
-        hframe = TH1F(model.name + '-frame', '', n_bins, -0.5, n_bins - 0.5)
+        hframe = TH1F(model.name + '-transition-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
         hframe.SetNdivisions(202, 'y')
         hframe.SetNdivisions(0, 'x')
         hframe.Draw()
@@ -116,8 +114,58 @@ class ModelPlotter(object):
 
         self.cvn.SaveAs(self.base_plotdir + '/transitions/plots/' + gene_name + '.png')
 
-    # # ----------------------------------------------------------------------------------------
-    # def plot_emissions(self, gene_name, state):
+    # ----------------------------------------------------------------------------------------
+    def make_emission_plot(self, gene_name, model):
+        nuke_colors = {'A':kRed+1, 'C':kBlue-7, 'G':kOrange-3, 'T':kGreen+2}
+
+        ibin = 0
+        drawn_name_texts, lines, vlines, texts = {}, {}, {}, {}
+        for state in model.states:
+            if len(state.emissions) == 0:
+                assert state.name == 'init'
+                continue
+
+            drawn_name_texts[state.name] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
+            drawn_name_texts[state.name].SetBorderSize(0)
+            drawn_name_texts[state.name].SetFillColor(0)
+            drawn_name_texts[state.name].SetFillStyle(0)
+            drawn_name_texts[state.name].AddText(-0.5 + ibin, -0.075, simplify_state_name(state.name))
+
+            total = 0.0
+            lines[state.name], vlines[state.name], texts[state.name] = [], [], []
+            for nuke, prob in sorted(state.emissions['probs'].items(), key=operator.itemgetter(1), reverse=True):
+                lines[state.name].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
+                lines[state.name][-1].SetLineWidth(6)
+
+                vlines[state.name].append(TLine(ibin, total, ibin, total + prob))
+                vlines[state.name][-1].SetLineWidth(6)
+                vlines[state.name][-1].SetLineColor(nuke_colors[nuke])
+
+                midpoint = 0.5*(prob + 2*total)
+                texts[state.name].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
+                texts[state.name][-1].AddText(-0.5 + ibin, midpoint, nuke)
+                texts[state.name][-1].SetBorderSize(0)
+                texts[state.name][-1].SetFillColor(0)
+                texts[state.name][-1].SetFillStyle(0)
+
+                total += prob
+    
+            ibin += 1
+
+        n_bins = ibin
+        hframe = TH1F(model.name + '-emission-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
+        hframe.SetNdivisions(202, 'y')
+        hframe.SetNdivisions(0, 'x')
+        hframe.Draw()
+
+        for state_name in lines.keys():
+            drawn_name_texts[state_name].Draw()
+            for itrans in range(len(lines[state_name])):
+                lines[state_name][itrans].Draw()
+                vlines[state_name][itrans].Draw()
+                # texts[state_name][itrans].Draw()
+
+        self.cvn.SaveAs(self.base_plotdir + '/emissions/plots/' + gene_name + '.png')
         
 
 # plot transitions
