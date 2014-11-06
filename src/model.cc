@@ -97,15 +97,14 @@ void Model::Finalize() {
   // set each state's index within this model
   for(size_t i = 0; i < states_.size(); ++i)
     states_[i]->SetIndex(i);
-  // set each state's various transition pointers
+  // set transition information (NOTE does not only modify states_[i])
   for(size_t i = 0; i < states_.size(); ++i)
     FinalizeState(states_[i]);
-  if(!initial_) {
+  if(!initial_)
     throw runtime_error("ERROR no 'init' state was specified");
-  }
   FinalizeState(initial_);
 
-  // now we need to fix state::transitions_ so that it agrees with state:index_
+  // reorder state::transitions_ so it agrees with state:index_
   for(size_t i = 0; i < states_.size(); ++i)
     states_[i]->ReorderTransitions(states_by_name_);
   initial_->ReorderTransitions(states_by_name_);
@@ -118,86 +117,89 @@ void Model::Finalize() {
 
 // ----------------------------------------------------------------------------------------
 void Model::FinalizeState(State *st) {
-  // Set the bitsets in <st> that say which states we can go to from <st>, and from which we can arrive at <st>.
-  // Also set to-state pointers in <st>'s transitions
+  // Modiry to_state_ and from_state_ bitsets in <st> and its transition partners 
   vector<Transition*>* transitions(st->transitions());
   for(size_t it = 0; it < transitions->size(); ++it) { // loops over the transitions out of <st>
     string to_state_name(transitions->at(it)->to_state_name());
     assert(states_by_name_.count(to_state_name));
-    State* to_state(states_by_name_[to_state_name]);
-    st->AddToState(to_state); // add <to_state> to the list of states that you can go to from <st>
-    transitions->at(it)->set_state(to_state);  // set <to_state> as the state corresponding to to_state_name_ in <transitions>
+    State *to_state(states_by_name_[to_state_name]);
+
+    st->AddToState(to_state); // add <to_state> to the list of states which can be reached from <st>
+    transitions->at(it)->set_to_state(to_state);  // set to_state pointer for the it'th transition
     if(st != initial_)
       to_state->AddFromState(st);  // add <st> to the list of states from which you can reach <to_state>
   }
 
-  if(st->end_trans())
+  if(st->trans_to_end())
     ending_->AddFromState(st);
 }
 
 // ----------------------------------------------------------------------------------------
 void Model::CheckTopology() {
-  //!Check model topology
-  //!Iterates through all states to check to see if there are any:
-  //! 1. Orphaned States
-  //! 2. Dead end States
-  //! 3. Uncompleted States
+  // check for states with
+  //   - zero outbound transitions
+  //   - only self-transitions
+  //   - zero inbound transitions
+  // make sure there's an end state
+  // make sure all states are reachable from init
 
-  vector<uint16_t> visited;
-  AddToStateIndices(initial_, visited);  // add <initial_>'s transition to-states to <visited>
+  vector<uint16_t> states_to_check;  // Dynamic vector of states to which we've managed to get (starting from init).
+                                     // i.e. we push onto <states_to_check> when we first encounter a state,
+                                     // and pop that state back off when we've verified the state has a non-self transition
 
-  vector<bool> states_visited(states_.size(), false);
-  while(visited.size() > 0) {
-    uint16_t st_iter(visited.back());
-    visited.pop_back();
-    if(!states_visited[st_iter]) {
-      vector<uint16_t> tmp_visited;
-      AddToStateIndices(states_[st_iter], tmp_visited);
-      size_t num_visited(tmp_visited.size());
+  AddToStateIndices(initial_, states_to_check);  // push init's transitions onto <states_to_check>
 
-      // check orphaned
-      if(num_visited == 0) {
-	// we get here if the state only has a transition to the end state. TODO reinstate this check
-        // cerr << "Warning: State: "  << states_[st_iter]->name() << " has no transitions defined\n";
-      } else if(num_visited == 1 && tmp_visited[0] == st_iter) {
-        if(states_[st_iter]->end_trans() == NULL) {
-          cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " is an orphaned state that has only transition to itself" << endl;
-        } else {
-          cerr << "ERROR state "  << states_[st_iter]->name() << " in " << name_ << " may be an orphaned state that only has transitions to itself and END state." << endl;
-        }
-      }
+  vector<bool> checked_states(states_.size(), false);  // states that 1) are reachable from init and 2) have a non-self transition
+  while(states_to_check.size() > 0) {
+    uint16_t icheck(states_to_check.back());  // index of the state we're now checking
+    states_to_check.pop_back();  // we're checking it now, so it no longer needs to be in <states_to_check>. NOTE states can in general appear in <states_to_check> more than once
 
-      for(size_t i = 0; i < tmp_visited.size(); ++i) {
-        if(!states_visited[tmp_visited[i]])
-          visited.push_back(tmp_visited[i]);
-      }
+    if(checked_states[icheck])  // skip it if we're already sure this state is ok
+      continue;
 
-      states_visited[st_iter] = true;
+    vector<uint16_t> tmp_visited;  // vector of the states to which we can transition from the <icheck>th state
+    AddToStateIndices(states_[icheck], tmp_visited);
+    size_t num_visited(tmp_visited.size());  // number of states to which we can transition from <icheck>. NOTE recall that transitions are not included in the vector of transitions (I don't know if there's a real reason for this)
+
+    // make sure <icheck>th state has at least one non-self transition
+    if(num_visited == 0) {  // if we didn't visit any, <icheck> better have a transition to 'end'
+      if(states_[icheck]->trans_to_end() == nullptr)
+	throw runtime_error("ERROR state \"" + states_[icheck]->name() + "\" in \"" + name_ + "\" has no transitions");
+    } else if(num_visited == 1 && tmp_visited[0] == icheck) {  // if <icheck> only visited itself
+      if(states_[icheck]->trans_to_end() == nullptr)
+	throw runtime_error("ERROR state \""  + states_[icheck]->name() + "\" in \"" + name_ + "\" has only a transition to itself");
+    }
+
+    checked_states[icheck] = true;
+
+    // push onto <states_to_check> the states to which we can transition from <icheck>
+    for(size_t i = 0; i < tmp_visited.size(); ++i) {
+      if(!checked_states[tmp_visited[i]])  // skip 'em if we've already verified that they're reachable
+	states_to_check.push_back(tmp_visited[i]);
     }
   }
 
-  // make sure that ending is defined
-  bool ending_defined(false);
+  // make sure there's at least one transition to end
+  bool found_end_trans(false);
   for(size_t i = 0; i < states_.size(); ++i) {
-    if(states_[i]->end_trans()) {
-      ending_defined = true;
+    if(states_[i]->trans_to_end()) {
+      found_end_trans = true;
       break;
     }
   }
-  if(!ending_defined) {
-    throw runtime_error("No END state defined in the model");
-  }
+  if(!found_end_trans)
+    throw runtime_error("ERROR no transtion to \"end\" in \"" + name_ + "\"");
 
-  for(size_t i = 0; i < states_visited.size(); ++i) {
-    if(!states_visited[i]) {
+  // and finally, make sure we actually reached every state when we began from init and traversed through the entire transition network
+  for(size_t i = 0; i < checked_states.size(); ++i) {
+    if(!checked_states[i])
       throw runtime_error("ERROR state '" + states_[i]->name() + "' has bad topology. Check its transitions.");
-    }
   }
 }
 
 // ----------------------------------------------------------------------------------------
 void Model::AddToStateIndices(State *st, vector<uint16_t> &visited) {
-  // for each transition out of <st>, add the index of its to-state to <visited>
+  // push onto <visited> the index of each state to which we can transition from <st> 
   for(size_t i = 0; i < st->transitions()->size(); ++i) {
     if(st->transitions()->at(i))
       visited.push_back(st->transitions()->at(i)->to_state()->index());

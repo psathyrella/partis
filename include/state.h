@@ -30,7 +30,7 @@ public:
   inline bitset<STATE_MAX> *to_states() { return &to_states_; }
   inline bitset<STATE_MAX> *from_states() { return &from_states_; }
   inline Transition *transition(size_t iter) { return (*transitions_)[iter]; }
-  inline Transition *end_trans() { return end_trans_; }
+  inline Transition *trans_to_end() { return trans_to_end_; }
 
   double emission_logprob(Sequences &seqs, size_t pos);
   inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->log_prob(); }
@@ -44,15 +44,14 @@ public:
 
   void Print();
 private:
-  string name_;       /* State name */
-
-  vector<Transition*>* transitions_;
-  Transition* end_trans_;
+  string name_;
+  vector<Transition*> *transitions_;
+  Transition *trans_to_end_;
   Emission emission_;
   Emission pair_emission_;
 
   // hmm model-level information (assigned in model::finalize)
-  size_t index_;  // index of state in HMM (set in model:finalize)
+  size_t index_;  // position of this state in the vector model::states_ (set in model::finalize)
   bitset<STATE_MAX> to_states_;
   bitset<STATE_MAX> from_states_;
 };

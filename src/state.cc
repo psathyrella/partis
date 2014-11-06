@@ -3,14 +3,14 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-State::State() : end_trans_(NULL), index_(SIZE_MAX) {
+State::State() : trans_to_end_(nullptr), index_(SIZE_MAX) {
   transitions_ = new(nothrow) vector<Transition*>;
 }
 
 // ----------------------------------------------------------------------------------------
 State::~State() {
   delete transitions_;
-  transitions_ = NULL;
+  transitions_ = nullptr;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     total += prob;
     Transition *trans = new Transition(to_state, prob);
     if(trans->to_state_name() == "end")
-      end_trans_ = trans;
+      trans_to_end_ = trans;
     else
       transitions_->push_back(trans);
   }
@@ -70,18 +70,18 @@ void State::Print() {
 
   cout << "  transitions:" << endl;;
   for(size_t i = 0; i < transitions_->size(); ++i) {
-    if((*transitions_)[i] == NULL) { assert(0); continue;} // wait wtf would this happen?
+    if((*transitions_)[i] == nullptr) { assert(0); continue;} // wait wtf would this happen?
     (*transitions_)[i]->Print();
   }
 
-  if(end_trans_)
-    end_trans_->Print();
+  if(trans_to_end_)
+    trans_to_end_->Print();
 
   if(name_ == "init")
     return;
 
   cout << "  emissions:" << endl;;
-  emission_.Print();  // TODO allow state to have only one or the other of these
+  emission_.Print();
   cout << "  pair emissions:" << endl;
   pair_emission_.Print();
 }
@@ -89,19 +89,19 @@ void State::Print() {
 // ----------------------------------------------------------------------------------------
 //! Get the log probability transitioning to end from the state.
 double State::end_transition_logprob() {
-  if(end_trans_ == NULL)
+  if(trans_to_end_ == nullptr)
     return -INFINITY;
-  return end_trans_->log_prob();
+  return trans_to_end_->log_prob();
 }
 
 // ----------------------------------------------------------------------------------------
 // On initial import of the states they are pushed onto <transitions_> in
 // the order written in the model file. But later on we need them to be in the order specified by <index_>.
-// So here we replace make a new vector <fixed_transitions> with the proper ordering and replace <transitions_> with this
+// So here we make a new vector <fixed_transitions> with the proper ordering and replace <transitions_> with this
 // new vector.
 void State::ReorderTransitions(map<string, State*> &state_indices) {
   size_t n_states(state_indices.size());
-  vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states - 1, NULL); // subtract 1 because initial state is kept separate
+  vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states - 1, nullptr); // subtract 1 because initial state is kept separate
 
   // find the proper place for the transition and put it in the correct position
   for(size_t i = 0; i < transitions_->size(); ++i) {
