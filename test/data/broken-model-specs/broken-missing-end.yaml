@@ -18,8 +18,7 @@ states:
       6: 0.16666666666666666
   transitions:
     honest: 0.8
-    dishonest: 0.1
-    end: 0.1
+    dishonest: 0.2
 - name: dishonest
   emissions:
     track: dice
@@ -32,4 +31,4 @@ states:
       6: 0.5
   transitions:
     honest: 0.3
-    dishonest: 0.6
+    dishonest: 0.7
