@@ -27,8 +27,10 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     scores_.AddTrack(tk, 0);
 
     YAML::Node probs(config["probs"]);
-    assert(probs.size() == scores_.alphabet_size(0));  // TODO actually I don't need these either, since I'm looping over the track
-    assert(scores_.alphabet_size(0) == tk->alphabet_size()); // TODO arg I shouldn't need this. so complicated...
+    if(probs.size() != scores_.alphabet_size(0))
+      throw runtime_error("ERROR emission probabilities (" + to_string(probs.size()) + ") not the same length as the alphavet passed to lexical table constructor (" + to_string(scores_.alphabet_size(0)) + "). Yes, a v! Hobgoblins and smallness, yo.");
+    if(scores_.alphabet_size(0) != tk->alphabet_size())
+      throw runtime_error("ERROR alphabet passed to lexical table (" + to_string(scores_.alphabet_size(0)) + ") not the same size as the track's alphabet (" + to_string(tk->alphabet_size()) + ").");
     vector<double> log_probs;
     total_ = 0.0; // make sure things add to 1.0
     for(size_t ip = 0; ip < scores_.alphabet_size(0); ++ip) {
