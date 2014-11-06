@@ -1,0 +1,35 @@
+import os
+import glob
+import sys
+from SCons.Script import Command, Depends
+
+env = Environment(ENV = os.environ)
+print env['ENV']['PATH']
+
+sys.path.append(os.getenv('HOME') + '/bin')
+
+cmd = './runpart.py'
+tests = {
+    'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', 'test/simu.csv', '--parameter_dir', 'test/parameters', '--n_max_queries', '1', '--debug', '1']
+}
+
+all_passed = '_results/ALL.passed'
+individual_passed = ['_results/{}.passed'.format(name) for name in tests.keys()]
+
+for path in individual_passed + [all_passed]:
+    if os.path.exists(path):
+        os.remove(path)
+
+for name, test in tests.items():
+    out = '_results/%s.out' % name
+    env.Command(out, '../' + cmd, ' '.join(test) + ' --outfname $TARGET')
+    Depends(out, [glob.glob('../python/*.py'), '../packages/ham/ham'])
+    # touch a sentinel `passed` file if we get what we expect
+    Command('_results/%s.passed' % name,
+            [out, 'data/regression/%s.out' % name],
+            'diff ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
+
+# Set up sentinel dependency of all passed on the individual_passed sentinels.
+Command(all_passed,
+        individual_passed,
+        'cat $SOURCES > $TARGET')
