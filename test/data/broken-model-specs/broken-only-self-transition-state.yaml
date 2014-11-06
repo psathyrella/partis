@@ -1,6 +1,6 @@
-name: broken-invalid-track-list
+name: broken-only-self-transition-state
 tracks:
-  dice: [,1,2,3,4,5,6]
+  dice: [1,2,3,4,5,6]
 states:
 - name: init
   transitions:
@@ -17,9 +17,7 @@ states:
       5: 0.16666666666666666
       6: 0.16666666666666666
   transitions:
-    honest: 0.8
-    dishonest: 0.1
-    end: 0.1
+    honest: 1.0
 - name: dishonest
   emissions:
     track: dice

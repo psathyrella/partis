@@ -164,10 +164,10 @@ void Model::CheckTopology() {
     // make sure <icheck>th state has at least one non-self transition
     if(num_visited == 0) {  // if we didn't visit any, <icheck> better have a transition to 'end'
       if(states_[icheck]->trans_to_end() == nullptr)
-	throw runtime_error("ERROR state \"" + states_[icheck]->name() + "\" in \"" + name_ + "\" has no transitions");
+	throw runtime_error("ERROR state '" + states_[icheck]->name() + "' in '" + name_ + "' has no transitions");
     } else if(num_visited == 1 && tmp_visited[0] == icheck) {  // if <icheck> only visited itself
       if(states_[icheck]->trans_to_end() == nullptr)
-	throw runtime_error("ERROR state \""  + states_[icheck]->name() + "\" in \"" + name_ + "\" has only a transition to itself");
+	throw runtime_error("ERROR state '"  + states_[icheck]->name() + "' in '" + name_ + "' has only a transition to itself");
     }
 
     checked_states[icheck] = true;
@@ -188,12 +188,12 @@ void Model::CheckTopology() {
     }
   }
   if(!found_end_trans)
-    throw runtime_error("ERROR no transtion to \"end\" in \"" + name_ + "\"");
+    throw runtime_error("ERROR no transtion to 'end' in '" + name_ + "'");
 
   // and finally, make sure we actually reached every state when we began from init and traversed through the entire transition network
   for(size_t i = 0; i < checked_states.size(); ++i) {
     if(!checked_states[i])
-      throw runtime_error("ERROR state '" + states_[i]->name() + "' has bad topology. Check its transitions.");
+      throw runtime_error("ERROR state '" + states_[i]->name() + "' is not reachable from init.");
   }
 }
 
