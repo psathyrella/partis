@@ -9,7 +9,6 @@
   - write shit up!
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
-  - hmm txt file visualizer. NO, REALLY THOUGH!
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
   - remove this stuff in recombinator: 'if region == 'v' and position < 200:  # don\'t really have any information here. TODO add some criterion to remove positions with really large uncertainties'
   - account for different mutation frequencies to different bases
@@ -22,12 +21,12 @@
     - single viterbi, viterbi pair, clustering
     - parameter estimation from sw and hmm
   - check orphaned state code in model.cc
+  - v left and j right insertions and deletions: allow them *only* if they run beyond the query sequence?
   - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
   - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
   - TODOs in code
 
   - low priority
-    - v left and j right deletions: allow them *only* if they run beyond the query sequence?
     - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
     - disallow stop codons, out of frame and frame-shifted rearrangements in recombinator
     - do I really want to apply the gene choice prob in waterer?
@@ -35,7 +34,7 @@
       - would it be faster with STATE_MAX less than 1024?
         - for k_v --> k_v + 1, don\'t recalculate the whole table
       - run performance profiling
-      - adding the gobbledygook states seems to have *really* slowed it down (EDIT oh, wait, I think that was just removing the debug options)
+      - adding the gobbledygook states seems to have *really* slowed it down (EDIT oh, wait, that was just removing the gcc optimization options)
       - hmm structure optimization
         - it seems like I should be able to take advantage of the fact that all my hmms are super linear, i.e. the matrix of possible transitions is very sparse
         - implement banding? I think I have this listed below but without using the word 'banding'

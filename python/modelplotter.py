@@ -34,7 +34,6 @@ def find_state_number(name):
 class ModelPlotter(object):
     def __init__(self, modeldir, base_plotdir):
         self.base_plotdir = base_plotdir
-        self.cvn = TCanvas('cvn', '', 1000, 200)
         plot_types = ('transitions', 'emissions', 'pair-emissions')
         for ptype in plot_types:
             plotdir = self.base_plotdir + '/' + ptype + '/plots'
@@ -47,6 +46,7 @@ class ModelPlotter(object):
                 model = yaml.load(infile)
                 self.make_transition_plot(gene_name, model)
                 self.make_emission_plot(gene_name, model)
+                # self.make_pair_emission_plot(gene_name, model)
 
             for ptype in plot_types:
                 check_call(['makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
@@ -100,6 +100,7 @@ class ModelPlotter(object):
     
             ibin += 1
 
+        cvn = TCanvas('cvn', '', 1000, 400)
         n_bins = ibin
         hframe = TH1F(model.name + '-transition-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
         hframe.SetNdivisions(202, 'y')
@@ -112,7 +113,7 @@ class ModelPlotter(object):
                 lines[state_name][itrans].Draw()
                 texts[state_name][itrans].Draw()
 
-        self.cvn.SaveAs(self.base_plotdir + '/transitions/plots/' + gene_name + '.png')
+        cvn.SaveAs(self.base_plotdir + '/transitions/plots/' + gene_name + '.png')
 
     # ----------------------------------------------------------------------------------------
     def make_emission_plot(self, gene_name, model):
@@ -152,6 +153,7 @@ class ModelPlotter(object):
     
             ibin += 1
 
+        cvn = TCanvas('cvn', '', 1000, 300)
         n_bins = ibin
         hframe = TH1F(model.name + '-emission-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
         hframe.SetNdivisions(202, 'y')
@@ -165,15 +167,13 @@ class ModelPlotter(object):
                 vlines[state_name][itrans].Draw()
                 # texts[state_name][itrans].Draw()
 
-        self.cvn.SaveAs(self.base_plotdir + '/emissions/plots/' + gene_name + '.png')
+        cvn.SaveAs(self.base_plotdir + '/emissions/plots/' + gene_name + '.png')
         
 
-# plot transitions
-
-# plot emissions
-
-# plot pair emissions
-
+    # # ----------------------------------------------------------------------------------------
+    # def make_pair_emission_plot(self, gene_name, model):
+        
 if __name__ == '__main__':
-    mplot = ModelPlotter(os.getenv('HOME') + '/work/partis/caches/fixed/hmm_parameters/hmms', os.getenv('www') + '/modelplots')
-    # /IGHD1-14_star_01.yaml
+    flavor = sys.argv[1]
+    hmmdir = os.getenv('HOME') + '/work/partis/caches/' + flavor + '/sw_parameters/hmms'
+    mplot = ModelPlotter(hmmdir, os.getenv('www') + '/modelplots/' + flavor)
