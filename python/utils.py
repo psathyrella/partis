@@ -383,7 +383,7 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unprodu
     line['j_qr_seq'] = line['seq'][j_start : j_start + len(eroded_seqs['j'])]
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str=''):
+def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -498,27 +498,31 @@ def print_reco_event(germlines, line, one_line=False, extra_str=''):
         assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
-    # print insert, d, and vj lines
-    if not one_line:
-        print '%s    %s   inserts' % (extra_str, insert_line)
-        print '%s    %s   %s' % (extra_str, d_line, color_gene(line['d_gene']))
-        print '%s    %s   %s,%s' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene']))
-    # print query sequence
-
-    final_seq = ' '*len(v_5p_del_str) + final_seq
-    print '%s    %s%s' % (extra_str, final_seq, ' ' * j_3p_del),
-    # and then some extra info
-    print '   muted: %4.2f' % (float(n_muted) / n_total),
-    if 'score' in line:
-        print '  score: %s' % line['score'],
-    if 'cdr3_length' in line:
-        print '   cdr3: %d' % int(line['cdr3_length']),
-    print ''
-
-    # line['seq'] = line['seq'].lstrip('.')  # hackey hackey hackey TODO change it
     assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
     assert ' ' not in line['seq']
-#    assert len(line['seq']) == line['v_5p_del'] + len(hmms['v']) + len(outline['vd_insertion']) + len(hmms['d']) + len(outline['dj_insertion']) + len(hmms['j']) + outline['j_3p_del']
+
+    out_str_list = []
+    # insert, d, and vj lines
+    if not one_line:
+        out_str_list.append('%s    %s   inserts\n' % (extra_str, insert_line))
+        out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
+        out_str_list.append('%s    %s   %s,%s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
+
+    # then query sequence
+    final_seq = ' '*len(v_5p_del_str) + final_seq
+    out_str_list.append('%s    %s%s' % (extra_str, final_seq, ' ' * j_3p_del))
+    # and finally some extra info
+    out_str_list.append('   muted: %4.2f' % (float(n_muted) / n_total))
+    if 'score' in line:
+        out_str_list.append('  score: %s' % line['score'])
+    if 'cdr3_length' in line:
+        out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
+    out_str_list.append('\n')
+
+    if return_string:
+        return ''.join(out_str_list)
+    else:
+        print ''.join(out_str_list)
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):

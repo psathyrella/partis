@@ -36,7 +36,7 @@ parser.add_argument('--plot_performance', action='store_true')
 parser.add_argument('--seqfile')  # input file
 parser.add_argument('--parameter_dir', required=True)  # sample-specific parameters (mutation rates, gene version freqs, ...)
 parser.add_argument('--datadir', default='data/imgt')  # non-sample-specific information (e.g. germline gene versions)
-parser.add_argument('--outdir')
+parser.add_argument('--outfname')  # for recombinator, write simulated events to this file. For waterer and partitiondriver, write output to this file
 parser.add_argument('--plotdir')
 
 parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
@@ -55,7 +55,7 @@ parser.add_argument('--n_best_events', type=int, default=3)
 parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around with these default fuzzes
 parser.add_argument('--default_d_fuzz', type=int, default=2)
 parser.add_argument('--ighutil_dir', default=os.getenv('HOME') + '/.local')  # this is where '% pip install --user' puts things by default
-parser.add_argument('--workdir', default='/tmp/' + os.getenv('USER') + '/hmms/' + str(os.getpid()))
+parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()))
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--hackey_extra_data_dir', default='data/recombinator')  # dir for tree parameters that I'm not yet inferring. TODO fix that, obviously

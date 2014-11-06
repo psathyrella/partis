@@ -43,8 +43,17 @@ class Waterer(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
+        self.outfile = None
+        if self.args.outfname != None:
+            self.outfile = open(self.args.outfname, 'a')
+
         self.n_unproductive = 0
         self.n_total = 0
+
+    # ----------------------------------------------------------------------------------------
+    def __del__(self):
+        if self.args.outfname != None:
+            self.outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -202,26 +211,31 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
-        if self.args.debug:
-            buff_str = (20 - len(gene)) * ' '
-            tmp_val = score
-            if self.args.apply_choice_probs_in_sw and self.get_choice_prob(region, gene) != 0.0:
-                tmp_val = score / self.get_choice_prob(region, gene)
-            if self.args.apply_choice_probs_in_sw:
-                print '%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score),
-            else:
-                print '%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score),
-            print '%4d%4d   %s' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]),
-            print ''
-            print '%51s  %4d%4d' % ('', qrbounds[0], qrbounds[1]),
-            print '  %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])),
-            if region != 'd':
-                print '(%s %d)' % (utils.conserved_codon_names[region], codon_pos),
-            if warnings[gene] != '':
-                print 'WARNING',warnings[gene],
-            if skipping:
-                print 'skipping!',
-            print ''                
+        if not self.args.debug:
+            return
+        out_str_list = []
+        buff_str = (20 - len(gene)) * ' '
+        tmp_val = score
+        if self.args.apply_choice_probs_in_sw and self.get_choice_prob(region, gene) != 0.0:
+            tmp_val = score / self.get_choice_prob(region, gene)
+        if self.args.apply_choice_probs_in_sw:
+            out_str_list.append('%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score))
+        else:
+            out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
+        out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]))
+        out_str_list.append('%50s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
+        out_str_list.append('   %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
+        if region != 'd':
+            out_str_list.append('(%s %d)' % (utils.conserved_codon_names[region], codon_pos))
+        if warnings[gene] != '':
+            out_str_list.append('WARNING ' + warnings[gene])
+        if skipping:
+            out_str_list.append('skipping!')
+        out_str_list.append('\n')
+        if self.args.outfname == None:
+            print ''.join(out_str_list)
+        else:
+            self.outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
     def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best):

@@ -48,6 +48,12 @@ class PartitionDriver(object):
 
         self.read_input_file()  # read simulation info and write sw input file
 
+        self.outfile = None
+        if self.args.outfname != None:
+            if os.path.exists(self.args.outfname):
+                os.remove(self.args.outfname)
+            self.outfile = open(self.args.outfname, 'a')
+
     # ----------------------------------------------------------------------------------------
     def clean(self, waterer):
         if self.args.no_clean:
@@ -534,18 +540,23 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
+        out_str_list = []
         if print_true and not self.args.is_data:
-            print '    true:'
-            utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], extra_str='    ')
+            out_str_list.append('    true:\n')
+            out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], extra_str='    ', return_string=True))
             if self.args.pair:
                 same_event = from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id'])
-                utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], one_line=same_event, extra_str='    ')
-            print '    inferred:'
+                out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], one_line=same_event, extra_str='    ', return_string=True))
+            out_str_list.append('    inferred:\n')
 
-        utils.print_reco_event(self.germline_seqs, line, extra_str='    ')
+        out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True))
         if self.args.pair:
             tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
             line['seq'] = line['second_seq']
-            utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ')
+            out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
             line['seq'] = tmpseq
 
+        if self.args.outfname == None:
+            print ''.join(out_str_list)
+        else:
+            self.outfile.write(''.join(out_str_list))
