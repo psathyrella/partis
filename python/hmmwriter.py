@@ -160,11 +160,11 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq):
+    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, min_occurences):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
-        self.min_occurences = 30
+        self.min_occurences = min_occurences
         self.n_max_to_interpolate = 20
 
         self.insert_mute_prob = 0.0
