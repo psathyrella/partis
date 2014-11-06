@@ -21,7 +21,7 @@ class Clusterer(object):
         self.nearest_true_mate = {}  # 
 
     # ----------------------------------------------------------------------------------------
-    def cluster(self, infname, debug=False, reco_info=None):
+    def cluster(self, infname, debug=False, reco_info=None, outfile=None):
         self.debug = debug
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile)
@@ -50,13 +50,13 @@ class Clusterer(object):
             self.id_clusters[cluster_id].append(query)
 
         # print 'nearest',self.nearest_true_mate
-        
-        if True:  #self.debug:
-            for cluster_id in self.id_clusters:
-                print '   ',self.id_clusters[cluster_id]
-            # print 'unique_id,reco_id'
-            # for name,cluster_id in self.query_clusters.iteritems():
-            #     print '%s,%d' % (name, cluster_id)
+        out_str_list = []
+        for cluster_id in self.id_clusters:
+            out_str_list.append('   ' + ' '.join(self.id_clusters[cluster_id]) + '\n')
+        if outfile == None:
+            print ''.join(out_str_list)
+        else:
+            outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
     def add_new_cluster(self, query_name):

@@ -10,7 +10,8 @@ sys.path.append(os.getenv('HOME') + '/bin')
 
 cmd = './runpart.py'
 tests = {
-    'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', 'test/simu.csv', '--parameter_dir', 'test/parameters', '--n_max_queries', '1', '--debug', '1']
+    'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', 'test/simu.csv', '--parameter_dir', 'test/parameters', '--n_max_queries', '1', '--debug', '1'],
+    'partition-a-few' : [cmd, '--partition', '--pair', '--seqfile', 'test/simu.csv', '--parameter_dir', 'test/parameters', '--n_procs', '10', '--n_max_per_region', '2']
 }
 
 all_passed = '_results/ALL.passed'

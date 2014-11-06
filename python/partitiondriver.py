@@ -209,6 +209,8 @@ class PartitionDriver(object):
             self.merge_hmm_outputs(csv_outfname)
         else:
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+        if self.outfile != None and algorithm == 'forward':
+            self.outfile.write('hmm pairscores\n')
         self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter)
 
         if count_parameters:
@@ -217,7 +219,9 @@ class PartitionDriver(object):
         clusters = None
         if self.args.pair and algorithm == 'forward':
             clusters = Clusterer(0, greater_than=True)
-            clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info)
+            if self.outfile != None:
+                self.outfile.write('hmm clusters\n')
+            clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info, outfile=self.outfile)
             if preclusters != None:
                 for query_name in sw_info:  # check for singletons that got split out in the preclustering step
                     if query_name not in clusters.query_clusters and query_name != 'all_best_matches':
@@ -372,7 +376,9 @@ class PartitionDriver(object):
                     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
 
         clust = Clusterer(0.5, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
-        clust.cluster(hammingfname, debug=False)
+        if self.outfile != None:
+            self.outfile.write('hamming clusters\n')
+        clust.cluster(hammingfname, debug=False, outfile=self.outfile)
         os.remove(hammingfname)
         print '    hamming time: %.3f' % (time.time()-start)
         return clust
@@ -532,6 +538,8 @@ class PartitionDriver(object):
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                    if self.args.outfname != None:
+                        self.outfile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
 
         if n_boundary_errors > 0:
             print '    %d boundary errors' % n_boundary_errors
