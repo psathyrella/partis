@@ -47,7 +47,7 @@ parser.add_argument('--reco_ids')  # or recombination events
 parser.add_argument('--n_max_queries', type=int, default=-1)  # stop after this many queries
 parser.add_argument('--only_genes')  # skip all gene matches except for these when parsing the sw output  #'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F',
 
-parser.add_argument('--min_observations_to_write', type=int)  # if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)
+parser.add_argument('--min_observations_to_write', type=int, default=20)  # if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)
 
 parser.add_argument('--j_subset', default='imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
 parser.add_argument('--n_max_per_region', type=int, default=5)  # number of best smith-waterman matches (per region) to keep and pass on to the hmm

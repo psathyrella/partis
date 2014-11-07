@@ -190,6 +190,7 @@ class HmmWriter(object):
 
         self.n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
         replacement_genes = None
+        assert self.min_occurences > 0  # protect against None
         if self.n_occurences < self.min_occurences:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             print '    only saw it %d times, use info from other genes' % self.n_occurences
             replacement_genes = utils.find_replacement_genes(self.indir, gene_name, self.min_occurences, single_gene=False, debug=True)
