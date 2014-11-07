@@ -9,9 +9,14 @@ print env['ENV']['PATH']
 sys.path.append(os.getenv('HOME') + '/bin')
 
 cmd = './runpart.py'
+parameter_dir = 'caches/test-parameters'
+data_test_file = 'test/every-hundredth-data.tsv.bz2'
+simu_test_file = 'test/simu.csv'
 tests = {
-    'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', 'test/simu.csv', '--parameter_dir', 'test/parameters', '--n_max_queries', '1', '--debug', '1'],
-    'partition-a-few' : [cmd, '--partition', '--pair', '--seqfile', 'test/simu.csv', '--parameter_dir', 'test/parameters', '--n_procs', '10', '--n_max_per_region', '2']
+    'cache-parameters' : [cmd, '--cache_parameters', '--seqfile', data_test_file, '--is_data', '--parameter_dir', parameter_dir, '--plotdir', '/tmp/' + os.path.basename(os.getenv('HOME')) + '/parameter-cache-plots', '--n_procs', '10', '--skip_unproductive', '--n_max_queries', '1000'],
+    'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--n_max_queries', '1', '--debug', '1'],
+    'partition-a-few' : [cmd, '--partition', '--pair', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--n_procs', '10', '--n_max_per_region', '2'],
+    'viterbi-pair' : [cmd, '--point_estimate', '--pair', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--debug', '1', '--queries', '\' -2996237710674838049:1722533587157826946:1516698783101435629\'']
 }
 
 all_passed = '_results/ALL.passed'
