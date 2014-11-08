@@ -50,7 +50,7 @@ parser.add_argument('--only_genes')  # skip all gene matches except for these wh
 parser.add_argument('--min_observations_to_write', type=int, default=20)  # if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)
 
 parser.add_argument('--j_subset', default='imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
-parser.add_argument('--n_max_per_region', type=int, default=5)  # number of best smith-waterman matches (per region) to keep and pass on to the hmm
+parser.add_argument('--n_max_per_region', default='3:5:2')  # number of best smith-waterman matches (per region, in the order v:d:j) to keep and pass on to the hmm
 parser.add_argument('--n_best_events', type=int, default=3)
 parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around with these default fuzzes
 parser.add_argument('--default_d_fuzz', type=int, default=2)
@@ -86,6 +86,7 @@ else:
 
     args.queries = get_arg_list(args.queries)
     args.reco_ids = get_arg_list(args.reco_ids)
+    args.n_max_per_region = get_arg_list(args.n_max_per_region)
 
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)

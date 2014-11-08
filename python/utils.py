@@ -358,6 +358,25 @@ def get_full_naive_seq(germlines, line):
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
 
 # ----------------------------------------------------------------------------------------
+def get_regional_naive_seq_bounds(region, germlines, line):
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+
+    start, end = {}, {}
+    start['v'] = 0
+    end['v'] = start['v'] + len(line['fv_insertion'] + eroded_seqs['v'])  # base just after the end of v
+    start['d'] = end['v'] + len(line['vd_insertion'])
+    end['d'] = start['d'] + len(eroded_seqs['d'])
+    start['j'] = end['d'] + len(line['dj_insertion'])
+    end['j'] = start['j'] + len(eroded_seqs['j'] + line['jf_insertion'])
+
+    assert end['j'] == len(line['seq'])
+
+    return (start[region], end[region])
+
+# ----------------------------------------------------------------------------------------
 def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unproductive, debug=False):
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
@@ -383,7 +402,7 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unprodu
     line['j_qr_seq'] = line['seq'][j_start : j_start + len(eroded_seqs['j'])]
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False):
+def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -505,6 +524,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     # insert, d, and vj lines
     if not one_line:
         out_str_list.append('%s    %s   inserts\n' % (extra_str, insert_line))
+        if label != '':
+            out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
         out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         out_str_list.append('%s    %s   %s,%s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 

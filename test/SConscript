@@ -9,18 +9,26 @@ print env['ENV']['PATH']
 sys.path.append(os.getenv('HOME') + '/bin')
 
 cmd = './runpart.py'
-data_parameter_dir = 'caches/test-parameters'
+data_parameter_dir = 'caches/every-hundredth-parameters'
+simu_parameter_dir = 'caches/simu-long-parameters'
+
+old_simu_test_file = 'test/simu.csv'
 data_test_file = 'test/every-hundredth-data.tsv.bz2'
-simu_test_file = 'test/simu.csv'
-long_simu_test_file = 'test/recombinator/simu.csv'
+long_simu_test_file = 'test/recombinator/simu.csv.bz2'
+performance_plot_file = 'caches/recombinator/longer-reads/simu.csv'
+
+dummy_plotdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/dummy-plots'
+
 tests = {
-    # first cache data parameters in <data_parameter_dir>
-    # 'cache-data-parameters' : [cmd, '--cache_parameters', '--seqfile', data_test_file, '--is_data', '--parameter_dir', parameter_dir, '--plotdir', '/tmp/' + os.path.basename(os.getenv('HOME')) + '/parameter-cache-plots', '--n_procs', '10', '--skip_unproductive', '--n_max_queries', '1000'],
-    # then simulate sequences from these parameters (we only need this step so in the *next* step we can get parameters on longer sequences NOTE you *really* want to parallelize this (see e.g. run.sh)
-    # 'simulate-long-seqs' : '--simulate --parameter_dir caches/test-parameters/hmm_parameters --n_max_queries 10000 --outfname test/recombinator/foo/simu.csv',
-    'cache-simu-parameters' : cmd +'--cache_parameters --seqfile ' + long_simu_test_file + ' --parameter_dir ' + parameter_dir + ' --plotdir /tmp/' + os.path.basename(os.getenv('HOME')) + '/parameter-cache-plots --n_procs 10 --skip_unproductive --n_max_queries 1000'],
+    # # first cache data parameters in <data_parameter_dir>
+    # 'cache-data-parameters' : cmd + '--cache_parameters --seqfile ' + data_test_file + ' --is_data --parameter_dir ' + data_parameter_dir + ' --plotdir ' + dummy_plotdir + ' --n_procs 10 --skip_unproductive',
+    # # then simulate sequences from these parameters (we only need this step so in the *next* step we can get parameters on longer sequences NOTE you *really* want to parallelize this (see e.g. run.sh)
+    # 'simulate-long-seqs' : '--simulate --parameter_dir ' + data_parameter_dir + '/hmm_parameters --n_max_queries 10000 --outfname ' + long_simu_test_file,
+    # 'cache-simu-parameters' : cmd + ' --cache_parameters --seqfile ' + long_simu_test_file + ' --parameter_dir ' + simu_parameter_dir + ' --plotdir ' + dummy_plotdir + ' --n_procs 10',
+
+    'plot-performance' : '. /home/dralph/root/bin/thisroot.sh; ' + cmd + ' --plot_performance --point_estimate --seqfile ' + performance_plot_file + ' --parameter_dir ' + simu_parameter_dir + '/hmm_parameters --n_max_queries 10000 --plotdir ' + os.getenv('www') + '/partis/test-performance-plot --n_procs 10',
+
     # 'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--n_max_queries', '1', '--debug', '1'],
-    # 'plot-performance' : '. /home/dralph/root/bin/thisroot.sh; ' + cmd + ' --plot_performance --point_estimate --seqfile ' + long_simu_test_file + ' --parameter_dir ' + parameter_dir + '/hmm_parameters' + ' --n_max_queries 1000 --plotdir ' + os.getenv('www') + '/partis/test-performance-plot --n_procs 10',
     # 'partition-a-few' : [cmd, '--partition', '--pair', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--n_procs', '10', '--n_max_per_region', '2'],
     # 'viterbi-pair' : [cmd, '--point_estimate', '--pair', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--debug', '1', '--queries', '\' -2996237710674838049:1722533587157826946:1516698783101435629\'']
 }

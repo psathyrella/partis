@@ -25,6 +25,13 @@ else:
 
 from opener import opener
 
+hard_bounds = {
+    'hamming_to_true_naive' : (-0.5, 29.5),
+    'v_hamming_to_true_naive' : (-0.5, 7.5),
+    'd_hamming_to_true_naive' : (-0.5, 8.5),
+    'j_hamming_to_true_naive' : (-0.5, 10.5)
+}
+
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
     """ NOTE <values> should be sorted """
@@ -193,7 +200,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None, bounds=None):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
@@ -205,6 +212,8 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
     if hist3 != None:
         xmin = min(xmin, hist3.GetBinLowEdge(1))
         xmax = max(xmax, hist3.GetXaxis().GetBinUpEdge(hist3.GetNbinsX()))
+    if bounds != None:
+        xmin, xmax = bounds
     hframe = TH1F('hframe', '', hist.GetNbinsX(), xmin, xmax)
     if var_type == 'string' or var_type == 'bool':
         for ib in range(1, hframe.GetNbinsX()+1):
@@ -294,7 +303,10 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         var_type = 'int'
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
-        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3)
+        bounds = None
+        if varname in hard_bounds:
+            bounds = hard_bounds[varname]
+        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', outdir, '3', 'null', 'svg'])
         

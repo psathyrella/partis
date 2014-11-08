@@ -533,7 +533,7 @@ class PartitionDriver(object):
                             utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=False)
                         if line['cdr3_length'] == -1:
                             print '      ERROR %s failed to add match info' % line['unique_id']
-                        self.print_hmm_output(line, print_true=(last_id != this_id))
+                        self.print_hmm_output(line, print_true=(last_id != this_id), perfplotter=perfplotter)
                     last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
@@ -547,24 +547,36 @@ class PartitionDriver(object):
             perfplotter.plot()
 
     # ----------------------------------------------------------------------------------------
-    def print_hmm_output(self, line, print_true=False):
+    def print_hmm_output(self, line, print_true=False, perfplotter=None):
         out_str_list = []
+        ilabel = ''
         if print_true and not self.args.is_data:
-            out_str_list.append('    true:\n')
-            out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], extra_str='    ', return_string=True))
+            out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], extra_str='    ', return_string=True, label='true:'))
             if self.args.pair:
                 same_event = from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id'])
                 out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], one_line=same_event, extra_str='    ', return_string=True))
-            out_str_list.append('    inferred:\n')
+            ilabel = 'inferred:'
 
-        out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True))
+        out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
         if self.args.pair:
             tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
             line['seq'] = line['second_seq']
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
             line['seq'] = tmpseq
 
+        self.print_performance_info(line, perfplotter=perfplotter)
+
         if self.args.outfname == None:
             print ''.join(out_str_list)
         else:
             self.outfile.write(''.join(out_str_list))
+
+    # ----------------------------------------------------------------------------------------
+    def print_performance_info(self, line, perfplotter=None):
+        true_line = self.reco_info[line['unique_id']]
+        genes_ok = [ 'ok'  if line[region+'_gene']==true_line[region+'_gene'] else 'no' for region in utils.regions]
+        print '         v  d  j   hamming      erosions      insertions'
+        print '        %3s%3s%3s' % tuple(genes_ok),
+        print '  %3d' % (perfplotter.hamming_distance_to_true_naive(true_line, line, line['unique_id']) if perfplotter != None else -1),
+        print '   %4d%4d%4d%4d' % tuple([ int(line[ero+'_del']) - int(true_line[ero+'_del']) for ero in utils.real_erosions]),
+        print '   %4d%4d' % tuple([len(line[bound+'_insertion']) - len(true_line[bound+'_insertion']) for bound in utils.boundaries])

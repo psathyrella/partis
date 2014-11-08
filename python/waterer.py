@@ -231,10 +231,10 @@ class Waterer(object):
             out_str_list.append('WARNING ' + warnings[gene])
         if skipping:
             out_str_list.append('skipping!')
-        out_str_list.append('\n')
         if self.args.outfname == None:
             print ''.join(out_str_list)
         else:
+            out_str_list.append('\n')
             self.outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
@@ -353,7 +353,7 @@ class Waterer(object):
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
 
                 # only use the best few matches
-                if n_used[region] >= self.args.n_max_per_region:  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
+                if n_used[region] >= int(self.args.n_max_per_region[utils.regions.index(region)]):  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
                     break
 
                 # only use a specified set of genes
