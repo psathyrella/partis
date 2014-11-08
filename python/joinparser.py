@@ -20,6 +20,8 @@ def add_insertions(line):
         left_match_end = line['seq'].rfind(line[left_region + '_qr_seq']) + len(line[left_region + '_qr_seq'])  # base *after* last base of left region match
         right_match_start = line['seq'].find(line[right_region + '_qr_seq'])  # first base of right region match
         line[boundary + '_insertion'] = line['seq'][left_match_end : right_match_start]
+    line['fv_insertion'] = ''
+    line['jf_insertion'] = ''
 
 # ----------------------------------------------------------------------------------------
 def cut_matches(seq1, seq2):

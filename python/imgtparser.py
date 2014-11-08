@@ -26,13 +26,13 @@ header_keys = {
 
 class IMGTParser(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, seqfname, datadir, indir='', infname=''):
+    def __init__(self, seqfname, datadir, plotdir, indir='', infname=''):
         self.debug = 1
         n_max_queries = -1
-        queries = ['-3186447074198366744']
+        queries = []
 
         self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)
-        perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/imgt_performance', 'imgt')
+        perfplotter = PerformancePlotter(self.germline_seqs, plotdir, 'imgt')
 
         # get info that was passed to joinsolver
         self.seqinfo = {}
@@ -78,7 +78,9 @@ class IMGTParser(object):
             else:
                 assert infname == ''
                 infnames = glob.glob(indir + '/' + unique_id + '*')
-                assert len(infnames) == 1
+                if len(infnames) != 1:
+                    print ' couldn\'t find it'
+                    continue
                 with opener('r')(infnames[0]) as infile:
                     full_text = infile.read()
                     if len(re.findall('[123]. Alignment for [VDJ]-GENE', full_text)) < 3:
@@ -105,6 +107,7 @@ class IMGTParser(object):
                 print '    giving up'
                 n_failed += 1
                 perfplotter.add_fail()
+                print 'perfplotter: not sure what to do with a fail'
                 continue
             joinparser.add_insertions(line)
             try:
@@ -113,6 +116,7 @@ class IMGTParser(object):
                 print '    giving up'
                 n_failed += 1
                 perfplotter.add_fail()
+                print 'perfplotter: not sure what to do with a fail'
                 continue
             perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
             if self.debug:
@@ -215,11 +219,11 @@ class IMGTParser(object):
             # qr_start = full_qr_seq.find(qr_seq)
             # assert qr_start >= 0
             # qrbounds[region] = (qr_start, qr_start + len(qr_seq))
-            try:
-                match_name = joinparser.figure_out_which_damn_gene(self.germline_seqs, match_name, gl_seq, debug=self.debug)
-            except:
-                print 'ERROR couldn\'t figure out the gene for %s' % match_name
-                return {}
+            # try:
+            #     match_name = joinparser.figure_out_which_damn_gene(self.germline_seqs, match_name, gl_seq, debug=self.debug)
+            # except:
+            #     print 'ERROR couldn\'t figure out the gene for %s' % match_name
+            #     return {}
 
             # # remove the extra righthand bases in the imgt version
             # NOTE downloaded the imgt j versions, so I shouldn't need this any more
@@ -256,5 +260,5 @@ class IMGTParser(object):
 #                 sys.exit()
 
 # iparser = IMGTParser('caches/recombinator/simu.csv', datadir='./data/imt', infname='/home/dralph/Dropbox/imgtvquest.html')
-# iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='performance/imgt/foop3/IMGT_HighV-QUEST_individual_files_folder')
-iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='performance/imgt/foop3/3_Nt-sequences_foop3_311014.txt')
+iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='data/performance/imgt/longer_reads/IMGT_HighV-QUEST_individual_files_folder', plotdir=os.getenv('www') + '/partis/longer-imgt_performance')
+# iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='performance/imgt/foop3/3_Nt-sequences_foop3_311014.txt')

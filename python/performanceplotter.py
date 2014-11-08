@@ -66,7 +66,7 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 self.values[column]['wrong'] += 1
             else:
-                print 'perfplotter: not sure what to do with a fail'
+                pass
 
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, line, query_name):
