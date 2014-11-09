@@ -24,7 +24,7 @@ class IMGTParser(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, seqfname, datadir, plotdir, indir='', infname=''):
         self.debug = 0
-        n_max_queries = 10000
+        n_max_queries = 1000
         queries = []
 
         self.germline_seqs = utils.read_germlines(datadir)
@@ -105,6 +105,11 @@ class IMGTParser(object):
             except (AssertionError, KeyError):
                 print '    giving up'
                 n_failed += 1
+
+                print '-----------'
+                for crap, stuff in line.items():
+                    print '    ', crap, stuff
+
                 perfplotter.add_partial_fail(self.seqinfo[unique_id], line)
                 print '    perfplotter: not sure what to do with a fail'
                 continue
@@ -159,9 +164,9 @@ class IMGTParser(object):
 
             imatch = 1  # which match to take
             match_name = str(info[imatch].split()[2])
-            if 'IGHV3-69' in match_name:  # it's not right anyway
-                line['failed'] = True
-                return line
+            # if 'IGHV3-69' in match_name:  # it's not right anyway
+            #     line['failed'] = True
+            #     return line
             while unacceptable_match(match_name, self.germline_seqs):
                     imatch += 1
                     match_name = str(info[imatch].split()[2])
