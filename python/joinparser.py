@@ -69,15 +69,17 @@ def resolve_overlapping_matches(line, debug=False):
         else:
             assert len(all_l_matches) == 1 and len(all_r_matches) == 1
         if overlap > 0:
-            if debug:
-                print '     WARNING %s apportioning %d overlapping bases between %s and %s matches' % (line['unique_id'], overlap, rpairs['left'], rpairs['right'])
             lefthand_portion = int(math.floor(overlap / 2.0))
             righthand_portion = int(math.ceil(overlap / 2.0))
+            if debug:
+                print '     WARNING %s apportioning %d overlapping bases between %s (%d) and %s (%d) matches' % (line['unique_id'], overlap, rpairs['left'], lefthand_portion, rpairs['right'], righthand_portion)
             assert lefthand_portion <= len(line[rpairs['left'] + '_gl_seq'])
             assert righthand_portion <= len(line[rpairs['right'] + '_gl_seq'])
-            line[rpairs['left'] + '_gl_seq'] = line[rpairs['left'] + '_gl_seq'][:-lefthand_portion]
-            line[rpairs['left'] + '_qr_seq'] = l_qr_seq[:-lefthand_portion]
-            line[rpairs['left'] + '_3p_del'] += lefthand_portion
+
+            if lefthand_portion > 0:  # slicing doesn't 'work' with zeros
+                line[rpairs['left'] + '_gl_seq'] = line[rpairs['left'] + '_gl_seq'][:-lefthand_portion]
+                line[rpairs['left'] + '_qr_seq'] = l_qr_seq[:-lefthand_portion]
+                line[rpairs['left'] + '_3p_del'] += lefthand_portion
 
             line[rpairs['right'] + '_gl_seq'] = line[rpairs['right'] + '_gl_seq'][righthand_portion:]
             line[rpairs['right'] + '_qr_seq'] = r_qr_seq[righthand_portion:]
