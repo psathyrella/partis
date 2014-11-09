@@ -13,13 +13,15 @@ from performanceplotter import PerformancePlotter
 
 
 # ----------------------------------------------------------------------------------------
-def add_insertions(line):
+def add_insertions(line, debug=False):
     for boundary in utils.boundaries:
         left_region = boundary[0]
         right_region = boundary[1]
         left_match_end = line['seq'].rfind(line[left_region + '_qr_seq']) + len(line[left_region + '_qr_seq'])  # base *after* last base of left region match
         right_match_start = line['seq'].find(line[right_region + '_qr_seq'])  # first base of right region match
         line[boundary + '_insertion'] = line['seq'][left_match_end : right_match_start]
+        if debug:
+            print '   %s: %s' % (boundary, line[boundary + '_insertion'])
     line['fv_insertion'] = ''
     line['jf_insertion'] = ''
 
@@ -35,7 +37,7 @@ def cut_matches(seq1, seq2):
     return (seq1, seq2)
 
 # ----------------------------------------------------------------------------------------
-def resolve_overlapping_matches(line, debug=False):
+def resolve_overlapping_matches(line, debug=False, germlines=None):
     """
     joinsolver allows d and j matches (and v and d matches) to overlap... which makes no sense, so
     arbitrarily split the disputed territory in two.
@@ -84,6 +86,10 @@ def resolve_overlapping_matches(line, debug=False):
             line[rpairs['right'] + '_gl_seq'] = line[rpairs['right'] + '_gl_seq'][righthand_portion:]
             line[rpairs['right'] + '_qr_seq'] = r_qr_seq[righthand_portion:]
             line[rpairs['right'] + '_5p_del'] += righthand_portion
+
+    naive_seq = utils.get_full_naive_seq(germlines, line)
+    muted_seq = line['seq']
+    assert len(naive_seq) == len(muted_seq)  # this will happen if, for instance, there's a really short D match and there's NO FUCKING WAY to figure out where it was really supposed to be
 
 #--------------------------------------------------------------------------------------
 def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):

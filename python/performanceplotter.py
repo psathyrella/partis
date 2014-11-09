@@ -69,6 +69,17 @@ class PerformancePlotter(object):
                 pass
 
     # ----------------------------------------------------------------------------------------
+    def add_partial_fail(self, true_line, line):
+        for column in self.values:
+            if column in bool_columns:
+                if column in line and true_line[column] == line[column]:
+                    self.values[column]['right'] += 1
+                else:
+                    self.values[column]['wrong'] += 1
+            else:
+                pass
+
+    # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, line, query_name):
         for column in self.values:
             if column in bool_columns:
@@ -89,6 +100,7 @@ class PerformancePlotter(object):
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
                     guessval = self.hamming_distance_to_true_naive(true_line, line, query_name, restrict_to_region=column[0])
                 elif column == 'mute_freqs':
+
                     trueval = self.mutation_rate(true_line)
                     guessval = self.mutation_rate(line)
                 else:

@@ -99,7 +99,7 @@ def color(col, seq):
     return Colors[col] + seq + Colors['end']
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str=''):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str=''):
     assert len(ref_seq) == len(seq)
     return_str = ''
     for inuke in range(len(seq)):
@@ -108,8 +108,8 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str=''):
         else:
             return_str += color('red', seq[inuke])
     if print_result:
-        print '%s %s' % (extra_str, ref_seq)
-        print '%s %s' % (extra_str, return_str)
+        print '%s%s%s' % (extra_str, ref_label, ref_seq)
+        print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str)
     return return_str
 
 # ----------------------------------------------------------------------------------------
