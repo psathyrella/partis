@@ -105,17 +105,13 @@ class IMGTParser(object):
             except (AssertionError, KeyError):
                 print '    giving up'
                 n_failed += 1
-
-                print '-----------'
-                for crap, stuff in line.items():
-                    print '    ', crap, stuff
-
                 perfplotter.add_partial_fail(self.seqinfo[unique_id], line)
                 print '    perfplotter: not sure what to do with a fail'
                 continue
             perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
             if self.debug:
-                utils.print_reco_event(self.germline_seqs, line)
+                utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id], label='true:')
+                utils.print_reco_event(self.germline_seqs, line, label='inferred:')
 
         perfplotter.plot()
         print 'failed: %d / %d = %f' % (n_failed, n_total, float(n_failed) / n_total)

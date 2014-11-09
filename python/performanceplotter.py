@@ -72,10 +72,14 @@ class PerformancePlotter(object):
     def add_partial_fail(self, true_line, line):
         for column in self.values:
             if column in bool_columns:
-                if column in line and true_line[column] == line[column]:
+                if column in line and utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this below as well!
                     self.values[column]['right'] += 1
+                    # if column == 'v_gene':
+                    #     print '  partial right ', true_line[column], line[column]
                 else:
                     self.values[column]['wrong'] += 1
+                    # if column == 'v_gene':
+                    #     print '  partial wrong ', true_line[column], line[column] if column in line else 'FOO'
             else:
                 pass
 
@@ -83,7 +87,7 @@ class PerformancePlotter(object):
     def evaluate(self, true_line, line, query_name):
         for column in self.values:
             if column in bool_columns:
-                if utils.are_alleles(true_line[column], line[column]):
+                if utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this above as well!
                 # if true_line[column] == line[column]:
                     self.values[column]['right'] += 1
                 else:
