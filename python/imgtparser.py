@@ -12,22 +12,60 @@ import joinparser
 
 from performanceplotter import PerformancePlotter
 
+# ----------------------------------------------------------------------------------------
 def unacceptable_match(match, germlines):
-    if match == 'IGHV3-23*03' or match == 'IGHV3-53*02':  # they apparently change what they think the germline sequences are all willy nilly
+    if (match == 'IGHV3-23*03' or
+        match == 'IGHV3-53*02' or
+        match == 'IGHV4-34*03' or
+        match == 'IGHV4-30-4*03' or
+        match == 'IGHV4-30-2*06' or
+        match == 'IGHV3-9*03' or
+        match == 'IGHV4-31*09' or
+        match == 'IGHV1-69*02' or
+        match == 'IGHV1-18*04' or
+        match == 'IGHV3-11*06'):  # they apparently change what they think the germline sequences are all willy nilly
+        print '    unacceptable:', match
         return True
     if match not in germlines[utils.get_region(match)]:
+        print '   not in germlines', match
+        assert False
         return True
 
     return False
 
+# ----------------------------------------------------------------------------------------
+renames = {  # imgt changed some names at some point
+     'IGHV1-38*04'    : 'IGHV1-c*01',  # NOTE I have no *@#*ing idea which allele is supposed to be on the left there, 'cause the don't *@#*$!ing say
+     'IGHV1-69-2*01'  : 'IGHV1-f*01',
+     'IGHV3-38*03'    : 'IGHV3-d*01',
+     'IGHV3-69-1*01'  : 'IGHV3-h*01',
+     'IGHV3-69-1*02'  : 'IGHV3-h*01',
+     'IGHV4-38-2*01'  : 'IGHV4-b*01',
+     'IGHV4-38-2*02'  : 'IGHV4-b*01',
+     'IGHV5-10-1*01'  : 'IGHV5-a*01',
+     'IGHV5-10-1*02'  : 'IGHV5-a*01',
+     'IGHV5-10-1*03'  : 'IGHV5-a*01',
+     'IGHV5-10-1*04'  : 'IGHV5-a*01'
+}
+
+# ----------------------------------------------------------------------------------------
 class IMGTParser(object):
-    # ----------------------------------------------------------------------------------------
     def __init__(self, seqfname, datadir, plotdir, indir='', infname=''):
         self.debug = 0
-        n_max_queries = 1000
+        n_max_queries = 100
         queries = []
 
         self.germline_seqs = utils.read_germlines(datadir)
+        for newname, oldname in renames.items():
+            region = utils.get_region(oldname)
+            if oldname not in self.germline_seqs[region]:
+                print oldname
+                sys.exit()
+            if newname in self.germline_seqs[region]:
+                print newname
+                sys.exit()
+            self.germline_seqs[region][newname] = self.germline_seqs[region][oldname]
+
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir, 'imgt')
 
         # get sequence info that was passed to imgt
@@ -101,7 +139,7 @@ class IMGTParser(object):
             try:
                 assert 'failed' not in line
                 joinparser.add_insertions(line, debug=self.debug)
-                joinparser.resolve_overlapping_matches(line, debug=True, germlines=self.germline_seqs)
+                joinparser.resolve_overlapping_matches(line, debug=False, germlines=self.germline_seqs)
             except (AssertionError, KeyError):
                 print '    giving up'
                 n_failed += 1

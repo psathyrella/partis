@@ -560,7 +560,7 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir, remove_fp=False, remove_N_nukes=False):
+def read_germlines(data_dir, remove_fp=False, add_fp=False, remove_N_nukes=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     print 'read gl from', data_dir
     germlines = {}
@@ -570,6 +570,11 @@ def read_germlines(data_dir, remove_fp=False, remove_N_nukes=False):
             gene_name = seq_record.name
             if remove_fp and region == 'j':
                 gene_name = gene_name[:-2]
+            if add_fp and region == 'j':
+                if 'P' in gene_name:
+                    gene_name = gene_name + '_P'
+                else:
+                    gene_name = gene_name + '_F'
             seq_str = str(seq_record.seq)
             if remove_N_nukes and 'N' in seq_str:
                 seq_str = seq_str.replace('N', 'A')
@@ -611,30 +616,13 @@ def maturity_to_naivety(maturity):
     
 
 # ----------------------------------------------------------------------------------------
-def apply_renaming_scheme(gene):
-    if 'IGHV1-c' in gene:
-        return 'IGHV1-38-4'
-    elif 'IGHV1-f' in gene:
-        return 'IGHV1-69-2'
-    elif 'IGHV3-d' in gene:
-        return 'IGHV3-38-3'
-    elif 'IGHV3-h' in gene:
-        return 'IGHV3-69-1'
-    elif 'IGHV4-b' in gene:
-        return 'IGHV4-38-2'
-    elif 'IGHV5-a' in gene:
-        return 'IGHV5-10-1'
-    else:
-        return gene
-
-# ----------------------------------------------------------------------------------------
 def are_alleles(gene1, gene2):
     """
     Return true if gene1 and gene2 are alleles of the same gene version.
     Assumes they're alleles if everything left of the asterisk is the same, and everything more than two to the right of the asterisk is the same.
     """
-    gene1 = apply_renaming_scheme(gene1)
-    gene2 = apply_renaming_scheme(gene2)
+    # gene1 = apply_renaming_scheme(gene1)
+    # gene2 = apply_renaming_scheme(gene2)
 
     left_str_1 = gene1[0 : gene1.find('*')]
     left_str_2 = gene2[0 : gene1.find('*')]

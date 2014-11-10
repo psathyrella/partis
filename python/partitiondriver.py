@@ -32,7 +32,7 @@ def from_same_event(is_data, pair_hmm, reco_info, query_name, second_query_name)
 class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
-        self.germline_seqs = utils.read_germlines(self.args.datadir)
+        self.germline_seqs = utils.read_germlines(self.args.datadir, add_fp=True)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)

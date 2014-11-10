@@ -28,11 +28,12 @@ class PerformancePlotter(object):
             self.values[region + '_hamming_to_true_naive'] = {}
         self.values['mute_freqs'] = {}
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region=''):
+    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False):
         """
         Hamming distance between the inferred naive sequence and the tue naive sequence.
         <restrict_to_region> if set, restrict the comparison to the section of the *true* sequence assigned to the given region.
         NOTE this will not in general correspond to the similarly-assigned region in the inferred naive sequence.
+        if <normalize> divide by sequence length
         """
         true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
@@ -49,7 +50,11 @@ class PerformancePlotter(object):
         # print restrict_to_region, '-------', utils.hamming(true_naive_seq, inferred_naive_seq)
         # utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
 
-        return utils.hamming(true_naive_seq, inferred_naive_seq)
+        total_distance = utils.hamming(true_naive_seq, inferred_naive_seq)
+        if normalize:
+            return int(100 * (float(total_distance) / len(true_naive_seq)))
+        else:
+            return total_distance
 
     # ----------------------------------------------------------------------------------------
     def mutation_rate(self, line):
@@ -102,9 +107,8 @@ class PerformancePlotter(object):
                     guessval = self.hamming_distance_to_true_naive(true_line, line, query_name)
                 elif column.find('hamming_to_true_naive') == 2:  # i.e. it's '[vdj]_hamming_to_true_naive'
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
-                    guessval = self.hamming_distance_to_true_naive(true_line, line, query_name, restrict_to_region=column[0])
+                    guessval = self.hamming_distance_to_true_naive(true_line, line, query_name, restrict_to_region=column[0], normalize=True)
                 elif column == 'mute_freqs':
-
                     trueval = self.mutation_rate(true_line)
                     guessval = self.mutation_rate(line)
                 else:

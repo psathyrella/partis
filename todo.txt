@@ -20,8 +20,6 @@
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
   - remove this stuff in recombinator: 'if region == 'v' and position < 200:  # don\'t really have any information here. TODO add some criterion to remove positions with really large uncertainties'
   - account for different mutation frequencies to different bases
-  - write down list of knobs
-  - break out hamming-to-naive by region
   - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
   - account for non-uniform base content in insertions
   - optimize on fuzzes and n_max_per_region

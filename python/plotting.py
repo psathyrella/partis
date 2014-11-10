@@ -304,8 +304,8 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
         bounds = None
-        if varname in hard_bounds:
-            bounds = hard_bounds[varname]
+        # if varname in hard_bounds:
+        #     bounds = hard_bounds[varname]
         draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', outdir, '3', 'null', 'svg'])

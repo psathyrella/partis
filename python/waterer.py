@@ -315,12 +315,10 @@ class Waterer(object):
             self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
             self.info['all_best_matches'].add(best[region])
 
-        # if best['v'] == 'IGHV3-33*03' and best['d'] == 'IGHD3/OR15-3b*01' and best['j'] == 'IGHJ4*02_F':
-        #     print 'QUERY',query_name
-        #     sys.exit()
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.args.debug:
-            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ')
+            utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:')
+            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:')
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
