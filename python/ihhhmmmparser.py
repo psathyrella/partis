@@ -2,7 +2,7 @@
 import csv
 from collections import OrderedDict
 import os
-from subprocess import check_call
+from subprocess import check_output
 import glob
 import sys
 
@@ -112,13 +112,6 @@ class IhhhmmmParser(object):
                     continue
             if column != '':
                 info[column] = clean_value(column, fk.line[index])
-                if column == 'j_gene'):
-                    gl_length = int(fk[fk.line.index('gene:') + 1])
-                    match_end = int(fk[fk.line.index('index:') + 1])
-                    if match_end != gl_length:
-                        print '    j match not to end, expanding %d --> %d' % (match_end, gl_end)
-                    asdfjkl;asdfjkl;sdgasghil;
-                    
                 print column, info[column]
             fk.increment()
 
@@ -129,11 +122,11 @@ class IhhhmmmParser(object):
                 info['unique_id'] = unique_id
                 break
 
-        if 'unique_id' not in info:
-            print 'seq not found'
-            check_call(['grep', '-Hrn', info['seq'], seqfname])
-            print '  ', info['seq']
-            sys.exit()
+        if 'unique_id' not in info:  # arg. probabl a j right or v left erosion made it not match
+            grep_match = check_output(['grep', '-Hrn', info['seq'], seqfname])
+            info['unique_id'] = grep_match.split(':')[2].split(',')[0]
+            if info['unique_id'] not in self.seqinfo:
+                print 'ERROR %s not in seqinfo' % info['unique_id']
 
         # for unique_id in self.seqinfo:
         #     utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
