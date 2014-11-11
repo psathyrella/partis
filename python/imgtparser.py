@@ -103,6 +103,7 @@ class IMGTParser(object):
             else:
                 assert infname == ''
                 infnames = glob.glob(indir + '/' + unique_id + '*')
+                assert len(infnames) <= 1
                 if len(infnames) != 1:
                     if self.debug:
                         print ' couldn\'t find it'
