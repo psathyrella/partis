@@ -166,6 +166,7 @@ class HmmWriter(object):
         self.eps = 1e-6  # TODO I also have an eps defined in utils
         self.min_occurences = min_occurences
         self.n_max_to_interpolate = 20
+        self.forbid_unphysical_insertions = True  # disallow fv and jf insertions
 
         self.insert_mute_prob = 0.0
         self.mean_mute_freq = 0.0
@@ -178,11 +179,14 @@ class HmmWriter(object):
 
         # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
         if self.region == 'v':
-            self.insertions = ['fv', ]
+            if not self.forbid_unphysical_insertions:
+                self.insertions = ['fv', ]
         elif self.region == 'd':
             self.insertions = ['vd', ]
         elif self.region == 'j':
-            self.insertions = ['dj', 'jf']
+            self.insertions = ['dj']
+            if not self.forbid_unphysical_insertions:
+                self.insertions.append('jf')
 
         self.erosion_probs = {}
         self.insertion_probs = {}
@@ -227,14 +231,16 @@ class HmmWriter(object):
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             self.add_internal_state(inuke)
         # and finally right side insertions
-        if self.region == 'j':
+        if self.region == 'j' and not self.forbid_unphysical_insertions:
             self.add_righthand_insert_state()
 
     # ----------------------------------------------------------------------------------------
     def add_init_state(self):
         init_state = State('init')
-        lefthand_insertion = self.insertions[0]
-        assert 'jf' not in lefthand_insertion
+        lefthand_insertion = ''
+        if len(self.insertions) > 0:
+            lefthand_insertion = self.insertions[0]
+            assert 'jf' not in lefthand_insertion
         self.add_region_entry_transitions(init_state, lefthand_insertion)
         self.hmm.add_state(init_state)
 
@@ -488,7 +494,10 @@ class HmmWriter(object):
 
         # first add transitions to the insert state
         if state.name == 'init':
-            region_entry_prob = self.insertion_probs[insertion][0]  # prob of entering the region from 'init' is the prob of a zero-length insertion
+            if insertion == '':
+                region_entry_prob = 1.0  # if no insert state on this side (i.e. we're on left side of v), we have no choice but to enter the region (the internal states)
+            else:
+                region_entry_prob = self.insertion_probs[insertion][0]  # prob of entering the region from 'init' is the prob of a zero-length insertion
         elif state.name == 'insert_left':
             region_entry_prob = 1.0 - self.get_insert_self_transition_prob(insertion)  # the 'insert_left' state has to either go to itself, or else enter the region
         else:
@@ -496,7 +505,8 @@ class HmmWriter(object):
 
         # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
         # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
-        state.add_transition('insert_left', 1.0 - region_entry_prob)
+        if insertion != '':
+            state.add_transition('insert_left', 1.0 - region_entry_prob)
 
         # then add transitions to the region's internal states
         erosion = self.region + '_5p'
@@ -518,7 +528,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_region_exit_transitions(self, state, exit_probability):
         non_zero_insertion_prob = 0.0
-        if self.region == 'j':  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
+        if self.region == 'j' and not self.forbid_unphysical_insertions:  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
             non_zero_insertion_prob = 1.0 - self.insertion_probs['jf'][0]
             state.add_transition('insert_right', non_zero_insertion_prob * exit_probability)
 
