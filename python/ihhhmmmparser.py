@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import csv
+from collections import OrderedDict
 import os
+from subprocess import check_call
 import glob
 import sys
 
@@ -14,26 +16,26 @@ datadir = 'data/imgt'
 plotdir = os.getenv('www') + '/partis/ihhhmmm-performance'
 # header=('unique_id', 'v_gene', 'd_gene', 'j_gene', 'v_seq', 'd_seq', 'j_seq')
 
-# first word    value name       pos of value
+# first word    value name     position   required?
 line_order = \
 [
-    ('State',     '',             4),
-    ('IGHV',      'v_gene',       0),
-    ('input:',    'v_qr_seq',     1),
-    ('germline:', 'v_gl_seq',     1),
-    ('match:',    '',            -1),
-    ('V-D',       '',            -1),
-    ('emitted',   'vd_insertion', 2),
-    ('IGHD',      'd_gene',       0),
-    ('input:',    'd_qr_seq',     1),
-    ('germline:', 'd_gl_seq',     1),
-    ('match:',    '',            -1),
-    ('D-J',       '',            -1),
-    ('emitted',   'dj_insertion', 2),
-    ('IGHJ',      'j_gene',       0),
-    ('input:',    'j_qr_seq',     1),
-    ('germline:', 'j_gl_seq',     1),
-    ('match:',    '',            -1)
+    ('State',     '',            -1,   True,    None),
+    ('IGHV',      'v_gene',       0,   True,    None),
+    ('input:',    'v_qr_seq',     1,   True,    None),
+    ('germline:', 'v_gl_seq',     1,   True,    None),
+    ('match:',    '',            -1,   True,    None),
+    ('V-D',       '',            -1,   False,   None),
+    ('emitted',   'vd_insertion', 2,   False,   ''  ),
+    ('IGHD',      'd_gene',       0,   True,    None),
+    ('input:',    'd_qr_seq',     1,   True,    None),
+    ('germline:', 'd_gl_seq',     1,   True,    None),
+    ('match:',    '',            -1,   True,    None),
+    ('D-J',       '',            -1,   False,   None),
+    ('emitted',   'dj_insertion', 2,   False,   ''  ),
+    ('IGHJ',      'j_gene',       0,   True,    None),
+    ('input:',    'j_qr_seq',     1,   True,    None),
+    ('germline:', 'j_gl_seq',     1,   True,    None),
+    ('match:',    '',            -1,   True,    None)
 ]
 
 # ----------------------------------------------------------------------------------------
@@ -64,14 +66,14 @@ class FileKeeper(object):
 class IhhhmmmParser(object):
     def __init__(self):
         self.debug = 0
-        n_max_queries = 1
+        n_max_queries = 100
         queries = []
 
         self.germline_seqs = utils.read_germlines(datadir, add_fp=True)
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir, 'ihhhmmm')
 
         # get sequence info that was passed to ihhhmmm
-        self.seqinfo = {}
+        self.seqinfo = OrderedDict()
         with opener('r')(seqfname) as seqfile:
             reader = csv.DictReader(seqfile)
             iline = 0
@@ -84,18 +86,11 @@ class IhhhmmmParser(object):
                     break
 
         infnames = glob.glob(indir + '/*.txt.fostream')
-        for unique_id in self.seqinfo:
-            utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
-            for infname in infnames:
-                print infname
-                with opener('r')(infname) as infile:
-                    details = self.parse_file(infile)
-                    # reader = csv.DictReader(infile, delimiter=';')
-                    # for line in reader:
-                    #     line = line[None]
-                    #     for ihead in range(len(header)):
-                    #         print header[ihead], line[ihead]
-                    #     sys.exit()
+        infnames.sort()
+        for infname in infnames:
+            print infname
+            with opener('r')(infname) as infile:
+                details = self.parse_file(infile)
 
     # ----------------------------------------------------------------------------------------
     def parse_detail(self, fk):
@@ -107,14 +102,41 @@ class IhhhmmmParser(object):
 
         fk.increment()
         info = {}
-        for begin_line, column, index in line_order:
+        for begin_line, column, index, required, default in line_order:
             if fk.line[0].find(begin_line) != 0:
-                print 'oop', begin_line, fk.line
-                sys.exit()
+                if required:
+                    print 'oop', begin_line, fk.line
+                    sys.exit()
+                else:
+                    info[column] = default
+                    continue
             if column != '':
                 info[column] = clean_value(column, fk.line[index])
+                if column == 'j_gene'):
+                    gl_length = int(fk[fk.line.index('gene:') + 1])
+                    match_end = int(fk[fk.line.index('index:') + 1])
+                    if match_end != gl_length:
+                        print '    j match not to end, expanding %d --> %d' % (match_end, gl_end)
+                    asdfjkl;asdfjkl;sdgasghil;
+                    
                 print column, info[column]
             fk.increment()
+
+        info['seq'] = info['v_qr_seq'] + info['vd_insertion'] + info['d_qr_seq'] + info['dj_insertion'] + info['j_qr_seq']
+
+        for unique_id in self.seqinfo:
+            if self.seqinfo[unique_id]['seq'] == info['seq']:
+                info['unique_id'] = unique_id
+                break
+
+        if 'unique_id' not in info:
+            print 'seq not found'
+            check_call(['grep', '-Hrn', info['seq'], seqfname])
+            print '  ', info['seq']
+            sys.exit()
+
+        # for unique_id in self.seqinfo:
+        #     utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
 
         for region in utils.regions:
             if info[region + '_gene'] not in self.germline_seqs[region]:
@@ -133,6 +155,5 @@ class IhhhmmmParser(object):
         fk = FileKeeper(infile.readlines())
         while fk.iline < len(fk.lines):
             details.append(self.parse_detail(fk))
-            sys.exit()
         
 iparser = IhhhmmmParser()
