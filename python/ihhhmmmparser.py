@@ -112,9 +112,19 @@ class IhhhmmmParser(object):
                     continue
             if column != '':
                 info[column] = clean_value(column, fk.line[index])
-                print column, info[column]
+                if column.find('_gene') == 1:
+                    region = column[0]
+                    info[region + '_5p_del'] = int(fk.line[fk.line.index('start:') + 1]) - 1  # NOTE their indices are 1-based
+                    gl_length = int(fk.line[fk.line.index('gene:') + 1]) - 1
+                    match_end = int(fk.line[fk.line.index('end:') + 1]) - 1
+                    assert gl_length >= match_end
+                    info[region + '_3p_del'] = gl_length - match_end
+
+                # print column, info[column]
             fk.increment()
 
+        info['fv_insertion'] = ''
+        info['jf_insertion'] = ''
         info['seq'] = info['v_qr_seq'] + info['vd_insertion'] + info['d_qr_seq'] + info['dj_insertion'] + info['j_qr_seq']
 
         for unique_id in self.seqinfo:
@@ -128,8 +138,8 @@ class IhhhmmmParser(object):
             if info['unique_id'] not in self.seqinfo:
                 print 'ERROR %s not in seqinfo' % info['unique_id']
 
-        # for unique_id in self.seqinfo:
-        #     utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
+        utils.print_reco_event(self.germline_seqs, self.seqinfo[info['unique_id']], label='true:')
+        utils.print_reco_event(self.germline_seqs, info, label='inferred:')
 
         for region in utils.regions:
             if info[region + '_gene'] not in self.germline_seqs[region]:
@@ -148,5 +158,6 @@ class IhhhmmmParser(object):
         fk = FileKeeper(infile.readlines())
         while fk.iline < len(fk.lines):
             details.append(self.parse_detail(fk))
+            sys.exit()
         
 iparser = IhhhmmmParser()
