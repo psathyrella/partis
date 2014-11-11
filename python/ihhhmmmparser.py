@@ -40,7 +40,12 @@ line_order = \
 # ----------------------------------------------------------------------------------------
 def clean_value(column, value):
     if column == 'v_gene':
-      return value[ : value.find('(')]
+        if '_HM855939' in value:
+            value = value[ : value.find('_HM855939')]  # what the hell, dude?
+            value = value.replace('NL*', 'NL1*')  # and again I ask, what the hell?
+        if '(' in value:
+            value = value[ : value.find('(')]
+        return value
     elif column == 'j_gene':
         if 'P' in value:
             return value + '_P'
@@ -96,7 +101,8 @@ class IhhhmmmParser(object):
         assert fk.iline < len(fk.lines)
 
         while fk.line[1] != 'Details':
-            print '  skipping', fk.line
+            # if self.debug:
+            #     print '  skipping', fk.line
             fk.increment()
 
         fk.increment()
@@ -156,6 +162,5 @@ class IhhhmmmParser(object):
         fk = FileKeeper(infile.readlines())
         while fk.iline < len(fk.lines):
             details.append(self.parse_detail(fk))
-            sys.exit()
         
 iparser = IhhhmmmParser()
