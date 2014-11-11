@@ -14,7 +14,6 @@ indir = 'data/performance/ihmmune/'
 seqfname = 'caches/recombinator/longer-reads/simu.csv'
 datadir = 'data/imgt'
 plotdir = os.getenv('www') + '/partis/ihhhmmm-performance'
-# header=('unique_id', 'v_gene', 'd_gene', 'j_gene', 'v_seq', 'd_seq', 'j_seq')
 
 # first word    value name     position   required?
 line_order = \
@@ -120,7 +119,6 @@ class IhhhmmmParser(object):
                     assert gl_length >= match_end
                     info[region + '_3p_del'] = gl_length - match_end
 
-                # print column, info[column]
             fk.increment()
 
         info['fv_insertion'] = ''
