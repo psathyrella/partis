@@ -81,10 +81,9 @@ def action(a):
                               max_drop=a.max_drop)
 
     log.info('aligning')
-    print 'HERE'
-    with imgt.temp_fasta(a.locus, 'v', a.v_subset) as vf, \
-            imgt.temp_fasta(a.locus, 'j', a.j_subset) as jf, \
+    with imgt.temp_fasta(a.locus, 'v', a.v_subset, vdj_dir=a.vdj_dir) as vf, \
+            imgt.temp_fasta(a.locus, 'j', a.j_subset, vdj_dir=a.vdj_dir) as jf, \
             util.with_if(a.locus == 'IGH', imgt.temp_fasta, a.locus, 'd',
-                    collection=a.d_subset) as df:
+                    collection=a.d_subset, vdj_dir=a.vdj_dir) as df:
         ex_refs = [i for i in [df, jf] if i is not None]
         align(vf, a.fastq, a.out_bamfile, extra_ref_paths=ex_refs)
