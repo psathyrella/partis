@@ -166,7 +166,7 @@ class HmmWriter(object):
         self.eps = 1e-6  # TODO I also have an eps defined in utils
         self.min_occurences = min_occurences
         self.n_max_to_interpolate = 20
-        self.forbid_unphysical_insertions = True  # disallow fv and jf insertions
+        self.forbid_unphysical_insertions = True # disallow fv and jf insertions. NOTE this speeds things up by a factor of 6 or so
 
         self.insert_mute_prob = 0.0
         self.mean_mute_freq = 0.0
@@ -178,13 +178,14 @@ class HmmWriter(object):
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
 
         # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
+        self.insertions = []
         if self.region == 'v':
             if not self.forbid_unphysical_insertions:
-                self.insertions = ['fv', ]
+                self.insertions.append('fv')
         elif self.region == 'd':
-            self.insertions = ['vd', ]
+            self.insertions.append('vd')
         elif self.region == 'j':
-            self.insertions = ['dj']
+            self.insertions.append('dj')
             if not self.forbid_unphysical_insertions:
                 self.insertions.append('jf')
 
@@ -345,10 +346,10 @@ class HmmWriter(object):
         if approved_genes == None:  # if we aren't explicitly passed a list of genes to use, we just use the gene for which we're actually writing the hmm
             approved_genes = [this_gene,]
 
+        genes_used = set()
         for insertion in self.insertions:
             self.insertion_probs[insertion] = {}
             deps = utils.column_dependencies[insertion + '_insertion']
-            genes_used = set()
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:
