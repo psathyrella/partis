@@ -119,7 +119,7 @@ class Waterer(object):
             workdir += '/sw-' + str(iproc)
         infname = workdir + '/' + base_infname
         outfname = workdir + '/' + base_outfname
-        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq'
+        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         cmd_str += ' --max-drop 50'
         cmd_str += ' --match 5 --mismatch 3'
         cmd_str += ' --gap-open 1000'

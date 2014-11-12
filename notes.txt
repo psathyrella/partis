@@ -1,0 +1,22 @@
+- perfromance 
+  - min occurences before you start averaging over alleles (& co)
+    - tried with 5, 10, 20, 50 (or something like that) made minimal performance difference (...for whatever set of other parameters were in effect at that point)
+  - few vs many genes
+    - pulled out ~10 v and d genes at random (used all js) and ran on data, made sim, inferred on sim yadda yadda
+    - relative performance of sw and hmm was pretty much the same
+    - http://stoat.fhcrc.org/sharing/dralph/partis/few/hmm-vs-sw/plots.html
+    - http://stoat.fhcrc.org/sharing/dralph/partis/many/hmm-vs-sw/plots.html
+  - insertion and deletion dists are consistently a bit narrower for hmm
+  - hmm consistently gets d and j correct (up to allele) a bit more than sw, but v they\'re both about 100 percent.
+    - hmm\'s v_hamming_to_true_naive is more accurate, though, despite this
+  - hmm\'s inferred mute freq is consistently a bit narrower (and less biased) than sw
+    - note I wasn\'t really seeing this before... that may have/was probably because I was running performance on 10k rather than 50k seqs
+
+- imgt fasta download: http://www.imgt.org/vquest/refseqh.html
+- name reassignment
+    IGHV1-c   IGHV1-38-4
+    IGHV1-f   IGHV1-69-2
+    IGHV3-d   IGHV3-38-3
+    IGHV3-h   IGHV3-69-1
+    IGHV4-b   IGHV4-38-2
+    IGHV5-a   IGHV5-10-1
