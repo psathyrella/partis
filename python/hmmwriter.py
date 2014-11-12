@@ -160,13 +160,14 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, min_occurences):
+    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, args):
         self.indir = base_indir
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
-        self.min_occurences = min_occurences
+        self.min_occurences = args.min_observations_to_write
         self.n_max_to_interpolate = 20
-        self.forbid_unphysical_insertions = True # disallow fv and jf insertions. NOTE this speeds things up by a factor of 6 or so
+        self.allow_unphysical_insertions = args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
+        # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
 
         self.insert_mute_prob = 0.0
         self.mean_mute_freq = 0.0
@@ -180,13 +181,13 @@ class HmmWriter(object):
         # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
         self.insertions = []
         if self.region == 'v':
-            if not self.forbid_unphysical_insertions:
+            if self.allow_unphysical_insertions:
                 self.insertions.append('fv')
         elif self.region == 'd':
             self.insertions.append('vd')
         elif self.region == 'j':
             self.insertions.append('dj')
-            if not self.forbid_unphysical_insertions:
+            if self.allow_unphysical_insertions:
                 self.insertions.append('jf')
 
         self.erosion_probs = {}
@@ -232,7 +233,7 @@ class HmmWriter(object):
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             self.add_internal_state(inuke)
         # and finally right side insertions
-        if self.region == 'j' and not self.forbid_unphysical_insertions:
+        if self.region == 'j' and self.allow_unphysical_insertions:
             self.add_righthand_insert_state()
 
     # ----------------------------------------------------------------------------------------
@@ -529,7 +530,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_region_exit_transitions(self, state, exit_probability):
         non_zero_insertion_prob = 0.0
-        if self.region == 'j' and not self.forbid_unphysical_insertions:  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
+        if self.region == 'j' and self.allow_unphysical_insertions:  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
             non_zero_insertion_prob = 1.0 - self.insertion_probs['jf'][0]
             state.add_transition('insert_right', non_zero_insertion_prob * exit_probability)
 

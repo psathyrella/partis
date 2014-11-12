@@ -400,8 +400,9 @@ class PartitionDriver(object):
 
         for gene in gene_list:
             print '  %s' % utils.color_gene(gene)
-            sys.stdout.flush()
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.germline_seqs[utils.get_region(gene)][gene], min_occurences=self.args.min_observations_to_write)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety,
+                               self.germline_seqs[utils.get_region(gene)][gene],
+                               self.args)
             writer.write()
 
     # ----------------------------------------------------------------------------------------
