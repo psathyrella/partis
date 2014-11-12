@@ -1,3 +1,4 @@
+- imgt fasta download: http://www.imgt.org/vquest/refseqh.html
 - name reassignment
     IGHV1-c   IGHV1-38-4
     IGHV1-f   IGHV1-69-2
@@ -17,6 +18,8 @@
   - write shit up!
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
+  - add datadir option to vdjalign
+  - NOTE forbidding unphysical deletions seems to have roughly the same performance, while improving run time by a factor of 6
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
   - remove this stuff in recombinator: 'if region == 'v' and position < 200:  # don\'t really have any information here. TODO add some criterion to remove positions with really large uncertainties'
   - account for different mutation frequencies to different bases

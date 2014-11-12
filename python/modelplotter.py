@@ -32,8 +32,9 @@ def find_state_number(name):
 
 # ----------------------------------------------------------------------------------------
 class ModelPlotter(object):
-    def __init__(self, modeldir, base_plotdir):
+    def __init__(self, modeldir, base_plotdir, skip_boring_states=''):
         self.base_plotdir = base_plotdir
+        self.skip_boring_states = skip_boring_states
         plot_types = ('transitions', 'emissions', 'pair-emissions')
         for ptype in plot_types:
             plotdir = self.base_plotdir + '/' + ptype + '/plots'
@@ -59,12 +60,13 @@ class ModelPlotter(object):
         ibin = 0
         drawn_name_texts, lines, texts = {}, {}, {}
         for state in model.states:
-            if len(state.transitions) == 1:
-                to_state = state.transitions.keys()[0]
-                if to_state == 'end':
-                    continue
-                if find_state_number(state.name) + 1 == find_state_number(to_state):
-                    continue
+            if utils.get_region(gene_name) in self.skip_boring_states:
+                if len(state.transitions) == 1:  # skip uninteresting states
+                    to_state = state.transitions.keys()[0]  # skip states with only transitions to end
+                    if to_state == 'end':
+                        continue
+                    if find_state_number(state.name) + 1 == find_state_number(to_state):  # skip states with only transitions to next state
+                        continue
 
             drawn_name_texts[state.name] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
             drawn_name_texts[state.name].SetBorderSize(0)
@@ -103,6 +105,8 @@ class ModelPlotter(object):
         cvn = TCanvas('cvn', '', 1000, 400)
         n_bins = ibin
         hframe = TH1F(model.name + '-transition-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
+        if utils.get_region(gene_name) in self.skip_boring_states:
+            hframe.SetTitle(hframe.GetTitle() + ' (skipped boring states)')
         hframe.SetNdivisions(202, 'y')
         hframe.SetNdivisions(0, 'x')
         hframe.Draw()
@@ -172,8 +176,14 @@ class ModelPlotter(object):
 
     # # ----------------------------------------------------------------------------------------
     # def make_pair_emission_plot(self, gene_name, model):
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+parser.add_argument('--label')
+parser.add_argument('--flavor')
+args = parser.parse_args()
         
 if __name__ == '__main__':
-    flavor = sys.argv[1]
-    hmmdir = os.getenv('HOME') + '/work/partis/caches/' + flavor + '/sw_parameters/hmms'
-    mplot = ModelPlotter(hmmdir, os.getenv('www') + '/modelplots/' + flavor)
+    hmmdir = os.getenv('HOME') + '/work/partis/caches/' + args.label + '/' + args.flavor + '_parameters/hmms'
+    mplot = ModelPlotter(hmmdir, os.getenv('www') + '/modelplots/', skip_boring_states='v')

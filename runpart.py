@@ -21,6 +21,7 @@ parser.add_argument('--no_clean', action='store_true')  # don't remove the vario
 
 # basic actions:
 parser.add_argument('--simulate', action='store_true')  # make simulated recombination events
+parser.add_argument('--build_hmms', action='store_true')  # just build hmms (and write 'em out) from existing parameter csvs
 parser.add_argument('--generate_trees', action='store_true')  # generate trees to pass to bppseqgen for simulation
 parser.add_argument('--cache_parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
 parser.add_argument('--point_estimate', action='store_true')
@@ -35,7 +36,7 @@ parser.add_argument('--plot_performance', action='store_true')
 
 parser.add_argument('--seqfile')  # input file
 parser.add_argument('--parameter_dir', required=True)  # sample-specific parameters (mutation rates, gene version freqs, ...)
-parser.add_argument('--datadir', default='data/imgt')  # non-sample-specific information (e.g. germline gene versions)
+parser.add_argument('--datadir', required=True)  # non-sample-specific information (e.g. germline gene versions)
 parser.add_argument('--outfname')  # for recombinator, write simulated events to this file. For waterer and partitiondriver, write output to this file
 parser.add_argument('--plotdir')
 
@@ -49,7 +50,7 @@ parser.add_argument('--only_genes')  # skip all gene matches except for these wh
 
 parser.add_argument('--min_observations_to_write', type=int, default=20)  # if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)
 
-parser.add_argument('--j_subset', default='imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
+parser.add_argument('--j_subset', default=None)  #'imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
 parser.add_argument('--n_max_per_region', default='3:5:2')  # number of best smith-waterman matches (per region, in the order v:d:j) to keep and pass on to the hmm
 parser.add_argument('--n_best_events', type=int, default=3)
 parser.add_argument('--default_v_fuzz', type=int, default=2)  # TODO play around with these default fuzzes
@@ -79,7 +80,6 @@ if args.simulate:
         sys.stdout.flush()
         reco.combine()
     os.rmdir(reco.workdir)
-        
 else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
@@ -91,8 +91,9 @@ else:
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
 
-    # parter.write_hmms(args.parameter_dir, None)
-    # sys.exit()
+    if args.build_hmms:        
+        parter.write_hmms(args.parameter_dir, None)
+        sys.exit()
 
     if args.cache_parameters:
         parter.cache_parameters()

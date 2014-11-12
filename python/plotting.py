@@ -294,8 +294,19 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
     if dir3 != '':
         dir3_hists = get_hists_from_dir(dir3, name3)
     for varname, hist in dir1_hists.iteritems():
-        if xtitle != '':
-            hist.GetXaxis().SetTitle(xtitle)
+        # set x title
+        # if xtitle != '':
+        #     hist.GetXaxis().SetTitle(xtitle)
+        if varname.find('hamming_to_true_naive') == 0:
+            hist.GetXaxis().SetTitle('hamming')
+        elif varname.find('hamming_to_true_naive') > 0:
+            hist.GetXaxis().SetTitle('% hamming')
+        # deal with log axes
+        if varname.find('hamming_to_true_naive') > 0:
+            log = 'y'
+        else:
+            log = ''
+
         hist2 = dir2_hists[varname]
         hist3 = None
         if dir3_hists != None:
@@ -306,7 +317,7 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         bounds = None
         # if varname in hard_bounds:
         #     bounds = hard_bounds[varname]
-        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds)
+        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds, log=log)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', outdir, '3', 'null', 'svg'])
         

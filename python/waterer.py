@@ -123,6 +123,7 @@ class Waterer(object):
         cmd_str += ' --max-drop 50'
         cmd_str += ' --match 5 --mismatch 3'
         cmd_str += ' --gap-open 1000'
+        cmd_str += ' --vdj-dir ' + self.args.datadir
         if self.args.j_subset != None:
             cmd_str += ' --j-subset ' + self.args.j_subset 
         cmd_str += ' ' + infname + ' ' + outfname
@@ -317,7 +318,8 @@ class Waterer(object):
 
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.args.debug:
-            utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:')
+            if not self.args.is_data:
+                utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:')
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:')
 
         if self.pcounter != None:

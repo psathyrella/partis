@@ -73,7 +73,7 @@ class IhhhmmmParser(object):
         n_max_queries = 100
         queries = []
 
-        self.germline_seqs = utils.read_germlines(datadir, add_fp=True)
+        self.germline_seqs = utils.read_germlines(datadir)  #, add_fp=True)
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir, 'ihhhmmm')
 
         # get sequence info that was passed to ihhhmmm

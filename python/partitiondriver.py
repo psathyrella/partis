@@ -32,7 +32,7 @@ def from_same_event(is_data, pair_hmm, reco_info, query_name, second_query_name)
 class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
-        self.germline_seqs = utils.read_germlines(self.args.datadir, add_fp=True)
+        self.germline_seqs = utils.read_germlines(self.args.datadir)  #, add_fp=True)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
@@ -46,7 +46,8 @@ class PartitionDriver(object):
         if not self.args.is_data:
             self.reco_info = {}  # generator truth information
 
-        self.read_input_file()  # read simulation info and write sw input file
+        if self.args.seqfile != None:
+            self.read_input_file()  # read simulation info and write sw input file
 
         self.outfile = None
         if self.args.outfname != None:
@@ -407,6 +408,10 @@ class PartitionDriver(object):
     def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir, query_name, second_query_name=None):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
         # first get the list of genes for which we don't have hmm files
+        if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
+            print 'ERROR no yamels in %s' % parameter_dir
+            sys.exit()
+
         genes_to_remove = []
         for gene in gene_list:
             hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'

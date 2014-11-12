@@ -560,7 +560,7 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir, remove_fp=False, add_fp=False, remove_N_nukes=False):
+def read_germlines(data_dir):  #, remove_fp=False, add_fp=False, remove_N_nukes=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     print 'read gl from', data_dir
     germlines = {}
@@ -568,16 +568,16 @@ def read_germlines(data_dir, remove_fp=False, add_fp=False, remove_N_nukes=False
         germlines[region] = OrderedDict()
         for seq_record in SeqIO.parse(data_dir + '/igh'+region+'.fasta', "fasta"):
             gene_name = seq_record.name
-            if remove_fp and region == 'j':
-                gene_name = gene_name[:-2]
-            if add_fp and region == 'j':
-                if 'P' in gene_name:
-                    gene_name = gene_name + '_P'
-                else:
-                    gene_name = gene_name + '_F'
+            # if remove_fp and region == 'j':
+            #     gene_name = gene_name[:-2]
+            # if add_fp and region == 'j':
+            #     if 'P' in gene_name:
+            #         gene_name = gene_name + '_P'
+            #     else:
+            #         gene_name = gene_name + '_F'
             seq_str = str(seq_record.seq)
-            if remove_N_nukes and 'N' in seq_str:
-                seq_str = seq_str.replace('N', 'A')
+            # if remove_N_nukes and 'N' in seq_str:
+            #     seq_str = seq_str.replace('N', 'A')
             germlines[region][gene_name] = seq_str
     return germlines
 
