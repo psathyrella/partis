@@ -3,6 +3,7 @@ import sys
 import csv
 import json
 import random
+from collections import OrderedDict
 import numpy
 import math
 import os
@@ -50,6 +51,7 @@ class Recombinator(object):
 
         # then read stuff that's specific to each person
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
+        self.read_insertion_content()
         if self.args.naivety == 'M':  # read shm info if non-naive is requested
             # TODO I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
             with opener('r')(self.args.hackey_extra_data_dir + '/gtr.txt') as gtrfile:  # read gtr parameters
@@ -66,6 +68,30 @@ class Recombinator(object):
                 self.trees = treefile.readlines()
 
         utils.prep_dir(os.path.dirname(self.args.outfname), os.path.basename(self.args.outfname))
+
+    # ----------------------------------------------------------------------------------------
+    def read_insertion_content(self):
+        self.insertion_content_probs = {}
+        for bound in utils.boundaries:
+            self.insertion_content_probs[bound] = {}
+            if self.args.insertion_base_content:
+                with opener('r')(self.args.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
+                    reader = csv.DictReader(icfile)
+                    total = 0
+                    for line in reader:
+                        self.insertion_content_probs[bound][line[bound + '_insertion_content']] = int(line['count'])
+                        total += int(line['count'])
+                    for nuke in utils.nukes:
+                        if nuke not in self.insertion_content_probs[bound]:
+                            print '    %s not in insertion content probs, adding with zero' % nuke
+                            self.insertion_content_probs[bound][nuke] = 0
+                        self.insertion_content_probs[bound][nuke] /= float(total)
+            else:
+                self.insertion_content_probs[bound] = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
+
+            assert utils.is_normed(self.insertion_content_probs[bound])
+            if self.args.debug:
+                print '  insertion content for', bound, self.insertion_content_probs[bound]
 
     # ----------------------------------------------------------------------------------------
     def combine(self):
@@ -170,8 +196,19 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def insert(self, boundary, reco_event):
         insert_seq_str = ''
+        probs = self.insertion_content_probs[boundary]
         for _ in range(0, reco_event.insertion_lengths[boundary]):
-            insert_seq_str += utils.int_to_nucleotide(random.randint(0, 3))  # TODO do something more accurate for the base content here
+            iprob = numpy.random.uniform(0,1)
+            sum_prob = 0.0
+            new_nuke = ''  # this is just to make sure I don't fall through the loop over nukes
+            for nuke in utils.nukes:  # assign each nucleotide a segment of the interval [0,1], and choose the one which contains <iprob>
+                sum_prob += probs[nuke]
+                if iprob < sum_prob:
+                    new_nuke = nuke
+                    break
+            assert new_nuke != ''
+            insert_seq_str += new_nuke
+                
         reco_event.insertions[boundary] = insert_seq_str
 
     # ----------------------------------------------------------------------------------------

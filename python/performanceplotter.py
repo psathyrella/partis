@@ -26,6 +26,9 @@ class PerformancePlotter(object):
         self.values['hamming_to_true_naive'] = {}
         for region in utils.regions:
             self.values[region + '_hamming_to_true_naive'] = {}
+        # for bound in utils.boundaries:
+        #     self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion TODO add correlation to previous base
+        # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
         self.values['mute_freqs'] = {}
     # ----------------------------------------------------------------------------------------
     def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False):
@@ -99,9 +102,13 @@ class PerformancePlotter(object):
                     self.values[column]['wrong'] += 1
             else:
                 trueval, guessval = 0, 0
-                if 'insertion' in column:
+                if column[2:] == '_insertion':  # insertion length
                     trueval = len(true_line[column])
                     guessval = len(line[column])
+                # elif '_content' in column:  # TODO ARG this is harder than I thought. I need to modify to allow distributions rather than just [guess - true]
+                #     seq_to_use = line[column[ : column.find('_', 3)]]  # NOTE has to work for seq_content *and* vd_insertion_content, hence the 3
+                #         for nuke in seq_to_use:
+                #             self.counts[col][nuke] += 1
                 elif column == 'hamming_to_true_naive':
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
                     guessval = self.hamming_distance_to_true_naive(true_line, line, query_name)

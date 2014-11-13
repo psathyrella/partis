@@ -107,12 +107,8 @@ class ParameterCounter(object):
                 if column_val not in values:
                     values[column_val] = 0.0
                 values[column_val] += count
-            if '_content' in column:
-                total = values['A'] + values['C'] + values['G'] + values['T']
-                for nuke in utils.nukes:
-                    values[nuke] /= float(total)
-            hist = plotting.make_hist(values, var_type, column)
-            plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir)
+            hist = plotting.make_hist(values, var_type, column, sort=True)
+            plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir, errors=('_content' in column))
         if has_root:
             check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
             check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])

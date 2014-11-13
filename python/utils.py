@@ -17,11 +17,23 @@ from Bio import SeqIO
 #----------------------------------------------------------------------------------------
 eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
 # TODO I also have an eps defined in hmmwriter
-def is_normed(prob):
-    return math.fabs(prob - 1.0) < eps  #*1000000000
+def is_normed(probs):
+    if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
+        return is_normed([val for key, val in probs.items()])
+    elif hasattr(probs, '__getitem__'):  # if it's a list call yourself with their sum
+        return is_normed(sum(probs))
+    else:  # and if it's a float actually do what you're supposed to do
+        return math.fabs(probs - 1.0) < eps
 
 # ----------------------------------------------------------------------------------------
-hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
+def get_arg_list(arg):  # make lists from args that are passed as strings of colon-separated values
+    if arg == None:
+        return arg
+    else:
+        return arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+
+# # ----------------------------------------------------------------------------------------
+# hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
@@ -39,8 +51,6 @@ index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
-
-# all_gene_tuple = ('IGHD1-1*01', 'IGHD1-14*01', 'IGHD1-20*01', 'IGHD1-26*01', 'IGHD1-7*01', 'IGHD1/OR15-1a*01', 'IGHD1/OR15-1b*01', 'IGHD2-15*01', 'IGHD2-2*01', 'IGHD2-2*02', 'IGHD2-2*03', 'IGHD2-21*01', 'IGHD2-21*02', 'IGHD2-8*01', 'IGHD2-8*02', 'IGHD2/OR15-2a*01', 'IGHD2/OR15-2b*01', 'IGHD3-10*01', 'IGHD3-10*02', 'IGHD3-16*01', 'IGHD3-16*02', 'IGHD3-22*01', 'IGHD3-3*01', 'IGHD3-3*02', 'IGHD3-9*01', 'IGHD3/OR15-3a*01', 'IGHD3/OR15-3b*01', 'IGHD4-11*01', 'IGHD4-17*01', 'IGHD4-23*01', 'IGHD4-4*01', 'IGHD4/OR15-4a*01', 'IGHD4/OR15-4b*01', 'IGHD5-12*01', 'IGHD5-18*01', 'IGHD5-24*01', 'IGHD5-5*01', 'IGHD5/OR15-5a*01', 'IGHD5/OR15-5b*01', 'IGHD6-13*01', 'IGHD6-19*01', 'IGHD6-25*01', 'IGHD6-6*01', 'IGHD7-27*01', 'IGHJ1*01_F', 'IGHJ1P*01_P', 'IGHJ2*01_F', 'IGHJ2P*01_P', 'IGHJ3*01_F', 'IGHJ3*02_F', 'IGHJ3P*01_P', 'IGHJ3P*02_P', 'IGHJ4*01_F', 'IGHJ4*02_F', 'IGHJ4*03_F', 'IGHJ5*01_F', 'IGHJ5*02_F', 'IGHJ6*01_F', 'IGHJ6*02_F', 'IGHJ6*03_F', 'IGHJ6*04_F', 'IGHV1-18*01', 'IGHV1-18*03', 'IGHV1-2*01', 'IGHV1-2*02', 'IGHV1-2*03', 'IGHV1-2*04', 'IGHV1-2*05', 'IGHV1-24*01', 'IGHV1-3*01', 'IGHV1-3*02', 'IGHV1-45*01', 'IGHV1-45*02', 'IGHV1-45*03', 'IGHV1-46*01', 'IGHV1-46*02', 'IGHV1-46*03', 'IGHV1-58*01', 'IGHV1-58*02', 'IGHV1-68*01', 'IGHV1-69*01', 'IGHV1-69*02', 'IGHV1-69*04', 'IGHV1-69*05', 'IGHV1-69*06', 'IGHV1-69*08', 'IGHV1-69*09', 'IGHV1-69*10', 'IGHV1-69*11', 'IGHV1-69*12', 'IGHV1-69*13', 'IGHV1-8*01', 'IGHV1-8*02', 'IGHV1-NL1*01', 'IGHV1-c*01', 'IGHV1-f*01', 'IGHV1/OR15-1*01', 'IGHV1/OR15-1*02', 'IGHV1/OR15-1*03', 'IGHV1/OR15-1*04', 'IGHV1/OR15-2*01', 'IGHV1/OR15-2*02', 'IGHV1/OR15-2*03', 'IGHV1/OR15-3*01', 'IGHV1/OR15-3*02', 'IGHV1/OR15-3*03', 'IGHV1/OR15-4*01', 'IGHV1/OR15-5*01', 'IGHV1/OR15-5*02', 'IGHV1/OR15-9*01', 'IGHV1/OR21-1*01', 'IGHV2-10*01', 'IGHV2-26*01', 'IGHV2-5*01', 'IGHV2-5*04', 'IGHV2-5*05', 'IGHV2-5*06', 'IGHV2-5*07', 'IGHV2-5*08', 'IGHV2-5*09', 'IGHV2-5*10', 'IGHV2-70*01', 'IGHV2-70*09', 'IGHV2-70*10', 'IGHV2-70*11', 'IGHV2-70*12', 'IGHV2-70*13', 'IGHV2/OR16-5*01', 'IGHV3-11*01', 'IGHV3-11*03', 'IGHV3-11*04', 'IGHV3-11*05', 'IGHV3-13*01', 'IGHV3-13*02', 'IGHV3-13*03', 'IGHV3-13*04', 'IGHV3-15*01', 'IGHV3-15*02', 'IGHV3-15*03', 'IGHV3-15*04', 'IGHV3-15*05', 'IGHV3-15*06', 'IGHV3-15*07', 'IGHV3-15*08', 'IGHV3-16*01', 'IGHV3-16*02', 'IGHV3-19*01', 'IGHV3-20*01', 'IGHV3-21*01', 'IGHV3-21*02', 'IGHV3-21*03', 'IGHV3-21*04', 'IGHV3-22*01', 'IGHV3-22*02', 'IGHV3-23*01', 'IGHV3-23*02', 'IGHV3-23*03', 'IGHV3-23*04', 'IGHV3-25*01', 'IGHV3-25*02', 'IGHV3-25*03', 'IGHV3-25*04', 'IGHV3-25*05', 'IGHV3-30*01', 'IGHV3-30*02', 'IGHV3-30*03', 'IGHV3-30*04', 'IGHV3-30*05', 'IGHV3-30*06', 'IGHV3-30*07', 'IGHV3-30*08', 'IGHV3-30*09', 'IGHV3-30*10', 'IGHV3-30*11', 'IGHV3-30*12', 'IGHV3-30*13', 'IGHV3-30*14', 'IGHV3-30*15', 'IGHV3-30*16', 'IGHV3-30*17', 'IGHV3-30*18', 'IGHV3-30*19', 'IGHV3-30-3*01', 'IGHV3-30-3*02', 'IGHV3-32*01', 'IGHV3-33*01', 'IGHV3-33*02', 'IGHV3-33*03', 'IGHV3-33*04', 'IGHV3-33*05', 'IGHV3-33*06', 'IGHV3-35*01', 'IGHV3-38*01', 'IGHV3-38*02', 'IGHV3-43*01', 'IGHV3-43*02', 'IGHV3-47*01', 'IGHV3-47*02', 'IGHV3-48*01', 'IGHV3-48*02', 'IGHV3-48*03', 'IGHV3-48*04', 'IGHV3-49*01', 'IGHV3-49*02', 'IGHV3-49*03', 'IGHV3-49*04', 'IGHV3-49*05', 'IGHV3-52*01', 'IGHV3-53*01', 'IGHV3-53*02', 'IGHV3-53*03', 'IGHV3-53*04', 'IGHV3-54*01', 'IGHV3-54*02', 'IGHV3-54*04', 'IGHV3-62*01', 'IGHV3-63*01', 'IGHV3-63*02', 'IGHV3-64*01', 'IGHV3-64*02', 'IGHV3-64*03', 'IGHV3-64*04', 'IGHV3-64*05', 'IGHV3-66*01', 'IGHV3-66*02', 'IGHV3-66*03', 'IGHV3-66*04', 'IGHV3-7*01', 'IGHV3-7*02', 'IGHV3-7*03', 'IGHV3-71*01', 'IGHV3-71*02', 'IGHV3-71*03', 'IGHV3-72*01', 'IGHV3-73*01', 'IGHV3-73*02', 'IGHV3-74*01', 'IGHV3-74*02', 'IGHV3-74*03', 'IGHV3-9*01', 'IGHV3-9*02', 'IGHV3-NL1*01', 'IGHV3-d*01', 'IGHV3-h*01', 'IGHV3-h*02', 'IGHV3/OR15-7*01', 'IGHV3/OR15-7*02', 'IGHV3/OR15-7*03', 'IGHV3/OR15-7*05', 'IGHV3/OR16-10*01', 'IGHV3/OR16-10*02', 'IGHV3/OR16-10*03', 'IGHV3/OR16-12*01', 'IGHV3/OR16-13*01', 'IGHV3/OR16-14*01', 'IGHV3/OR16-15*01', 'IGHV3/OR16-15*02', 'IGHV3/OR16-16*01', 'IGHV3/OR16-6*02', 'IGHV3/OR16-8*01', 'IGHV3/OR16-8*02', 'IGHV3/OR16-9*01', 'IGHV4-28*01', 'IGHV4-28*02', 'IGHV4-28*03', 'IGHV4-28*04', 'IGHV4-28*06', 'IGHV4-30-2*01', 'IGHV4-30-2*02', 'IGHV4-30-2*03', 'IGHV4-30-2*04', 'IGHV4-30-2*05', 'IGHV4-30-4*01', 'IGHV4-30-4*02', 'IGHV4-30-4*05', 'IGHV4-30-4*06', 'IGHV4-31*01', 'IGHV4-31*02', 'IGHV4-31*03', 'IGHV4-31*04', 'IGHV4-31*05', 'IGHV4-31*10', 'IGHV4-34*01', 'IGHV4-34*02', 'IGHV4-34*04', 'IGHV4-34*05', 'IGHV4-34*08', 'IGHV4-34*09', 'IGHV4-34*10', 'IGHV4-34*11', 'IGHV4-34*12', 'IGHV4-34*13', 'IGHV4-39*01', 'IGHV4-39*02', 'IGHV4-39*05', 'IGHV4-39*06', 'IGHV4-39*07', 'IGHV4-4*01', 'IGHV4-4*02', 'IGHV4-4*06', 'IGHV4-4*07', 'IGHV4-55*01', 'IGHV4-55*02', 'IGHV4-55*08', 'IGHV4-55*09', 'IGHV4-59*01', 'IGHV4-59*02', 'IGHV4-59*03', 'IGHV4-59*04', 'IGHV4-59*05', 'IGHV4-59*06', 'IGHV4-59*07', 'IGHV4-59*08', 'IGHV4-59*09', 'IGHV4-59*10', 'IGHV4-61*01', 'IGHV4-61*02', 'IGHV4-61*03', 'IGHV4-61*05', 'IGHV4-61*06', 'IGHV4-61*07', 'IGHV4-61*08', 'IGHV4-b*01', 'IGHV4-b*02', 'IGHV4/OR15-8*01', 'IGHV4/OR15-8*02', 'IGHV4/OR15-8*03', 'IGHV5-51*01', 'IGHV5-51*02', 'IGHV5-51*03', 'IGHV5-51*04', 'IGHV5-78*01', 'IGHV5-a*01', 'IGHV5-a*02', 'IGHV5-a*03', 'IGHV5-a*04', 'IGHV6-1*01', 'IGHV6-1*02', 'IGHV7-34-1*02', 'IGHV7-4-1*01', 'IGHV7-4-1*02', 'IGHV7-4-1*04', 'IGHV7-4-1*05', 'IGHV7-40*03', 'IGHV7-81*01', 'IGHV1-8*91', 'IGHV1-NL1*91', 'IGHV2-5*91', 'IGHV3-20*91', 'IGHV3-43*91', 'IGHV3-53*91', 'IGHV3-9*91', 'IGHV4-30-2*91', 'IGHV7-4-1*91', 'IGHV7-4-1*92', 'IGHV1-3*91', 'IGHV3-64*91', 'IGHV3/OR16-13*91', 'IGHV3/OR16-14*91', 'IGHV7-4-1*93', 'IGHV4-39*91', 'IGHV4-4*91', 'IGHV4-59*91')
 
 # ----------------------------------------------------------------------------------------
 # Info specifying which parameters are assumed to correlate with which others. Taken from mutual
@@ -304,6 +314,7 @@ def get_v_5p_del(original_seqs, line):
 def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
     """
     get original and eroded germline seqs
+    NOTE does not modify line
     """
     for region in regions:
         del_5p = int(line[region + '_5p_del'])
@@ -334,16 +345,29 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, a
 
 # ----------------------------------------------------------------------------------------
 def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False):
-    """ Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line> """
+    """
+    Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.
+    If info is already there, make sure it's the same as what we calculate here
+    """
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
     eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     # if debug:
     #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (cyst_positions[line['v_gene']]['cysteine-position'], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
     eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
-    line['cyst_position'] = eroded_gl_cpos
+    values = {}
+    values['cyst_position'] = eroded_gl_cpos
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
-    line['tryp_position'] = tpos_in_joined_seq
-    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
+    values['tryp_position'] = tpos_in_joined_seq
+    values['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
+
+    for key, val in values.items():
+        if key in line:
+            if int(line[key]) != int(val):
+                print 'ERROR', key, 'from line:', line[key], 'not equal to', val
+                assert False
+        else:
+            line[key] = val
+    
     try:
         check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
         check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
@@ -351,7 +375,7 @@ def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False
         if debug:
             print '    bad codon, setting cdr3_length to -1'
         line['cdr3_length'] = -1
-    
+
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):
     original_seqs = {}  # original (non-eroded) germline seqs
@@ -380,7 +404,7 @@ def get_regional_naive_seq_bounds(region, germlines, line):
     return (start[region], end[region])
 
 # ----------------------------------------------------------------------------------------
-def add_match_info(germlines, line, cyst_positions, tryp_positions, skip_unproductive, debug=False):
+def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False):  # TODO skip_unproductive isn't used here, I think?
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
 

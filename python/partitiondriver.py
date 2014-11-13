@@ -102,6 +102,7 @@ class PartitionDriver(object):
                     if 'jf_insertion' not in line:
                         line['jf_insertion'] = ''
                     self.reco_info[line['unique_id']] = line
+                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
                 n_queries += 1
                 if self.args.n_max_queries > 0 and n_queries >= self.args.n_max_queries:
                     break
@@ -179,8 +180,13 @@ class PartitionDriver(object):
         pcounter = None
         if count_parameters:
             pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir)
+        true_pcounter = None
+        if count_parameters and not self.args.is_data:
+            true_pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir + '/true')
         if plotdir != '':
             utils.prep_dir(plotdir + '/plots', '*.svg')
+            if count_parameters and not self.args.is_data:
+                utils.prep_dir(plotdir + '/true/plots', '*.svg')
 
         perfplotter = None
         if plot_performance:
@@ -212,10 +218,12 @@ class PartitionDriver(object):
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
         if self.outfile != None and algorithm == 'forward':
             self.outfile.write('hmm pairscores\n')
-        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter)
+        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter)
 
         if count_parameters:
             pcounter.write_counts()
+        if count_parameters and not self.args.is_data:
+            true_pcounter.write_counts()
 
         clusters = None
         if self.args.pair and algorithm == 'forward':
@@ -501,7 +509,7 @@ class PartitionDriver(object):
                     print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter):
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter):
         # TODO the input and output files for this function are almost identical at this point
 
         # write header for pairwise score file
@@ -528,15 +536,17 @@ class PartitionDriver(object):
                             if self.args.pair:
                                 print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']),
                             print ''
-                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=(self.args.debug > 0))
+                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
+                            if true_pcounter != None:  # increment true counters
+                                true_pcounter.increment(self.reco_info[line['unique_id']])
                             if perfplotter != None:
                                 perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
                     if self.args.debug:
                         if last_id == this_id:
-                            utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, self.args.skip_unproductive, debug=False)
+                            utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=False)
                         if line['cdr3_length'] == -1:
                             print '      ERROR %s failed to add match info' % line['unique_id']
                         self.print_hmm_output(line, print_true=(last_id != this_id), perfplotter=perfplotter)

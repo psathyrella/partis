@@ -6,12 +6,6 @@ sys.path.insert(1, './python')
 
 import utils
 # merged data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2
-# ----------------------------------------------------------------------------------------
-def get_arg_list(arg):  # make lists from args that are passed as strings of colon-separated values
-    if arg == None:
-        return arg
-    else:
-        return arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
@@ -33,6 +27,7 @@ parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--skip_unproductive', action='store_true')  # skip unproductive rearrangements
 parser.add_argument('--apply_choice_probs_in_sw', action='store_true')
 parser.add_argument('--plot_performance', action='store_true')
+parser.add_argument('--insertion_base_content', action='store_true')
 # TODO tell waterer about these allowances
 parser.add_argument('--allow_unphysical_insertions', action='store_true')  # allow insertions on left side of v and right side of j
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
@@ -67,7 +62,7 @@ parser.add_argument('--tree_parameter_file', default='/shared/silo_researcher/Ma
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 args = parser.parse_args()
-args.only_genes = get_arg_list(args.only_genes)
+args.only_genes = utils.get_arg_list(args.only_genes)
 
 # ----------------------------------------------------------------------------------------
 if args.simulate:
@@ -87,9 +82,9 @@ else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
 
-    args.queries = get_arg_list(args.queries)
-    args.reco_ids = get_arg_list(args.reco_ids)
-    args.n_max_per_region = get_arg_list(args.n_max_per_region)
+    args.queries = utils.get_arg_list(args.queries)
+    args.reco_ids = utils.get_arg_list(args.reco_ids)
+    args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
 
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)

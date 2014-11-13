@@ -145,7 +145,7 @@ def make_bool_hist(n_true, n_false, hist_label):
     return hist
 
 # ----------------------------------------------------------------------------------------
-def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False):
+def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False, sort=False):
     """ fill a histogram with values from a dictionary """
     if not has_root:
         return
@@ -154,7 +154,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
         return TH1F(hist_label, '', 1, 0, 1)
 
     bin_labels = sorted(values)
-    if var_type == 'string':  # for strings, sort so most common value is to left side
+    if not sort and var_type == 'string':  # for strings, sort so most common value is to left side
         bin_labels = sorted(values, key=values.get, reverse=True)
 
     if var_type == 'string':
@@ -180,6 +180,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
             #     label = label.replace('IGH','').replace('*',' ').lower()
             hist.GetXaxis().SetBinLabel(ival+1, label)
             hist.SetBinContent(ival+1, values[bin_labels[ival]])
+            hist.SetBinError(ival+1, math.sqrt(values[bin_labels[ival]]))
         else:
             hist.Fill(bin_labels[ival], values[bin_labels[ival]])
         
@@ -200,7 +201,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None, bounds=None):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None, bounds=None, errors=False):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
@@ -229,22 +230,25 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         hframe.GetXaxis().SetLabelSize(0.1)
         # hframe.SetMaximum(1.0)
     hframe.SetTitle(plotname + ';' + hist.GetXaxis().GetTitle() + ';')
-    hframe.Draw("txt")
+    hframe.Draw('txt')
 
-    hist.SetLineColor(kRed);
-    # hist.SetMarkerSize(0);
+    draw_str = 'hist same'
+    if errors:  # not working!
+        draw_str = 'e ' + draw_str
+    hist.SetLineColor(kBlue);
+    hist.SetMarkerSize(0);
     hist.SetLineWidth(4);
-    hist.Draw("hist same");
+    hist.Draw(draw_str);
     if hist2 != None:
-        hist2.SetLineColor(kBlue)  #419);
+        hist2.SetLineColor(kRed)  #419);
         # hist2.SetMarkerSize(0);
         hist2.SetLineWidth(4);
-        hist2.Draw("hist same");
+        hist2.Draw(draw_str);
     if hist3 != None:
         hist3.SetLineColor(kGreen+2)  #419);
         # hist3.SetMarkerSize(0);
         hist3.SetLineWidth(4);
-        hist3.Draw("hist same");
+        hist3.Draw(draw_str);
 
     leg = TLegend(0.5, 0.78, 0.9, 0.9)
     leg.SetFillColor(0)

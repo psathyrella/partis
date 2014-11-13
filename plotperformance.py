@@ -2,7 +2,11 @@
 # run sequence of commands to build models and plot performance
 from subprocess import check_call
 import os
+import sys
 import argparse
+
+sys.path.insert(1, './python')
+import utils
 
 # ----------------------------------------------------------------------------------------
 def run_that_shit(cmd_str):
@@ -16,10 +20,14 @@ parser.add_argument('--label', required=True)  # label for this test run. e.g. r
 parser.add_argument('--n-queries', default='50000')  # label for this test run. e.g. results are written to dirs with this name
 # parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation?
 parser.add_argument('--datadir', default='data/many')
+parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
 args = parser.parse_args()
+args.extra_args = utils.get_arg_list(args.extra_args)
 
 cmd = './runpart.py'
 common_args = ' --n_procs 10 --datadir ' + args.datadir
+if args.extra_args != None:
+    common_args += ' ' + ' '.join(args.extra_args)
 simu_file = 'caches/recombinator/performance/' + args.label + '/simu.csv'
 param_dir = 'caches/performance/' + args.label
 plot_dir = os.getenv('www') + '/partis/performance/' + args.label
