@@ -62,6 +62,9 @@ column_dependencies['vd_insertion'] = []
 column_dependencies['dj_insertion'] = ['j_gene']
 column_dependencies['jf_insertion'] = []
 
+# column_dependencies['vd_insertion_content'] = []
+# column_dependencies['dj_insertion_content'] = []
+
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
 column_dependency_tuples = []

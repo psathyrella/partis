@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 # parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='50000')  # label for this test run. e.g. results are written to dirs with this name
-parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation?
+# parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation?
 parser.add_argument('--datadir', default='data/many')
 args = parser.parse_args()
 
