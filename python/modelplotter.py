@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import argparse
 import glob
 import operator
 import yaml
@@ -177,7 +178,6 @@ class ModelPlotter(object):
     # # ----------------------------------------------------------------------------------------
     # def make_pair_emission_plot(self, gene_name, model):
 
-import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label')

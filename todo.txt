@@ -16,6 +16,7 @@
   - account for different mutation frequencies to different bases
   - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
   - account for non-uniform base content in insertions
+    - don\'t forget to put this into recombinator  
   - optimize on fuzzes and n_max_per_region
   - looking at the damn plots, my insertions and deletions are on average too small. Why is this?
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
@@ -24,7 +25,6 @@
     - single viterbi, viterbi pair, clustering
     - parameter estimation from sw and hmm
   - check orphaned state code in model.cc
-  - v left and j right insertions and deletions: allow them *only* if they run beyond the query sequence?
   - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
   - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
   - TODOs in code
