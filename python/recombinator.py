@@ -294,7 +294,7 @@ class Recombinator(object):
         # TODO I need to find a tool to give me the total branch length of the chosen tree, so I can compare to the number of mutations I see
 
     # ----------------------------------------------------------------------------------------
-    def run_bppseqgen(self, seq, chosen_tree, gene_name, reco_event, is_insertion=False):
+    def run_bppseqgen(self, seq, chosen_tree, gene_name, reco_event, seed, is_insertion=False):
         """ Run bppseqgen on sequence
 
         Note that this is in general a piece of the full sequence (say, the V region), since
@@ -313,14 +313,16 @@ class Recombinator(object):
             return ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
 
         # write the tree to a tmp file
-        treefname = self.workdir + '/tree.tre'
+        if is_insertion:
+            label = gene_name[:2]
+        else:
+            label = utils.get_region(gene_name)
+        treefname = self.workdir + '/' + label + '-tree.tre'
+        reco_seq_fname = self.workdir + '/' + label + '-start-seq.txt'
+        leaf_seq_fname = self.workdir + '/' + label + '-leaf-seqs.fa'
         with opener('w')(treefname) as treefile:
             treefile.write(chosen_tree)
-
-        reco_seq_fname = self.workdir + '/start_seq.txt'
-        self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
-
-        leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
+        self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)  # TODO assert that numbers in reco_seq_fname add up to the proper number
 
         # build up the command line
         bpp_binary = os.getcwd() + '/packages/bpp/bin/bppseqgen'
@@ -335,7 +337,7 @@ class Recombinator(object):
         command += ' input.tree.format=Newick'
         command += ' output.sequence.format=Fasta\(\)'
         command += ' alphabet=DNA'
-        command += ' --seed=' + str(os.getpid())
+        command += ' --seed=' + str(seed)
         command += ' model=GTR\('
         for par in self.mute_models[region]['gtr']:
             val = self.mute_models[region]['gtr'][par]
@@ -355,22 +357,24 @@ class Recombinator(object):
 
         # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
 
-        os.remove(reco_seq_fname)  # clean up temp files
-        os.remove(treefname)
-        os.remove(leaf_seq_fname)
+        if not self.args.no_clean:
+            os.remove(reco_seq_fname)  # clean up temp files
+            os.remove(treefname)
+            os.remove(leaf_seq_fname)
 
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
+        seed = random.randint(0, sys.maxint)
         if self.args.debug:
-            print '  generating mutations (seed %d) with tree %s' % (os.getpid(), chosen_tree)  # TODO make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-        v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, is_insertion=False)
-        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, is_insertion=False)
-        j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, is_insertion=False)
-        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event, is_insertion=True)  # TODO use a better mutation model for the insertions
-        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event, is_insertion=True)
+            print '  generating mutations (seed %d) with tree %s' % (seed, chosen_tree)  # TODO make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
+        v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=seed, is_insertion=False)
+        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=seed, is_insertion=False)
+        j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=seed, is_insertion=False)
+        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event, seed=seed, is_insertion=True)  # TODO use a better mutation model for the insertions
+        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event, seed=seed, is_insertion=True)
 
         assert len(reco_event.final_seqs) == 0
         for iseq in range(len(v_mutes)):
@@ -396,7 +400,7 @@ class Recombinator(object):
 
         with opener('w')(os.devnull) as fnull:
             inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
-        if clean_up:
+        if clean_up and not self.args.no_clean:
             os.remove(leaf_seq_fname)
         chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')
         inferred_tree = dendropy.Tree.get_from_string(inferred_tree_str, 'newick')

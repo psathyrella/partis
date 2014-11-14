@@ -77,7 +77,8 @@ if args.simulate:
         print ievt,
         sys.stdout.flush()
         reco.combine()
-    os.rmdir(reco.workdir)
+    if not args.no_clean:
+        os.rmdir(reco.workdir)
 else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
