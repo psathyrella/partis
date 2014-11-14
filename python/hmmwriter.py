@@ -162,11 +162,13 @@ class HMM(object):
 class HmmWriter(object):
     def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, args):
         self.indir = base_indir
+        self.args = args
+
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
-        self.min_occurences = args.min_observations_to_write
+        self.min_occurences = self.args.min_observations_to_write
         self.n_max_to_interpolate = 20
-        self.allow_unphysical_insertions = args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
+        self.allow_unphysical_insertions = self.args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
         # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
 
         self.insert_mute_prob = 0.0
@@ -395,8 +397,33 @@ class HmmWriter(object):
                 print 'ERROR cannot have all or none of the probability mass in the zero bin:', self.insertion_probs[insertion]
                 assert False
 
+            self.insertion_content_probs = {}
+            self.read_insertion_content(insertion)  # also read the base content of the insertions
+
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
             print '    insertions used:', ' '.join(genes_used)
+
+    # ----------------------------------------------------------------------------------------
+    def read_insertion_content(self, insertion):
+        self.insertion_content_probs[insertion] = {}
+        if self.args.insertion_base_content:
+            with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
+                reader = csv.DictReader(icfile)
+                total = 0
+                for line in reader:
+                    self.insertion_content_probs[insertion][line[insertion + '_insertion_content']] = int(line['count'])
+                    total += int(line['count'])
+                for nuke in utils.nukes:
+                    if nuke not in self.insertion_content_probs[insertion]:
+                        print '    %s not in insertion content probs, adding with zero' % nuke
+                        self.insertion_content_probs[insertion][nuke] = 0
+                    self.insertion_content_probs[insertion][nuke] /= float(total)
+        else:
+            self.insertion_content_probs[insertion] = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
+
+        assert utils.is_normed(self.insertion_content_probs[insertion])
+        if self.args.debug:
+            print '  insertion content for', insertion, self.insertion_content_probs[insertion]
 
     # ----------------------------------------------------------------------------------------
     def read_mute_info(self, this_gene, approved_genes=None):
@@ -557,19 +584,23 @@ class HmmWriter(object):
             return 0.0
 
     # ----------------------------------------------------------------------------------------
-    def get_emission_prob(self, nuke1, nuke2='', is_insert=True, inuke=-1, germline_nuke=''):
+    def get_emission_prob(self, nuke1, nuke2='', is_insert=True, inuke=-1, germline_nuke='', insertion=''):
         assert nuke1 in utils.nukes
         assert nuke2 == '' or nuke2 in utils.nukes
         prob = 1.0
         if is_insert:
             assert self.insert_mute_prob != 0.0
+            assert insertion != ''
+            probs = self.insertion_content_probs[insertion]
             if nuke2 == '':  # single (non-pair) emission
-                prob = 1./len(utils.nukes)
+                prob = probs[nuke1]
             else:
-                if nuke1 == nuke2:
-                    prob = (1. - self.insert_mute_prob) / 4
-                else:
-                    prob = self.insert_mute_prob / 12
+                prob = probs[nuke1] * probs[nuke2]
+                # TODO incorporate mutation probs in here!
+                # if nuke1 == nuke2:
+                #     prob *= (1. - self.insert_mute_prob)
+                # else:
+                #     prob *= self.insert_mute_prob
         else:
             assert inuke >= 0
             assert germline_nuke != ''
@@ -606,11 +637,23 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_emissions(self, state, inuke=-1, germline_nuke=''):
+
+        insertion = ''
+        if 'insert' in state.name:
+            assert len(self.insertions) == 1 or len(self.insertions) == 2
+            if len(self.insertions) == 1:
+                insertion = self.insertions[0]
+            elif 'left' in state.name:
+                insertion = self.insertions[0]
+            elif 'right' in state.name:
+                insertion = self.insertions[1]
+            assert insertion != ''
+        
         # first add single emission
         emission_probs = {}
         total = 0.0
         for nuke in utils.nukes:
-            emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke)
+            emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
             total += emission_probs[nuke]
         if math.fabs(total - 1.0) >= self.eps:
             print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
@@ -623,9 +666,12 @@ class HmmWriter(object):
         for nuke1 in utils.nukes:
             pair_emission_probs[nuke1] = {}
             for nuke2 in utils.nukes:
-                pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke)
+                pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
                 total += pair_emission_probs[nuke1][nuke2]
         if math.fabs(total - 1.0) >= self.eps:
             print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
+            for nuke1 in utils.nukes:
+                for nuke2 in utils.nukes:
+                    print nuke1, nuke2, pair_emission_probs[nuke1][nuke2]
             assert False
         state.add_pair_emission(self.track, pair_emission_probs)

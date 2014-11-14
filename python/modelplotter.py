@@ -62,7 +62,7 @@ class ModelPlotter(object):
         drawn_name_texts, lines, texts = {}, {}, {}
         for state in model.states:
             if utils.get_region(gene_name) in self.skip_boring_states:
-                if len(state.transitions) == 1:  # skip uninteresting states
+                if state.name != 'init' and len(state.transitions) == 1:  # skip uninteresting states
                     to_state = state.transitions.keys()[0]  # skip states with only transitions to end
                     if to_state == 'end':
                         continue
@@ -180,10 +180,9 @@ class ModelPlotter(object):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-parser.add_argument('--label')
-parser.add_argument('--flavor')
+parser.add_argument('--hmmdir', required=True)
 args = parser.parse_args()
         
 if __name__ == '__main__':
-    hmmdir = os.getenv('HOME') + '/work/partis/caches/' + args.label + '/' + args.flavor + '_parameters/hmms'
-    mplot = ModelPlotter(hmmdir, os.getenv('www') + '/modelplots/', skip_boring_states='v')
+    # hmmdir = os.getenv('HOME') + '/work/partis/caches/' + args.label + '/' + args.flavor + '_parameters/hmms'
+    mplot = ModelPlotter(args.hmmdir, os.getenv('www') + '/modelplots/', skip_boring_states='v')

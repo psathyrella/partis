@@ -580,7 +580,8 @@ class PartitionDriver(object):
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
             line['seq'] = tmpseq
 
-        self.print_performance_info(line, perfplotter=perfplotter)
+        if not self.args.is_data:
+            self.print_performance_info(line, perfplotter=perfplotter)
 
         if self.args.outfname == None:
             print ''.join(out_str_list)

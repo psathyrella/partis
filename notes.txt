@@ -14,6 +14,8 @@
   - even when insertion content is uniform over the bases, the hmm finds an excess of T and a deficit of A. no idea why.
     - same deal for SW, although looks like maybe the A deficit is spread among the other bases more evenly
     - this doesn\'t seem to reflect the underlying base distribution for the whole sequence
+  - adding in insertion content doesn\'t seem to help significantly/at all, i.e. the hmm performs just as well with and without it. *sigh*
+    - *but* adding it into *simulation* makes a solid difference -- both SW and HMM do better on simulated sequence where the inserts have non-uniform base content
 
 - imgt fasta download: http://www.imgt.org/vquest/refseqh.html
 - name reassignment

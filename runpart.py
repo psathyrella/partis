@@ -27,7 +27,7 @@ parser.add_argument('--is_data', action='store_true')
 parser.add_argument('--skip_unproductive', action='store_true')  # skip unproductive rearrangements
 parser.add_argument('--apply_choice_probs_in_sw', action='store_true')
 parser.add_argument('--plot_performance', action='store_true')
-parser.add_argument('--insertion_base_content', action='store_true')
+parser.add_argument('--insertion_base_content', default=True, action='store_true')
 # TODO tell waterer about these allowances
 parser.add_argument('--allow_unphysical_insertions', action='store_true')  # allow insertions on left side of v and right side of j
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
