@@ -565,7 +565,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         out_str_list.append('  score: %s' % line['score'])
     if 'cdr3_length' in line:
         out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
-    out_str_list.append('\n')
+    # out_str_list.append('\n')
 
     if return_string:
         return ''.join(out_str_list)
@@ -672,6 +672,7 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
     """
     Return the observed counts/probabilities of choosing each gene version.
     If <normalize> then return probabilities
+    If <only_gene> is specified, just return the prob/count for that gene
     """
     counts = { region:{} for region in regions }
     probs = { region:{} for region in regions }
@@ -712,8 +713,15 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
             return counts[get_region(only_gene)][only_gene]
 
 # ----------------------------------------------------------------------------------------
-def find_replacement_genes(indir, gene_name, min_counts, single_gene=False, debug=False):
-    region = get_region(gene_name)
+def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False, debug=False, all_from_region=''):
+    if gene_name != None:
+        assert all_from_region == ''
+        region = get_region(gene_name)
+    else:
+        assert all_from_region in regions
+        assert single_gene == False
+        assert min_counts == -1
+        region = all_from_region
     lists = OrderedDict()  # we want to try alleles first, then primary versions, then everything and it's mother
     lists['allele'] = []  # list of genes that are alleles of <gene_name>
     lists['primary_version'] = []  # same primary version as <gene_name>
@@ -724,10 +732,11 @@ def find_replacement_genes(indir, gene_name, min_counts, single_gene=False, debu
             gene = line[region + '_gene']
             count = int(line['count'])
             vals = {'gene':gene, 'count':count}
-            if are_alleles(gene, gene_name):
-                lists['allele'].append(vals)
-            if are_same_primary_version(gene, gene_name):
-                lists['primary_version'].append(vals)
+            if all_from_region == '':
+                if are_alleles(gene, gene_name):
+                    lists['allele'].append(vals)
+                if are_same_primary_version(gene, gene_name):
+                    lists['primary_version'].append(vals)
             lists['all'].append(vals)
 
     if single_gene:
@@ -744,6 +753,8 @@ def find_replacement_genes(indir, gene_name, min_counts, single_gene=False, debu
         assert False
     else:
         # return the whole list NOTE we're including here <gene_name>
+        if all_from_region != '':
+            return [vals['gene'] for vals in lists['all']]
         for list_type in lists:
             total_counts = sum([vals['count'] for vals in lists[list_type]])
             if total_counts >= min_counts:
@@ -752,7 +763,8 @@ def find_replacement_genes(indir, gene_name, min_counts, single_gene=False, debu
                     print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
                 return return_list
             else:
-                print '      not enough counts in %s' % (list_type + 's')
+                if debug:
+                    print '      not enough counts in %s' % (list_type + 's')
 
         print 'ERROR couldn\'t find genes for %s in %s' % (gene_name, indir)
         assert False

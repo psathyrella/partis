@@ -17,6 +17,9 @@
   - but really: what do you want to do when you don\'t have any information from data?
 # ----------------------------------------------------------------------------------------
   - stop pulling insert_mute_prob (in hmmwriter) ooya
+  - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
+    - does the simulation accurately reflect the data?
+    - does the hmm correctly infer parameters in simulation? (well, data too, but I dunno if there\'s really a way to test that)
   - think *long* and *hard* about get get_emission_prob() in hmmwriter. especially the pair part, since you didn\'t performance test that
     - UPDATE hm, on second thought I\'m just going to punt on the pair hmm stuff
     - TODO fix that!

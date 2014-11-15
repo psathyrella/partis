@@ -38,6 +38,8 @@ parser.add_argument('--datadir', required=True)  # non-sample-specific informati
 parser.add_argument('--outfname')  # for recombinator, write simulated events to this file. For waterer and partitiondriver, write output to this file
 parser.add_argument('--plotdir')
 
+# parser.add_argument('--simu_seed', type=int, default=-1)
+
 parser.add_argument('--n_bases_skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
 parser.add_argument('--n_procs', type=int, default=1)  # number of processes over which to parallelize
 parser.add_argument('--naivety', default='M', choices=['N', 'M'])

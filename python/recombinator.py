@@ -14,8 +14,10 @@ from Bio import SeqIO
 import dendropy
 
 from opener import opener
+import paramutils
 import utils
 from event import RecombinationEvent
+import paramutils
 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
@@ -226,61 +228,38 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def write_mute_freqs(self, region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=False):
         """ Read position-by-position mute freqs from disk for <gene_name>, renormalize, then write to a file for bppseqgen. """
-        mute_freqs = {}
-        mean_freq = 0.0  # calculate the mean mutation frequency. we'll use it for positions where we don't believe the actual number (eg too few alignments)
+        replacement_genes = None
         if is_insertion:
-            mean_freq = 0.1  # TODO don't pull this number outta yo ass
+            replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=-1, all_from_region='v')
         else:
-            # read mutation frequencies from disk. TODO this could be cached in memory to speed things up
-            mutefname = self.args.parameter_dir + '/mute-freqs/' + utils.sanitize_name(gene_name) + '.csv'
-            with opener('r')(mutefname) as mutefile:
-                reader = csv.DictReader(mutefile)
-                for line in reader:  # NOTE these positions are *zero* indexed
-                    pos = int(line['position'])
-                    freq = float(line['mute_freq'])
-                    lo_err = float(line['lo_err'])  # NOTE lo_err in the file is really the lower *bound*
-                    hi_err = float(line['hi_err'])  #   same deal
+            n_occurences = utils.read_overall_gene_probs(self.args.parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+            if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+                # print '    only saw %s %d times, use info from other genes' % (utils.color_gene(gene_name), n_occurences)
+                replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
 
-                    if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
-                        freq = 0.5 * (lo_err + hi_err)
-
-                    mute_freqs[pos] = freq
-                    mean_freq += freq
-
-                mean_freq /= len(mute_freqs)  # TODO weight this calculation by the (inverse of the) uncertainty
-    
-        # calculate mute freqs for the positions in <seq>
-        rates = []  # list with a mute freq for each position in <seq>
+        mute_freqs = paramutils.read_mute_info(self.args.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
+        rates = []  # list with a relative mutation rate for each position in <seq>
         total = 0.0
         # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
         # TODO still, it'd be nice to have *some* way to make sure the position indices agree between mute_freqs and seq
         for inuke in range(len(seq)):  # append a freq for each nuke
-            # NOTE be careful here! seqs are already eroded
-            position = inuke
-            if region == 'd' or region == 'j':
-                position += reco_event.erosions[region + '_5p']
-
+            position = inuke + dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[region + '_5p']
             freq = 0.0
             if position in mute_freqs:
                 freq = mute_freqs[position]
             else:
-                freq = mean_freq
-
-            if region == 'v' and position < 200:  # don't really have any information here. TODO add some criterion to remove positions with really large uncertainties
-                freq = mean_freq
-
+                freq = mute_freqs['overall_mean']
             rates.append(freq)
             total += freq
 
-        if total == 0.0:  # I am not yet hip enough to divide by zero
-            print 'ERROR zero total frequency in %s (probably really an insert)' % mutefname
-            print 'seq:', seq
-            assert len(seq) == 0  # I think this happens mostly if we eroded off all the positions for which we had decent information
-            assert False
-        for inuke in range(len(seq)):  # normalize to the number of sites (this is how bppseqgen likes it)
+        # normalize to the number of sites (i.e. so an average site is given value 1.0)
+        assert total != 0.0  # I am not hip enough to divide by zero
+        for inuke in range(len(seq)):
             rates[inuke] *= float(len(seq)) / total
         total = 0.0
-        for inuke in range(len(seq)):  # and... double check it, just for shits and giggles
+
+        # and... double check it, just for shits and giggles
+        for inuke in range(len(seq)):
             total += rates[inuke]
         assert utils.is_normed(total / float(len(seq)))
         assert len(rates) == len(seq)  # you just can't be too careful. what if gremlins ate a few while python wasn't looking?

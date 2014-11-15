@@ -6,8 +6,10 @@ import collections
 import yaml
 from scipy.stats import norm
 import csv
+
 import utils
 from opener import opener
+import paramutils
 
 # ----------------------------------------------------------------------------------------
 def get_bin_list(values, bin_type):
@@ -166,13 +168,12 @@ class HmmWriter(object):
 
         self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
         self.eps = 1e-6  # TODO I also have an eps defined in utils
-        self.min_occurences = self.args.min_observations_to_write
         self.n_max_to_interpolate = 20
         self.allow_unphysical_insertions = self.args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
         # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
 
-        self.insert_mute_prob = 0.0
-        self.mean_mute_freq = 0.0
+        # self.insert_mute_prob = 0.0
+        # self.mean_mute_freq = 0.0
 
         self.outdir = outdir
         self.region = utils.get_region(gene_name)
@@ -194,21 +195,19 @@ class HmmWriter(object):
 
         self.erosion_probs = {}
         self.insertion_probs = {}
-        self.mute_freqs = {}
 
         self.n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
         replacement_genes = None
-        assert self.min_occurences > 0  # protect against None
-        if self.n_occurences < self.min_occurences:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+        if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             print '    only saw it %d times, use info from other genes' % self.n_occurences
-            replacement_genes = utils.find_replacement_genes(self.indir, gene_name, self.min_occurences, single_gene=False, debug=True)
+            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=True)
 
         self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
 
         self.read_insertion_info(gene_name, replacement_genes)
 
         if self.naivety == 'M':  # mutate if not naive
-            self.read_mute_info(gene_name, replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
+            self.mute_freqs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
 
         self.track = Track('nukes', list(utils.nukes))
         self.saniname = utils.sanitize_name(gene_name)  # TODO make this not a member variable to make absolutely sure you don't confuse gene_name and replacement_gene
@@ -426,46 +425,6 @@ class HmmWriter(object):
             print '  insertion content for', insertion, self.insertion_content_probs[insertion]
 
     # ----------------------------------------------------------------------------------------
-    def read_mute_info(self, this_gene, approved_genes=None):
-        if approved_genes == None:
-            approved_genes = [this_gene,]
-        observed_freqs = {}  # of the form {0:(0.4, 0.38, 0.42), ...} (for position 0 with freq 0.4 with uncertainty 0.02)
-        for gene in approved_genes:
-            mutefname = self.indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
-            if not os.path.exists(mutefname):
-                continue
-            with opener('r')(mutefname) as mutefile:
-                reader = csv.DictReader(mutefile)
-                for line in reader:
-                    pos = int(line['position'])
-                    freq = float(line['mute_freq'])
-                    lo_err = float(line['lo_err'])  # NOTE lo_err in the file is really the lower *bound*
-                    hi_err = float(line['hi_err'])  #   same deal
-                    assert freq >= 0.0 and lo_err >= 0.0 and hi_err >= 0.0  # you just can't be too careful
-                    if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
-                        freq = 0.5 * (lo_err + hi_err)
-                    if pos not in observed_freqs:
-                        observed_freqs[pos] = []
-                    observed_freqs[pos].append({'freq':freq, 'err':max(abs(freq-lo_err), abs(freq-hi_err))})
-
-        overall_total, overall_sum_of_weights = 0.0, 0.0
-        for pos in observed_freqs:
-            total, sum_of_weights = 0.0, 0.0
-            for obs in observed_freqs[pos]:
-                assert obs['err'] > 0.0
-                weight = 1.0 / obs['err']
-                total += weight * obs['freq']
-                sum_of_weights += weight
-            assert sum_of_weights > 0.0
-            mean_freq = total / sum_of_weights
-            self.mute_freqs[pos] = mean_freq
-            overall_total += total
-            overall_sum_of_weights += sum_of_weights
-
-        self.mean_mute_freq = overall_total / overall_sum_of_weights
-        self.insert_mute_prob = self.mean_mute_freq
-
-    # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self, insertion):
         total, n_tot = 0.0, 0.0
         for length, prob in self.insertion_probs[insertion].iteritems():
@@ -589,7 +548,6 @@ class HmmWriter(object):
         assert nuke2 == '' or nuke2 in utils.nukes
         prob = 1.0
         if is_insert:
-            assert self.insert_mute_prob != 0.0
             assert insertion != ''
             probs = self.insertion_content_probs[insertion]
             if nuke2 == '':  # single (non-pair) emission
@@ -606,7 +564,7 @@ class HmmWriter(object):
             assert germline_nuke != ''
 
             # first figure out the mutation frequency we're going to use
-            mute_freq = self.mean_mute_freq
+            mute_freq = self.mute_freqs['overall_mean']
             if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
                 mute_freq = self.mute_freqs[inuke]
 
