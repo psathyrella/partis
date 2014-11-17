@@ -12,10 +12,6 @@
   - add datadir option to vdjalign
   - NOTE forbidding unphysical deletions seems to have roughly the same performance, while improving run time by a factor of 6
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
-# ----------------------------------------------------------------------------------------
-  - remove this stuff in recombinator: 'if region == 'v' and position < 200:  # don\'t really have any information here. TODO add some criterion to remove positions with really large uncertainties'
-  - but really: what do you want to do when you don\'t have any information from data?
-# ----------------------------------------------------------------------------------------
   - stop pulling insert_mute_prob (in hmmwriter) ooya
   - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
     - does the simulation accurately reflect the data?
@@ -25,6 +21,7 @@
     - TODO fix that!
   - account for different mutation frequencies to different bases
   - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
+  - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
   - check how close parameters are between data and simulation
   - account for non-uniform base content in insertions
     - don\'t forget to put this into recombinator  

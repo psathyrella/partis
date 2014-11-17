@@ -48,19 +48,33 @@ class MuteFreqer(object):
         cvn = None
         if has_root:
             cvn = TCanvas("cvn", "", 6000, 1000)
+
+        # calculate mute freqs
+        mute_freqs = {}
         for gene in self.counts:
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)
-
-            # calculate mute freq and its uncertainty
             for position in sorted_positions:
-                # sum over A,C,G,T (TODO don't sum over them)
+                mute_freqs[position] = {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
+                    nuke_freq = float(mute_counts[position][nuke]) / mute_counts[position]['total']
+                    mute_freqs[position][nuke] = nuke_freq
+                    if calculate_uncertainty:  # it's kinda slow
+                        errs = utils.fraction_uncertainty(nuke_freq, mute_counts[position]['total'])
+                        # try:
+                        print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
+                        assert errs[0] <= nuke_freq  # these checks are probably unnecessary
+                        assert errs[1] >= nuke_freq
+                        # except:
+                        #     print nuke_freq, errs[0], errs[1]
+                        #     sys.exit()
+                        mute_freqs[position][nuke + '_err'] = max(nuke_freq - errs[0], errs[1] - nuke_freq)
+
                     if nuke == mute_counts[position]['gl_nuke']:
                         n_conserved += mute_counts[position][nuke]
                     else:
-                        n_mutated += mute_counts[position][nuke]
+                        n_mutated += mute_counts[position][nuke]  # sum over A,C,G,T
                     # uncert = utils.fraction_uncertainty(obs, total)  # uncertainty for each nuke
                 mute_counts[position]['freq'] = float(n_mutated) / mute_counts[position]['total']
                 mutated_fraction_err = (0.0, 0.0)
@@ -69,16 +83,23 @@ class MuteFreqer(object):
                 mute_counts[position]['freq_lo_err'] = mutated_fraction_err[0]
                 mute_counts[position]['freq_hi_err'] = mutated_fraction_err[1]
 
-
-            # TODO there's kind of starting to be a lot of differenct scripts producing inputs for recombinator. I should unify them
-
             # write to csv
             outfname = self.outdir + '/' + utils.sanitize_name(gene) + '.csv'
             with opener('w')(outfname) as outfile:
-                writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err'))
+                nuke_header = []
+                for nuke in utils.nukes:
+                    nuke_header.append(nuke)
+                    nuke_header.append(nuke + '_err')
+                writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
                 writer.writeheader()
                 for position in sorted_positions:
-                    row = {'position':position, 'mute_freq':mute_counts[position]['freq'], 'lo_err':mute_counts[position]['freq_lo_err'], 'hi_err':mute_counts[position]['freq_hi_err']}
+                    row = {'position':position,
+                           'mute_freq':mute_counts[position]['freq'],
+                           'lo_err':mute_counts[position]['freq_lo_err'],
+                           'hi_err':mute_counts[position]['freq_hi_err']}
+                    for nuke in utils.nukes:
+                        row[nuke] = mute_freqs[position][nuke]
+                        row[nuke + '_err'] = mute_freqs[position][nuke + '_err']
                     writer.writerow(row)
                 
             if has_root: # make a plot

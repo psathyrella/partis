@@ -122,6 +122,7 @@ class ModelPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_emission_plot(self, gene_name, model):
+        assert False  # need to synch this with function in paramutils
         nuke_colors = {'A':kRed+1, 'C':kBlue-7, 'G':kOrange-3, 'T':kGreen+2}
 
         ibin = 0
@@ -131,6 +132,7 @@ class ModelPlotter(object):
                 assert state.name == 'init'
                 continue
 
+            # make label below bin
             drawn_name_texts[state.name] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
             drawn_name_texts[state.name].SetBorderSize(0)
             drawn_name_texts[state.name].SetFillColor(0)
@@ -140,13 +142,16 @@ class ModelPlotter(object):
             total = 0.0
             lines[state.name], vlines[state.name], texts[state.name] = [], [], []
             for nuke, prob in sorted(state.emissions['probs'].items(), key=operator.itemgetter(1), reverse=True):
+                # horizontal line at height total+prob
                 lines[state.name].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
                 lines[state.name][-1].SetLineWidth(6)
 
+                # vertical line from total to total+prob
                 vlines[state.name].append(TLine(ibin, total, ibin, total + prob))
                 vlines[state.name][-1].SetLineWidth(6)
                 vlines[state.name][-1].SetLineColor(nuke_colors[nuke])
 
+                # write [ACGT] at midpoint between total and total+prob
                 midpoint = 0.5*(prob + 2*total)
                 texts[state.name].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
                 texts[state.name][-1].AddText(-0.5 + ibin, midpoint, nuke)
