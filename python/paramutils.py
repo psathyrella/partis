@@ -1,8 +1,21 @@
 import os
 import csv
+import operator
+from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import utils
 from opener import opener
+
+# ----------------------------------------------------------------------------------------
+def simplify_state_name(state_name):
+    if state_name.find('IGH') == 0:
+        return state_name[state_name.rfind('_') + 1 : ]
+    elif state_name == 'insert_left':
+        return 'i_l'
+    elif state_name == 'insert_right':
+        return 'i_r'
+    else:
+        return state_name
 
 # ----------------------------------------------------------------------------------------
 def read_mute_info(indir, this_gene, approved_genes=None):
@@ -48,16 +61,16 @@ def read_mute_info(indir, this_gene, approved_genes=None):
     return mute_freqs
 
 # ----------------------------------------------------------------------------------------
-def make_mutefreq_plot(self, gene_name, positions):
+def make_mutefreq_plot(plotdir, gene_name, positions):
     nuke_colors = {'A':kRed+1, 'C':kBlue-7, 'G':kOrange-3, 'T':kGreen+2}
 
     ibin = 0
     drawn_name_texts, lines, vlines, texts = {}, {}, {}, {}
-    for pos in positions:
+    for pos, vals in positions.items():
         # if len(state.emissions) == 0:
         #     assert state.name == 'init'
         #     continue
-        name = pos['name']
+        posname = vals['name']
 
         # make label below bin
         drawn_name_texts[posname] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
@@ -68,7 +81,7 @@ def make_mutefreq_plot(self, gene_name, positions):
 
         total = 0.0
         lines[posname], vlines[posname], texts[posname] = [], [], []
-        for nuke, prob in sorted(pos['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
+        for nuke, prob in sorted(vals['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
             # horizontal line at height total+prob
             lines[posname].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
             lines[posname][-1].SetLineWidth(6)
@@ -90,9 +103,9 @@ def make_mutefreq_plot(self, gene_name, positions):
 
         ibin += 1
 
-    cvn = TCanvas('cvn', '', 1000, 300)
+    cvn = TCanvas('cvn-2', '', 1000, 300)
     n_bins = ibin
-    hframe = TH1F(model.name + '-emission-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
+    hframe = TH1F(gene_name + '-emission-frame', utils.unsanitize_name(gene_name), n_bins, -0.5, n_bins - 0.5)
     hframe.SetNdivisions(202, 'y')
     hframe.SetNdivisions(0, 'x')
     hframe.Draw()
@@ -104,4 +117,4 @@ def make_mutefreq_plot(self, gene_name, positions):
             vlines[state_name][itrans].Draw()
             # texts[state_name][itrans].Draw()
 
-    cvn.SaveAs(self.base_plotdir + '/emissions/plots/' + gene_name + '.png')
+    cvn.SaveAs(plotdir + '/plots/' + gene_name + '.png')

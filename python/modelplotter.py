@@ -12,17 +12,7 @@ from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPav
 
 import plotting
 import utils
-
-# ----------------------------------------------------------------------------------------
-def simplify_state_name(state_name):
-    if state_name.find('IGH') == 0:
-        return state_name[state_name.rfind('_') + 1 : ]
-    elif state_name == 'insert_left':
-        return 'i_l'
-    elif state_name == 'insert_right':
-        return 'i_r'
-    else:
-        return state_name
+import modelplotter
 
 # ----------------------------------------------------------------------------------------
 def find_state_number(name):

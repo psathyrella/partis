@@ -24,6 +24,7 @@ class MuteFreqer(object):
             self.base_plotdir += '/mute-freqs'
             for region in utils.regions:
                 utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
+                utils.prep_dir(self.base_plotdir + '/' + region + '-per-base/plots', '*.png')
         utils.prep_dir(self.outdir, '*.csv')
         self.germline_seqs = germline_seqs
         self.counts = {}
@@ -58,11 +59,13 @@ class MuteFreqer(object):
             mute_freqs, plotting_info = {}, OrderedDict()
             for position in sorted_positions:
                 mute_freqs[position], plotting_info[position] = {}, {}
+                plotting_info[position]['nuke_freqs'] = {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
                     nuke_freq = float(mute_counts[position][nuke]) / mute_counts[position]['total']
                     mute_freqs[position][nuke] = nuke_freq
-                    plotting_info[position][nuke] = nuke_freq
+                    plotting_info[position]['name'] = utils.sanitize_name(gene) + '_' + str(position)
+                    plotting_info[position]['nuke_freqs'][nuke] = nuke_freq
                     if calculate_uncertainty:  # it's kinda slow
                         errs = utils.fraction_uncertainty(mute_counts[position][nuke], mute_counts[position]['total'])
                         # print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
@@ -105,7 +108,7 @@ class MuteFreqer(object):
                     writer.writerow(row)
                 
             if has_root: # make a plot
-                paramutils.make_mutefreq_plot(plotting_info)
+                paramutils.make_mutefreq_plot(self.base_plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 
                 hist = TH1F('hist_' + utils.sanitize_name(gene), '',
                             sorted_positions[-1] - sorted_positions[0] + 1,
@@ -144,9 +147,10 @@ class MuteFreqer(object):
 
         if has_root:
             if self.base_plotdir != '':
-                check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
                 for region in utils.regions:
                     check_call(['makeHtml', self.base_plotdir + '/' + region, '1', 'null', 'svg'])
+                    check_call(['makeHtml', self.base_plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
+                check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
