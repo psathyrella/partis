@@ -2,6 +2,7 @@
 
 import sys
 import os
+from collections import OrderedDict
 from subprocess import check_call
 import csv
 
@@ -11,6 +12,7 @@ if has_root:
     from ROOT import TCanvas, TH1F, TLine, kRed
 
 import utils
+import paramutils
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
@@ -50,26 +52,24 @@ class MuteFreqer(object):
             cvn = TCanvas("cvn", "", 6000, 1000)
 
         # calculate mute freqs
-        mute_freqs = {}
         for gene in self.counts:
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)
+            mute_freqs, plotting_info = {}, OrderedDict()
             for position in sorted_positions:
-                mute_freqs[position] = {}
+                mute_freqs[position], plotting_info[position] = {}, {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
                     nuke_freq = float(mute_counts[position][nuke]) / mute_counts[position]['total']
                     mute_freqs[position][nuke] = nuke_freq
+                    plotting_info[position][nuke] = nuke_freq
                     if calculate_uncertainty:  # it's kinda slow
-                        errs = utils.fraction_uncertainty(nuke_freq, mute_counts[position]['total'])
-                        # try:
-                        print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
-                        assert errs[0] <= nuke_freq  # these checks are probably unnecessary
-                        assert errs[1] >= nuke_freq
-                        # except:
-                        #     print nuke_freq, errs[0], errs[1]
-                        #     sys.exit()
-                        mute_freqs[position][nuke + '_err'] = max(nuke_freq - errs[0], errs[1] - nuke_freq)
+                        errs = utils.fraction_uncertainty(mute_counts[position][nuke], mute_counts[position]['total'])
+                        # print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
+                        assert errs[0] <= nuke_freq  # these checks are probably unnecessary. EDIT and totally saved my ass about ten minutes after writing the previous statement
+                        assert nuke_freq <= errs[1]
+                        mute_freqs[position][nuke + '_lo_err'] = errs[0]
+                        mute_freqs[position][nuke + '_hi_err'] = errs[1]
 
                     if nuke == mute_counts[position]['gl_nuke']:
                         n_conserved += mute_counts[position][nuke]
@@ -89,7 +89,8 @@ class MuteFreqer(object):
                 nuke_header = []
                 for nuke in utils.nukes:
                     nuke_header.append(nuke)
-                    nuke_header.append(nuke + '_err')
+                    nuke_header.append(nuke + '_lo_err')
+                    nuke_header.append(nuke + '_hi_err')
                 writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
                 writer.writeheader()
                 for position in sorted_positions:
@@ -99,10 +100,13 @@ class MuteFreqer(object):
                            'hi_err':mute_counts[position]['freq_hi_err']}
                     for nuke in utils.nukes:
                         row[nuke] = mute_freqs[position][nuke]
-                        row[nuke + '_err'] = mute_freqs[position][nuke + '_err']
+                        row[nuke + '_lo_err'] = mute_freqs[position][nuke + '_lo_err']
+                        row[nuke + '_hi_err'] = mute_freqs[position][nuke + '_hi_err']
                     writer.writerow(row)
                 
             if has_root: # make a plot
+                paramutils.make_mutefreq_plot(plotting_info)
+
                 hist = TH1F('hist_' + utils.sanitize_name(gene), '',
                             sorted_positions[-1] - sorted_positions[0] + 1,
                             sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
