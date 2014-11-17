@@ -1,6 +1,7 @@
 import time
 import sys
 import json
+from Bio import SeqIO
 from multiprocessing import Process, active_children
 import math
 import os
@@ -76,36 +77,49 @@ class PartitionDriver(object):
     def read_input_file(self):
         """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
         assert self.args.seqfile != None
-        with opener('r')(self.args.seqfile) as seqfile:
+        if '.csv' in self.args.seqfile:
             delimiter = ','
             name_column = 'unique_id'
             seq_column = 'seq'
-            # n_nukes_skip = 0  # skip all the TTTTTTTTs in data. TODO er that seems hackey doesn't it?
-            if '.tsv' in self.args.seqfile:
-                delimiter = '\t'
-                name_column = 'name'
-                seq_column = 'nucleotide'
-                # n_nukes_skip = 9  # TODO ehhhhh I don't like this
+            seqfile = opener('r')(self.args.seqfile)
             reader = csv.DictReader(seqfile, delimiter=delimiter)
-            n_queries = 0
-            for line in reader:
-                # if command line specified query or reco ids, skip other ones
-                if self.args.queries != None and line[name_column] not in self.args.queries:
-                    continue
-                if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
-                    continue
-
-                self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][self.args.n_bases_skip:]}
-                if not self.args.is_data:
-                    if 'fv_insertion' not in line:  # TODO remove these lines when I no longer have old recombinator output lying around
-                        line['fv_insertion'] = ''
-                    if 'jf_insertion' not in line:
-                        line['jf_insertion'] = ''
-                    self.reco_info[line['unique_id']] = line
-                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
-                n_queries += 1
-                if self.args.n_max_queries > 0 and n_queries >= self.args.n_max_queries:
+        elif '.tsv' in self.args.seqfile:
+            delimiter = '\t'
+            name_column = 'name'
+            seq_column = 'nucleotide'
+            seqfile = opener('r')(self.args.seqfile)
+            reader = csv.DictReader(seqfile, delimiter=delimiter)
+        elif '.fasta' in self.args.seqfile:
+            name_column = 'unique_id'
+            seq_column = 'seq'
+            reader = []
+            n_fasta_queries = 0
+            for seq_record in SeqIO.parse(self.args.seqfile, 'fasta'):
+                reader.append({})
+                reader[-1][name_column] = seq_record.name
+                reader[-1][seq_column] = str(seq_record.seq).upper()
+                n_fasta_queries += 1
+                if self.args.n_max_queries > 0 and n_fasta_queries >= self.args.n_max_queries:
                     break
+        n_queries = 0
+        for line in reader:
+            # if command line specified query or reco ids, skip other ones
+            if self.args.queries != None and line[name_column] not in self.args.queries:
+                continue
+            if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
+                continue
+
+            self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][self.args.n_bases_skip:]}
+            if not self.args.is_data:
+                if 'fv_insertion' not in line:  # TODO remove these lines when I no longer have old recombinator output lying around
+                    line['fv_insertion'] = ''
+                if 'jf_insertion' not in line:
+                    line['jf_insertion'] = ''
+                self.reco_info[line['unique_id']] = line
+                utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
+            n_queries += 1
+            if self.args.n_max_queries > 0 and n_queries >= self.args.n_max_queries:
+                break
         assert len(self.input_info) > 0
     
     # ----------------------------------------------------------------------------------------
