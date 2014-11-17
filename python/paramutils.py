@@ -66,11 +66,8 @@ def make_mutefreq_plot(plotdir, gene_name, positions):
 
     ibin = 0
     drawn_name_texts, lines, vlines, texts = {}, {}, {}, {}
-    for pos, vals in positions.items():
-        # if len(state.emissions) == 0:
-        #     assert state.name == 'init'
-        #     continue
-        posname = vals['name']
+    for info in positions:
+        posname = info['name']
 
         # make label below bin
         drawn_name_texts[posname] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
@@ -81,7 +78,7 @@ def make_mutefreq_plot(plotdir, gene_name, positions):
 
         total = 0.0
         lines[posname], vlines[posname], texts[posname] = [], [], []
-        for nuke, prob in sorted(vals['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
+        for nuke, prob in sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
             # horizontal line at height total+prob
             lines[posname].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
             lines[posname][-1].SetLineWidth(6)
@@ -113,8 +110,8 @@ def make_mutefreq_plot(plotdir, gene_name, positions):
     for state_name in lines.keys():
         drawn_name_texts[state_name].Draw()
         for itrans in range(len(lines[state_name])):
-            lines[state_name][itrans].Draw()
+            # lines[state_name][itrans].Draw()  # hm, maybe don't need the horizontal lines any more
             vlines[state_name][itrans].Draw()
-            # texts[state_name][itrans].Draw()
+            # texts[state_name][itrans].Draw()  # don't label the bases at the moment, you can tell by the color just fine
 
     cvn.SaveAs(plotdir + '/plots/' + gene_name + '.png')

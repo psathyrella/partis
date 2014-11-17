@@ -2,7 +2,6 @@
 
 import sys
 import os
-from collections import OrderedDict
 from subprocess import check_call
 import csv
 
@@ -56,16 +55,17 @@ class MuteFreqer(object):
         for gene in self.counts:
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)
-            mute_freqs, plotting_info = {}, OrderedDict()
+            mute_freqs, plotting_info = {}, []
             for position in sorted_positions:
-                mute_freqs[position], plotting_info[position] = {}, {}
-                plotting_info[position]['nuke_freqs'] = {}
+                mute_freqs[position] = {}
+                plotting_info.append({})
+                plotting_info[-1]['name'] = utils.sanitize_name(gene) + '_' + str(position)
+                plotting_info[-1]['nuke_freqs'] = {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
                     nuke_freq = float(mute_counts[position][nuke]) / mute_counts[position]['total']
                     mute_freqs[position][nuke] = nuke_freq
-                    plotting_info[position]['name'] = utils.sanitize_name(gene) + '_' + str(position)
-                    plotting_info[position]['nuke_freqs'][nuke] = nuke_freq
+                    plotting_info[-1]['nuke_freqs'][nuke] = nuke_freq
                     if calculate_uncertainty:  # it's kinda slow
                         errs = utils.fraction_uncertainty(mute_counts[position][nuke], mute_counts[position]['total'])
                         # print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
