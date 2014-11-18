@@ -50,10 +50,10 @@ from performanceplotter import PerformancePlotter
 
 # ----------------------------------------------------------------------------------------
 class IMGTParser(object):
-    def __init__(self, seqfname, datadir, plotdir, indir='', infname=''):
-        self.debug = 1
-        n_max_queries = 1
-        queries = []
+    def __init__(self, simfname, datadir, plotdir, indir='', infname=''):
+        self.debug = 0
+        n_max_queries = -1
+        queries = []  #['1563254924569619840', '223533543634059916', '-3721081542148661672', '5529791444504417601', '-7133578712315193775']
 
         self.germline_seqs = utils.read_germlines(datadir)
         # for newname, oldname in renames.items():
@@ -70,8 +70,8 @@ class IMGTParser(object):
 
         # get sequence info that was passed to imgt
         self.seqinfo = {}
-        with opener('r')(seqfname) as seqfile:
-            reader = csv.DictReader(seqfile)
+        with opener('r')(simfname) as simfile:
+            reader = csv.DictReader(simfile)
             iline = 0
             for line in reader:
                 if len(queries) > 0 and line['unique_id'] not in queries:
@@ -85,6 +85,7 @@ class IMGTParser(object):
 
         paragraphs, csv_info = None, None
         if '.html' in infname:
+            print 'reading', infname
             with opener('r')(infname) as infile:
                 soup = BeautifulSoup(infile)
                 paragraphs = soup.find_all('pre')
@@ -97,7 +98,7 @@ class IMGTParser(object):
             # print 'true'
             # utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
             if '.html' in infname:
-                for pre in paragraphs:  # NOTE this loops over everything an awful lot of times. shouldn't really matter for now
+                for pre in paragraphs:  # NOTE this loops over everything an awful lot of times. Shouldn't really matter for now, though
                     if unique_id in pre.text:
                         imgtinfo.append(pre.text)
             else:
@@ -189,7 +190,7 @@ class IMGTParser(object):
         for ireg in range(len(utils.regions)):
             region = utils.regions[ireg]
             info = query_info[ireg + 1].splitlines()
-            if unique_id not in info[0]:  # remove the line marking cdr3 and framework regions
+            while unique_id not in info[0]:  # remove the line marking cdr3 and framework regions
                 info.pop(0)
             if len(info) <= 1:
                 print info
@@ -291,7 +292,6 @@ class IMGTParser(object):
             line[region + '_qr_seq'] = qr_seq
             line[region + '_gl_seq'] = gl_seq
             line[region + '_5p_del'] = del_5p
-            print '0---', del_5p
             line[region + '_3p_del'] = del_3p
             if region == 'j':
                 line['jf_insertion'] = jf_insertion
@@ -302,6 +302,7 @@ class IMGTParser(object):
 #                 print 'ERROR %s not found in germline file' % match_names[region]
 #                 sys.exit()
 
-# iparser = IMGTParser('caches/recombinator/simu.csv', datadir='./data/imt', infname='/home/dralph/Dropbox/imgtvquest.html')
-iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='data/performance/imgt/longer_reads/IMGT_HighV-QUEST_individual_files_folder', plotdir=os.getenv('www') + '/partis/longer-imgt_performance')
-# iparser = IMGTParser('caches/recombinator/longer-reads/simu.csv', datadir='data/imgt', indir='performance/imgt/foop3/3_Nt-sequences_foop3_311014.txt')
+simfile = 'caches/recombinator/performance/new-imgt/simu.csv'
+
+iparser = IMGTParser(simfile, datadir='./data/imgt', infname='/home/dralph/Dropbox/imgt-results.html', plotdir=os.getenv('www') + '/partis/new-imgt')
+# iparser = IMGTParser(simfile, datadir='data/imgt', indir='data/performance/imgt/longer_reads/IMGT_HighV-QUEST_individual_files_folder', plotdir=os.getenv('www') + '/partis/longer-imgt_performance')

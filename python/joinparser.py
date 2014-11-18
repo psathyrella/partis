@@ -95,10 +95,6 @@ def resolve_overlapping_matches(line, debug=False, germlines=None):
             if debug:
                 print '    no %s overlap, not doing anything' % (rpairs['left'] + rpairs['right'])
 
-# ----------------------------------------------------------------------------------------
-    for key, val in line.items():
-        print key, val
-# ----------------------------------------------------------------------------------------
     naive_seq = utils.get_full_naive_seq(germlines, line)
     muted_seq = line['seq']
         
