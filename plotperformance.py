@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 # parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='50000')  # label for this test run. e.g. results are written to dirs with this name
-parser.add_argument('--datadir', default='data/many')
+parser.add_argument('--datadir', required=True)  #default='data/imgt')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
 parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation
 parser.add_argument('--simfile')  # 
@@ -27,7 +27,7 @@ args = parser.parse_args()
 args.extra_args = utils.get_arg_list(args.extra_args)
 
 cmd = './runpart.py'
-common_args = ' --n_procs 10 --datadir ' + args.datadir
+common_args = ' --n-procs 10 --datadir ' + args.datadir
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args)
 if args.skip_simulation:
@@ -40,26 +40,26 @@ plot_dir = os.getenv('www') + '/partis/performance/' + args.label
 
 if not args.skip_simulation:
     # cache parameters from data
-    cmd_str = ' --cache_parameters --seqfile test/every-hundredth-data.tsv.bz2 --is_data --skip_unproductive' + common_args
-    cmd_str += ' --parameter_dir ' + param_dir + '/data'
+    cmd_str = ' --cache-parameters --seqfile test/every-hundredth-data.tsv.bz2 --is_data --skip-unproductive' + common_args
+    cmd_str += ' --parameter-dir ' + param_dir + '/data'
     cmd_str += ' --plotdir ' + plot_dir + '/params/data'
     cmd_str += ' --n_max_queries ' + args.n_queries
     run_that_shit(cmd_str)
     
     # simulate based on data parameters
     cmd_str = ' --simulate --outfname ' + simu_file + common_args
-    cmd_str += ' --parameter_dir ' + param_dir + '/data/hmm_parameters'
+    cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm-parameters'
     cmd_str += ' --n_max_queries ' + str(int(float(args.n_queries) / 5))
     run_that_shit(cmd_str)
 
 # cache parameters from simulation
-cmd_str = ' --cache_parameters --seqfile ' + simu_file + common_args
-cmd_str += ' --parameter_dir ' + param_dir + '/simu'
+cmd_str = ' --cache-parameters --seqfile ' + simu_file + common_args
+cmd_str += ' --parameter-dir ' + param_dir + '/simu'
 cmd_str += ' --plotdir ' + plot_dir + '/params/simu'
 run_that_shit(cmd_str)
 
 # run point estimation on simulation (should split the simulation into training and testing sets)
-cmd_str = ' --point_estimate --plot_performance --seqfile ' + simu_file + common_args
-cmd_str += ' --parameter_dir ' + param_dir + '/simu/hmm_parameters'
+cmd_str = ' --point-estimate --plot_performance --seqfile ' + simu_file + common_args
+cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm-parameters'
 cmd_str += ' --plotdir ' + plot_dir
 run_that_shit(cmd_str)
