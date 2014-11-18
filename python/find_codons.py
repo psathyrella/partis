@@ -22,6 +22,7 @@ with opener('r')(dirname + '/v-meta.json') as json_file:  # get location of <beg
 align_cpos_aa = 104 - 1  # cysteine position in amino acids (-1 to convert to zero-indexing)
 align_cpos = align_cpos_aa * 3
 
+bad_genes = []
 for name, align_seq in align_info.items():  # NOTE there's a whole bunch of sequences in seqinfo that aren't in aliinfo. If imgt doesn't have alignment info for 'em, though, I'm ignoring 'em
     print '%-20s' % name,
     # check for unexpected characters
@@ -36,26 +37,32 @@ for name, align_seq in align_info.items():  # NOTE there's a whole bunch of sequ
     # see if it's too short (WTF?!?!)
     if align_cpos >= len(align_seq):
         print 'too short!'
+        bad_genes.append(name)
         continue
     try:
         utils.check_conserved_cysteine(align_seq, align_cpos, debug=True)
     except:
+        bad_genes.append(name)
         continue
 
     # remove dots
     n_dots = align_seq.count('.')
     real_cpos = align_cpos - n_dots
     utils.check_conserved_cysteine(align_seq.replace('.', ''), real_cpos, debug=True)
-    if name in cyst_positions:
-        assert 'cysteine-position' in cyst_positions[name]
-        if real_cpos == cyst_positions[name]['cysteine-position']:
-            print 'ok'
-        else:
-            print 'not the same, new: %d old: %s' % (real_cpos, cyst_positions[name]['cysteine-position'])
+    if name in cyst_positions and real_cpos == cyst_positions[name]['cysteine-position']:
+        print 'ok'
     else:
-        print 'new: %d' % (real_cpos)
+        if name in cyst_positions and real_cpos != cyst_positions[name]['cysteine-position']:
+            print 'not the same, new: %d old: %s' % (real_cpos, cyst_positions[name]['cysteine-position']),
+            print '  switching to the new one'
+        else:
+            print 'new: %d' % (real_cpos)
         cyst_positions[name] = {}
         cyst_positions[name]['cysteine-position'] = real_cpos
+
+print 'bad genes:'
+print '\\|'.join(bad_genes).replace('*', '\\*')
+print ''
 
 outfname = 'out.json'
 outfile = open(outfname, 'w')

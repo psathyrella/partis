@@ -378,6 +378,10 @@ def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):
+    for erosion in real_erosions + effective_erosions:
+        if line[erosion + '_del'] < 0:
+            print 'ERROR %s less than zero %d' % (erosion, line[erosion + '_del'])
+        assert line[erosion + '_del'] >= 0
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs

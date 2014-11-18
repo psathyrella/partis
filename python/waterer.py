@@ -208,6 +208,10 @@ class Waterer(object):
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
 
             assert qrbounds[1] <= len(query_seq)
+            if glbounds[1] > len(self.germline_seqs[region][gene]):
+                print '  ', gene
+                print '  ', glbounds[1], len(self.germline_seqs[region][gene])
+                print '  ', self.germline_seqs[region][gene]
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]

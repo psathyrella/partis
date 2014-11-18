@@ -40,16 +40,16 @@ plot_dir = os.getenv('www') + '/partis/performance/' + args.label
 
 if not args.skip_simulation:
     # cache parameters from data
-    cmd_str = ' --cache-parameters --seqfile test/every-hundredth-data.tsv.bz2 --is_data --skip-unproductive' + common_args
+    cmd_str = ' --cache-parameters --seqfile test/every-hundredth-data.tsv.bz2 --is-data --skip-unproductive' + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     cmd_str += ' --plotdir ' + plot_dir + '/params/data'
-    cmd_str += ' --n_max_queries ' + args.n_queries
+    cmd_str += ' --n-max-queries ' + args.n_queries
     run_that_shit(cmd_str)
     
     # simulate based on data parameters
     cmd_str = ' --simulate --outfname ' + simu_file + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm-parameters'
-    cmd_str += ' --n_max_queries ' + str(int(float(args.n_queries) / 5))
+    cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm_parameters'
+    cmd_str += ' --n-max-queries ' + str(int(float(args.n_queries) / 5))
     run_that_shit(cmd_str)
 
 # cache parameters from simulation
@@ -59,7 +59,7 @@ cmd_str += ' --plotdir ' + plot_dir + '/params/simu'
 run_that_shit(cmd_str)
 
 # run point estimation on simulation (should split the simulation into training and testing sets)
-cmd_str = ' --point-estimate --plot_performance --seqfile ' + simu_file + common_args
-cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm-parameters'
+cmd_str = ' --point-estimate --plot-performance --seqfile ' + simu_file + common_args
+cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm_parameters'
 cmd_str += ' --plotdir ' + plot_dir
 run_that_shit(cmd_str)

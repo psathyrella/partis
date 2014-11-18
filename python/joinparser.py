@@ -42,7 +42,7 @@ def resolve_overlapping_matches(line, debug=False, germlines=None):
     joinsolver allows d and j matches (and v and d matches) to overlap... which makes no sense, so
     arbitrarily split the disputed territory in two.
     """
-    # NOTE this is basically a cut and paste job from waterer.py
+    # NOTE this does pretty much the same thing as a function in waterer
     for rpairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
         left_gene = line[rpairs['left'] + '_gene']
         right_gene = line[rpairs['right'] + '_gene']
@@ -50,8 +50,8 @@ def resolve_overlapping_matches(line, debug=False, germlines=None):
         r_qr_seq = line[rpairs['right'] + '_qr_seq']
         all_l_matches = re.findall(l_qr_seq, line['seq'])
         all_r_matches = re.findall(r_qr_seq, line['seq'])
-        lpos = line['seq'].find(l_qr_seq)
-        rpos = line['seq'].find(r_qr_seq)
+        lpos = line['seq'].find(l_qr_seq)  # find the *first* occurences
+        rpos = line['seq'].find(r_qr_seq)  #   of l_qr_seq and r_qr_seq
         left_match_end = lpos + len(l_qr_seq)  # base after the last left-gene-matched base
         right_match_start = rpos  # first base of right-hand match
         overlap = left_match_end - right_match_start
@@ -69,7 +69,12 @@ def resolve_overlapping_matches(line, debug=False, germlines=None):
             if len(all_r_matches) > 1:
                 print '    WARNING %d occurences of %s in %s' % (len(all_r_matches), r_qr_seq, line['seq'])
         else:
-            assert len(all_l_matches) == 1 and len(all_r_matches) == 1
+            try:
+                assert len(all_l_matches) == 1 and len(all_r_matches) == 1
+            except:
+                if debug:
+                    print '    all_l_matches %d all_r_matches %d' % (len(all_l_matches), len(all_r_matches))
+                assert False
         if overlap > 0:
             lefthand_portion = int(math.floor(overlap / 2.0))
             righthand_portion = int(math.ceil(overlap / 2.0))
@@ -86,10 +91,23 @@ def resolve_overlapping_matches(line, debug=False, germlines=None):
             line[rpairs['right'] + '_gl_seq'] = line[rpairs['right'] + '_gl_seq'][righthand_portion:]
             line[rpairs['right'] + '_qr_seq'] = r_qr_seq[righthand_portion:]
             line[rpairs['right'] + '_5p_del'] += righthand_portion
+        else:
+            if debug:
+                print '    no %s overlap, not doing anything' % (rpairs['left'] + rpairs['right'])
 
+# ----------------------------------------------------------------------------------------
+    for key, val in line.items():
+        print key, val
+# ----------------------------------------------------------------------------------------
     naive_seq = utils.get_full_naive_seq(germlines, line)
     muted_seq = line['seq']
-    assert len(naive_seq) == len(muted_seq)  # this will happen if, for instance, there's a really short D match and there's NO FUCKING WAY to figure out where it was really supposed to be
+        
+    if len(naive_seq) != len(muted_seq):  # this will happen if, for instance, there's a really short D match and there's NO FUCKING WAY to figure out where it was really supposed to be
+        if debug:
+            print '    unequal lengths:'
+            print '        ', naive_seq
+            print '        ', muted_seq
+        assert False
 
 #--------------------------------------------------------------------------------------
 def figure_out_which_damn_gene(germline_seqs, gene_name, seq, debug=False):
