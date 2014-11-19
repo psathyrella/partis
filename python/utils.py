@@ -396,13 +396,13 @@ def get_regional_naive_seq_bounds(region, germlines, line):
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
     start, end = {}, {}
-    start['v'] = 0
+    start['v'] = int(line['v_5p_del'])
     end['v'] = start['v'] + len(line['fv_insertion'] + eroded_seqs['v'])  # base just after the end of v
     start['d'] = end['v'] + len(line['vd_insertion'])
     end['d'] = start['d'] + len(eroded_seqs['d'])
     start['j'] = end['d'] + len(line['dj_insertion'])
     end['j'] = start['j'] + len(eroded_seqs['j'] + line['jf_insertion'])
-
+    
     assert end['j'] == len(line['seq'])
 
     return (start[region], end[region])
@@ -501,13 +501,25 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
 
     # check if there isn't enough space for dots in the vj line
     no_space = False
-    if v_3p_del + j_5p_del > len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion']):
+    interior_length = len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    if v_3p_del + j_5p_del > interior_length:
         no_space = True
 
+    if no_space:
+        v_3p_del_str = '.' + str(v_3p_del) + '.'
+        j_5p_del_str = '.' + str(j_5p_del) + '.'
+        extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
+        if len(v_3p_del_str + j_5p_del_str) <= interior_length:  # ok, we've got space now
+            no_space = False
+    else:
+        v_3p_del_str = '.'*v_3p_del
+        j_5p_del_str = '.'*j_5p_del
+        extra_space_because_of_fixed_nospace = 0
+
     eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = eroded_seqs['v'] + '.'*v_3p_del
+    eroded_seqs_dots['v'] = eroded_seqs['v'] + v_3p_del_str
     eroded_seqs_dots['d'] = '.'*d_5p_del + eroded_seqs['d'] + '.'*d_3p_del
-    eroded_seqs_dots['j'] = '.'*j_5p_del + eroded_seqs['j'] + '.'*j_3p_del
+    eroded_seqs_dots['j'] = j_5p_del_str + eroded_seqs['j'] + '.'*j_3p_del
 
     v_5p_del_str = '.'*v_5p_del
     if v_5p_del > 50:
@@ -533,15 +545,15 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
-    vj_line += eroded_seqs_dots['v']
+    vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
     vj_line += ' '*len(line['jf_insertion'])
-    if no_space:
-        dot_matches = re.findall('[ACGT][.][.]*[ACGT]', vj_line)
-        assert len(dot_matches) == 1
-        vj_line = vj_line.replace(dot_matches[0], color('red', '.no.space.'))
+    # if no_space:
+    #     dot_matches = re.findall('[ACGT][.][.]*[ACGT]', vj_line)
+    #     assert len(dot_matches) == 1
+    #     vj_line = vj_line.replace(dot_matches[0], color('red', '.no.space.'))
 
     if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
         print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),

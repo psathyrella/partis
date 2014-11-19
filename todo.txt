@@ -13,6 +13,7 @@
   - NOTE forbidding unphysical deletions seems to have roughly the same performance, while improving run time by a factor of 6
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
   - stop pulling insert_mute_prob (in hmmwriter) ooya
+  - rerun perf comparisons for partis/sw with new hamming_to_true_naive changes
   - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
     - does the simulation accurately reflect the data?
     - does the hmm correctly infer parameters in simulation? (well, data too, but I dunno if there\'s really a way to test that)

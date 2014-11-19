@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import csv
+import argparse
 from collections import OrderedDict
 import re
 import os
@@ -10,12 +11,6 @@ import sys
 import utils
 from opener import opener
 from performanceplotter import PerformancePlotter
-
-label='new-imgt'
-indir = 'caches/recombinator/performance/' + label
-simfname = indir + '/simu.csv'
-datadir = 'data/imgt'
-plotdir = os.getenv('www') + '/partis/ihhhmmm-performance/' + label
 
 # first word    value name     position   required?
 line_order = \
@@ -78,90 +73,68 @@ class FileKeeper(object):
 
 # ----------------------------------------------------------------------------------------
 class IhhhmmmParser(object):
-    def __init__(self):
-        self.debug = 1
-        n_max_queries = 10
-        queries = []
+    def __init__(self, args):
+        self.args = args
 
-        self.germline_seqs = utils.read_germlines(datadir)  #, add_fp=True)
-        self.perfplotter = PerformancePlotter(self.germline_seqs, plotdir, 'ihhhmmm')
+        self.germline_seqs = utils.read_germlines(self.args.datadir)  #, add_fp=True)
+        self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'ihhhmmm')
 
         self.details = OrderedDict()
+        self.failtails = {}
+        self.n_partially_failed = 0
 
         # get sequence info that was passed to ihhhmmm
         self.siminfo = OrderedDict()
-        with opener('r')(simfname) as seqfile:
+        self.sim_need = []  # list of queries that we still need to find
+        with opener('r')(self.args.simfname) as seqfile:
             reader = csv.DictReader(seqfile)
             iline = 0
             for line in reader:
-                if len(queries) > 0 and line['unique_id'] not in queries:
+                if self.args.queries != None and line['unique_id'] not in self.args.queries:
                     continue
                 self.siminfo[line['unique_id']] = line
+                self.sim_need.append(line['unique_id'])
                 iline += 1
-                if n_max_queries > 0 and iline >= n_max_queries:
+                if args.n_max_queries > 0 and iline >= args.n_max_queries:
                     break
 
-        # first get info for the queries on which it succeeded
-        fostream_names = glob.glob(indir + '/*.txt.fostream')
-        fostream_names.sort()
+        fostream_names = glob.glob(self.args.indir + '/*.fostream')
+        fostream_names.sort()  # maybe already sorted?
         for infname in fostream_names:
-            print infname
-            with opener('r')(infname) as infile:
-                self.parse_file(infile)
+            if len(self.sim_need) == 0:
+                break
 
-        # then try to get whatever you can for the failures
-        txtfnames = [foname.replace('.fostream', '') for foname in fostream_names]
-        failtails = {}
-        n_partially_failed = 0
-        for fname in txtfnames:
-            for line in open(fname).readlines():
-                if len(line.strip()) == 0:  # skip blank lines
-                    continue
-                if 'NA' not in line:  # skip lines that were ok
-                    continue
-                line = line.replace('"', '')
-                line = line.split(';')
-                info = {}
-                unique_id = line[0]
-                info['unique_id'] = unique_id
-                for stuff in line:
-                    for region in utils.regions:  # add the first instance of IGH[VDJ] (if it's there at all)
-                        if 'IGH'+region.upper() in stuff and region+'_gene' not in info:
-                            genes = re.findall('IGH' + region.upper() + '[^ ][^ ]*', stuff)
-                            if len(genes) == 0:
-                                print 'ERROR no %s genes in %s' % (region, stuff)
-                            gene = genes[0]
-                            if gene not in self.germline_seqs[region]:
-                                print 'ERROR bad gene %s for %s' % (gene, unique_id)
-                                sys.exit()
-                            info[region + '_gene'] = gene
-                self.perfplotter.add_partial_fail(self.siminfo[unique_id], info)
-                if self.debug:
-                    print '%-20s  partial fail %s %s %s' % (unique_id,
-                                                         utils.color_gene(info['v_gene']) if 'v_gene' in info else '',
-                                                         utils.color_gene(info['d_gene']) if 'd_gene' in info else '',
-                                                         utils.color_gene(info['j_gene']) if 'j_gene' in info else ''),
-                    print '  (true %s %s %s)' % tuple([self.siminfo[unique_id][region + '_gene'] for region in utils.regions])
-                failtails[unique_id] = info
-                n_partially_failed += 1
+            # try to get whatever you can for the failures
+            unique_ids = self.find_partial_failures(infname)  # returns list of unique ids in this file
+
+            with opener('r')(infname) as infile:
+                self.parse_file(infile, unique_ids)
 
         # now check that we got results for all the queries we wanted
         n_failed = 0
         for unique_id in self.siminfo:
-            if unique_id not in self.details and unique_id not in failtails:
+            if unique_id not in self.details and unique_id not in self.failtails:
                 print '%-20s  no info' % unique_id
                 self.perfplotter.add_fail()
                 n_failed += 1
 
         print ''
-        print 'partially failed: %d / %d = %f' % (n_partially_failed, len(self.siminfo), float(n_partially_failed) / len(self.siminfo))
-        print 'failed: %d / %d = %f' % (n_failed, len(self.siminfo), float(n_failed) / len(self.siminfo))
+        print 'partially failed: %d / %d = %.2f' % (self.n_partially_failed, len(self.siminfo), float(self.n_partially_failed) / len(self.siminfo))
+        print 'failed:           %d / %d = %.2f' % (n_failed, len(self.siminfo), float(n_failed) / len(self.siminfo))
         print ''
 
         self.perfplotter.plot()
 
     # ----------------------------------------------------------------------------------------
-    def parse_detail(self, fk):
+    def parse_file(self, infile, unique_ids):
+        fk = FileKeeper(infile.readlines())
+        i_id = 0
+        while not fk.eof and len(self.sim_need) > 0:
+            self.parse_detail(fk, unique_ids[i_id])
+            i_id += 1
+        
+    # ----------------------------------------------------------------------------------------
+    def parse_detail(self, fk, unique_id):
         assert fk.iline < len(fk.lines)
 
         while fk.line[1] != 'Details':
@@ -171,6 +144,7 @@ class IhhhmmmParser(object):
 
         fk.increment()
         info = {}
+        info['unique_id'] = unique_id
         for begin_line, column, index, required, default in line_order:
             if fk.line[0].find(begin_line) != 0:
                 if required:
@@ -191,24 +165,23 @@ class IhhhmmmParser(object):
 
             fk.increment()
 
+        if unique_id not in self.sim_need:
+            while not fk.eof and fk.line[1] != 'Details':  # skip stuff until start of next Detail block
+                fk.increment()
+            return
+
         info['fv_insertion'] = ''
         info['jf_insertion'] = ''
         info['seq'] = info['v_qr_seq'] + info['vd_insertion'] + info['d_qr_seq'] + info['dj_insertion'] + info['j_qr_seq']
+        if info['seq'] not in self.siminfo[unique_id]['seq']:  # arg. I can't do != because it tacks on v left and j right deletions
+            print 'ERROR didn\'t find the right sequence for %s' % unique_id
+            print '  ', info['seq']
+            print '  ', self.siminfo[unique_id]['seq']
+            sys.exit()
 
-        for unique_id in self.siminfo:
-            if self.siminfo[unique_id]['seq'] == info['seq']:
-                info['unique_id'] = unique_id
-                break
-
-        if 'unique_id' not in info:  # arg. probably a j right or v left erosion made it not match
-            grep_match = check_output(['grep', '-Hrn', info['seq'], simfname])
-            info['unique_id'] = grep_match.split(':')[2].split(',')[0]
-            if info['unique_id'] not in self.siminfo:
-                print 'ERROR %s not in siminfo' % info['unique_id']
-
-        if self.debug:
-            print info['unique_id']
-            utils.print_reco_event(self.germline_seqs, self.siminfo[info['unique_id']], label='true:', extra_str='    ')
+        if self.args.debug:
+            print unique_id
+            utils.print_reco_event(self.germline_seqs, self.siminfo[unique_id], label='true:', extra_str='    ')
             utils.print_reco_event(self.germline_seqs, info, label='inferred:', extra_str='    ')
 
         for region in utils.regions:
@@ -220,13 +193,73 @@ class IhhhmmmParser(object):
                 print '  ', info[region + '_gl_seq']
                 print '  ', self.germline_seqs[region][info[region + '_gene']]                
 
-        self.perfplotter.evaluate(self.siminfo[info['unique_id']], info)
-        self.details[info['unique_id']] = info
+        self.perfplotter.evaluate(self.siminfo[unique_id], info)
+        self.details[unique_id] = info
+        self.sim_need.remove(unique_id)
+
+        while not fk.eof and fk.line[1] != 'Details':  # skip stuff until start of next Detail block
+            fk.increment()
         
     # ----------------------------------------------------------------------------------------
-    def parse_file(self, infile):
-        fk = FileKeeper(infile.readlines())
-        while fk.iline < len(fk.lines):
-            self.parse_detail(fk)
-        
-iparser = IhhhmmmParser()
+    def find_partial_failures(self, fostream_name):
+        unique_ids = []
+        for line in open(fostream_name.replace('.fostream', '')).readlines():
+            if len(self.sim_need) == 0:
+                return
+            if len(line.strip()) == 0:  # skip blank lines
+                continue
+
+            line = line.replace('"', '')
+            line = line.split(';')
+
+            unique_id = line[0]
+            
+            if 'NA' not in line:  # skip lines that were ok
+                unique_ids.append(unique_id)
+                continue
+            if unique_id not in self.sim_need:
+                continue
+            if unique_id not in self.siminfo:
+                continue  # not looking for this <unique_id> a.t.m.
+
+            info = {}
+            info['unique_id'] = unique_id
+            for stuff in line:
+                for region in utils.regions:  # add the first instance of IGH[VDJ] (if it's there at all)
+                    if 'IGH'+region.upper() in stuff and region+'_gene' not in info:
+                        genes = re.findall('IGH' + region.upper() + '[^ ][^ ]*', stuff)
+                        if len(genes) == 0:
+                            print 'ERROR no %s genes in %s' % (region, stuff)
+                        gene = genes[0]
+                        if gene not in self.germline_seqs[region]:
+                            print 'ERROR bad gene %s for %s' % (gene, unique_id)
+                            sys.exit()
+                        info[region + '_gene'] = gene
+            self.perfplotter.add_partial_fail(self.siminfo[unique_id], info)
+            if self.args.debug:
+                print '%-20s  partial fail %s %s %s' % (unique_id,
+                                                     utils.color_gene(info['v_gene']) if 'v_gene' in info else '',
+                                                     utils.color_gene(info['d_gene']) if 'd_gene' in info else '',
+                                                     utils.color_gene(info['j_gene']) if 'j_gene' in info else ''),
+                print '  (true %s %s %s)' % tuple([self.siminfo[unique_id][region + '_gene'] for region in utils.regions])
+            self.failtails[unique_id] = info
+            self.n_partially_failed += 1
+            self.sim_need.remove(unique_id)
+
+        return unique_ids
+
+# ----------------------------------------------------------------------------------------
+parser = argparse.ArgumentParser()
+parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+parser.add_argument('--label', required=True)
+parser.add_argument('--n_max_queries', type=int, default=-1)
+parser.add_argument('--queries')
+parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
+parser.add_argument('--datadir', default='data/imgt')
+args = parser.parse_args()
+args.queries = utils.get_arg_list(args.queries)
+
+args.indir = 'caches/recombinator/performance/' + args.label
+args.simfname = args.indir + '/simu.csv'
+args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
+iparser = IhhhmmmParser(args)
