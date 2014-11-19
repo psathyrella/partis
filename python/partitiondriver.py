@@ -557,7 +557,7 @@ class PartitionDriver(object):
                             if true_pcounter != None:  # increment true counters
                                 true_pcounter.increment(self.reco_info[line['unique_id']])
                             if perfplotter != None:
-                                perfplotter.evaluate(self.reco_info[line['unique_id']], line, line['unique_id'])
+                                perfplotter.evaluate(self.reco_info[line['unique_id']], line)
                     if self.args.debug:
                         if last_id == this_id:
                             utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=False)

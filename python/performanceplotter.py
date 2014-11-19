@@ -41,19 +41,22 @@ class PerformancePlotter(object):
         true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
 
+        extra_penalty = 0
+        if len(true_naive_seq) > len(inferred_naive_seq):  # probably the method added v left or j right erosions that aren't there
+            if line['v_5p_del'] > 0:
+                true_naive_seq = true_naive_seq[line['v_5p_del'] : ]
+                extra_penalty = line['v_5p_del']  # treat it as if the bases were wrong
+            if line['j_3p_del'] > 0:
+                true_naive_seq = true_naive_seq[ : -line['j_3p_del']]
+                extra_penalty = line['j_3p_del']  # treat it as if the bases were wrong
+
         if restrict_to_region != '':
             bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, self.germlines, true_line)  # get the bounds of this *true* region
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
-            assert len(true_naive_seq) == len(inferred_naive_seq)  # this is checked in utils.hamming as well
-
-        if line['fv_insertion'] != '':
-            assert true_line['fv_insertion'] == ''
-
-        # print restrict_to_region, '-------', utils.hamming(true_naive_seq, inferred_naive_seq)
-        # utils.color_mutants(true_naive_seq, inferred_naive_seq, True)
 
         total_distance = utils.hamming(true_naive_seq, inferred_naive_seq)
+        total_distance += extra_penalty
         if normalize:
             return int(100 * (float(total_distance) / len(true_naive_seq)))
         else:
@@ -92,7 +95,7 @@ class PerformancePlotter(object):
                 pass
 
     # ----------------------------------------------------------------------------------------
-    def evaluate(self, true_line, line, query_name):
+    def evaluate(self, true_line, line):
         for column in self.values:
             if column in bool_columns:
                 if utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this above as well!
@@ -111,10 +114,10 @@ class PerformancePlotter(object):
                 #             self.counts[col][nuke] += 1
                 elif column == 'hamming_to_true_naive':
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
-                    guessval = self.hamming_distance_to_true_naive(true_line, line, query_name)
+                    guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'])
                 elif column.find('hamming_to_true_naive') == 2:  # i.e. it's '[vdj]_hamming_to_true_naive'
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
-                    guessval = self.hamming_distance_to_true_naive(true_line, line, query_name, restrict_to_region=column[0], normalize=True)
+                    guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=column[0], normalize=True)
                 elif column == 'mute_freqs':
                     trueval = self.mutation_rate(true_line)
                     guessval = self.mutation_rate(line)

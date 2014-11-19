@@ -229,7 +229,7 @@ class JoinParser(object):
                 self.n_failed += 1
                 continue
 
-            self.perfplotter.evaluate(self.seqinfo[unique_id], line, unique_id)
+            self.perfplotter.evaluate(self.seqinfo[unique_id], line)
 
             if self.debug:
                 utils.print_reco_event(self.germline_seqs, line)
