@@ -560,9 +560,6 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
-    assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
-    assert ' ' not in line['seq']
-
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
@@ -588,6 +585,11 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     else:
         print ''.join(out_str_list)
 
+    assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
+    assert ' ' not in line['seq']
+    assert '[' not in line['seq']
+    assert ']' not in line['seq']
+
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
     """ Replace characters in gene names that make crappy filenames. """
@@ -603,7 +605,7 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir):  #, remove_fp=False, add_fp=False, remove_N_nukes=False):
+def read_germlines(data_dir, remove_N_nukes=False):  #, remove_fp=False, add_fp=False, remove_N_nukes=False):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     print 'read gl from', data_dir
     germlines = {}
@@ -619,8 +621,9 @@ def read_germlines(data_dir):  #, remove_fp=False, add_fp=False, remove_N_nukes=
             #     else:
             #         gene_name = gene_name + '_F'
             seq_str = str(seq_record.seq)
-            # if remove_N_nukes and 'N' in seq_str:
-            #     seq_str = seq_str.replace('N', 'A')
+            if remove_N_nukes and 'N' in seq_str:
+                print 'WARNING replacing N with A in germlines'
+                seq_str = seq_str.replace('N', 'A')
             germlines[region][gene_name] = seq_str
     return germlines
 

@@ -87,21 +87,3 @@ simulator
     the plots I made so far are only for the first thousand lines in the data files
 hmmer
   - only use half of data for training
-
-
-git remote add ham git@github.com:psathyrella/ham
-git subtree add --squash --prefix packages/ham ham master
-
-git remote add bpp git@github.com:psathyrella/bpp-master-20140414
-git subtree add --squash --prefix packages/bpp bpp master
-
-git remote add samtools git@github.com:samtools/samtools.git -t master
-git subtree add --squash --prefix packages/samtools samtools master
-
-git remote add ighutil git@github.com:cmccoy/ighutil.git -t master
-git subtree add --squash --prefix packages/ighutil ighutil master
-
-git remote add htslib git@github.com:samtools/htslib.git -t master
-git subtree add --squash --prefix packages htslib htslib master --squash
-
-

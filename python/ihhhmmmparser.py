@@ -45,11 +45,6 @@ def clean_value(column, value):
         if '(' in value:
             value = value[ : value.find('(')]
         return value
-    # elif column == 'j_gene':
-    #     if 'P' in value:
-    #         return value + '_P'
-    #     else:
-    #         return value + '_F'
     elif '_seq' in column or '_insertion' in column:
       return value.upper()
     else:
@@ -76,7 +71,7 @@ class IhhhmmmParser(object):
     def __init__(self, args):
         self.args = args
 
-        self.germline_seqs = utils.read_germlines(self.args.datadir)  #, add_fp=True)
+        self.germline_seqs = utils.read_germlines(self.args.datadir, remove_N_nukes=True)
         self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'ihhhmmm')
 
         self.details = OrderedDict()
@@ -155,6 +150,8 @@ class IhhhmmmParser(object):
                     continue
             if column != '':
                 info[column] = clean_value(column, fk.line[index])
+                # if '[' in info[column]:
+                #     print 'added', column, clean_value(column, fk.line[index])
                 if column.find('_gene') == 1:
                     region = column[0]
                     info[region + '_5p_del'] = int(fk.line[fk.line.index('start:') + 1]) - 1  # NOTE their indices are 1-based
@@ -187,11 +184,24 @@ class IhhhmmmParser(object):
         for region in utils.regions:
             if info[region + '_gene'] not in self.germline_seqs[region]:
                 print 'ERROR %s not in germlines' % info[region + '_gene']
-                sys.exit()
+                assert False
+
+# ----------------------------------------------------------------------------------------
+            gl_seq = info[region + '_gl_seq']
+            if '[' in gl_seq:  # ambiguous
+                for nuke in utils.nukes:
+                    gl_seq = gl_seq.replace('[', nuke)
+                    if gl_seq in self.germline_seqs[region][info[region + '_gene']]:
+                        print '  replaced [ with %s' % nuke
+                        break
+                info[region + '_gl_seq'] = gl_seq
+# ----------------------------------------------------------------------------------------
+
             if info[region + '_gl_seq'] not in self.germline_seqs[region][info[region + '_gene']]:
-                print 'ERROR gl match not found in gl for %s' % info[region + '_gene']
+                print 'ERROR gl match not found for %s in %s' % (info[region + '_gene'], unique_id)
                 print '  ', info[region + '_gl_seq']
                 print '  ', self.germline_seqs[region][info[region + '_gene']]                
+                assert False
 
         self.perfplotter.evaluate(self.siminfo[unique_id], info)
         self.details[unique_id] = info
