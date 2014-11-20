@@ -299,6 +299,7 @@ class Waterer(object):
     def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions, perfplotter=None):
         assert query_name not in self.info
         self.info[query_name] = {}
+        self.info[query_name]['unique_id'] = query_name  # redundant, but used somewhere down the line
         self.info[query_name]['k_v'] = kvals['v']
         self.info[query_name]['k_d'] = kvals['d']
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])

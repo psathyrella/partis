@@ -56,10 +56,12 @@ if not args.skip_simulation:
 cmd_str = ' --cache-parameters --seqfile ' + simu_file + common_args
 cmd_str += ' --parameter-dir ' + param_dir + '/simu'
 cmd_str += ' --plotdir ' + plot_dir + '/params/simu'
+cmd_str += ' --n-max-queries ' + args.n_queries
 run_that_shit(cmd_str)
 
 # run point estimation on simulation (should split the simulation into training and testing sets)
 cmd_str = ' --point-estimate --plot-performance --seqfile ' + simu_file + common_args
 cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm_parameters'
 cmd_str += ' --plotdir ' + plot_dir
+cmd_str += ' --n-max-queries ' + args.n_queries
 run_that_shit(cmd_str)

@@ -8,7 +8,6 @@ import math
 import glob
 from collections import OrderedDict
 import csv
-from scipy.stats import beta
 
 from opener import opener
 
@@ -836,19 +835,3 @@ def prep_dir(dirname, wildling=None, multilings=None):
         if multilings != None:
             print multilings
         assert False
-
-# ----------------------------------------------------------------------------------------
-def fraction_uncertainty(obs, total):
-    """ Return uncertainty on the ratio n / total """
-    assert obs <= total
-    if total == 0.0:
-        return 0.0
-    lo = beta.ppf(1./6, 1 + obs, 1 + total - obs)
-    hi = beta.ppf(1. - 1./6, 1 + obs, 1 + total - obs)
-    if float(obs) / total < lo:  # if k/n very small (probably zero), take a one-sided c.i. with 2/3 the mass
-        lo = 0.
-        hi = beta.ppf(2./3, 1 + obs, 1 + total - obs)
-    if float(obs) / total > hi:  # same deal if k/n very large (probably one)
-        lo = beta.ppf(1./3, 1 + obs, 1 + total - obs)
-        hi = 1.
-    return (lo,hi)

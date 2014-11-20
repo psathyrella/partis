@@ -7,6 +7,7 @@ from array import array
 from subprocess import check_call
 
 import utils
+import fraction_uncertainty
 
 def check_root():
     try:
@@ -130,11 +131,11 @@ def make_bool_hist(n_true, n_false, hist_label):
 
     true_frac = float(n_true) / (n_true + n_false)
     hist.SetBinContent(1, true_frac)
-    true_bounds = utils.fraction_uncertainty(n_true, n_true + n_false)
+    true_bounds = fraction_uncertainty.err(n_true, n_true + n_false, use_beta=True)
     hist.SetBinError(1, max(abs(true_frac - true_bounds[0]), abs(true_bounds[1] - true_bounds[1])))
     false_frac = float(n_false) / (n_true + n_false)
     hist.SetBinContent(2, false_frac)
-    false_bounds = utils.fraction_uncertainty(n_false, n_true + n_false)
+    false_bounds = fraction_uncertainty.err(n_false, n_true + n_false, use_beta=True)
     hist.SetBinError(2, max(abs(false_frac - false_bounds[0]), abs(false_bounds[1] - false_bounds[1])))
 
     hist.GetXaxis().SetNdivisions(0)

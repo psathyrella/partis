@@ -5,7 +5,7 @@ sys.path.append('python')
 
 import plotting
 
-plotdir = '/var/www/sharing/dralph/partis/few'
+plotdir = '/var/www/sharing/dralph/partis/performance/'
 plotting.compare_directories(plotdir + '/hmm-vs-sw',
                              plotdir + '/hmm/plots', 'hmm',
                              plotdir + '/sw/plots', 'sw',

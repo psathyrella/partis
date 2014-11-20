@@ -11,6 +11,7 @@ if has_root:
     from ROOT import TCanvas, TH1F, TLine, kRed
 
 import utils
+import fraction_uncertainty
 import paramutils
 from opener import opener
 
@@ -67,7 +68,7 @@ class MuteFreqer(object):
                     mute_freqs[position][nuke] = nuke_freq
                     plotting_info[-1]['nuke_freqs'][nuke] = nuke_freq
                     if calculate_uncertainty:  # it's kinda slow
-                        errs = utils.fraction_uncertainty(mute_counts[position][nuke], mute_counts[position]['total'])
+                        errs = fraction_uncertainty.err(mute_counts[position][nuke], mute_counts[position]['total'])
                         # print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
                         assert errs[0] <= nuke_freq  # these checks are probably unnecessary. EDIT and totally saved my ass about ten minutes after writing the previous statement
                         assert nuke_freq <= errs[1]
@@ -78,11 +79,11 @@ class MuteFreqer(object):
                         n_conserved += mute_counts[position][nuke]
                     else:
                         n_mutated += mute_counts[position][nuke]  # sum over A,C,G,T
-                    # uncert = utils.fraction_uncertainty(obs, total)  # uncertainty for each nuke
+                    # uncert = fraction_uncertainty.err(obs, total)  # uncertainty for each nuke
                 mute_counts[position]['freq'] = float(n_mutated) / mute_counts[position]['total']
                 mutated_fraction_err = (0.0, 0.0)
                 if calculate_uncertainty:  # it's kinda slow
-                    mutated_fraction_err = utils.fraction_uncertainty(n_mutated, mute_counts[position]['total'])
+                    mutated_fraction_err = fraction_uncertainty.err(n_mutated, mute_counts[position]['total'])
                 mute_counts[position]['freq_lo_err'] = mutated_fraction_err[0]
                 mute_counts[position]['freq_hi_err'] = mutated_fraction_err[1]
 
