@@ -28,9 +28,9 @@ from opener import opener
 
 hard_bounds = {
     'hamming_to_true_naive' : (-0.5, 29.5),
-    'v_hamming_to_true_naive' : (-0.5, 7.5),
-    'd_hamming_to_true_naive' : (-0.5, 8.5),
-    'j_hamming_to_true_naive' : (-0.5, 10.5)
+    'v_hamming_to_true_naive' : (-0.5, 18),
+    'd_hamming_to_true_naive' : (-0.5, 30),
+    'j_hamming_to_true_naive' : (-0.5, 30)
 }
 
 # ----------------------------------------------------------------------------------------
@@ -168,8 +168,11 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     hist = None
     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work them out dynamically
-        set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
-        hist = TH1F(hist_label, '', n_bins, xbins)
+        if var_type == 'int':
+            hist = TH1F(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)
+        else:
+            set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
+            hist = TH1F(hist_label, '', n_bins, xbins)
     else:
       hist = TH1F(hist_label, '', n_bins, xmin_force, xmax_force)
     hist.Sumw2()
@@ -307,10 +310,10 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         elif varname.find('hamming_to_true_naive') > 0:
             hist.GetXaxis().SetTitle('% hamming')
         # deal with log axes
-        if varname.find('hamming_to_true_naive') > 0:
-            log = 'y'
-        else:
-            log = ''
+        # if varname.find('hamming_to_true_naive') > 0:
+        #     log = 'y'
+        # else:
+        log = ''
 
         hist2 = dir2_hists[varname]
         hist3 = None
@@ -320,8 +323,8 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
         bounds = None
-        # if varname in hard_bounds:
-        #     bounds = hard_bounds[varname]
+        if varname in hard_bounds:
+            bounds = hard_bounds[varname]
         draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds, log=log)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', outdir, '3', 'null', 'svg'])
