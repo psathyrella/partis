@@ -186,8 +186,8 @@ class PartitionDriver(object):
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
 
-        if self.args.plot_performance:
-            plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
+        # if self.args.plot_performance:
+        #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):

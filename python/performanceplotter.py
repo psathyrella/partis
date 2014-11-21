@@ -55,32 +55,9 @@ class PerformancePlotter(object):
             if debug:
                 print '  adding to inferred naive seq'
 
-        # extra_penalty = 0
-        # assert int(true_line['v_5p_del']) == 0  # I'll need to change this if they're *both* nonzero
-        # if line['v_5p_del'] > 0:
-        #     if len(true_naive_seq) > len(inferred_naive_seq):  # sometimes the method infers a v left or j right erosion that isn't there, but which doesn't offset things (er, it's hard to explain...)
-        #         true_naive_seq = true_naive_seq[line['v_5p_del'] : ]  # NOTE this is still the *whole* naive seq, not just the one for <restrict_to_region>
-        #     if restrict_to_region == '' or restrict_to_region == 'v':
-        #         extra_penalty += line['v_5p_del']  # treat it as if the bases were wrong
-        # assert int(true_line['j_3p_del']) == 0
-        # if line['j_3p_del'] > 0:
-        #     if len(true_naive_seq) > len(inferred_naive_seq):  # sometimes the method infers a v left or j right erosion that isn't there, but which doesn't offset things (er, it's hard to explain...)
-        #         true_naive_seq = true_naive_seq[ : -line['j_3p_del']]
-        #     if restrict_to_region == '' or restrict_to_region == 'j':
-        #         extra_penalty += line['j_3p_del']  # treat it as if the bases were wrong
-
         bounds = None
         if restrict_to_region != '':
             bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, self.germlines, true_line)  # get the bounds of this *true* region
-            # # then correct for v left and j right deletions that're in the inferred line but not the true line
-            # assert int(true_line['v_5p_del']) == 0  # I'll need to change this if they're *both* nonzero
-            # assert int(true_line['j_3p_del']) == 0
-            # bounds = (bounds[0], bounds[1] - line['v_5p_del'])
-            # if restrict_to_region != '' and restrict_to_region != 'v':
-            #     bounds = (bounds[0] - line['v_5p_del'], bounds[1])
-            # if restrict_to_region == '' or restrict_to_region == 'j':
-            #     bounds = (bounds[0], bounds[1] - line['j_3p_del'])
-
             assert bounds[0] >= 0
             assert bounds[1] >= 0
             assert bounds[1] >= bounds[0]
@@ -88,7 +65,6 @@ class PerformancePlotter(object):
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
 
         if debug:
-            # print restrict_to_region, 'region, penalty', extra_penalty, ', bounds', bounds
             print restrict_to_region, 'region, bounds', bounds
             print '  true ', true_naive_seq
             print '  infer', inferred_naive_seq
@@ -99,7 +75,6 @@ class PerformancePlotter(object):
             print '  infer', inferred_naive_seq
             sys.exit()
         total_distance = utils.hamming(true_naive_seq, inferred_naive_seq)
-        # total_distance += extra_penalty
         if len(true_naive_seq) == 0:
             print 'WARNING zero length sequence in hamming_distance_to_true_naive'
             return 0

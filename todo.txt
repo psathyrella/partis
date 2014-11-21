@@ -18,6 +18,7 @@
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
   - add datadir option to vdjalign
+  - check shift_overflows in plotting.py
   - NOTE forbidding unphysical deletions seems to have roughly the same performance, while improving run time by a factor of 6
   - separate training and testing samples for performance comparison
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
@@ -30,7 +31,6 @@
     - UPDATE hm, on second thought I\'m just going to punt on the pair hmm stuff
     - TODO fix that!
   - account for different mutation frequencies to different bases
-  - check your beta function caching thing
   - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
   - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
   - check how close parameters are between data and simulation
@@ -43,7 +43,6 @@
     - short reads, long reads, reads with v left and j right erosions
     - single viterbi, viterbi pair, clustering
     - parameter estimation from sw and hmm
-  - check orphaned state code in model.cc
   - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
   - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
   - TODOs in code

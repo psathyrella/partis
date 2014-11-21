@@ -19,7 +19,7 @@ def check_root():
 sys.argv.append('-b')  # root just loves its stupid little splashes
 has_root = check_root()
 if has_root:
-    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen
+    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, kCyan, kOrange
     gROOT.Macro("plotting/MitStyleRemix.cc+")
 else:
     print ' ROOT not found, proceeding without plotting'
@@ -28,16 +28,16 @@ from opener import opener
 
 hard_bounds = {
     'hamming_to_true_naive' : (-0.5, 25.5),
-    'v_hamming_to_true_naive' : (-0.5, 18),
-    'd_hamming_to_true_naive' : (-0.5, 18),
-    'j_hamming_to_true_naive' : (-0.5, 18),
-    'd_3p_del' : (-6, 6),
-    'd_5p_del' : (-6, 6),
+    'v_hamming_to_true_naive' : (-0.5, 8),
+    'd_hamming_to_true_naive' : (-0.5, 20),
+    'j_hamming_to_true_naive' : (-0.5, 20),
+    'd_3p_del' : (-8, 8),
+    'd_5p_del' : (-8, 8),
     'dj_insertion' : (-10, 15),
     'j_5p_del' : (-10, 15),
     'mute_freqs' : (-5, 5),
     'v_3p_del' : (-3, 3),
-    'vd_insertion' : (-10, 8)
+    'vd_insertion' : (-8, 8)
 }
 
 # ----------------------------------------------------------------------------------------
@@ -212,18 +212,23 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None, bounds=None, errors=False, shift_overflows=False):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
-    xmin = hist.GetBinLowEdge(1)
-    xmax = hist.GetXaxis().GetBinUpEdge(hist.GetNbinsX())
-    if hist2 != None:
-        xmin = min(xmin, hist2.GetBinLowEdge(1))
-        xmax = max(xmax, hist2.GetXaxis().GetBinUpEdge(hist2.GetNbinsX()))
-    if hist3 != None:
-        xmin = min(xmin, hist3.GetBinLowEdge(1))
-        xmax = max(xmax, hist3.GetXaxis().GetBinUpEdge(hist3.GetNbinsX()))
+
+    hists = [hist,]
+    if more_hists != None:
+        hists = hists + more_hists
+
+    xmin, xmax, ymax = None, None, None
+    for htmp in hists:
+        if xmin == None or htmp.GetBinLowEdge(1) < xmin:
+            xmin = htmp.GetBinLowEdge(1)
+        if xmax == None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
+            xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
+        if ymax == None or htmp.GetMaximum() > xmax:
+            ymax = htmp.GetMaximum()
     if bounds != None:
         xmin, xmax = bounds
     hframe = TH1F('hframe', '', hist.GetNbinsX(), xmin, xmax)
@@ -231,73 +236,65 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         for ib in range(1, hframe.GetNbinsX()+1):
             hframe.GetXaxis().SetBinLabel(ib, hist.GetXaxis().GetBinLabel(ib))
 
-    ymax = hist.GetMaximum()
-    if hist2 != None:
-        ymax = max(ymax, hist2.GetMaximum())
-    if hist3 != None:
-        ymax = max(ymax, hist3.GetMaximum())
     hframe.SetMaximum(1.35*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
-        # hframe.SetMaximum(1.0)
     hframe.SetTitle(plotname + ';' + hist.GetXaxis().GetTitle() + ';')
     hframe.Draw('txt')
 
     if shift_overflows:
-        for htmp in [hist, hist2, hist3]:
+        for htmp in hists:
             if htmp == None:
                 continue
             underflows, overflows = 0.0, 0.0
             first_shown_bin, last_shown_bin = -1, -1
             for ib in range(0, htmp.GetXaxis().GetNbins()+2):
-                if htmp.GetXaxis().GetBinCenter(ib) < xmin:
+                if htmp.GetXaxis().GetBinCenter(ib) <= xmin:
                     underflows += htmp.GetBinContent(ib)
+                    htmp.SetBinContent(ib, 0.0)
                 elif first_shown_bin == -1:
                     first_shown_bin = ib
+                else:
+                    break
             for ib in reversed(range(0, htmp.GetXaxis().GetNbins()+2)):
-                if htmp.GetXaxis().GetBinCenter(ib) > xmax:
+                if htmp.GetXaxis().GetBinCenter(ib) >= xmax:
                     overflows += htmp.GetBinContent(ib)
+                    htmp.SetBinContent(ib, 0.0)
                 elif last_shown_bin == -1:
                     last_shown_bin = ib
+                else:
+                    break
 
+            if 'd_hamming' in plotname:
+                print htmp.GetTitle()
+                print '  underflow', underflows, htmp.GetBinContent(first_shown_bin)
+                print '  overflow', overflows, htmp.GetBinContent(last_shown_bin)
+                print '  first', htmp.GetXaxis().GetBinCenter(first_shown_bin)
+                print '  last', htmp.GetXaxis().GetBinCenter(last_shown_bin)
             htmp.SetBinContent(first_shown_bin, underflows + htmp.GetBinContent(first_shown_bin))
             htmp.SetBinContent(last_shown_bin, overflows + htmp.GetBinContent(last_shown_bin))
 
-    # for ib in range(0, hist.GetXaxis().GetNbins()+2):
-    #     print ib, hist.GetXaxis().GetBinCenter(ib), hist.GetBinContent(ib)
-
+    colors = (kRed, kBlue-4, kGreen+2, kOrange+1)
     draw_str = 'hist same'
     if errors:  # not working!
         draw_str = 'e ' + draw_str
-    hist.SetLineColor(kBlue);
-    hist.SetMarkerSize(0);
-    hist.SetLineWidth(4);
-    hist.Draw(draw_str);
-    if hist2 != None:
-        hist2.SetLineColor(kRed)  #419);
-        # hist2.SetMarkerSize(0);
-        hist2.SetLineWidth(4);
-        hist2.Draw(draw_str);
-    if hist3 != None:
-        hist3.SetLineColor(kGreen+2)  #419);
-        # hist3.SetMarkerSize(0);
-        hist3.SetLineWidth(4);
-        hist3.Draw(draw_str);
+    for ih in range(len(hists)):
+        htmp = hists[ih]
+        htmp.SetLineColor(colors[ih])
+        if ih == 0:
+            htmp.SetMarkerSize(0)
+        assert ih < 6
+        htmp.SetLineWidth(6-ih)
+        htmp.Draw(draw_str)
 
-    leg = TLegend(0.5, 0.78, 0.9, 0.9)
+    leg = TLegend(0.57, 0.72, 0.99, 0.9)
     leg.SetFillColor(0)
+    leg.SetFillStyle(0)
     leg.SetBorderSize(0)
-    if 'rms' in stats:
-        hist.SetTitle(hist.GetTitle() + (' (%.2f)' % hist.GetRMS()))
-    leg.AddEntry(hist, hist.GetTitle() , 'l')
-    if hist2 != None:
+    for htmp in hists:
         if 'rms' in stats:
-            hist2.SetTitle(hist2.GetTitle() + (' (%.2f)' % hist2.GetRMS()))
-        leg.AddEntry(hist2, hist2.GetTitle() , 'l')
-    if hist3 != None:
-        if 'rms' in stats:
-            hist3.SetTitle(hist3.GetTitle() + (' (%.2f)' % hist3.GetRMS()))
-        leg.AddEntry(hist3, hist3.GetTitle() , 'l')
+            htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
+        leg.AddEntry(htmp, htmp.GetTitle() , 'l')
     leg.Draw()
 
     cvn.SetLogx('x' in log)
@@ -307,6 +304,7 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         assert False
 
     if write_csv:
+        assert more_hists == None
         write_hist_to_file(plotdir + '/plots/' + plotname + '.csv', hist)
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
 
@@ -323,18 +321,13 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', dir3='', name3=''):
+def compare_directories(outdir, dirs, names, xtitle='', stats=''):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', '*.svg')
-    dir1_hists = get_hists_from_dir(dir1, name1)
-    dir2_hists = get_hists_from_dir(dir2, name2)
-    dir3_hists = None
-    if dir3 != '':
-        dir3_hists = get_hists_from_dir(dir3, name3)
-    for varname, hist in dir1_hists.iteritems():
-        # set x title
-        # if xtitle != '':
-        #     hist.GetXaxis().SetTitle(xtitle)
+    hists = []
+    for idir in range(len(dirs)):
+        hists.append(get_hists_from_dir(dirs[idir], names[idir]))
+    for varname, hist in hists[0].iteritems():
         if varname.find('hamming_to_true_naive') == 0:
             hist.GetXaxis().SetTitle('hamming')
         elif varname.find('hamming_to_true_naive') > 0:
@@ -345,17 +338,17 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         # else:
         log = ''
 
-        hist2 = dir2_hists[varname]
-        hist3 = None
-        if dir3_hists != None:
-            hist3 = dir3_hists[varname]
+        more_hists = []
+        for idir in range(1, len(dirs)):
+            more_hists.append(hists[idir][varname])
+            
         var_type = 'int'
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
         bounds = None
         if varname in hard_bounds:
             bounds = hard_bounds[varname]
-        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds, log=log, shift_overflows=True)
+        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats, bounds=bounds, log=log, shift_overflows=False)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', outdir, '3', 'null', 'svg'])
         
