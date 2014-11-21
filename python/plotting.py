@@ -28,16 +28,19 @@ from opener import opener
 
 hard_bounds = {
     'hamming_to_true_naive' : (-0.5, 25.5),
-    'v_hamming_to_true_naive' : (-0.5, 8),
-    'd_hamming_to_true_naive' : (-0.5, 20),
-    'j_hamming_to_true_naive' : (-0.5, 20),
-    'd_3p_del' : (-8, 8),
-    'd_5p_del' : (-8, 8),
-    'dj_insertion' : (-10, 15),
-    'j_5p_del' : (-10, 15),
-    'mute_freqs' : (-5, 5),
-    'v_3p_del' : (-3, 3),
-    'vd_insertion' : (-8, 8)
+    'v_hamming_to_true_naive' : (-0.5, 8.5),
+    'd_hamming_to_true_naive' : (-0.5, 10.5),
+    'j_hamming_to_true_naive' : (-0.5, 12.5),
+    'v_hamming_to_true_naive_normed' : (-0.5, 8.5),
+    'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
+    'j_hamming_to_true_naive_normed' : (-0.5, 20),
+    'd_3p_del' : (-8.5, 8.5),
+    'd_5p_del' : (-8.5, 8.5),
+    'dj_insertion' : (-10.5, 15.5),
+    'j_5p_del' : (-10.5, 15.5),
+    'mute_freqs' : (-5.5, 5.5),
+    'v_3p_del' : (-3.5, 3.5),
+    'vd_insertion' : (-8.5, 8.5)
 }
 
 # ----------------------------------------------------------------------------------------
@@ -328,9 +331,9 @@ def compare_directories(outdir, dirs, names, xtitle='', stats=''):
     for idir in range(len(dirs)):
         hists.append(get_hists_from_dir(dirs[idir], names[idir]))
     for varname, hist in hists[0].iteritems():
-        if varname.find('hamming_to_true_naive') == 0:
+        if 'hamming_to_true_naive' in varname:
             hist.GetXaxis().SetTitle('hamming')
-        elif varname.find('hamming_to_true_naive') > 0:
+        if 'hamming_to_true_naive_normed' in varname:
             hist.GetXaxis().SetTitle('% hamming')
         # deal with log axes
         # if varname.find('hamming_to_true_naive') > 0:

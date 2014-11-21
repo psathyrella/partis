@@ -1,4 +1,8 @@
-- perfromance 
+- perfromance
+  - note that imgt actually does well on j gene id and j gene hamming-to-true-naive
+    - this appears to be because if you completely give up on getting the dj insertion and its erosions correct, you can always expand the j gene all the way to the left,
+      so you\'re more likely to get the j gene right (and the j hamming).
+    - So! do we want to do this? i.e. we could have an option to only care about getting the genes right
   - min occurences before you start averaging over alleles (& co)
     - tried with 5, 10, 20, 50 (or something like that) made minimal performance difference (...for whatever set of other parameters were in effect at that point)
   - few vs many genes

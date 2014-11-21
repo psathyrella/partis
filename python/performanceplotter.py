@@ -26,6 +26,7 @@ class PerformancePlotter(object):
         self.values['hamming_to_true_naive'] = {}
         for region in utils.regions:
             self.values[region + '_hamming_to_true_naive'] = {}
+            self.values[region + '_hamming_to_true_naive_normed'] = {}
         # for bound in utils.boundaries:
         #     self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion TODO add correlation to previous base
         # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
@@ -133,12 +134,11 @@ class PerformancePlotter(object):
                 #     seq_to_use = line[column[ : column.find('_', 3)]]  # NOTE has to work for seq_content *and* vd_insertion_content, hence the 3
                 #         for nuke in seq_to_use:
                 #             self.counts[col][nuke] += 1
-                elif column == 'hamming_to_true_naive':
-                    trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
-                    guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'])
-                elif column.find('hamming_to_true_naive') == 2:  # i.e. it's '[vdj]_hamming_to_true_naive'
-                    trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it's ok for now
-                    guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=column[0], normalize=True)
+                elif 'hamming_to_true_naive' in column:
+                    trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it does the job
+                    restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
+                    normalize = '_norm' in column
+                    guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
                 elif column == 'mute_freqs':
                     trueval = self.mutation_rate(true_line)
                     guessval = self.mutation_rate(line)
@@ -164,8 +164,8 @@ class PerformancePlotter(object):
                 log = ''
                 if column.find('hamming_to_true_naive') >= 0:
                     hist.GetXaxis().SetTitle('hamming distance')
-                    if column.find('hamming_to_true_naive') > 0:
-                        log = 'y'
+                    # if column.find('hamming_to_true_naive') > 0:
+                    #     log = 'y'
                 else:
                     hist.GetXaxis().SetTitle('inferred - true')
                 plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)

@@ -12,6 +12,7 @@ import utils
 import joinparser
 
 from performanceplotter import PerformancePlotter
+# - convert recombinator csv to fasta: /home/dralph/Dropbox/bin/csv2fasta
 
 # ----------------------------------------------------------------------------------------
 class IMGTParser(object):

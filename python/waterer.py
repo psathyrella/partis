@@ -469,8 +469,8 @@ class Waterer(object):
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
 
         if self.args.debug:
-            print '         k_v: %d [%d-%d]' % (k_v, k_v_min, k_v_max)
-            print '         k_d: %d [%d-%d]' % (k_d, k_d_min, k_d_max)
+            print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
+            print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
             print '         used',
             for region in utils.regions:
                 print ' %s: %d/%d' % (region, n_used[region], n_matches[region]),
