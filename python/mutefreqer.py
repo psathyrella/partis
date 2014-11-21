@@ -53,6 +53,7 @@ class MuteFreqer(object):
             cvn = TCanvas("cvn", "", 6000, 1000)
 
         # calculate mute freqs
+        n_cached, n_not_cached = 0, 0
         for gene in self.counts:
             mute_counts = self.counts[gene]
             sorted_positions = sorted(mute_counts)
@@ -69,6 +70,10 @@ class MuteFreqer(object):
                     plotting_info[-1]['nuke_freqs'][nuke] = nuke_freq
                     if calculate_uncertainty:  # it's kinda slow
                         errs = fraction_uncertainty.err(mute_counts[position][nuke], mute_counts[position]['total'])
+                        if errs[2]:
+                            n_cached += 1
+                        else:
+                            n_not_cached += 1
                         # print nuke_freq, errs[0], errs[1], '(', mute_counts[position][nuke], ',', mute_counts[position]['total'], ')'
                         assert errs[0] <= nuke_freq  # these checks are probably unnecessary. EDIT and totally saved my ass about ten minutes after writing the previous statement
                         assert nuke_freq <= errs[1]
@@ -84,6 +89,10 @@ class MuteFreqer(object):
                 mutated_fraction_err = (0.0, 0.0)
                 if calculate_uncertainty:  # it's kinda slow
                     mutated_fraction_err = fraction_uncertainty.err(n_mutated, mute_counts[position]['total'])
+                    if mutated_fraction_err[2]:
+                        n_cached += 1
+                    else:
+                        n_not_cached += 1
                 mute_counts[position]['freq_lo_err'] = mutated_fraction_err[0]
                 mute_counts[position]['freq_hi_err'] = mutated_fraction_err[1]
 
@@ -152,6 +161,7 @@ class MuteFreqer(object):
                     check_call(['makeHtml', self.base_plotdir + '/' + region, '1', 'null', 'svg'])
                     check_call(['makeHtml', self.base_plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
                 check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
+        return (n_cached, n_not_cached)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):

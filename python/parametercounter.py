@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import csv
+import time
 import types
 import sys
 from subprocess import check_call
@@ -117,7 +118,11 @@ class ParameterCounter(object):
     def write_counts(self):
         if self.plotdir != '' and has_root:
             self.plot()
-        self.mutefreqer.write(self.base_outdir)
+        print 'write mute freqs'
+        mute_start = time.time()
+        n_cached, n_not_cached = self.mutefreqer.write(self.base_outdir)
+        print 'mute freq write time: %.3f' % (time.time() - mute_start)
+        print ' %d / %d cached' % (n_cached, n_cached + n_not_cached)
         for column in self.counts:
             index = None
             outfname = None

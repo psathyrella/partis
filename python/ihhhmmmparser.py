@@ -170,6 +170,13 @@ class IhhhmmmParser(object):
         info['fv_insertion'] = ''
         info['jf_insertion'] = ''
         info['seq'] = info['v_qr_seq'] + info['vd_insertion'] + info['d_qr_seq'] + info['dj_insertion'] + info['j_qr_seq']
+
+        if '-' in info['seq']:
+            print 'ERROR found a dash in %s, returning failure' % unique_id
+            while not fk.eof and fk.line[1] != 'Details':  # skip stuff until start of next Detail block
+                fk.increment()
+            return
+
         if info['seq'] not in self.siminfo[unique_id]['seq']:  # arg. I can't do != because it tacks on v left and j right deletions
             print 'ERROR didn\'t find the right sequence for %s' % unique_id
             print '  ', info['seq']
@@ -186,7 +193,6 @@ class IhhhmmmParser(object):
                 print 'ERROR %s not in germlines' % info[region + '_gene']
                 assert False
 
-# ----------------------------------------------------------------------------------------
             gl_seq = info[region + '_gl_seq']
             if '[' in gl_seq:  # ambiguous
                 for nuke in utils.nukes:
@@ -195,13 +201,15 @@ class IhhhmmmParser(object):
                         print '  replaced [ with %s' % nuke
                         break
                 info[region + '_gl_seq'] = gl_seq
-# ----------------------------------------------------------------------------------------
 
             if info[region + '_gl_seq'] not in self.germline_seqs[region][info[region + '_gene']]:
                 print 'ERROR gl match not found for %s in %s' % (info[region + '_gene'], unique_id)
                 print '  ', info[region + '_gl_seq']
                 print '  ', self.germline_seqs[region][info[region + '_gene']]                
-                assert False
+                self.perfplotter.add_partial_fail(self.siminfo[unique_id], info)
+                while not fk.eof and fk.line[1] != 'Details':  # skip stuff until start of next Detail block
+                    fk.increment()
+                return
 
         self.perfplotter.evaluate(self.siminfo[unique_id], info)
         self.details[unique_id] = info
@@ -262,7 +270,7 @@ class IhhhmmmParser(object):
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label', required=True)
-parser.add_argument('--n_max_queries', type=int, default=-1)
+parser.add_argument('--n-max-queries', type=int, default=-1)
 parser.add_argument('--queries')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--datadir', default='data/imgt')
@@ -272,4 +280,4 @@ args.queries = utils.get_arg_list(args.queries)
 args.indir = 'caches/recombinator/performance/' + args.label
 args.simfname = args.indir + '/simu.csv'
 args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
-iparser = IhhhmmmParser(args)
+ihhhmmmparser = IhhhmmmParser(args)

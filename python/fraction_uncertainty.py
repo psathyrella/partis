@@ -24,7 +24,7 @@ def err(obs, total, use_beta=True, use_cache=True):
 
     key = str(obs) + '/' + str(total)
     if use_cache and key in cached_uncertainties.errs:
-        return cached_uncertainties.errs[key]
+        return cached_uncertainties.errs[key] + (True, )
 
     frac = float(obs) / total
     if use_beta or frac == 0.0 or frac == 1.0:  # still need to use beta for 0 and 1 'cause the sqrt thing below gives garbage for those cases
@@ -43,4 +43,4 @@ def err(obs, total, use_beta=True, use_cache=True):
 
     assert lo < frac or frac == 0.0
     assert frac < hi or frac == 1.0
-    return (lo,hi)
+    return (lo,hi) + (False, )

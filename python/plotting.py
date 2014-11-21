@@ -27,10 +27,17 @@ else:
 from opener import opener
 
 hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 29.5),
+    'hamming_to_true_naive' : (-0.5, 25.5),
     'v_hamming_to_true_naive' : (-0.5, 18),
-    'd_hamming_to_true_naive' : (-0.5, 30),
-    'j_hamming_to_true_naive' : (-0.5, 30)
+    'd_hamming_to_true_naive' : (-0.5, 18),
+    'j_hamming_to_true_naive' : (-0.5, 18),
+    'd_3p_del' : (-6, 6),
+    'd_5p_del' : (-6, 6),
+    'dj_insertion' : (-10, 15),
+    'j_5p_del' : (-10, 15),
+    'mute_freqs' : (-5, 5),
+    'v_3p_del' : (-3, 3),
+    'vd_insertion' : (-10, 8)
 }
 
 # ----------------------------------------------------------------------------------------
@@ -205,7 +212,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None, bounds=None, errors=False):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist2=None, write_csv=False, stats='', hist3=None, bounds=None, errors=False, shift_overflows=False):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
@@ -235,6 +242,29 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', hist
         # hframe.SetMaximum(1.0)
     hframe.SetTitle(plotname + ';' + hist.GetXaxis().GetTitle() + ';')
     hframe.Draw('txt')
+
+    if shift_overflows:
+        for htmp in [hist, hist2, hist3]:
+            if htmp == None:
+                continue
+            underflows, overflows = 0.0, 0.0
+            first_shown_bin, last_shown_bin = -1, -1
+            for ib in range(0, htmp.GetXaxis().GetNbins()+2):
+                if htmp.GetXaxis().GetBinCenter(ib) < xmin:
+                    underflows += htmp.GetBinContent(ib)
+                elif first_shown_bin == -1:
+                    first_shown_bin = ib
+            for ib in reversed(range(0, htmp.GetXaxis().GetNbins()+2)):
+                if htmp.GetXaxis().GetBinCenter(ib) > xmax:
+                    overflows += htmp.GetBinContent(ib)
+                elif last_shown_bin == -1:
+                    last_shown_bin = ib
+
+            htmp.SetBinContent(first_shown_bin, underflows + htmp.GetBinContent(first_shown_bin))
+            htmp.SetBinContent(last_shown_bin, overflows + htmp.GetBinContent(last_shown_bin))
+
+    # for ib in range(0, hist.GetXaxis().GetNbins()+2):
+    #     print ib, hist.GetXaxis().GetBinCenter(ib), hist.GetBinContent(ib)
 
     draw_str = 'hist same'
     if errors:  # not working!
@@ -325,7 +355,7 @@ def compare_directories(outdir, dir1, name1, dir2, name2, xtitle='', stats='', d
         bounds = None
         if varname in hard_bounds:
             bounds = hard_bounds[varname]
-        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds, log=log)
+        draw(hist, var_type, plotname=varname, plotdir=outdir, hist2=hist2, write_csv=False, stats=stats, hist3=hist3, bounds=bounds, log=log, shift_overflows=True)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['makeHtml', outdir, '3', 'null', 'svg'])
         

@@ -2,6 +2,7 @@
 import csv
 import sys
 import glob
+import argparse
 import os
 import re
 from bs4 import BeautifulSoup
@@ -14,54 +15,53 @@ from performanceplotter import PerformancePlotter
 
 # ----------------------------------------------------------------------------------------
 class IMGTParser(object):
-    def __init__(self, simfname, datadir, plotdir, indir='', infname=''):
-        self.debug = 1
-        n_max_queries = 10
-        queries = []
+    def __init__(self, args):
+        self.args = args
 
-        self.germline_seqs = utils.read_germlines(datadir)
+        self.germline_seqs = utils.read_germlines(self.args.datadir)
 
-        perfplotter = PerformancePlotter(self.germline_seqs, plotdir, 'imgt')
+        perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'imgt')
 
         # get sequence info that was passed to imgt
         self.seqinfo = {}
-        with opener('r')(simfname) as simfile:
+        with opener('r')(self.args.simfname) as simfile:
             reader = csv.DictReader(simfile)
             iline = 0
             for line in reader:
-                if len(queries) > 0 and line['unique_id'] not in queries:
+                if self.args.queries != None and line['unique_id'] not in self.args.queries:
                     continue
                 if len(re.findall('_[FP]', line['j_gene'])) > 0:
                     line['j_gene'] = line['j_gene'].replace(re.findall('_[FP]', line['j_gene'])[0], '')
                 self.seqinfo[line['unique_id']] = line
                 iline += 1
-                if n_max_queries > 0 and iline >= n_max_queries:
+                if self.args.n_max_queries > 0 and iline >= self.args.n_max_queries:
                     break
 
         paragraphs, csv_info = None, None
-        if '.html' in infname:
-            print 'reading', infname
-            with opener('r')(infname) as infile:
+        if self.args.infname != None and '.html' in self.args.infname:
+            print 'reading', self.args.infname
+            with opener('r')(self.args.infname) as infile:
                 soup = BeautifulSoup(infile)
                 paragraphs = soup.find_all('pre')
 
         n_failed, n_total, n_not_found, n_found = 0, 0, 0, 0
         for unique_id in self.seqinfo:
-            if self.debug:
+            if self.args.debug:
                 print unique_id,
             imgtinfo = []
             # print 'true'
             # utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id])
-            if '.html' in infname:
+            if self.args.infname != None and '.html' in self.args.infname:
                 for pre in paragraphs:  # NOTE this loops over everything an awful lot of times. Shouldn't really matter for now, though
                     if unique_id in pre.text:
                         imgtinfo.append(pre.text)
             else:
-                assert infname == ''
-                infnames = glob.glob(indir + '/' + unique_id + '*')
+                n_total += 1
+                assert self.args.infname == None
+                infnames = glob.glob(self.args.indir + '/' + unique_id + '*')
                 assert len(infnames) <= 1
                 if len(infnames) != 1:
-                    if self.debug:
+                    if self.args.debug:
                         print ' couldn\'t find it'
                     n_not_found += 1
                     continue
@@ -89,14 +89,13 @@ class IMGTParser(object):
                 print '%s no info' % unique_id
                 continue
             else:
-                if self.debug:
+                if self.args.debug:
                     print ''
             line = self.parse_query_text(unique_id, imgtinfo)
-            n_total += 1
             try:
                 assert 'failed' not in line
-                joinparser.add_insertions(line, debug=self.debug)
-                joinparser.resolve_overlapping_matches(line, debug=self.debug, germlines=self.germline_seqs)
+                joinparser.add_insertions(line, debug=self.args.debug)
+                joinparser.resolve_overlapping_matches(line, debug=self.args.debug, germlines=self.germline_seqs)
             except (AssertionError, KeyError):
                 print '    giving up'
                 n_failed += 1
@@ -104,7 +103,7 @@ class IMGTParser(object):
                 print '    perfplotter: not sure what to do with a fail'
                 continue
             perfplotter.evaluate(self.seqinfo[unique_id], line)
-            if self.debug:
+            if self.args.debug:
                 utils.print_reco_event(self.germline_seqs, self.seqinfo[unique_id], label='true:')
                 utils.print_reco_event(self.germline_seqs, line, label='inferred:')
 
@@ -165,12 +164,12 @@ class IMGTParser(object):
 
             gl_seq = info[imatch].split()[4].upper()
             if qr_seq.replace('.', '') not in self.seqinfo[unique_id]['seq']:
-                if self.debug:
+                if self.args.debug:
                     print '    qr_seq not foundin seqinfo'
                 line['failed'] = True
                 return line
 
-            if self.debug:
+            if self.args.debug:
                 print '  ', region, match_name
                 print '    gl', gl_seq
                 print '      ', qr_seq
@@ -215,6 +214,11 @@ class IMGTParser(object):
                     new_gl_seq.append(gl_seq[inuke])
             gl_seq = ''.join(new_gl_seq)
 
+            if match_name not in self.germline_seqs[region]:
+                print '    ERROR couldn\'t find %s in germlines' % match_name
+                line['failed'] = True
+                return line
+
             if self.germline_seqs[region][match_name].find(gl_seq) != del_5p:  # why the *@*!! can't they make this consistent?
                 if self.germline_seqs[region][match_name].find(gl_seq) < 0:
                     print 'whooooaa'
@@ -234,11 +238,11 @@ class IMGTParser(object):
                 return line
                 # assert False
 
-            if self.debug:
+            if self.args.debug:
                 utils.color_mutants(gl_seq, qr_seq, ref_label='gl ', extra_str='    ', print_result=True, post_str='    del: %d %d' % (del_5p, del_3p))
 
             # try:
-            #     match_name = joinparser.figure_out_which_damn_gene(self.germline_seqs, match_name, gl_seq, debug=self.debug)
+            #     match_name = joinparser.figure_out_which_damn_gene(self.germline_seqs, match_name, gl_seq, debug=self.args.debug)
             # except:
             #     print 'ERROR couldn\'t figure out the gene for %s' % match_name
             #     return {}
@@ -252,14 +256,20 @@ class IMGTParser(object):
                 line['jf_insertion'] = jf_insertion
             
         return line
-# joinparser.figure_out_which_damn_gene(self.germline_seqs, 
-#             if match_names[region] not in self.germline_seqs[region]:
-#                 print 'ERROR %s not found in germline file' % match_names[region]
-#                 sys.exit()
 
-label = 'new-imgt'
-simfile = 'caches/recombinator/performance/' + label + '/simu.csv'
-# iparser = IMGTParser(simfile, datadir='./data/imgt', infname='/home/dralph/Dropbox/imgt-results.html', plotdir=os.getenv('www') + '/tmp')
-iparser = IMGTParser(simfile, datadir='data/imgt',
-                     indir='data/performance/imgt/' + label.replace('-', '_') + '/IMGT_HighV-QUEST_individual_files_folder',
-                     plotdir=os.getenv('www') + '/tmp')
+# ----------------------------------------------------------------------------------------
+parser = argparse.ArgumentParser()
+parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+parser.add_argument('--label', required=True)
+parser.add_argument('--n-max-queries', type=int, default=-1)
+parser.add_argument('--queries')
+parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
+parser.add_argument('--datadir', default='data/imgt')
+parser.add_argument('--infname')  # input html file, if you chose the 'html' option on the imgt website
+args = parser.parse_args()
+args.queries = utils.get_arg_list(args.queries)
+
+args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
+args.plotdir = os.getenv('www') + '/partis/performance/imgt/' + args.label
+args.indir = 'data/performance/imgt/' + args.label.replace('-', '_') + '/IMGT_HighV-QUEST_individual_files_folder'  # folder with imgt result files
+imgtparser = IMGTParser(args)
