@@ -380,13 +380,13 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
       if(query_strs.first.size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
         n_long_erosions++;
 
-      double *gene_score(&all_scores_[gene][query_strs]);
+      double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
       bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
       if(already_cached) {
         if(debug_ == 2 && algorithm_ == "viterbi")
           PrintPath(query_strs, gene, *gene_score, "(cached)");
       } else {
-        FillTrellis(&subseqs[region], query_strs, gene, gene_score);  // set *gene_score to uncorrected score
+        FillTrellis(&subseqs[region], query_strs, gene, gene_score);  // sets *gene_score to uncorrected score
         double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
         *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
