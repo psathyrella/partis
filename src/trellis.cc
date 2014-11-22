@@ -40,105 +40,86 @@ trellis::~trellis() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::Viterbi() {
-  //Initialize the traceback table
-  if(traceback_table_ != NULL) {
+  if(traceback_table_ != nullptr)
     delete traceback_table_;
-  }
-
   traceback_table_ = new int_2D(seqs_->GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
-  scoring_previous_ = new vector<double> (hmm_->n_states(), -INFINITY);
-  scoring_current_  = new vector<double> (hmm_->n_states(), -INFINITY);
+  scoring_current_  = new vector<double> (hmm_->n_states(), -INFINITY);  // viterbi values in the current column (i.e. at the current position in the query sequence)
+  scoring_previous_ = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
 
   bitset<STATE_MAX> next_states;
   bitset<STATE_MAX> current_states;
 
-  double  viterbi_temp(-INFINITY);
-  double  emission(-INFINITY);
-  ending_viterbi_pointer_ = -1;
-  ending_viterbi_log_prob_ = -INFINITY;
-
-  State* init = hmm_->init_state();
-
-  bitset<STATE_MAX>* initial_to = hmm_->initial_to_states();
-  bitset<STATE_MAX>* from_trans(NULL);
-
   // calculate Viterbi from transitions from INIT (initial) state
+  State *init = hmm_->init_state();
+  bitset<STATE_MAX>* initial_to_states = hmm_->initial_to_states();
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
-    if((*initial_to)[st]) {   //if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      viterbi_temp = hmm_->state(st)->emission_logprob(*seqs_, 0) + init->transition_logprob(st);
-      if(viterbi_temp > -INFINITY) {
-        if((*scoring_current_)[st] < viterbi_temp) {   // NOTE this is always true since all we've done to scoring_current so far is initialize it to -INFINITY
-          (*scoring_current_)[st] = viterbi_temp;
-        }
-        next_states |= (*hmm_->state(st)->to_states());  // no effect right here, but leaves next_states set to the OR of all transitions out of all states
-      }
+    if(!(*initial_to_states)[st])  // skip <st> if there's no transition to it from <init>
+      continue;
+    double emission_val = hmm_->state(st)->emission_logprob(*seqs_, 0);  // zeroth position in sequence
+    double viterbi_val = emission_val + init->transition_logprob(st);
+    if(viterbi_val > -INFINITY) {
+      (*scoring_current_)[st] = viterbi_val;
+      next_states |= (*hmm_->state(st)->to_states());  // add <st>'s outbound transitions to the list of states to check when we get to the next column
+                                                       // this leaves <next_states> set to the OR of all states to which we can transition from if start from a state to which we can transition from <init>
     }
   }
 
-  // loop over the sequence
+  // loop over the rest of the sequence
+  bitset<STATE_MAX>* from_trans(NULL);
   for(size_t position = 1; position < seqs_->GetSequenceLength(); ++position) {
-    //Swap current and previous viterbi scores
+    // swap <scoring_current_> and <scoring_previous_>
     scoring_previous_->assign(hmm_->n_states(), -INFINITY); // NOTE I think this can be replaced with
-    swap_ptr_ = scoring_previous_;		    // scoring_previous_ = scoring_current_;
-    scoring_previous_ = scoring_current_;	            // scoring_current_->assign(hmm_->n_states(),-INFINITY); EDIT hmm_, nope, doesn't seem to work
+    swap_ptr_ = scoring_previous_;		            // scoring_previous_ = scoring_current_;
+    scoring_previous_ = scoring_current_;	            // scoring_current_->assign(hmm_->n_states(),-INFINITY); EDIT nope, doesn't seem to work. arg. dunno why.
     scoring_current_ = swap_ptr_;
 
-    //Swap current_states and next states sets. ie set current_states to the states which can be transitioned to from *any* of the previous states.
+    // swap <current_states> and <next_states> sets. ie set current_states to the states to which we can transition from *any* of the previous states.
     current_states.reset();
     current_states |= next_states;
     next_states.reset();
 
-    //Current states
-    for(size_t st_current = 0; st_current < hmm_->n_states(); ++st_current) {  //Current state that emits value
-      // Check to see if current state is valid. ie if transition to this state is allowed from *any* state which we passed through at the previous position
-      if(!current_states[st_current])
+    // current states
+    for(size_t st_current = 0; st_current < hmm_->n_states(); ++st_current) {
+      if(!current_states[st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
         continue;
 
-      // Get emission of current state
-      emission = hmm_->state(st_current)->emission_logprob(*seqs_, position);
-
-      if(emission == -INFINITY)   // zero probabiility, may as will stop
+      double emission_val = hmm_->state(st_current)->emission_logprob(*seqs_, position);
+      if(emission_val == -INFINITY)
         continue;
 
-      // get list of states that are valid previous states
-      from_trans = hmm_->state(st_current)->from_states();
-
+      
+      from_trans = hmm_->state(st_current)->from_states();  // list of states from which we could've arrive at <st_current>
       for(size_t st_previous = 0; st_previous < hmm_->n_states() ; ++st_previous) { //for previous states
         if(!(*from_trans)[st_previous])
           continue;
-
-        //Check that previous state has transition to current state
-        //and that the previous viterbi score is not -INFINITY
-        if((*scoring_previous_)[st_previous] != -INFINITY) {
-          viterbi_temp = hmm_->state(st_previous)->transition_logprob(st_current) + emission + (*scoring_previous_)[st_previous];
-
-          if(viterbi_temp > (*scoring_current_)[st_current]) {
-            (*scoring_current_)[st_current] = viterbi_temp;
-            (*traceback_table_)[position][st_current] = st_previous;
-          }
-
-          next_states |= (*hmm_->state(st_current)->to_states());
-        }
+        if((*scoring_previous_)[st_previous] == -INFINITY)  // skip if <st_previous> was a dead end, i.e. that row in the previous column had zero probability
+	  continue;
+	double viterbi_val = (*scoring_previous_)[st_previous] + emission_val + hmm_->state(st_previous)->transition_logprob(st_current);
+	if(viterbi_val > (*scoring_current_)[st_current]) {
+	  (*scoring_current_)[st_current] = viterbi_val;
+	  (*traceback_table_)[position][st_current] = st_previous;
+	}
+	next_states |= (*hmm_->state(st_current)->to_states());
       }
     }
   }
 
-  //TODO:  Calculate ending and set the final viterbi and traceback pointer
-  //Swap current and previous viterbi scores
+  // swap <scoring_current_> and <scoring_previous_>
   scoring_previous_->assign(hmm_->n_states(), -INFINITY);
   swap_ptr_ = scoring_previous_;
   scoring_previous_ = scoring_current_;
   scoring_current_ = swap_ptr_;
 
-  //Calculate ending viterbi score and traceback from END state
+  // calculate ending viterbi score and traceback from END state
+  ending_viterbi_pointer_ = -1;
+  ending_viterbi_log_prob_ = -INFINITY;
   for(size_t st_previous = 0; st_previous < hmm_->n_states() ; ++st_previous) {
-    if((*scoring_previous_)[st_previous] > -INFINITY) {
-      viterbi_temp = (*scoring_previous_)[st_previous] + hmm_->state(st_previous)->end_transition_logprob();
-
-      if(viterbi_temp > ending_viterbi_log_prob_) {
-        ending_viterbi_log_prob_ = viterbi_temp;
-        ending_viterbi_pointer_ = st_previous;
-      }
+    if((*scoring_previous_)[st_previous] == -INFINITY)
+      continue;
+    double viterbi_val = (*scoring_previous_)[st_previous] + hmm_->state(st_previous)->end_transition_logprob();
+    if(viterbi_val > ending_viterbi_log_prob_) {
+      ending_viterbi_log_prob_ = viterbi_val;
+      ending_viterbi_pointer_ = st_previous;
     }
   }
 
