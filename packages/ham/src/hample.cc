@@ -16,6 +16,7 @@ int main(int argc, const char *argv[]) {
   ValueArg<string> seq2_arg("t", "seq2", "second sequence", false, "", "string");
   ValueArg<string> outfile_arg("o", "outfile", "output text file", false, "", "string");
   SwitchArg pair_arg("p", "pair", "is this a pair hmm?", false);
+  SwitchArg cache_check_arg("c", "check-caching", "check whether subtrellis caching is working?", false);
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmfname_arg);
@@ -23,6 +24,7 @@ int main(int argc, const char *argv[]) {
     cmd.add(seq2_arg);
     cmd.add(outfile_arg);
     cmd.add(pair_arg);
+    cmd.add(cache_check_arg);
     cmd.parse(argc, argv);
     if(pair_arg.getValue())
       assert(seq2_arg.getValue() != "");
@@ -47,6 +49,7 @@ int main(int argc, const char *argv[]) {
     seqs->AddSeq(seq2);
   }
 
+
   // make trellis and run
   trellis trell(&hmm, seqs);
   trell.Viterbi();
@@ -64,23 +67,28 @@ int main(int argc, const char *argv[]) {
   cout << "  path:     ";
   cout << path;
 
-// ----------------------------------------------------------------------------------------
-  trell.Dump();
-  size_t length(6);
-  if (length < seq->size()) {
-    Sequence subseq(seq->GetSubSequence(0, length));
-    trellis trell2(&hmm, &subseq, &trell);
-    trell2.Viterbi();
-    TracebackPath path2(&hmm);
-    trell2.Traceback(path2);
-    cout << "second viterbi path (log prob " << trell2.ending_viterbi_log_prob() << "):" << endl;
-    cout << "  sequence: ";
-    subseq.Print();
-    path2.abbreviate();
-    cout << "  second path:     ";
-    cout << path2;
+  if (cache_check_arg.getValue()) {
+    for (size_t length = 1; length < seq->size(); ++length) {
+      // make another trellis on the substring of length <length>
+      Sequence subseq(seq->GetSubSequence(0, length));
+      trellis subtrell(&hmm, &subseq, &trell);
+      subtrell.Viterbi();
+      TracebackPath subpath(&hmm);
+      subtrell.Traceback(subpath);
+    
+      trellis checktrell(&hmm, &subseq);
+      checktrell.Viterbi();
+      TracebackPath checkpath(&hmm);
+      checktrell.Traceback(checkpath);
+
+      for (size_t ipos=0; ipos<length; ++ipos) {
+	// cout << checkpath[ipos] << " " << subpath[ipos] << endl;
+	assert(checkpath[ipos] == subpath[ipos]);
+      }
+      assert(checktrell.ending_viterbi_log_prob() == subtrell.ending_viterbi_log_prob());
+
+    }
   }
-// ----------------------------------------------------------------------------------------
 
   trell.Forward();
   cout << "\nforward log prob: " << trell.forward_log_prob() << endl;
