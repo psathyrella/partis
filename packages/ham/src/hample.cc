@@ -59,6 +59,9 @@ int main(int argc, const char *argv[]) {
     cout << "         2: ";
     seq2->Print();
   }
+  for (size_t ip=0; ip<seq->size(); ++ip)
+    cout << ip << " " << (*seq)[ip] << " " << trell.viterbi_log_prob(ip) << endl;
+
   trell.Forward();
 
   path.abbreviate();
