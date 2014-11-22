@@ -59,14 +59,29 @@ int main(int argc, const char *argv[]) {
     cout << "         2: ";
     seq2->Print();
   }
-  for (size_t ip=0; ip<seq->size(); ++ip)
-    cout << ip << " " << (*seq)[ip] << " " << trell.viterbi_log_prob(ip) << endl;
-
-  trell.Forward();
 
   path.abbreviate();
   cout << "  path:     ";
   cout << path;
+
+// ----------------------------------------------------------------------------------------
+  int length(3);
+  if (length < seq->size()) {
+    Sequence subseq(seq->GetSubSequence(0, length));
+    trellis trell2(&hmm, &subseq, &trell);
+    trell2.Viterbi();
+    TracebackPath path2(&hmm);
+    trell2.Traceback(path2);
+    cout << "second viterbi path (log prob " << trell2.ending_viterbi_log_prob() << "):" << endl;
+    cout << "  sequence: ";
+    subseq.Print();
+    path2.abbreviate();
+    cout << "  second path:     ";
+    cout << path2;
+  }
+// ----------------------------------------------------------------------------------------
+
+  trell.Forward();
   cout << "\nforward log prob: " << trell.forward_log_prob() << endl;
 
   if(outfile_arg.getValue().length() > 0) {

@@ -3,47 +3,83 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequence *seq) :
+trellis::trellis(Model* hmm, Sequence *seq, trellis *cached_trellis) :
   hmm_(hmm),
-  seqs_(NULL) {
+  seqs_(nullptr),
+  cached_trellis_(cached_trellis)
+{
   seqs_ = new Sequences;
   seqs_->AddSeq(seq);
   Init();
 }
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequences *seqs) :
+trellis::trellis(Model* hmm, Sequences *seqs, trellis *cached_trellis) :
   hmm_(hmm),
-  seqs_(seqs) {
+  seqs_(seqs),
+  cached_trellis_(cached_trellis)
+{
   Init();
 }
 
 // ----------------------------------------------------------------------------------------
 void trellis::Init() {
-  traceback_table_ = NULL;
+  if (cached_trellis_) {
+    if (seqs_->GetSequenceLength() > cached_trellis_->seqs()->GetSequenceLength())
+      throw runtime_error("ERROR cached trellis sequence length " + to_string(cached_trellis_->seqs()->GetSequenceLength()) + " smaller than mine " + to_string(seqs_->GetSequenceLength()));
+    if (hmm_ != cached_trellis_->model())
+      throw runtime_error("ERROR model in cached trellis " + cached_trellis_->model()->name() + " not the same as mine " + hmm_->name());
+  }
+
+  traceback_table_ = nullptr;
+  forward_table_ = nullptr;
+  viterbi_log_probs_ = nullptr;
+  viterbi_pointers_ = nullptr;
+  scoring_current_ = nullptr;
+  scoring_previous_ = nullptr;
+  swap_ptr_ = nullptr;
+
   ending_viterbi_log_prob_ = -INFINITY;
   ending_viterbi_pointer_ = -1;
-  forward_table_ = NULL;
   ending_forward_log_prob_ = -INFINITY;
-  scoring_current_ = NULL;
-  scoring_previous_ = NULL;
-  swap_ptr_ = NULL;
 }
 
 // ----------------------------------------------------------------------------------------
 trellis::~trellis() {
-  delete traceback_table_;
-  delete forward_table_;
-  delete scoring_previous_;
-  delete scoring_current_;
+  if (viterbi_log_probs_)
+    delete viterbi_log_probs_;
+  if (viterbi_pointers_)
+    delete viterbi_pointers_;
+  if (traceback_table_ && !cached_trellis_)
+    delete traceback_table_;
+  if (scoring_current_)
+    delete scoring_current_;
+  if (scoring_previous_)
+    delete scoring_previous_;
+  if (forward_table_)
+    delete forward_table_;
+}
+
+// ----------------------------------------------------------------------------------------
+double trellis::viterbi_log_prob(size_t length) {
+  assert(length <= viterbi_log_probs_->size());
+  int last_state = viterbi_pointer(length);  // NOTE this corresponds to (*viterbi_pointers_)[length-1]
+  double end_transition_val = hmm_->state(last_state)->end_transition_logprob();
+  return viterbi_log_probs_->at(length-1) + end_transition_val;
 }
 
 // ----------------------------------------------------------------------------------------
 void trellis::Viterbi() {
-  viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);  // log prob of best path up to (and including) each position in the sequence
-
-  if(traceback_table_ != nullptr)
-    delete traceback_table_;
+  if (cached_trellis_) {  // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
+    traceback_table_ = cached_trellis_->traceback_table();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
+    ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_->GetSequenceLength());
+    ending_viterbi_log_prob_ = cached_trellis_->viterbi_log_prob(seqs_->GetSequenceLength());
+    return;
+  }
+  viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);
+  viterbi_pointers_ = new vector<int> (seqs_->GetSequenceLength(), -1);
+  if(!traceback_table_)
+  // viterbi_table_ = new float_2D(seqs_->GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));
   traceback_table_ = new int_2D(seqs_->GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
   scoring_current_  = new vector<double> (hmm_->n_states(), -INFINITY);  // viterbi values in the current column (i.e. at the current position in the query sequence)
   scoring_previous_ = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
@@ -53,7 +89,7 @@ void trellis::Viterbi() {
 
   // calculate Viterbi from transitions from INIT (initial) state
   State *init = hmm_->init_state();
-  bitset<STATE_MAX>* initial_to_states = hmm_->initial_to_states();
+  bitset<STATE_MAX> *initial_to_states = hmm_->initial_to_states();
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if(!(*initial_to_states)[st])  // skip <st> if there's no transition to it from <init>
       continue;
@@ -61,7 +97,11 @@ void trellis::Viterbi() {
     double viterbi_val = emission_val + init->transition_logprob(st);
     if(viterbi_val > -INFINITY) {
       (*scoring_current_)[st] = viterbi_val;
-      (*viterbi_log_probs_)[0] = viterbi_val;
+      // (*viterbi_table_)[0][st] = viterbi_val;
+      if (viterbi_val > (*viterbi_log_probs_)[0]) {
+      	(*viterbi_log_probs_)[0] = viterbi_val;  // + hmm_->state(st)->end_transition_logprob();
+	(*viterbi_pointers_)[0] = st;
+      }
       next_states |= (*hmm_->state(st)->to_states());  // add <st>'s outbound transitions to the list of states to check when we get to the next column
                                                        // this leaves <next_states> set to the OR of all states to which we can transition from if start from a state to which we can transition from <init>
     }
@@ -100,7 +140,9 @@ void trellis::Viterbi() {
 	double viterbi_val = (*scoring_previous_)[st_previous] + emission_val + hmm_->state(st_previous)->transition_logprob(st_current);
 	if(viterbi_val > (*scoring_current_)[st_current]) {
 	  (*scoring_current_)[st_current] = viterbi_val;  // save this value as the best value we've so far come across
-	  (*viterbi_log_probs_)[position] = viterbi_val;
+	  (*viterbi_log_probs_)[position] = viterbi_val;  // + hmm_->state(st_current)->end_transition_logprob();  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
+	  (*viterbi_pointers_)[position] = st_current;
+	  // (*viterbi_table_)[position][st_current] = viterbi_val;
 	  (*traceback_table_)[position][st_current] = st_previous;  // and mark which state it came from for later traceback
 	}
 	next_states |= (*hmm_->state(st_current)->to_states());
@@ -122,8 +164,7 @@ void trellis::Viterbi() {
       continue;
     double viterbi_val = (*scoring_previous_)[st_previous] + hmm_->state(st_previous)->end_transition_logprob();
     if(viterbi_val > ending_viterbi_log_prob_) {
-      ending_viterbi_log_prob_ = viterbi_val;
-      (*viterbi_log_probs_)[seqs_->GetSequenceLength() - 1] = viterbi_val;
+      ending_viterbi_log_prob_ = viterbi_val;  // NOTE should *not* be replaced by last entry in viterbi_log_probs_, since that does not include the ending transition
       ending_viterbi_pointer_ = st_previous;
     }
   }

@@ -19,7 +19,11 @@ public:
   inline Track *track(size_t it) { return tracks_[it]; }
   inline size_t n_states() { return states_.size(); }
   inline State *state(string name) { assert(states_by_name_.count(name)); return states_by_name_[name]; }
-  inline State *state(size_t ist) { assert(ist < states_.size()); return states_[ist]; }
+  inline State *state(size_t ist) {
+    if(ist >= states_.size())
+      throw runtime_error("ERROR state index too large in model::state(): " + to_string(ist));
+    return states_[ist];
+  }
   inline bitset<STATE_MAX> *initial_to_states() { return initial_->to_states(); }  //!Get vector of states that the initial state transitions to
   inline State *init_state() { return initial_; }  //!Get pointer to the initial state
   inline double overall_prob() { return overall_prob_; }
