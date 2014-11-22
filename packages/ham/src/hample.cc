@@ -65,7 +65,8 @@ int main(int argc, const char *argv[]) {
   cout << path;
 
 // ----------------------------------------------------------------------------------------
-  int length(3);
+  trell.Dump();
+  size_t length(6);
   if (length < seq->size()) {
     Sequence subseq(seq->GetSubSequence(0, length));
     trellis trell2(&hmm, &subseq, &trell);

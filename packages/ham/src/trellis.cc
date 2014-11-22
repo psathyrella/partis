@@ -61,6 +61,17 @@ trellis::~trellis() {
 }
 
 // ----------------------------------------------------------------------------------------
+void trellis::Dump() {
+  for (size_t ipos=0; ipos<seqs_->GetSequenceLength(); ++ipos) {
+  // for (size_t ist=0; ist<hmm_->n_states(); ++ist) {
+    cout
+      << setw(12) << hmm_->state((*viterbi_pointers_)[ipos])->name()[0]
+      << setw(12) << (*viterbi_log_probs_)[ipos];
+    // }
+    cout << endl;
+  }
+}
+// ----------------------------------------------------------------------------------------
 double trellis::viterbi_log_prob(size_t length) {
   assert(length <= viterbi_log_probs_->size());
   int last_state = viterbi_pointer(length);  // NOTE this corresponds to (*viterbi_pointers_)[length-1]
@@ -129,19 +140,21 @@ void trellis::Viterbi() {
       double emission_val = hmm_->state(st_current)->emission_logprob(*seqs_, position);
       if(emission_val == -INFINITY)
         continue;
-
       
       from_trans = hmm_->state(st_current)->from_states();  // list of states from which we could've arrive at <st_current>
+
       for(size_t st_previous = 0; st_previous < hmm_->n_states() ; ++st_previous) { //for previous states
         if(!(*from_trans)[st_previous])
           continue;
         if((*scoring_previous_)[st_previous] == -INFINITY)  // skip if <st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	  continue;
 	double viterbi_val = (*scoring_previous_)[st_previous] + emission_val + hmm_->state(st_previous)->transition_logprob(st_current);
-	if(viterbi_val > (*scoring_current_)[st_current]) {
-	  (*scoring_current_)[st_current] = viterbi_val;  // save this value as the best value we've so far come across
+	if(viterbi_val > (*viterbi_log_probs_)[position]) {
 	  (*viterbi_log_probs_)[position] = viterbi_val;  // + hmm_->state(st_current)->end_transition_logprob();  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
 	  (*viterbi_pointers_)[position] = st_current;
+	}
+	if(viterbi_val > (*scoring_current_)[st_current]) {
+	  (*scoring_current_)[st_current] = viterbi_val;  // save this value as the best value we've so far come across
 	  // (*viterbi_table_)[position][st_current] = viterbi_val;
 	  (*traceback_table_)[position][st_current] = st_previous;  // and mark which state it came from for later traceback
 	}

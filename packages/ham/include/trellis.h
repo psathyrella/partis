@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <stdint.h>
+#include <iomanip>
+
 #include "sequences.h"
 #include "model.h"
 #include "tracebackpath.h"
@@ -35,6 +37,8 @@ public:
   void Viterbi();
   void Forward();
   void Traceback(TracebackPath &path);
+
+  void Dump();
 private:
   Model *hmm_;
   Sequences *seqs_;
