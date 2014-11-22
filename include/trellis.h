@@ -24,6 +24,7 @@ public:
 
   Model *model() { return hmm_; }
   double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
+  double viterbi_log_prob(size_t ipos) { assert(ipos < viterbi_log_probs_->size()); return viterbi_log_probs_->at(ipos); }
   Sequences *seqs() { return seqs_; }
   float_2D* forward_table() { return forward_table_; }
   double forward_log_prob() { return ending_forward_log_prob_; }
@@ -42,6 +43,7 @@ private:
   double  ending_forward_log_prob_;
 
   // internal loop variables TODO wouldn't it make more sense to put these somewhere else?
+  vector<double> *viterbi_log_probs_;
   vector<double> *scoring_current_;
   vector<double> *scoring_previous_;
   vector<double> *swap_ptr_;

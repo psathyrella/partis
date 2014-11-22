@@ -40,6 +40,8 @@ trellis::~trellis() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::Viterbi() {
+  viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);  // log prob of best path up to (and including) each position in the sequence
+
   if(traceback_table_ != nullptr)
     delete traceback_table_;
   traceback_table_ = new int_2D(seqs_->GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
@@ -59,6 +61,7 @@ void trellis::Viterbi() {
     double viterbi_val = emission_val + init->transition_logprob(st);
     if(viterbi_val > -INFINITY) {
       (*scoring_current_)[st] = viterbi_val;
+      (*viterbi_log_probs_)[0] = viterbi_val;
       next_states |= (*hmm_->state(st)->to_states());  // add <st>'s outbound transitions to the list of states to check when we get to the next column
                                                        // this leaves <next_states> set to the OR of all states to which we can transition from if start from a state to which we can transition from <init>
     }
@@ -96,8 +99,9 @@ void trellis::Viterbi() {
 	  continue;
 	double viterbi_val = (*scoring_previous_)[st_previous] + emission_val + hmm_->state(st_previous)->transition_logprob(st_current);
 	if(viterbi_val > (*scoring_current_)[st_current]) {
-	  (*scoring_current_)[st_current] = viterbi_val;
-	  (*traceback_table_)[position][st_current] = st_previous;
+	  (*scoring_current_)[st_current] = viterbi_val;  // save this value as the best value we've so far come across
+	  (*viterbi_log_probs_)[position] = viterbi_val;
+	  (*traceback_table_)[position][st_current] = st_previous;  // and mark which state it came from for later traceback
 	}
 	next_states |= (*hmm_->state(st_current)->to_states());
       }
@@ -119,6 +123,7 @@ void trellis::Viterbi() {
     double viterbi_val = (*scoring_previous_)[st_previous] + hmm_->state(st_previous)->end_transition_logprob();
     if(viterbi_val > ending_viterbi_log_prob_) {
       ending_viterbi_log_prob_ = viterbi_val;
+      (*viterbi_log_probs_)[seqs_->GetSequenceLength() - 1] = viterbi_val;
       ending_viterbi_pointer_ = st_previous;
     }
   }
