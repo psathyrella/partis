@@ -12,6 +12,7 @@ sys.argv.append('-b')  # root just loves its stupid little splashes
 from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import plotting
+import paramutils
 import utils
 import modelplotter
 
@@ -35,15 +36,19 @@ class ModelPlotter(object):
         filelist = glob.glob(modeldir + '/*.yaml')
         for infname in filelist:
             gene_name = os.path.basename(infname).replace('.yaml', '')  # the sanitized name, actually
+# # ----------------------------------------------------------------------------------------
+#             if utils.get_region(gene_name) == 'v' and 'IGHV4-39_star_' not in gene_name:
+#                 continue
+# # ----------------------------------------------------------------------------------------
             with open(infname) as infile:
                 model = yaml.load(infile)
                 self.make_transition_plot(gene_name, model)
                 self.make_emission_plot(gene_name, model)
                 # self.make_pair_emission_plot(gene_name, model)
 
-            for ptype in plot_types:
-                check_call(['makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
-            check_call(['./permissify-www', self.base_plotdir])
+        for ptype in plot_types:
+            check_call(['makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
+        check_call(['./permissify-www', self.base_plotdir])
 
             # break
 
@@ -64,12 +69,12 @@ class ModelPlotter(object):
             drawn_name_texts[state.name].SetBorderSize(0)
             drawn_name_texts[state.name].SetFillColor(0)
             drawn_name_texts[state.name].SetFillStyle(0)
-            drawn_name_texts[state.name].AddText(-0.5 + ibin, -0.075, simplify_state_name(state.name))
+            drawn_name_texts[state.name].AddText(-0.5 + ibin, -0.075, paramutils.simplify_state_name(state.name))
 
             sorted_to_states = {}
             for name in state.transitions.keys():
                 if name.find('IGH') == 0:
-                    sorted_to_states[name] = int(simplify_state_name(name))
+                    sorted_to_states[name] = int(paramutils.simplify_state_name(name))
                 else:
                     sorted_to_states[name] = name
             sorted_to_states = sorted(sorted_to_states.items(), key=operator.itemgetter(1))
@@ -85,7 +90,7 @@ class ModelPlotter(object):
 
                 midpoint = 0.5*(prob + 2*total)
                 texts[state.name].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
-                texts[state.name][-1].AddText(-0.5 + ibin, midpoint, simplify_state_name(to_state))
+                texts[state.name][-1].AddText(-0.5 + ibin, midpoint, paramutils.simplify_state_name(to_state))
                 texts[state.name][-1].SetBorderSize(0)
                 texts[state.name][-1].SetFillColor(0)
                 texts[state.name][-1].SetFillStyle(0)

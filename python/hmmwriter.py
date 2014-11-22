@@ -59,10 +59,12 @@ def add_empty_bins(values):
             values[ib] = 0.0
 
 # ----------------------------------------------------------------------------------------
-def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False):
+def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False, max_bin=-1):
     """
-    Interpolate the empty (less than utils.eps) bins in <values> if the neighboring full bins have less than <n_max_to_interpolate> entries,
-    otherwise fill with <bin_eps>. NOTE there's some shenanigans if you have empty bins on the edges
+    Interpolate the empty (less than utils.eps) bins in <values> if the neighboring full bins have fewer than <n_max_to_interpolate> entries.
+    Otherwise, fill with <bin_eps>.
+    NOTE there's some shenanigans if you have empty bins on the edges
+    <max_bin> specifies not to add any bins after <max_bin>
     """
     if debug:
         print '---- interpolating with %d' % n_max_to_interpolate
@@ -83,7 +85,21 @@ def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False):
             values[empty_bin] = lower_weight*values[lower_full_bin] + upper_weight*values[upper_full_bin]
             values[empty_bin] /= lower_weight + upper_weight
         else:
-            values[empty_bin] = bin_eps
+            values[empty_bin] = math.sqrt(values[lower_full_bin] + values[upper_full_bin])
+    if debug:
+        print '----'
+        for x in sorted(values.keys()):
+            print '     %3d %f' % (x, values[x])
+
+    if values[full_bins[-1]] < n_max_to_interpolate:  # if the last full bin doesn't have enough entries, we add on a linearly-decreasing tail with slope such that it hits zero the same distance out as the last full bin is from zero
+        slope = - float(values[full_bins[-1]]) / full_bins[-1]
+        new_bin_val = values[full_bins[-1]]
+        for new_bin in range(full_bins[-1] + 1, 2*full_bins[-1] + 1):
+            new_bin_val += slope
+            if new_bin_val <= 0.0 or new_bin >= max_bin:
+                break
+            values[new_bin] = new_bin_val
+
     if debug:
         print '----'
         for x in sorted(values.keys()):
@@ -171,6 +187,8 @@ class HmmWriter(object):
         self.n_max_to_interpolate = 20
         self.allow_unphysical_insertions = self.args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
         # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
+
+        self.v_3p_del_pseudocount_limit = 10  # add at least one entry 
 
         # self.insert_mute_prob = 0.0
         # self.mean_mute_freq = 0.0
@@ -327,7 +345,7 @@ class HmmWriter(object):
             else:  # for fake erosions, always interpolate
                 n_max = -1
             # print '   interpolate erosions'
-            interpolate_bins(self.erosion_probs[erosion], n_max, bin_eps=self.eps)
+            interpolate_bins(self.erosion_probs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
 
             # and finally, normalize
             total = 0.0
@@ -372,7 +390,8 @@ class HmmWriter(object):
             assert len(self.insertion_probs[insertion]) > 0
 
             # print '   interpolate insertions'
-            interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  # NOTE that we normalize *after* this
+            # TODO NOTE there's maybe not really any reason to interpolate this, 'cause we mostly just use the average in the end, anyway
+            interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
 
             if 0 not in self.insertion_probs[insertion] or len(self.insertion_probs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
                 print '    WARNING adding pseudocount to 1-bin in insertion probs'

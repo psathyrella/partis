@@ -17,16 +17,21 @@
 
   - check shift_overflows in plotting.py
   - separate training and testing samples for performance comparison
+    - OH WAIT NO it\'s totally fine. I\'m not *using* the fact that I know the right answer on simulation. woot.
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
   - stop pulling insert_mute_prob (in hmmwriter) ooya
   - get timing info for all codes
   - rerun perf comparisons for partis/sw with new hamming_to_true_naive changes
+  - need to rerun performance comparisons on more than 20k seqs
   - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
     - does the simulation accurately reflect the data?
     - does the hmm correctly infer parameters in simulation? (well, data too, but I dunno if there\'s really a way to test that)
   - think *long* and *hard* about get get_emission_prob() in hmmwriter. especially the pair part, since you didn\'t performance test that
     - UPDATE hm, on second thought I\'m just going to punt on the pair hmm stuff
     - TODO fix that!
+
+# need to increase fuzz!
+# need to cache v stuff in ham!            
   - account for different mutation frequencies to different bases
   - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
   - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator

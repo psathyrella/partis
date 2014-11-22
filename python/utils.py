@@ -577,12 +577,12 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         out_str_list.append('  score: %s' % line['score'])
     if 'cdr3_length' in line:
         out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
-    # out_str_list.append('\n')
+    out_str_list.append('\n')
 
     if return_string:
         return ''.join(out_str_list)
     else:
-        print ''.join(out_str_list)
+        print ''.join(out_str_list),
 
     assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
     assert ' ' not in line['seq']

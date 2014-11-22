@@ -29,7 +29,7 @@ if args.only_plot_performance:
     args.skip_simulation = True
 
 cmd = './runpart.py'
-common_args = ' --n-procs 10 --datadir ' + args.datadir
+common_args = ' --n-procs 10 --datadir ' + args.datadir  #+ ' --only-genes \'IGHV1-18*01:IGHD3-10*01:IGHJ6*03\''
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args)
 simu_file = 'caches/recombinator/performance/' + args.label + '/simu.csv'

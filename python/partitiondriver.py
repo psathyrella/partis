@@ -598,7 +598,7 @@ class PartitionDriver(object):
             self.print_performance_info(line, perfplotter=perfplotter)
 
         if self.args.outfname == None:
-            print ''.join(out_str_list)
+            print ''.join(out_str_list),
         else:
             self.outfile.write(''.join(out_str_list))
 
