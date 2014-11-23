@@ -137,8 +137,10 @@ Result JobHolder::Run(Sequences &seqs, KBounds kbounds) {
   KSet best_kset(0, 0);
   double *total_score = &result.total_score_;  // total score for all ksets
   int n_too_long(0);
-  for(size_t k_v = kbounds.vmin; k_v < kbounds.vmax; ++k_v) {
-    for(size_t k_d = kbounds.dmin; k_d < kbounds.dmax; ++k_d) {
+  // for(size_t k_v = kbounds.vmin; k_v < kbounds.vmax; ++k_v) {
+  //   for(size_t k_d = kbounds.dmin; k_d < kbounds.dmax; ++k_d) {
+  for(size_t k_v = kbounds.vmax-1; k_v >= kbounds.vmin; --k_v) {
+    for(size_t k_d = kbounds.dmax-1; k_d >= kbounds.dmin; --k_d) {
       if(k_v + k_d >= seqs.GetSequenceLength()) {
         ++n_too_long;
         continue;
