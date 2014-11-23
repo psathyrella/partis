@@ -86,8 +86,8 @@ int main(int argc, const char *argv[]) {
 	assert(checkpath[ipos] == subpath[ipos]);
       }
       assert(checktrell.ending_viterbi_log_prob() == subtrell.ending_viterbi_log_prob());
-
     }
+    cout << "caching ok!" << endl;
   }
 
   trell.Forward();
