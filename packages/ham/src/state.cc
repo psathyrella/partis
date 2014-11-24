@@ -55,7 +55,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 }
 
 // ----------------------------------------------------------------------------------------
-double State::emission_logprob(Sequences &seqs, size_t pos) {
+double State::emission_logprob(Sequences seqs, size_t pos) {
   if(seqs.n_seqs() == 2) {
     return pair_emission_.score(seqs, pos);
   } else {

@@ -44,12 +44,13 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str):
+JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str, bool chunk_cache):
   gl_(gl),
   hmms_(hmms),
   algorithm_(algorithm),
-  // total_score_(-INFINITY),
   debug_(0),
+  chunk_cache_(chunk_cache),
+  // total_score_(-INFINITY),
   n_best_events_(5) {
   if(only_gene_str.size() > 0) {
     for(auto & region : gl_.regions_)
@@ -112,15 +113,14 @@ map<string, Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(Sequence &seq, KBounds kbounds) {
+Result JobHolder::Run(Sequence seq, KBounds kbounds) {
   Sequences seqs;
-  Sequence *newseq = new Sequence(seq);  // seriously wtf does <Sequences> need to own its Sequences?
-  seqs.AddSeq(newseq);
+  seqs.AddSeq(seq);
   return Run(seqs, kbounds);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(Sequences &seqs, KBounds kbounds) {
+Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
@@ -202,30 +202,33 @@ Result JobHolder::Run(Sequences &seqs, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string gene, double *score) {
+void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score) {
+  assert(query_strs.first.size() == query_seqs.GetSequenceLength());
   *score = -INFINITY;
   // initialize trellis and path
   if(trellisi_.find(gene) == trellisi_.end()) {
     trellisi_[gene] = map<StrPair, trellis*>();
     paths_[gene] = map<StrPair, TracebackPath*>();
   }
-  // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
-  for(auto & query_str_map : trellisi_[gene]) {
-    StrPair tmp_query_strs(query_str_map.first);
-    assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
-    if (tmp_query_strs.first.find(query_strs.first) == 0) {
-      cout << "length " << trellisi_[gene][tmp_query_strs]->seqs()->GetSequenceLength() << " " << tmp_query_strs.first.size() << endl;
-      trellisi_[gene][tmp_query_strs]->seqs()->Print();
-      cout << "                    chunk cached, " << tmp_query_strs.first << " " << query_strs.first << endl;
-      trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
-      cout << "  " << query_strs.first << " with " << trellisi_[gene][query_strs]->seqs()->n_seqs() << endl;
-      break;
+
+  if (chunk_cache_) {
+    // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
+    for(auto & query_str_map : trellisi_[gene]) {
+      StrPair tmp_query_strs(query_str_map.first);
+      assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
+      if (tmp_query_strs.first.find(query_strs.first) == 0) {
+	trellisi_[gene][tmp_query_strs]->seqs().Print();
+	cout << "                    chunk cached, " << tmp_query_strs.first << " " << query_strs.first << endl;
+	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
+	break;
+      }
     }
   }
+
   if (!trellisi_[gene][query_strs]) {  // didn't find a suitable cached trellis
     trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
-    // cout << setw(12) << gene << query_strs.first << " " << query_strs.second << " scratch" << endl;
-    cout << "                    scratch" << endl;
+    // cout << "s length " << trellisi_[gene][query_strs]->seqs()->GetSequenceLength() << " " << query_strs.first.size() << endl;
+    // cout << "                    scratch" << endl;
   }
   trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
@@ -405,7 +408,7 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
         if(debug_ == 2 && algorithm_ == "viterbi")
           PrintPath(query_strs, gene, *gene_score, "(cached)");
       } else {
-        FillTrellis(&subseqs[region], query_strs, gene, gene_score);  // sets *gene_score to uncorrected score
+        FillTrellis(subseqs[region], query_strs, gene, gene_score);  // sets *gene_score to uncorrected score
         double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
         *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
@@ -426,6 +429,7 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
         best_per_gene_scores_[gene] = -INFINITY;
       if(*gene_score > best_per_gene_scores_[gene])
         best_per_gene_scores_[gene] = *gene_score;
+
     }
 
     // return if we didn't find a valid path for this region

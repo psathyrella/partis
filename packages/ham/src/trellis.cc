@@ -3,18 +3,16 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequence *seq, trellis *cached_trellis) :
+trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
   hmm_(hmm),
-  seqs_(nullptr),
   cached_trellis_(cached_trellis)
 {
-  seqs_ = new Sequences;
-  seqs_->AddSeq(seq);
+  seqs_.AddSeq(seq);
   Init();
 }
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequences *seqs, trellis *cached_trellis) :
+trellis::trellis(Model* hmm, Sequences seqs, trellis *cached_trellis) :
   hmm_(hmm),
   seqs_(seqs),
   cached_trellis_(cached_trellis)
@@ -25,8 +23,8 @@ trellis::trellis(Model* hmm, Sequences *seqs, trellis *cached_trellis) :
 // ----------------------------------------------------------------------------------------
 void trellis::Init() {
   if (cached_trellis_) {
-    if (seqs_->GetSequenceLength() > cached_trellis_->seqs()->GetSequenceLength())
-      throw runtime_error("ERROR cached trellis sequence length " + to_string(cached_trellis_->seqs()->GetSequenceLength()) + " smaller than mine " + to_string(seqs_->GetSequenceLength()));
+    if (seqs_.GetSequenceLength() > cached_trellis_->seqs().GetSequenceLength())
+      throw runtime_error("ERROR cached trellis sequence length " + to_string(cached_trellis_->seqs().GetSequenceLength()) + " smaller than mine " + to_string(seqs_.GetSequenceLength()));
     if (hmm_ != cached_trellis_->model())
       throw runtime_error("ERROR model in cached trellis " + cached_trellis_->model()->name() + " not the same as mine " + hmm_->name());
   }
@@ -62,7 +60,7 @@ trellis::~trellis() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::Dump() {
-  for (size_t ipos=0; ipos<seqs_->GetSequenceLength(); ++ipos) {
+  for (size_t ipos=0; ipos<seqs_.GetSequenceLength(); ++ipos) {
   // for (size_t ist=0; ist<hmm_->n_states(); ++ist) {
     cout
       << setw(12) << hmm_->state((*viterbi_pointers_)[ipos])->name()[0]
@@ -84,22 +82,22 @@ double trellis::ending_viterbi_log_prob(size_t length) {
 void trellis::Viterbi() {
   if (cached_trellis_) {  // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
     traceback_table_ = cached_trellis_->traceback_table();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
-    ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_->GetSequenceLength());
-    ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_->GetSequenceLength());
+    ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_.GetSequenceLength());
+    ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_.GetSequenceLength());
     // and also set things to allow this trellis to be passed as a cached trellis
-    viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);
-    viterbi_pointers_ = new vector<int> (seqs_->GetSequenceLength(), -1);
-    for (size_t ip=0; ip<seqs_->GetSequenceLength(); ++ip) {
+    viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
+    viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
+    for (size_t ip=0; ip<seqs_.GetSequenceLength(); ++ip) {
       (*viterbi_log_probs_)[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
       (*viterbi_pointers_)[ip] = cached_trellis_->viterbi_pointers()->at(ip);
     }	
     return;
   }
-  viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);
-  viterbi_pointers_ = new vector<int> (seqs_->GetSequenceLength(), -1);
+  viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
+  viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
   if(!traceback_table_)
-  // viterbi_table_ = new float_2D(seqs_->GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));
-  traceback_table_ = new int_2D(seqs_->GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
+  // viterbi_table_ = new float_2D(seqs_.GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));
+  traceback_table_ = new int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
   scoring_current_  = new vector<double> (hmm_->n_states(), -INFINITY);  // viterbi values in the current column (i.e. at the current position in the query sequence)
   scoring_previous_ = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
 
@@ -112,7 +110,7 @@ void trellis::Viterbi() {
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if(!(*initial_to_states)[st])  // skip <st> if there's no transition to it from <init>
       continue;
-    double emission_val = hmm_->state(st)->emission_logprob(*seqs_, 0);  // zeroth position in sequence
+    double emission_val = hmm_->state(st)->emission_logprob(seqs_, 0);  // zeroth position in sequence
     double viterbi_val = emission_val + init->transition_logprob(st);
     if(viterbi_val > -INFINITY) {
       (*scoring_current_)[st] = viterbi_val;
@@ -128,7 +126,7 @@ void trellis::Viterbi() {
 
   // loop over the rest of the sequence
   bitset<STATE_MAX>* from_trans(NULL);
-  for(size_t position = 1; position < seqs_->GetSequenceLength(); ++position) {
+  for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
     // swap <scoring_current_> and <scoring_previous_>
     scoring_previous_->assign(hmm_->n_states(), -INFINITY); // NOTE I think this can be replaced with
     swap_ptr_ = scoring_previous_;		            // scoring_previous_ = scoring_current_;
@@ -145,7 +143,7 @@ void trellis::Viterbi() {
       if(!current_states[st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
         continue;
 
-      double emission_val = hmm_->state(st_current)->emission_logprob(*seqs_, position);
+      double emission_val = hmm_->state(st_current)->emission_logprob(seqs_, position);
       if(emission_val == -INFINITY)
         continue;
       
@@ -198,7 +196,7 @@ void trellis::Viterbi() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::Forward() {
-  forward_table_ = new float_2D(seqs_->GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));
+  forward_table_ = new float_2D(seqs_.GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));
   scoring_current_ = new vector<double> (hmm_->n_states(), -INFINITY);
   scoring_previous_ = new vector<double> (hmm_->n_states(), -INFINITY);
 
@@ -213,7 +211,7 @@ void trellis::Forward() {
   // calculate forward scores from INIT state, and initialize next_states
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if((*initial_to)[st]) {   // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      double emscore = hmm_->state(st)->emission_logprob(*seqs_, 0);
+      double emscore = hmm_->state(st)->emission_logprob(seqs_, 0);
       forward_temp = emscore + init->transition(st)->log_prob();
       if(forward_temp > -INFINITY) {
         (*forward_table_)[0][st] = forward_temp;
@@ -224,7 +222,7 @@ void trellis::Forward() {
   }
 
   // calculate the rest of the forward scores
-  for(size_t position = 1; position < seqs_->GetSequenceLength(); ++position) {
+  for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
     // swap current and previous viterbi scores
     scoring_previous_->assign(hmm_->n_states(), -INFINITY);
     swap_ptr_ = scoring_previous_;
@@ -240,7 +238,7 @@ void trellis::Forward() {
       if(!current_states[st_current])
         continue;
 
-      emission = hmm_->state(st_current)->emission_logprob(*seqs_, position);
+      emission = hmm_->state(st_current)->emission_logprob(seqs_, position);
       from_trans = hmm_->state(st_current)->from_states();
       for(size_t previous = 0; previous < hmm_->n_states(); ++previous) { //j is previous state
         if(!(*from_trans)[previous])
@@ -291,7 +289,7 @@ void trellis::Forward() {
 //!Perform traceback through trellis
 //!\return path trackback_path
 void trellis::Traceback(TracebackPath& path) {
-  assert(seqs_->GetSequenceLength() != 0);
+  assert(seqs_.GetSequenceLength() != 0);
   assert(traceback_table_);
   assert(path.model());
   path.set_model(hmm_);
@@ -300,7 +298,7 @@ void trellis::Traceback(TracebackPath& path) {
   path.push_back(ending_viterbi_pointer_);  // push back the state that led to END state
 
   int16_t pointer(ending_viterbi_pointer_);
-  for(size_t position = seqs_->GetSequenceLength() - 1; position > 0; position--) {
+  for(size_t position = seqs_.GetSequenceLength() - 1; position > 0; position--) {
     pointer = (*traceback_table_)[position][pointer];
     if(pointer == -1) {
       cerr << "No valid path at Position: " << position << endl;
