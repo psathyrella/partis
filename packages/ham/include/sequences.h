@@ -39,6 +39,7 @@ public:
 
   short value(size_t iseq, size_t ipos) { return seqs_.at(iseq).value(ipos); }  // return digitized value of <iseq>th sequence at position <ipos>
   Sequence operator[](size_t index) {return seqs_.at(index); }
+  Sequence *get_ptr(size_t index) { return &seqs_.at(index); }
   size_t n_seqs() { return seqs_.size(); }
   size_t GetSequenceLength() { return sequence_length_;}
   Sequences GetSubSequences(size_t pos, size_t len);
