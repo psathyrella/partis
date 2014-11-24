@@ -110,7 +110,7 @@ void trellis::Viterbi() {
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if(!(*initial_to_states)[st])  // skip <st> if there's no transition to it from <init>
       continue;
-    double emission_val = hmm_->state(st)->emission_logprob(seqs_, 0);  // zeroth position in sequence
+    double emission_val = hmm_->state(st)->emission_logprob(&seqs_, 0);  // zeroth position in sequence
     double viterbi_val = emission_val + init->transition_logprob(st);
     if(viterbi_val > -INFINITY) {
       (*scoring_current_)[st] = viterbi_val;
@@ -143,7 +143,7 @@ void trellis::Viterbi() {
       if(!current_states[st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
         continue;
 
-      double emission_val = hmm_->state(st_current)->emission_logprob(seqs_, position);
+      double emission_val = hmm_->state(st_current)->emission_logprob(&seqs_, position);
       if(emission_val == -INFINITY)
         continue;
       
@@ -211,7 +211,7 @@ void trellis::Forward() {
   // calculate forward scores from INIT state, and initialize next_states
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if((*initial_to)[st]) {   // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
-      double emscore = hmm_->state(st)->emission_logprob(seqs_, 0);
+      double emscore = hmm_->state(st)->emission_logprob(&seqs_, 0);
       forward_temp = emscore + init->transition(st)->log_prob();
       if(forward_temp > -INFINITY) {
         (*forward_table_)[0][st] = forward_temp;
@@ -238,7 +238,7 @@ void trellis::Forward() {
       if(!current_states[st_current])
         continue;
 
-      emission = hmm_->state(st_current)->emission_logprob(seqs_, position);
+      emission = hmm_->state(st_current)->emission_logprob(&seqs_, position);
       from_trans = hmm_->state(st_current)->from_states();
       for(size_t previous = 0; previous < hmm_->n_states(); ++previous) { //j is previous state
         if(!(*from_trans)[previous])

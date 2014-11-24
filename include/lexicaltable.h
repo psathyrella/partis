@@ -21,8 +21,12 @@ public:
 
   inline double LogProb(size_t letter) { assert(letter < (*log_probs_)[0].size()); return (*log_probs_)[0][letter]; }
   inline double LogProb(size_t letter1, size_t letter2) { assert(letter1 < log_probs_->size()); assert(letter2 < (*log_probs_)[letter1].size()); return (*log_probs_)[letter1][letter2]; }
-  inline double LogProb(Sequences &seqs, size_t pos) { return (*log_probs_)[seqs[0][pos]][seqs[1][pos]]; }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
-  inline double LogProb(Sequence &seq, size_t pos) { return (*log_probs_)[0][seq[pos]]; }  // see NOTE above
+  inline double LogProb(Sequences *seqs, size_t pos) {
+    return (*log_probs_)[(*seqs)[0][pos]][(*seqs)[1][pos]];
+  }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
+  inline double LogProb(Sequence *seq, size_t pos) {
+    return (*log_probs_)[0][(*seq)[pos]];
+  }  // see NOTE above
   inline Track* track(size_t iter) { return tracks.at(iter); }
   inline size_t n_tracks() { return tracks.size(); }
   inline uint8_t alphabet_size(size_t i) { return tracks[i]->alphabet_size(); }
