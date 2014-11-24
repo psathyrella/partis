@@ -27,11 +27,25 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
+void HMMHolder::CacheAll() {
+  for(auto & region : gl_.regions_) {
+    for(auto & gene : gl_.names_[region]) {
+      string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
+      if (ifstream(infname)) {
+	// cout << "    read " << infname << endl;
+	hmms_[gene] = new Model;
+	hmms_[gene]->Parse(infname);
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------------------
 Model *HMMHolder::Get(string gene, bool debug) {
   if(hmms_.find(gene) == hmms_.end()) {   // if we don't already have it, read it from disk
     hmms_[gene] = new Model;
     string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
-    // if (debug) cout << "    read " << infname << endl;
+    if (debug) cout << "    read " << infname << endl;
     hmms_[gene]->Parse(infname);
   }
   return hmms_[gene];
@@ -44,12 +58,12 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str, bool chunk_cache):
+JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str):
   gl_(gl),
   hmms_(hmms),
   algorithm_(algorithm),
   debug_(0),
-  chunk_cache_(chunk_cache),
+  chunk_cache_(false),
   // total_score_(-INFINITY),
   n_best_events_(5) {
   if(only_gene_str.size() > 0) {
@@ -202,7 +216,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score) {
+void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score, string &origin) {
   assert(query_strs.first.size() == query_seqs.GetSequenceLength());
   *score = -INFINITY;
   // initialize trellis and path
@@ -211,25 +225,22 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
     paths_[gene] = map<StrPair, TracebackPath*>();
   }
 
+  origin = "scratch";
   if (chunk_cache_) {
     // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto & query_str_map : trellisi_[gene]) {
       StrPair tmp_query_strs(query_str_map.first);
       assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
       if (tmp_query_strs.first.find(query_strs.first) == 0) {
-	trellisi_[gene][tmp_query_strs]->seqs().Print();
-	cout << "                    chunk cached, " << tmp_query_strs.first << " " << query_strs.first << endl;
 	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
+	origin = "chunk";
 	break;
       }
     }
   }
 
-  if (!trellisi_[gene][query_strs]) {  // didn't find a suitable cached trellis
+  if (!trellisi_[gene][query_strs])  // didn't find a suitable cached trellis
     trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
-    // cout << "s length " << trellisi_[gene][query_strs]->seqs()->GetSequenceLength() << " " << query_strs.first.size() << endl;
-    // cout << "                    scratch" << endl;
-  }
   trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
   if(algorithm_ == "viterbi") {
@@ -237,12 +248,12 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
     *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
     if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm. TODO fix this in a more general way
       paths_[gene][query_strs] = nullptr;
-      if(debug_ == 2) cout << "                    " << gene << " " << *score << endl;
+      if(debug_ == 2) cout << "                    arg " << gene << " " << *score << " " << origin << endl;
     } else {
       paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene, debug_));
       trell->Traceback(*paths_[gene][query_strs]);
       assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // TODO remove this assertion
-      if(debug_ == 2) PrintPath(query_strs, gene, *score);
+      // if(debug_ == 2) PrintPath(query_strs, gene, *score, origin);
     }
     assert(fabs(*score) > 1e-200);
     assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);
@@ -258,7 +269,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
 // ----------------------------------------------------------------------------------------
 void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string extra_str) {  // NOTE query_str is seq1xseq2 for pair hmm
   if(score == -INFINITY) {
-    cout << "                    " << gene << " " << score << endl;
+    // cout << "                    " << gene << " " << score << endl;
     return;
   }
   vector<string> path_names = paths_[gene][query_strs]->name_vector();
@@ -286,7 +297,9 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
       << "                    "
       << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs.first, modified_seq, query_strs.second) << (right_erosion_length > 0 ? ".." : "  ")
       << "  " << extra_str
-      << setw(12) << paths_[gene][query_strs]->score()
+      // NOTE this doesn't include the overall gene prob!
+      // << setw(12) << paths_[gene][query_strs]->score()
+      << setw(12) << score
       << setw(25) << gene
       << endl;
 }
@@ -404,14 +417,16 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
 
       double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
       bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
+      string origin("ARG");
       if(already_cached) {
-        if(debug_ == 2 && algorithm_ == "viterbi")
-          PrintPath(query_strs, gene, *gene_score, "(cached)");
+	origin = "cached";
       } else {
-        FillTrellis(subseqs[region], query_strs, gene, gene_score);  // sets *gene_score to uncorrected score
+        FillTrellis(subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
         double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
         *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
+      if(debug_ == 2 && algorithm_ == "viterbi")
+	PrintPath(query_strs, gene, *gene_score, origin);
 
       // set regional total scores
       regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
@@ -434,13 +449,6 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
 
     // return if we didn't find a valid path for this region
     if((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
-      // TODO put this assert back in. Well, I think. At least figure out a better scheme for dealing with v_right_length-related stuff
-      // if(n_long_erosions != 0) {
-      //    cout << seqs[0].name() << endl;
-      //    if (seqs.n_seqs() > 1)
-      //      cout << seqs[1].name() << endl;
-      // }
-      // assert(n_long_erosions == 0);  // adding assert because if it happens, that means my v_right_length was screwed up
       if(debug_ == 2) {
         cout << "                  found no gene for " << region << " so skip"
              << " (" << n_short_v << "/" << igene << " v germlines too short, " << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
@@ -449,14 +457,14 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
     }
   }
 
-  (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob, v *and* d *and* j
+  (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob (v *and* d *and* j)
+  // cout << "adding "
+  //      << setw(12) << regional_best_scores["v"]
+  //      << setw(12) << regional_best_scores["d"]
+  //      << setw(12) << regional_best_scores["j"]
+  //      << " = " << (*best_scores)[kset]
+  //      << endl;
   (*total_scores)[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
-  // if (debug_ == 2 && algorithm_=="forward") {
-  //   cout << "          ";
-  //   for (auto &region: gl_.regions_) printf("%5.2f", regional_total_scores[region]);
-  //   for (auto &region: gl_.regions_) printf("  %s", tc.ColorGene(gene).c_str());
-  //   cout << endl;
-  // }
 }
 
 // ----------------------------------------------------------------------------------------

@@ -47,6 +47,7 @@ public:
   HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines &gl): hmm_dir_(hmm_dir), n_seqs_per_track_(n_seqs_per_track), gl_(gl) {}
   ~HMMHolder();
   Model *Get(string gene, bool debug);
+  void CacheAll();  // read all available hmms into memory
 private:
   string hmm_dir_;
   size_t n_seqs_per_track_;
@@ -76,15 +77,16 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str = "", bool chunk_cache = false);
+  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str = "");
   ~JobHolder();
   void Clear();
   Result Run(Sequences seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
   Result Run(Sequence seq, KBounds kbounds);
   void RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
+  void SetChunkCache(bool val) { chunk_cache_ = val; }
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
-  void FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score);
+  void FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score, string &origin);
   void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   void StreamOutput(double test);  // print csv event info to stderr

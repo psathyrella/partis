@@ -73,9 +73,14 @@ void trellis::Dump() {
 double trellis::ending_viterbi_log_prob(size_t length) {
   // NOTE this adds on the prob of transition to end
   assert(length <= viterbi_log_probs_->size());
-  int last_state = viterbi_pointer(length);  // NOTE this corresponds to (*viterbi_pointers_)[length-1]
-  double end_transition_val = hmm_->state(last_state)->end_transition_logprob();
-  return viterbi_log_probs_->at(length-1) + end_transition_val;
+  // int last_state = viterbi_pointer(length);  // NOTE this corresponds to (*viterbi_pointers_)[length-1]
+  // double end_transition_val = hmm_->state(last_state)->end_transition_logprob();
+  // cout
+  //   << "    end_transition_logprob()"
+  //   << setw(12) << viterbi_log_probs_->at(length-1)
+  //   << setw(12) << end_transition_val
+  //   << endl;
+  return viterbi_log_probs_->at(length-1);  // + end_transition_val;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -115,8 +120,9 @@ void trellis::Viterbi() {
     if(viterbi_val > -INFINITY) {
       (*scoring_current_)[st] = viterbi_val;
       // (*viterbi_table_)[0][st] = viterbi_val;
-      if (viterbi_val > (*viterbi_log_probs_)[0]) {
-      	(*viterbi_log_probs_)[0] = viterbi_val;  // + hmm_->state(st)->end_transition_logprob();
+      double end_trans_val = hmm_->state(st)->end_transition_logprob();
+      if (viterbi_val + end_trans_val > (*viterbi_log_probs_)[0]) {
+      	(*viterbi_log_probs_)[0] = viterbi_val + end_trans_val;  // + hmm_->state(st)->end_transition_logprob();
 	(*viterbi_pointers_)[0] = st;
       }
       next_states |= (*hmm_->state(st)->to_states());  // add <st>'s outbound transitions to the list of states to check when we get to the next column
@@ -155,8 +161,9 @@ void trellis::Viterbi() {
         if((*scoring_previous_)[st_previous] == -INFINITY)  // skip if <st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	  continue;
 	double viterbi_val = (*scoring_previous_)[st_previous] + emission_val + hmm_->state(st_previous)->transition_logprob(st_current);
-	if(viterbi_val > (*viterbi_log_probs_)[position]) {
-	  (*viterbi_log_probs_)[position] = viterbi_val;  // + hmm_->state(st_current)->end_transition_logprob();  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
+	double end_trans_val = hmm_->state(st_current)->end_transition_logprob();
+	if(viterbi_val + end_trans_val > (*viterbi_log_probs_)[position]) {
+	  (*viterbi_log_probs_)[position] = viterbi_val + end_trans_val;  // + hmm_->state(st_current)->end_transition_logprob();  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
 	  (*viterbi_pointers_)[position] = st_current;
 	}
 	if(viterbi_val > (*scoring_current_)[st_current]) {

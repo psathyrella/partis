@@ -80,6 +80,7 @@ int main(int argc, const char *argv[]) {
       TracebackPath checkpath(&hmm);
       checktrell.Traceback(checkpath);
 
+      assert(checkpath.size() == subpath.size());
       for (size_t ipos=0; ipos<length; ++ipos) {
 	// cout << checkpath[ipos] << " " << subpath[ipos] << endl;
 	assert(checkpath[ipos] == subpath[ipos]);
