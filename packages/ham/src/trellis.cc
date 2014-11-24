@@ -72,7 +72,8 @@ void trellis::Dump() {
   }
 }
 // ----------------------------------------------------------------------------------------
-double trellis::viterbi_log_prob(size_t length) {
+double trellis::ending_viterbi_log_prob(size_t length) {
+  // NOTE this adds on the prob of transition to end
   assert(length <= viterbi_log_probs_->size());
   int last_state = viterbi_pointer(length);  // NOTE this corresponds to (*viterbi_pointers_)[length-1]
   double end_transition_val = hmm_->state(last_state)->end_transition_logprob();
@@ -84,7 +85,14 @@ void trellis::Viterbi() {
   if (cached_trellis_) {  // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
     traceback_table_ = cached_trellis_->traceback_table();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
     ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_->GetSequenceLength());
-    ending_viterbi_log_prob_ = cached_trellis_->viterbi_log_prob(seqs_->GetSequenceLength());
+    ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_->GetSequenceLength());
+    // and also set things to allow this trellis to be passed as a cached trellis
+    viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);
+    viterbi_pointers_ = new vector<int> (seqs_->GetSequenceLength(), -1);
+    for (size_t ip=0; ip<seqs_->GetSequenceLength(); ++ip) {
+      (*viterbi_log_probs_)[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
+      (*viterbi_pointers_)[ip] = cached_trellis_->viterbi_pointers()->at(ip);
+    }	
     return;
   }
   viterbi_log_probs_ = new vector<double> (seqs_->GetSequenceLength(), -INFINITY);
