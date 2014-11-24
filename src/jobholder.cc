@@ -210,26 +210,23 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
     paths_[gene] = map<StrPair, TracebackPath*>();
   }
   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
-  for(auto & gene_map : trellisi_) {
-    string tmpgene(gene_map.first);
-    if (tmpgene != gene)
-      continue;
-    for(auto & query_str_map : gene_map.second) {
-      StrPair tmp_query_strs(query_str_map.first);
-      assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
-      if (tmp_query_strs.first.find(query_strs.first) == 0) {
-	// cout << "yep!" << endl;
-	// cout << " this one: " << query_strs.first << endl;
-	// cout << " cached one: " << tmp_query_strs.first << " " << tmp_query_strs.second << endl;
-	// assert(0);
-	cout << "using cached trellis: " << gene << " " << tmp_query_strs.first << " " << tmp_query_strs.second << endl;
-	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
-      }
+  for(auto & query_str_map : trellisi_[gene]) {
+    StrPair tmp_query_strs(query_str_map.first);
+    assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
+    if (tmp_query_strs.first.find(query_strs.first) == 0) {
+      cout << "length " << trellisi_[gene][tmp_query_strs]->seqs()->GetSequenceLength() << " " << tmp_query_strs.first.size() << endl;
+      trellisi_[gene][tmp_query_strs]->seqs()->Print();
+      cout << "                    chunk cached, " << tmp_query_strs.first << " " << query_strs.first << endl;
+      trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
+      cout << "  " << query_strs.first << " with " << trellisi_[gene][query_strs]->seqs()->n_seqs() << endl;
+      break;
     }
   }
-  if (!trellisi_[gene][query_strs])  // didn't find a suitable cached trellis
+  if (!trellisi_[gene][query_strs]) {  // didn't find a suitable cached trellis
     trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
-  
+    // cout << setw(12) << gene << query_strs.first << " " << query_strs.second << " scratch" << endl;
+    cout << "                    scratch" << endl;
+  }
   trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
   if(algorithm_ == "viterbi") {

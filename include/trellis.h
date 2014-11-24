@@ -27,12 +27,17 @@ public:
   Model *model() { return hmm_; }
   // double ending_viterbi_log_prob() { return viterbi_log_probs_->at(seqs_->GetSequenceLength() - 1); }
   double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
-  double viterbi_log_prob(size_t length);  // return the log prob of the most probable path of length <length> NOTE this tacks the ending transition log prob onto whatever was in <viterbi_log_prob_>
+  double ending_viterbi_log_prob(size_t length);  // return the log prob of the most probable path of length <length> NOTE this tacks the ending transition log prob onto whatever was in <viterbi_log_prob_>
   Sequences *seqs() { return seqs_; }
   float_2D* forward_table() { return forward_table_; }
   double forward_log_prob() { return ending_forward_log_prob_; }
   int_2D *traceback_table() const { return traceback_table_; }
-  size_t viterbi_pointer(size_t length) { assert(length <= viterbi_pointers_->size()); return (*viterbi_pointers_)[length-1]; }  // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1
+  size_t viterbi_pointer(size_t length) {  // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1
+    assert(length <= viterbi_pointers_->size());
+    return (*viterbi_pointers_)[length-1];
+  }
+  vector<double> *viterbi_log_probs() { return viterbi_log_probs_; }  // TODO this is confusing having the functions above subtract one from the length, you need to chage it
+  vector<int> *viterbi_pointers() { return viterbi_pointers_; }
 
   void Viterbi();
   void Forward();
