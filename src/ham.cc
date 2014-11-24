@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include <iomanip>
-#include <time.h>
+#include <ctime>
 #include <fstream>
 #include "jobholder.h"
 #include "germlines.h"
@@ -26,6 +26,7 @@ public:
   int debug() { return debug_arg_.getValue(); }
   int n_best_events() { return n_best_events_arg_.getValue(); }
   bool pair() { return pair_arg_.getValue(); }
+  bool chunk_cache() { return chunk_cache_arg_.getValue(); }
 
   // command line arguments
   vector<string> algo_strings_;
@@ -35,6 +36,7 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, algorithm_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_;
   SwitchArg pair_arg_;
+  SwitchArg chunk_cache_arg_;
 
   // arguments read from csv input file
   string all_only_genes_;
@@ -57,6 +59,7 @@ Args::Args(int argc, const char * argv[]):
               debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
               n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
               pair_arg_("p", "pair", "is this a pair hmm?", false),
+              chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
               str_headers_ {"only_genes", "name", "seq", "second_name", "second_seq"},
 int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
   try {
@@ -69,6 +72,7 @@ int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
     cmd.add(pair_arg_);
+    cmd.add(chunk_cache_arg_);
 
     cmd.parse(argc, argv);
   } catch(ArgException &e) {
@@ -162,6 +166,10 @@ int main(int argc, const char * argv[]) {
   vector<Sequences> seqs(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), n_seqs_per_track, gl);
+  clock_t cache_start(clock());
+  // hmms.CacheAll();
+  cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
+  clock_t run_start(clock());
 
   assert(seqs.size() == args.strings_["name"].size());
   for(size_t is = 0; is < seqs.size(); is++) {
@@ -173,6 +181,7 @@ int main(int argc, const char * argv[]) {
 
     JobHolder jh(gl, hmms, args.algorithm(), args.strings_["only_genes"][is]);
     jh.SetDebug(args.debug());
+    jh.SetChunkCache(args.chunk_cache());
     jh.SetNBestEvents(args.n_best_events());
 
     Result result(kbounds);
@@ -201,6 +210,8 @@ int main(int argc, const char * argv[]) {
     }
     StreamOutput(ofs, args, result.events_, seqs[is], score);
   }
+
+  cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
 
   ofs.close();
   return 0;
