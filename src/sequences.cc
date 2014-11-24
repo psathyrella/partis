@@ -53,17 +53,11 @@ void Sequence::Print(string separator) {
 
 // ****************************************************************************************
 // ----------------------------------------------------------------------------------------
-Sequences::~Sequences() {
-  for(size_t i = 0; i < seqs_.size(); ++i)
-    delete seqs_[i];
-}
-
-// ----------------------------------------------------------------------------------------
 void Sequences::Print() {
   for(size_t i = 0; i < seqs_.size(); ++i) {
-    Track* trk = seqs_[i]->track();
+    Track* trk = seqs_[i].track();
     cout << ">" << trk->name() << endl;
-    seqs_[i]->Print();
+    seqs_[i].Print();
   }
 }
 
@@ -71,20 +65,17 @@ void Sequences::Print() {
 //! \return return the collection of subsequences from <pos> with size <len>
 Sequences Sequences::GetSubSequences(size_t pos, size_t len) {
   Sequences new_seqs;  // init with *zero* seqs because we push back below
-  for(size_t is = 0; is < seqs_.size(); is++) {
-    Sequence *tmp_seq = new Sequence(seqs_[is]->GetSubSequence(pos, len));
-    assert(tmp_seq);
-    new_seqs.AddSeq(tmp_seq);
-  }
+  for(size_t is = 0; is < seqs_.size(); is++)
+    new_seqs.AddSeq(Sequence(seqs_[is].GetSubSequence(pos, len)));
   return new_seqs;
 }
 
 // ----------------------------------------------------------------------------------------
-void Sequences::AddSeq(Sequence* sq) {
+void Sequences::AddSeq(Sequence sq) {
   if(sequence_length_ == 0) {   // make sure <sq> has the same length as any previously added sequences
-    sequence_length_ = sq->size();
+    sequence_length_ = sq.size();
   } else {
-    assert(sq->size() == sequence_length_);  // all sequences must have the same length
+    assert(sq.size() == sequence_length_);  // all sequences must have the same length
   }
   seqs_.push_back(sq);  // NOTE we now own this sequence, i.e. we will delete it when we die
 }

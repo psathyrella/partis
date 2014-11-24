@@ -32,22 +32,20 @@ private:
 };
 
 // ----------------------------------------------------------------------------------------
-// NOTE Sequences owns its constituent Sequence pointers, i.e. it deletes them when it dies
 class Sequences {
 public:
   Sequences() : sequence_length_(0) {}
-  void AddSeq(Sequence* sq);
-  ~Sequences();
+  void AddSeq(Sequence sq);
 
-  short value(size_t iseq, size_t ipos) { return seqs_.at(iseq)->value(ipos); }  // return digitized value of <iseq>th sequence at position <ipos>
-  Sequence& operator[](size_t index) {return *(seqs_.at(index)); }
+  short value(size_t iseq, size_t ipos) { return seqs_.at(iseq).value(ipos); }  // return digitized value of <iseq>th sequence at position <ipos>
+  Sequence operator[](size_t index) {return seqs_.at(index); }
   size_t n_seqs() { return seqs_.size(); }
   size_t GetSequenceLength() { return sequence_length_;}
   Sequences GetSubSequences(size_t pos, size_t len);
 
   void Print();
 private:
-  vector<Sequence*> seqs_;
+  vector<Sequence> seqs_;
   size_t sequence_length_; // length of the sequences (required to be the same for all)
 };
 

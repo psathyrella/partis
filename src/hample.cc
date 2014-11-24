@@ -40,13 +40,12 @@ int main(int argc, const char *argv[]) {
   hmm.Parse(hmmfname_arg.getValue());
 
   // create sequences from command line
-  Sequences *seqs = new Sequences;
-  Sequence *seq = new Sequence("seq", seq_arg.getValue(), hmm.track(0));
-  seqs->AddSeq(seq);
-  Sequence *seq2(0);
+  Sequences seqs;
+  Sequence seq("seq", seq_arg.getValue(), hmm.track(0));
+  seqs.AddSeq(seq);
   if(pair_arg.getValue()) {
-    seq2 = new Sequence("seq2", seq2_arg.getValue(), hmm.track(0));
-    seqs->AddSeq(seq2);
+    Sequence seq2("seq2", seq2_arg.getValue(), hmm.track(0));
+    seqs.AddSeq(seq2);
   }
 
 
@@ -57,10 +56,10 @@ int main(int argc, const char *argv[]) {
   trell.Traceback(path);
   cout << "viterbi path (log prob " << trell.ending_viterbi_log_prob() << "):" << endl;
   cout << "  sequence: ";
-  seq->Print();
+  seq.Print();
   if(pair_arg.getValue()) {
     cout << "         2: ";
-    seq2->Print();
+    seqs[1].Print();
   }
 
   path.abbreviate();
@@ -68,15 +67,15 @@ int main(int argc, const char *argv[]) {
   cout << path;
 
   if (cache_check_arg.getValue()) {
-    for (size_t length = 1; length < seq->size(); ++length) {
+    for (size_t length = 1; length < seq.size(); ++length) {
       // make another trellis on the substring of length <length>
-      Sequence subseq(seq->GetSubSequence(0, length));
-      trellis subtrell(&hmm, &subseq, &trell);
+      Sequence subseq(seq.GetSubSequence(0, length));
+      trellis subtrell(&hmm, subseq, &trell);
       subtrell.Viterbi();
       TracebackPath subpath(&hmm);
       subtrell.Traceback(subpath);
     
-      trellis checktrell(&hmm, &subseq);
+      trellis checktrell(&hmm, subseq);
       checktrell.Viterbi();
       TracebackPath checkpath(&hmm);
       checktrell.Traceback(checkpath);
@@ -100,6 +99,4 @@ int main(int argc, const char *argv[]) {
     ofs << trell.forward_log_prob() << "\t" << path << endl;
     ofs.close();
   }
-
-  delete seqs;  // also deletes constituent sequences
 }

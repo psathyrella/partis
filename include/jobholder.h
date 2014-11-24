@@ -76,15 +76,15 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str = "");
+  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str = "", bool chunk_cache = false);
   ~JobHolder();
   void Clear();
-  Result Run(Sequences &seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
-  Result Run(Sequence &seq, KBounds kbounds);
+  Result Run(Sequences seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(Sequence seq, KBounds kbounds);
   void RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void SetDebug(int debug) { debug_ = debug; };
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
-  void FillTrellis(Sequences *query_seqs, StrPair query_strs, string gene, double *score);
+  void FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score);
   void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   void StreamOutput(double test);  // print csv event info to stderr
@@ -106,6 +106,7 @@ private:
   HMMHolder &hmms_;
   string algorithm_;
   int debug_;
+  bool chunk_cache_;
   size_t n_best_events_; // print and return this many events
   map<string, set<string> > only_genes_;
 

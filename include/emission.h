@@ -20,8 +20,8 @@ public:
   void Parse(YAML::Node config, string is_pair, Tracks model_tracks);
   ~Emission();
 
-  inline double score(Sequence& seq, size_t pos) { return scores_.LogProb(seq, pos); }
-  inline double score(Sequences& seqs, size_t pos) { return scores_.LogProb(seqs, pos); }
+  inline double score(Sequence seq, size_t pos) { return scores_.LogProb(seq, pos); }
+  inline double score(Sequences seqs, size_t pos) { return scores_.LogProb(seqs, pos); }
 
   void Print();
 private:

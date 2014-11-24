@@ -19,8 +19,8 @@ typedef vector<vector<double> > double_2D;
 // ----------------------------------------------------------------------------------------
 class trellis {
 public:
-  trellis(Model* hmm, Sequence *seq, trellis *cached_trellis=nullptr);
-  trellis(Model* hmm, Sequences *seqs, trellis *cached_trellis=nullptr);
+  trellis(Model *hmm, Sequence seq, trellis *cached_trellis=nullptr);
+  trellis(Model *hmm, Sequences seqs, trellis *cached_trellis=nullptr);
   void Init();
   ~trellis();
 
@@ -28,7 +28,7 @@ public:
   // double ending_viterbi_log_prob() { return viterbi_log_probs_->at(seqs_->GetSequenceLength() - 1); }
   double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
   double ending_viterbi_log_prob(size_t length);  // return the log prob of the most probable path of length <length> NOTE this tacks the ending transition log prob onto whatever was in <viterbi_log_prob_>
-  Sequences *seqs() { return seqs_; }
+  Sequences seqs() { return seqs_; }
   float_2D* forward_table() { return forward_table_; }
   double forward_log_prob() { return ending_forward_log_prob_; }
   int_2D *traceback_table() const { return traceback_table_; }
@@ -46,7 +46,7 @@ public:
   void Dump();
 private:
   Model *hmm_;
-  Sequences *seqs_;
+  Sequences seqs_;
   int_2D *traceback_table_;
 
   trellis *cached_trellis_;  // pointer to another trellis that already has its dp table(s) filled in, the idea being this trellis only needs a subset of that table, so we don't need to calculate anything new for this one

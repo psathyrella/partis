@@ -120,17 +120,17 @@ int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
-vector<Sequences*> GetSeqs(Args &args, Track *trk) {
-  vector<Sequences*> all_seqs;
+vector<Sequences> GetSeqs(Args &args, Track *trk) {
+  vector<Sequences> all_seqs;
   for(size_t iseq = 0; iseq < args.strings_["seq"].size(); ++iseq) {
-    Sequences *seqs = new Sequences;
-    Sequence *sq = new Sequence(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
-    seqs->AddSeq(sq);
+    Sequences seqs;
+    Sequence sq(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
+    seqs.AddSeq(sq);
     if(trk->n_seqs() == 2) {
       assert(args.strings_["second_seq"][iseq].size() > 0);
       assert(args.strings_["second_seq"][iseq] != "x");
-      Sequence *second_sq = new Sequence(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
-      seqs->AddSeq(second_sq);
+      Sequence second_sq(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
+      seqs.AddSeq(second_sq);
     } else {
       assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
     }
@@ -159,14 +159,14 @@ int main(int argc, const char * argv[]) {
   size_t n_seqs_per_track(args.pair() ? 2 : 1);
   vector<string> characters {"A", "C", "G", "T"};
   Track trk("NUKES", n_seqs_per_track, characters);
-  vector<Sequences*> seqs(GetSeqs(args, &trk));
+  vector<Sequences> seqs(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), n_seqs_per_track, gl);
 
   assert(seqs.size() == args.strings_["name"].size());
   for(size_t is = 0; is < seqs.size(); is++) {
     if(args.debug()) cout << "  ---------" << endl;
-    if(args.pair()) assert(seqs[is]->n_seqs() == 2);
+    if(args.pair()) assert(seqs[is].n_seqs() == 2);
     KSet kmin(args.integers_["k_v_min"][is], args.integers_["k_d_min"][is]);
     KSet kmax(args.integers_["k_v_max"][is], args.integers_["k_d_max"][is]);
     KBounds kbounds(kmin, kmax);
@@ -177,17 +177,17 @@ int main(int argc, const char * argv[]) {
 
     Result result(kbounds);
     do {
-      result = jh.Run(*seqs[is], kbounds);
-      if(result.could_not_expand()) cout << "WARNING " << (*seqs[is])[0].name() << ((*seqs[is]).n_seqs() == 2 ? (*seqs[is])[1].name() : "") << " couldn't expand k bounds for " << kbounds.stringify() << endl;
+      result = jh.Run(seqs[is], kbounds);
+      if(result.could_not_expand()) cout << "WARNING " << seqs[is][0].name() << (seqs[is].n_seqs() == 2 ? seqs[is][1].name() : "") << " couldn't expand k bounds for " << kbounds.stringify() << endl;
       kbounds = result.better_kbounds();
     } while(result.boundary_error() && !result.could_not_expand());
 
     double score(result.total_score());
     if(args.algorithm() == "forward" && args.pair()) {
-      Result result_a = jh.Run((*seqs[is])[0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
-      Result result_b = jh.Run((*seqs[is])[1], kbounds);
+      Result result_a = jh.Run(seqs[is][0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
+      Result result_b = jh.Run(seqs[is][1], kbounds);
 
-      if(result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << (*seqs[is])[0].name() << " " << (*seqs[is])[1].name() << endl;
+      if(result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << seqs[is][0].name() << " " << seqs[is][1].name() << endl;
       if(args.debug()) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score(), result_b.total_score(), score - result_a.total_score() - result_b.total_score());
       if(args.debug()) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score()), exp(result_b.total_score()), exp(score) / (exp(result_a.total_score())*exp(result_b.total_score())));
       score = score - result_a.total_score() - result_b.total_score();
@@ -199,7 +199,7 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, *seqs[is], score);
+    StreamOutput(ofs, args, result.events_, seqs[is], score);
   }
 
   ofs.close();
