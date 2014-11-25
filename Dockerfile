@@ -13,5 +13,5 @@ RUN apt-get install -y --no-install-recommends \
     scons
 
 # make ham
-RUN git clone https://github.com/matsen/ham.git
+RUN git clone https://github.com/psathyrella/ham.git
 RUN cd ham && scons
