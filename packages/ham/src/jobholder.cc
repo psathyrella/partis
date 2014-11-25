@@ -230,7 +230,6 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
     // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto & query_str_map : trellisi_[gene]) {
       StrPair tmp_query_strs(query_str_map.first);
-      assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
       if (tmp_query_strs.first.find(query_strs.first) == 0) {
 	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
 	origin = "chunk";
@@ -239,7 +238,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
     }
   }
 
-  if (!trellisi_[gene][query_strs])  // didn't find a suitable cached trellis
+  if (!trellisi_[gene][query_strs])  // if didn't find a suitable chunk cached trellis
     trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
   trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
