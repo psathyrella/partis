@@ -32,6 +32,7 @@ void trellis::Init() {
   traceback_table_ = nullptr;
   // forward_table_ = nullptr;
   viterbi_log_probs_ = nullptr;
+  forward_log_probs_ = nullptr;
   viterbi_pointers_ = nullptr;
   swap_ptr_ = nullptr;
 
@@ -186,6 +187,8 @@ void trellis::Viterbi() {
 // ----------------------------------------------------------------------------------------
 void trellis::Forward() {
   if (cached_trellis_) {
+    if (!cached_trellis_->forward_log_probs())
+      throw runtime_error("ERROR I got a trellis to cache that didn't have any forward information");
     ending_forward_log_prob_ = cached_trellis_->ending_forward_log_prob(seqs_.GetSequenceLength());
     // and also set things to allow this trellis to be passed as a cached trellis
     forward_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);

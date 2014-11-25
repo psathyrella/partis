@@ -66,6 +66,11 @@ int main(int argc, const char *argv[]) {
   cout << "  path:     ";
   cout << path;
 
+  trell.Forward();
+  cout << "\nforward log prob: " << trell.ending_forward_log_prob() << endl;
+
+  // ----------------------------------------------------------------------------------------
+  // check dp table chunk caching
   if (cache_check_arg.getValue()) {
     for (size_t length = 1; length < seq.size(); ++length) {
       // make another trellis on the substring of length <length>
@@ -74,24 +79,29 @@ int main(int argc, const char *argv[]) {
       subtrell.Viterbi();
       TracebackPath subpath(&hmm);
       subtrell.Traceback(subpath);
+      subtrell.Forward();
     
       trellis checktrell(&hmm, subseq);
       checktrell.Viterbi();
       TracebackPath checkpath(&hmm);
       checktrell.Traceback(checkpath);
+      checktrell.Forward();
 
       assert(checkpath.size() == subpath.size());
       for (size_t ipos=0; ipos<length; ++ipos) {
 	// cout << checkpath[ipos] << " " << subpath[ipos] << endl;
-	assert(checkpath[ipos] == subpath[ipos]);
+	if(checkpath[ipos] != subpath[ipos])
+	  throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi path");
       }
-      assert(checktrell.ending_viterbi_log_prob() == subtrell.ending_viterbi_log_prob());
+      if(checktrell.ending_viterbi_log_prob() != subtrell.ending_viterbi_log_prob())
+	throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi log prob");
+      // cout << setprecision(20) << setw(30) << checktrell.ending_forward_log_prob() << setw(30) << subtrell.ending_forward_log_prob() << endl;
+      double eps(1e-10);
+      if(fabs(checktrell.ending_forward_log_prob() - subtrell.ending_forward_log_prob()) > eps)
+	throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same forward log prob");
     }
     cout << "caching ok!" << endl;
   }
-
-  trell.Forward();
-  cout << "\nforward log prob: " << trell.ending_forward_log_prob() << endl;
 
   if(outfile_arg.getValue().length() > 0) {
     ofstream ofs;
