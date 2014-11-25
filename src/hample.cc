@@ -91,13 +91,13 @@ int main(int argc, const char *argv[]) {
   }
 
   trell.Forward();
-  cout << "\nforward log prob: " << trell.forward_log_prob() << endl;
+  cout << "\nforward log prob: " << trell.ending_forward_log_prob() << endl;
 
   if(outfile_arg.getValue().length() > 0) {
     ofstream ofs;
     ofs.open(outfile_arg.getValue());
     assert(ofs.is_open());
-    ofs << trell.forward_log_prob() << "\t" << path << endl;
+    ofs << trell.ending_forward_log_prob() << "\t" << path << endl;
     ofs.close();
   }
 }

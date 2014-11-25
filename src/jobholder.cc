@@ -32,7 +32,7 @@ void HMMHolder::CacheAll() {
     for(auto & gene : gl_.names_[region]) {
       string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
       if (ifstream(infname)) {
-	// cout << "    read " << infname << endl;
+	cout << "    read " << infname << endl;
 	hmms_[gene] = new Model;
 	hmms_[gene]->Parse(infname);
       }
@@ -45,7 +45,7 @@ Model *HMMHolder::Get(string gene, bool debug) {
   if(hmms_.find(gene) == hmms_.end()) {   // if we don't already have it, read it from disk
     hmms_[gene] = new Model;
     string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
-    if (debug) cout << "    read " << infname << endl;
+    if (true) cout << "    read " << infname << endl;
     hmms_[gene]->Parse(infname);
   }
   return hmms_[gene];
@@ -260,7 +260,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
   } else if(algorithm_ == "forward") {
     trell->Forward();
     paths_[gene][query_strs] = nullptr;  // avoids violating the assumption that paths_ and trellisi_ have the same entries
-    *score = trell->forward_log_prob();  // NOTE still need to add the gene choice prob to this score
+    *score = trell->ending_forward_log_prob();  // NOTE still need to add the gene choice prob to this score
   } else {
     assert(0);
   }
