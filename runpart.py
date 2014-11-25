@@ -40,7 +40,10 @@ parser.add_argument('--plotdir')
 
 # parser.add_argument('--simu_seed', type=int, default=-1)
 
+parser.add_argument('--chunk-cache', action='store_true')
+
 parser.add_argument('--n-bases-skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
+parser.add_argument('--total-length-from-right', type=int, default=-1)  # number of bases to skip on the left side of the sequence
 parser.add_argument('--n-procs', type=int, default=1)  # number of processes over which to parallelize
 parser.add_argument('--naivety', default='M', choices=['N', 'M'])
 parser.add_argument('--queries')  # restrict to certain query seqs
@@ -74,7 +77,7 @@ if args.simulate:
         sys.exit(0)
     from recombinator import Recombinator
     assert args.parameter_dir != None and args.outfname != None
-    reco = Recombinator(args)  #, total_length_from_right=130)
+    reco = Recombinator(args, total_length_from_right=args.total_length_from_right)
     for ievt in range(args.n_max_queries):
         print ievt,
         sys.stdout.flush()
@@ -88,6 +91,9 @@ else:
     args.queries = utils.get_arg_list(args.queries)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
+    if len(args.n_max_per_region) != 3:
+        print 'ERROR n-max-per-region should be form \'x:y:z\', but I got', args.n_max_per_region
+        sys.exit()
 
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
