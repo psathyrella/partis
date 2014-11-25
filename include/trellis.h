@@ -25,7 +25,6 @@ public:
   ~trellis();
 
   Model *model() { return hmm_; }
-  // double ending_viterbi_log_prob() { return viterbi_log_probs_->at(seqs_->GetSequenceLength() - 1); }
   double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
   double ending_viterbi_log_prob(size_t length);  // return the log prob of the most probable path of length <length> NOTE this tacks the ending transition log prob onto whatever was in <viterbi_log_prob_>
   Sequences seqs() { return seqs_; }
@@ -52,7 +51,6 @@ private:
   trellis *cached_trellis_;  // pointer to another trellis that already has its dp table(s) filled in, the idea being this trellis only needs a subset of that table, so we don't need to calculate anything new for this one
 
   int16_t ending_viterbi_pointer_;
-  // float_2D *viterbi_table_;
   float_2D *forward_table_;
   double  ending_viterbi_log_prob_;
   double  ending_forward_log_prob_;

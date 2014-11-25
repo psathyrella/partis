@@ -48,7 +48,7 @@ trellis::~trellis() {
     delete viterbi_log_probs_;
   if (viterbi_pointers_)
     delete viterbi_pointers_;
-  if (traceback_table_ && !cached_trellis_)
+  if (traceback_table_ && !cached_trellis_)  // if we have a cached trellis, we used its traceback_table_, so we don't want to delete it
     delete traceback_table_;
   if (scoring_current_)
     delete scoring_current_;
@@ -61,26 +61,16 @@ trellis::~trellis() {
 // ----------------------------------------------------------------------------------------
 void trellis::Dump() {
   for (size_t ipos=0; ipos<seqs_.GetSequenceLength(); ++ipos) {
-  // for (size_t ist=0; ist<hmm_->n_states(); ++ist) {
     cout
       << setw(12) << hmm_->state((*viterbi_pointers_)[ipos])->name()[0]
       << setw(12) << (*viterbi_log_probs_)[ipos];
-    // }
     cout << endl;
   }
 }
 // ----------------------------------------------------------------------------------------
 double trellis::ending_viterbi_log_prob(size_t length) {
-  // NOTE this adds on the prob of transition to end
   assert(length <= viterbi_log_probs_->size());
-  // int last_state = viterbi_pointer(length);  // NOTE this corresponds to (*viterbi_pointers_)[length-1]
-  // double end_transition_val = hmm_->state(last_state)->end_transition_logprob();
-  // cout
-  //   << "    end_transition_logprob()"
-  //   << setw(12) << viterbi_log_probs_->at(length-1)
-  //   << setw(12) << end_transition_val
-  //   << endl;
-  return viterbi_log_probs_->at(length-1);  // + end_transition_val;
+  return viterbi_log_probs_->at(length-1);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -100,8 +90,7 @@ void trellis::Viterbi() {
   }
   viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
   viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
-  if(!traceback_table_)
-  // viterbi_table_ = new float_2D(seqs_.GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));
+  assert(!traceback_table_);
   traceback_table_ = new int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
   scoring_current_  = new vector<double> (hmm_->n_states(), -INFINITY);  // viterbi values in the current column (i.e. at the current position in the query sequence)
   scoring_previous_ = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
@@ -109,7 +98,7 @@ void trellis::Viterbi() {
   bitset<STATE_MAX> next_states;
   bitset<STATE_MAX> current_states;
 
-  // calculate Viterbi from transitions from INIT (initial) state
+  // first calculate log probs for first position in sequence
   State *init = hmm_->init_state();
   bitset<STATE_MAX> *initial_to_states = hmm_->initial_to_states();
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
@@ -119,7 +108,6 @@ void trellis::Viterbi() {
     double viterbi_val = emission_val + init->transition_logprob(st);
     if(viterbi_val > -INFINITY) {
       (*scoring_current_)[st] = viterbi_val;
-      // (*viterbi_table_)[0][st] = viterbi_val;
       double end_trans_val = hmm_->state(st)->end_transition_logprob();
       if (viterbi_val + end_trans_val > (*viterbi_log_probs_)[0]) {
       	(*viterbi_log_probs_)[0] = viterbi_val + end_trans_val;  // + hmm_->state(st)->end_transition_logprob();
@@ -130,7 +118,7 @@ void trellis::Viterbi() {
     }
   }
 
-  // loop over the rest of the sequence
+  // then loop over the rest of the sequence
   bitset<STATE_MAX>* from_trans(NULL);
   for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
     // swap <scoring_current_> and <scoring_previous_>
@@ -168,7 +156,6 @@ void trellis::Viterbi() {
 	}
 	if(viterbi_val > (*scoring_current_)[st_current]) {
 	  (*scoring_current_)[st_current] = viterbi_val;  // save this value as the best value we've so far come across
-	  // (*viterbi_table_)[position][st_current] = viterbi_val;
 	  (*traceback_table_)[position][st_current] = st_previous;  // and mark which state it came from for later traceback
 	}
 	next_states |= (*hmm_->state(st_current)->to_states());
@@ -215,7 +202,7 @@ void trellis::Forward() {
   bitset<STATE_MAX>* initial_to = hmm_->initial_to_states();
   bitset<STATE_MAX>* from_trans(NULL);
 
-  // calculate forward scores from INIT state, and initialize next_states
+  // first calculate log probs for first position in sequence
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if((*initial_to)[st]) {   // if the bitset is set (meaning there is a transition to this state), calculate the viterbi
       double emscore = hmm_->state(st)->emission_logprob(&seqs_, 0);
@@ -228,7 +215,7 @@ void trellis::Forward() {
     }
   }
 
-  // calculate the rest of the forward scores
+  // then loop over the rest of the sequence
   for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
     // swap current and previous viterbi scores
     scoring_previous_->assign(hmm_->n_states(), -INFINITY);
