@@ -36,8 +36,8 @@ public:
     assert(length <= viterbi_pointers_->size());
     return (*viterbi_pointers_)[length-1];
   }
-  vector<double> *viterbi_log_probs() { return viterbi_log_probs_; }  // TODO this is confusing having the functions above subtract one from the length, you need to chage it
-  vector<double> *forward_log_probs() { return forward_log_probs_; }  // TODO this is confusing having the functions above subtract one from the length, you need to chage it
+  vector<double> *viterbi_log_probs() { return viterbi_log_probs_; }  // TODO this is confusing having the functions above subtract one from the length, you need to change it
+  vector<double> *forward_log_probs() { return forward_log_probs_; }  // TODO this is confusing having the functions above subtract one from the length, you need to change it
   vector<int> *viterbi_pointers() { return viterbi_pointers_; }
 
   void Viterbi();
