@@ -226,11 +226,11 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
   }
 
   origin = "scratch";
-  if (chunk_cache_) {
-    // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
+  if (chunk_cache_) {  // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto & query_str_map : trellisi_[gene]) {
       StrPair tmp_query_strs(query_str_map.first);
       if (tmp_query_strs.first.find(query_strs.first) == 0) {
+	assert(tmp_query_strs.second.find(query_strs.second) == 0);
 	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
 	origin = "chunk";
 	break;

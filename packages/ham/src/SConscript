@@ -4,11 +4,11 @@ import glob
 
 env = Environment()
 env.Append(CPPFLAGS = ['-g', '-Ofast', '-Wall', '-std=c++0x'])  #, '-pg'])
-env.Append(LINKFLAGS = ['-g', '-Ofast', '-std=c++0x'])
+env.Append(LINKFLAGS = ['-g', '-Ofast', '-std=c++0x'])  #, '-pg'])
 env.Append(CPPPATH = ['../include'])
 env.Append(CPPDEFINES={'STATE_MAX':'1024', 'SIZE_MAX':'\(\(size_t\)-1\)', 'UINT16_MAX':'65535', 'PI':'3.1415926535897932', 'EPS':'1e-6'})  # TODO reduce the state max to something reasonable?
 
-binary_names = ['ham', 'hample']
+binary_names = ['bcrham', 'hample', 'testham']
 
 sources = []
 for fname in glob.glob(os.getenv('PWD') + '/src/*.cc'):
