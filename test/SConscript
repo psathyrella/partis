@@ -1,7 +1,7 @@
 import os
 from SCons.Script import Command, Depends
 
-hample_test = [
+ham_test = [
     ["casino", "666655666613423414513666666666666", "", ""],
     ["cpg", "ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT", "", ""],
     ["pair-cpg",
@@ -11,24 +11,24 @@ hample_test = [
 ]
 
 all_passed = "_results/ALL.passed"
-individual_passed = ["_results/{}.passed".format(c[0]) for c in hample_test]
+individual_passed = ["_results/{}.passed".format(c[0]) for c in ham_test]
 
 for path in individual_passed + [all_passed]:
     if os.path.exists(path):
         os.remove(path)
 
-for c in hample_test:
+for c in ham_test:
     out = "_results/{0}.out".format(*c)
-    # Run hample with specified conditions.
+    # Run testham with specified conditions.
     Command(out,
-            ["../hample", "../examples/{0}.yaml".format(*c)],
+            ["../testham", "../examples/{0}.yaml".format(*c)],
             "./${{SOURCES[0]}}\
             --hmmfname ${{SOURCES[1]}}\
             --seq {1}\
             {2}\
             {3}\
             -o $TARGET".format(*c))
-    Depends(out, "../hample")
+    Depends(out, "../testham")
     # Touch a sentinel `passed` file if we get what we expect.
     Command("_results/{}.passed".format(c[0]),
             [out, "data/regression/{}.out".format(c[0])],

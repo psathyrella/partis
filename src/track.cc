@@ -26,9 +26,9 @@ void Track::AddSymbols(vector<string> &symbols) {
 
 // ----------------------------------------------------------------------------------------
 uint8_t Track::symbol_index(const string &symbol) {
-  if(symbol_indices_.count(symbol) == 0) {
-    throw runtime_error("ERROR symbol '" + symbol + "' not found among " + Stringify());
-  }
+  // if(symbol_indices_.count(symbol) == 0) {
+  //   throw runtime_error("ERROR symbol '" + symbol + "' not found among " + Stringify());
+  // }
   return symbol_indices_[symbol];
 }
 

@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include <iomanip>
-#include <time.h>
+#include <ctime>
 #include <fstream>
 #include "jobholder.h"
 #include "germlines.h"
@@ -23,9 +23,12 @@ public:
   string infile() { return infile_arg_.getValue(); }
   string outfile() { return outfile_arg_.getValue(); }
   string algorithm() { return algorithm_arg_.getValue(); }
+  // string algorithm() { return algorithm_; }
   int debug() { return debug_arg_.getValue(); }
+  // int debug() { return debug_; }
   int n_best_events() { return n_best_events_arg_.getValue(); }
   bool pair() { return pair_arg_.getValue(); }
+  bool chunk_cache() { return chunk_cache_arg_.getValue(); }
 
   // command line arguments
   vector<string> algo_strings_;
@@ -35,12 +38,18 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, algorithm_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_;
   SwitchArg pair_arg_;
+  SwitchArg chunk_cache_arg_;
 
   // arguments read from csv input file
   string all_only_genes_;
   map<string, vector<string> > strings_;
   map<string, vector<int> > integers_;
   set<string> str_headers_, int_headers_;
+
+  // // extra values to cache command line args (TCLAP calls to ValuesConstraint::check() seem to be really slow
+  // UPDATE hmm, didn't seem to help. leave it for the moment
+  // string algorithm_;
+  // int debug_;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -57,6 +66,7 @@ Args::Args(int argc, const char * argv[]):
               debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
               n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
               pair_arg_("p", "pair", "is this a pair hmm?", false),
+              chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
               str_headers_ {"only_genes", "name", "seq", "second_name", "second_seq"},
 int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
   try {
@@ -69,8 +79,12 @@ int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
     cmd.add(pair_arg_);
+    cmd.add(chunk_cache_arg_);
 
     cmd.parse(argc, argv);
+
+    // algorithm_ = algorithm_arg_.getValue();
+    // debug_ = debug_arg_.getValue();
   } catch(ArgException &e) {
     cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
     throw;
@@ -120,17 +134,17 @@ int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
-vector<Sequences*> GetSeqs(Args &args, Track *trk) {
-  vector<Sequences*> all_seqs;
+vector<Sequences> GetSeqs(Args &args, Track *trk) {
+  vector<Sequences> all_seqs;
   for(size_t iseq = 0; iseq < args.strings_["seq"].size(); ++iseq) {
-    Sequences *seqs = new Sequences;
-    Sequence *sq = new Sequence(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
-    seqs->AddSeq(sq);
+    Sequences seqs;
+    Sequence sq(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
+    seqs.AddSeq(sq);
     if(trk->n_seqs() == 2) {
       assert(args.strings_["second_seq"][iseq].size() > 0);
       assert(args.strings_["second_seq"][iseq] != "x");
-      Sequence *second_sq = new Sequence(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
-      seqs->AddSeq(second_sq);
+      Sequence second_sq(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
+      seqs.AddSeq(second_sq);
     } else {
       assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
     }
@@ -159,35 +173,40 @@ int main(int argc, const char * argv[]) {
   size_t n_seqs_per_track(args.pair() ? 2 : 1);
   vector<string> characters {"A", "C", "G", "T"};
   Track trk("NUKES", n_seqs_per_track, characters);
-  vector<Sequences*> seqs(GetSeqs(args, &trk));
+  vector<Sequences> seqs(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), n_seqs_per_track, gl);
+  clock_t cache_start(clock());
+  // hmms.CacheAll();
+  cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
+  clock_t run_start(clock());
 
   assert(seqs.size() == args.strings_["name"].size());
   for(size_t is = 0; is < seqs.size(); is++) {
     if(args.debug()) cout << "  ---------" << endl;
-    if(args.pair()) assert(seqs[is]->n_seqs() == 2);
+    if(args.pair()) assert(seqs[is].n_seqs() == 2);
     KSet kmin(args.integers_["k_v_min"][is], args.integers_["k_d_min"][is]);
     KSet kmax(args.integers_["k_v_max"][is], args.integers_["k_d_max"][is]);
     KBounds kbounds(kmin, kmax);
 
     JobHolder jh(gl, hmms, args.algorithm(), args.strings_["only_genes"][is]);
     jh.SetDebug(args.debug());
+    jh.SetChunkCache(args.chunk_cache());
     jh.SetNBestEvents(args.n_best_events());
 
     Result result(kbounds);
     do {
-      result = jh.Run(*seqs[is], kbounds);
-      if(result.could_not_expand()) cout << "WARNING " << (*seqs[is])[0].name() << ((*seqs[is]).n_seqs() == 2 ? (*seqs[is])[1].name() : "") << " couldn't expand k bounds for " << kbounds.stringify() << endl;
+      result = jh.Run(seqs[is], kbounds);
+      if(result.could_not_expand()) cout << "WARNING " << seqs[is][0].name() << (seqs[is].n_seqs() == 2 ? seqs[is][1].name() : "") << " couldn't expand k bounds for " << kbounds.stringify() << endl;
       kbounds = result.better_kbounds();
     } while(result.boundary_error() && !result.could_not_expand());
 
     double score(result.total_score());
     if(args.algorithm() == "forward" && args.pair()) {
-      Result result_a = jh.Run((*seqs[is])[0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
-      Result result_b = jh.Run((*seqs[is])[1], kbounds);
+      Result result_a = jh.Run(seqs[is][0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
+      Result result_b = jh.Run(seqs[is][1], kbounds);
 
-      if(result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << (*seqs[is])[0].name() << " " << (*seqs[is])[1].name() << endl;
+      if(result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << seqs[is][0].name() << " " << seqs[is][1].name() << endl;
       if(args.debug()) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score(), result_b.total_score(), score - result_a.total_score() - result_b.total_score());
       if(args.debug()) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score()), exp(result_b.total_score()), exp(score) / (exp(result_a.total_score())*exp(result_b.total_score())));
       score = score - result_a.total_score() - result_b.total_score();
@@ -199,8 +218,10 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, *seqs[is], score);
+    StreamOutput(ofs, args, result.events_, seqs[is], score);
   }
+
+  cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
 
   ofs.close();
   return 0;
