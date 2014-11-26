@@ -9,7 +9,7 @@ namespace ham {
 class Sequence {
   friend class Sequences;
 public:
-  Sequence(string name, string seq_str, Track* trk);
+  Sequence(string name, string seq_str, Track* trk);  //, vector<uint8_t> *seq=nullptr, int pos=-1, int len=-1);
   Sequence(const Sequence&);
   ~Sequence();
 

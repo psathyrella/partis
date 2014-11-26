@@ -30,7 +30,6 @@ void trellis::Init() {
   }
 
   traceback_table_ = nullptr;
-  // forward_table_ = nullptr;
   viterbi_log_probs_ = nullptr;
   forward_log_probs_ = nullptr;
   viterbi_pointers_ = nullptr;
@@ -49,8 +48,6 @@ trellis::~trellis() {
     delete viterbi_pointers_;
   if (traceback_table_ && !cached_trellis_)  // if we have a cached trellis, we used its traceback_table_, so we don't want to delete it
     delete traceback_table_;
-  // if (forward_table_)
-  //   delete forward_table_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -197,7 +194,6 @@ void trellis::Forward() {
     }	
     return;
   }
-  // forward_table_ = new float_2D(seqs_.GetSequenceLength(), vector<float>(hmm_->n_states(), -INFINITY));  NOTE forward_table_ isn't actually used anywhere
   forward_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
   vector<double> *scoring_current  = new vector<double> (hmm_->n_states(), -INFINITY);  // dp table values in the current column (i.e. at the current position in the query sequence)
   vector<double> *scoring_previous = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
@@ -222,7 +218,6 @@ void trellis::Forward() {
       (*forward_log_probs_)[0] = dp_val + end_trans_val;
     else
       (*forward_log_probs_)[0] = AddInLogSpace(dp_val + end_trans_val, (*forward_log_probs_)[0]);
-    // (*forward_table_)[0][st] = dp_val;
   }
 
   // then loop over the rest of the sequence
@@ -255,10 +250,8 @@ void trellis::Forward() {
 	double dp_val = (*scoring_previous)[st_previous] + emission_val + hmm_->state(st_previous)->transition_logprob(st_current);
 	if((*scoring_current)[st_current] == -INFINITY) {
 	  (*scoring_current)[st_current] = dp_val;
-	  // (*forward_table_)[position][st_current] = dp_val;
 	} else {
 	  (*scoring_current)[st_current] = AddInLogSpace(dp_val, (*scoring_current)[st_current]);
-	  // (*forward_table_)[position][st_current] = (*scoring_current)[st_current];
 	}
 	double end_trans_val = hmm_->state(st_current)->end_transition_logprob();
 	if ((*forward_log_probs_)[position] == -INFINITY)

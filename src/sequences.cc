@@ -3,17 +3,32 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(string name, string seq_str, Track* trk):
+Sequence::Sequence(string name, string undigitized, Track* trk):  //, vector<uint8_t> *seq, int pos, int len):
   name_(name),
-  undigitized_(seq_str),
-  track_(trk) {
-
+  undigitized_(undigitized),
+  track_(trk)
+{
   ClearWhitespace("\n", &undigitized_);
+  // EDIT DAMMIT THIS ISN'T WORKING. SCREW OPTIMIZING
+  // ClearWhitespace("\n", &undigitized);
+  // if (pos > 0) {
+  //   undigitized_ = undigitized.substr(pos, len);
+  //   seq_ = new vector<uint8_t>(len);
+  //   // for(int i=pos; i<pos+len; ++i)
+  //   //   (*seq_)[i-pos] = (*seq)[i];
+  //   for(int i=0; i<len; ++i)
+  //     (*seq_)[i] = (*seq)[pos+i];
+  //   // cout << undigitized << endl;
+  //   // cout << undigitized_ << endl;
+  //   // assert(0);
+  // } else {
+  //   undigitized_ = undigitized;
   seq_ = new vector<uint8_t>(undigitized_.size());
   for(size_t i = 0; i < undigitized_.size(); ++i) {
     uint8_t symbl = track_->symbol_index(undigitized_.substr(i, 1));
     (*seq_)[i] = symbl;
   }
+  // }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -40,6 +55,13 @@ Sequence Sequence::GetSubSequence(size_t pos, size_t len) {
   assert(pos + len <= undigitized_.size()); // arg. if pos+len overflows this still passes
   string subseq_str = undigitized_.substr(pos, len);
   return Sequence(name_, subseq_str, track_);
+
+  // return Sequence(name_, undigitized_, track_, seq_, pos, len);
+
+  // vector<uint8_t> digisubseq(len);
+  // for (size_t i=pos; i<len; ++i)
+  //   digisubseq[i] = seq_->at(i);
+  // return Sequence(name_, undigitized_.substr(pos, len), track_, &digisubseq);
 }
 
 // ----------------------------------------------------------------------------------------
