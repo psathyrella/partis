@@ -137,8 +137,10 @@ Result JobHolder::Run(Sequences &seqs, KBounds kbounds) {
   KSet best_kset(0, 0);
   double *total_score = &result.total_score_;  // total score for all ksets
   int n_too_long(0);
-  for(size_t k_v = kbounds.vmin; k_v < kbounds.vmax; ++k_v) {
-    for(size_t k_d = kbounds.dmin; k_d < kbounds.dmax; ++k_d) {
+  // for(size_t k_v = kbounds.vmin; k_v < kbounds.vmax; ++k_v) {
+  //   for(size_t k_d = kbounds.dmin; k_d < kbounds.dmax; ++k_d) {
+  for(size_t k_v = kbounds.vmax-1; k_v >= kbounds.vmin; --k_v) {
+    for(size_t k_d = kbounds.dmax-1; k_d >= kbounds.dmin; --k_d) {
       if(k_v + k_d >= seqs.GetSequenceLength()) {
         ++n_too_long;
         continue;
@@ -207,8 +209,28 @@ void JobHolder::FillTrellis(Sequences *query_seqs, StrPair query_strs, string ge
     trellisi_[gene] = map<StrPair, trellis*>();
     paths_[gene] = map<StrPair, TracebackPath*>();
   }
-  trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
-  trellis *trell(trellisi_[gene][query_strs]);
+  // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
+  for(auto & gene_map : trellisi_) {
+    string tmpgene(gene_map.first);
+    if (tmpgene != gene)
+      continue;
+    for(auto & query_str_map : gene_map.second) {
+      StrPair tmp_query_strs(query_str_map.first);
+      assert(algorithm_ == "viterbi");  // haven't put in caching yet for forward
+      if (tmp_query_strs.first.find(query_strs.first) == 0) {
+	// cout << "yep!" << endl;
+	// cout << " this one: " << query_strs.first << endl;
+	// cout << " cached one: " << tmp_query_strs.first << " " << tmp_query_strs.second << endl;
+	// assert(0);
+	cout << "using cached trellis: " << gene << " " << tmp_query_strs.first << " " << tmp_query_strs.second << endl;
+	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
+      }
+    }
+  }
+  if (!trellisi_[gene][query_strs])  // didn't find a suitable cached trellis
+    trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
+  
+  trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
   if(algorithm_ == "viterbi") {
     trell->Viterbi();
