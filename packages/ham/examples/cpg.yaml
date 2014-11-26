@@ -4,8 +4,8 @@ tracks:
 states:
 - name: init
   transitions:
-    island: 0.5
-    ocean: 0.5
+    island: 0.3
+    ocean: 0.7
 - name: island
   emissions:
     track: nucs
@@ -16,8 +16,8 @@ states:
       T: 0.1
   transitions:
     island: 0.8
-    ocean: 0.1
-    end: 0.1
+    ocean: 0.05
+    end: 0.15
 - name: ocean
   emissions:
     track: nucs

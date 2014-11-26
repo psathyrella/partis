@@ -19,6 +19,7 @@
   - separate training and testing samples for performance comparison
     - OH WAIT NO it\'s totally fine. I\'m not *using* the fact that I know the right answer on simulation. woot.
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
+  - wow, switching from pasing seqs by reference to value really slowed it down -- need to go through Viterbi() and Forward() and see if there\'s any other call-by-values I can remove
   - stop pulling insert_mute_prob (in hmmwriter) ooya
   - get timing info for all codes
   - rerun perf comparisons for partis/sw with new hamming_to_true_naive changes

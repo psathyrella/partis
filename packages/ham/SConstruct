@@ -17,7 +17,7 @@ SConscript('_build/SConscript', duplicate=0)
 SConscript('test/SConscript', duplicate=0)
 
 # What just `scons` will build.
-Default('ham', 'hample')
+Default('hample')
 
 # `scons test`
 Alias('test', 'test/_results/ALL.passed')

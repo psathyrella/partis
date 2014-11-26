@@ -284,8 +284,10 @@ class PartitionDriver(object):
         start = time.time()
 
         # build the command line
-        cmd_str = './packages/ham/ham'
+        cmd_str = './packages/ham/bcrham'
         cmd_str += ' --algorithm ' + algorithm
+        if self.args.chunk_cache:
+            cmd_str += ' --chunk-cache '
         if self.args.pair:
             cmd_str += ' --pair '
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
@@ -300,6 +302,7 @@ class PartitionDriver(object):
             workdir += '/hmm-' + str(iproc)
             cmd_str = cmd_str.replace(self.args.workdir, workdir)
 
+        # print cmd_str
         check_call(cmd_str, shell=True)
 
         if not self.args.no_clean:
@@ -387,12 +390,20 @@ class PartitionDriver(object):
         start = time.time()
         print 'hamming clustering'
         hammingfname = self.args.workdir + '/fractional-hamming-scores.csv'
+        chopped_off_left_sides = False
         with opener('w')(hammingfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
             writer.writeheader()
             for query_name, second_query_name in self.get_pairs(preclusters):
                 query_seq = self.input_info[query_name]['seq']
                 second_query_seq = self.input_info[second_query_name]['seq']
+                # chop off the longer one if they're not the same length
+                if len(query_seq) > len(second_query_seq):
+                    query_seq = query_seq[len(query_seq) - len(second_query_seq) : ]
+                    chopped_off_left_sides = True
+                elif len(second_query_seq) > len(query_seq):
+                    second_query_seq = second_query_seq[len(second_query_seq) - len(query_seq) : ]
+                    chopped_off_left_sides = True
                 mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
                 if self.args.debug:
@@ -403,6 +414,8 @@ class PartitionDriver(object):
             self.outfile.write('hamming clusters\n')
         clust.cluster(hammingfname, debug=False, outfile=self.outfile)
         os.remove(hammingfname)
+        if chopped_off_left_sides:
+            print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
         print '    hamming time: %.3f' % (time.time()-start)
         return clust
     

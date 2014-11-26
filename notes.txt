@@ -24,10 +24,83 @@
 - imgt fasta download: http://www.imgt.org/vquest/refseqh.html
 - vollmers data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers
 - adaptive five prime race: /shared/silo_researcher/Matsen_F/MatsenGrp/data/adaptive-five-prime-race/
-- name reassignment
-    IGHV1-c   IGHV1-38-4
-    IGHV1-f   IGHV1-69-2
-    IGHV3-d   IGHV3-38-3
-    IGHV3-h   IGHV3-69-1
-    IGHV4-b   IGHV4-38-2
-    IGHV5-a   IGHV5-10-1
+- PROFILING!
+  - conclusions
+    - chunk caching works!
+    - symbol_index() (called from with the Sequence constructor) starts to be really significant
+    - nothing else really matters
+    - conclusions were basically the same for Viterbi(), although I don\'t recall symbol_index() being such a drag
+            chunk cache, fuzz 2
+            
+              %   cumulative   self              self     total           
+             time   seconds   seconds    calls  ms/call  ms/call  name    
+             47.67      1.64     1.64    41172     0.04     0.05  ham::trellis::Forward()
+              9.01      1.95     0.31 15433057     0.00     0.00  ham::State::emission_logprob(ham::Sequences*, unsigned long)
+              5.81      2.15     0.20  7442724     0.00     0.00  ham::Track::symbol_index(std::string const&)
+              4.65      2.31     0.16 38023557     0.00     0.00  TCLAP::ValuesConstraint<std::string>::check(std::string const&) const
+              4.07      2.45     0.14                             __tcf_0
+              3.20      2.56     0.11 12355556     0.00     0.00  ham::Sequence::Sequence(ham::Sequence const&)
+              2.33      2.64     0.08                             std::vector<YAML::RegEx, std::allocator<YAML::RegEx> >::_M_insert_aux(__gnu_cxx::__normal_iterator<YAML::RegEx*, std::vector<YAML::RegEx, std::allocator<YAML::RegEx> > >, YAML::RegEx const&)
+              2.03      2.71     0.07                             YAML::RegEx::RegEx(YAML::RegEx const&)
+              2.03      2.78     0.07                             YAML::RegEx::~RegEx()
+              2.03      2.85     0.07                             __tcf_0
+              1.74      2.91     0.06 12339870     0.00     0.00  ham::Sequence::~Sequence()
+              1.45      2.96     0.05    56760     0.00     0.00  ham::Sequence::GetSubSequence(unsigned long, unsigned long)
+              1.45      3.01     0.05                             YAML::Stream::operator bool() const
+            
+            chunk cache, fuzz 10
+            
+              %   cumulative   self              self     total           
+             time   seconds   seconds    calls  ms/call  ms/call  name    
+             32.93      1.88     1.88    70458     0.03     0.04  ham::trellis::Forward()
+             17.69      2.89     1.01 35175144     0.00     0.00  ham::Track::symbol_index(std::string const&)
+             12.61      3.61     0.72 152372787     0.00     0.00  TCLAP::ValuesConstraint<std::string>::check(std::string const&) const
+              6.48      3.98     0.37 20076114     0.00     0.00  ham::State::emission_logprob(ham::Sequences*, unsigned long)
+              4.20      4.22     0.24   232200     0.00     0.01  ham::Sequence::GetSubSequence(unsigned long, unsigned long)
+              3.59      4.43     0.21 36040836     0.00     0.00  std::map<std::string, std::set<std::string, std::less<std::string>, std::allocator<std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::set<std::string, std::less<std::string>, std::allocator<std::string> > > > >::operator[](std::string const&)
+              2.45      4.57     0.14                             __tcf_0
+              2.10      4.69     0.12 16470694     0.00     0.00  ham::Sequence::Sequence(ham::Sequence const&)
+              2.10      4.81     0.12                             YAML::RegEx::~RegEx()
+              1.58      4.90     0.09                             __tcf_0
+              1.23      4.97     0.07 16406320     0.00     0.00  ham::Sequence::~Sequence()
+              1.05      5.03     0.06                             YAML::RegEx::RegEx(char, char)
+              1.05      5.09     0.06                             std::vector<YAML::RegEx, std::allocator<YAML::RegEx> >::_M_insert_aux(__gnu_cxx::__normal_iterator<YAML::RegEx*, std::vector<YAML::RegEx, std::allocator<YAML::RegEx> > >, YAML::RegEx const&)
+              0.88      5.14     0.05                             YAML::ScanScalar(YAML::Stream&, YAML::ScanScalarParams&)
+              0.88      5.19     0.05                             YAML::RegEx::RegEx(YAML::RegEx const&)
+            
+            no chunk, fuzz 2
+            
+              %   cumulative   self              self     total           
+             time   seconds   seconds    calls  ms/call  ms/call  name    
+             54.56      3.41     3.41    41172     0.08     0.11  ham::trellis::Forward()
+             10.72      4.08     0.67 34624417     0.00     0.00  ham::State::emission_logprob(ham::Sequences*, unsigned long)
+              4.80      4.38     0.30  7442724     0.00     0.00  ham::Track::symbol_index(std::string const&)
+              4.48      4.66     0.28 26694824     0.00     0.00  ham::Sequence::Sequence(ham::Sequence const&)
+              3.52      4.88     0.22 26679138     0.00     0.00  ham::Sequence::~Sequence()
+              3.36      5.09     0.21 37533457     0.00     0.00  TCLAP::ValuesConstraint<std::string>::check(std::string const&) const
+              2.40      5.24     0.15                             __tcf_0
+              1.36      5.33     0.09                             std::vector<YAML::RegEx, std::allocator<YAML::RegEx> >::_M_insert_aux(__gnu_cxx::__normal_iterator<YAML::RegEx*, std::vector<YAML::RegEx, std::allocator<YAML::RegEx> > >, YAML::RegEx const&)
+              1.28      5.41     0.08 55535960     0.00     0.00  ham::State::end_transition_logprob()
+              1.28      5.49     0.08                             YAML::RegEx::RegEx(YAML::RegEx const&)
+              0.96      5.55     0.06                             YAML::RegEx::RegEx(char, char)
+              0.96      5.61     0.06                             __tcf_0
+              0.80      5.66     0.05                             YAML::RegEx::~RegEx()
+            
+            no chunk, fuzz 10
+            
+              %   cumulative   self              self     total           
+             time   seconds   seconds    calls  ms/call  ms/call  name    
+             53.43      6.08     6.08    70458     0.09     0.12  ham::trellis::Forward()
+             10.02      7.22     1.14 35175144     0.00     0.00  ham::Track::symbol_index(std::string const&)
+              9.75      8.33     1.11 53533064     0.00     0.00  ham::State::emission_logprob(ham::Sequences*, unsigned long)
+              5.89      9.00     0.67 151447939     0.00     0.00  TCLAP::ValuesConstraint<std::string>::check(std::string const&) const
+              4.04      9.46     0.46 41512534     0.00     0.00  ham::Sequence::Sequence(ham::Sequence const&)
+              2.90      9.79     0.33 41448160     0.00     0.00  ham::Sequence::~Sequence()
+              2.46     10.07     0.28   232200     0.00     0.01  ham::Sequence::GetSubSequence(unsigned long, unsigned long)
+              1.93     10.29     0.22  4108550     0.00     0.00  std::vector<double, std::allocator<double> >::_M_fill_assign(unsigned long, double const&)
+              1.67     10.48     0.19                             __tcf_0
+              1.19     10.62     0.14 36040836     0.00     0.00  std::map<std::string, std::set<std::string, std::less<std::string>, std::allocator<std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::set<std::string, std::less<std::string>, std::allocator<std::string> > > > >::operator[](std::string const&)
+              0.62     10.69     0.07    37280     0.00     0.28  JobHolder::RunKSet(ham::Sequences&, KSet, std::map<KSet, double, std::less<KSet>, std::allocator<std::pair<KSet const, double> > >*, std::map<KSet, double, std::less<KSet>, std::allocator<std::pair<KSet const, double> > >*, std::map<KSet, std::map<std::string, std::string, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >, std::less<KSet>, std::allocator<std::pair<KSet const, std::map<std::string, std::string, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > > > > >*)
+              0.53     10.75     0.06 85181307     0.00     0.00  ham::State::end_transition_logprob()
+              0.44     10.80     0.05                             YAML::ScanScalar(YAML::Stream&, YAML::ScanScalarParams&)
+              0.44     10.85     0.05                             YAML::RegEx::~RegEx()

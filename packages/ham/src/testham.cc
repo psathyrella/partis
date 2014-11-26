@@ -16,6 +16,7 @@ int main(int argc, const char *argv[]) {
   ValueArg<string> seq2_arg("t", "seq2", "second sequence", false, "", "string");
   ValueArg<string> outfile_arg("o", "outfile", "output text file", false, "", "string");
   SwitchArg pair_arg("p", "pair", "is this a pair hmm?", false);
+  SwitchArg cache_check_arg("c", "check-caching", "check whether subtrellis caching is working?", true);
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmfname_arg);
@@ -23,6 +24,7 @@ int main(int argc, const char *argv[]) {
     cmd.add(seq2_arg);
     cmd.add(outfile_arg);
     cmd.add(pair_arg);
+    cmd.add(cache_check_arg);
     cmd.parse(argc, argv);
     if(pair_arg.getValue())
       assert(seq2_arg.getValue() != "");
@@ -46,6 +48,7 @@ int main(int argc, const char *argv[]) {
     seqs.AddSeq(seq2);
   }
 
+
   // make trellis and run
   trellis trell(&hmm, seqs);
   trell.Viterbi();
@@ -65,6 +68,40 @@ int main(int argc, const char *argv[]) {
 
   trell.Forward();
   cout << "\nforward log prob: " << trell.ending_forward_log_prob() << endl;
+
+  // ----------------------------------------------------------------------------------------
+  // check dp table chunk caching
+  if (cache_check_arg.getValue()) {
+    for (size_t length = 1; length < seqs.GetSequenceLength(); ++length) {
+      // make another trellis on the substring of length <length>
+      Sequences subseqs(seqs.GetSubSequences(0, length));
+      trellis subtrell(&hmm, subseqs, &trell);
+      subtrell.Viterbi();
+      TracebackPath subpath(&hmm);
+      subtrell.Traceback(subpath);
+      subtrell.Forward();
+    
+      trellis checktrell(&hmm, subseqs);
+      checktrell.Viterbi();
+      TracebackPath checkpath(&hmm);
+      checktrell.Traceback(checkpath);
+      checktrell.Forward();
+
+      assert(checkpath.size() == subpath.size());
+      for (size_t ipos=0; ipos<length; ++ipos) {
+	// cout << checkpath[ipos] << " " << subpath[ipos] << endl;
+	if(checkpath[ipos] != subpath[ipos])
+	  throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi path");
+      }
+      if(checktrell.ending_viterbi_log_prob() != subtrell.ending_viterbi_log_prob())
+	throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi log prob");
+      // cout << setprecision(20) << setw(30) << checktrell.ending_forward_log_prob() << setw(30) << subtrell.ending_forward_log_prob() << endl;
+      double eps(1e-10);
+      if(fabs(checktrell.ending_forward_log_prob() - subtrell.ending_forward_log_prob()) > eps)
+	throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same forward log prob");
+    }
+    cout << "caching ok!" << endl;
+  }
 
   if(outfile_arg.getValue().length() > 0) {
     ofstream ofs;
