@@ -284,7 +284,7 @@ class PartitionDriver(object):
         start = time.time()
 
         # build the command line
-        cmd_str = './packages/ham/ham'
+        cmd_str = './packages/ham/bcrham'
         cmd_str += ' --algorithm ' + algorithm
         if self.args.chunk_cache:
             cmd_str += ' --chunk-cache '
