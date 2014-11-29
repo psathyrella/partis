@@ -5,8 +5,7 @@ FROM dockerfile/python
 MAINTAINER Frederick A. Matsen, matsen@fhcrc.org
 
 # prepare ubuntu
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     libboost-dev \
