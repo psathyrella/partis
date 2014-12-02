@@ -30,10 +30,10 @@ class Waterer(object):
             self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
-            if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir + '/true')
-                if plotdir != '':
-                    utils.prep_dir(plotdir + '/true/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
+            # if not self.args.is_data:
+            #     self.true_pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir + '/true')
+            #     if plotdir != '':
+            #         utils.prep_dir(plotdir + '/true/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         if self.args.apply_choice_probs_in_sw:
@@ -63,8 +63,8 @@ class Waterer(object):
     def clean(self):
         if self.pcounter != None:
             self.pcounter.clean()
-        if self.true_pcounter != None:
-            self.true_pcounter.clean()
+        # if self.true_pcounter != None:
+        #     self.true_pcounter.clean()
 
     # ----------------------------------------------------------------------------------------
     def run(self):
@@ -86,8 +86,8 @@ class Waterer(object):
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write_counts()
-        if self.true_pcounter != None:
-            self.true_pcounter.write_counts()
+        # if self.true_pcounter != None:
+        #     self.true_pcounter.write_counts()
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname):
@@ -344,8 +344,8 @@ class Waterer(object):
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
-        if self.true_pcounter != None:
-            self.true_pcounter.increment(self.reco_info[query_name])
+        # if self.true_pcounter != None:
+        #     self.true_pcounter.increment(self.reco_info[query_name])
         if perfplotter != None:
             perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])
 
