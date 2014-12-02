@@ -45,7 +45,7 @@ Model *HMMHolder::Get(string gene, bool debug) {
   if(hmms_.find(gene) == hmms_.end()) {   // if we don't already have it, read it from disk
     hmms_[gene] = new Model;
     string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
-    if (true) cout << "    read " << infname << endl;
+    // if (true) cout << "    read " << infname << endl;
     hmms_[gene]->Parse(infname);
   }
   return hmms_[gene];
