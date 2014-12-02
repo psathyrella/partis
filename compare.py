@@ -13,11 +13,9 @@ import plotting
 #                                      plotdir + 'ihhhmmm/' + label + '/plots',
 #                                      plotdir + 'imgt/' + label + '/plots'],
 #                              names = ['partis', 'sw', 'iHMMuneAlign', 'imgt'])
-label = 'check-new-imgt'
-plotdir = '/var/www/sharing/dralph/partis/performance/'
-plotting.compare_directories(plotdir + '/' + label + '/train-vs-test',
-                             dirs = [plotdir + '/' + label + '/hmm/plots',
-                                     plotdir + '/' + label + '-train-on-head-test-on-tail/hmm/plots',
-                                     plotdir + '/' + label + '-train-on-tail-test-on-head/hmm/plots',
-                                     plotdir + '/' + label + '-train-on-tail-test-on-head/sw/plots'],
-                             names = ['full', 'head-tail', 'tail-head', 'sw'])
+
+plotdir = '/var/www/sharing/dralph/partis/performance'
+plotting.compare_directories(plotdir + '/adaptive-vs-vollmers',
+                             dirs = [plotdir + '/compare-to-vollmers/params/data/hmm_parameters/plots',
+                                     plotdir + '/vollmers/params/data/hmm_parameters/plots'],
+                             names = ['adaptive', 'vollmers'])

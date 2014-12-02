@@ -2,7 +2,6 @@
 import os
 import csv
 import time
-import types
 import sys
 from subprocess import check_call
 
@@ -107,8 +106,6 @@ class ParameterCounter(object):
                     var_type = 'int'
                 except:
                     var_type = 'string'
-                # if type(column_val) == types.StringType:
-                #     var_type = 'string'
                 if column_val not in values:
                     values[column_val] = 0.0
                 values[column_val] += count

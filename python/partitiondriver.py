@@ -103,6 +103,7 @@ class PartitionDriver(object):
                     break
         n_queries = 0
         for line in reader:
+            utils.intify(line)
             # if command line specified query or reco ids, skip other ones
             if self.args.queries != None and line[name_column] not in self.args.queries:
                 continue
@@ -539,6 +540,7 @@ class PartitionDriver(object):
     def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter):
         # TODO the input and output files for this function are almost identical at this point
 
+        n_processed = 0
         # write header for pairwise score file
         with opener('w')(pairscorefname) as pairscorefile:
             pairscorefile.write('unique_id,second_unique_id,score\n')
@@ -547,7 +549,7 @@ class PartitionDriver(object):
             last_id = None
             n_boundary_errors = 0
             for line in reader:
-                line = utils.intify(line)
+                utils.intify(line)
                 # check for errors
                 boundary_error = False
                 if line['errors'] != None and 'boundary' in line['errors'].split(':'):
@@ -560,7 +562,7 @@ class PartitionDriver(object):
                     this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
                         if self.args.debug:
-                            print '%-20s %20s' % (line['unique_id'], line['second_unique_id']),
+                            print '%-20d %20d' % (line['unique_id'], line['second_unique_id']),
                             if self.args.pair:
                                 print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']),
                             print ''
@@ -576,15 +578,18 @@ class PartitionDriver(object):
                         if last_id == this_id:
                             utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=False)
                         if line['cdr3_length'] == -1:
-                            print '      ERROR %s failed to add match info' % line['unique_id']
+                            print '      ERROR %d failed to add match info' % line['unique_id']
                         self.print_hmm_output(line, print_true=(last_id != this_id), perfplotter=perfplotter)
                     last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
-                        pairscorefile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                        pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                     if self.args.outfname != None:
-                        self.outfile.write('%s,%s,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                        self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
 
+                n_processed += 1
+
+        print '  processed %d queries' % n_processed
         if n_boundary_errors > 0:
             print '    %d boundary errors' % n_boundary_errors
         if perfplotter != None:

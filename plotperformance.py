@@ -17,7 +17,8 @@ def run_that_shit(cmd_str):
 parser = argparse.ArgumentParser()
 # parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
-parser.add_argument('--n-queries', default='10000')  # label for this test run. e.g. results are written to dirs with this name
+parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
+parser.add_argument('--n-sim-seqs', default='10000')
 parser.add_argument('--datadir', required=True)  #default='data/imgt')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
 parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation
@@ -47,10 +48,12 @@ if not args.skip_simulation:
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_that_shit(cmd_str)
     
+    n_reco_events = float(args.n_sim_seqs) / 5  # a.t.m. I'm just hard coding five seqs per reco event
+    assert n_reco_events > 0
     # simulate based on data parameters
     cmd_str = ' --simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm_parameters'
-    cmd_str += ' --n-max-queries ' + str(int(float(args.n_queries) / 5))
+    cmd_str += ' --n-max-queries ' + str(int(n_reco_events))
     run_that_shit(cmd_str)
 
 if not args.only_plot_performance:

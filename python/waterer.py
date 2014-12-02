@@ -111,7 +111,7 @@ class Waterer(object):
                     if iquery >= len(ordered_info):
                         break
                     query_name = ordered_info[iquery]
-                    sub_infile.write('>' + query_name + ' NUKES\n')
+                    sub_infile.write('>' + str(query_name) + ' NUKES\n')
                     sub_infile.write(self.input_info[query_name]['seq'] + '\n')
 
     # ----------------------------------------------------------------------------------------
@@ -149,6 +149,7 @@ class Waterer(object):
             from performanceplotter import PerformancePlotter
             perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw', 'sw')
 
+        n_processed = 0
         for iproc in range(self.args.n_procs):
             workdir = self.args.workdir
             if self.args.n_procs > 1:
@@ -159,11 +160,14 @@ class Waterer(object):
                 for _, reads in grouped:  # loop over query sequences
                     self.n_total += 1
                     self.process_query(bam, list(reads), perfplotter)
+                    n_processed += 1
 
             if not self.args.no_clean:
                 os.remove(outfname)
                 if self.args.n_procs > 1:  # still need the top-level workdir
                     os.rmdir(workdir)
+
+        print '  processed %d queries' % n_processed
 
         if perfplotter != None:
             perfplotter.plot()
@@ -181,7 +185,10 @@ class Waterer(object):
     def process_query(self, bam, reads, perfplotter=None):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
-        query_name = primary.qname
+        try:
+            query_name = int(primary.qname)  # if it's just one of my hashes, we want it as an int
+        except ValueError:
+            query_name = primary.qname  # but if it's someone else's random-ass alphasymbolonumeric string we'll just leave it as-is
         raw_best = {}
         all_match_names = {}
         warnings = {}  # ick, this is a messy way to pass stuff around
@@ -283,7 +290,7 @@ class Waterer(object):
                         r_length -= 1
 
                 if self.args.debug:
-                    print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+                    print '      WARNING %d apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
                 assert l_portion + r_portion == overlap
                 qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
                 glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
@@ -345,7 +352,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings):
         if self.args.debug:
-            print '%s' % query_name
+            print '%d' % query_name
 
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
@@ -384,7 +391,7 @@ class Waterer(object):
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
                 if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):  # neurotic double check (um, I think) EDIT hey this totally saved my ass
-                    print 'ERROR %s not same length' % query_name
+                    print 'ERROR %d not same length' % query_name
                     print glmatchseq, glbounds[0], glbounds[1]
                     print query_seq[qrbounds[0]:qrbounds[1]]
                     assert False
@@ -421,7 +428,7 @@ class Waterer(object):
         try:
             self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
         except AssertionError:
-            print '      ERROR %s apportionment failed' % query_name
+            print '      ERROR %s apportionment failed' % str(query_name)
             return
 
         for region in utils.regions:
@@ -439,7 +446,7 @@ class Waterer(object):
             utils.check_for_stop_codon(query_seq, codon_positions['v'], debug=self.args.debug)
         except AssertionError:
             if self.args.debug:
-                print '      unproductive rearrangement in waterer'
+                print '       unproductive rearrangement in waterer'
             if self.args.skip_unproductive:
                 if self.args.debug:
                     print '            ...skipping'

@@ -1,60 +1,53 @@
 # ----------------------------------------------------------------------------------------
-# abstract for bamfffff
-#   hmm compiler
-#   vdj inference
-#   mention pair hmm
-#   accuracy
-#   speed  
-# ----------------------------------------------------------------------------------------
+  - write shit up!
+    - instructions: http://royalsocietypublishing.org/instructions-authors#question6
+
+  - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
+  - put in erick\'s idea about replacing the single insert state with an insert state for A, C, G, and T
+  - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
+    - does the simulation accurately reflect the data?
+    - does the hmm correctly infer parameters in simulation? (well, data too, but I dunno if there\'s really a way to test that)
+  - think *long* and *hard* about get_emission_prob() in hmmwriter. especially the pair part, since you didn\'t performance test that
+    - UPDATE hm, on second thought I\'m just going to punt on the pair hmm stuff
+    - TODO fix that!
+  - account for different mutation frequencies to different bases (it seems that this will require forking bppseqgen)
+  - track down more sequences that give no-valid-path errors in the hmm
+  - test against igblast
+  - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
+  - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
+  - looking at the plots, my insertions and deletions are on average too small. Why is this?
+  - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
+
+  - add testing framework to partis (include timing info)
+    - get parameters from data
+    - ???
+    - short reads, long reads, reads with v left and j right erosions
+    - single viterbi, viterbi pair, clustering
+    - parameter estimation from sw and hmm
+
+  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
+  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
+  - TODOs in code
+
+  # ----------------------------------------------------------------------------------------
+  # finished(ish)
   - compare other people\'s 'viterbi' codes
     - programs
       - imgt/vquest: http://www.imgt.org/IMGT_vquest/vquest
       - ihmmunealign  2.6 sec/seq
       - soda[12]
       - joinsolver
-  - write shit up!
-    - instructions: http://royalsocietypublishing.org/instructions-authors#question6
+    - get timing info for all codes
 
-  - check shift_overflows in plotting.py
   - separate training and testing samples for performance comparison
     - OH WAIT NO it\'s totally fine. I\'m not *using* the fact that I know the right answer on simulation. woot.
-  - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
-  - wow, switching from pasing seqs by reference to value really slowed it down -- need to go through Viterbi() and Forward() and see if there\'s any other call-by-values I can remove
-  - stop pulling insert_mute_prob (in hmmwriter) ooya
-  - get timing info for all codes
-  - rerun perf comparisons for partis/sw with new hamming_to_true_naive changes
-  - need to rerun performance comparisons on more than 20k seqs
-  - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
-    - does the simulation accurately reflect the data?
-    - does the hmm correctly infer parameters in simulation? (well, data too, but I dunno if there\'s really a way to test that)
-  - think *long* and *hard* about get get_emission_prob() in hmmwriter. especially the pair part, since you didn\'t performance test that
-    - UPDATE hm, on second thought I\'m just going to punt on the pair hmm stuff
-    - TODO fix that!
-
-# need to increase fuzz!
-# need to cache v stuff in ham!            
-  - account for different mutation frequencies to different bases
-  - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
-  - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
-  - check how close parameters are between data and simulation
-  - account for non-uniform base content in insertions
-    - don\'t forget to put this into recombinator  
-  - optimize on fuzzes and n_max_per_region
-  - looking at the damn plots, my insertions and deletions are on average too small. Why is this?
-  - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
-  - add testing framework to partis (include timing info)
-    - short reads, long reads, reads with v left and j right erosions
-    - single viterbi, viterbi pair, clustering
-    - parameter estimation from sw and hmm
-  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
-  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
-  - TODOs in code
 
   - low priority
     - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
     - disallow stop codons, out of frame and frame-shifted rearrangements in recombinator
     - do I really want to apply the gene choice prob in waterer?
     - optimization
+      - wow, switching from passing seqs by reference to value really slowed it down -- need to go through Viterbi() and Forward() and see if there\'s any other call-by-values I can remove
       - would it be faster with STATE_MAX less than 1024?
         - for k_v --> k_v + 1, don\'t recalculate the whole table
       - run performance profiling

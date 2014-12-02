@@ -4,7 +4,6 @@ require member variables. """
 import sys
 import os
 import re
-import types
 import math
 import glob
 from collections import OrderedDict
@@ -805,16 +804,11 @@ def hamming(seq1, seq2):
 def get_key(query_name, second_query_name):
     """
     Return a hashable combination of the two query names that's the same if we reverse their order.
-    At the moment, just add 'em up.
     """
-    # assert query_name != ''
-    # if second_query_name == '':
-    #     second_query_name = '0'
-    # return int(query_name) + int(second_query_name)
     assert query_name != ''
     if second_query_name == '':
         second_query_name = '0'
-    return '.'.join(sorted([query_name, second_query_name]))
+    return '.'.join(sorted([str(query_name), str(second_query_name)]))
 
 # ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildling=None, multilings=None):
@@ -846,4 +840,4 @@ def intify(info):
         except ValueError:
             pass
 
-    return info
+    # return info
