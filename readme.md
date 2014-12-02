@@ -25,7 +25,7 @@ optional
 
 included
 --------------
-  - tclap   
+  - tclap
   - yaml-cpp
   - ham
   - samtools
@@ -92,7 +92,7 @@ NOTE
       seqs just as a test, because you need lots of seqs to get information on all the positions in all the gene versions
   - ignore all the warnings and errors about bad conserved codons and messed up cysteines and tryptophans. This is just telling you that there is unproductive rearrangements in the data.
     Well, and that my germline versions suck.
-      
+
 when it finishes, you can poke around in `parameter_dir`/hmm_parameters/ and see what is going into the model
 
 Now you can run the simulator with these new parameters, too, to make six clusters/clones of five sequences each.
