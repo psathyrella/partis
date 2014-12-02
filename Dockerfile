@@ -1,10 +1,4 @@
-FROM dockerfile/python
-
-# prepare ubuntu
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    libboost-dev \
-    scons
+FROM matsengrp/cpp
 
 # make ham
 RUN git clone https://github.com/psathyrella/ham.git
