@@ -1,17 +1,9 @@
-# make-ham
-#
-# VERSION       1.0
-FROM dockerfile/python
-MAINTAINER Frederick A. Matsen, matsen@fhcrc.org
-
-# prepare ubuntu
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    libboost-dev \
-    scons
+FROM matsengrp/cpp
 
 # make ham
 RUN git clone https://github.com/psathyrella/ham.git
-RUN cd ham && scons
+WORKDIR /data/ham
+RUN scons
+
+# run tests
+RUN scons test
