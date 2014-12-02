@@ -547,6 +547,7 @@ class PartitionDriver(object):
             last_id = None
             n_boundary_errors = 0
             for line in reader:
+                line = utils.intify(line)
                 # check for errors
                 boundary_error = False
                 if line['errors'] != None and 'boundary' in line['errors'].split(':'):

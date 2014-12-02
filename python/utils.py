@@ -4,6 +4,7 @@ require member variables. """
 import sys
 import os
 import re
+import types
 import math
 import glob
 from collections import OrderedDict
@@ -835,3 +836,14 @@ def prep_dir(dirname, wildling=None, multilings=None):
         if multilings != None:
             print multilings
         assert False
+
+# ----------------------------------------------------------------------------------------
+def intify(info):
+    """ attempt to convert all the keys and values in <info> from str to int """
+    for key, val in info.items():
+        try:
+            info[key] = int(val)
+        except ValueError:
+            pass
+
+    return info

@@ -186,19 +186,16 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     else:
       hist = TH1F(hist_label, '', n_bins, xmin_force, xmax_force)
     hist.Sumw2()
+        
 
     for ival in range(len(values)):
         if var_type == 'string':
             label = bin_labels[ival]
-            # if 'IGH' in label:
-            #     label = label.replace('IGH','').replace('*',' ').lower()
             hist.GetXaxis().SetBinLabel(ival+1, label)
             hist.SetBinContent(ival+1, values[bin_labels[ival]])
             hist.SetBinError(ival+1, math.sqrt(values[bin_labels[ival]]))
         else:
             hist.Fill(bin_labels[ival], values[bin_labels[ival]])
-        
-    # print '  %d (mean %f) values for %s' % (len(values), hist.GetMean(), 'what?')
   
     # make sure there's no overflows
     if hist.GetBinContent(0) != 0.0 or hist.GetBinContent(hist.GetNbinsX()+1) != 0.0:

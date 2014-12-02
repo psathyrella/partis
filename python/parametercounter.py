@@ -100,15 +100,20 @@ class ParameterCounter(object):
             if column == 'all':
                 continue
             values = {}
-            var_type = 'int'
             for index, count in self.counts[column].iteritems():
                 column_val = index[0]
-                if type(column_val) == types.StringType:
+                try:
+                    int(column_val)
+                    var_type = 'int'
+                except:
                     var_type = 'string'
+                # if type(column_val) == types.StringType:
+                #     var_type = 'string'
                 if column_val not in values:
                     values[column_val] = 0.0
                 values[column_val] += count
             hist = plotting.make_hist(values, var_type, column, sort=True)
+
             plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir, errors=('_content' in column))
         if has_root:
             check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
