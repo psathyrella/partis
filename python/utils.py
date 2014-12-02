@@ -337,6 +337,10 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, a
     else:
         return -1
 
+    if gl_pos == None:
+        print 'ERROR none gl_pos for %s ' % gene
+        sys.exit()
+
     glbounds = all_glbounds[gene]
     qrbounds = all_qrbounds[gene]
     query_pos = gl_pos - glbounds[0] + qrbounds[0]
