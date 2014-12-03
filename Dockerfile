@@ -9,6 +9,7 @@ RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true 
 RUN apt-get install -y \
     oracle-java7-installer \
     libxml2-dev \
+    zlib1g-dev \
     libxslt1-dev
 
 RUN pip install \
@@ -18,7 +19,7 @@ RUN pip install \
     networkx \
     decorator \
     lxml \
-    bs4
+    beautifulsoup4
 RUN pip install --user ./python
 
 # make ham
