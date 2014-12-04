@@ -1,6 +1,6 @@
 FROM matsengrp/cpp
 
-# Copied from https://github.com/jplock/docker-oracle-java7
+# Java bit copied from https://github.com/jplock/docker-oracle-java7
 RUN sed 's/main$/main universe/' -i /etc/apt/sources.list
 RUN apt-get update && apt-get install -y software-properties-common python-software-properties
 RUN add-apt-repository ppa:webupd8team/java -y
@@ -9,8 +9,8 @@ RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true 
 RUN apt-get install -y \
     oracle-java7-installer \
     libxml2-dev \
+    zlib1g-dev \
     libxslt1-dev
-
 RUN pip install \
     pysam \
     pyyaml \
@@ -18,15 +18,21 @@ RUN pip install \
     networkx \
     decorator \
     lxml \
-    bs4
-RUN pip install --user ./python
+    beautifulsoup4
+
+# set up
+RUN mkdir -p /root/.ssh
+ADD id_rsa /root/.ssh/id_rsa
+RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
+RUN ssh -v git@github.com
 
 # make ham
-git clone git@github.com:psathyrella/partis.git
-WORKDIR /data/partis/ham
+RUN git clone git@github.com:psathyrella/partis.git
+WORKDIR /data/partis/packages/ham/
 RUN scons
-WORKDIR /data/partis/samtools/
+WORKDIR /data/partis/packages/samtools/
 RUN make && ln -s $PWD/samtools ~/bin/
-WORKDIR /data/partis/ighutil/
+WORKDIR /data/partis/packages/ighutil/
 RUN make -C clj
 WORKDIR /data/partis/
+RUN pip install --user ./python
