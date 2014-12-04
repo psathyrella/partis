@@ -22,16 +22,14 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def cluster(self, infname, debug=False, reco_info=None, outfile=None):
-        self.debug = debug
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile)
             for line in reader:
                 query1 = int(line['unique_id'])
                 query2 = int(line['second_unique_id'])
                 score = float(line['score'])
-                if self.debug:
-                    print '%22s %22s   %.3f' % (query1, query2, score),
-                self.incorporate_into_clusters(query1, query2, score)
+                dbg_str_list = ['%22s %22s   %.3f' % (query1, query2, score), ]
+                self.incorporate_into_clusters(query1, query2, score, dbg_str_list)
                 self.pairscores[utils.get_key(query1, query2)] = score
                 if reco_info != None and reco_info[query1]['reco_id'] == reco_info[query2]['reco_id']:
                     for query,score in {query1:score, query2:score}.iteritems():
@@ -41,8 +39,12 @@ class Clusterer(object):
                             self.nearest_true_mate[query] = score
                         elif not self.greater_than and score < self.nearest_true_mate[query]:
                             self.nearest_true_mate[query] = score
-                if self.debug:
-                    print ''
+                if debug:
+                    outstr = ''.join(dbg_str_list)
+                    if outfile == None:
+                        print outstr
+                    else:
+                        outfile.write(outstr + '\n')
 
         for query, cluster_id in self.query_clusters.iteritems():
             if cluster_id not in self.id_clusters:
@@ -59,23 +61,20 @@ class Clusterer(object):
             outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def add_new_cluster(self, query_name):
-        if self.debug:
-            print '    new cluster ',query_name,
+    def add_new_cluster(self, query_name, dbg_str_list):
+        dbg_str_list.append('    new cluster ' + str(query_name))
         assert query_name not in self.query_clusters
         self.max_id += 1
         self.query_clusters[query_name] = self.max_id
         self.cluster_ids.append(self.max_id)
 
     # ----------------------------------------------------------------------------------------
-    def merge_clusters(self, query_name, second_query_name):
+    def merge_clusters(self, query_name, second_query_name, dbg_str_list):
         """ move all queries with same id as <second_query_name> to <query_name>'s cluster """
         if self.query_clusters[query_name] == self.query_clusters[second_query_name]:
-            if self.debug:
-                print '     already together',
+            dbg_str_list.append('     already together')
             return
-        if self.debug:
-            print '     merging ',self.query_clusters[query_name], ' and ',self.query_clusters[second_query_name],
+        dbg_str_list.append('     merging ' + self.query_clusters[query_name] + ' and ' + self.query_clusters[second_query_name])
         first_cluster_id = self.query_clusters[query_name]
         second_cluster_id = self.query_clusters[second_query_name]
 
@@ -95,9 +94,8 @@ class Clusterer(object):
             sys.exit()
 
     # ----------------------------------------------------------------------------------------
-    def add_to_cluster(self, cluster_id, query_name):
-        if self.debug:
-            print '    adding ',query_name,' to ',cluster_id,
+    def add_to_cluster(self, cluster_id, query_name, dbg_str_list):
+        dbg_str_list.append('    adding ' + str(query_name) + ' to ' + str(cluster_id))
         self.query_clusters[query_name] = cluster_id
 
     # ----------------------------------------------------------------------------------------
@@ -110,17 +108,16 @@ class Clusterer(object):
             return score > self.threshold
 
     # ----------------------------------------------------------------------------------------
-    def incorporate_into_clusters(self, query_name, second_query_name, score):
+    def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
         if self.is_removable(score):  # TODO this makes singletons not be included in any cluster... I should fix that
-            if self.debug:
-                print '    removing link',
+            dbg_str_list.append('    removing link')
             return
         if query_name in self.query_clusters and second_query_name in self.query_clusters:  # if both seqs are already in clusters
-            self.merge_clusters(query_name, second_query_name)
+            self.merge_clusters(query_name, second_query_name, dbg_str_list)
         elif query_name in self.query_clusters:
-            self.add_to_cluster(self.query_clusters[query_name], second_query_name)
+            self.add_to_cluster(self.query_clusters[query_name], second_query_name, dbg_str_list)
         elif second_query_name in self.query_clusters:
-            self.add_to_cluster(self.query_clusters[second_query_name], query_name)
+            self.add_to_cluster(self.query_clusters[second_query_name], query_name, dbg_str_list)
         else:
-            self.add_new_cluster(query_name)
-            self.add_to_cluster(self.query_clusters[query_name], second_query_name)
+            self.add_new_cluster(query_name, dbg_str_list)
+            self.add_to_cluster(self.query_clusters[query_name], second_query_name, dbg_str_list)

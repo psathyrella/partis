@@ -231,8 +231,8 @@ class PartitionDriver(object):
             self.merge_hmm_outputs(csv_outfname)
         else:
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
-        if self.outfile != None and algorithm == 'forward':
-            self.outfile.write('hmm pairscores\n')
+        # if self.outfile != None and algorithm == 'forward':
+        #     self.outfile.write('hmm pairscores\n')
         self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter)
 
         if count_parameters:
@@ -409,13 +409,13 @@ class PartitionDriver(object):
                     chopped_off_left_sides = True
                 mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
-                if self.args.debug:
-                    print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
+                # if self.args.debug:
+                #     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
 
         clust = Clusterer(0.5, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
         if self.outfile != None:
             self.outfile.write('hamming clusters\n')
-        clust.cluster(hammingfname, debug=False, outfile=self.outfile)
+        clust.cluster(hammingfname, debug=self.args.debug, outfile=self.outfile)
         os.remove(hammingfname)
         if chopped_off_left_sides:
             print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
@@ -586,8 +586,8 @@ class PartitionDriver(object):
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
-                    if self.args.outfname != None:
-                        self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                    # if self.args.outfname != None:
+                    #     self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
 
                 n_processed += 1
 
