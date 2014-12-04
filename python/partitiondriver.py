@@ -210,7 +210,7 @@ class PartitionDriver(object):
             assert not self.args.pair  # well, you *could* check the performance of pair viterbi, but I haven't implemented it yet
             assert algorithm == 'viterbi'  # same deal as previous assert
             from performanceplotter import PerformancePlotter
-            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/hmm', 'hmm')
+            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/hmm_performance', 'hmm')
 
         if prefix == '' and stripped:
             prefix = 'stripped'

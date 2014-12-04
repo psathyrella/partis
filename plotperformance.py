@@ -24,6 +24,7 @@ parser.add_argument('--extra-args')  # args to pass on to commands (colon-separa
 parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation
 parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
 parser.add_argument('--simfname')
+parser.add_argument('--plotdir')
 parser.add_argument('--only-plot-performance', action='store_true')  # also skip parameter caching on simulation
 
 args = parser.parse_args()
@@ -38,12 +39,13 @@ if args.extra_args != None:
 if args.simfname == None:
     args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
 param_dir = 'caches/performance/' + args.label
-plot_dir = os.getenv('www') + '/partis/performance/' + args.label
+if args.plotdir == None:
+    args.plotdir = os.getenv('www') + '/partis/performance/' + args.label
 
 # cache parameters from data
 cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
 cmd_str += ' --parameter-dir ' + param_dir + '/data'
-cmd_str += ' --plotdir ' + plot_dir + '/params/data'
+cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
 cmd_str += ' --n-max-queries ' + args.n_queries
 run_that_shit(cmd_str)
 
@@ -60,13 +62,13 @@ if not args.only_plot_performance:
     # cache parameters from simulation
     cmd_str = ' --cache-parameters --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu'
-    cmd_str += ' --plotdir ' + plot_dir + '/params/simu'
+    cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_that_shit(cmd_str)
 
 # run point estimation on simulation
 cmd_str = ' --point-estimate --plot-performance --seqfile ' + args.simfname + common_args
 cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm_parameters'
-cmd_str += ' --plotdir ' + plot_dir
+cmd_str += ' --plotdir ' + args.plotdir
 cmd_str += ' --n-max-queries ' + args.n_queries
 run_that_shit(cmd_str)

@@ -147,7 +147,7 @@ class Waterer(object):
             assert self.args.plotdir != None
             assert not self.args.is_data
             from performanceplotter import PerformancePlotter
-            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw', 'sw')
+            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw_performance', 'sw')
 
         n_processed = 0
         for iproc in range(self.args.n_procs):
