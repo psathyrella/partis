@@ -1,5 +1,15 @@
 # ----------------------------------------------------------------------------------------
-  - write shit up!
+RUN ./runpart.py --cache-parameters --seqfile test/every-hundredth-data.tsv.bz2 --is-data --skip-unproductive --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/data --plotdir /var/www/sharing/dralph/partis/performance/test/params/data --n-max-queries -1
+RUN ./runpart.py --simulate --outfname caches/recombinator/performance/test/simu.csv --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/data/hmm_parameters --n-max-queries 2000
+RUN ./runpart.py --cache-parameters --seqfile caches/recombinator/performance/test/simu.csv --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/simu --plotdir /var/www/sharing/dralph/partis/performance/test/params/simu --n-max-queries -1
+RUN ./runpart.py --point-estimate --plot-performance --seqfile caches/recombinator/performance/test/simu.csv --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/simu/hmm_parameters --plotdir /var/www/sharing/dralph/partis/performance/test --n-max-queries -1
+# things that should be the same:
+  - caches/performance/test/{data,simu}
+  - caches/recombinator/performance/test/simu.csv
+  - /var/www/sharing/dralph/partis/performance/test/{sw,hmm}/plots/*.csv
+
+# ----------------------------------------------------------------------------------------
+- write shit up!
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
   - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
@@ -19,10 +29,9 @@
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
 
   - add testing framework to partis (include timing info)
-    - get parameters from data
-    - ???
     - short reads, long reads, reads with v left and j right erosions
     - single viterbi, viterbi pair, clustering
+    - allow to set seeds (I think just in recombinator?) for reproducibility
     - parameter estimation from sw and hmm
 
   - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies

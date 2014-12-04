@@ -6,28 +6,29 @@ from SCons.Script import Command, Depends
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
 
+# data_parameter_dir = 'caches/new-imgt'
+# simu_parameter_dir = 'caches/simu-new-imgt'
+# data_test_file = 'test/every-hundredth-data.tsv.bz2'
+# long_simu_test_file = 'test/recombinator/simu.csv.bz2'
+# performance_plot_file = 'caches/recombinator/longer-reads/simu.csv'
+
 cmd = './runpart.py'
-
-data_parameter_dir = 'caches/new-imgt'
-simu_parameter_dir = 'caches/simu-new-imgt'
-data_test_file = 'test/every-hundredth-data.tsv.bz2'
-long_simu_test_file = 'test/recombinator/simu.csv.bz2'
-performance_plot_file = 'caches/recombinator/longer-reads/simu.csv'
-
+datadir = 'data/imgt'
+parameter_dir = 'caches/performance/test/simu/hmm_parameters'
 dummy_plotdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/dummy-plots'
 
+# RUN ./runpart.py --cache-parameters --seqfile test/every-hundredth-data.tsv.bz2 --is-data --skip-unproductive --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/data --plotdir /var/www/sharing/dralph/partis/performance/test/params/data --n-max-queries -1
+# RUN ./runpart.py --simulate --outfname caches/recombinator/performance/test/simu.csv --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/data/hmm_parameters --n-max-queries 2000
+# RUN ./runpart.py --cache-parameters --seqfile caches/recombinator/performance/test/simu.csv --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/simu --plotdir /var/www/sharing/dralph/partis/performance/test/params/simu --n-max-queries -1
+# RUN ./runpart.py --point-estimate --plot-performance --seqfile caches/recombinator/performance/test/simu.csv --n-procs 10 --datadir data/imgt/ --parameter-dir caches/performance/test/simu/hmm_parameters --plotdir /var/www/sharing/dralph/partis/performance/test --n-max-queries -1
+
 tests = {
-    # # first cache data parameters in <data_parameter_dir>
-    # 'cache-data-parameters' : cmd + ' --cache_parameters --seqfile ' + data_test_file + ' --is_data --parameter_dir ' + data_parameter_dir + ' --plotdir ' + dummy_plotdir + ' --n_procs 10 --skip_unproductive',
-    # # then simulate sequences from these parameters (we only need this step so in the *next* step we can get parameters on longer sequences NOTE you *really* want to parallelize this (see e.g. run.sh)
-    # 'simulate-long-seqs' : '--simulate --parameter_dir ' + data_parameter_dir + '/hmm_parameters --n_max_queries 10000 --outfname ' + long_simu_test_file,
-    # 'cache-simu-parameters' : cmd + ' --cache_parameters --seqfile ' + long_simu_test_file + ' --parameter_dir ' + simu_parameter_dir + ' --plotdir ' + dummy_plotdir + ' --n_procs 10',
+    # for the time being skip the simulation step and use a cached simu file
+    # 'cache-and-plot-performance' : './plotperformance.py --label test --datadir ' + datadir + ' --skip-simulation --simfname test/simu.csv',
 
-    # 'plot-performance' : '. /home/dralph/root/bin/thisroot.sh; ' + cmd + ' --plot_performance --point_estimate --seqfile ' + performance_plot_file + ' --parameter_dir ' + simu_parameter_dir + '/hmm_parameters --n_max_queries 10000 --plotdir ' + os.getenv('www') + '/partis/test-performance-plot --n_procs 10',
-
-    # 'single-point-estimate' : [ cmd, '--point_estimate', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--n_max_queries', '1', '--debug', '1'],
-    # 'partition-a-few' : [cmd, '--partition', '--pair', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--n_procs', '10', '--n_max_per_region', '2'],
-    # 'viterbi-pair' : [cmd, '--point_estimate', '--pair', '--seqfile', simu_test_file, '--parameter_dir', parameter_dir + '/hmm_parameters', '--debug', '1', '--queries', '\' -2996237710674838049:1722533587157826946:1516698783101435629\'']
+    'single-point-estimate' : cmd +  ' --point-estimate --datadir ' + datadir + ' --seqfile test/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1',
+    'partition-a-few' : cmd +  ' --partition --pair --datadir ' + datadir + ' --seqfile test/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1',
+    'viterbi-pair' : cmd +  ' --point-estimate --pair --datadir ' + datadir + ' --seqfile test/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1',
 }
 
 all_passed = '_results/ALL.passed'
@@ -40,7 +41,7 @@ for path in individual_passed + [all_passed]:
 for name, test_cmd in tests.items():
     out = '_results/%s.out' % name
     env.Command(out, '../' + cmd, test_cmd + ' --outfname $TARGET')
-    Depends(out, [glob.glob('../python/*.py'), '../packages/ham/ham'])
+    Depends(out, [glob.glob('../python/*.py'), '../packages/ham/bcrham'])
     # touch a sentinel `passed` file if we get what we expect
     Command('_results/%s.passed' % name,
             [out, 'data/regression/%s.out' % name],

@@ -25,11 +25,15 @@ def is_normed(probs):
         return math.fabs(probs - 1.0) < eps
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False):  # make lists from args that are passed as strings of colon-separated values
     if arg == None:
         return arg
     else:
-        return arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+        arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+        if intify:
+            return [int(x) for x in arglist]
+        else:
+            return arglist
 
 # # ----------------------------------------------------------------------------------------
 # hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}

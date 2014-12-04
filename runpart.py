@@ -88,8 +88,8 @@ else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
 
-    args.queries = utils.get_arg_list(args.queries)
-    args.reco_ids = utils.get_arg_list(args.reco_ids)
+    args.queries = utils.get_arg_list(args.queries, intify=True)
+    args.reco_ids = utils.get_arg_list(args.reco_ids, intify=True)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
     if len(args.n_max_per_region) != 3:
         print 'ERROR n-max-per-region should be form \'x:y:z\', but I got', args.n_max_per_region
