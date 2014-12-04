@@ -245,7 +245,9 @@ class PartitionDriver(object):
             clusters = Clusterer(0, greater_than=True)
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
-            clusters.cluster(pairscorefname, debug=False, reco_info=self.reco_info, outfile=self.outfile)
+            else:
+                print'hmm clusters'
+            clusters.cluster(pairscorefname, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile)
             if preclusters != None:
                 for query_name in sw_info:  # check for singletons that got split out in the preclustering step
                     if query_name not in clusters.query_clusters and query_name != 'all_best_matches':
@@ -562,7 +564,7 @@ class PartitionDriver(object):
                     this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
                         if self.args.debug:
-                            print '%-20d %20d' % (line['unique_id'], line['second_unique_id']),
+                            print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
                             if self.args.pair:
                                 print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']),
                             print ''

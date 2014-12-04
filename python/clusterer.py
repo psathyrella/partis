@@ -26,8 +26,8 @@ class Clusterer(object):
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile)
             for line in reader:
-                query1 = line['unique_id']
-                query2 = line['second_unique_id']
+                query1 = int(line['unique_id'])
+                query2 = int(line['second_unique_id'])
                 score = float(line['score'])
                 if self.debug:
                     print '%22s %22s   %.3f' % (query1, query2, score),
@@ -50,9 +50,9 @@ class Clusterer(object):
             self.id_clusters[cluster_id].append(query)
 
         # print 'nearest',self.nearest_true_mate
-        out_str_list = []
+        out_str_list = ['  clusters:\n', ]
         for cluster_id in self.id_clusters:
-            out_str_list.append('   ' + ' '.join(self.id_clusters[cluster_id]) + '\n')
+            out_str_list.append('   ' + ' '.join([str(x) for x in self.id_clusters[cluster_id]]) + '\n')
         if outfile == None:
             print ''.join(out_str_list)
         else:

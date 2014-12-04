@@ -40,14 +40,14 @@ if args.simfname == None:
 param_dir = 'caches/performance/' + args.label
 plot_dir = os.getenv('www') + '/partis/performance/' + args.label
 
+# cache parameters from data
+cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
+cmd_str += ' --parameter-dir ' + param_dir + '/data'
+cmd_str += ' --plotdir ' + plot_dir + '/params/data'
+cmd_str += ' --n-max-queries ' + args.n_queries
+run_that_shit(cmd_str)
+
 if not args.skip_simulation:
-    # cache parameters from data
-    cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/data'
-    cmd_str += ' --plotdir ' + plot_dir + '/params/data'
-    cmd_str += ' --n-max-queries ' + args.n_queries
-    run_that_shit(cmd_str)
-    
     n_reco_events = float(args.n_sim_seqs) / 5  # a.t.m. I'm just hard coding five seqs per reco event
     assert n_reco_events > 0
     # simulate based on data parameters
