@@ -18,9 +18,9 @@ if not os.path.exists('../' + testoutdir):
 tests = {
     # for the time being skip the simulation step and use a cached simu file
     'cache-and-plot-performance' : './plotperformance.py --label test --datadir ' + datadir + ' --skip-simulation --simfname test/data/regression/simu.csv --plotdir ' + testoutdir + '/plots',
-    # 'single-point-estimate' : cmd +  ' --point-estimate --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1',
-    # 'partition-a-few' : cmd +  ' --partition --pair --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1',
-    # 'viterbi-pair' : cmd +  ' --point-estimate --pair --datadir ' + datadir + ' --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1',
+    'single-point-estimate' : cmd +  ' --point-estimate --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1',
+    'partition-a-few' : cmd +  ' --partition --pair --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1',
+    'viterbi-pair' : cmd +  ' --point-estimate --pair --datadir ' + datadir + ' --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1',
 }
 
 all_passed = '_results/ALL.passed'
@@ -37,7 +37,7 @@ for name, test_cmd in tests.items():
         env.Command(out, '../' + cmd, test_cmd + ' && touch $TARGET')
         Command('_results/%s.passed' % name,
                 ['data/regression/parameters', '../' + testoutdir, out],
-                'diff -qr ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
+                'diff -qr  -x\'*.svg\' -x params ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
     else:
         env.Command(out, '../' + cmd, test_cmd + ' --outfname $TARGET')
         # touch a sentinel `passed` file if we get what we expect
