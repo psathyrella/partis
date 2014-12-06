@@ -6,7 +6,7 @@ import os
 import re
 import math
 import glob
-from collections import OrderedDict
+from collections import namedtuple, OrderedDict
 import csv
 
 from opener import opener
@@ -170,7 +170,7 @@ def int_to_nucleotide(number):
         print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
 
-# ----------------------------------------------------------------------------------------                    
+# ----------------------------------------------------------------------------------------
 def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str=''):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     if len(seq) < cyst_position+3:
@@ -374,7 +374,7 @@ def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False
                 assert False
         else:
             line[key] = val
-    
+
     try:
         check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
         check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
@@ -409,7 +409,7 @@ def get_regional_naive_seq_bounds(region, germlines, line):
     end['d'] = start['d'] + len(eroded_seqs['d'])
     start['j'] = end['d'] + len(line['dj_insertion'])
     end['j'] = start['j'] + len(eroded_seqs['j'] + line['jf_insertion'])
-    
+
     assert end['j'] == len(line['seq'])
 
     return (start[region], end[region])
@@ -445,7 +445,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
 
     If <one_line>, then only print out the final_seq line.
     """
-    
+
     v_5p_del = int(line['v_5p_del'])
     v_3p_del = int(line['v_3p_del'])
     d_5p_del = int(line['d_5p_del'])
@@ -645,6 +645,7 @@ def get_region(gene_name):
     except:
         print 'ERROR faulty gene name %s ' % gene_name
         assert False
+
 # ----------------------------------------------------------------------------------------
 def maturity_to_naivety(maturity):
     if maturity == 'memory':
@@ -654,19 +655,17 @@ def maturity_to_naivety(maturity):
     else:
         assert False
 
-# # ----------------------------------------------------------------------------------------
-# def split_gene_name(name):
-#     """
-#     split name into region, version, allele, etc.
-#     e.g. IGHD7-27*01 --> {'region':'d', 'version':7, 'subversion':27, 'allele':1}
-#     """
-#     return_vals = {}
-#     return_vals['region'] = get_region(name)
-#     assert name.count('-') == 1
-#     return_vals['version'] = name[4 : name.find('-')]
-    
-#     assert name.count('*') == 1
-    
+# ----------------------------------------------------------------------------------------
+GeneSpec = namedtuple('GeneSpec', ['region', 'primary', 'allele'])
+def gene_spec_of_name(name):
+    """
+    split name into region, version, allele, etc.
+    """
+    (primary_str, allele_str) = name.split('*')
+    return GeneSpec(
+        region=get_region(primary_str),
+        primary=primary_str[4:],
+        allele=allele_str)
 
 # ----------------------------------------------------------------------------------------
 def are_alleles(gene1, gene2):
@@ -794,7 +793,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
 
         print 'ERROR couldn\'t find genes for %s in %s' % (gene_name, indir)
         assert False
-    
+
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
 
