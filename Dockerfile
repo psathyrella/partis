@@ -8,9 +8,10 @@ RUN apt-get update
 RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 RUN apt-get install -y \
     oracle-java7-installer \
+    libncurses5-dev \
     libxml2-dev \
-    zlib1g-dev \
-    libxslt1-dev
+    libxslt1-dev \
+    zlib1g-dev
 RUN pip install \
     pysam \
     pyyaml \
@@ -20,20 +21,22 @@ RUN pip install \
     lxml \
     beautifulsoup4
 
-# set up
-RUN mkdir -p /root/.ssh
+# set up auth
+RUN mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh
 ADD bunnyhutch_id_rsa /root/.ssh/id_rsa
-RUN git config --global user.name bunnyhutch
-RUN git config --global user.email ematsen+bunnyhutch@gmail.com
-RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
+RUN chmod 600 /root/.ssh/id_rsa && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
 
-# make ham
-RUN git clone https://github.com/matsengrp/partis.git
+# make
+RUN git clone git@github.com:psathyrella/partis.git
 WORKDIR /data/partis/packages/ham/
 RUN scons
 WORKDIR /data/partis/packages/samtools/
-RUN make && ln -s $PWD/samtools ~/bin/
+RUN make && \
+    mkdir /data/partis/_bin && \
+    ln -s $PWD/samtools /data/partis/_bin
 WORKDIR /data/partis/packages/ighutil/
-RUN make -C clj
+RUN make -C clj && \
+    pip install --user ./python
 WORKDIR /data/partis/
-RUN pip install --user ./python
