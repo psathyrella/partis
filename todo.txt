@@ -12,7 +12,6 @@ RUN ./runpart.py --point-estimate --plot-performance --seqfile caches/recombinat
 - write shit up!
     - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
-  - clustering: do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these
   - put in erick\'s idea about replacing the single insert state with an insert state for A, C, G, and T
   - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
     - does the simulation accurately reflect the data?
@@ -23,38 +22,26 @@ RUN ./runpart.py --point-estimate --plot-performance --seqfile caches/recombinat
   - account for different mutation frequencies to different bases (it seems that this will require forking bppseqgen)
   - track down more sequences that give no-valid-path errors in the hmm
   - test against igblast
-  - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
   - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
   - looking at the plots, my insertions and deletions are on average too small. Why is this?
+  - tree inference closure tests in recombinator
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
-
+  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
+  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
+  - TODOs in code
   - add testing framework to partis (include timing info)
     - short reads, long reads, reads with v left and j right erosions
     - single viterbi, viterbi pair, clustering
     - allow to set seeds (I think just in recombinator?) for reproducibility
     - parameter estimation from sw and hmm
 
-  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
-  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
-  - TODOs in code
 
   # ----------------------------------------------------------------------------------------
-  # finished(ish)
-  - compare other people\'s 'viterbi' codes
-    - programs
-      - imgt/vquest: http://www.imgt.org/IMGT_vquest/vquest
-      - ihmmunealign  2.6 sec/seq
-      - soda[12]
-      - joinsolver
-    - get timing info for all codes
-
-  - separate training and testing samples for performance comparison
-    - OH WAIT NO it\'s totally fine. I\'m not *using* the fact that I know the right answer on simulation. woot.
-
-  - low priority
+  # lower priority
     - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
     - disallow stop codons, out of frame and frame-shifted rearrangements in recombinator
     - do I really want to apply the gene choice prob in waterer?
+    - print a warning when the kbounds we pass to the hmm don\'t include the true one (and same thing for the gene versions)
     - optimization
       - wow, switching from passing seqs by reference to value really slowed it down -- need to go through Viterbi() and Forward() and see if there\'s any other call-by-values I can remove
       - would it be faster with STATE_MAX less than 1024?
@@ -75,28 +62,22 @@ RUN ./runpart.py --point-estimate --plot-performance --seqfile caches/recombinat
         - so try to use the amount of mutation in v to inform this decision (?)
         - i.e., calculate the within-sequence correlation between V mutation and D/insertion mutation
     - clustering
-      - use an N-HMM instead of a pair-HMM plus pairscore clustering
+      - connor\'s spectral decomposition sorting
+      - use an N-HMM instead of a pair-HMM plus pairscore clustering (do some heuristic preclustering, then for each of these clusters, use the n-hmm viterbi path, and cluster on these)
       - neighbor-joining
       - transitivity:
         - rather than assuming transitivity in clustering, couldn\'t I use the extra information to improve clustering?
             (NOTE this is roughly equivalent to representing an existing cluster by its viterbi path. hm, with mutations or not?)
 
-# ----------------------------------------------------------------------------------------
-misc
-  - connor\'s spectral decomposition sorting
-  
-simulator
-  - make *sure* that the mute freqs are being properly used by the tree simulator
-  - use amalgamation of patients (and each individually, with mature or naive)
-  - better insertion freqs (nucleotide choices, at least)
-  - better SHM freqs distribution
-  - do something with tree inference closure tests for recombinator (?)
-  - TODOs in recombinator
-  - tree branch lengths per-person?
-  data/simulation differences
-    we ignore infrequent vdj choices, i.e. data has a *huge* tail of vdj choices with only a few instances which is totally absent in simulation
-    mutation frequencies aren\'t site-dependent in simulation (yet!)
-    not really sure that I\'m treating the primers correctly a.t.m.
-    the plots I made so far are only for the first thousand lines in the data files
-hmmer
-  - only use half of data for training
+  # ----------------------------------------------------------------------------------------
+  # finished(ish)
+  - compare other people\'s 'viterbi' codes
+    - programs
+      - imgt/vquest: http://www.imgt.org/IMGT_vquest/vquest
+      - ihmmunealign  2.6 sec/seq
+      - soda[12]
+      - joinsolver
+    - get timing info for all codes
+
+  - separate training and testing samples for performance comparison
+    - OH WAIT NO it\'s totally fine. I\'m not *using* the fact that I know the right answer on simulation. woot.

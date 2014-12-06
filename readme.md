@@ -36,7 +36,7 @@ installation
 
 ```
 git clone git@github.com:psathyrella/partis
-cd partis/ham/
+cd partis/packages/ham/
 scons
 cd ../samtools/
 make
