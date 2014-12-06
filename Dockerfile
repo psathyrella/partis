@@ -22,12 +22,13 @@ RUN pip install \
 
 # set up
 RUN mkdir -p /root/.ssh
-ADD id_rsa /root/.ssh/id_rsa
+ADD bunnyhutch_id_rsa /root/.ssh/id_rsa
+RUN git config --global user.name bunnyhutch
+RUN git config --global user.email ematsen+bunnyhutch@gmail.com
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
-RUN ssh -v git@github.com
 
 # make ham
-RUN git clone git@github.com:psathyrella/partis.git
+RUN git clone https://github.com/matsengrp/partis.git
 WORKDIR /data/partis/packages/ham/
 RUN scons
 WORKDIR /data/partis/packages/samtools/
