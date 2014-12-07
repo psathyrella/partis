@@ -10,7 +10,7 @@ RUN apt-get install -y \
     oracle-java7-installer \
     libncurses5-dev \
     libroot-bindings-python-dev \
-    sudo apt-get install libroot-graf2d-postscript5.34 \
+    libroot-graf2d-postscript5.34 \
     libxml2-dev \
     libxslt1-dev \
     python-scipy \
