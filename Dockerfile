@@ -10,6 +10,7 @@ RUN apt-get install -y \
     oracle-java7-installer \
     libncurses5-dev \
     libroot-bindings-python-dev \
+    sudo apt-get install libroot-graf2d-postscript5.34 \
     libxml2-dev \
     libxslt1-dev \
     python-scipy \
@@ -37,9 +38,12 @@ WORKDIR /data/partis/packages/samtools/
 RUN make && \
     mkdir /data/partis/_bin && \
     ln -s $PWD/samtools /data/partis/_bin
+RUN export PATH=/data/partis/_bin:$PATH
 WORKDIR /data/partis/packages/ighutil/
 RUN make -C clj && \
     pip install --user ./python
 WORKDIR /data/partis/packages/ham/
 RUN scons bcrham
 WORKDIR /data/partis/
+RUN mkdir /true/plots
+RUN scons test
