@@ -9,17 +9,20 @@ RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true 
 RUN apt-get install -y \
     oracle-java7-installer \
     libncurses5-dev \
+    libroot-bindings-python-dev \
     libxml2-dev \
     libxslt1-dev \
+    python-scipy \
     zlib1g-dev
 RUN pip install \
-    pysam \
-    pyyaml \
+    beautifulsoup4 \
+    biopython \
     cython \
-    networkx \
     decorator \
     lxml \
-    beautifulsoup4
+    networkx \
+    pysam \
+    pyyaml
 
 # set up auth
 RUN mkdir -p /root/.ssh && \
