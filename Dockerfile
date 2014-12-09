@@ -9,17 +9,21 @@ RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true 
 RUN apt-get install -y \
     oracle-java7-installer \
     libncurses5-dev \
+    libroot-bindings-python-dev \
+    libroot-graf2d-postscript5.34 \
     libxml2-dev \
     libxslt1-dev \
+    python-scipy \
     zlib1g-dev
 RUN pip install \
-    pysam \
-    pyyaml \
+    beautifulsoup4 \
+    biopython \
     cython \
-    networkx \
     decorator \
     lxml \
-    beautifulsoup4
+    networkx \
+    pysam \
+    pyyaml
 
 # set up auth
 RUN mkdir -p /root/.ssh && \
@@ -30,14 +34,16 @@ RUN chmod 600 /root/.ssh/id_rsa && \
 
 # make
 RUN git clone git@github.com:psathyrella/partis.git
-WORKDIR /data/partis/packages/ham/
-RUN scons bcrham
 WORKDIR /data/partis/packages/samtools/
 RUN make && \
     mkdir /data/partis/_bin && \
     ln -s $PWD/samtools /data/partis/_bin
+RUN export PATH=/data/partis/_bin:$PATH
 WORKDIR /data/partis/packages/ighutil/
 RUN make -C clj && \
     pip install --user ./python
+WORKDIR /data/partis/packages/ham/
+RUN scons bcrham
 WORKDIR /data/partis/
+RUN mkdir /true/plots
 RUN scons test
