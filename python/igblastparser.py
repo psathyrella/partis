@@ -36,7 +36,7 @@ def clean_alignment_crap(query_seq, match_seq):
             assert mnuke in utils.nukes
             final_match_seq.append(mnuke)
             
-        return ''.join(final_match_seq)
+    return ''.join(final_match_seq)
 
 # ----------------------------------------------------------------------------------------
 class IgblastParser(object):
@@ -66,6 +66,7 @@ class IgblastParser(object):
         print 'reading', self.args.infname
         info = {}
         with opener('r')(self.args.infname) as infile:
+            line = infile.readline()
             # first find the start of the next query's section
             while line.find('<b>Query=') != 0:
                 line = infile.readline()
@@ -79,6 +80,7 @@ class IgblastParser(object):
                     sys.exit()
                 info[query_name] = {}
                 query_lines = []
+                line = infile.readline()
                 while line.find('<b>Query=') != 0:
                     query_lines.append(line.strip())
                     line = infile.readline()
@@ -91,17 +93,18 @@ class IgblastParser(object):
         for line in query_lines:
             if line.find('Query_') == 0:
                 blocks.append([])
-            if len(lin) == 0:
+            if len(line) == 0:
                 continue
-            if line.find('<a name=') != 0 and line.find('Query_') != 0:
+            if '<a name=#_0_IGH' not in line and line.find('Query_') != 0:
                 continue
             blocks[-1].append(line)
 
         for block in blocks:
             self.process_single_block(block, query_name, qr_info)
 
+        print '    complete matches:'
         for region in utils.regions:
-            print '    ', qr_info[region + '_gene'], qr_info[region + '_gl_seq']
+            print '    %s %s' % (utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
         sys.exit()
             
         # query_lines = []
@@ -132,7 +135,8 @@ class IgblastParser(object):
         qr_seq = vals[2]
         qr_end = int(vals[3])
         assert qr_seq in self.seqinfo[query_name]['seq']
-        print '  ', qr_start, qr_end, qr_seq
+        if self.args.debug:
+            print '  query %3d %3d %s' % (qr_start, qr_end, qr_seq)
         for line in block[1:]:
             gene = line[line.rfind('IGH') : line.rfind('</a>')]
             region = utils.get_region(gene)
@@ -140,17 +144,19 @@ class IgblastParser(object):
             gl_start = int(vals[-3]) - 1  # converting from one-indexed to zero-indexed
             gl_seq = vals[-2]
             gl_end = int(vals[-1])  # ...and from inclusive of both bounds to normal programming conventions
-    
+
             if region + '_gene' in qr_info:
                 if qr_info[region + '_gene'] == gene:
+                    if self.args.debug:
+                        print '    %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
                     qr_info[region + '_gl_seq'] = qr_info[region + '_gl_seq'] + clean_alignment_crap(qr_seq, gl_seq)
                 else:
-                    line = infile.readline().strip()  # only need the best (first) match for each region
                     continue
             else:
                 qr_info[region + '_gene'] = gene
                 qr_info[region + '_gl_seq'] = clean_alignment_crap(qr_seq, gl_seq)
-            line = infile.readline().strip()
+                if self.args.debug:
+                    print '    %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
 
 # ----------------------------------------------------------------------------------------
 if __name__ == "__main__":
