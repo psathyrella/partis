@@ -66,7 +66,9 @@ class TreeGenerator(object):
         self.tree_generator = 'TreeSim'  # ape
         self.n_trees = '1000'
         self.branch_length_fname = self.args.hackey_extra_data_dir + '/branch-lengths.txt'
-        self.treefname = self.args.hackey_extra_data_dir + '/trees.tre'
+        # self.treefname = self.args.hackey_extra_data_dir + '/trees.tre'
+        assert self.args.outfname != None
+        self.treefname = self.args.outfname
         self.make_branch_length_hists()
         self.generate_trees()
 
@@ -126,7 +128,7 @@ class TreeGenerator(object):
             check_call(r_command, shell=True)
         elif self.tree_generator == 'TreeSim':
             # set parameters. TODO gee, I'm not really sure these parameters are all right
-            n_species = '5'
+            n_species = '50'
             speciation_rate = '1'
             extinction_rate = '0.5'
             n_trees_each_run = '1'

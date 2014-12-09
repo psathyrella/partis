@@ -267,17 +267,18 @@ class IhhhmmmParser(object):
         return unique_ids
 
 # ----------------------------------------------------------------------------------------
-parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-parser.add_argument('--label', required=True)
-parser.add_argument('--n-max-queries', type=int, default=-1)
-parser.add_argument('--queries')
-parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
-parser.add_argument('--datadir', default='data/imgt')
-args = parser.parse_args()
-args.queries = utils.get_arg_list(args.queries)
-
-args.indir = 'caches/recombinator/performance/' + args.label
-args.simfname = args.indir + '/simu.csv'
-args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
-ihhhmmmparser = IhhhmmmParser(args)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+    parser.add_argument('--label', required=True)
+    parser.add_argument('--n-max-queries', type=int, default=-1)
+    parser.add_argument('--queries')
+    parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
+    parser.add_argument('--datadir', default='data/imgt')
+    args = parser.parse_args()
+    args.queries = utils.get_arg_list(args.queries)
+    
+    args.indir = 'caches/recombinator/performance/' + args.label
+    args.simfname = args.indir + '/simu.csv'
+    args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
+    ihhhmmmparser = IhhhmmmParser(args)

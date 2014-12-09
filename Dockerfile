@@ -31,7 +31,7 @@ RUN chmod 600 /root/.ssh/id_rsa && \
 # make
 RUN git clone git@github.com:psathyrella/partis.git
 WORKDIR /data/partis/packages/ham/
-RUN scons
+RUN scons bcrham
 WORKDIR /data/partis/packages/samtools/
 RUN make && \
     mkdir /data/partis/_bin && \
@@ -40,3 +40,4 @@ WORKDIR /data/partis/packages/ighutil/
 RUN make -C clj && \
     pip install --user ./python
 WORKDIR /data/partis/
+RUN scons test

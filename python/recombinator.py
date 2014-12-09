@@ -328,6 +328,7 @@ class Recombinator(object):
         command += ' input.infos.states=state'
         command += ' input.infos=' + reco_seq_fname
         command += ' input.infos.rates=rate'
+        # print command
         check_output(command, shell=True)
 
         mutated_seqs = []
