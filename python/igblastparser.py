@@ -12,10 +12,26 @@ import utils
 # from ihhhmmmparser import FileKeeper
 from performanceplotter import PerformancePlotter
 
-# # ----------------------------------------------------------------------------------------
-# def merge_chunks(all_info, line, gene):
-#     assert gene in all_info
-    
+# ----------------------------------------------------------------------------------------
+def find_qr_bounds(global_qr_start, global_qr_end, gl_match_seq):
+    """ Return the start and end of this match in the query coordinate system """
+    # find first matching character
+    print 'find_qr_bounds', global_qr_start, global_qr_end, gl_match_seq
+    istart, iend = 0, len(gl_match_seq)
+    for ic in range(len(gl_match_seq)):
+        ch = gl_match_seq[ic]
+        if ch == '.' or ch in utils.nukes:
+            istart = ic
+            break
+    # and first non-matching character after end of match
+    for ic in range(istart, len(gl_match_seq)):
+        if ch != '.' and ch not in utils.nukes:
+            iend = ic
+            break
+    assert istart >= 0 and iend >= 0
+    assert istart <= len(gl_match_seq) and iend <= len(gl_match_seq)
+    return (global_qr_start + istart, global_qr_end - (len(gl_match_seq) - iend))
+
 # ----------------------------------------------------------------------------------------
 def clean_alignment_crap(query_seq, match_seq):
     if len(query_seq) != len(match_seq):
@@ -104,7 +120,7 @@ class IgblastParser(object):
 
         print '    complete matches:'
         for region in utils.regions:
-            print '    %s %s' % (utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
+            print '    %s %3d %3d %s %s' % (region, qr_info[region + '_qr_bounds'][0], qr_info[region + '_qr_bounds'][1], utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
         sys.exit()
             
         # query_lines = []
@@ -150,11 +166,20 @@ class IgblastParser(object):
                     if self.args.debug:
                         print '    %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
                     qr_info[region + '_gl_seq'] = qr_info[region + '_gl_seq'] + clean_alignment_crap(qr_seq, gl_seq)
+                    assert gl_end <= len(self.germline_seqs[region][gene])
+                    qr_info[region + '_3p_del'] = len(self.germline_seqs[region][gene]) - gl_end
+                    qr_info[region + '_qr_bounds'] = (qr_info[region + '_qr_bounds'][0], find_qr_bounds(qr_start, qr_end, gl_seq)[1])
                 else:
                     continue
             else:
                 qr_info[region + '_gene'] = gene
                 qr_info[region + '_gl_seq'] = clean_alignment_crap(qr_seq, gl_seq)
+                # deletions
+                qr_info[region + '_5p_del'] = gl_start
+                assert gl_end <= len(self.germline_seqs[region][gene])
+                qr_info[region + '_3p_del'] = len(self.germline_seqs[region][gene]) - gl_end
+                # bounds
+                qr_info[region + '_qr_bounds'] = find_qr_bounds(qr_start, qr_end, gl_seq)
                 if self.args.debug:
                     print '    %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
 
