@@ -16,7 +16,7 @@ from performanceplotter import PerformancePlotter
 def find_qr_bounds(global_qr_start, global_qr_end, gl_match_seq):
     """ Return the start and end of this match in the query coordinate system """
     # find first matching character
-    print 'find_qr_bounds', global_qr_start, global_qr_end, gl_match_seq
+    # print 'find_qr_bounds', global_qr_start, global_qr_end, gl_match_seq
     istart, iend = 0, len(gl_match_seq)
     for ic in range(len(gl_match_seq)):
         ch = gl_match_seq[ic]
@@ -25,11 +25,13 @@ def find_qr_bounds(global_qr_start, global_qr_end, gl_match_seq):
             break
     # and first non-matching character after end of match
     for ic in range(istart, len(gl_match_seq)):
+        ch = gl_match_seq[ic]
         if ch != '.' and ch not in utils.nukes:
             iend = ic
             break
     assert istart >= 0 and iend >= 0
     assert istart <= len(gl_match_seq) and iend <= len(gl_match_seq)
+    # print '    %d + %d = %d, %d - (%d - %d) = %d' % (global_qr_start, istart, global_qr_start+istart, global_qr_end, len(gl_match_seq), iend, global_qr_end - (len(gl_match_seq)-iend))
     return (global_qr_start + istart, global_qr_end - (len(gl_match_seq) - iend))
 
 # ----------------------------------------------------------------------------------------
@@ -87,13 +89,15 @@ class IgblastParser(object):
             while line.find('<b>Query=') != 0:
                 line = infile.readline()
             # then keep going till eof
+            iquery = 0
             while line != '':
                 query_name = int(line.split()[1])
-                if self.args.debug:
-                    print query_name
                 if query_name not in self.seqinfo:
                     print 'ERROR %d not in reco info' % query_name
                     sys.exit()
+                if self.args.debug:
+                    print query_name
+                    utils.print_reco_event(self.germline_seqs, self.seqinfo[query_name], label='true:')
                 info[query_name] = {}
                 query_lines = []
                 line = infile.readline()
@@ -102,34 +106,9 @@ class IgblastParser(object):
                     line = infile.readline()
                 # then add the query to <info[query_name]>
                 self.process_query(info[query_name], query_name, query_lines)
-
-    def process_query(self, qr_info, query_name, query_lines):
-        # split query_lines up into blocks
-        blocks = []
-        for line in query_lines:
-            if line.find('Query_') == 0:
-                blocks.append([])
-            if len(line) == 0:
-                continue
-            if '<a name=#_0_IGH' not in line and line.find('Query_') != 0:
-                continue
-            blocks[-1].append(line)
-
-        for block in blocks:
-            self.process_single_block(block, query_name, qr_info)
-
-        print '    complete matches:'
-        for region in utils.regions:
-            print '    %s %3d %3d %s %s' % (region, qr_info[region + '_qr_bounds'][0], qr_info[region + '_qr_bounds'][1], utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
-        sys.exit()
-            
-        # query_lines = []
-        # while 
-        # query_lines.append
-        
-            
-        # soup = BeautifulSoup(infile)
-        # paragraphs = soup.find_all('b')
+                iquery += 1
+                if self.args.n_max_queries > 0 and iquery >= self.args.n_max_queries:
+                    break
 
         # n_failed, n_total, n_not_found, n_found = 0, 0, 0, 0
         # for unique_id in self.seqinfo:
@@ -144,15 +123,53 @@ class IgblastParser(object):
         #         assert length == len(self.seqinfo[query_name]['seq'])
                 
 
+    # ----------------------------------------------------------------------------------------
+    def process_query(self, qr_info, query_name, query_lines):
+        # split query_lines up into blocks
+        blocks = []
+        for line in query_lines:
+            if line.find('Query_') == 0:
+                blocks.append([])
+            if len(line) == 0:
+                continue
+            if '<a name=#_0_IGH' not in line and line.find('Query_') != 0:
+                continue
+            blocks[-1].append(line)
+
+        # then process each block
+        for block in blocks:
+            self.process_single_block(block, query_name, qr_info)
+
+        if self.args.debug:
+            print '  query seq:', qr_info['seq']
+        for region in utils.regions:
+            print '    %s %3d %3d %s %s' % (region, qr_info[region + '_qr_bounds'][0], qr_info[region + '_qr_bounds'][1], utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
+        for boundary in utils.boundaries:
+            start = qr_info[boundary[0] + '_qr_bounds'][1]
+            end = qr_info[boundary[1] + '_qr_bounds'][0]
+            qr_info[boundary + '_insertion'] = qr_info['seq'][start : end]
+            print '   ', boundary, qr_info[boundary + '_insertion']
+        qr_info['fv_insertion'] = qr_info['seq'][ : qr_info['v_5p_del']]
+        if qr_info['j_3p_del'] > 0:  # I *still* wish slices behaved this way for -0
+            qr_info['jf_insertion'] = qr_info['seq'][ : -qr_info['j_3p_del']]
+        else:
+            qr_info['jf_insertion'] = ''
+        utils.print_reco_event(self.germline_seqs, qr_info)
+            
+    # ----------------------------------------------------------------------------------------
     def process_single_block(self, block, query_name, qr_info):
         assert block[0].find('Query_') == 0
         vals = block[0].split()
-        qr_start = int(vals[1])
+        qr_start = int(vals[1]) - 1  # converting from one-indexed to zero-indexed
         qr_seq = vals[2]
-        qr_end = int(vals[3])
+        qr_end = int(vals[3])  # ...and from inclusive of both bounds to normal programming conventions
         assert qr_seq in self.seqinfo[query_name]['seq']
+        if 'seq' in qr_info:
+            qr_info['seq'] += qr_seq
+        else:
+            qr_info['seq'] = qr_seq
         if self.args.debug:
-            print '  query %3d %3d %s' % (qr_start, qr_end, qr_seq)
+            print '      query: %3d %3d %s' % (qr_start, qr_end, qr_seq)
         for line in block[1:]:
             gene = line[line.rfind('IGH') : line.rfind('</a>')]
             region = utils.get_region(gene)
@@ -164,7 +181,7 @@ class IgblastParser(object):
             if region + '_gene' in qr_info:
                 if qr_info[region + '_gene'] == gene:
                     if self.args.debug:
-                        print '    %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
+                        print '        %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
                     qr_info[region + '_gl_seq'] = qr_info[region + '_gl_seq'] + clean_alignment_crap(qr_seq, gl_seq)
                     assert gl_end <= len(self.germline_seqs[region][gene])
                     qr_info[region + '_3p_del'] = len(self.germline_seqs[region][gene]) - gl_end
@@ -181,7 +198,7 @@ class IgblastParser(object):
                 # bounds
                 qr_info[region + '_qr_bounds'] = find_qr_bounds(qr_start, qr_end, gl_seq)
                 if self.args.debug:
-                    print '    %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
+                    print '        %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
 
 # ----------------------------------------------------------------------------------------
 if __name__ == "__main__":
