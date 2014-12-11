@@ -32,7 +32,7 @@ class PerformancePlotter(object):
         # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
         self.values['mute_freqs'] = {}
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=True):
+    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=False):
         """
         Hamming distance between the inferred naive sequence and the tue naive sequence.
         <restrict_to_region> if set, restrict the comparison to the section of the *true* sequence assigned to the given region.

@@ -51,7 +51,12 @@ def clean_alignment_crap(query_seq, match_seq):
         elif mnuke == '.':
             final_match_seq.append(qnuke)
         else:
-            assert mnuke in utils.nukes
+            if mnuke == 'N':
+                mnuke = 'A'
+                print 'WARNING replacing N with A in germlines'
+            if mnuke not in utils.nukes:
+                print 'ERROR unexpected character %s' % mnuke
+                sys.exit()
             final_match_seq.append(mnuke)
             
     return ''.join(final_match_seq)
@@ -61,7 +66,7 @@ class IgblastParser(object):
     def __init__(self, args):
         self.args = args
 
-        self.germline_seqs = utils.read_germlines(self.args.datadir)
+        self.germline_seqs = utils.read_germlines(self.args.datadir, remove_N_nukes=True)
 
         self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'igblast')
         self.n_total, self.n_partially_failed = 0, 0
@@ -132,6 +137,11 @@ class IgblastParser(object):
                 continue
             if len(re.findall('<a name=#_[0-9][0-9]*_IGH', line)) == 0 and line.find('Query_') != 0:
                 continue
+            if len(blocks) == 0:
+                print 'wtf? %s' % query_name  # it's probably kicking a reverse match
+                self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)  # TODO that's really a total failure
+                self.n_partially_failed += 1
+                return
             blocks[-1].append(line)
 
         # then process each block
@@ -175,13 +185,13 @@ class IgblastParser(object):
             end = qr_info[region + '_qr_bounds'][1]
             qr_info[region + '_qr_seq'] = qr_info['seq'][start : end]
 
-        # try:
-        resolve_overlapping_matches(qr_info, self.args.debug, self.germline_seqs)
-        # except:
-        #     print 'ERROR apportionment failed on %s' % query_name
-        #     self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)
-        #     self.n_partially_failed += 1
-        #     return
+        try:
+            resolve_overlapping_matches(qr_info, self.args.debug, self.germline_seqs)
+        except AssertionError:
+            print 'ERROR apportionment failed on %s' % query_name
+            self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)
+            self.n_partially_failed += 1
+            return
 
         if self.args.debug:
             print '  query seq:', qr_info['seq']
@@ -194,7 +204,7 @@ class IgblastParser(object):
             if self.args.debug:
                 print '   ', boundary, qr_info[boundary + '_insertion']
 
-        # self.perfplotter.evaluate(self.seqinfo[query_name], qr_info)
+        self.perfplotter.evaluate(self.seqinfo[query_name], qr_info)
         # for key, val in qr_info.items():
         #     print key, val
         if self.args.debug:
@@ -236,6 +246,11 @@ class IgblastParser(object):
         for line in block[1:]:
             gene = line[line.rfind('IGH') : line.rfind('</a>')]
             region = utils.get_region(gene)
+            if gene not in self.germline_seqs[region]:
+                print '  ERROR %s not found in germlines' % gene
+                qr_info['fail'] = True
+                return
+                
             vals = line.split()
             gl_start = int(vals[-3]) - 1  # converting from one-indexed to zero-indexed
             gl_seq = vals[-2]
