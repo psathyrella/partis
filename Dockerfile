@@ -45,5 +45,5 @@ RUN make -C clj && \
 WORKDIR /data/partis/packages/ham/
 RUN scons bcrham
 WORKDIR /data/partis/
-RUN mkdir /true/plots
+RUN mkdir -p /true/plots
 RUN scons test
