@@ -63,7 +63,8 @@ class IgblastParser(object):
 
         self.germline_seqs = utils.read_germlines(self.args.datadir)
 
-        perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'igblast')
+        self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'igblast')
+        self.n_total, self.n_partially_failed = 0, 0
 
         # get sequence info that was passed to igblast
         self.seqinfo = {}
@@ -71,14 +72,14 @@ class IgblastParser(object):
             reader = csv.DictReader(simfile)
             iline = 0
             for line in reader:
+                if self.args.n_max_queries > 0 and iline >= self.args.n_max_queries:
+                    break
+                iline += 1
                 if self.args.queries != None and int(line['unique_id']) not in self.args.queries:
                     continue
                 if len(re.findall('_[FP]', line['j_gene'])) > 0:  # TODO remove this
                     line['j_gene'] = line['j_gene'].replace(re.findall('_[FP]', line['j_gene'])[0], '')
                 self.seqinfo[int(line['unique_id'])] = line
-                iline += 1
-                if self.args.n_max_queries > 0 and iline >= self.args.n_max_queries:
-                    break
 
         paragraphs = None
         print 'reading', self.args.infname
@@ -91,37 +92,32 @@ class IgblastParser(object):
             # then keep going till eof
             iquery = 0
             while line != '':
+                if self.args.n_max_queries > 0 and iquery >= self.args.n_max_queries:
+                    break
+                # first find the query name
                 query_name = int(line.split()[1])
-                if query_name not in self.seqinfo:
-                    print 'ERROR %d not in reco info' % query_name
-                    sys.exit()
-                if self.args.debug:
-                    print query_name
-                    utils.print_reco_event(self.germline_seqs, self.seqinfo[query_name], label='true:')
-                info[query_name] = {}
+                # and collect the lines for this query
                 query_lines = []
                 line = infile.readline()
                 while line.find('<b>Query=') != 0:
                     query_lines.append(line.strip())
                     line = infile.readline()
-                # then add the query to <info[query_name]>
-                self.process_query(info[query_name], query_name, query_lines)
+                    if line == '':
+                        break
                 iquery += 1
-                if self.args.n_max_queries > 0 and iquery >= self.args.n_max_queries:
-                    break
+                # then see if we want this query
+                if self.args.queries != None and query_name not in self.args.queries:
+                    continue
+                if query_name not in self.seqinfo:
+                    print 'ERROR %d not in reco info' % query_name
+                    sys.exit()
+                if self.args.debug:
+                    print query_name
+                # and finally add the query to <info[query_name]>
+                info[query_name] = {'unique_id':query_name}
+                self.process_query(info[query_name], query_name, query_lines)
 
-        # n_failed, n_total, n_not_found, n_found = 0, 0, 0, 0
-        # for unique_id in self.seqinfo:
-        #     if self.args.debug:
-        #         print unique_id,
-        #     igblastinfo = []
-        #     for tag in paragraphs:  # NOTE this loops over everything an awful lot of times. Shouldn't really matter for now, though
-        #         assert tag.text == 'Query='
-        #         floating_info = tag.next_sibling.split()  # I wish they'd put this inside a tag of some sort
-        #         query_name = int(floating_info[0])
-        #         length = int(floating_info[1].split('=')[1])
-        #         assert length == len(self.seqinfo[query_name]['seq'])
-                
+        self.perfplotter.plot()
 
     # ----------------------------------------------------------------------------------------
     def process_query(self, qr_info, query_name, query_lines):
@@ -132,7 +128,7 @@ class IgblastParser(object):
                 blocks.append([])
             if len(line) == 0:
                 continue
-            if '<a name=#_0_IGH' not in line and line.find('Query_') != 0:
+            if len(re.findall('<a name=#_[0-9][0-9]*_IGH', line)) == 0 and line.find('Query_') != 0:
                 continue
             blocks[-1].append(line)
 
@@ -140,21 +136,39 @@ class IgblastParser(object):
         for block in blocks:
             self.process_single_block(block, query_name, qr_info)
 
+        for region in utils.regions:
+            if region + '_gene' not in qr_info:
+                print '  ERROR no %s match for %d' % (region, query_name)
+                self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)
+                return
         if self.args.debug:
             print '  query seq:', qr_info['seq']
-        for region in utils.regions:
-            print '    %s %3d %3d %s %s' % (region, qr_info[region + '_qr_bounds'][0], qr_info[region + '_qr_bounds'][1], utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
+            for region in utils.regions:
+                print '    %s %3d %3d %s %s' % (region, qr_info[region + '_qr_bounds'][0], qr_info[region + '_qr_bounds'][1], utils.color_gene(qr_info[region + '_gene']), qr_info[region + '_gl_seq'])
         for boundary in utils.boundaries:
             start = qr_info[boundary[0] + '_qr_bounds'][1]
             end = qr_info[boundary[1] + '_qr_bounds'][0]
             qr_info[boundary + '_insertion'] = qr_info['seq'][start : end]
-            print '   ', boundary, qr_info[boundary + '_insertion']
-        qr_info['fv_insertion'] = qr_info['seq'][ : qr_info['v_5p_del']]
-        if qr_info['j_3p_del'] > 0:  # I *still* wish slices behaved this way for -0
-            qr_info['jf_insertion'] = qr_info['seq'][ : -qr_info['j_3p_del']]
+            if self.args.debug:
+                print '   ', boundary, qr_info[boundary + '_insertion']
+
+        qr_info['fv_insertion'] = qr_info['seq'][ : qr_info['match_start'] + qr_info['v_5p_del']]
+        if qr_info['match_start'] > 0:
+            qr_info['seq'] = qr_info['fv_insertion'] + qr_info['seq']
+        # else:
+        #     qr_info['fv_insertion'] = ''
+
+        jf_insert_length = len(self.seqinfo[query_name]['seq']) - qr_info['match_end']
+        if jf_insert_length > 0:  # I *still* wish slices behaved this way for -0
+            qr_info['jf_insertion'] = qr_info['seq'][-jf_insert_length : ]
+            qr_info['seq'] = qr_info['seq'] + qr_info['jf_insertion']
         else:
             qr_info['jf_insertion'] = ''
-        utils.print_reco_event(self.germline_seqs, qr_info)
+
+        # self.perfplotter.evaluate(self.seqinfo[query_name], qr_info)
+        if self.args.debug:
+            utils.print_reco_event(self.germline_seqs, self.seqinfo[query_name], label='true:', extra_str='  ')
+            utils.print_reco_event(self.germline_seqs, qr_info, extra_str=' ')
             
     # ----------------------------------------------------------------------------------------
     def process_single_block(self, block, query_name, qr_info):
@@ -168,6 +182,14 @@ class IgblastParser(object):
             qr_info['seq'] += qr_seq
         else:
             qr_info['seq'] = qr_seq
+
+
+        # keep track of the absolute first and absolute last bases matched so we can later work out the fv and jf insertions
+        if 'match_start' not in qr_info or qr_start < qr_info['match_start']:
+            qr_info['match_start'] = qr_start
+        if 'match_end' not in qr_info or qr_end > qr_info['match_end']:
+            qr_info['match_end'] = qr_end
+
         if self.args.debug:
             print '      query: %3d %3d %s' % (qr_start, qr_end, qr_seq)
         for line in block[1:]:
@@ -211,7 +233,7 @@ if __name__ == "__main__":
     parser.add_argument('--datadir', default='data/imgt')
     parser.add_argument('--infname', default='data/performance/igblast/igblast.html')
     args = parser.parse_args()
-    args.queries = utils.get_arg_list(args.queries)
+    args.queries = utils.get_arg_list(args.queries, intify=True)
     
     args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
     args.plotdir = os.getenv('www') + '/partis/performance/igblast/' + args.label

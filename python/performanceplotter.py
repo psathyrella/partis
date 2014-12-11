@@ -90,6 +90,8 @@ class PerformancePlotter(object):
         muted_seq = line['seq']
         # print ''
         # utils.color_mutants(naive_seq, muted_seq, True)
+        # print naive_seq
+        # print muted_seq
         n_mutes = utils.hamming(naive_seq, muted_seq)
         return int(100 * float(n_mutes) / len(naive_seq))  # utils.hamming() asserts they're the same length
 

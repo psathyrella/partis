@@ -394,6 +394,7 @@ def get_full_naive_seq(germlines, line):
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
+    # return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']  # hm, maybe this makes more sense without the fv and jf insertions?
 
 # ----------------------------------------------------------------------------------------
 def get_regional_naive_seq_bounds(region, germlines, line):
