@@ -393,6 +393,16 @@ def get_full_naive_seq(germlines, line):
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+    # print '-----'
+    # for key, val in line.items():
+    #     print key, val
+    # print '    fv_insertion', line['fv_insertion']
+    # print '    v', eroded_seqs['v']
+    # print '    vd_insertion', line['vd_insertion']
+    # print '    d', eroded_seqs['d']
+    # print '    dj_insertion', line['dj_insertion']
+    # print '    j', eroded_seqs['j']
+    # print '    jf', line['jf_insertion']
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
     # return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']  # hm, maybe this makes more sense without the fv and jf insertions?
 
@@ -540,32 +550,28 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     insert_line += line['dj_insertion']
     insert_line += ' ' * lengths['j']
     insert_line += j_right_extra
-    insert_line += ' ' * j_3p_del
-    insert_line += ' '*len(line['jf_insertion'])
+    # insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
+    # insert_line += ' '*len(line['jf_insertion'])
 
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
-    d_line += j_right_extra
+    # d_line += j_right_extra
     d_line += ' ' * j_3p_del
-    d_line += ' '*len(line['jf_insertion'])
+    # d_line += ' '*len(line['jf_insertion'])
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
-    vj_line += j_right_extra
-    vj_line += ' '*len(line['jf_insertion'])
-    # if no_space:
-    #     dot_matches = re.findall('[ACGT][.][.]*[ACGT]', vj_line)
-    #     assert len(dot_matches) == 1
-    #     vj_line = vj_line.replace(dot_matches[0], color('red', '.no.space.'))
+    # vj_line += j_right_extra
+    # vj_line += ' '*len(line['jf_insertion'])
 
     if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
         print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
-        assert no_space
+        # assert no_space
         print ' ...but we\'re out of space so it\'s expected'
 
     out_str_list = []

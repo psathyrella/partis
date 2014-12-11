@@ -8,7 +8,7 @@ import os
 
 from opener import opener
 import utils
-# import joinparser  # why the hell is this import so slow?
+from joinparser import resolve_overlapping_matches  # why the hell is this import so slow?
 # from ihhhmmmparser import FileKeeper
 from performanceplotter import PerformancePlotter
 
@@ -115,9 +115,11 @@ class IgblastParser(object):
                     print query_name
                 # and finally add the query to <info[query_name]>
                 info[query_name] = {'unique_id':query_name}
+                self.n_total += 1
                 self.process_query(info[query_name], query_name, query_lines)
 
         self.perfplotter.plot()
+        print 'partially failed: %d / %d = %f' % (self.n_partially_failed, self.n_total, float(self.n_partially_failed) / self.n_total)
 
     # ----------------------------------------------------------------------------------------
     def process_query(self, qr_info, query_name, query_lines):
@@ -135,12 +137,52 @@ class IgblastParser(object):
         # then process each block
         for block in blocks:
             self.process_single_block(block, query_name, qr_info)
+            if 'fail' in qr_info:
+                self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)
+                self.n_partially_failed += 1
+                return
 
         for region in utils.regions:
             if region + '_gene' not in qr_info:
                 print '  ERROR no %s match for %d' % (region, query_name)
                 self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)
+                self.n_partially_failed += 1
                 return
+
+
+        # expand v match to left end and j match to right end
+        qr_info['v_5p_del'] = 0
+        qr_info['fv_insertion'] = ''
+        if qr_info['match_start'] > 0:
+            if self.args.debug:
+                print '    add to v left:', self.seqinfo[query_name]['seq'][ : qr_info['match_start']]
+            qr_info['seq'] = self.seqinfo[query_name]['seq'][ : qr_info['match_start']] + qr_info['seq']
+
+        qr_info['j_3p_del'] = 0
+        qr_info['jf_insertion'] = ''
+        if len(self.seqinfo[query_name]['seq']) > qr_info['match_end']:
+            if self.args.debug:
+                print '    add to j right:', self.seqinfo[query_name]['seq'][ qr_info['match_end'] - len(self.seqinfo[query_name]['seq']) : ]
+            qr_info['seq'] = qr_info['seq'] + self.seqinfo[query_name]['seq'][ qr_info['match_end'] - len(self.seqinfo[query_name]['seq']) : ]
+
+        for boundary in utils.boundaries:
+            start = qr_info[boundary[0] + '_qr_bounds'][1]
+            end = qr_info[boundary[1] + '_qr_bounds'][0]
+            qr_info[boundary + '_insertion'] = qr_info['seq'][start : end]
+
+        for region in utils.regions:
+            start = qr_info[region + '_qr_bounds'][0]
+            end = qr_info[region + '_qr_bounds'][1]
+            qr_info[region + '_qr_seq'] = qr_info['seq'][start : end]
+
+        # try:
+        resolve_overlapping_matches(qr_info, self.args.debug, self.germline_seqs)
+        # except:
+        #     print 'ERROR apportionment failed on %s' % query_name
+        #     self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)
+        #     self.n_partially_failed += 1
+        #     return
+
         if self.args.debug:
             print '  query seq:', qr_info['seq']
             for region in utils.regions:
@@ -152,20 +194,9 @@ class IgblastParser(object):
             if self.args.debug:
                 print '   ', boundary, qr_info[boundary + '_insertion']
 
-        qr_info['fv_insertion'] = qr_info['seq'][ : qr_info['match_start'] + qr_info['v_5p_del']]
-        if qr_info['match_start'] > 0:
-            qr_info['seq'] = qr_info['fv_insertion'] + qr_info['seq']
-        # else:
-        #     qr_info['fv_insertion'] = ''
-
-        jf_insert_length = len(self.seqinfo[query_name]['seq']) - qr_info['match_end']
-        if jf_insert_length > 0:  # I *still* wish slices behaved this way for -0
-            qr_info['jf_insertion'] = qr_info['seq'][-jf_insert_length : ]
-            qr_info['seq'] = qr_info['seq'] + qr_info['jf_insertion']
-        else:
-            qr_info['jf_insertion'] = ''
-
         # self.perfplotter.evaluate(self.seqinfo[query_name], qr_info)
+        # for key, val in qr_info.items():
+        #     print key, val
         if self.args.debug:
             utils.print_reco_event(self.germline_seqs, self.seqinfo[query_name], label='true:', extra_str='  ')
             utils.print_reco_event(self.germline_seqs, qr_info, extra_str=' ')
@@ -177,7 +208,17 @@ class IgblastParser(object):
         qr_start = int(vals[1]) - 1  # converting from one-indexed to zero-indexed
         qr_seq = vals[2]
         qr_end = int(vals[3])  # ...and from inclusive of both bounds to normal programming conventions
-        assert qr_seq in self.seqinfo[query_name]['seq']
+        if qr_seq not in self.seqinfo[query_name]['seq']:
+            if '-' in qr_seq:
+                print '  WARNING insertion inside query seq for %s, treating as partial failure' % query_name
+                qr_info['fail'] = True
+                return
+            else:
+                print '  ERROR query seq from igblast info not found in original query seq for %d' % query_name
+                print '    %s' % qr_seq
+                print '    %s' % self.seqinfo[query_name]['seq']
+                sys.exit()
+
         if 'seq' in qr_info:
             qr_info['seq'] += qr_seq
         else:

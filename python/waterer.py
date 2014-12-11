@@ -259,7 +259,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best):
-        # NOTE this does pretty much the same thing as a function in joinparse.py
+        # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
         """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions """
         for region_pairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
             l_reg = region_pairs['left']

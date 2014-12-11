@@ -32,7 +32,7 @@ class PerformancePlotter(object):
         # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
         self.values['mute_freqs'] = {}
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=False):
+    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=True):
         """
         Hamming distance between the inferred naive sequence and the tue naive sequence.
         <restrict_to_region> if set, restrict the comparison to the section of the *true* sequence assigned to the given region.
@@ -46,6 +46,7 @@ class PerformancePlotter(object):
         left_hack_add_on = ''
         right_hack_add_on = ''
         if len(true_line['seq']) > len(line['seq']):  # ihhhmmm doesn't report the bits of the sequence it erodes off the ends, so we have to add them back on
+        # if len(true_naive_seq) > len(inferred_naive_seq):  # hm, now why I did use line['seq'] stuff before?
             start = true_line['seq'].find(line['seq'])
             assert start >= 0
             end = len(line['seq']) + start
@@ -64,6 +65,10 @@ class PerformancePlotter(object):
             assert bounds[1] >= bounds[0]
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
+
+
+        # if len(true_naive_seq) > len(inferred_naive_seq):
+            
 
         if debug:
             print restrict_to_region, 'region, bounds', bounds
@@ -90,8 +95,8 @@ class PerformancePlotter(object):
         muted_seq = line['seq']
         # print ''
         # utils.color_mutants(naive_seq, muted_seq, True)
-        # print naive_seq
-        # print muted_seq
+        # print 'naive', naive_seq
+        # print 'muted', muted_seq
         n_mutes = utils.hamming(naive_seq, muted_seq)
         return int(100 * float(n_mutes) / len(naive_seq))  # utils.hamming() asserts they're the same length
 
