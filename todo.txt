@@ -1,30 +1,16 @@
 
 # ----------------------------------------------------------------------------------------
   - write shit up!
-    - instructions: http://royalsocietypublishing.org/instructions-authors#question6
 
   - put in erick\'s idea about replacing the single insert state with an insert state for A, C, G, and T
-  - add recombinator run to scons test
-  - optimizing recombinator:
-    - indeed it seems to be all in generating the mutants with bppseqgen
-      - if I switch to a tree with ten times the tips, but then generate the same number of sequences as before, it runs like a hundred times faster
-    - could add an option to generate all the seqs with the same tree? hm, no, that probably wouldn\'t help cause the other input files would still be different
-  - need to validate two different things (i.e., I need to clean up and explicify my treatment of these things)
-    - does the simulation accurately reflect the data?
-    - does the hmm correctly infer parameters in simulation? (well, data too, but I dunno if there\'s really a way to test that)
   - think *long* and *hard* about get_emission_prob() in hmmwriter. especially the pair part, since you didn\'t performance test that
     - UPDATE hm, on second thought I\'m just going to punt on the pair hmm stuff
     - TODO fix that!
-  - account for different mutation frequencies to different bases (it seems that this will require forking bppseqgen)
   - track down more sequences that give no-valid-path errors in the hmm
   - test against igblast
-  - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
-  - looking at the plots, my insertions and deletions are on average too small. Why is this?
-  - tree inference closure tests in recombinator
+  - looking at the plots, my insertions and deletions are on average too small. Why is this? picture
   - move this todo list into github issues
   - go through all of jobholder making sure I\'m not using query_strs.first instead of both, or instead of choosing the proper one
-  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
-  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
   - TODOs in code
   - add testing framework to partis (include timing info)
     - short reads, long reads, reads with v left and j right erosions
@@ -35,6 +21,18 @@
 
   # ----------------------------------------------------------------------------------------
   # lower priority
+  - if hamming distance is *very* small could precluster the *other* way, i.e. assume pairs are in the same event
+  - stop using hackey versions of gtr.txt and trees.tre in recombinator. I.e. start inferring phylogenies
+  - tree inference closure tests in recombinator
+  - synchronize replacement_gene treatment for *all* parameters between hmmwriter and recombinator
+  - account for different mutation frequencies to different bases (it seems that this will require forking bppseqgen)
+  - add recombinator run to scons test
+  - optimizing recombinator:
+    - indeed it seems to be all in generating the mutants with bppseqgen
+      - if I switch to a tree with ten times the tips, but then generate the same number of sequences as before, it runs like a hundred times faster
+    - could add an option to generate all the seqs with the same tree? hm, no, that probably wouldn\'t help cause the other input files would still be different
+
+
     - will need to deal with productive and out-of-frame seqs separately, i.e. different parameters
     - disallow stop codons, out of frame and frame-shifted rearrangements in recombinator
     - do I really want to apply the gene choice prob in waterer?
