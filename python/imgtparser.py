@@ -271,6 +271,7 @@ args = parser.parse_args()
 args.queries = utils.get_arg_list(args.queries)
 
 args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
-args.plotdir = os.getenv('www') + '/partis/performance/imgt/' + args.label
+if args.plotdir == None:
+    args.plotdir = os.getenv('www') + '/partis/performance/imgt/' + args.label
 args.indir = 'data/performance/imgt/' + args.label.replace('-', '_') + '/IMGT_HighV-QUEST_individual_files_folder'  # folder with imgt result files
 imgtparser = IMGTParser(args)

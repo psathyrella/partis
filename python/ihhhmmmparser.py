@@ -278,7 +278,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)
     
-    args.indir = 'caches/recombinator/performance/' + args.label
+    args.indir = 'caches/recombinator/performance/' + args.label  # I don't like it any more than you do, but ihmmunealign spits the output files into the same dir as your input file
     args.simfname = args.indir + '/simu.csv'
     args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
     ihhhmmmparser = IhhhmmmParser(args)

@@ -282,7 +282,7 @@ class IgblastParser(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-    parser.add_argument('--label', default='check-new-imgt')
+    parser.add_argument('--label', requried=True)  #, default='check-new-imgt')
     parser.add_argument('--n-max-queries', type=int, default=-1)
     parser.add_argument('--queries')
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
