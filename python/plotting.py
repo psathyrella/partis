@@ -326,7 +326,7 @@ def compare_directories(outdir, dirs, names, xtitle='', stats=''):
     utils.prep_dir(outdir + '/plots', '*.svg')
     hists = []
     for idir in range(len(dirs)):
-        hists.append(get_hists_from_dir(dirs[idir], names[idir]))
+        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir]))
     for varname, hist in hists[0].iteritems():
         if 'hamming_to_true_naive' in varname:
             hist.GetXaxis().SetTitle('hamming')

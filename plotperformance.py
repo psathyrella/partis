@@ -42,12 +42,13 @@ param_dir = 'caches/performance/' + args.label
 if args.plotdir == None:
     args.plotdir = os.getenv('www') + '/partis/performance/' + args.label
 
-# cache parameters from data
-cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
-cmd_str += ' --parameter-dir ' + param_dir + '/data'
-cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
-cmd_str += ' --n-max-queries ' + args.n_queries
-run_that_shit(cmd_str)
+if not args.only_plot_performance:
+    # cache parameters from data
+    cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
+    cmd_str += ' --parameter-dir ' + param_dir + '/data'
+    cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
+    cmd_str += ' --n-max-queries ' + args.n_queries
+    run_that_shit(cmd_str)
 
 if not args.skip_simulation:
     n_reco_events = float(args.n_sim_seqs) / 5  # a.t.m. I'm just hard coding five seqs per reco event
@@ -58,13 +59,12 @@ if not args.skip_simulation:
     cmd_str += ' --n-max-queries ' + str(int(n_reco_events))
     run_that_shit(cmd_str)
 
-if not args.only_plot_performance:
-    # cache parameters from simulation
-    cmd_str = ' --cache-parameters --seqfile ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/simu'
-    cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
-    cmd_str += ' --n-max-queries ' + args.n_queries
-    run_that_shit(cmd_str)
+# cache parameters from simulation
+cmd_str = ' --cache-parameters --seqfile ' + args.simfname + common_args
+cmd_str += ' --parameter-dir ' + param_dir + '/simu'
+cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
+cmd_str += ' --n-max-queries ' + args.n_queries
+run_that_shit(cmd_str)
 
 # run point estimation on simulation
 cmd_str = ' --point-estimate --plot-performance --seqfile ' + args.simfname + common_args

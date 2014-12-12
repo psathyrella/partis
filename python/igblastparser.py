@@ -282,9 +282,10 @@ class IgblastParser(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-    parser.add_argument('--label', requried=True)  #, default='check-new-imgt')
+    parser.add_argument('--label', required=True)  #, default='check-new-imgt')
     parser.add_argument('--n-max-queries', type=int, default=-1)
     parser.add_argument('--queries')
+    parser.add_argument('--plotdir')
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
     parser.add_argument('--infname', default='data/performance/igblast/igblast.html')
@@ -292,5 +293,6 @@ if __name__ == "__main__":
     args.queries = utils.get_arg_list(args.queries, intify=True)
     
     args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
-    args.plotdir = os.getenv('www') + '/partis/performance/igblast/' + args.label
+    if args.plotdir == None:
+        args.plotdir = os.getenv('www') + '/partis/performance/igblast/' + args.label
     igblastparser = IgblastParser(args)

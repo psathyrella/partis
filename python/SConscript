@@ -1,0 +1,38 @@
+import glob
+import os
+import sys
+from SCons.Script import Command, Depends
+
+env = Environment(ENV=os.environ, SHELL='/bin/bash')
+sys.path.append(os.getenv('HOME') + '/bin')
+
+label = 'comparison-test'
+base_plotdir = '_compare/' + label
+
+targets = []
+
+test_file = 'j_5p_del.svg'
+test_cmd = ' '.join(['./plotperformance.py', '--label', label, '--only-plot-performance', '--datadir', 'data/imgt', '--plotdir', base_plotdir])
+target = '../' + base_plotdir + '/hmm_performance/plots/' + test_file
+targets.append(target)
+env.Command(target, glob.glob('*.py'), test_cmd)
+# env.Command(target, '../readme.md', test_cmd)
+
+for code in ['igblast', 'imgt', 'ihhhmmm']:
+    test_cmd = ' '.join(['./python/' + code + 'parser.py', '--label', label, '--plotdir', base_plotdir + '/' + code + '/' + label])
+    target = '../' + base_plotdir + '/' + code + '/' + label + '/plots/' + test_file
+    targets.append(target)
+    env.Command(target, code + 'parser.py', test_cmd)
+
+env.Command('../' + base_plotdir + '/finished-all.out', targets, 'ls $SOURCES > $TARGET')
+
+plotdirs = base_plotdir + '/hmm_performance' + ':' \
+           + base_plotdir + '/sw_performance' + ':' \
+           + base_plotdir + '/igblast/' + label + ':' \
+           + base_plotdir + '/imgt/' + label
+
+names = 'partis:s-w:igblast:imgt'
+
+env.Command('../' + base_plotdir + '/comparisons.out',
+            '../' + base_plotdir + '/finished-all.out',
+            './python/compare.py --outdir ' + base_plotdir + '/comparisons/igblast-vs-partis-vs-imgt --plotdirs ' + plotdirs + ' --names ' + names + ' && touch $TARGET')

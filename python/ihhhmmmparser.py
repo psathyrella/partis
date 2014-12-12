@@ -273,6 +273,7 @@ if __name__ == "__main__":
     parser.add_argument('--label', required=True)
     parser.add_argument('--n-max-queries', type=int, default=-1)
     parser.add_argument('--queries')
+    parser.add_argument('--plotdir')
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
     args = parser.parse_args()
@@ -280,5 +281,6 @@ if __name__ == "__main__":
     
     args.indir = 'caches/recombinator/performance/' + args.label  # I don't like it any more than you do, but ihmmunealign spits the output files into the same dir as your input file
     args.simfname = args.indir + '/simu.csv'
-    args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
+    if args.plotdir == None:
+        args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
     ihhhmmmparser = IhhhmmmParser(args)
