@@ -4,6 +4,7 @@ import sys
 import glob
 import argparse
 import os
+from subprocess import check_call
 import re
 from bs4 import BeautifulSoup
 
@@ -259,20 +260,19 @@ class IMGTParser(object):
         return line
 
 # ----------------------------------------------------------------------------------------
-parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-parser.add_argument('--label', required=True)
-parser.add_argument('--n-max-queries', type=int, default=-1)
-parser.add_argument('--queries')
-parser.add_argument('--plotdir')
-parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
-parser.add_argument('--datadir', default='data/imgt')
-parser.add_argument('--infname')  # input html file, if you chose the 'html' option on the imgt website
-args = parser.parse_args()
-args.queries = utils.get_arg_list(args.queries)
-
-args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
-if args.plotdir == None:
-    args.plotdir = os.getenv('www') + '/partis/performance/imgt/' + args.label
-args.indir = 'data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'  # folder with imgt result files
-imgtparser = IMGTParser(args)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+    parser.add_argument('--n-max-queries', type=int, default=-1)
+    parser.add_argument('--queries')
+    parser.add_argument('--plotdir', required=True)
+    parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
+    parser.add_argument('--datadir', default='data/imgt')
+    parser.add_argument('--infname')  # input html file, if you chose the 'html' option on the imgt website
+    args = parser.parse_args()
+    args.queries = utils.get_arg_list(args.queries)
+    
+    args.simfname = 'data/performance/simu.csv'
+    check_call(['tar', 'xzf', 'data/performance/imgt.tgz', '-C', 'data/performance/'])  # untar the imgt output
+    args.indir = 'data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'  # folder with imgt result files
+    imgtparser = IMGTParser(args)

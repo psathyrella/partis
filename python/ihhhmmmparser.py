@@ -4,7 +4,7 @@ import argparse
 from collections import OrderedDict
 import re
 import os
-from subprocess import check_output
+from subprocess import check_call
 import glob
 import sys
 
@@ -270,17 +270,15 @@ class IhhhmmmParser(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-    parser.add_argument('--label', required=True)
     parser.add_argument('--n-max-queries', type=int, default=-1)
     parser.add_argument('--queries')
-    parser.add_argument('--plotdir')
+    parser.add_argument('--plotdir', required=True)
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)
     
-    args.indir = 'caches/recombinator/performance/' + args.label  # I don't like it any more than you do, but ihmmunealign spits the output files into the same dir as your input file
-    args.simfname = args.indir + '/simu.csv'
-    if args.plotdir == None:
-        args.plotdir = os.getenv('www') + '/partis/performance/ihhhmmm/' + args.label
+    args.indir = 'data/performance/ihhhmmm'
+    args.simfname = 'data/performance/simu.csv'
+    check_call(['tar', 'xzf', args.indir + '.tgz', '-C', 'data/performance/'])  # untar the ihmmune-align output
     ihhhmmmparser = IhhhmmmParser(args)

@@ -3,6 +3,10 @@ import os
 import sys
 from SCons.Script import Command, Depends
 
+# ----------------------------------------------------------------------------------------
+# NOTE you will need to un-tar the igblast and imgt dirs if you want to rerun those (see argparse sections in imgtparser.py and ibglastparser.py)
+# ----------------------------------------------------------------------------------------
+
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
 
@@ -12,14 +16,13 @@ base_plotdir = '_compare/' + label
 targets = []
 
 test_file = 'j_5p_del.svg'
-test_cmd = ' '.join(['./plotperformance.py', '--label', label, '--only-plot-performance', '--datadir', 'data/imgt', '--plotdir', base_plotdir])
+test_cmd = ' '.join(['./plotperformance.py', '--label', label, '--only-plot-performance', '--datadir', 'data/imgt', '--plotdir', base_plotdir, '--simfname', 'data/performance/simu.csv'])
 target = '../' + base_plotdir + '/hmm_performance/plots/' + test_file
 targets.append(target)
 env.Command(target, glob.glob('*.py'), test_cmd)
-# env.Command(target, '../readme.md', test_cmd)
 
-for code in ['igblast', 'imgt', 'ihhhmmm']:
-    test_cmd = ' '.join(['./python/' + code + 'parser.py', '--label', label, '--plotdir', base_plotdir + '/' + code + '/' + label])
+for code in ['ihhhmmm', 'imgt', 'igblast']:
+    test_cmd = ' '.join(['./python/' + code + 'parser.py', '--plotdir', base_plotdir + '/' + code + '/' + label])
     target = '../' + base_plotdir + '/' + code + '/' + label + '/plots/' + test_file
     targets.append(target)
     env.Command(target, code + 'parser.py', test_cmd)
