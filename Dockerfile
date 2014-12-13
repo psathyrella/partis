@@ -38,7 +38,6 @@ WORKDIR /data/partis/packages/samtools/
 RUN make && \
     mkdir /data/partis/_bin && \
     ln -s $PWD/samtools /data/partis/_bin
-RUN export PATH=/data/partis/_bin:$PATH
 WORKDIR /data/partis/packages/ighutil/
 RUN make -C clj && \
     pip install --user ./python
@@ -46,4 +45,4 @@ WORKDIR /data/partis/packages/ham/
 RUN scons bcrham
 WORKDIR /data/partis/
 RUN mkdir -p /true/plots
-RUN scons test
+RUN export PATH=/data/partis/_bin:$PATH && scons test
