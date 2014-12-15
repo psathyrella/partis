@@ -50,6 +50,7 @@ parser.add_argument('--queries')  # restrict to certain query seqs
 parser.add_argument('--reco-ids')  # or recombination events
 parser.add_argument('--n-max-queries', type=int, default=-1)  # stop after this many queries
 parser.add_argument('--only-genes')  # skip all gene matches except for these when parsing the sw output  #'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F',
+parser.add_argument('--seed', type=int)  # set random seed for use by recombinator to allow reproducibility
 
 parser.add_argument('--min_observations_to_write', type=int, default=20)  # if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)
 
