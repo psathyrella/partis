@@ -109,6 +109,8 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
+        if math.isnan(score):
+            print 'ERROR nan passed for %d %d (dbg %s)' %(query_name, second_query_name, dbg_str_list)
         if self.is_removable(score):
             dbg_str_list.append('    removing link')
             return

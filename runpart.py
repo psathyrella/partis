@@ -57,7 +57,7 @@ parser.add_argument('--min_observations_to_write', type=int, default=20)  # if w
 parser.add_argument('--j-subset', default=None)  #'imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
 parser.add_argument('--n-max-per-region', default='3:5:2')  # number of best smith-waterman matches (per region, in the order v:d:j) to keep and pass on to the hmm
 parser.add_argument('--n-best-events', type=int, default=3)
-parser.add_argument('--default-v-fuzz', type=int, default=2)
+parser.add_argument('--default-v-fuzz', type=int, default=5)
 parser.add_argument('--default-d-fuzz', type=int, default=2)
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local')  # this is where '% pip install --user' puts things by default
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()))
