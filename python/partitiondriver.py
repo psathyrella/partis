@@ -406,6 +406,7 @@ class PartitionDriver(object):
                     chopped_off_left_sides = True
                 mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
+                # utils.color_mutants(query_seq, second_query_seq, ref_label=str(query_name) + ' ' + str(second_query_name) + '   ', print_result=True)
                 # if self.args.debug:
                 #     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
 
@@ -513,9 +514,14 @@ class PartitionDriver(object):
                     self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, query_name, second_query_name)
                     if not self.all_regions_present(final_only_genes, skipped_gene_matches, query_name, second_query_name):
                         continue
+                    query_seq = self.input_info[query_name]['seq']
+                    second_query_seq = self.input_info[second_query_name]['seq']
+                    if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
+                        min_length = min(len(query_seq), len(second_query_seq))
+                        query_seq = query_seq[-min_length : ]
+                        second_query_seq = second_query_seq[-min_length : ]
                     csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes),
-                                   self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
+                                  (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes), query_seq, second_query_seq))
             else:
                 for query_name in self.input_info:
                     if query_name not in sw_info:

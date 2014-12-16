@@ -74,7 +74,7 @@ class Clusterer(object):
         if self.query_clusters[query_name] == self.query_clusters[second_query_name]:
             dbg_str_list.append('     already together')
             return
-        dbg_str_list.append('     merging ' + self.query_clusters[query_name] + ' and ' + self.query_clusters[second_query_name])
+        dbg_str_list.append('     merging ' + str(self.query_clusters[query_name]) + ' and ' + str(self.query_clusters[second_query_name]))
         first_cluster_id = self.query_clusters[query_name]
         second_cluster_id = self.query_clusters[second_query_name]
 
