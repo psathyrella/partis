@@ -14,8 +14,8 @@ from opener import opener
 from Bio import SeqIO
 
 #----------------------------------------------------------------------------------------
-eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment. TODO actually replace the 1e-8s and 1e-10s with this constant
-# TODO I also have an eps defined in hmmwriter
+eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
+# NOTE I also have an eps defined in hmmwriter
 def is_normed(probs):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
         return is_normed([val for key, val in probs.items()])
@@ -61,13 +61,13 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 
 # key is parameter of interest, and associated list gives the parameters (other than itself) which are necessary to predict it
 column_dependencies = {}
-column_dependencies['v_gene'] = [] # TODO v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
+column_dependencies['v_gene'] = [] # NOTE v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
 column_dependencies['v_5p_del'] = ['v_gene']
 column_dependencies['v_3p_del'] = ['v_gene']
-column_dependencies['d_gene'] = []  # ['d_5p_del', 'd_3p_del'] TODO stop ignoring this correlation. Well, maybe. See note in hmmwriter.py
+column_dependencies['d_gene'] = []  # ['d_5p_del', 'd_3p_del'] NOTE should really stop ignoring this correlation. Well, maybe. See note in hmmwriter.py
 column_dependencies['d_5p_del'] = ['d_3p_del', 'd_gene']  # NOTE at least for now there's no way to specify the d erosion correlations
 column_dependencies['d_3p_del'] = ['d_5p_del', 'd_gene']  #   in the hmm, so they're integrated out
-column_dependencies['j_gene'] = []  # ['dj_insertion']  TODO see note above
+column_dependencies['j_gene'] = []  # ['dj_insertion']  NOTE see note above
 column_dependencies['j_5p_del'] = [] # strange but seemingly true: does not depend on j choice. NOTE this makes normalization kinda fun when you read these out
 column_dependencies['j_3p_del'] = ['j_gene']
 column_dependencies['fv_insertion'] = []
@@ -426,7 +426,7 @@ def get_regional_naive_seq_bounds(region, germlines, line):
     return (start[region], end[region])
 
 # ----------------------------------------------------------------------------------------
-def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False):  # TODO skip_unproductive isn't used here, I think?
+def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False):
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
 
@@ -711,7 +711,7 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
     probs = { region:{} for region in regions }
     for region in regions:
         total = 0
-        with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+        with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
             reader = csv.DictReader(infile)
             for line in reader:
                 line_count = int(line['count'])
@@ -759,7 +759,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
     lists['allele'] = []  # list of genes that are alleles of <gene_name>
     lists['primary_version'] = []  # same primary version as <gene_name>
     lists['all'] = []  # give up and return everything
-    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # TODO note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
         reader = csv.DictReader(infile)
         for line in reader:
             gene = line[region + '_gene']

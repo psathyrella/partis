@@ -83,7 +83,7 @@ class IgblastParser(object):
                 iline += 1
                 if self.args.queries != None and int(line['unique_id']) not in self.args.queries:
                     continue
-                if len(re.findall('_[FP]', line['j_gene'])) > 0:  # TODO remove this
+                if len(re.findall('_[FP]', line['j_gene'])) > 0:
                     line['j_gene'] = line['j_gene'].replace(re.findall('_[FP]', line['j_gene'])[0], '')
                 self.seqinfo[int(line['unique_id'])] = line
 
@@ -140,7 +140,7 @@ class IgblastParser(object):
                 continue
             if len(blocks) == 0:
                 print 'wtf? %s' % query_name  # it's probably kicking a reverse match
-                self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)  # TODO that's really a total failure
+                self.perfplotter.add_partial_fail(self.seqinfo[query_name], qr_info)  # NOTE that's really a total failure
                 self.n_partially_failed += 1
                 return
             blocks[-1].append(line)

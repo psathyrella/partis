@@ -16,7 +16,7 @@ class Clusterer(object):
         self.cluster_ids = []
         self.query_clusters = {}  # map from query name to cluster id
         self.id_clusters = {}  # map from cluster id to query name list
-        self.pairscores = {}  # keep all the scores in memory. TODO may be too large?
+        self.pairscores = {}  # keep all the scores in memory
 
         self.nearest_true_mate = {}  # 
 
@@ -109,7 +109,7 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
-        if self.is_removable(score):  # TODO this makes singletons not be included in any cluster... I should fix that
+        if self.is_removable(score):
             dbg_str_list.append('    removing link')
             return
         if query_name in self.query_clusters and second_query_name in self.query_clusters:  # if both seqs are already in clusters

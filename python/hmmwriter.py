@@ -182,8 +182,9 @@ class HmmWriter(object):
         self.indir = base_indir
         self.args = args
 
-        self.precision = '16'  # number of digits after the decimal for probabilities. TODO increase this?
-        self.eps = 1e-6  # TODO I also have an eps defined in utils
+        # parameters with values that I more or less made up
+        self.precision = '16'  # number of digits after the decimal for probabilities
+        self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = 20
         self.allow_unphysical_insertions = self.args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
         # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
@@ -225,10 +226,10 @@ class HmmWriter(object):
         self.read_insertion_info(gene_name, replacement_genes)
 
         if self.naivety == 'M':  # mutate if not naive
-            self.mute_freqs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)  # TODO make sure that the overall 'normalization' of the mute freqs here agrees with the branch lengths in the tree simulator in recombinator. I kinda think it doesn't
+            self.mute_freqs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
 
         self.track = Track('nukes', list(utils.nukes))
-        self.saniname = utils.sanitize_name(gene_name)  # TODO make this not a member variable to make absolutely sure you don't confuse gene_name and replacement_gene
+        self.saniname = utils.sanitize_name(gene_name)
         self.hmm = HMM(self.saniname, {'nukes':list(utils.nukes)})  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
 
@@ -268,13 +269,13 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_lefthand_insert_state(self, insertion):
         insert_state = State('insert_left')
-        self.add_region_entry_transitions(insert_state, insertion)  # TODO allow d region to be entirely eroded?
+        self.add_region_entry_transitions(insert_state, insertion)
         self.add_emissions(insert_state)
         self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, inuke):
-        # arbitrarily replace ambiguous nucleotides with 'A' TODO figger out something better
+        # arbitrarily replace ambiguous nucleotides with 'A'
         germline_nuke = self.germline_seq[inuke]
         if germline_nuke == 'N' or germline_nuke == 'Y':
             print '\n    WARNING replacing %s with A' % germline_nuke
@@ -308,7 +309,6 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, this_gene, approved_genes=None):
-        # TODO in cases where the bases which are eroded are the same as those inserted (i.e. cases that *suck*) I seem to *always* decide on the choice with the shorter insertion. not good!
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
         if approved_genes == None:
             approved_genes = [this_gene,]
@@ -390,7 +390,6 @@ class HmmWriter(object):
             assert len(self.insertion_probs[insertion]) > 0
 
             # print '   interpolate insertions'
-            # TODO NOTE there's maybe not really any reason to interpolate this, 'cause we mostly just use the average in the end, anyway
             interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
 
             if 0 not in self.insertion_probs[insertion] or len(self.insertion_probs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
@@ -461,7 +460,7 @@ class HmmWriter(object):
         inverse_length = 0.0
         if mean_length > 0.0:
             inverse_length = 1.0 / mean_length
-        if insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:  # TODO do something more permanent here
+        if insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
             print '    WARNING small mean insert length %f' % mean_length
 
         return inverse_length
@@ -573,7 +572,7 @@ class HmmWriter(object):
                 prob = probs[nuke1]
             else:
                 prob = probs[nuke1] * probs[nuke2]
-                # TODO incorporate mutation probs in here!
+                # NOTE need to incorporate mutation probs in here!
                 # if nuke1 == nuke2:
                 #     prob *= (1. - self.insert_mute_prob)
                 # else:
@@ -590,11 +589,11 @@ class HmmWriter(object):
             # then calculate the probability
             if nuke2 == '':
                 assert mute_freq != 1.0 and mute_freq != 0.0
-                if nuke1 == germline_nuke:  # TODO note that if mute_freq is 1.0 this gives zero
+                if nuke1 == germline_nuke:  # NOTE that if mute_freq is 1.0 this gives zero
                     prob = 1.0 - mute_freq
                 else:
-                    prob = mute_freq / 3.0  # TODO take into account different frequency of going to different bases
-            else:  # TODO change this back to the commented block
+                    prob = mute_freq / 3.0
+            else:
                 for nuke in (nuke1, nuke2):
                     if nuke == germline_nuke:
                         prob *= 1.0 - mute_freq

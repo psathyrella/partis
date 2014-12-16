@@ -131,7 +131,7 @@ class ModelPlotter(object):
         paramutils.make_mutefreq_plot(self.base_plotdir + '/emissions', gene_name, plotting_info)
 
     # # ----------------------------------------------------------------------------------------
-    # def make_pair_emission_plot(self, gene_name, model):  TODO make the pair plots
+    # def make_pair_emission_plot(self, gene_name, model):  NOTE still need to make the pair plots
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting

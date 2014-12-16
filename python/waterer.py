@@ -178,7 +178,7 @@ class Waterer(object):
         if gene in self.gene_choice_probs[region]:
             choice_prob = self.gene_choice_probs[region][gene]
         else:
-            choice_prob = 0.0  # TODO choose something else?
+            choice_prob = 0.0  # NOTE would it make sense to use something else here?
         return choice_prob
 
     # ----------------------------------------------------------------------------------------
@@ -204,11 +204,11 @@ class Waterer(object):
             if region not in raw_best:  # best v, d, and j before multiplying by gene choice probs. needed 'cause *these* are the v and j that get excised
                 raw_best[region] = gene
 
-            raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs. TODO oh wait shit this isn't right. raw_score isn't a prob. what the hell is it, anyway?
+            raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs
             score = raw_score
-            if self.args.apply_choice_probs_in_sw:
+            if self.args.apply_choice_probs_in_sw:  # NOTE I stopped applying the gene choice probs here because the smith-waterman scores don't correspond to log-probs, so throwing on the gene choice probs was dubious (and didn't seem to work that well)
                 score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
-            # set bounds  TODO the s-w allows the j right edge to be chopped off -- I should skip the matches where different amounts are chopped off in the query and germline. EDIT well, maybe. I dunno
+            # set bounds
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
 
@@ -375,7 +375,7 @@ class Waterer(object):
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
 
                 # only use the best few matches
-                if n_used[region] >= int(self.args.n_max_per_region[utils.regions.index(region)]):  # only take the top few from each region. TODO should use *lots* of d matches, but fewer vs and js
+                if n_used[region] >= int(self.args.n_max_per_region[utils.regions.index(region)]):  # only take the top few from each region
                     break
 
                 # only use a specified set of genes
@@ -398,7 +398,7 @@ class Waterer(object):
 
                 if region == 'v':
                     this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there.
-                                                          # In other words, sw doesn't tell the hmm about it. TODO think about whether you want to tell it.
+                                                          # In other words, sw doesn't tell the hmm about it
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 if region == 'd':
@@ -418,7 +418,7 @@ class Waterer(object):
                         
         for region in utils.regions:
             if region not in best:
-                print '    no',region,'match found for',query_name  # TODO if no d match found, should just assume entire d was eroded
+                print '    no',region,'match found for',query_name  # NOTE if no d match found, we should really should just assume entire d was eroded
                 if not self.args.is_data:
                     print '    true:'
                     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')

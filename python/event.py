@@ -75,10 +75,10 @@ class RecombinationEvent(object):
 
         # for erosion_location in utils.effective_erosions:
             # self.effective_erosions[erosion_location + '_del'] = 0
-        self.effective_erosions['j_3p'] = 0  # TODO make this less hackey
+        self.effective_erosions['j_3p'] = 0
         self.effective_erosions['v_5p'] = 0
         if total_length_from_right >= 0:
-            self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right  # TODO make this less hackey
+            self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, total_length_from_right=0):
@@ -167,7 +167,6 @@ class RecombinationEvent(object):
     # ----------------------------------------------------------------------------------------
     def revert_conserved_codons(self, seq):
         """ revert conserved cysteine and tryptophan to their original bases, eg if they were messed up by s.h.m. """
-        # TODO how badly does this screw up the tree you can infer from the seqs?
         cpos = self.cyst_position
         if seq[cpos : cpos + 3] != self.original_cyst_word:
             seq = seq[:cpos] + self.original_cyst_word + seq[cpos+3:]

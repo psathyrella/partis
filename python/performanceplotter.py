@@ -28,7 +28,7 @@ class PerformancePlotter(object):
             self.values[region + '_hamming_to_true_naive'] = {}
             self.values[region + '_hamming_to_true_naive_normed'] = {}
         # for bound in utils.boundaries:
-        #     self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion TODO add correlation to previous base
+        #     self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion
         # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
         self.values['mute_freqs'] = {}
     # ----------------------------------------------------------------------------------------
@@ -137,7 +137,7 @@ class PerformancePlotter(object):
                 if column[2:] == '_insertion':  # insertion length
                     trueval = len(true_line[column])
                     guessval = len(line[column])
-                # elif '_content' in column:  # TODO ARG this is harder than I thought. I need to modify to allow distributions rather than just [guess - true]
+                # elif '_content' in column:
                 #     seq_to_use = line[column[ : column.find('_', 3)]]  # NOTE has to work for seq_content *and* vd_insertion_content, hence the 3
                 #         for nuke in seq_to_use:
                 #             self.counts[col][nuke] += 1

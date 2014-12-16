@@ -251,7 +251,7 @@ class JoinParser(object):
         region_query_seq = region_query_seq.replace(' ', '')
         gl_match_seq = gl_match_seq.replace(' ', '')
     
-        # then replace dots in gl_match_seq, and just remove dashes  TODO do something better with dashes
+        # then replace dots in gl_match_seq, and just remove dashes
         assert len(gl_match_seq) == len(region_query_seq)
         new_glseq = []
         for inuke in range(len(region_query_seq)):
@@ -298,7 +298,7 @@ class JoinParser(object):
         try:
             match_name = figure_out_which_damn_gene(self.germline_seqs, match_name, gl_match_seq, debug=self.debug)
         except AssertionError:  # couldn't find a decent one, so try again with the second match
-            # well, ok, I guess I'll just *add* the damn thing to <germline_seqs>. TODO that is so, so, dirty
+            # well, ok, I guess I'll just *add* the damn thing to <germline_seqs>. NOTE that is so, so, dirty
             self.germline_seqs[region][match.attrib['id'].replace(' ', '')] = gl_match_seq
             print '   WARNING adding %s to <germline_seqs>' % match.attrib['id'].replace(' ', '')
             match_name = figure_out_which_damn_gene(self.germline_seqs, match.attrib['id'].replace(' ', ''), gl_match_seq, debug=self.debug)

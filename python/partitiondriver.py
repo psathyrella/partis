@@ -112,7 +112,7 @@ class PartitionDriver(object):
 
             self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][self.args.n_bases_skip:]}
             if not self.args.is_data:
-                if 'fv_insertion' not in line:  # TODO remove these lines when I no longer have old recombinator output lying around
+                if 'fv_insertion' not in line:  # NOTE should be able to remove these lines now
                     line['fv_insertion'] = ''
                 if 'jf_insertion' not in line:
                     line['jf_insertion'] = ''
@@ -148,7 +148,6 @@ class PartitionDriver(object):
         print 'writing hmms with hmm info'
         self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
 
-        # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
 
@@ -161,7 +160,7 @@ class PartitionDriver(object):
         waterer.run()
 
         # cdr3 length partitioning
-        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths. TODO fix that
+        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths
         cdr3_length_clusters = None
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)
@@ -183,7 +182,7 @@ class PartitionDriver(object):
         waterer.run()
 
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir, plot_performance=self.args.plot_performance)
-        # self.clean(waterer)  # TODO get this working again. *man* it's a total bitch keeping track of all the files I'm writing
+        # self.clean(waterer)
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
 
@@ -412,7 +411,7 @@ class PartitionDriver(object):
                 # if self.args.debug:
                 #     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
 
-        clust = Clusterer(0.5, greater_than=False)  # TODO this 0.5 number isn't gonna be the same if the query sequences change length
+        clust = Clusterer(0.5, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
         if self.outfile != None:
             self.outfile.write('hamming clusters\n')
         clust.cluster(hammingfname, debug=self.args.debug, outfile=self.outfile)
@@ -477,7 +476,7 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):  # TODO use different input files for the two hmm steps
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):
         with opener('w')(csv_fname) as csvfile:
             # write header
             header = ['name', 'second_name', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
@@ -486,14 +485,13 @@ class PartitionDriver(object):
             skipped_gene_matches = set()
             # then write a line for each query sequence (or pair of them)
             if self.args.pair:
-                for query_name, second_query_name in self.get_pairs(preclusters):  # TODO I can probably get away with skipping a lot of these pairs -- if A clusters with B and B with C, don't run A against C
+                for query_name, second_query_name in self.get_pairs(preclusters):
                     info = sw_info[query_name]
                     second_info = sw_info[second_query_name]
     
                     # I think we can remove these versions (we never see them), but I'm putting a check in here just in case
                     assert len(re.findall('J[123]P', info['j_gene'])) == 0
     
-                    # TODO the current method of expanding the k space bounds to encompass all the gene matches, and both sequences, is *correct*, but I think it's unnecessarily slow
                     k_v, k_d = {}, {}
                     k_v['min'] = min(info['k_v']['min'], second_info['k_v']['min'])
                     k_v['max'] = max(info['k_v']['max'], second_info['k_v']['max'])
@@ -517,7 +515,7 @@ class PartitionDriver(object):
                     self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, query_name, second_query_name)
                     if not self.all_regions_present(final_only_genes, skipped_gene_matches, query_name, second_query_name):
                         continue
-                    csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # ha ha, cool! I just realized csv.DictWriter can handle space-separated files TODO switch over
+                    csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
                                   (query_name, second_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes),
                                    self.input_info[query_name]['seq'], self.input_info[second_query_name]['seq']))
             else:
@@ -540,7 +538,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter):
-        # TODO the input and output files for this function are almost identical at this point
+        # NOTE the input and output files for this function are almost identical at this point
 
         n_processed = 0
         # write header for pairwise score file
@@ -610,7 +608,7 @@ class PartitionDriver(object):
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
         if self.args.pair:
-            tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. TODO oh, man, that's a cludge
+            tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
             line['seq'] = line['second_seq']
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
             line['seq'] = tmpseq

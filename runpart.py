@@ -28,7 +28,7 @@ parser.add_argument('--skip-unproductive', action='store_true')  # skip unproduc
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true')
 parser.add_argument('--plot-performance', action='store_true')
 parser.add_argument('--insertion-base-content', default=True, action='store_true')
-# TODO tell waterer about these allowances
+
 parser.add_argument('--allow_unphysical_insertions', action='store_true')  # allow insertions on left side of v and right side of j
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 
@@ -57,13 +57,13 @@ parser.add_argument('--min_observations_to_write', type=int, default=20)  # if w
 parser.add_argument('--j-subset', default=None)  #'imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
 parser.add_argument('--n-max-per-region', default='3:5:2')  # number of best smith-waterman matches (per region, in the order v:d:j) to keep and pass on to the hmm
 parser.add_argument('--n-best-events', type=int, default=3)
-parser.add_argument('--default-v-fuzz', type=int, default=2)  # TODO play around with these default fuzzes
+parser.add_argument('--default-v-fuzz', type=int, default=2)
 parser.add_argument('--default-d-fuzz', type=int, default=2)
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local')  # this is where '% pip install --user' puts things by default
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()))
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
-parser.add_argument('--hackey-extra-data-dir', default='data/recombinator')  # dir for tree parameters that I'm not yet inferring. TODO fix that, obviously
+parser.add_argument('--hackey-extra-data-dir', default='data/recombinator')  # dir for tree parameters that I'm not yet inferring
 parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 

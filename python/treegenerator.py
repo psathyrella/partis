@@ -127,7 +127,7 @@ class TreeGenerator(object):
             r_command += '\"'
             check_call(r_command, shell=True)
         elif self.tree_generator == 'TreeSim':
-            # set parameters. TODO gee, I'm not really sure these parameters are all right
+            # set parameters. NOTE gee, I'm not really sure these parameters are all right
             n_species = '50'
             speciation_rate = '1'
             extinction_rate = '0.5'

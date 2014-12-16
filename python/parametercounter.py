@@ -25,7 +25,7 @@ class ParameterCounter(object):
         for column in utils.column_dependencies:
             self.counts[column] = {}
         for bound in utils.boundaries:
-            self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion TODO add correlation to previous base
+            self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion
         self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
         self.mutefreqer = MuteFreqer(self.base_outdir, self.plotdir, germline_seqs)
 
