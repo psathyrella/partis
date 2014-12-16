@@ -1,26 +1,12 @@
 import cached_uncertainties
 from scipy.stats import beta
 
-# #!/usr/bin/env python
-
-# import utils
-
-# print '{'
-
-# for i in range(100):
-#     for j in range(1000):
-#         if i < j:
-#             lo, hi = fraction_uncertainty(i, j, use_beta=True, use_cache=False)
-#             print '\'%d/%d\' : (%f, %f),' % (i, j, lo, hi)
-
-# print '}'
-
 # ----------------------------------------------------------------------------------------
 def err(obs, total, use_beta=True, use_cache=True):
     """ Return [some hack-job approximation of] uncertainty on the ratio n / total """
     assert obs <= total
     if total == 0.0:
-        return 0.0  # TODO wait, shouldn't this be a tuple?
+        return (0.0, 0.0, False)
 
     key = str(obs) + '/' + str(total)
     if use_cache and key in cached_uncertainties.errs:
