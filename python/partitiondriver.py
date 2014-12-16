@@ -110,7 +110,7 @@ class PartitionDriver(object):
             if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
                 continue
 
-            self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column][self.args.n_bases_skip:]}
+            self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}
             if not self.args.is_data:
                 if 'fv_insertion' not in line:  # NOTE should be able to remove these lines now
                     line['fv_insertion'] = ''
@@ -160,7 +160,7 @@ class PartitionDriver(object):
         waterer.run()
 
         # cdr3 length partitioning
-        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths
+        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths (and I don't know how to do that!)
         cdr3_length_clusters = None
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)

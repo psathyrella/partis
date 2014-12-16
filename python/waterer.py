@@ -132,8 +132,6 @@ class Waterer(object):
         cmd_str += ' --match 5 --mismatch 3'
         cmd_str += ' --gap-open 1000'
         cmd_str += ' --vdj-dir ' + self.args.datadir
-        if self.args.j_subset != None:
-            cmd_str += ' --j-subset ' + self.args.j_subset 
         cmd_str += ' ' + infname + ' ' + outfname
         check_call(cmd_str.split())
         if not self.args.no_clean:

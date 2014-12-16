@@ -8,63 +8,62 @@ import utils
 # merged data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
+parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plotting')
 sys.argv.append('-b')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
-parser.add_argument('--no-clean', action='store_true')  # don't remove the various temp files
+parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions:
-parser.add_argument('--simulate', action='store_true')  # make simulated recombination events
-parser.add_argument('--build-hmms', action='store_true')  # just build hmms (and write 'em out) from existing parameter csvs
-parser.add_argument('--generate-trees', action='store_true')  # generate trees to pass to bppseqgen for simulation
-parser.add_argument('--cache-parameters', action='store_true')  # cache parameter counts and hmm files in dir specified by <parameter_dir>
-parser.add_argument('--point-estimate', action='store_true')
-parser.add_argument('--partition', action='store_true')
+parser.add_argument('--simulate', action='store_true', help='Create simulated rearrangement events')
+parser.add_argument('--build-hmms', action='store_true', help='just build hmms (and write \'em out) from existing parameter csvs')
+parser.add_argument('--generate-trees', action='store_true', help='generate trees to pass to bppseqgen for simulation')
+parser.add_argument('--cache-parameters', action='store_true', help='cache parameter counts and hmm files in dir specified by <parameter_dir>')
+parser.add_argument('--point-estimate', action='store_true', help='Find the <n-best-events>-best viterbi paths')
+parser.add_argument('--partition', action='store_true', help='Find the best partition for the given sequences')
 
 # action flags
-parser.add_argument('--pair', action='store_true')
-parser.add_argument('--is-data', action='store_true')
-parser.add_argument('--skip-unproductive', action='store_true')  # skip unproductive rearrangements
-parser.add_argument('--apply-choice_probs_in_sw', action='store_true')
-parser.add_argument('--plot-performance', action='store_true')
-parser.add_argument('--insertion-base-content', default=True, action='store_true')
+parser.add_argument('--pair', action='store_true', help='Run on every pair of sequences in the input')
+parser.add_argument('--is-data', action='store_true', help='True if not simulation')
+parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
+parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
+parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
+parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
+parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 
-parser.add_argument('--allow_unphysical_insertions', action='store_true')  # allow insertions on left side of v and right side of j
+parser.add_argument('--allow_unphysical_insertions', action='store_true', help='allow insertions on left side of v and right side of j')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 
-parser.add_argument('--seqfile')  # input file
-parser.add_argument('--parameter-dir', required=True)  # sample-specific parameters (mutation rates, gene version freqs, ...)
-parser.add_argument('--datadir', required=True)  # non-sample-specific information (e.g. germline gene versions)
-parser.add_argument('--outfname')  # for recombinator, write simulated events to this file. For waterer and partitiondriver, write output to this file
+parser.add_argument('--seqfile', help='input sequence file')
+parser.add_argument('--parameter-dir', required=True, help='Directory to write sample-specific parameters to and/or read \'em from (e.g. mutation freqs)')
+parser.add_argument('--datadir', required=True, help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parser.add_argument('--outfname')
 parser.add_argument('--plotdir')
 
 # parser.add_argument('--simu_seed', type=int, default=-1)
 
-parser.add_argument('--chunk-cache', action='store_true')
+parser.add_argument('--chunk-cache', action='store_true', help='Cache pieces of the DP tables to allow reuse without recalculation')
 
-parser.add_argument('--n-bases-skip', type=int, default=0)  # number of bases to skip on the left side of the sequence
-parser.add_argument('--total-length-from-right', type=int, default=-1)  # number of bases to skip on the left side of the sequence
-parser.add_argument('--n-procs', type=int, default=1)  # number of processes over which to parallelize
-parser.add_argument('--naivety', default='M', choices=['N', 'M'])
-parser.add_argument('--queries')  # restrict to certain query seqs
-parser.add_argument('--reco-ids')  # or recombination events
-parser.add_argument('--n-max-queries', type=int, default=-1)  # stop after this many queries
-parser.add_argument('--only-genes')  # skip all gene matches except for these when parsing the sw output  #'IGHV3-64*04:IGHV1-18*01:IGHV3-23*04:IGHV3-72*01:IGHV5-51*01:IGHD4-23*01:IGHD3-10*01:IGHD4-17*01:IGHD6-19*01:IGHD3-22*01:IGHJ4*02_F:IGHJ5*02_F:IGHJ6*02_F:IGHJ3*02_F:IGHJ2*01_F',
-parser.add_argument('--seed', type=int)  # set random seed for use by recombinator to allow reproducibility
+parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simlated sequences')
+parser.add_argument('--n-procs', type=int, default=1, help='number of processes over which to parallelize')
+parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
+parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
+parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
+parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
+parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
+parser.add_argument('--seed', type=int, help='Random seed for use by recombinator (to allow reproducibility)')
 
-parser.add_argument('--min_observations_to_write', type=int, default=20)  # if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)
+parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 
-parser.add_argument('--j-subset', default=None)  #'imgt')  # which germline j file to use? NOTE has to correspond to a file <vdjalign-install-dir>/imgt/data/ighj-<j_subset>.fasta
-parser.add_argument('--n-max-per-region', default='3:5:2')  # number of best smith-waterman matches (per region, in the order v:d:j) to keep and pass on to the hmm
-parser.add_argument('--n-best-events', type=int, default=3)
-parser.add_argument('--default-v-fuzz', type=int, default=5)
-parser.add_argument('--default-d-fuzz', type=int, default=2)
-parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local')  # this is where '% pip install --user' puts things by default
-parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()))
+parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
+parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
+parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
+parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
+parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
+parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
-parser.add_argument('--hackey-extra-data-dir', default='data/recombinator')  # dir for tree parameters that I'm not yet inferring
-parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz')
+parser.add_argument('--hackey-extra-data-dir', default='data/recombinator', help='Directory from which to read tree parameters that we\'re not yet inferring, i.e. which do not correspond to the query sequences')
+parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 args = parser.parse_args()
