@@ -51,7 +51,7 @@ public:
 private:
   string hmm_dir_;
   size_t n_seqs_per_track_;
-  GermLines &gl_;  // TODO kind of hackey to have a separate one of these in HMMHolder. Then again, I don't think it's really that expensive.
+  GermLines &gl_;
   map<string, Model*> hmms_; // map of gene name to hmm pointer
 };
 
@@ -64,9 +64,9 @@ public:
   bool could_not_expand() { return could_not_expand_; }
   KBounds better_kbounds() { return better_kbounds_; }
   double total_score() { return total_score_; }
-  double total_score_;  // TODO move this to private
+  double total_score_;
   bool no_path_;
-  vector<RecoEvent> events_;  // TODO move this to private
+  vector<RecoEvent> events_;
 
 private:
   KBounds better_kbounds_;

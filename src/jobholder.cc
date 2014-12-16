@@ -244,13 +244,13 @@ void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gen
   if(algorithm_ == "viterbi") {
     trell->Viterbi();
     *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
-    if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm. TODO fix this in a more general way
+    if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm
       paths_[gene][query_strs] = nullptr;
       if(debug_ == 2) cout << "                    arg " << gene << " " << *score << " " << origin << endl;
     } else {
       paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene, debug_));
       trell->Traceback(*paths_[gene][query_strs]);
-      assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // TODO remove this assertion
+      assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // NOTE it would be better to just not store the darn score in both the places to start with, rather than worry here about them being the same
       // if(debug_ == 2) PrintPath(query_strs, gene, *score, origin);
     }
     assert(fabs(*score) > 1e-200);
@@ -273,7 +273,7 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
   vector<string> path_names = paths_[gene][query_strs]->name_vector();
   if(path_names.size() == 0) {
     if(debug_) cout << "                     " << gene << " has no valid path" << endl;
-    return; // TODO fix this upstream. well, it isn't *broken*, but, you know, could be cleaner
+    return;
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
   assert(path_names.size() == query_strs.first.size());
@@ -323,7 +323,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     if(path_names.size() == 0) {
       if(debug_) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
-      return event; // TODO fix this upstream. well, it isn't *broken*, but, you know, could be cleaner
+      return event;
     }
     assert(path_names.size() > 0);
     assert(path_names.size() == query_strs.first.size());
@@ -334,20 +334,15 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     // and left-hand deletions
     event.SetDeletion(region + "_5p", GetErosionLength("left", path_names, gene));
 
-    SetInsertions(region, query_strs.first, path_names, &event);
+    SetInsertions(region, query_strs.first, path_names, &event);  // NOTE this sets the insertion *only* according to the *first* sequence. Which makes sense at the moment, since the RecoEvent class is only designed to represent a single sequence
 
     seq_strs.first += query_strs.first;
     seq_strs.second += query_strs.second;
   }
 
-  // if (seqs_->size() > 0)  // erm, this segfaults a.t.m. I must be forgetting something somewhere else
-  //   assert((*seqs_)[0].name() == (*seqs_)[1].name());  // er, another somewhat neurotic consistency check
-
   event.SetSeq(seqs[0].name(), seq_strs.first);
-  if(seqs.n_seqs() == 2) {
-    // assert((*seqs_)[0].name() == (*seqs_)[1].name());  don't recall at this point precisely why it was that I wanted this here
+  if(seqs.n_seqs() == 2)
     event.SetSecondSeq(seqs[1].name(), seq_strs.second);
-  }
   event.SetScore(score);
   return event;
 }
@@ -420,7 +415,7 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
 	origin = "cached";
       } else {
         FillTrellis(subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
-        double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());  // TODO think through this again, and make sure it's correct for forward score, as well. I mean, I *think* it's right, but I could stand to go over it again
+        double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());
         *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
       if(debug_ == 2 && algorithm_ == "viterbi")
@@ -456,22 +451,16 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
   }
 
   (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob (v *and* d *and* j)
-  // cout << "adding "
-  //      << setw(12) << regional_best_scores["v"]
-  //      << setw(12) << regional_best_scores["d"]
-  //      << setw(12) << regional_best_scores["j"]
-  //      << " = " << (*best_scores)[kset]
-  //      << endl;
   (*total_scores)[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
 }
 
 // ----------------------------------------------------------------------------------------
 void JobHolder::SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event) {
   Insertions ins;
-  for (auto &insertion : ins[region]) {
+  for (auto &insertion : ins[region]) {  // loop over the boundaries (vd and dj)
     string side(insertion == "jf" ? "right" : "left");
     size_t length(GetInsertLength(side, path_names));
-    string inserted_bases = query_str.substr(GetInsertStart(side, path_names.size(), length), length);  // TODO this is wrong for pair hmms
+    string inserted_bases = query_str.substr(GetInsertStart(side, path_names.size(), length), length);
     event->SetInsertion(insertion, inserted_bases);
   }
 }
@@ -524,7 +513,7 @@ size_t JobHolder::GetErosionLength(string side, vector<string> names, string gen
       break;
     }
   }
-  if (its_inserts_all_the_way_down) {  // TODO here (*and* below) do something better than floor/ceil to divide it up.
+  if (its_inserts_all_the_way_down) {  // entire sequence is inserts, so there's no way to tell which part is a left erosion and which is a right erosion
     if (side == "left")
       return floor(float(germline.size()) / 2);
     else if (side == "right")

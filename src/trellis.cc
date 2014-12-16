@@ -163,7 +163,7 @@ void trellis::Viterbi() {
   scoring_previous = scoring_current;
   scoring_current = swap_ptr_;
 
-  // TODO wait, maybe I don't need this any more, now I've got the chunk caching info?
+  // NOTE now that I've got the chunk caching info, it may be possible to remove this
   // calculate ending probability and get final traceback pointer
   ending_viterbi_pointer_ = -1;
   ending_viterbi_log_prob_ = -INFINITY;

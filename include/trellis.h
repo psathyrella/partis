@@ -31,11 +31,15 @@ public:
   double ending_forward_log_prob() { return ending_forward_log_prob_; }
   double ending_forward_log_prob(size_t length);
   int_2D *traceback_table() const { return traceback_table_; }
+
+  // NOTE (and beware) this is confusing to subtract one from the length. BUT it is totally on purpose: I want the calling code to be able to just worry about how long it sequence is.
+  // In other words, I'm pretty sure we'll have to subtract (or add) 1 *somewhere*, and I've chosen to compartmentalize it into trellis.{h,cc}.
+  // NOTE also that <viterbi_pointers_> *includes* the ending transition probability at each point.
   size_t viterbi_pointer(size_t length) {  // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1
     assert(length <= viterbi_pointers_->size());
     return (*viterbi_pointers_)[length-1];
   }
-  vector<double> *viterbi_log_probs() { return viterbi_log_probs_; }  // TODO this is confusing having the functions above subtract one from the length, you need to change it. Also, decide once and for all whether to prepend 'ending_' or not
+  vector<double> *viterbi_log_probs() { return viterbi_log_probs_; }
   vector<double> *forward_log_probs() { return forward_log_probs_; }
   vector<int> *viterbi_pointers() { return viterbi_pointers_; }
 
@@ -55,7 +59,6 @@ private:
   double  ending_viterbi_log_prob_;
   double  ending_forward_log_prob_;
 
-  // internal loop variables TODO wouldn't it make more sense to put these somewhere else?
   vector<double> *viterbi_log_probs_;  // log prob of best path up to and including each position NOTE does *not* include log prob of transition to end
   vector<double> *forward_log_probs_;  // log prob of best path up to and including each position NOTE does *not* include log prob of transition to end
   vector<int> *viterbi_pointers_;  // pointer to the state at which this best log prob occurred

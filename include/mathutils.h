@@ -220,14 +220,5 @@ void addVector(vector<T>& lhs, vector<T>& rhs) {
   return;
 }
 
-// // ----------------------------------------------------------------------------------------
-// // check that total is within EPS of 1.0 TODO use something cleverer than a random hard coded EPS
-// void CheckNorm(double total) {
-//   if(fabs(total-1.0) >= EPS) {
-//     cerr << "ERROR total too far from 1.0 (" << total << ")" << endl;
-//     assert(fabs(total-1.0) < EPS);
-//   }
-// }
-
 }
 #endif
