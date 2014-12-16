@@ -57,7 +57,6 @@ public:
 
   // ----------------------------------------------------------------------------------------
   // get region from gene name, e.g. IGHD1-1*01 --> d
-  // TODO don't have this in two places, idiot boy
   string GetRegion(string gene) {
     assert(gene.find("IGH") != string::npos);
     char region_char(tolower(gene[3]));
@@ -192,7 +191,7 @@ public:
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
   void SetSeq(string seq_name, string seq) { seq_name_ = seq_name; seq_ = seq; }
-  void SetSecondSeq(string seq_name, string seq) {
+  void SetSecondSeq(string seq_name, string seq) {  // NOTE this class should in general be treated as representing a *single* event with a *single* sequence. It's just that we allow the possiblity here of attaching an auxiliary sequence, but e.g. the insertions should *not* be assumed to correspond to this second sequence.
     assert(seq.size() == seq_.size());  // make sure we already have a first seq, and also that the new seq is the same size
     second_seq_name_ = seq_name;
     second_seq_ = seq;
@@ -316,14 +315,14 @@ public:
     d_str += eroded_seqs["d"];
     int ij_max = original_seqs["j"].size() - deletions_["j_5p"] + insertions_["dj"].size() - deletions_["d_3p"];
     // assert(ij_max>=0);
-    if(ij_max < 0)   // TODO fix this somewhat more permanently
+    if(ij_max < 0)
       ij_max = 0;
     for(int ij = 0; ij < ij_max; ++ij)
       d_str += " ";
     string vj_str(eroded_seqs["v"]);
     int ivj_max = germline_j_start - germline_v_end - 2;
     // assert(ivj_max >= 0);
-    if(ivj_max < 0)   // TODO fix this somewhat more permanently
+    if(ivj_max < 0)
       ivj_max = 0;
     for(int ivj = 0; ivj < ivj_max; ++ivj)
       vj_str += " ";

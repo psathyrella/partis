@@ -17,7 +17,7 @@ Emission::~Emission() {
 // ----------------------------------------------------------------------------------------
 void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
   scores_.Init();
-  // NOTE at this point we only allow one track per emission (in particular, we require that pair emissions be on the same track). kinda TODO This'd be easy to change later, of course
+  // NOTE at this point we only allow one track per emission (in particular, we require that pair emissions be on the same track).
   tracks_ = new vector<Track*>();  // list of the tracks used by *this* emission. Note that this may not be all the tracks used in the model.
   if(is_pair == "single") {
     pair_ = false;
@@ -55,10 +55,10 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
     }
 
     YAML::Node probs(config["probs"]);
-    assert(probs.size() == scores_.alphabet_size(0));  // TODO actually I don't need these either, since I'm looping over the track
+    assert(probs.size() == scores_.alphabet_size(0));  // NOTE some of these assertions are probably unnecessary
     assert(tracks_->size() == 2);
-    assert(scores_.alphabet_size(0) == (*tracks_)[0]->alphabet_size()); // TODO arg I shouldn't need this. so complicated...
-    assert(scores_.alphabet_size(0) == (*tracks_)[1]->alphabet_size()); // TODO arg I shouldn't need this. so complicated...
+    assert(scores_.alphabet_size(0) == (*tracks_)[0]->alphabet_size());
+    assert(scores_.alphabet_size(0) == (*tracks_)[1]->alphabet_size());
     total_ = 0.0; // make sure things add to 1.0
     for(size_t ip = 0; ip < scores_.alphabet_size(0); ++ip) {
       YAML::Node these_probs(config["probs"][(*tracks_)[0]->symbol(ip)]);
@@ -71,7 +71,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
       }
       scores_.AddColumn(log_probs);  // NOTE <log_probs> must already be logged. also NOTE that a column in <scores_> is maybe a row in the yaml file. I didn't choose it!
     }
-    // TODO use something cleverer than a random hard coded EPS
+    // NOTE it would be better to use something cleverer than a hard coded EPS that I just pulled ooma
     if(fabs(total_ - 1.0) >= EPS) { // make sure emissions probs sum to 1.0
       cerr << "ERROR normalization failed for" << endl;
       cerr << config << endl;
@@ -84,7 +84,7 @@ void Emission::Parse(YAML::Node config, string is_pair, Tracks model_tracks) {
 
 // ----------------------------------------------------------------------------------------
 void Emission::Print() {
-  for(size_t i = 0; i < scores_.n_tracks(); ++i) // TODO dammit I'm confused by having a vector of tracks in the lexical table *and* every freaking where else
+  for(size_t i = 0; i < scores_.n_tracks(); ++i)
     cout << "    " << scores_.track(i)->name();
   cout << "     (normed to within at least " << EPS << ")" << endl;
 

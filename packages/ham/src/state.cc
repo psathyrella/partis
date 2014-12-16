@@ -33,7 +33,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     else
       transitions_->push_back(trans);
   }
-  // TODO use something cleverer than a random hard coded EPS
+  // NOTE it would be better to use something cleverer than a hard coded EPS that I just pulled ooma
   if(fabs(total - 1.0) >= EPS) { // make sure transition probs sum to 1.0
     cerr << "ERROR normalization failed on transitions in state \"" << name_ << "\"" << endl;
     cerr << node << endl;
