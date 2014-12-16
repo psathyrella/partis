@@ -4,8 +4,9 @@
 #include <string>
 #include <map>
 #include <iomanip>
-#include <ctime>
+// #include <ctime>
 #include <fstream>
+#include <cfenv>
 #include "jobholder.h"
 #include "germlines.h"
 #include "tclap/CmdLine.h"
@@ -156,6 +157,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score);
+void print_forward_scores(double ab_score, double a_score, double b_score);
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -176,10 +178,10 @@ int main(int argc, const char * argv[]) {
   vector<Sequences> seqs(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), n_seqs_per_track, gl);
-  clock_t cache_start(clock());
+  // clock_t cache_start(clock());
   // hmms.CacheAll();
-  cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
-  clock_t run_start(clock());
+  // cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
+  // clock_t run_start(clock());
 
   assert(seqs.size() == args.strings_["name"].size());
   for(size_t is = 0; is < seqs.size(); is++) {
@@ -207,8 +209,7 @@ int main(int argc, const char * argv[]) {
       Result result_b = jh.Run(seqs[is][1], kbounds);
 
       if(result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << seqs[is][0].name() << " " << seqs[is][1].name() << endl;
-      if(args.debug()) printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", score, result_a.total_score(), result_b.total_score(), score - result_a.total_score() - result_b.total_score());
-      if(args.debug()) printf("%70s %8.1e / %8.1e / %8.1e = %8.1f\n", "", exp(score), exp(result_a.total_score()), exp(result_b.total_score()), exp(score) / (exp(result_a.total_score())*exp(result_b.total_score())));
+      if(args.debug()) print_forward_scores(score, result_a.total_score(), result_b.total_score());
       score = score - result_a.total_score() - result_b.total_score();
     }
 
@@ -221,7 +222,7 @@ int main(int argc, const char * argv[]) {
     StreamOutput(ofs, args, result.events_, seqs[is], score);
   }
 
-  cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+  // cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
 
   ofs.close();
   return 0;
@@ -271,3 +272,17 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
         << endl;
   }
 }
+// ----------------------------------------------------------------------------------------
+void print_forward_scores(double ab_score, double a_score, double b_score) {
+  printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", ab_score, a_score, b_score, ab_score - a_score - b_score);
+  feclearexcept(FE_UNDERFLOW | FE_OVERFLOW);
+  double ab_prob(exp(ab_score));
+  double a_prob(exp(a_score));
+  double b_prob(exp(b_score));
+  double bayes_factor(ab_prob / (a_prob*b_prob));
+  if (fetestexcept(FE_UNDERFLOW | FE_OVERFLOW))
+    printf("%70s under/overflow when leaving log space", "");
+  else
+    printf("%70s %8.1e / (%8.1e * %8.1e) = %8.1f\n", "", ab_prob, a_prob, b_prob, bayes_factor);
+}
+
