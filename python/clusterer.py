@@ -15,7 +15,7 @@ class Clusterer(object):
         self.max_id = -1  # maximum previously used id
         self.cluster_ids = []
         self.query_clusters = {}  # map from query name to cluster id
-        self.id_clusters = {}  # map from cluster id to query name list
+        self.id_clusters = {}  # map from cluster id to list of query names
         self.pairscores = {}  # keep all the scores in memory
 
         self.nearest_true_mate = {}  # 
@@ -111,8 +111,13 @@ class Clusterer(object):
     def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
         if math.isnan(score):
             print 'ERROR nan passed for %d %d (dbg %s)' %(query_name, second_query_name, dbg_str_list)
+            sys.exit()
         if self.is_removable(score):
             dbg_str_list.append('    removing link')
+            if query_name not in self.query_clusters:
+                self.add_new_cluster(query_name, dbg_str_list)
+            if second_query_name not in self.query_clusters:
+                self.add_new_cluster(second_query_name, dbg_str_list)
             return
         if query_name in self.query_clusters and second_query_name in self.query_clusters:  # if both seqs are already in clusters
             self.merge_clusters(query_name, second_query_name, dbg_str_list)

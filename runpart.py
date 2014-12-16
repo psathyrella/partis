@@ -39,8 +39,6 @@ parser.add_argument('--datadir', required=True, help='Directory from which to re
 parser.add_argument('--outfname')
 parser.add_argument('--plotdir')
 
-# parser.add_argument('--simu_seed', type=int, default=-1)
-
 parser.add_argument('--chunk-cache', action='store_true', help='Cache pieces of the DP tables to allow reuse without recalculation')
 
 parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simlated sequences')
