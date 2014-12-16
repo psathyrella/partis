@@ -399,12 +399,10 @@ class PartitionDriver(object):
             for query_name, second_query_name in self.get_pairs(preclusters):
                 query_seq = self.input_info[query_name]['seq']
                 second_query_seq = self.input_info[second_query_name]['seq']
-                # chop off the longer one if they're not the same length
-                if len(query_seq) > len(second_query_seq):
-                    query_seq = query_seq[len(query_seq) - len(second_query_seq) : ]
-                    chopped_off_left_sides = True
-                elif len(second_query_seq) > len(query_seq):
-                    second_query_seq = second_query_seq[len(second_query_seq) - len(query_seq) : ]
+                if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
+                    min_length = min(len(query_seq), len(second_query_seq))
+                    query_seq = query_seq[-min_length : ]
+                    second_query_seq = second_query_seq[-min_length : ]
                     chopped_off_left_sides = True
                 mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
                 writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
