@@ -489,32 +489,16 @@ class PartitionDriver(object):
                     b_info = sw_info[b_query_name]
     
                     a_query_seq, b_query_seq = self.input_info[a_query_name]['seq'], self.input_info[b_query_name]['seq']
-                    a_k_v, b_k_v = a_info['k_v'], b_info['k_v']
+                    a_chop, b_chop = 0, 0
                     if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-                        delta_length = abs(len(a_query_seq) - len(b_query_seq))
-                        if len(a_query_seq) > len(b_query_seq):
-                            print 'a', a_query_seq
-                            print 'b', b_query_seq
-                            print '  before', a_k_v, a_query_seq
-                            a_query_seq = a_query_seq[ : len(b_query_seq)]
-                            for key in a_k_v:  # loop over min, max, best
-                                a_k_v[key] -= delta_length
-                            print '  after', a_k_v, a_query_seq
-                        if len(b_query_seq) > len(a_query_seq):
-                            print 'a', a_query_seq
-                            print 'b', b_query_seq
-                            print '  before', b_k_v, b_query_seq
-                            b_query_seq = b_query_seq[ : len(a_query_seq)]
-                            for key in b_k_v:  # loop over min, max, best
-                                b_k_v[key] -= delta_length
-                            print '  after', b_k_v, b_query_seq
-                        # min_length = min(len(a_query_seq), len(b_query_seq))
-                        # a_query_seq = a_query_seq[-min_length : ]
-                        # b_query_seq = b_query_seq[-min_length : ]
+                        a_chop = max(0, len(a_query_seq) - len(b_query_seq))
+                        b_chop = max(0, len(b_query_seq) - len(a_query_seq))
+                        a_query_seq = a_query_seq[ : len(b_query_seq)]  # if b is longer this doesn't do anything
+                        b_query_seq = b_query_seq[ : len(a_query_seq)]
 
                     k_v, k_d = {}, {}
-                    k_v['min'] = min(a_info['k_v']['min'], b_info['k_v']['min'])
-                    k_v['max'] = max(a_info['k_v']['max'], b_info['k_v']['max'])
+                    k_v['min'] = min(a_info['k_v']['min'] - a_chop, b_info['k_v']['min'] - b_chop)
+                    k_v['max'] = max(a_info['k_v']['max'] - a_chop, b_info['k_v']['max'] - b_chop)
                     k_d['min'] = min(a_info['k_d']['min'], b_info['k_d']['min'])
                     k_d['max'] = max(a_info['k_d']['max'], b_info['k_d']['max'])
 
@@ -526,13 +510,14 @@ class PartitionDriver(object):
                         assert False  # need to check some things here
                         only_genes = [ a_info[region + '_gene'] for region in utils.regions ]
                         b_only_genes = [ b_info[region + '_gene'] for region in utils.regions ]
-                        k_v['min'] = a_info['k_v']['best']
+                        k_v['min'] = a_info['k_v']['best'] - a_chop  # NOTE since this only uses <a_info>, you shouldn't expect it to be very accurate
                         k_v['max'] = k_v['min'] + 1
                         k_d['min'] = a_info['k_d']['best']
                         k_d['max'] = k_d['min'] + 1
 
                     final_only_genes = list(set(a_only_genes) | set(b_only_genes))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
                     self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, a_query_name, b_query_name)
+
                     if not self.all_regions_present(final_only_genes, skipped_gene_matches, a_query_name, b_query_name):
                         continue
                     csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
