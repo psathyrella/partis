@@ -587,13 +587,13 @@ class HmmWriter(object):
                 mute_freq = self.mute_freqs[inuke]
 
             # then calculate the probability
-            if nuke2 == '':
+            if nuke2 == '':  # single emission
                 assert mute_freq != 1.0 and mute_freq != 0.0
                 if nuke1 == germline_nuke:  # NOTE that if mute_freq is 1.0 this gives zero
                     prob = 1.0 - mute_freq
                 else:
                     prob = mute_freq / 3.0
-            else:
+            else:  # pair hmm
                 for nuke in (nuke1, nuke2):
                     if nuke == germline_nuke:
                         prob *= 1.0 - mute_freq

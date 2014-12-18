@@ -224,7 +224,7 @@ class PartitionDriver(object):
                 proc = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
                 proc.start()
             while len(active_children()) > 0:
-                print ' wait %s' % len(active_children()),
+                # print ' wait %s' % len(active_children()),
                 sys.stdout.flush()
                 time.sleep(1)
             self.merge_hmm_outputs(csv_outfname)
@@ -310,7 +310,7 @@ class PartitionDriver(object):
         if not self.args.no_clean:
             os.remove(csv_infname.replace(self.args.workdir, workdir))
 
-        print '    hmm run time: %.3f' % (time.time() - start)
+        # print '    hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
     def merge_hmm_outputs(self, outfname):
@@ -586,8 +586,9 @@ class PartitionDriver(object):
                         self.print_hmm_output(line, print_true=(last_id != this_id), perfplotter=perfplotter)
                     last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                 else:  # for forward, write the pair scores to file to be read by the clusterer
-                    print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
-                    print '   %7.3f   %d' % (float(line['score']), from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
+                    # if self.args.debug:
+                    #     print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
+                        # print '   %7.3f   %d' % (float(line['score']), from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
                     with opener('a')(pairscorefname) as pairscorefile:
                         pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                     # if self.args.outfname != None:

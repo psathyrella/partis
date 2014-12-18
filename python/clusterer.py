@@ -31,12 +31,13 @@ class Clusterer(object):
                 a_name = int(line['unique_id'])
                 b_name = int(line['second_unique_id'])
                 score = float(line['score'])
-                dbg_str_list = ['%22s %22s   %.3f' % (a_name, b_name, score), ]
+                from_same_event = -1 if reco_info == None else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
+                dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]
                 self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
                 self.pairscores[(utils.get_key(a_name, b_name))] = score
                 self.plotscores['all'].append(score)
                 if reco_info != None:
-                    if reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']:
+                    if from_same_event:
                         self.plotscores['same'].append(score)
                     else:
                         self.plotscores['diff'].append(score)
