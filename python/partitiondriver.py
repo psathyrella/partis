@@ -246,7 +246,7 @@ class PartitionDriver(object):
                 self.outfile.write('hmm clusters\n')
             else:
                 print'hmm clusters'
-            clusters.cluster(pairscorefname, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile)
+            clusters.cluster(pairscorefname, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
             if preclusters != None:
                 for query_name in sw_info:  # check for singletons that got split out in the preclustering step
                     if query_name not in clusters.query_clusters and query_name != 'all_best_matches':

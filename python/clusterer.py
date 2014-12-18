@@ -1,8 +1,10 @@
 import sys
 import csv
 import math
+from subprocess import check_call
 
 import utils
+import plotting
 from opener import opener
 # ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv 
 
@@ -16,35 +18,52 @@ class Clusterer(object):
         self.cluster_ids = []
         self.query_clusters = {}  # map from query name to cluster id
         self.id_clusters = {}  # map from cluster id to list of query names
-        self.pairscores = {}  # keep all the scores in memory
+        self.pairscores = {}  # used by external code to see if we saw a given pair
+        self.plotscores = { 'all':[], 'same':[], 'diff':[]}  # keep track of scores for plotting
 
-        self.nearest_true_mate = {}  # 
+        # self.nearest_true_mate = {}  # 
 
     # ----------------------------------------------------------------------------------------
-    def cluster(self, infname, debug=False, reco_info=None, outfile=None):
+    def cluster(self, infname, debug=False, reco_info=None, outfile=None, plotdir=''):
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile)
             for line in reader:
-                query1 = int(line['unique_id'])
-                query2 = int(line['second_unique_id'])
+                a_name = int(line['unique_id'])
+                b_name = int(line['second_unique_id'])
                 score = float(line['score'])
-                dbg_str_list = ['%22s %22s   %.3f' % (query1, query2, score), ]
-                self.incorporate_into_clusters(query1, query2, score, dbg_str_list)
-                self.pairscores[utils.get_key(query1, query2)] = score
-                if reco_info != None and reco_info[query1]['reco_id'] == reco_info[query2]['reco_id']:
-                    for query,score in {query1:score, query2:score}.iteritems():
-                        if query not in self.nearest_true_mate:
-                            self.nearest_true_mate[query] = score
-                        elif self.greater_than and score > self.nearest_true_mate[query]:
-                            self.nearest_true_mate[query] = score
-                        elif not self.greater_than and score < self.nearest_true_mate[query]:
-                            self.nearest_true_mate[query] = score
+                dbg_str_list = ['%22s %22s   %.3f' % (a_name, b_name, score), ]
+                self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
+                self.pairscores[(utils.get_key(a_name, b_name))] = score
+                self.plotscores['all'].append(score)
+                if reco_info != None:
+                    if reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']:
+                        self.plotscores['same'].append(score)
+                    else:
+                        self.plotscores['diff'].append(score)
+                # if reco_info != None and reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']:
+                #     for query,score in {a_name:score, b_name:score}.iteritems():
+                #         if query not in self.nearest_true_mate:
+                #             self.nearest_true_mate[query] = score
+                #         elif self.greater_than and score > self.nearest_true_mate[query]:
+                #             self.nearest_true_mate[query] = score
+                #         elif not self.greater_than and score < self.nearest_true_mate[query]:
+                #             self.nearest_true_mate[query] = score
                 if debug:
                     outstr = ''.join(dbg_str_list)
                     if outfile == None:
                         print outstr
                     else:
                         outfile.write(outstr + '\n')
+
+        if plotdir != '':
+            utils.prep_dir(plotdir + '/plots', '*.svg')
+            hists = {}
+            for htype in ['all', 'same', 'diff']:
+                hists[htype] = plotting.make_hist_from_list(self.plotscores[htype], htype + '_pairscores')
+                hists[htype].SetTitle(htype)
+            plotting.draw(hists['all'], 'float', plotdir=plotdir, plotname='pairscores', more_hists=[hists['same'], hists['diff']])
+            check_call(['makeHtml', plotdir, '3', 'null', 'svg'])
+            check_call(['./permissify-www', plotdir])
 
         for query, cluster_id in self.query_clusters.iteritems():
             if cluster_id not in self.id_clusters:

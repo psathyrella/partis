@@ -816,14 +816,24 @@ def hamming(seq1, seq2):
     return total
 
 # ----------------------------------------------------------------------------------------
-def get_key(query_name, second_query_name):
+def get_key(a_name, b_name):
     """
     Return a hashable combination of the two query names that's the same if we reverse their order.
     """
-    assert query_name != ''
-    if second_query_name == '':
-        second_query_name = '0'
-    return '.'.join(sorted([str(query_name), str(second_query_name)]))
+    assert a_name != ''
+    if b_name == '':
+        b_name = '0'
+    return '.'.join(sorted([str(a_name), str(b_name)]))
+
+# ----------------------------------------------------------------------------------------
+def split_key(key):
+    """ 
+    Reverse the action of get_key(). 
+    NOTE does not necessarily give a_ and b_ in the same order, though
+    NOTE also that b_name may not be the same (if 0), and this just returns strings, even if original names were ints
+    """
+    assert len(re.findall('.', key)) == 1  # make sure none of the keys had a dot in it
+    return key.split('.')
 
 # ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildling=None, multilings=None):

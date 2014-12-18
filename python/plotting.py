@@ -46,6 +46,8 @@ hard_bounds = {
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
     """ NOTE <values> should be sorted """
+    assert len(values) > 0
+    values = sorted(values)
     if is_log_x:
         log_xmin = math.log(pow(10.0, math.floor(math.log10(values[0]))))  # round down to the nearest power of 10 from the first entry
         log_xmax = math.log(pow(10.0, math.ceil(math.log10(values[-1]))))  # round up to the nearest power of 10 from the last entry
@@ -156,8 +158,21 @@ def make_bool_hist(n_true, n_false, hist_label):
     return hist
 
 # ----------------------------------------------------------------------------------------
+def make_hist_from_list(values, hist_label, n_bins=30):
+    """ Fill a histogram with float values in a list """
+    if len(values) == 0:
+        print 'WARNING no values for %s in make_hist' % hist_label
+        return TH1F(hist_label, '', 1, 0, 1)
+    xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
+    set_bins(values, n_bins, is_log_x=False, xbins=xbins, var_type='float')
+    hist = TH1F(hist_label, '', n_bins, xbins)
+    for val in values:
+        hist.Fill(val)
+    return hist
+
+# ----------------------------------------------------------------------------------------
 def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False, sort=False):
-    """ fill a histogram with values from a dictionary """
+    """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     if not has_root:
         return
     if len(values) == 0:
