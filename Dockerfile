@@ -1,6 +1,6 @@
 FROM matsengrp/cpp
 
 # make ham
-CMD git clone https://github.com/psathyrella/ham.git && \
-    cd ham && \
+COPY . /ham
+CMD cd /ham && \
     scons test
