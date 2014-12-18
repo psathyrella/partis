@@ -594,20 +594,23 @@ class HmmWriter(object):
                 else:
                     prob = mute_freq / 3.0
             else:  # pair hmm
-                for nuke in (nuke1, nuke2):
-                    if nuke == germline_nuke:
-                        prob *= 1.0 - mute_freq
-                    else:
-                        prob *= mute_freq / 3.0
-                # cryptic_factor_from_normalization = (math.sqrt(3.)*math.sqrt(-8.*mute_freq**2 + 16.*mute_freq + 27.) - 9.) / 12.
-                # if nuke1 == germline_nuke and nuke2 == germline_nuke:
-                #     prob = (1.0 - mute_freq)**2
-                # elif nuke1 == nuke2 and nuke1 != germline_nuke:  # assume this requires *one* mutation event (i.e. ignore higher-order terms, I think)
-                #     prob = cryptic_factor_from_normalization
-                # elif nuke1 == germline_nuke or nuke2 == germline_nuke:
-                #     prob = cryptic_factor_from_normalization
-                # else:
-                #     prob = cryptic_factor_from_normalization**2
+                # NOTE this is derived semi-hackiheuristically from a couple assumptions:
+                #   1) the ratio of two mutations occurring to one should be mute_freq
+                #   2) the prob of no mutations in either seq should be (1 - mute_freq)^2
+                #   3) matrix should be normalized
+                #   4) some reasonable assumptions about when one or two mutations occurred which you should be able to infer for the if/else structure below
+                #   NOTE that this is all roughly equivalent to doing things properly and then discarding terms in mute_freq of order greater than 1
+                #   Thus also NOTE if mute_freq isn't small this is likely a crappy model
+                cryptic_factor = (2 - mute_freq) / (6*mute_freq + 9)
+                if nuke1 == germline_nuke and nuke2 == germline_nuke:  # no mutations at all
+                    prob = (1.0 - mute_freq)**2
+                elif nuke1 == nuke2 and nuke1 != germline_nuke:  # mutated, but both seqs the same. We assume this requires *one* mutation event (i.e. ignore higher-order terms).
+                    prob = mute_freq * cryptic_factor
+                elif nuke1 == germline_nuke or nuke2 == germline_nuke:  # one sequence germline, the other mutated (still one mutation event)
+                    prob = mute_freq * cryptic_factor
+                else:  # both sequnces mutated separately (two mutation events)
+                    prob = mute_freq * mute_freq * cryptic_factor
+                assert prob >= 0
 
         return prob
 

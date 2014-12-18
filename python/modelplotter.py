@@ -25,7 +25,7 @@ def find_state_number(name):
 
 # ----------------------------------------------------------------------------------------
 class ModelPlotter(object):
-    def __init__(self, modeldir, base_plotdir, skip_boring_states=''):
+    def __init__(self, args, base_plotdir, skip_boring_states=''):
         self.base_plotdir = base_plotdir
         self.skip_boring_states = skip_boring_states
         plot_types = ('transitions', 'emissions', 'pair-emissions')
@@ -33,7 +33,13 @@ class ModelPlotter(object):
             plotdir = self.base_plotdir + '/' + ptype + '/plots'
             utils.prep_dir(plotdir, '*.png')
 
-        filelist = glob.glob(modeldir + '/*.yaml')
+        if args.hmmdir != None:
+            filelist = glob.glob(args.hmmdir + '/*.yaml')
+        else:
+            filelist = utils.get_arg_list(args.infiles)
+        if len(filelist) == 0:
+            print 'ERROR zero files passed to modelplotter'
+            sys.exit()
         for infname in filelist:
             gene_name = os.path.basename(infname).replace('.yaml', '')  # the sanitized name, actually
 # # ----------------------------------------------------------------------------------------
@@ -135,9 +141,10 @@ class ModelPlotter(object):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-parser.add_argument('--hmmdir', required=True)
+parser.add_argument('--hmmdir')
+parser.add_argument('--infiles')
 args = parser.parse_args()
         
 if __name__ == '__main__':
     # hmmdir = os.getenv('HOME') + '/work/partis/caches/' + args.label + '/' + args.flavor + '_parameters/hmms'
-    mplot = ModelPlotter(args.hmmdir, os.getenv('www') + '/modelplots/', skip_boring_states='v')
+    mplot = ModelPlotter(args, os.getenv('www') + '/modelplots/', skip_boring_states='v')
