@@ -43,7 +43,7 @@ parser.add_argument('--chunk-cache', action='store_true', help='Cache pieces of 
 
 parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simlated sequences')
 parser.add_argument('--n-procs', type=int, default=1, help='number of processes over which to parallelize')
-parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm? (Otherwise just runs them on local machine)')
+parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
