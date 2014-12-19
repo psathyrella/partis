@@ -1,6 +1,7 @@
 import sys
 import csv
 import math
+from operator import itemgetter
 from subprocess import check_call
 
 import utils
@@ -25,36 +26,40 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def cluster(self, infname, debug=False, reco_info=None, outfile=None, plotdir=''):
+        lines = []
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile)
             for line in reader:
-                a_name = int(line['unique_id'])
-                b_name = int(line['second_unique_id'])
-                score = float(line['score'])
-                from_same_event = -1 if reco_info == None else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
-                dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]
-                self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
-                self.pairscores[(utils.get_key(a_name, b_name))] = score
-                self.plotscores['all'].append(score)
-                if reco_info != None:
-                    if from_same_event:
-                        self.plotscores['same'].append(score)
-                    else:
-                        self.plotscores['diff'].append(score)
-                # if reco_info != None and reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']:
-                #     for query,score in {a_name:score, b_name:score}.iteritems():
-                #         if query not in self.nearest_true_mate:
-                #             self.nearest_true_mate[query] = score
-                #         elif self.greater_than and score > self.nearest_true_mate[query]:
-                #             self.nearest_true_mate[query] = score
-                #         elif not self.greater_than and score < self.nearest_true_mate[query]:
-                #             self.nearest_true_mate[query] = score
-                if debug:
-                    outstr = ''.join(dbg_str_list)
-                    if outfile == None:
-                        print outstr
-                    else:
-                        outfile.write(outstr + '\n')
+                lines.append(line)
+        sorted_lines = sorted(lines, key=lambda k: float(k['score']))
+        for line in sorted_lines:
+            a_name = int(line['unique_id'])
+            b_name = int(line['second_unique_id'])
+            score = float(line['score'])
+            from_same_event = -1 if reco_info == None else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
+            dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]
+            self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
+            self.pairscores[(utils.get_key(a_name, b_name))] = score
+            self.plotscores['all'].append(score)
+            if reco_info != None:
+                if from_same_event:
+                    self.plotscores['same'].append(score)
+                else:
+                    self.plotscores['diff'].append(score)
+            # if reco_info != None and reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']:
+            #     for query,score in {a_name:score, b_name:score}.iteritems():
+            #         if query not in self.nearest_true_mate:
+            #             self.nearest_true_mate[query] = score
+            #         elif self.greater_than and score > self.nearest_true_mate[query]:
+            #             self.nearest_true_mate[query] = score
+            #         elif not self.greater_than and score < self.nearest_true_mate[query]:
+            #             self.nearest_true_mate[query] = score
+            if debug:
+                outstr = ''.join(dbg_str_list)
+                if outfile == None:
+                    print outstr
+                else:
+                    outfile.write(outstr + '\n')
 
         if plotdir != '':
             utils.prep_dir(plotdir + '/plots', '*.svg')
