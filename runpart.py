@@ -51,6 +51,8 @@ parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum numbe
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--seed', type=int, help='Random seed for use by recombinator (to allow reproducibility)')
 
+parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
+
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 
 parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
