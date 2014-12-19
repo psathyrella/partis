@@ -283,10 +283,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
-        start = time.time()
+        # start = time.time()
 
         # build the command line
-        cmd_str = './packages/ham/bcrham'
+        cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
+        if self.args.slurm:
+            cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
         if self.args.chunk_cache:
             cmd_str += ' --chunk-cache '
@@ -565,6 +567,7 @@ class PartitionDriver(object):
                 if algorithm == 'viterbi':
                     this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
+                        n_processed += 1
                         if self.args.debug:
                             print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
                             if self.args.pair:
@@ -593,8 +596,7 @@ class PartitionDriver(object):
                         pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                     # if self.args.outfname != None:
                     #     self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
-
-                n_processed += 1
+                    n_processed += 1
 
         print '  processed %d queries' % n_processed
         if n_boundary_errors > 0:
