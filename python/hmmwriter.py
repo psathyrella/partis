@@ -247,7 +247,7 @@ class HmmWriter(object):
         for insertion in self.insertions:
             if insertion == 'jf':
                 continue
-            self.add_lefthand_insert_state(insertion)
+            self.add_lefthand_insert_states(insertion)
         # then write internal states
         assert self.smallest_entry_index >= 0  # should have been set in add_region_entry_transitions
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
@@ -267,11 +267,12 @@ class HmmWriter(object):
         self.hmm.add_state(init_state)
 
     # ----------------------------------------------------------------------------------------
-    def add_lefthand_insert_state(self, insertion):
-        insert_state = State('insert_left')
-        self.add_region_entry_transitions(insert_state, insertion)
-        self.add_emissions(insert_state)
-        self.hmm.add_state(insert_state)
+    def add_lefthand_insert_states(self, insertion):
+        for nuke in utils.nukes:
+            insert_state = State('insert_left_' + nuke)
+            self.add_region_entry_transitions(insert_state, insertion)
+            self.add_emissions(insert_state, germline_nuke=nuke)
+            self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, inuke):
@@ -492,7 +493,7 @@ class HmmWriter(object):
         The two <mostly>s are there because in both cases, we're starting from *approximate* smith-waterman alignments, so we need to add some fuzz in case the s-w is off.
         """
         assert 'jf' not in insertion  # need these to only be *left*-hand insertions
-        assert state.name == 'init' or state.name == 'insert_left'
+        assert state.name == 'init' or 'insert' in state.name
 
         region_entry_prob = 0.0  # Prob to go directly into the region (i.e. with no insertion)
                                  # The sum of the region entry probs must be (1 - non_zero_insertion_prob) for d and j
@@ -504,15 +505,17 @@ class HmmWriter(object):
                 region_entry_prob = 1.0  # if no insert state on this side (i.e. we're on left side of v), we have no choice but to enter the region (the internal states)
             else:
                 region_entry_prob = self.insertion_probs[insertion][0]  # prob of entering the region from 'init' is the prob of a zero-length insertion
-        elif state.name == 'insert_left':
+        elif 'insert' in state.name:
             region_entry_prob = 1.0 - self.get_insert_self_transition_prob(insertion)  # the 'insert_left' state has to either go to itself, or else enter the region
         else:
             assert False
 
         # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
         # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
+        # update: now, we also multiply by the insertion content prob, since we now have four insert states (and can thus no longer use this prob in the emissions)
         if insertion != '':
-            state.add_transition('insert_left', 1.0 - region_entry_prob)
+            for nuke in utils.nukes:
+                state.add_transition('insert_left_' + nuke, (1.0 - region_entry_prob) * self.insertion_content_probs[insertion][nuke])
 
         # then add transitions to the region's internal states
         erosion = self.region + '_5p'
@@ -567,16 +570,19 @@ class HmmWriter(object):
         prob = 1.0
         if is_insert:
             assert insertion != ''
-            probs = self.insertion_content_probs[insertion]
+            mute_freq = self.mute_freqs['overall_mean']  # for now, just use the mean mute freq over the whole sequence for the insertion mute freq
+            assert germline_nuke in utils.nukes  # make sure I'm passing it through properly (can remove this as soon as things work)
             if nuke2 == '':  # single (non-pair) emission
-                prob = probs[nuke1]
+                if nuke1 == germline_nuke:
+                    prob = 1.0  # I can think of some other ways to arrange this, but this seems ok
+                else:
+                    prob = 0.0
             else:
-                prob = probs[nuke1] * probs[nuke2]
-                # NOTE need to incorporate mutation probs in here!
-                # if nuke1 == nuke2:
-                #     prob *= (1. - self.insert_mute_prob)
-                # else:
-                #     prob *= self.insert_mute_prob
+                for nuke in nuke1, nuke2:
+                    if nuke == germline_nuke:  # don't forget here that the 'germline' nuke isn't necessarily the germline once we're passing sequence pairs through (unlike when we're actually within the v, d, or j regions)
+                        prob *= 1.0 - mute_freq
+                    else:
+                        prob *= mute_freq / 3.0
         else:
             assert inuke >= 0
             assert germline_nuke != ''
