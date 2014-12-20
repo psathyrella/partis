@@ -21,16 +21,14 @@ parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g
 parser.add_argument('--n-sim-seqs', default='10000')
 parser.add_argument('--datadir', required=True)  #default='data/imgt')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
-parser.add_argument('--skip-simulation', action='store_true')  # skip param caching on data and subsequent simulation
 parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
 parser.add_argument('--simfname')
 parser.add_argument('--plotdir')
-parser.add_argument('--only-plot-performance', action='store_true')  # also skip parameter caching on simulation
+parser.add_argument('--actions', default='cache-data-parameters:simulate:cache-simu-parameters:plot-performance', help='Colon-separated list of actions to perform')
 
 args = parser.parse_args()
 args.extra_args = utils.get_arg_list(args.extra_args)
-if args.only_plot_performance:
-    args.skip_simulation = True
+args.actions = utils.get_arg_list(args.actions)
 
 cmd = './runpart.py'
 common_args = ' --n-procs 10 --datadir ' + args.datadir  #+ ' --only-genes \'IGHV1-18*01:IGHD3-10*01:IGHJ6*03\''
@@ -42,7 +40,7 @@ param_dir = 'caches/performance/' + args.label
 if args.plotdir == None:
     args.plotdir = os.getenv('www') + '/partis/performance/' + args.label
 
-if not args.only_plot_performance:
+if 'cache-data-parameters' in args.actions:
     # cache parameters from data
     cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
@@ -50,7 +48,7 @@ if not args.only_plot_performance:
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_that_shit(cmd_str)
 
-if not args.skip_simulation:
+if 'simulate' in args.actions:
     n_reco_events = float(args.n_sim_seqs) / 5  # a.t.m. I'm just hard coding five seqs per reco event
     assert n_reco_events > 0
     # simulate based on data parameters
@@ -59,16 +57,17 @@ if not args.skip_simulation:
     cmd_str += ' --n-max-queries ' + str(int(n_reco_events))
     run_that_shit(cmd_str)
 
-# cache parameters from simulation
-cmd_str = ' --cache-parameters --seqfile ' + args.simfname + common_args
-cmd_str += ' --parameter-dir ' + param_dir + '/simu'
-cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
-cmd_str += ' --n-max-queries ' + args.n_queries
-run_that_shit(cmd_str)
+if 'cache-simu-parameters' in args.actions:
+    # cache parameters from simulation
+    cmd_str = ' --cache-parameters --seqfile ' + args.simfname + common_args
+    cmd_str += ' --parameter-dir ' + param_dir + '/simu'
+    cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
+    cmd_str += ' --n-max-queries ' + args.n_queries
+    run_that_shit(cmd_str)
 
-# run point estimation on simulation
-cmd_str = ' --point-estimate --plot-performance --seqfile ' + args.simfname + common_args
-cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm_parameters'
-cmd_str += ' --plotdir ' + args.plotdir
-cmd_str += ' --n-max-queries ' + args.n_queries
-run_that_shit(cmd_str)
+if 'plot-performance' in args.actions:  # run point estimation on simulation
+    cmd_str = ' --point-estimate --plot-performance --seqfile ' + args.simfname + common_args
+    cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm_parameters'
+    cmd_str += ' --plotdir ' + args.plotdir
+    cmd_str += ' --n-max-queries ' + args.n_queries
+    run_that_shit(cmd_str)
