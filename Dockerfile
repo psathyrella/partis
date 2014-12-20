@@ -23,7 +23,8 @@ RUN pip install \
     lxml \
     networkx \
     pysam \
-    pyyaml
+    pyyaml \
+    dendropy
 
 # set up auth
 RUN mkdir -p /root/.ssh && \
