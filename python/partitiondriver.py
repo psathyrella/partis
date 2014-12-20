@@ -591,9 +591,14 @@ class PartitionDriver(object):
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     # if self.args.debug:
                     #     print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
-                        # print '   %7.3f   %d' % (float(line['score']), from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
+                    #     print '   %7.3f   %d' % (float(line['score']), from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
+                    if line['score'] == '-nan':
+                        print '    WARNING encountered -nan, setting to -999999.0'
+                        score = -999999.0
+                    else:
+                        score = float(line['score'])
                     with opener('a')(pairscorefname) as pairscorefile:
-                        pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                        pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], score))
                     # if self.args.outfname != None:
                     #     self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                     n_processed += 1
