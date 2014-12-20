@@ -208,7 +208,9 @@ int main(int argc, const char * argv[]) {
       Result result_a = jh.Run(seqs[is][0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
       Result result_b = jh.Run(seqs[is][1], kbounds);
 
-      if(result_a.boundary_error() || result_b.boundary_error()) cout << "WARNING boundary errors for " << seqs[is][0].name() << " " << seqs[is][1].name() << endl;
+      if(result_a.boundary_error() || result_b.boundary_error())
+	if (args.debug())  // boundary errors are bad for single sequences, or for pairs of sequences that are clonally related... but are totally expected for unrelated pairs
+	  cout << "WARNING boundary errors for " << seqs[is][0].name() << " " << seqs[is][1].name() << endl;
       if(args.debug()) print_forward_scores(score, result_a.total_score(), result_b.total_score());
       score = score - result_a.total_score() - result_b.total_score();
     }
