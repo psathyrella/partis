@@ -23,9 +23,10 @@ import paramutils
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
     def __init__(self, args, total_length_from_right=-1):
-        self.workdir = '/tmp/' + os.getenv('USER') + '/recombinator/' + str(os.getpid())
-        utils.prep_dir(self.workdir)
         self.args = args
+        self.workdir = self.args.workdir + '/recombinator'
+        utils.prep_dir(self.workdir)
+        assert os.path.exists(self.args.parameter_dir)
         assert os.path.exists(self.args.parameter_dir)
         # parameters that control recombination, erosion, and whatnot
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
