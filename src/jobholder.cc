@@ -175,7 +175,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // return if no valid path
   if(best_kset.v == 0) {
-    cout << "ERROR no valid paths for " << seqs[0].name() << (seqs.n_seqs() == 2 ? seqs[1].name() : "") << endl;
+    cout << "ERROR no valid paths for " << seqs[0].name() << " " << (seqs.n_seqs() == 2 ? seqs[1].name() : "") << endl;
     result.no_path_ = true;
     return result;
   }
