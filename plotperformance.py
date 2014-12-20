@@ -35,10 +35,10 @@ common_args = ' --n-procs 10 --datadir ' + args.datadir  #+ ' --only-genes \'IGH
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args)
 if args.simfname == None:
-    args.simfname = 'caches/recombinator/performance/' + args.label + '/simu.csv'
-param_dir = 'caches/performance/' + args.label
+    args.simfname = 'caches/' + args.label + '/simu.csv'
+param_dir = 'caches/' + args.label
 if args.plotdir == None:
-    args.plotdir = os.getenv('www') + '/partis/performance/' + args.label
+    args.plotdir = os.getenv('www') + '/partis/' + args.label
 
 if 'cache-data-parameters' in args.actions:
     # cache parameters from data
