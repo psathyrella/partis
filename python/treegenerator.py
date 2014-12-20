@@ -144,9 +144,3 @@ class TreeGenerator(object):
                 check_call(r_command, shell=True)
         else:
             assert False
-    
-           # # plot the tree to a png
-           # r_command += 'png(file=\\"foo.png\\"); '
-           # r_command += 'plot.phylo(tree); '
-           # r_command += 'add.scale.bar(); '
-           # r_command += 'dev.off(); '

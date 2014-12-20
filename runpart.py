@@ -63,8 +63,10 @@ parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
-parser.add_argument('--hackey-extra-data-dir', default='data/recombinator', help='Directory from which to read tree parameters that we\'re not yet inferring, i.e. which do not correspond to the query sequences')
+# parser.add_argument('--hackey-extra-data-dir', default='data/recombinator', help='Directory from which to read tree parameters that we\'re not yet inferring, i.e. which do not correspond to the query sequences')
 parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
+parser.add_argument('--treefname', default='data/recombinator/trees.tre', help='File with list of newick-formated trees. Each rearrangement event chooses one at random')
+parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 args = parser.parse_args()
