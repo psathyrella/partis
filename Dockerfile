@@ -24,7 +24,8 @@ RUN pip install \
     networkx \
     pysam \
     pyyaml \
-    dendropy
+    dendropy \
+    biopython
 
 # set up auth
 RUN mkdir -p /root/.ssh && \
