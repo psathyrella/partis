@@ -1,40 +1,43 @@
 import os
 from SCons.Script import Command, Depends
 
+./bcrham --algorithm viterbi  --n_best_events 3 --debug 1 --hmmdir test/data/regression/bcrham --datadir test/data/regression/bcrham --infile test/data/regression/bcrham/_hmm_input.csv --outfile hmmout.csv
+
 ham_test = [
-    ["casino", "666655666613423414513666666666666", "", ""],
-    ["cpg", "ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT", "", ""],
-    ["pair-cpg",
-     "CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT",
-     "--pair",
-     "--seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT"]
+    ['casino', '666655666613423414513666666666666', '', ''],
+    ['cpg', 'ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT', '', ''],
+    ['pair-cpg',
+     'CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT',
+     '--pair',
+     '--seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT'],
+    ['bcrham-single-viterbi', 
 ]
 
-all_passed = "_results/ALL.passed"
-individual_passed = ["_results/{}.passed".format(c[0]) for c in ham_test]
+all_passed = '_results/ALL.passed'
+individual_passed = ['_results/{}.passed'.format(c[0]) for c in ham_test]
 
 for path in individual_passed + [all_passed]:
     if os.path.exists(path):
         os.remove(path)
 
 for c in ham_test:
-    out = "_results/{0}.out".format(*c)
+    out = '_results/{0}.out'.format(*c)
     # Run testham with specified conditions.
     Command(out,
-            ["../testham", "../examples/{0}.yaml".format(*c)],
-            "./${{SOURCES[0]}}\
+            ['../testham', '../examples/{0}.yaml'.format(*c)],
+            './${{SOURCES[0]}}\
             --hmmfname ${{SOURCES[1]}}\
             --seq {1}\
             {2}\
             {3}\
-            -o $TARGET".format(*c))
-    Depends(out, "../testham")
+            -o $TARGET'.format(*c))
+    Depends(out, '../testham')
     # Touch a sentinel `passed` file if we get what we expect.
-    Command("_results/{}.passed".format(c[0]),
-            [out, "data/regression/{}.out".format(c[0])],
-            "diff ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET")
+    Command('_results/{}.passed'.format(c[0]),
+            [out, 'data/regression/{}.out'.format(c[0])],
+            'diff ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
 
 # Set up sentinel dependency of all passed on the individual_passed sentinels.
 Command(all_passed,
         individual_passed,
-        "cat $SOURCES > $TARGET")
+        'cat $SOURCES > $TARGET')

@@ -147,7 +147,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
       Sequence second_sq(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
       seqs.AddSeq(second_sq);
     } else {
-      assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
+      // assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
     }
 
     all_seqs.push_back(seqs);
