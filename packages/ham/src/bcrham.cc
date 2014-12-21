@@ -283,11 +283,7 @@ void print_forward_scores(double ab_score, double a_score, double b_score) {
   double b_prob(exp(b_score));
   double bayes_factor(ab_prob / (a_prob*b_prob));
   if (fetestexcept(FE_UNDERFLOW | FE_OVERFLOW))
-<<<<<<< HEAD
     printf("%70s under/overflow when leaving log space\n", "");
-=======
-    printf("%70s under/overflow when leaving log space", "");
->>>>>>> e2f29fdbddeec4f779026b78c9a0dd3eb584a967
   else
     printf("%70s %8.1e / (%8.1e * %8.1e) = %8.1f\n", "", ab_prob, a_prob, b_prob, bayes_factor);
 }
