@@ -37,7 +37,7 @@ parser.add_argument('--seqfile', help='input sequence file')
 parser.add_argument('--parameter-dir', required=True, help='Directory to write sample-specific parameters to and/or read \'em from (e.g. mutation freqs)')
 parser.add_argument('--datadir', required=True, help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')
-parser.add_argument('--plotdir')
+parser.add_argument('--plotdir', default='/tmp/partis/plots')
 
 parser.add_argument('--chunk-cache', action='store_true', help='Cache pieces of the DP tables to allow reuse without recalculation')
 

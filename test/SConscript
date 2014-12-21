@@ -15,7 +15,7 @@ testoutdir = 'caches/test'
 if not os.path.exists('../' + testoutdir):
     os.makedirs('../' + testoutdir)
 
-base_cmd = './plotperformance.py --label test --datadir ' + datadir + ' --extra-args \' --seed:1\' --plotdir ' + testoutdir + '/plots'
+base_cmd = 'echo ./plotperformance.py --label test --datadir ' + datadir + ' --extra-args \' --seed:1\' --plotdir ' + testoutdir + '/plots'
 actions = OrderedDict()
 actions['cache-data-parameters'] = 'data'  # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
 actions['simulate'] = 'simu.csv'
@@ -26,8 +26,8 @@ tests = OrderedDict()
 for action in actions:
     tests[action] = base_cmd + ' --action ' + action
 tests['single-point-estimate'] = './runpart.py --point-estimate --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1'
-tests['partition-a-few'] = './runpart.py --partition --pair --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1'
-tests['viterbi-pair'] = './runpart.py --point-estimate --pair --datadir ' + datadir + ' --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1'
+tests['partition-a-few'] = './runpart.py --partition --pair --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
+tests['viterbi-pair'] = './runpart.py --point-estimate --pair --datadir ' + datadir + ' --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1 --truncate-pairs'
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/{}.passed'.format(name) for name in tests.keys()]
