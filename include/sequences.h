@@ -52,7 +52,7 @@ public:
   }
   string seq_str(string delimiter=" ") {
     string seq_str;
-    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) name_str += delimiter + seqs_[iseq].undigitized();
+    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) seq_str += delimiter + seqs_[iseq].undigitized_;
     return seq_str;
   }
 private:

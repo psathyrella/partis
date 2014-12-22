@@ -156,6 +156,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
     Sequences seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iqry) { // loop over each sequence in that query
+      cout << args.str_lists_["names"][iqry][iseq] << " " <<  args.str_lists_["seqs"][iqry][iseq] << endl;
       Sequence sq(args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq], trk);
       seqs.AddSeq(sq);
     }
@@ -167,7 +168,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score);
-void print_forward_scores(double ab_score, vector<double> a_score);
+void print_forward_scores(double ab_score, vector<double> single_scores);
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -253,7 +254,7 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
       RecoEvent *event = &events[ievt];
       string second_seq_name, second_seq;
       ofs  // be very, very careful to change this *and* the csv header above at the same time
-	<< seqs.  // event->seq_name_
+	<< seqs.name_str(":")
 	<< "," << event->genes_["v"]
 	<< "," << event->genes_["d"]
 	<< "," << event->genes_["j"]
@@ -268,23 +269,20 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
 	<< "," << event->deletions_["j_5p"]
 	<< "," << event->deletions_["j_3p"]
 	<< "," << event->score_
-	<< "," << event->seq_
-	<< "," << second_seq
+	<< "," << seqs.seq_str(":")
 	<< "," << ""  //errors
 	<< endl;
     }
   } else {
-    assert(seqs.n_seqs() == 2);  // er, at least for the moment
     ofs
-        << seqs[0].name()
-        << "," << seqs[1].name()
+        << seqs.name_str(":")
         << "," << total_score
         << "," << ""  //errors
         << endl;
   }
 }
 // ----------------------------------------------------------------------------------------
-void print_forward_scores(double ab_score, vector<double> single_score) {
+void print_forward_scores(double ab_score, vector<double> single_scores) {
   // NOTE need to update to work with k-hmms for k > 2
   printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", ab_score, single_scores[0], single_scores[1], ab_score - single_scores[0] - single_scores[1]);
   feclearexcept(FE_UNDERFLOW | FE_OVERFLOW);
