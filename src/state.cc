@@ -56,11 +56,16 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 
 // ----------------------------------------------------------------------------------------
 double State::emission_logprob(Sequences *seqs, size_t pos) {
-  if(seqs->n_seqs() == 2) {
-    return pair_emission_.score(seqs, pos);
+  if(seqs->n_seqs() == 1) {
+    // NOTE they're log probs, not scores, but I haven't yet managed to eliminate all the old 'score' names
+    return emission_.score(seqs->get_ptr(0), pos);  // get_ptr shenaniganery is to avoid performance hit from pass-by-value. Yes, I will at some point make it more elegant!
   } else {
-    assert(seqs->n_seqs() == 1);
-    return emission_.score(seqs->get_ptr(0), pos);
+    // return pair_emission_.score(seqs, pos);
+    // NOTE not necessarily a pair emission anymore! but our tables are all symmetric so a.t.m. you'll get the same answer
+    double log_prob = emission_.score(seqs->get_ptr(0), pos);  // initialize <log_prob> for the emission from the first sequence
+    for (size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq)  // then loop over the rest of the sequences
+      log_prob = AddWithMinusInfinities(log_prob, emission_.score(seqs->get_ptr(iseq), pos));  // NOTE ignores pair emission table (for the moment, that's ok)
+    return log_prob;
   }
 }
 

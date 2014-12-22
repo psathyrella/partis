@@ -132,7 +132,6 @@ Result JobHolder::Run(Sequence seq, KBounds kbounds) {
 Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
-  assert(seqs.n_seqs() == 1 || seqs.n_seqs() == 2);
   Clear();
   assert(trellisi_.size() == 0 && paths_.size() == 0 && all_scores_.size() == 0);
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
@@ -146,8 +145,6 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
   KSet best_kset(0, 0);
   double *total_score = &result.total_score_;  // total score for all ksets
   int n_too_long(0);
-  // for(size_t k_v = kbounds.vmin; k_v < kbounds.vmax; ++k_v) {
-  //   for(size_t k_d = kbounds.dmin; k_d < kbounds.dmax; ++k_d) {
   for(size_t k_v = kbounds.vmax-1; k_v >= kbounds.vmin; --k_v) {
     for(size_t k_d = kbounds.dmax-1; k_d >= kbounds.dmin; --k_d) {
       if(k_v + k_d >= seqs.GetSequenceLength()) {
@@ -211,20 +208,20 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score, string &origin) {
-  assert(query_strs.first.size() == query_seqs.GetSequenceLength());
+void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
   *score = -INFINITY;
   // initialize trellis and path
   if(trellisi_.find(gene) == trellisi_.end()) {
-    trellisi_[gene] = map<StrPair, trellis*>();
-    paths_[gene] = map<StrPair, TracebackPath*>();
+    trellisi_[gene] = map<vector<string>, trellis*>();
+    paths_[gene] = map<vector<string>, TracebackPath*>();
   }
   origin = "scratch";
   if (chunk_cache_) {  // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto & query_str_map : trellisi_[gene]) {
-      StrPair tmp_query_strs(query_str_map.first);
-      if (tmp_query_strs.first.find(query_strs.first) == 0) {
-	assert(tmp_query_strs.second.find(query_strs.second) == 0);
+      vector<string> tmp_query_strs(query_str_map.first);
+      if (tmp_query_strs[0].find(query_strs[0]) == 0) {
+	for (size_t iseq = 0; iseq < tmp_query_strs.n_seqs(); ++iseq)
+	  assert(tmp_query_strs[iseq].find(query_strs[iseq]) == 0);
 	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
 	origin = "chunk";
 	break;
@@ -343,24 +340,12 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
 }
 
 // ----------------------------------------------------------------------------------------
-StrPair JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
+vector<string> JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
   Sequences query_seqs(GetSubSeqs(seqs, kset, region));
-  StrPair query_strs;
-  query_strs.first = query_seqs[0].undigitized();
-  if(query_seqs.n_seqs() == 2) {   // the Sequences class should already ensure that both seqs are the same length
-    assert(seqs.n_seqs() == 2);
-    query_strs.second = query_seqs[1].undigitized();
-  }
+  vector<string> query_strs;
+  for (size_t iseq = 0; iseq < seqs.n_seqs(); ++iseq)
+    query_strs[iseq] = query_seqs[iseq].undigitized();
   return query_strs;
-}
-
-// ----------------------------------------------------------------------------------------
-// add two numbers, treating -INFINITY as zero, i.e. calculates log a*b = log a + log b, i.e. a *and* b
-double JobHolder::AddWithMinusInfinities(double first, double second) {
-  if(first == -INFINITY || second == -INFINITY)
-    return -INFINITY;
-  else
-    return first + second;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -379,14 +364,15 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
     TermColors tc;
     if(debug_ == 2) {
       if(algorithm_ == "viterbi") {
-        cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.second, query_strs.first) << endl;
-        if(seqs.n_seqs() == 2)
-          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.first, query_strs.second) << endl;
+	for (auto &seq : query_strs)
+	  cout << "              " << region << " query " << seq << endl;
+        // if(seqs.n_seqs() == 2)
+        //   cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.first, query_strs.second) << endl;
       } else {
         cout << "              " << region << endl;
       }
     }
-
+    assert(0);
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
     size_t igene(0), n_short_v(0), n_long_erosions(0);
@@ -395,12 +381,12 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
         continue;
       igene++;
 
-      if(region == "v" && query_strs.first.size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
+      if(region == "v" && query_strs[0].size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
         if(debug_ == 2) cout << "                     " << gene << " too short" << endl;
         n_short_v++;
         continue;
       }
-      if(query_strs.first.size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
+      if(query_strs[0].size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
         n_long_erosions++;
 
       double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
