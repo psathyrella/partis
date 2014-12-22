@@ -167,10 +167,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // return if no valid path
   if(best_kset.v == 0) {
-    cout << "ERROR no valid paths for ";
-    for (size_t iseq = 0; iseq < seqs.size(); ++iseq)
-      cout << seqs[iseq].name() << " " << seqs[iseq].name();
-    cout << endl;
+    cout << "ERROR no valid paths for " << seqs.name_str() << endl;
     result.no_path_ = true;
     return result;
   }
@@ -192,9 +189,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // print debug info
   if(debug_) {
-    cout << "    ";
-    for (size_t iseq = 0; iseq < seqs.size(); ++iseq)
-      cout << setw(22) << seqs[iseq].name() << " ";
+    cout << "    " << seqs.name_str();
     cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
     if(algorithm_ == "viterbi")
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
@@ -204,10 +199,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   result.check_boundaries(best_kset, kbounds);
   if(debug_ && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "WARNING maximum at boundary for ";
-    for (size_t iseq = 0; iseq < seqs.size(); ++iseq)
-      cout << " " << seqs[iseq].name();
-    cout << endl;
+    cout << "WARNING maximum at boundary for " << seqs.name_str() << endl;
     cout << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
          << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")" << endl;
     cout << "    expand to " << result.better_kbounds().stringify() << endl;
@@ -229,7 +221,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
     for(auto & query_str_map : trellisi_[gene]) {
       vector<string> tmp_query_strs(query_str_map.first);
       if (tmp_query_strs[0].find(query_strs[0]) == 0) {
-	for (size_t iseq = 0; iseq < tmp_query_strs.n_seqs(); ++iseq)
+	for (size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq)
 	  assert(tmp_query_strs[iseq].find(query_strs[iseq]) == 0);
 	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
 	origin = "chunk";
@@ -369,7 +361,7 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
   if(debug_ == 2)
     cout << "            " << kset.v << " " << kset.d << " -------------------" << endl;
   for(auto & region : gl_.regions_) {
-    StrPair query_strs(GetQueryStrs(seqs, kset, region));
+    vector<string> query_strs(GetQueryStrs(seqs, kset, region));
 
     TermColors tc;
     if(debug_ == 2) {
