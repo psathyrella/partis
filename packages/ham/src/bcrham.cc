@@ -15,7 +15,8 @@ using namespace ham;
 using namespace std;
 
 // ----------------------------------------------------------------------------------------
-// class for reading csv input file
+// input processing class
+// NOTE some input is passed on the command line (global configuration), while some is passed in a csv file (stuff that depends on each (pair of) sequence(s)).
 class Args {
 public:
   Args(int argc, const char * argv[]);
@@ -69,9 +70,9 @@ Args::Args(int argc, const char * argv[]):
   n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
   pair_arg_("p", "pair", "is this a pair hmm?", false),
   chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-  str_headers_ {"name", "seq", "second_name", "second_seq"},
+  str_headers_ {},
   int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
-  str_list_headers_{"only_genes"}  // args that are passed as colon-separated lists
+  str_list_headers_{"names", "seqs", "only_genes"}  // args that are passed as colon-separated lists
 {
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
@@ -151,21 +152,16 @@ vector<string> Args::Split(string argstr) {
 // read input sequences from file and return as vector of sequences
 vector<Sequences> GetSeqs(Args &args, Track *trk) {
   vector<Sequences> all_seqs;
-  for(size_t iseq = 0; iseq < args.strings_["seq"].size(); ++iseq) {
+  for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     Sequences seqs;
-    Sequence sq(args.strings_["name"][iseq], args.strings_["seq"][iseq], trk);
-    seqs.AddSeq(sq);
-    if(trk->n_seqs() == 2) {
-      assert(args.strings_["second_seq"][iseq].size() > 0);
-      assert(args.strings_["second_seq"][iseq] != "x");
-      Sequence second_sq(args.strings_["second_name"][iseq], args.strings_["second_seq"][iseq], trk);
-      seqs.AddSeq(second_sq);
-    } else {
-      // assert(args.strings_["second_seq"][iseq] == "x");  // er, not really necessary, I suppose...
+    assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
+    for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iqry) { // loop over each sequence in that query
+      Sequence sq(args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq], trk);
+      seqs.AddSeq(sq);
     }
-
     all_seqs.push_back(seqs);
   }
+  assert(all_seqs.size() == args.str_lists_["names"].size());
   return all_seqs;
 }
 
@@ -181,9 +177,9 @@ int main(int argc, const char * argv[]) {
   ofs.open(args.outfile());
   assert(ofs.is_open());
   if(args.algorithm() == "viterbi")
-    ofs << "unique_id,second_unique_id,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seq,second_seq,errors" << endl;
+    ofs << "unique_ids_id,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
   else
-    ofs << "unique_id,second_unique_id,score,errors" << endl;
+    ofs << "unique_ids,score,errors" << endl;
 
   // init some infrastructure
   size_t n_seqs_per_track(args.pair() ? 2 : 1);
@@ -197,10 +193,8 @@ int main(int argc, const char * argv[]) {
   // cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
   // clock_t run_start(clock());
 
-  assert(seqs.size() == args.strings_["name"].size());
   for(size_t is = 0; is < seqs.size(); is++) {
     if(args.debug()) cout << "  ---------" << endl;
-    if(args.pair()) assert(seqs[is].n_seqs() == 2);
     KSet kmin(args.integers_["k_v_min"][is], args.integers_["k_d_min"][is]);
     KSet kmax(args.integers_["k_v_max"][is], args.integers_["k_d_max"][is]);
     KBounds kbounds(kmin, kmax);

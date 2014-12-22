@@ -65,7 +65,10 @@ public:
     return region;
   }
   // ----------------------------------------------------------------------------------------
-  string ColorMutants(string color, string ref_1, string seq, string ref_2 = "") { // return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal
+  string ColorMutants(string color, string ref_1, string seq, string ref_2 = "") {
+    // Return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal.
+    // If <ref_1> is not specified, just return <seq>.
+    // If <ref_2> is specified, use bold text and reverse video to show mutants with respect to both references.
     if(ref_1.size() == 0)
       return seq;
     if(ref_1.size() != seq.size()) {

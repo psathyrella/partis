@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ham;
 
-typedef pair<string, string> StrPair;
-
 // ----------------------------------------------------------------------------------------
 class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j []
 public:
@@ -86,22 +84,21 @@ public:
   void SetDebug(int debug) { debug_ = debug; };
   void SetChunkCache(bool val) { chunk_cache_ = val; }
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
-  void FillTrellis(Sequences query_seqs, StrPair query_strs, string gene, double *score, string &origin);
+  void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
   void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   void StreamOutput(double test);  // print csv event info to stderr
-  StrPair GetQueryStrs(Sequences &seqs, KSet kset, string region);
+  vector<string> GetQueryStrs(Sequences &seqs, KSet kset, string region);
   void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
 private:
-  void PrintPath(StrPair query_strs, string gene, double score, string extra_str = "");
+  void PrintPath(vector<string> query_strs, string gene, double score, string extra_str = "");
   Sequences GetSubSeqs(Sequences &seqs, KSet kset, string region);
   map<string, Sequences> GetSubSeqs(Sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   void SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event);
   size_t GetInsertStart(string side, size_t path_length, size_t insert_length);
   size_t GetInsertLength(string side, vector<string> names);
   size_t GetErosionLength(string side, vector<string> names, string gene_name);
-  double AddWithMinusInfinities(double first, double second);
 
   string hmm_dir_;  // location of .hmm files
   GermLines &gl_;
@@ -112,9 +109,9 @@ private:
   size_t n_best_events_; // print and return this many events
   map<string, set<string> > only_genes_;
 
-  map<string, map<StrPair, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
-  map<string, map<StrPair, TracebackPath*> > paths_; // collection of the paths.
-  map<string, map<StrPair, double> > all_scores_;
+  map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
+  map<string, map<vector<string>, TracebackPath*> > paths_; // collection of the paths.
+  map<string, map<vector<string>, double> > all_scores_;
   map<string, double> best_per_gene_scores_;
 };
 #endif
