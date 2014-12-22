@@ -167,7 +167,10 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // return if no valid path
   if(best_kset.v == 0) {
-    cout << "ERROR no valid paths for " << seqs[0].name() << " " << (seqs.n_seqs() == 2 ? seqs[1].name() : "") << endl;
+    cout << "ERROR no valid paths for ";
+    for (size_t iseq = 0; iseq < seqs.size(); ++iseq)
+      cout << seqs[iseq].name() << " " << seqs[iseq].name();
+    cout << endl;
     result.no_path_ = true;
     return result;
   }
@@ -189,7 +192,10 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // print debug info
   if(debug_) {
-    cout << "    " << setw(22) << seqs[0].name() << " " << setw(22) << (seqs.n_seqs() == 2 ? seqs[1].name() : "") << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
+    cout << "    ";
+    for (size_t iseq = 0; iseq < seqs.size(); ++iseq)
+      cout << setw(22) << seqs[iseq].name() << " ";
+    cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
     if(algorithm_ == "viterbi")
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
     else
@@ -198,7 +204,10 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   result.check_boundaries(best_kset, kbounds);
   if(debug_ && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "WARNING maximum at boundary for " << seqs[0].name() << (seqs.n_seqs() == 2 ? seqs[1].name() : "") << endl;
+    cout << "WARNING maximum at boundary for ";
+    for (size_t iseq = 0; iseq < seqs.size(); ++iseq)
+      cout << " " << seqs[iseq].name();
+    cout << endl;
     cout << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
          << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")" << endl;
     cout << "    expand to " << result.better_kbounds().stringify() << endl;
@@ -257,7 +266,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string extra_str) {  // NOTE query_str is seq1xseq2 for pair hmm
+void JobHolder::PrintPath(vector<string> query_strs, string gene, double score, string extra_str) {  // NOTE query_str is seq1xseq2 for pair hmm
   if(score == -INFINITY) {
     // cout << "                    " << gene << " " << score << endl;
     return;
@@ -268,7 +277,7 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
     return;
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
-  assert(path_names.size() == query_strs.first.size());
+  assert(path_names.size() == query_strs[0].size());
   size_t left_insert_length = GetInsertLength("left", path_names);
   size_t right_insert_length = GetInsertLength("right", path_names);
   size_t left_erosion_length = GetErosionLength("left", path_names, gene);
@@ -280,12 +289,13 @@ void JobHolder::PrintPath(StrPair query_strs, string gene, double score, string 
     modified_seq = "i" + modified_seq;
   for(size_t i = 0; i < right_insert_length; ++i)
     modified_seq = modified_seq + "i";
-  assert(modified_seq.size() == query_strs.first.size());
-  assert(germline.size() + left_insert_length - left_erosion_length - right_erosion_length + right_insert_length == query_strs.first.size());
+  assert(modified_seq.size() == query_strs[0].size());
+  assert(germline.size() + left_insert_length - left_erosion_length - right_erosion_length + right_insert_length == query_strs[0].size());
   TermColors tc;
+  // NOTE would be nice to add the ref_2 arg back into tc.ColorMutants somehow
   cout
       << "                    "
-      << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs.first, modified_seq, query_strs.second) << (right_erosion_length > 0 ? ".." : "  ")
+      << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs[0], modified_seq/*, query_strs.second*/) << (right_erosion_length > 0 ? ".." : "  ")
       << "  " << extra_str
       // NOTE this doesn't include the overall gene prob!
       // << setw(12) << paths_[gene][query_strs]->score()
@@ -303,9 +313,9 @@ void JobHolder::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string
 // ----------------------------------------------------------------------------------------
 RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score) {
   RecoEvent event;
-  StrPair seq_strs;
+  vector<string> seq_strs;  // build up these strings summing over each regions
   for(auto & region : gl_.regions_) {
-    StrPair query_strs(GetQueryStrs(seqs, kset, region));
+    vector<string> query_strs(GetQueryStrs(seqs, kset, region));
     if(best_genes.find(region) == best_genes.end()) {
       seqs.Print();
     }
@@ -318,7 +328,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
       return event;
     }
     assert(path_names.size() > 0);
-    assert(path_names.size() == query_strs.first.size());
+    assert(path_names.size() == query_strs[0].size());
     event.SetGene(region, gene);
 
     // set right-hand deletions
@@ -326,15 +336,15 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     // and left-hand deletions
     event.SetDeletion(region + "_5p", GetErosionLength("left", path_names, gene));
 
-    SetInsertions(region, query_strs.first, path_names, &event);  // NOTE this sets the insertion *only* according to the *first* sequence. Which makes sense at the moment, since the RecoEvent class is only designed to represent a single sequence
+    SetInsertions(region, query_strs[0], path_names, &event);  // NOTE this sets the insertion *only* according to the *first* sequence. Which makes sense at the moment, since the RecoEvent class is only designed to represent a single sequence
 
-    seq_strs.first += query_strs.first;
-    seq_strs.second += query_strs.second;
+    for (size_t iseq = 0; iseq < seq_strs.size(); ++iseq)
+      seq_strs[iseq] += query_strs[iseq];
   }
 
-  event.SetSeq(seqs[0].name(), seq_strs.first);
-  if(seqs.n_seqs() == 2)
-    event.SetSecondSeq(seqs[1].name(), seq_strs.second);
+  event.SetSeq(seqs[0].name(), seq_strs[0]);
+  for (size_t iseq = 1; iseq < seq_strs.size(); ++iseq)
+    event.AddAuxiliarySeqs(seqs[iseq].name(), seq_strs[iseq]);
   event.SetScore(score);
   return event;
 }

@@ -167,7 +167,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score);
-void print_forward_scores(double ab_score, double a_score, double b_score);
+void print_forward_scores(double ab_score, vector<double> a_score);
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -177,7 +177,7 @@ int main(int argc, const char * argv[]) {
   ofs.open(args.outfile());
   assert(ofs.is_open());
   if(args.algorithm() == "viterbi")
-    ofs << "unique_ids_id,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
+    ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
   else
     ofs << "unique_ids,score,errors" << endl;
 
@@ -207,20 +207,26 @@ int main(int argc, const char * argv[]) {
     Result result(kbounds);
     do {
       result = jh.Run(seqs[is], kbounds);
-      if(result.could_not_expand()) cout << "WARNING " << seqs[is][0].name() << (seqs[is].n_seqs() == 2 ? seqs[is][1].name() : "") << " couldn't expand k bounds for " << kbounds.stringify() << endl;
+      if(result.could_not_expand()) {
+	cout << "WARNING " << seqs[is].name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
+      }
       kbounds = result.better_kbounds();
     } while(result.boundary_error() && !result.could_not_expand());
 
     double score(result.total_score());
-    if(args.algorithm() == "forward" && args.pair()) {
-      Result result_a = jh.Run(seqs[is][0], kbounds);  // denominator in P(A,B) / (P(A) P(B))
-      Result result_b = jh.Run(seqs[is][1], kbounds);
+    if(args.algorithm() == "forward" && seqs[is].n_seqs() > 1) {  // denominator in P(A,B) / (P(A) P(B)). NOTE now for C, D, E, F, ...
+      vector<double> single_scores;  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
+      for (size_t iseq = 0; iseq < seqs[is].n_seqs(); ++iseq) {  // NOTE kind of confusing, but <is> is looping over queries, while <iseq> is looping over the sequences within the <is>th query.
+	Result single_result = jh.Run(seqs[is][iseq], kbounds);  // result for single sequence
+	score -= single_result.total_score();
 
-      if(result_a.boundary_error() || result_b.boundary_error())
-	if (args.debug())  // boundary errors are bad for single sequences, or for pairs of sequences that are clonally related... but are totally expected for unrelated pairs
-	  cout << "WARNING boundary errors for " << seqs[is][0].name() << " " << seqs[is][1].name() << endl;
-      if(args.debug()) print_forward_scores(score, result_a.total_score(), result_b.total_score());
-      score = score - result_a.total_score() - result_b.total_score();
+	single_scores.push_back(single_result.total_score());
+	if(single_result.boundary_error())
+	  if (args.debug())  // boundary errors are bad for single sequences, or for pairs of sequences that are clonally related... but are totally expected for unrelated pairs
+	    cout << "WARNING boundary errors for " << seqs[is][iseq].name() << " when together with " << seqs[is].name_str() << endl;
+      }
+      if(args.debug())
+	print_forward_scores(score, single_scores);
     }
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
@@ -246,13 +252,8 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
     for(size_t ievt = 0; ievt < n_max; ++ievt) {
       RecoEvent *event = &events[ievt];
       string second_seq_name, second_seq;
-      if(args.pair()) {
-        second_seq_name = event->second_seq_name_;
-        second_seq = event->second_seq_;
-      }
       ofs  // be very, very careful to change this *and* the csv header above at the same time
-	<< event->seq_name_
-	<< "," << second_seq_name
+	<< seqs.  // event->seq_name_
 	<< "," << event->genes_["v"]
 	<< "," << event->genes_["d"]
 	<< "," << event->genes_["j"]
@@ -283,12 +284,13 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
   }
 }
 // ----------------------------------------------------------------------------------------
-void print_forward_scores(double ab_score, double a_score, double b_score) {
-  printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", ab_score, a_score, b_score, ab_score - a_score - b_score);
+void print_forward_scores(double ab_score, vector<double> single_score) {
+  // NOTE need to update to work with k-hmms for k > 2
+  printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", ab_score, single_scores[0], single_scores[1], ab_score - single_scores[0] - single_scores[1]);
   feclearexcept(FE_UNDERFLOW | FE_OVERFLOW);
   double ab_prob(exp(ab_score));
-  double a_prob(exp(a_score));
-  double b_prob(exp(b_score));
+  double a_prob(exp(single_scores[0]));
+  double b_prob(exp(single_scores[1]));
   double bayes_factor(ab_prob / (a_prob*b_prob));
   if (fetestexcept(FE_UNDERFLOW | FE_OVERFLOW))
     printf("%70s under/overflow when leaving log space\n", "");

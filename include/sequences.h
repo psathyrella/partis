@@ -45,6 +45,16 @@ public:
   Sequences GetSubSequences(size_t pos, size_t len);
 
   void Print();
+  string name_str(string delimiter=" ") {
+    string name_str;
+    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) name_str += delimiter + seqs_[iseq].name();
+    return name_str;
+  }
+  string seq_str(string delimiter=" ") {
+    string seq_str;
+    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) name_str += delimiter + seqs_[iseq].undigitized();
+    return seq_str;
+  }
 private:
   vector<Sequence> seqs_;
   size_t sequence_length_; // length of the sequences (required to be the same for all)

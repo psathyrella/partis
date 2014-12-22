@@ -184,8 +184,8 @@ public:
   map<string, string> insertions_;
   string seq_name_;
   string seq_;
-  string second_seq_name_;
-  string second_seq_;
+  vector<string> auxiliary_seq_names_;
+  vector<string> auxiliary_seqs_;
   float score_;
 
   bool operator < (const RecoEvent& rhs) const { return (score_ < rhs.score_); }  // return true if this event is more likely than the rhs event
@@ -194,19 +194,20 @@ public:
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
   void SetSeq(string seq_name, string seq) { seq_name_ = seq_name; seq_ = seq; }
-  void SetSecondSeq(string seq_name, string seq) {  // NOTE this class should in general be treated as representing a *single* event with a *single* sequence. It's just that we allow the possiblity here of attaching an auxiliary sequence, but e.g. the insertions should *not* be assumed to correspond to this second sequence.
+  void AddAuxiliarySeqs(string name, string seq) {  // NOTE this class should in general be treated as representing a *single* event with a *single* sequence. It's just that we allow the possiblity here of attaching auxiliary sequences, but e.g. the insertions should *not* be assumed to correspond to these other sequences
     assert(seq.size() == seq_.size());  // make sure we already have a first seq, and also that the new seq is the same size
-    second_seq_name_ = seq_name;
-    second_seq_ = seq;
+    auxiliary_seq_names_.push_back(name);
+    auxiliary_seqs_.push_back(seq);
   }
 
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
-  void Print(GermLines &germlines, size_t cyst_position = 0, size_t final_tryp_position = 0, bool one_line = false, bool print_second_seq = false, string extra_indent = "") {
+  void Print(GermLines &germlines, size_t cyst_position = 0, size_t final_tryp_position = 0, bool one_line = false, string extra_indent = "") {
     assert(0);  // this needs to be updated to match the python version
-    string print_seq = seq_;
-    if(print_second_seq)
-      print_seq = second_seq_;
+    string print_seq = seq_;  // this variable is a relic of past transgressions, should be redundantized when I finish what I'm doing
+    // need to update this to allow printing of auxiliary sequences... or not. Maybe just do it in the python version. I don't really use this anymore, actually
+    // if(print_second_seq)
+    //   print_seq = second_seq_;
 
     if(score_ == -INFINITY) {
       cout << "    " << extra_indent << score_ << endl;
