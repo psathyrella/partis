@@ -19,6 +19,7 @@ using namespace std;
 class Args {
 public:
   Args(int argc, const char * argv[]);
+  vector<string> Split(string arglist);  // str.split(':'), but all hackey-like 'cause it's c++
   string hmmdir() { return hmmdir_arg_.getValue(); }
   string datadir() { return datadir_arg_.getValue(); }
   string infile() { return infile_arg_.getValue(); }
@@ -42,10 +43,10 @@ public:
   SwitchArg chunk_cache_arg_;
 
   // arguments read from csv input file
-  string all_only_genes_;
   map<string, vector<string> > strings_;
   map<string, vector<int> > integers_;
-  set<string> str_headers_, int_headers_;
+  map<string, vector<vector<string> > > str_lists_;
+  set<string> str_headers_, int_headers_, str_list_headers_;
 
   // // extra values to cache command line args (TCLAP calls to ValuesConstraint::check() seem to be really slow
   // UPDATE hmm, didn't seem to help. leave it for the moment
@@ -56,20 +57,22 @@ public:
 // ----------------------------------------------------------------------------------------
 Args::Args(int argc, const char * argv[]):
   algo_strings_ {"viterbi", "forward"},
-              debug_ints_ {0, 1, 2},
-              algo_vals_(algo_strings_),
-              debug_vals_(debug_ints_),
-              hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
-              datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
-              infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
-              outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
-              algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
-              debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
-              n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-              pair_arg_("p", "pair", "is this a pair hmm?", false),
-              chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-              str_headers_ {"only_genes", "name", "seq", "second_name", "second_seq"},
-int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
+  debug_ints_ {0, 1, 2},
+  algo_vals_(algo_strings_),
+  debug_vals_(debug_ints_),
+  hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
+  datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
+  infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
+  outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
+  algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
+  debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
+  n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
+  pair_arg_("p", "pair", "is this a pair hmm?", false),
+  chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
+  str_headers_ {"name", "seq", "second_name", "second_seq"},
+  int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
+  str_list_headers_{"only_genes"}  // args that are passed as colon-separated lists
+{
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmdir_arg_);
@@ -117,12 +120,9 @@ int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
       if(str_headers_.find(head) != str_headers_.end()) {
         ss >> tmpstr;
         strings_[head].push_back(tmpstr);
-        if(head == "only_genes") {
-          if(all_only_genes_.size() == 0)
-            all_only_genes_ = tmpstr;
-          else
-            all_only_genes_ += ":" + tmpstr;
-        }
+      } else if(str_list_headers_.find(head) != str_list_headers_.end()) {
+	ss >> tmpstr;
+	str_lists_[head].push_back(Split(tmpstr));
       } else if(int_headers_.find(head) != int_headers_.end()) {
         ss >> tmpint;
         integers_[head].push_back(tmpint);
@@ -131,6 +131,20 @@ int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"} {
       }
     }
   }
+}
+
+// ----------------------------------------------------------------------------------------
+vector<string> Args::Split(string argstr) {
+  vector<string> arglist;
+  while(true) {
+    size_t i_next_colon(argstr.find(":"));
+    string arg = argstr.substr(0, i_next_colon); // get the next arg in the colon-separated list
+    arglist.push_back(arg); // add it to arglist
+    argstr = argstr.substr(i_next_colon + 1); // then excise it from argstr
+    if(i_next_colon == string::npos)
+      break;
+  }
+  return arglist;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -191,7 +205,7 @@ int main(int argc, const char * argv[]) {
     KSet kmax(args.integers_["k_v_max"][is], args.integers_["k_d_max"][is]);
     KBounds kbounds(kmin, kmax);
 
-    JobHolder jh(gl, hmms, args.algorithm(), args.strings_["only_genes"][is]);
+    JobHolder jh(gl, hmms, args.algorithm(), args.str_lists_["only_genes"][is]);
     jh.SetDebug(args.debug());
     jh.SetChunkCache(args.chunk_cache());
     jh.SetNBestEvents(args.n_best_events());

@@ -58,7 +58,7 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string only_gene_str):
+JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes):
   gl_(gl),
   hmms_(hmms),
   algorithm_(algorithm),
@@ -66,19 +66,14 @@ JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, string on
   chunk_cache_(false),
   // total_score_(-INFINITY),
   n_best_events_(5) {
-  if(only_gene_str.size() > 0) {
-    for(auto & region : gl_.regions_)
+  if(only_genes.size() > 0) {
+    for(auto & region : gl_.regions_)  // initialize
       only_genes_[region] = set<string>();
-    while(true) {
-      size_t i_next_colon(only_gene_str.find(":"));
-      string gene = only_gene_str.substr(0, i_next_colon); // get the next gene name
+    for (auto &gene : only_genes)  // insert each gene in the proper region
       only_genes_[gl_.GetRegion(gene)].insert(gene);
-      only_gene_str = only_gene_str.substr(i_next_colon + 1); // then excise it from only_gene_str
-      if(i_next_colon == string::npos)
-        break;
-    }
-    for(auto & region : gl_.regions_)
-      assert(only_genes_[region].size() > 0);
+    for(auto &region : gl_.regions_)  // then make sure we have at least one gene for each region
+      if(only_genes_[region].size() == 0)
+	throw runtime_error("ERROR jobholder didn't get any genes for " + region + " region");
   }
 }
 
