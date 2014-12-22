@@ -1,14 +1,17 @@
 import os
+import glob
 from collections import OrderedDict
 from SCons.Script import Command, Depends
 
-# ./bcrham --algorithm viterbi  --n_best_events 3 --debug 1 --hmmdir test/data/regression/bcrham --datadir test/data/regression/bcrham --infile test/data/regression/bcrham/_hmm_input.csv --outfile hmmout.csv
-
 tests = OrderedDict()
-tests['casino'] = '--seq 666655666613423414513666666666666'
-tests['cpg'] = '--seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT'
-tests['pair-cpg'] = '--pair --seq CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT'
-# tests['bcrham-single-viterbi', 
+tests['casino'] = ' --seq 666655666613423414513666666666666'
+tests['cpg'] = ' --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT'
+tests['pair-cpg'] = ' --pair --seq CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT'
+
+bcrham_args = ' --debug 1 --n_best_events 3 --hmmdir test/data/regression/bcrham --datadir test/data/regression/bcrham --infile test/data/regression/bcrham/_hmm_input.csv'
+tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args
+tests['bcrham-pair-viterbi'] = ' --pair --algorithm viterbi' + bcrham_args
+tests['bcrham-forward'] = ' --pair --algorithm forward' + bcrham_args
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/%s.passed' % test for test in tests]
@@ -19,11 +22,18 @@ for path in individual_passed + [all_passed]:
 
 for test, args in tests.items():
     out = '_results/{0}.out'.format(test)
-    # Run testham with specified conditions.
-    Command(out,
-            ['../testham', '../examples/%s.yaml' % test],
-            './${SOURCES[0]} --hmmfname ${SOURCES[1]} ' + args + ' -o $TARGET')
-    Depends(out, '../testham')
+    if 'bcrham' in test:
+        Command(out,
+                ['../bcrham',] + glob.glob('data/regression/bcrham/*'),
+                './${SOURCES[0]} ' + args + ' --outfile $TARGET')
+        Depends(out, '../bcrham')
+    else:
+        # Run testham with specified conditions.
+        Command(out,
+                ['../testham', '../examples/%s.yaml' % test],
+                './${SOURCES[0]} --hmmfname ${SOURCES[1]} ' + args + ' -o $TARGET')
+        Depends(out, '../testham')
+
     # Touch a sentinel `passed` file if we get what we expect.
     Command('_results/%s.passed' % test,
             [out, 'data/regression/%s.out' % test],
