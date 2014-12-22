@@ -577,7 +577,7 @@ class HmmWriter(object):
                     prob = 1.0  # I can think of some other ways to arrange this, but this seems ok
                 else:
                     prob = 0.0
-            else:
+            else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
                 for nuke in nuke1, nuke2:
                     if nuke == germline_nuke:  # don't forget here that the 'germline' nuke isn't necessarily the germline once we're passing sequence pairs through (unlike when we're actually within the v, d, or j regions)
                         prob *= 1.0 - mute_freq
@@ -620,7 +620,7 @@ class HmmWriter(object):
                         prob = mute_freq * cryptic_factor
                     else:  # both sequnces mutated separately (two mutation events)
                         prob = mute_freq * mute_freq * cryptic_factor
-                else:
+                else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
                     for nuke in (nuke1, nuke2):
                         if nuke == germline_nuke:
                             prob *= 1.0 - mute_freq
