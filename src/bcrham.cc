@@ -155,8 +155,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     Sequences seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
-    for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iqry) { // loop over each sequence in that query
-      cout << args.str_lists_["names"][iqry][iseq] << " " <<  args.str_lists_["seqs"][iqry][iseq] << endl;
+    for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq], trk);
       seqs.AddSeq(sq);
     }
@@ -214,12 +213,12 @@ int main(int argc, const char * argv[]) {
       kbounds = result.better_kbounds();
     } while(result.boundary_error() && !result.could_not_expand());
 
-    double score(result.total_score());
+    double numerator(result.total_score()),total_score(result.total_score());;
     if(args.algorithm() == "forward" && seqs[is].n_seqs() > 1) {  // denominator in P(A,B) / (P(A) P(B)). NOTE now for C, D, E, F, ...
       vector<double> single_scores;  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
       for (size_t iseq = 0; iseq < seqs[is].n_seqs(); ++iseq) {  // NOTE kind of confusing, but <is> is looping over queries, while <iseq> is looping over the sequences within the <is>th query.
 	Result single_result = jh.Run(seqs[is][iseq], kbounds);  // result for single sequence
-	score -= single_result.total_score();
+	total_score -= single_result.total_score();
 
 	single_scores.push_back(single_result.total_score());
 	if(single_result.boundary_error())
@@ -227,7 +226,7 @@ int main(int argc, const char * argv[]) {
 	    cout << "WARNING boundary errors for " << seqs[is][iseq].name() << " when together with " << seqs[is].name_str() << endl;
       }
       if(args.debug())
-	print_forward_scores(score, single_scores);
+	print_forward_scores(numerator, single_scores);
     }
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
@@ -236,7 +235,7 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, seqs[is], score);
+    StreamOutput(ofs, args, result.events_, seqs[is], total_score);
   }
 
   // cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
