@@ -189,7 +189,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // print debug info
   if(debug_) {
-    cout << "    " << seqs.name_str();
+    cout << "    " << setw(48) << seqs.name_str();
     cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
     if(algorithm_ == "viterbi")
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
@@ -284,16 +284,19 @@ void JobHolder::PrintPath(vector<string> query_strs, string gene, double score, 
   assert(modified_seq.size() == query_strs[0].size());
   assert(germline.size() + left_insert_length - left_erosion_length - right_erosion_length + right_insert_length == query_strs[0].size());
   TermColors tc;
-  // NOTE would be nice to add the ref_2 arg back into tc.ColorMutants somehow
   cout
-      << "                    "
-      << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs[0], modified_seq/*, query_strs.second*/) << (right_erosion_length > 0 ? ".." : "  ")
-      << "  " << extra_str
-      // NOTE this doesn't include the overall gene prob!
-      // << setw(12) << paths_[gene][query_strs]->score()
-      << setw(12) << score
-      << setw(25) << gene
-      << endl;
+    << "                    ";
+  if (query_strs.size() == 2) {
+    cout << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs[0], modified_seq, query_strs[1]) << (right_erosion_length > 0 ? ".." : "  ");
+  } else {
+    cout << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs[0], modified_seq/*, query_strs.second*/) << (right_erosion_length > 0 ? ".." : "  ");
+  }
+  cout << "  " << extra_str
+    // NOTE this doesn't include the overall gene prob!
+    // << setw(12) << paths_[gene][query_strs]->score()
+       << setw(12) << score
+       << setw(25) << gene
+       << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -305,7 +308,7 @@ void JobHolder::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string
 // ----------------------------------------------------------------------------------------
 RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score) {
   RecoEvent event;
-  vector<string> seq_strs;  // build up these strings summing over each regions
+  vector<string> seq_strs(seqs.n_seqs(), "");  // build up these strings summing over each regions
   for(auto & region : gl_.regions_) {
     vector<string> query_strs(GetQueryStrs(seqs, kset, region));
     if(best_genes.find(region) == best_genes.end()) {
@@ -346,7 +349,7 @@ vector<string> JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region
   Sequences query_seqs(GetSubSeqs(seqs, kset, region));
   vector<string> query_strs;
   for (size_t iseq = 0; iseq < seqs.n_seqs(); ++iseq)
-    query_strs[iseq] = query_seqs[iseq].undigitized();
+    query_strs.push_back(query_seqs[iseq].undigitized());
   return query_strs;
 }
 
@@ -366,15 +369,18 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
     TermColors tc;
     if(debug_ == 2) {
       if(algorithm_ == "viterbi") {
-	for (auto &seq : query_strs)
-	  cout << "              " << region << " query " << seq << endl;
-        // if(seqs.n_seqs() == 2)
-        //   cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs.first, query_strs.second) << endl;
+        if(seqs.n_seqs() == 2) {
+          cout << "              " << region << " query " << query_strs[0] << endl;
+          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[0], query_strs[1]) << endl;
+	} else {
+	  for (auto &seq : query_strs)
+	    cout << "              " << region << " query " << seq << endl;
+	}
       } else {
         cout << "              " << region << endl;
       }
     }
-    assert(0);
+
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
     size_t igene(0), n_short_v(0), n_long_erosions(0);

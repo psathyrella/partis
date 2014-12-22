@@ -20,9 +20,12 @@ public:
   void AddColumn(vector<double> logprobs);
 
   inline double LogProb(size_t letter) { assert(letter < (*log_probs_)[0].size()); return (*log_probs_)[0][letter]; }
-  inline double LogProb(size_t letter1, size_t letter2) { assert(0);  /* shouldn't be using this function a.t.m. */ assert(letter1 < log_probs_->size()); assert(letter2 < (*log_probs_)[letter1].size()); return (*log_probs_)[letter1][letter2]; }
+  inline double LogProb(size_t letter1, size_t letter2) {
+    assert(letter1 < log_probs_->size());
+    assert(letter2 < (*log_probs_)[letter1].size());
+    return (*log_probs_)[letter1][letter2];
+  }
   inline double LogProb(Sequences *seqs, size_t pos) {
-    assert(0);  // shouldn't be using this function a.t.m.
     return (*log_probs_)[(*seqs)[0][pos]][(*seqs)[1][pos]];
   }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
   inline double LogProb(Sequence *seq, size_t pos) {

@@ -47,12 +47,18 @@ public:
   void Print();
   string name_str(string delimiter=" ") {
     string name_str;
-    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) name_str += delimiter + seqs_[iseq].name();
+    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) {
+      if (iseq > 0) name_str += delimiter;
+      name_str += seqs_[iseq].name();
+    }
     return name_str;
   }
   string seq_str(string delimiter=" ") {
     string seq_str;
-    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) seq_str += delimiter + seqs_[iseq].undigitized_;
+    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) {
+      if (iseq > 0) seq_str += delimiter;
+      seq_str += seqs_[iseq].undigitized_;
+    }
     return seq_str;
   }
 private:
