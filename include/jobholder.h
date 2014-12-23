@@ -42,13 +42,12 @@ public:
 // ----------------------------------------------------------------------------------------
 class HMMHolder {
 public:
-  HMMHolder(string hmm_dir, size_t n_seqs_per_track, GermLines &gl): hmm_dir_(hmm_dir), n_seqs_per_track_(n_seqs_per_track), gl_(gl) {}
+  HMMHolder(string hmm_dir, GermLines &gl): hmm_dir_(hmm_dir), gl_(gl) {}
   ~HMMHolder();
   Model *Get(string gene, bool debug);
   void CacheAll();  // read all available hmms into memory
 private:
   string hmm_dir_;
-  size_t n_seqs_per_track_;
   GermLines &gl_;
   map<string, Model*> hmms_; // map of gene name to hmm pointer
 };

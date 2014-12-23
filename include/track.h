@@ -17,14 +17,13 @@ class Track {
   friend class Tracks;
 public:
   Track() : track_index_(numeric_limits<size_t>::max()) {}
-  Track(string, size_t, vector<string>);
+  Track(string, vector<string>);
   void set_name(string nm) { name_ = nm; }
   void set_index(size_t index) { assert(index < numeric_limits<size_t>::max());  track_index_ = index; }
   void AddSymbol(string symbol);
   void AddSymbols(vector<string> &symbols);
 
   string name() { return name_; }
-  size_t n_seqs() { return n_seqs_; }
   size_t index() { return track_index_; }
   size_t alphabet_size() { return alphabet_.size(); }
   string symbol(size_t iter) { return alphabet_.at(iter); }  // return <iter>th element of <alphabet_> (which is probably a letter, but could be several letters or something else)
@@ -32,7 +31,6 @@ public:
   string Stringify();
 private:
   string name_;
-  size_t n_seqs_;  // number of sequences for this track (eg two for a pair hmm)
   size_t track_index_;
   vector<string> alphabet_;  // vector of this track's allowed symbols (eg {A,C,G,T})
   map<string, uint8_t> symbol_indices_;

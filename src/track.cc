@@ -3,11 +3,9 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-Track::Track(string name, size_t n_seqs, vector<string> symbols) :
+  Track::Track(string name, vector<string> symbols) :
   name_(name),
-  n_seqs_(n_seqs),
   track_index_(numeric_limits<size_t>::max()) {
-  assert(n_seqs_ == 1 || n_seqs_ == 2);
   AddSymbols(symbols);
 }
 
