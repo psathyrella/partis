@@ -8,11 +8,12 @@ tests['casino'] = ' --seq 666655666613423414513666666666666'
 tests['cpg'] = ' --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT'
 tests['pair-cpg'] = ' --pair --seq CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT'
 
-bcrham_args = ' --debug 1 --n_best_events 3 --hmmdir test/data/regression/bcrham --datadir test/data/regression/bcrham'
-tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile test/data/regression/bcrham/single-input.csv'
-tests['bcrham-pair-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile test/data/regression/bcrham/pair-input.csv'
-tests['bcrham-forward'] = ' --algorithm forward' + bcrham_args + ' --infile test/data/regression/bcrham/pair-input.csv'
-tests['bcrham-k'] = ' --algorithm forward' + bcrham_args + ' --infile test/data/regression/bcrham/pair-input.csv'
+testdir = 'test/data/regression/bcrham'
+bcrham_args = ' --debug 1 --n_best_events 3 --hmmdir ' + testdir + ' --datadir ' + testdir
+tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/single-input.csv'
+tests['bcrham-pair-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
+tests['bcrham-forward'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
+tests['bcrham-k'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/k-input.csv'
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/%s.passed' % test for test in tests]

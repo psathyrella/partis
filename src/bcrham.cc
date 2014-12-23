@@ -163,7 +163,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score);
-void print_forward_scores(double ab_score, vector<double> single_scores);
+void print_forward_scores(double numerator, vector<double> single_scores);
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -276,17 +276,25 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
   }
 }
 // ----------------------------------------------------------------------------------------
-void print_forward_scores(double ab_score, vector<double> single_scores) {
+void print_forward_scores(double numerator, vector<double> single_scores) {
   // NOTE need to update to work with k-hmms for k > 2
-  printf("%70s %8.2f - %8.2f - %8.2f = %8.3f\n", "", ab_score, single_scores[0], single_scores[1], ab_score - single_scores[0] - single_scores[1]);
-  feclearexcept(FE_UNDERFLOW | FE_OVERFLOW);
-  double ab_prob(exp(ab_score));
-  double a_prob(exp(single_scores[0]));
-  double b_prob(exp(single_scores[1]));
-  double bayes_factor(ab_prob / (a_prob*b_prob));
-  if (fetestexcept(FE_UNDERFLOW | FE_OVERFLOW))
-    printf("%70s under/overflow when leaving log space\n", "");
-  else
-    printf("%70s %8.1e / (%8.1e * %8.1e) = %8.1f\n", "", ab_prob, a_prob, b_prob, bayes_factor);
+  printf("%70s %8.2f", "", numerator);
+  double total(numerator);
+  for(auto &score : single_scores) {
+    total -= score;
+    printf(" - %8.2f", score);
+  }
+  printf(" = %8.3f\n", total);
+  if (single_scores.size() == 2) {  // just leave this in for the moment to simplify testing
+    feclearexcept(FE_UNDERFLOW | FE_OVERFLOW);
+    double ab_prob(exp(numerator));
+    double a_prob(exp(single_scores[0]));
+    double b_prob(exp(single_scores[1]));
+    double bayes_factor(ab_prob / (a_prob*b_prob));
+    if (fetestexcept(FE_UNDERFLOW | FE_OVERFLOW))
+      printf("%70s under/overflow when leaving log space\n", "");
+    else
+      printf("%70s %8.1e / (%8.1e * %8.1e) = %8.1f\n", "", ab_prob, a_prob, b_prob, bayes_factor);
+  }
 }
 
