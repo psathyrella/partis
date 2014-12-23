@@ -7,25 +7,25 @@ states:
     island: 0.5
     ocean: 0.5
 - name: island
-  pair_emissions:
-    tracks: [nucs, nucs]
+  emissions:
+    track: nucs
     probs:
-      A: {A: 0.01, C: 0.04, G: 0.04, T: 0.01}
-      C: {A: 0.04, C: 0.16, G: 0.16, T: 0.04}
-      G: {A: 0.04, C: 0.16, G: 0.16, T: 0.04}
-      T: {A: 0.01, C: 0.04, G: 0.04, T: 0.01}
+      A: 0.1
+      C: 0.4
+      G: 0.4
+      T: 0.1
   transitions:
     island: 0.8
     ocean: 0.1
     end: 0.1
 - name: ocean
-  pair_emissions:
-    tracks: [nucs, nucs]
+  emissions:
+    track: nucs
     probs:
-      A: {A: 0.0625, C: 0.0625, G: 0.0625, T: 0.0625}
-      C: {A: 0.0625, C: 0.0625, G: 0.0625, T: 0.0625}
-      G: {A: 0.0625, C: 0.0625, G: 0.0625, T: 0.0625}
-      T: {A: 0.0625, C: 0.0625, G: 0.0625, T: 0.0625}
+      A: 0.25
+      C: 0.25
+      G: 0.25
+      T: 0.25
   transitions:
     island: 0.3
     ocean: 0.6
