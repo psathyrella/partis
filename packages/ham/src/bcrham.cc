@@ -274,9 +274,10 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
 }
 // ----------------------------------------------------------------------------------------
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor) {
-  printf("%70s %8.2f", "", numerator);
+  printf("   %8.3f = ", bayes_factor);
+  printf("%2s %8.2f", "", numerator);
   for(auto &score : single_scores)
     printf(" - %8.2f", score);
-  printf(" = %8.3f\n", bayes_factor);
+  printf("\n");
 }
 
