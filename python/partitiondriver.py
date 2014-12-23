@@ -165,10 +165,12 @@ class PartitionDriver(object):
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)
 
-        # assert self.args.pair
+        assert self.args.pair
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=False)
+        hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters)
+
+        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, k_hmm=True, prefix='k-')
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -177,7 +179,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def point_estimate(self):
         assert os.path.exists(self.args.parameter_dir)
-        """ get a point estimate for each query sequence (or pair). i.e. run viterbi """
+        """ get a point estimate for each query sequence (or set of 'em). i.e. run viterbi """
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
@@ -190,7 +192,7 @@ class PartitionDriver(object):
         #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
+    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, k_hmm=False, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
         pcounter = None
         if count_parameters:
             pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir)
@@ -213,11 +215,11 @@ class PartitionDriver(object):
 
         if prefix == '' and stripped:
             prefix = 'stripped'
-        print '\nhmm %s' % prefix
+        print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, stripped=stripped, parameter_dir=parameter_in_dir)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, k_hmm=k_hmm, stripped=stripped, parameter_dir=parameter_in_dir)
         if self.args.n_procs > 1:
             self.split_hmm_input(csv_infname)
             for iproc in range(self.args.n_procs):
@@ -240,7 +242,7 @@ class PartitionDriver(object):
             true_pcounter.write_counts()
 
         clusters = None
-        if self.args.pair and algorithm == 'forward':
+        if self.args.pair and algorithm == 'forward' and not k_hmm:
             clusters = Clusterer(0, greater_than=True)
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
@@ -520,7 +522,7 @@ class PartitionDriver(object):
         return combo
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, k_hmm=False, stripped=False):
         csvfile = opener('w')(csv_fname)
 
         # write header
@@ -528,15 +530,17 @@ class PartitionDriver(object):
         csvfile.write(' '.join(header) + '\n')
 
         skipped_gene_matches = set()
-        if self.args.all_together:  # temorary -- for testing k-hmm
-            query_names = self.input_info.keys()
-            combined_query = self.combine_queries(sw_info, tuple(query_names), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)            
-            csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                          (':'.join([str(qn) for qn in query_names]),
-                           combined_query['k_v']['min'], combined_query['k_v']['max'],
-                           combined_query['k_d']['min'], combined_query['k_d']['max'],
-                           ':'.join(combined_query['only_genes']),
-                           ':'.join(combined_query['seqs'])))
+        if k_hmm:  # run the k-hmm on each cluster in <preclusters>
+            assert preclusters != None
+            for clid, clust in preclusters.id_clusters.items():
+                query_names = clust
+                combined_query = self.combine_queries(sw_info, tuple(query_names), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)            
+                csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                              (':'.join([str(qn) for qn in query_names]),
+                               combined_query['k_v']['min'], combined_query['k_v']['max'],
+                               combined_query['k_d']['min'], combined_query['k_d']['max'],
+                               ':'.join(combined_query['only_genes']),
+                               ':'.join(combined_query['seqs'])))
         elif self.args.pair:
             for a_query_name, b_query_name in self.get_pairs(preclusters):
                 combined_query = self.combine_queries(sw_info, (a_query_name, b_query_name), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
