@@ -165,7 +165,7 @@ class PartitionDriver(object):
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)
 
-        assert self.args.pair
+        # assert self.args.pair
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
         final_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=False)
@@ -528,9 +528,15 @@ class PartitionDriver(object):
         csvfile.write(' '.join(header) + '\n')
 
         skipped_gene_matches = set()
-        if self.args.all_together:
-            print 'ARG'
-            sys.exit()
+        if self.args.all_together:  # temorary -- for testing k-hmm
+            query_names = self.input_info.keys()
+            combined_query = self.combine_queries(sw_info, tuple(query_names), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)            
+            csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                          (':'.join([str(qn) for qn in query_names]),
+                           combined_query['k_v']['min'], combined_query['k_v']['max'],
+                           combined_query['k_d']['min'], combined_query['k_d']['max'],
+                           ':'.join(combined_query['only_genes']),
+                           ':'.join(combined_query['seqs'])))
         elif self.args.pair:
             for a_query_name, b_query_name in self.get_pairs(preclusters):
                 combined_query = self.combine_queries(sw_info, (a_query_name, b_query_name), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
@@ -648,7 +654,11 @@ class PartitionDriver(object):
             ilabel = 'inferred:'
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
+        for iextra in range(1, len(line['unique_ids'])):
+            line['seq'] = line['seqs'][iextra]
+            out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, one_line=True))
         if self.args.pair:
+            assert False  # need to update this
             # tmpseq = line['seqs'].split(':')[0]  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
             line['seq'] = line['seqs'].split(':')[1]
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
