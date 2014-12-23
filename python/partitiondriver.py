@@ -306,7 +306,7 @@ class PartitionDriver(object):
             workdir += '/hmm-' + str(iproc)
             cmd_str = cmd_str.replace(self.args.workdir, workdir)
 
-        # print cmd_str
+        print cmd_str
         check_call(cmd_str, shell=True)
 
         if not self.args.no_clean:
