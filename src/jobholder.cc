@@ -189,12 +189,15 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
 
   // print debug info
   if(debug_) {
-    cout << "    " << setw(48) << seqs.name_str();
-    cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
-    if(algorithm_ == "viterbi")
+    if(algorithm_ == "viterbi") {
+      cout << "    " << setw(48) << seqs.name_str();
+      cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
-    else
-      cout << "        " << *total_score << endl;
+    } else {
+      cout << "        " << *total_score;
+      cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
+      cout << "    " << seqs.name_str() << endl;
+    }
   }
 
   result.check_boundaries(best_kset, kbounds);
