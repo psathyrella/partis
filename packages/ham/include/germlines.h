@@ -65,27 +65,30 @@ public:
     return region;
   }
   // ----------------------------------------------------------------------------------------
-  string ColorMutants(string color, string ref_1, string seq, string ref_2 = "") {
+  string ColorMutants(string color, string seq, string ref_1="", vector<string> other_refs={}) {
     // Return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal.
-    // If <ref_1> is not specified, just return <seq>.
-    // If <ref_2> is specified, use bold text and reverse video to show mutants with respect to both references.
-    if(ref_1.size() == 0)
-      return seq;
-    if(ref_1.size() != seq.size()) {
-      cout << "ERROR seqs not same length in color_mutants: " << ref_1 << endl
-           << "                                              " << seq << endl;
+    // If <refs> are specified, use bold text and reverse video to show if <seq> is muted w/respect to more than one ref
+    if(ref_1 != "")
+      other_refs.push_back(ref_1);  // only doing it this way so we can call it without specifying <other_refs>
+    for(auto &ref : other_refs) {
+      if(ref.size() != seq.size()) {
+	throw runtime_error("ERROR seqs not same length in color_mutants: " + ref + "\n                                              " + seq);
+      }
     }
+
     string return_str;
     for(size_t inuc = 0; inuc < seq.size(); ++inuc) {
       if(seq[inuc] == 'i') {
         return_str += Color("yellow", seq.substr(inuc, 1));
-      } else if(seq[inuc] == ref_1[inuc]) {   // nuc same as ref 1
-        if(ref_2.size() == 0 || seq[inuc] == ref_2[inuc])
+      } else {
+	int ndiff(0);  // number of reference sequences that differ at base inuc
+	for(auto &ref : other_refs) {
+	  if(seq[inuc] != ref[inuc])
+	    ndiff += 1;
+	}
+        if(ndiff == 0)
           return_str += seq[inuc];
-        else
-          return_str += Color(color, seq.substr(inuc, 1));
-      } else {  // nuc different to ref 1
-        if(ref_2.size() == 0 || seq[inuc] == ref_2[inuc])
+	else if(ndiff == 1)
           return_str += Color(color, seq.substr(inuc, 1));
         else
           return_str += Color("reverse", Color(color, seq.substr(inuc, 1)));

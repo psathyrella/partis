@@ -163,7 +163,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score);
-void print_forward_scores(double numerator, vector<double> single_scores);
+void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -188,40 +188,38 @@ int main(int argc, const char * argv[]) {
   // cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
   // clock_t run_start(clock());
 
-  for(size_t is = 0; is < seqs.size(); is++) {
+  for(size_t iqry = 0; iqry < seqs.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
-    KSet kmin(args.integers_["k_v_min"][is], args.integers_["k_d_min"][is]);
-    KSet kmax(args.integers_["k_v_max"][is], args.integers_["k_d_max"][is]);
+    KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
+    KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
 
-    JobHolder jh(gl, hmms, args.algorithm(), args.str_lists_["only_genes"][is]);
+    JobHolder jh(gl, hmms, args.algorithm(), args.str_lists_["only_genes"][iqry]);
     jh.SetDebug(args.debug());
     jh.SetChunkCache(args.chunk_cache());
     jh.SetNBestEvents(args.n_best_events());
 
     Result result(kbounds);
     do {
-      result = jh.Run(seqs[is], kbounds);
-      if(result.could_not_expand()) {
-	cout << "WARNING " << seqs[is].name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
-      }
+      result = jh.Run(seqs[iqry], kbounds);
+      if(result.could_not_expand())
+	cout << "WARNING " << seqs[iqry].name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
       kbounds = result.better_kbounds();
     } while(result.boundary_error() && !result.could_not_expand());
 
-    double numerator(result.total_score()),total_score(result.total_score());;
-    if(args.algorithm() == "forward" && seqs[is].n_seqs() > 1) {  // denominator in P(A,B) / (P(A) P(B)). NOTE now for C, D, E, F, ...
+    double numerator(result.total_score());  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
+    double bayes_factor(result.total_score()); // final result
+    if(args.algorithm() == "forward" && seqs[iqry].n_seqs() > 1) {  // calculate factors for denominator
       vector<double> single_scores;  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
-      for (size_t iseq = 0; iseq < seqs[is].n_seqs(); ++iseq) {  // NOTE kind of confusing, but <is> is looping over queries, while <iseq> is looping over the sequences within the <is>th query.
-	Result single_result = jh.Run(seqs[is][iseq], kbounds);  // result for single sequence
-	total_score -= single_result.total_score();
-
+      for (size_t iseq = 0; iseq < seqs[iqry].n_seqs(); ++iseq) {
+	Result single_result = jh.Run(seqs[iqry][iseq], kbounds);  // result for a single sequence
+	bayes_factor -= single_result.total_score();
 	single_scores.push_back(single_result.total_score());
 	if(single_result.boundary_error())
-	  if (args.debug())  // boundary errors are bad for single sequences, or for pairs of sequences that are clonally related... but are totally expected for unrelated pairs
-	    cout << "WARNING boundary errors for " << seqs[is][iseq].name() << " when together with " << seqs[is].name_str() << endl;
+	  cout << "WARNING boundary errors for " << seqs[iqry][iseq].name() << " when together with " << seqs[iqry].name_str() << endl;
       }
       if(args.debug())
-	print_forward_scores(numerator, single_scores);
+	print_forward_scores(numerator, single_scores, bayes_factor);
     }
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
@@ -230,7 +228,7 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, seqs[is], total_score);
+    StreamOutput(ofs, args, result.events_, seqs[iqry], bayes_factor);
   }
 
   // cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
@@ -242,7 +240,6 @@ int main(int argc, const char * argv[]) {
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score) {
   if(args.algorithm() == "viterbi") {
-    // assert(args.n_best_events() <= events.size());  // make sure we found at least as many valid events as were asked for with <--n_best_events>
     size_t n_max = min(size_t(args.n_best_events()), events.size());
     for(size_t ievt = 0; ievt < n_max; ++ievt) {
       RecoEvent *event = &events[ievt];
@@ -276,25 +273,10 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
   }
 }
 // ----------------------------------------------------------------------------------------
-void print_forward_scores(double numerator, vector<double> single_scores) {
-  // NOTE need to update to work with k-hmms for k > 2
+void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor) {
   printf("%70s %8.2f", "", numerator);
-  double total(numerator);
-  for(auto &score : single_scores) {
-    total -= score;
+  for(auto &score : single_scores)
     printf(" - %8.2f", score);
-  }
-  printf(" = %8.3f\n", total);
-  if (single_scores.size() == 2) {  // just leave this in for the moment to simplify testing
-    feclearexcept(FE_UNDERFLOW | FE_OVERFLOW);
-    double ab_prob(exp(numerator));
-    double a_prob(exp(single_scores[0]));
-    double b_prob(exp(single_scores[1]));
-    double bayes_factor(ab_prob / (a_prob*b_prob));
-    if (fetestexcept(FE_UNDERFLOW | FE_OVERFLOW))
-      printf("%70s under/overflow when leaving log space\n", "");
-    else
-      printf("%70s %8.1e / (%8.1e * %8.1e) = %8.1f\n", "", ab_prob, a_prob, b_prob, bayes_factor);
-  }
+  printf(" = %8.3f\n", bayes_factor);
 }
 

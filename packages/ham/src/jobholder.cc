@@ -285,18 +285,14 @@ void JobHolder::PrintPath(vector<string> query_strs, string gene, double score, 
   assert(germline.size() + left_insert_length - left_erosion_length - right_erosion_length + right_insert_length == query_strs[0].size());
   TermColors tc;
   cout
-    << "                    ";
-  if (query_strs.size() == 2) {
-    cout << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs[0], modified_seq, query_strs[1]) << (right_erosion_length > 0 ? ".." : "  ");
-  } else {
-    cout << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", query_strs[0], modified_seq/*, query_strs.second*/) << (right_erosion_length > 0 ? ".." : "  ");
-  }
-  cout << "  " << extra_str
+    << "                    "
+    << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", modified_seq, "", query_strs) << (right_erosion_length > 0 ? ".." : "  ")
+    << "  " << extra_str
     // NOTE this doesn't include the overall gene prob!
     // << setw(12) << paths_[gene][query_strs]->score()
-       << setw(12) << score
-       << setw(25) << gene
-       << endl;
+    << setw(12) << score
+    << setw(25) << gene
+    << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -369,13 +365,9 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
     TermColors tc;
     if(debug_ == 2) {
       if(algorithm_ == "viterbi") {
-        if(seqs.n_seqs() == 2) {
-          cout << "              " << region << " query " << query_strs[0] << endl;
-          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[0], query_strs[1]) << endl;
-	} else {
-	  for (auto &seq : query_strs)
-	    cout << "              " << region << " query " << seq << endl;
-	}
+	cout << "              " << region << " query " << query_strs[0] << endl;
+	for (size_t is = 1; is < query_strs.size(); ++is)
+          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[is], query_strs[0]) << endl;  // use the first query_str as reference sequence... could just as well use any other
       } else {
         cout << "              " << region << endl;
       }
