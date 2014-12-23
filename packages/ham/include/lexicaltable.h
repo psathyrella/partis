@@ -21,11 +21,13 @@ public:
 
   inline double LogProb(size_t letter) { assert(letter < (*log_probs_)[0].size()); return (*log_probs_)[0][letter]; }
   inline double LogProb(size_t letter1, size_t letter2) {
+    throw runtime_error("Pair emission specification is deprecated (at least temporarily) -- specify as single emissions and it'll get multiplied properly. Note this means no joint emission at the moment.");
     assert(letter1 < log_probs_->size());
     assert(letter2 < (*log_probs_)[letter1].size());
     return (*log_probs_)[letter1][letter2];
   }
   inline double LogProb(Sequences *seqs, size_t pos) {
+    throw runtime_error("Pair emission specification is deprecated (at least temporarily) -- specify as single emissions and it'll get multiplied properly. Note this means no joint emission at the moment.");
     return (*log_probs_)[(*seqs)[0][pos]][(*seqs)[1][pos]];
   }  // NOTE <seqs> *must* have length of two, and init() *must* have been called. I could check this, but I'm prematurely optimising. Good thing I'm not NASA, eh?
   inline double LogProb(Sequence *seq, size_t pos) {
