@@ -30,7 +30,6 @@ public:
   int debug() { return debug_arg_.getValue(); }
   // int debug() { return debug_; }
   int n_best_events() { return n_best_events_arg_.getValue(); }
-  bool pair() { return pair_arg_.getValue(); }
   bool chunk_cache() { return chunk_cache_arg_.getValue(); }
 
   // command line arguments
@@ -40,7 +39,6 @@ public:
   ValuesConstraint<int> debug_vals_;
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, algorithm_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_;
-  SwitchArg pair_arg_;
   SwitchArg chunk_cache_arg_;
 
   // arguments read from csv input file
@@ -68,7 +66,6 @@ Args::Args(int argc, const char * argv[]):
   algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
   debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
   n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-  pair_arg_("p", "pair", "is this a pair hmm?", false),
   chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
   str_headers_ {},
   int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
@@ -83,7 +80,6 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(algorithm_arg_);
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
-    cmd.add(pair_arg_);
     cmd.add(chunk_cache_arg_);
 
     cmd.parse(argc, argv);
