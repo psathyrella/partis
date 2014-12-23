@@ -555,7 +555,7 @@ class PartitionDriver(object):
             last_id = None
             n_boundary_errors = 0
             for line in reader:
-                utils.intify(line)
+                utils.intify(line, splitargs=('unique_ids', 'seqs'))
                 # check for errors
                 boundary_error = False
                 if line['errors'] != None and 'boundary' in line['errors'].split(':'):
@@ -565,11 +565,12 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 if algorithm == 'viterbi':
-                    id_a = line['unique_ids'].split(':')[0]
+                    id_a = line['unique_ids'][0]
                     id_b = 'x'
-                    if len(line['unique_ids'].split(':')) > 1:
-                        id_b = line['unique_ids'].split(':')[1]
-                    line['seq'] = line['seqs'].split(':')[0]  # need to add 'seq' to <line>
+                    if len(line['unique_ids']) > 1:
+                        id_b = line['unique_ids'][1]
+                    line['seq'] = line['seqs'][0]  # need to add 'seq' to <line>
+                    line['unique_id'] = line['unique_ids'][0]  # temporary hack
                     this_id = utils.get_key(id_a, id_b)
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
                         n_processed += 1
@@ -603,7 +604,7 @@ class PartitionDriver(object):
                     else:
                         score = float(line['score'])
                     with opener('a')(pairscorefname) as pairscorefile:
-                        pairscorefile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], score))
+                        pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
                     # if self.args.outfname != None:
                     #     self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
                     n_processed += 1
@@ -619,9 +620,9 @@ class PartitionDriver(object):
         out_str_list = []
         ilabel = ''
         if print_true and not self.args.is_data:
-            out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_id']], extra_str='    ', return_string=True, label='true:'))
+            out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][0]], extra_str='    ', return_string=True, label='true:'))
             if self.args.pair:
-                same_event = from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id'])
+                same_event = from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_ids'][0], line['unique_ids'][1])
                 out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], one_line=same_event, extra_str='    ', return_string=True))
             ilabel = 'inferred:'
 

@@ -857,12 +857,21 @@ def prep_dir(dirname, wildling=None, multilings=None):
         assert False
 
 # ----------------------------------------------------------------------------------------
-def intify(info):
-    """ attempt to convert all the keys and values in <info> from str to int """
+def intify(info, splitargs=()):
+    """ 
+    Attempt to convert all the keys and values in <info> from str to int.
+    The keys listed in <splitargs> will be split as colon-separated lists before intification.
+    """
     for key, val in info.items():
-        try:
-            info[key] = int(val)
-        except ValueError:
-            pass
-
-    # return info
+        if key in splitargs:
+            info[key] = info[key].split(':')
+            for i in range(len(info[key])):
+                try:
+                    info[key][i] = int(info[key][i])
+                except ValueError:
+                    pass
+        else:
+            try:
+                info[key] = int(val)
+            except ValueError:
+                pass
