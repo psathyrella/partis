@@ -12,6 +12,7 @@ bcrham_args = ' --debug 1 --n_best_events 3 --hmmdir test/data/regression/bcrham
 tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile test/data/regression/bcrham/single-input.csv'
 tests['bcrham-pair-viterbi'] = ' --pair --algorithm viterbi' + bcrham_args + ' --infile test/data/regression/bcrham/pair-input.csv'
 tests['bcrham-forward'] = ' --pair --algorithm forward' + bcrham_args + ' --infile test/data/regression/bcrham/pair-input.csv'
+tests['bcrham-k'] = ' --algorithm forward' + bcrham_args + ' --infile test/data/regression/bcrham/pair-input.csv'
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/%s.passed' % test for test in tests]
