@@ -292,8 +292,6 @@ class PartitionDriver(object):
         cmd_str += ' --algorithm ' + algorithm
         if self.args.chunk_cache:
             cmd_str += ' --chunk-cache '
-        if self.args.pair:
-            cmd_str += ' --pair '
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
@@ -478,69 +476,71 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):
-        with opener('w')(csv_fname) as csvfile:
-            # write header
-            header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader 
-            csvfile.write(' '.join(header) + '\n')
+        csvfile = opener('w')(csv_fname)
+        # write header
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader 
+        csvfile.write(' '.join(header) + '\n')
 
-            skipped_gene_matches = set()
-            # then write a line for each query sequence (or pair of them)
-            if self.args.pair:
-                for a_query_name, b_query_name in self.get_pairs(preclusters):
-                    a_info = sw_info[a_query_name]
-                    b_info = sw_info[b_query_name]
-    
-                    a_query_seq, b_query_seq = self.input_info[a_query_name]['seq'], self.input_info[b_query_name]['seq']
-                    a_chop, b_chop = 0, 0
-                    if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-                        a_chop = max(0, len(a_query_seq) - len(b_query_seq))
-                        b_chop = max(0, len(b_query_seq) - len(a_query_seq))
-                        a_query_seq = a_query_seq[ : len(b_query_seq)]  # if b is longer this doesn't do anything
-                        b_query_seq = b_query_seq[ : len(a_query_seq)]
+        skipped_gene_matches = set()
+        # then write a line for each query sequence (or pair of them)
+        if self.args.pair:
+            for a_query_name, b_query_name in self.get_pairs(preclusters):
+                a_info = sw_info[a_query_name]
+                b_info = sw_info[b_query_name]
 
-                    k_v, k_d = {}, {}
-                    k_v['min'] = min(a_info['k_v']['min'] - a_chop, b_info['k_v']['min'] - b_chop)
-                    k_v['max'] = max(a_info['k_v']['max'] - a_chop, b_info['k_v']['max'] - b_chop)
-                    k_d['min'] = min(a_info['k_d']['min'], b_info['k_d']['min'])
-                    k_d['max'] = max(a_info['k_d']['max'], b_info['k_d']['max'])
+                a_query_seq, b_query_seq = self.input_info[a_query_name]['seq'], self.input_info[b_query_name]['seq']
+                a_chop, b_chop = 0, 0
+                if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
+                    a_chop = max(0, len(a_query_seq) - len(b_query_seq))
+                    b_chop = max(0, len(b_query_seq) - len(a_query_seq))
+                    a_query_seq = a_query_seq[ : len(b_query_seq)]  # if b is longer this doesn't do anything
+                    b_query_seq = b_query_seq[ : len(a_query_seq)]
 
-                    a_only_genes = a_info['all'].split(':')
-                    b_only_genes = b_info['all'].split(':')
-                    self.check_hmm_existence(a_only_genes, skipped_gene_matches, parameter_dir, a_query_name)
-                    self.check_hmm_existence(b_only_genes, skipped_gene_matches, parameter_dir, b_query_name)
-                    if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
-                        assert False  # need to check some things here
-                        only_genes = [ a_info[region + '_gene'] for region in utils.regions ]
-                        b_only_genes = [ b_info[region + '_gene'] for region in utils.regions ]
-                        k_v['min'] = a_info['k_v']['best'] - a_chop  # NOTE since this only uses <a_info>, you shouldn't expect it to be very accurate
-                        k_v['max'] = k_v['min'] + 1
-                        k_d['min'] = a_info['k_d']['best']
-                        k_d['max'] = k_d['min'] + 1
+                k_v, k_d = {}, {}
+                k_v['min'] = min(a_info['k_v']['min'] - a_chop, b_info['k_v']['min'] - b_chop)
+                k_v['max'] = max(a_info['k_v']['max'] - a_chop, b_info['k_v']['max'] - b_chop)
+                k_d['min'] = min(a_info['k_d']['min'], b_info['k_d']['min'])
+                k_d['max'] = max(a_info['k_d']['max'], b_info['k_d']['max'])
 
-                    final_only_genes = list(set(a_only_genes) | set(b_only_genes))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
-                    self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, a_query_name, b_query_name)
+                a_only_genes = a_info['all'].split(':')
+                b_only_genes = b_info['all'].split(':')
+                self.check_hmm_existence(a_only_genes, skipped_gene_matches, parameter_dir, a_query_name)
+                self.check_hmm_existence(b_only_genes, skipped_gene_matches, parameter_dir, b_query_name)
+                if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
+                    assert False  # need to check some things here
+                    only_genes = [ a_info[region + '_gene'] for region in utils.regions ]
+                    b_only_genes = [ b_info[region + '_gene'] for region in utils.regions ]
+                    k_v['min'] = a_info['k_v']['best'] - a_chop  # NOTE since this only uses <a_info>, you shouldn't expect it to be very accurate
+                    k_v['max'] = k_v['min'] + 1
+                    k_d['min'] = a_info['k_d']['best']
+                    k_d['max'] = k_d['min'] + 1
 
-                    if not self.all_regions_present(final_only_genes, skipped_gene_matches, a_query_name, b_query_name):
-                        continue
-                    csvfile.write('%s:%s %d %d %d %d %s %s:%s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                                  (a_query_name, b_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes), a_query_seq, b_query_seq))
-            else:
-                for query_name in self.input_info:
-                    if query_name not in sw_info:
-                        if self.args.debug:
-                            print '    %s not found in sw info' % query_name
-                        continue
-                    info = sw_info[query_name]
-    
-                    only_genes = list(set(info['all'].split(':')))
-                    self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
-                    if not self.all_regions_present(only_genes, skipped_gene_matches, query_name):
-                        continue
-                    csvfile.write('%s %d %d %d %d %s %s\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
-            if len(skipped_gene_matches) > 0:
-                print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
-                for region in utils.regions:
-                    print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
+                final_only_genes = list(set(a_only_genes) | set(b_only_genes))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
+                self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, a_query_name, b_query_name)
+
+                if not self.all_regions_present(final_only_genes, skipped_gene_matches, a_query_name, b_query_name):
+                    continue
+                csvfile.write('%s:%s %d %d %d %d %s %s:%s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                              (a_query_name, b_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes), a_query_seq, b_query_seq))
+        else:
+            for query_name in self.input_info:
+                if query_name not in sw_info:
+                    if self.args.debug:
+                        print '    %s not found in sw info' % query_name
+                    continue
+                info = sw_info[query_name]
+
+                only_genes = list(set(info['all'].split(':')))
+                self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
+                if not self.all_regions_present(only_genes, skipped_gene_matches, query_name):
+                    continue
+                csvfile.write('%s %d %d %d %d %s %s\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
+        if len(skipped_gene_matches) > 0:
+            print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
+            for region in utils.regions:
+                print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
+
+        csvfile.close()
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter):
