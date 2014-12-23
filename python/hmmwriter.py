@@ -574,9 +574,9 @@ class HmmWriter(object):
             assert germline_nuke in utils.nukes  # make sure I'm passing it through properly (can remove this as soon as things work)
             if nuke2 == '':  # single (non-pair) emission
                 if nuke1 == germline_nuke:
-                    prob = 1.0  # I can think of some other ways to arrange this, but this seems ok
+                    prob = 1.0 - mute_freq  # I can think of some other ways to arrange this, but this seems ok
                 else:
-                    prob = 0.0
+                    prob = mute_freq / 3.0
             else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
                 for nuke in nuke1, nuke2:
                     if nuke == germline_nuke:  # don't forget here that the 'germline' nuke isn't necessarily the germline once we're passing sequence pairs through (unlike when we're actually within the v, d, or j regions)
