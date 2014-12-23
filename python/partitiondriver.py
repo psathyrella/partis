@@ -480,7 +480,7 @@ class PartitionDriver(object):
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):
         with opener('w')(csv_fname) as csvfile:
             # write header
-            header = ['name', 'second_name', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seq', 'second_seq']  # I wish I had a good c++ csv reader 
+            header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader 
             csvfile.write(' '.join(header) + '\n')
 
             skipped_gene_matches = set()
@@ -522,7 +522,7 @@ class PartitionDriver(object):
 
                     if not self.all_regions_present(final_only_genes, skipped_gene_matches, a_query_name, b_query_name):
                         continue
-                    csvfile.write('%s %s %d %d %d %d %s %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                    csvfile.write('%s:%s %d %d %d %d %s %s:%s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
                                   (a_query_name, b_query_name, k_v['min'], k_v['max'], k_d['min'], k_d['max'], ':'.join(final_only_genes), a_query_seq, b_query_seq))
             else:
                 for query_name in self.input_info:
@@ -536,7 +536,7 @@ class PartitionDriver(object):
                     self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
                     if not self.all_regions_present(only_genes, skipped_gene_matches, query_name):
                         continue
-                    csvfile.write('%s x %d %d %d %d %s %s x\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
+                    csvfile.write('%s %d %d %d %d %s %s\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
             if len(skipped_gene_matches) > 0:
                 print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
                 for region in utils.regions:
@@ -565,29 +565,34 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 if algorithm == 'viterbi':
-                    this_id = utils.get_key(line['unique_id'], line['second_unique_id'])
+                    id_a = line['unique_ids'].split(':')[0]
+                    id_b = 'x'
+                    if len(line['unique_ids'].split(':')) > 1:
+                        id_b = line['unique_ids'].split(':')[1]
+                    line['seq'] = line['seqs'].split(':')[0]  # need to add 'seq' to <line>
+                    this_id = utils.get_key(id_a, id_b)
                     if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
-                            print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
+                            print '%-20s %20s' % (id_a, id_b),
                             if self.args.pair:
-                                print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']),
+                                print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, id_a, id_b),
                             print ''
                         utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
                             if true_pcounter != None:  # increment true counters
-                                true_pcounter.increment(self.reco_info[line['unique_id']])
+                                true_pcounter.increment(self.reco_info[id_a])
                             if perfplotter != None:
-                                perfplotter.evaluate(self.reco_info[line['unique_id']], line)
+                                perfplotter.evaluate(self.reco_info[id_a], line)
                     if self.args.debug:
                         if last_id == this_id:
                             utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=False)
                         if line['cdr3_length'] == -1:
-                            print '      ERROR %d failed to add match info' % line['unique_id']
+                            print '      ERROR %d failed to add match info' % id_a
                         self.print_hmm_output(line, print_true=(last_id != this_id), perfplotter=perfplotter)
-                    last_id = utils.get_key(line['unique_id'], line['second_unique_id'])
+                    last_id = utils.get_key(id_a, id_b)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     # if self.args.debug:
                     #     print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
@@ -622,10 +627,10 @@ class PartitionDriver(object):
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
         if self.args.pair:
-            tmpseq = line['seq']  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
-            line['seq'] = line['second_seq']
+            # tmpseq = line['seqs'].split(':')[0]  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
+            line['seq'] = line['seqs'].split(':')[1]
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
-            line['seq'] = tmpseq
+        line['seq'] = None
 
         if not self.args.is_data:
             self.print_performance_info(line, perfplotter=perfplotter)

@@ -290,7 +290,7 @@ class Waterer(object):
                         r_length -= 1
 
                 if self.args.debug:
-                    print '      WARNING %d apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+                    print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (str(query_name), overlap, l_reg, l_portion, r_reg, r_portion)
                 assert l_portion + r_portion == overlap
                 qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
                 glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
@@ -352,7 +352,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings):
         if self.args.debug:
-            print '%d' % query_name
+            print '%s' % str(query_name)
 
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
