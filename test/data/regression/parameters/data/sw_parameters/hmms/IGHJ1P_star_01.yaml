@@ -24,7 +24,7 @@ states:
     insert_left_G: 0.22837652292925312, insert_left_T: 0.1221176221861643}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 1.0, C: 0.0, G: 0.0, T: 0.0}
+    probs: {A: 0.9882277203032377, C: 0.003924093232254094, G: 0.003924093232254094, T: 0.003924093232254094}
     track: nukes
   extras: {}
   name: insert_left_A
@@ -52,7 +52,7 @@ states:
     insert_left_G: 0.25607441646664025, insert_left_T: 0.13692825532378786}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.0, C: 1.0, G: 0.0, T: 0.0}
+    probs: {A: 0.003924093232254094, C: 0.9882277203032377, G: 0.003924093232254094, T: 0.003924093232254094}
     track: nukes
   extras: {}
   name: insert_left_C
@@ -80,7 +80,7 @@ states:
     insert_left_G: 0.25607441646664025, insert_left_T: 0.13692825532378786}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.0, C: 0.0, G: 1.0, T: 0.0}
+    probs: {A: 0.003924093232254094, C: 0.003924093232254094, G: 0.9882277203032377, T: 0.003924093232254094}
     track: nukes
   extras: {}
   name: insert_left_G
@@ -108,7 +108,7 @@ states:
     insert_left_G: 0.25607441646664025, insert_left_T: 0.13692825532378786}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.0, C: 0.0, G: 0.0, T: 1.0}
+    probs: {A: 0.003924093232254094, C: 0.003924093232254094, G: 0.003924093232254094, T: 0.9882277203032377}
     track: nukes
   extras: {}
   name: insert_left_T
