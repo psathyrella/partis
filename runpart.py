@@ -30,6 +30,8 @@ parser.add_argument('--plot-performance', action='store_true', help='Write out p
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 
+parser.add_argument('--all-together', action='store_true')
+
 parser.add_argument('--allow_unphysical_insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 

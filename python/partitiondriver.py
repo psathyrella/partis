@@ -475,42 +475,49 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def combine_queries(self, sw_info, a_query_name, b_query_name, parameter_dir, stripped=False, skipped_gene_matches=None):
-        a_info = sw_info[a_query_name]
-        b_info = sw_info[b_query_name]
-        
-        a_query_seq, b_query_seq = self.input_info[a_query_name]['seq'], self.input_info[b_query_name]['seq']
-        a_chop, b_chop = 0, 0
-        if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-            a_chop = max(0, len(a_query_seq) - len(b_query_seq))
-            b_chop = max(0, len(b_query_seq) - len(a_query_seq))
-            a_query_seq = a_query_seq[ : len(b_query_seq)]  # if b is longer this doesn't do anything
-            b_query_seq = b_query_seq[ : len(a_query_seq)]
+    def combine_queries(self, sw_info, query_names, parameter_dir, stripped=False, skipped_gene_matches=None):
+        combo = {
+            'k_v':{'min':99999, 'max':-1},
+            'k_d':{'min':99999, 'max':-1},
+            'only_genes':[],
+            'seqs':[]
+        }
+        min_length = -1
+        for name in query_names:  # first find the min length, so we know how much we'll have to chop off of each sequence
+            if min_length == -1 or len(sw_info[name]['seq']) < min_length:
+                min_length = len(sw_info[name]['seq'])
+        for name in query_names:
+            info = sw_info[name]
+            query_seq = self.input_info[name]['seq']
+            chop = 0
+            if self.args.truncate_pairs:  # chop off the left side of the sequence if it's longer than min_length
+                chop = max(0, len(query_seq) - min_length)
+                query_seq = query_seq[ : min_length]
+            combo['seqs'].append(query_seq)
+    
+            combo['k_v']['min'] = min(info['k_v']['min'] - chop, combo['k_v']['min'])
+            combo['k_v']['max'] = max(info['k_v']['max'] - chop, combo['k_v']['max'])
+            combo['k_d']['min'] = min(info['k_d']['min'], combo['k_d']['min'])
+            combo['k_d']['max'] = max(info['k_d']['max'], combo['k_d']['max'])
+    
+            only_genes = info['all'].split(':')
+            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, name)
+            if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
+                assert False  # need to check some things here
+                # only_genes = [ a_info[region + '_gene'] for region in utils.regions ]
+                # b_only_genes = [ b_info[region + '_gene'] for region in utils.regions ]
+                # k_v['min'] = a_info['k_v']['best'] - a_chop  # NOTE since this only uses <a_info>, you shouldn't expect it to be very accurate
+                # k_v['max'] = k_v['min'] + 1
+                # k_d['min'] = a_info['k_d']['best']
+                # k_d['max'] = k_d['min'] + 1
+    
+            combo['only_genes'] = list(set(only_genes) | set(combo['only_genes']))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
 
-        k_v, k_d = {}, {}
-        k_v['min'] = min(a_info['k_v']['min'] - a_chop, b_info['k_v']['min'] - b_chop)
-        k_v['max'] = max(a_info['k_v']['max'] - a_chop, b_info['k_v']['max'] - b_chop)
-        k_d['min'] = min(a_info['k_d']['min'], b_info['k_d']['min'])
-        k_d['max'] = max(a_info['k_d']['max'], b_info['k_d']['max'])
+        # self.check_hmm_existence(combo['only_genes'], skipped_gene_matches, parameter_dir, name)  # this should be superfluous now
+        if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
+            return {}
 
-        a_only_genes = a_info['all'].split(':')
-        b_only_genes = b_info['all'].split(':')
-        self.check_hmm_existence(a_only_genes, skipped_gene_matches, parameter_dir, a_query_name)
-        self.check_hmm_existence(b_only_genes, skipped_gene_matches, parameter_dir, b_query_name)
-        if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
-            assert False  # need to check some things here
-            only_genes = [ a_info[region + '_gene'] for region in utils.regions ]
-            b_only_genes = [ b_info[region + '_gene'] for region in utils.regions ]
-            k_v['min'] = a_info['k_v']['best'] - a_chop  # NOTE since this only uses <a_info>, you shouldn't expect it to be very accurate
-            k_v['max'] = k_v['min'] + 1
-            k_d['min'] = a_info['k_d']['best']
-            k_d['max'] = k_d['min'] + 1
-
-        final_only_genes = list(set(a_only_genes) | set(b_only_genes))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
-        self.check_hmm_existence(final_only_genes, skipped_gene_matches, parameter_dir, a_query_name, b_query_name)
-        if not self.all_regions_present(final_only_genes, skipped_gene_matches, a_query_name, b_query_name):
-            continue
-        return {'k_v':k_v, 'k_d':k_d, 'only_genes':final_only_genes, 'seqs':a_query_seq+':'+b_query_seq}
+        return combo
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, stripped=False):
@@ -521,16 +528,20 @@ class PartitionDriver(object):
         csvfile.write(' '.join(header) + '\n')
 
         skipped_gene_matches = set()
-            
-        if self.args.pair:
+        if self.args.all_together:
+            print 'ARG'
+            sys.exit()
+        elif self.args.pair:
             for a_query_name, b_query_name in self.get_pairs(preclusters):
-                combined_query = self.combine_queries(sw_info, a_query_name, b_query_name, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+                combined_query = self.combine_queries(sw_info, (a_query_name, b_query_name), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+                if len(combined_query) == 0:  # didn't find all regions
+                    continue
                 csvfile.write('%s:%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
                               (a_query_name, b_query_name,
                                combined_query['k_v']['min'], combined_query['k_v']['max'],
                                combined_query['k_d']['min'], combined_query['k_d']['max'],
                                ':'.join(combined_query['only_genes']),
-                               combined_query['seqs']))
+                               ':'.join(combined_query['seqs'])))
         else:
             for query_name in self.input_info:
                 if query_name not in sw_info:
@@ -544,6 +555,7 @@ class PartitionDriver(object):
                 if not self.all_regions_present(only_genes, skipped_gene_matches, query_name):
                     continue
                 csvfile.write('%s %d %d %d %d %s %s\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
+
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
             for region in utils.regions:
