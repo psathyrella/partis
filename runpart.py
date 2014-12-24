@@ -27,7 +27,6 @@ parser.add_argument('--is-data', action='store_true', help='True if not simulati
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
-parser.add_argument('--chunk-cache', action='store_true', help='Cache pieces of the DP tables to allow reuse without recalculation')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, help='Random seed for use by recombinator (to allow reproducibility)')
 
