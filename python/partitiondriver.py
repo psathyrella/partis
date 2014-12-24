@@ -1,6 +1,7 @@
 import time
 import sys
 import json
+import itertools
 from Bio import SeqIO
 from multiprocessing import Process, active_children
 import math
@@ -142,7 +143,7 @@ class PartitionDriver(object):
         self.write_hmms(sw_parameter_dir, waterer.info['all_best_matches'])
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
-        assert not self.args.pair  # er, could probably do it for forward pair, but I'm not really sure what it would mean
+        assert self.args.n_sets == 1  # er, could probably do it for forward pair, but I'm not really sure what it would mean
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=hmm_plotdir)
 
         print 'writing hmms with hmm info'
@@ -165,7 +166,6 @@ class PartitionDriver(object):
         if cdr3_cluster:
             cdr3_length_clusters = self.cdr3_length_precluster(waterer)
 
-        assert self.args.pair
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
         hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters)
@@ -208,7 +208,7 @@ class PartitionDriver(object):
         if plot_performance:
             assert self.args.plotdir != None
             assert not self.args.is_data
-            assert not self.args.pair  # well, you *could* check the performance of pair viterbi, but I haven't implemented it yet
+            assert self.args.n_sets == 1  # well, you *could* check the performance on k-sets, but I haven't implemented it yet
             assert algorithm == 'viterbi'  # same deal as previous assert
             from performanceplotter import PerformancePlotter
             perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/hmm_performance', 'hmm')
@@ -242,7 +242,7 @@ class PartitionDriver(object):
             true_pcounter.write_counts()
 
         clusters = None
-        if self.args.pair and algorithm == 'forward' and not k_hmm:
+        if self.args.partition and not k_hmm:  # a.t.m. don't cluster on the k-hmm output -- just use it as a check if we should split any of the clusters
             clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True)
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
@@ -357,18 +357,23 @@ class PartitionDriver(object):
         return clust
 
     # ----------------------------------------------------------------------------------------
+    def get_all_nsets(self):
+        """ Get *all* sets of queries of size <size> """
+        return itertools.combinations(self.input_info.keys(), self.args.n_sets)  # hm, well, I *thought* I'd need a whole function to do that...
+
+    # ----------------------------------------------------------------------------------------
     def get_pairs(self, preclusters=None):
         """ Get all unique the pairs of sequences in input_info, skipping where preclustered out """
-        pair_scores = {}
+        pair_keys = []  # keep track of the pairs we've done already
         pairs = []
         n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
         for query_name in self.input_info:
             for second_query_name in self.input_info:
                 if second_query_name == query_name:
                     continue
-                if utils.get_key(query_name, second_query_name) in pair_scores:  # already wrote this pair to the file
+                if utils.get_key(query_name, second_query_name) in pair_keys:  # already did this pair
                     continue
-                pair_scores[utils.get_key(query_name, second_query_name)] = 0  # set the value to zero so we know we alrady added this pair to the csv file
+                pair_keys.append(utils.get_key(query_name, second_query_name))
                 if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
                     if query_name not in preclusters.query_clusters or second_query_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
                         n_singletons += 1
@@ -521,7 +526,16 @@ class PartitionDriver(object):
         return combo
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, k_hmm=False, stripped=False):
+    def remove_sw_failures(self, query_names, sw_info):
+        non_failed_names = []
+        for name in query_names:
+            if name in sw_info:
+                non_failed_names.append(name)
+            else:
+                print '    %s not found in sw info' % query_name
+
+    # ----------------------------------------------------------------------------------------
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, k_hmm=False, pair_hmm=False, stripped=False):
         csvfile = opener('w')(csv_fname)
 
         # write header
@@ -531,39 +545,46 @@ class PartitionDriver(object):
         skipped_gene_matches = set()
         if k_hmm:  # run the k-hmm on each cluster in <preclusters>
             assert preclusters != None
-            for clid, clust in preclusters.id_clusters.items():
-                query_names = clust
-                combined_query = self.combine_queries(sw_info, tuple(query_names), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)            
+            nsets = [ val for key, val in preclusters.id_clusters.items() ]  # <nsets> is a list of sets (well, lists) of query names
+            # for clid, clust in preclusters.id_clusters.items():
+            for query_names in nsets:
+                self.remove_sw_failures(query_names, sw_info)
+                combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)            
+                if len(combined_query) == 0:  # didn't find all regions
+                    continue
                 csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
                               (':'.join([str(qn) for qn in query_names]),
                                combined_query['k_v']['min'], combined_query['k_v']['max'],
                                combined_query['k_d']['min'], combined_query['k_d']['max'],
                                ':'.join(combined_query['only_genes']),
                                ':'.join(combined_query['seqs'])))
-        elif self.args.pair:
-            for a_query_name, b_query_name in self.get_pairs(preclusters):
-                combined_query = self.combine_queries(sw_info, (a_query_name, b_query_name), parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+        elif self.args.n_sets > 1:
+            # self.get_all_nsets()
+            nsets = self.get_pairs(preclusters)
+            for query_names in nsets:
+                self.remove_sw_failures(query_names, sw_info)
+                combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
                 if len(combined_query) == 0:  # didn't find all regions
                     continue
-                csvfile.write('%s:%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                              (a_query_name, b_query_name,
+                csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                              (':'.join([str(qn) for qn in query_names]),
                                combined_query['k_v']['min'], combined_query['k_v']['max'],
                                combined_query['k_d']['min'], combined_query['k_d']['max'],
                                ':'.join(combined_query['only_genes']),
                                ':'.join(combined_query['seqs'])))
         else:
-            for query_name in self.input_info:
-                if query_name not in sw_info:
-                    if self.args.debug:
-                        print '    %s not found in sw info' % query_name
+            nsets = [[qn] for qn in self.input_info.keys()]
+            for query_names in nsets:
+                self.remove_sw_failures(query_names, sw_info)
+                combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+                if len(combined_query) == 0:  # didn't find all regions
                     continue
-                info = sw_info[query_name]
-
-                only_genes = list(set(info['all'].split(':')))
-                self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, query_name)
-                if not self.all_regions_present(only_genes, skipped_gene_matches, query_name):
-                    continue
-                csvfile.write('%s %d %d %d %d %s %s\n' % (query_name, info['k_v']['min'], info['k_v']['max'], info['k_d']['min'], info['k_d']['max'], ':'.join(only_genes), self.input_info[query_name]['seq']))
+                csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                              (':'.join([str(qn) for qn in query_names]),
+                               combined_query['k_v']['min'], combined_query['k_v']['max'],
+                               combined_query['k_d']['min'], combined_query['k_d']['max'],
+                               ':'.join(combined_query['only_genes']),
+                               ':'.join(combined_query['seqs'])))
 
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
@@ -606,8 +627,8 @@ class PartitionDriver(object):
                         n_processed += 1
                         if self.args.debug:
                             print '%-20s %20s' % (id_a, id_b),
-                            if self.args.pair:
-                                print '   %d' % from_same_event(self.args.is_data, self.args.pair, self.reco_info, id_a, id_b),
+                            if self.args.n_sets > 1:
+                                print '   %d' % from_same_event(self.args.is_data, True, self.reco_info, id_a, id_b),
                             print ''
                         utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
@@ -651,8 +672,8 @@ class PartitionDriver(object):
         ilabel = ''
         if print_true and not self.args.is_data:
             out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][0]], extra_str='    ', return_string=True, label='true:'))
-            if self.args.pair:
-                same_event = from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_ids'][0], line['unique_ids'][1])
+            if self.args.n_sets > 1:
+                same_event = from_same_event(self.args.is_data, self.args.n_sets > 1, self.reco_info, line['unique_ids'][0], line['unique_ids'][1])
                 out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][1]], one_line=same_event, extra_str='    ', return_string=True))
             ilabel = 'inferred:'
 
@@ -660,7 +681,7 @@ class PartitionDriver(object):
         for iextra in range(1, len(line['unique_ids'])):
             line['seq'] = line['seqs'][iextra]
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, one_line=True))
-        if self.args.pair:
+        if self.args.n_sets > 1:
             # assert False  # need to update this
             # tmpseq = line['seqs'].split(':')[0]  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
             line['seq'] = line['seqs'][1]
