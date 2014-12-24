@@ -875,3 +875,28 @@ def intify(info, splitargs=()):
                 info[key] = int(val)
             except ValueError:
                 pass
+
+# ----------------------------------------------------------------------------------------
+def merge_csvs(outfname, csv_list, cleanup=True):
+    """ NOTE copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
+    header = None
+    outfo = []
+    print 'merging'
+    for infname in csv_list:
+        print '  ', infname
+        workdir = os.path.dirname(infname)
+        with opener('r')(infname) as sub_outfile:
+            reader = csv.DictReader(sub_outfile)
+            header = reader.fieldnames
+            for line in reader:
+                outfo.append(line)
+        if cleanup:
+            os.remove(infname)
+            os.rmdir(workdir)
+
+    print '  to', outfname
+    with opener('w')(outfname) as outfile:
+        writer = csv.DictWriter(outfile, header)
+        writer.writeheader()
+        for line in outfo:
+            writer.writerow(line)

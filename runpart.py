@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import argparse
+import time
 import sys
+from multiprocessing import Process, active_children
 import os
 sys.path.insert(1, './python')
 
@@ -73,6 +75,13 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
 
+def run_simulation(args, iproc):
+    reco = Recombinator(args, iprocess=iproc, total_length_from_right=args.total_length_from_right)
+    for ievt in range(args.n_max_queries):
+        print ievt,
+        sys.stdout.flush()
+        reco.combine()
+
 # ----------------------------------------------------------------------------------------
 if args.simulate:
     if args.generate_trees:
@@ -81,13 +90,17 @@ if args.simulate:
         sys.exit(0)
     from recombinator import Recombinator
     assert args.parameter_dir != None and args.outfname != None
-    reco = Recombinator(args, total_length_from_right=args.total_length_from_right)
-    for ievt in range(args.n_max_queries):
-        print ievt,
+    for iproc in range(args.n_procs):
+        proc = Process(target=run_simulation, args=(args, iproc))
+        proc.start()
+    while len(active_children()) > 0:
+        # print ' wait %s' % len(active_children()),
         sys.stdout.flush()
-        reco.combine()
-    if not args.no_clean:
-        os.rmdir(reco.workdir)
+        time.sleep(1)
+    utils.merge_csvs(args.outfname, [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)], cleanup=(not args.no_clean))
+    # if not args.no_clean:
+    #     os.rmdir(reco.workdir)
+        
 else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver

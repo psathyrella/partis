@@ -11,7 +11,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 def run_that_shit(cmd_str):
     print 'RUN', cmd + cmd_str
-    check_call([cmd,] + cmd_str.split())
+    # check_call([cmd,] + cmd_str.split())
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
