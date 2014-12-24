@@ -77,7 +77,9 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 
 def run_simulation(args, iproc):
     reco = Recombinator(args, iprocess=iproc, total_length_from_right=args.total_length_from_right)
-    for ievt in range(args.n_max_queries):
+    n_per_proc = int(float(args.n_max_queries) / args.n_procs)
+    print 'per', n_per_proc
+    for ievt in range(n_per_proc):
         print ievt,
         sys.stdout.flush()
         reco.combine()
