@@ -654,7 +654,7 @@ class PartitionDriver(object):
             out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][0]], extra_str='    ', return_string=True, label='true:'))
             if self.args.pair:
                 same_event = from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_ids'][0], line['unique_ids'][1])
-                out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['second_unique_id']], one_line=same_event, extra_str='    ', return_string=True))
+                out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][1]], one_line=same_event, extra_str='    ', return_string=True))
             ilabel = 'inferred:'
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
@@ -662,9 +662,9 @@ class PartitionDriver(object):
             line['seq'] = line['seqs'][iextra]
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, one_line=True))
         if self.args.pair:
-            assert False  # need to update this
+            # assert False  # need to update this
             # tmpseq = line['seqs'].split(':')[0]  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
-            line['seq'] = line['seqs'].split(':')[1]
+            line['seq'] = line['seqs'][1]
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
         line['seq'] = None
 
