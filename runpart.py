@@ -17,7 +17,7 @@ parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the v
 
 # basic actions:
 parser.add_argument('--cache-parameters', action='store_true', help='cache parameter counts and hmm files in dir specified by <parameter_dir>')
-parser.add_argument('--point-estimate', action='store_true', help='Find the <n-best-events>-best viterbi paths')
+parser.add_argument('--run-algorithm', choices=['viterbi', 'forward'], help='Run the specified algorithm once')
 parser.add_argument('--partition', action='store_true', help='Find the best partition for the given sequences')
 parser.add_argument('--simulate', action='store_true', help='Create simulated rearrangement events')
 parser.add_argument('--build-hmms', action='store_true', help='just build hmms (and write \'em out) from existing parameter csvs')
@@ -123,7 +123,7 @@ else:
 
     if args.cache_parameters:
         parter.cache_parameters()
-    elif args.point_estimate:
-        parter.point_estimate()
+    elif args.run_algorithm != None:
+        parter.run_algorithm()
     else:
         parter.partition()

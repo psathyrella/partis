@@ -144,7 +144,7 @@ class PartitionDriver(object):
 
         hmm_parameter_dir = parameter_dir + '/hmm_parameters'
         assert self.args.n_sets == 1  # er, could probably do it for forward pair, but I'm not really sure what it would mean
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, count_parameters=True, plotdir=hmm_plotdir)
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, hmm_type='k=1', count_parameters=True, plotdir=hmm_plotdir)
 
         print 'writing hmms with hmm info'
         self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
@@ -168,22 +168,22 @@ class PartitionDriver(object):
 
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters)
+        hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
 
-        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, k_hmm=True, prefix='k-')
+        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-')
 
         # self.clean(waterer)
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def point_estimate(self):
+    def run_algorithm(self):
         assert os.path.exists(self.args.parameter_dir)
-        """ get a point estimate for each query sequence (or set of 'em). i.e. run viterbi """
+        assert self.args.run_algorithm != None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=self.args.parameter_dir, plot_performance=self.args.plot_performance)
+        self.run_hmm(self.args.run_algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', plot_performance=self.args.plot_performance)
         # self.clean(waterer)
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
@@ -192,7 +192,7 @@ class PartitionDriver(object):
         #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, k_hmm=False, stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False):
+    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False, make_clusters=False):
         pcounter = None
         if count_parameters:
             pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir)
@@ -219,7 +219,7 @@ class PartitionDriver(object):
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, k_hmm=k_hmm, stripped=stripped, parameter_dir=parameter_in_dir)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         if self.args.n_procs > 1:
             self.split_hmm_input(csv_infname)
             for iproc in range(self.args.n_procs):
@@ -242,7 +242,7 @@ class PartitionDriver(object):
             true_pcounter.write_counts()
 
         clusters = None
-        if self.args.partition and not k_hmm:  # a.t.m. don't cluster on the k-hmm output -- just use it as a check if we should split any of the clusters
+        if make_clusters:  # a.t.m. don't cluster on the k-hmm output -- just use it as a check if we should split any of the clusters
             clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True)
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
@@ -355,11 +355,6 @@ class PartitionDriver(object):
         clust.cluster(cdr3lengthfname, debug=False)
         os.remove(cdr3lengthfname)
         return clust
-
-    # ----------------------------------------------------------------------------------------
-    def get_all_nsets(self):
-        """ Get *all* sets of queries of size <size> """
-        return itertools.combinations(self.input_info.keys(), self.args.n_sets)  # hm, well, I *thought* I'd need a whole function to do that...
 
     # ----------------------------------------------------------------------------------------
     def get_pairs(self, preclusters=None):
@@ -535,7 +530,7 @@ class PartitionDriver(object):
                 print '    %s not found in sw info' % query_name
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, k_hmm=False, pair_hmm=False, stripped=False):
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False):
         csvfile = opener('w')(csv_fname)
 
         # write header
@@ -543,48 +538,30 @@ class PartitionDriver(object):
         csvfile.write(' '.join(header) + '\n')
 
         skipped_gene_matches = set()
-        if k_hmm:  # run the k-hmm on each cluster in <preclusters>
+        assert hmm_type != ''
+        if hmm_type == 'k=1':  # single vanilla hmm
+            nsets = [[qn] for qn in self.input_info.keys()]
+        elif hmm_type == 'k=2':  # pair hmm
+            nsets = self.get_pairs(preclusters)
+        elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
             assert preclusters != None
             nsets = [ val for key, val in preclusters.id_clusters.items() ]  # <nsets> is a list of sets (well, lists) of query names
-            # for clid, clust in preclusters.id_clusters.items():
-            for query_names in nsets:
-                self.remove_sw_failures(query_names, sw_info)
-                combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)            
-                if len(combined_query) == 0:  # didn't find all regions
-                    continue
-                csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                              (':'.join([str(qn) for qn in query_names]),
-                               combined_query['k_v']['min'], combined_query['k_v']['max'],
-                               combined_query['k_d']['min'], combined_query['k_d']['max'],
-                               ':'.join(combined_query['only_genes']),
-                               ':'.join(combined_query['seqs'])))
-        elif self.args.n_sets > 1:
-            # self.get_all_nsets()
-            nsets = self.get_pairs(preclusters)
-            for query_names in nsets:
-                self.remove_sw_failures(query_names, sw_info)
-                combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
-                if len(combined_query) == 0:  # didn't find all regions
-                    continue
-                csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                              (':'.join([str(qn) for qn in query_names]),
-                               combined_query['k_v']['min'], combined_query['k_v']['max'],
-                               combined_query['k_d']['min'], combined_query['k_d']['max'],
-                               ':'.join(combined_query['only_genes']),
-                               ':'.join(combined_query['seqs'])))
+        elif hmm_type == 'k=nsets':  # run on *every* combination of queries which has length <self.args.n_sets>
+            nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)  # I <3 python
         else:
-            nsets = [[qn] for qn in self.input_info.keys()]
-            for query_names in nsets:
-                self.remove_sw_failures(query_names, sw_info)
-                combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
-                if len(combined_query) == 0:  # didn't find all regions
-                    continue
-                csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                              (':'.join([str(qn) for qn in query_names]),
-                               combined_query['k_v']['min'], combined_query['k_v']['max'],
-                               combined_query['k_d']['min'], combined_query['k_d']['max'],
-                               ':'.join(combined_query['only_genes']),
-                               ':'.join(combined_query['seqs'])))
+            assert False
+
+        for query_names in nsets:
+            self.remove_sw_failures(query_names, sw_info)
+            combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+            if len(combined_query) == 0:  # didn't find all regions
+                continue
+            csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
+                          (':'.join([str(qn) for qn in query_names]),
+                           combined_query['k_v']['min'], combined_query['k_v']['max'],
+                           combined_query['k_d']['min'], combined_query['k_d']['max'],
+                           ':'.join(combined_query['only_genes']),
+                           ':'.join(combined_query['seqs'])))
 
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
