@@ -30,8 +30,6 @@ parser.add_argument('--plot-performance', action='store_true', help='Write out p
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 
-parser.add_argument('--all-together', action='store_true')
-
 parser.add_argument('--allow_unphysical_insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 
@@ -52,6 +50,9 @@ parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-ev
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--seed', type=int, help='Random seed for use by recombinator (to allow reproducibility)')
+
+parser.add_argument('--hamming-cluster-cutoff', type=int, default=0.5, help='Threshold for hamming distance single-linkage preclustering')
+parser.add_argument('--pair-hmm-cluster-cutoff', type=int, default=0.0, help='Threshold for pair hmm single-linkage preclustering')
 
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
 

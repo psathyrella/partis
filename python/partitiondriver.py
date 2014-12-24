@@ -243,7 +243,7 @@ class PartitionDriver(object):
 
         clusters = None
         if self.args.pair and algorithm == 'forward' and not k_hmm:
-            clusters = Clusterer(0, greater_than=True)
+            clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True)
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
             else:
@@ -412,7 +412,7 @@ class PartitionDriver(object):
                 # if self.args.debug:
                 #     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
 
-        clust = Clusterer(0.5, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
+        clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
         if self.outfile != None:
             self.outfile.write('hamming clusters\n')
         clust.cluster(hammingfname, debug=self.args.debug, outfile=self.outfile)
