@@ -223,8 +223,21 @@ void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
   if (chunk_cache_) {  // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto & query_str_map : trellisi_[gene]) {
       vector<string> tmp_query_strs(query_str_map.first);
-      if (tmp_query_strs[0].find(query_strs[0]) == 0) {
-	for (size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq)
+      // assert(0);  // fix the below!
+
+      // loop over all the query strings for this trellis to see if they all match
+      bool found_match(true);
+      for(size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq) {  // NOTE this starts to seem like it might be bottlenecking me when I'm applying it for short d sequences
+	if(tmp_query_strs[iseq].find(query_strs[iseq]) != 0) {
+	  found_match = false;
+	  break;
+	}
+      }
+
+
+      // if they all match, then use it
+      if(found_match) {
+	for(size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq)
 	  assert(tmp_query_strs[iseq].find(query_strs[iseq]) == 0);
 	trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
 	origin = "chunk";
