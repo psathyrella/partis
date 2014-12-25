@@ -183,13 +183,9 @@ int main(int argc, const char * argv[]) {
   vector<Sequences> seqs(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), gl);
-  // clock_t cache_start(clock());
   // hmms.CacheAll();
-  // cout << "t " << ((clock() - cache_start) / (double)CLOCKS_PER_SEC) << endl;
-  // clock_t run_start(clock());
 
   for(size_t iqry = 0; iqry < seqs.size(); iqry++) {
-    if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
@@ -200,27 +196,44 @@ int main(int argc, const char * argv[]) {
     jh.SetNBestEvents(args.n_best_events());
 
     Result result(kbounds);
+    vector<Result> denom_results(seqs[iqry].n_seqs(), result);  // only used for forward if n_seqs > 1
+    double numerator(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
+    double bayes_factor(-INFINITY); // final result
+    vector<double> single_scores(seqs[iqry].n_seqs(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
+    bool stop(false);
     do {
+      // clock_t run_start(clock());
+      if(args.debug()) cout << "  ---------" << endl;
       result = jh.Run(seqs[iqry], kbounds);
-      if(result.could_not_expand())
-	cout << "WARNING " << seqs[iqry].name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
-      kbounds = result.better_kbounds();
-    } while(result.boundary_error() && !result.could_not_expand());
-
-    double numerator(result.total_score());  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
-    double bayes_factor(result.total_score()); // final result
-    if(args.algorithm() == "forward" && seqs[iqry].n_seqs() > 1) {  // calculate factors for denominator
-      vector<double> single_scores;  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
-      for (size_t iseq = 0; iseq < seqs[iqry].n_seqs(); ++iseq) {
-	Result single_result = jh.Run(seqs[iqry][iseq], kbounds);  // result for a single sequence
-	bayes_factor -= single_result.total_score();
-	single_scores.push_back(single_result.total_score());
-	if(single_result.boundary_error())
-	  cout << "WARNING boundary errors for " << seqs[iqry][iseq].name() << " when together with " << seqs[iqry].name_str() << endl;
+      numerator = result.total_score();
+      bayes_factor = numerator;
+      if(args.algorithm() == "forward" && seqs[iqry].n_seqs() > 1) {  // calculate factors for denominator
+	for(size_t iseq = 0; iseq < seqs[iqry].n_seqs(); ++iseq) {
+	  denom_results[iseq] = jh.Run(seqs[iqry][iseq], kbounds);  // result for a single sequence
+	  single_scores[iseq] = denom_results[iseq].total_score();
+	  bayes_factor -= single_scores[iseq];
+	}
       }
-      if(args.debug())
-	print_forward_scores(numerator, single_scores, bayes_factor);
-    }
+
+      kbounds = result.better_kbounds();
+      for(auto &res : denom_results)
+	kbounds = kbounds.LogicalOr(res.better_kbounds());
+
+      stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+      for(auto &res : denom_results)
+	stop &= !res.boundary_error() || res.could_not_expand();
+      if(!stop)
+	cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+      // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+    } while(!stop);
+
+    // if(result.could_not_expand())
+    //   cout << "WARNING " << seqs[iqry].name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
+    // if(single_result.boundary_error())
+    //   cout << "WARNING boundary errors for " << seqs[iqry][iseq].name() << " when together with " << seqs[iqry].name_str() << endl;
+
+    if(args.debug() && args.algorithm() == "forward" && seqs[iqry].n_seqs() > 1)
+      print_forward_scores(numerator, single_scores, bayes_factor);
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
       if(result.events_.size() > 0)
@@ -230,8 +243,6 @@ int main(int argc, const char * argv[]) {
     }
     StreamOutput(ofs, args, result.events_, seqs[iqry], bayes_factor);
   }
-
-  // cout << "t " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
 
   ofs.close();
   return 0;
