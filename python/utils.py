@@ -450,6 +450,9 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     line['d_qr_seq'] = line['seq'][d_start : d_start + len(eroded_seqs['d'])]
     line['j_qr_seq'] = line['seq'][j_start : j_start + len(eroded_seqs['j'])]
 
+    # if line['cdr3_length'] == -1:
+    #     print '      ERROR %s failed to add match info' % ' '.join([str(i) for i in ids])
+
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label=''):
     """ Print ascii summary of recombination event and mutation.
@@ -816,14 +819,11 @@ def hamming(seq1, seq2):
     return total
 
 # ----------------------------------------------------------------------------------------
-def get_key(a_name, b_name):
+def get_key(names):
     """
     Return a hashable combination of the two query names that's the same if we reverse their order.
     """
-    assert a_name != ''
-    if b_name == '':
-        b_name = '0'
-    return '.'.join(sorted([str(a_name), str(b_name)]))
+    return '.'.join(sorted([str(name) for name in names]))
 
 # ----------------------------------------------------------------------------------------
 def split_key(key):

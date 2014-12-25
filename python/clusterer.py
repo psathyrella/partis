@@ -39,7 +39,7 @@ class Clusterer(object):
             from_same_event = -1 if reco_info == None else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
             dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]
             self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
-            self.pairscores[(utils.get_key(a_name, b_name))] = score
+            self.pairscores[(utils.get_key((a_name, b_name)))] = score
             self.plotscores['all'].append(score)
             if reco_info != None:
                 if from_same_event:

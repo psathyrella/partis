@@ -22,11 +22,15 @@ import plotting
 print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
-def from_same_event(is_data, pair_hmm, reco_info, query_name, second_query_name):
+def from_same_event(is_data, pair_hmm, reco_info, query_names):
     if is_data:
         return False
-    if pair_hmm:
-        return reco_info[query_name]['reco_id'] == reco_info[second_query_name]['reco_id']
+    if len(query_names) > 1:
+        reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
+        for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
+            if reco_id != reco_info[query_names[iq]]['reco_id']:
+                return False
+        return True
     else:
         return False
 
@@ -362,27 +366,28 @@ class PartitionDriver(object):
         pair_keys = []  # keep track of the pairs we've done already
         pairs = []
         n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
-        for query_name in self.input_info:
-            for second_query_name in self.input_info:
-                if second_query_name == query_name:
+        for a_name in self.input_info:
+            for b_name in self.input_info:
+                if b_name == a_name:
                     continue
-                if utils.get_key(query_name, second_query_name) in pair_keys:  # already did this pair
+                key = utils.get_key((a_name, b_name))
+                if key in pair_keys:  # already did this pair
                     continue
-                pair_keys.append(utils.get_key(query_name, second_query_name))
+                pair_keys.append(key)
                 if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
-                    if query_name not in preclusters.query_clusters or second_query_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
+                    if a_name not in preclusters.query_clusters or b_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
                         n_singletons += 1
                         continue
-                    if utils.get_key(query_name, second_query_name) not in preclusters.pairscores:  # preclustered out in a previous preclustering step
+                    if key not in preclusters.pairscores:  # preclustered out in a previous preclustering step
                         n_previously_preclustered += 1
                         continue
-                    if preclusters.query_clusters[query_name] != preclusters.query_clusters[second_query_name]:  # not in same cluster
+                    if preclusters.query_clusters[a_name] != preclusters.query_clusters[b_name]:  # not in same cluster
                         n_preclustered += 1
                         continue
-                    if preclusters.is_removable(preclusters.pairscores[utils.get_key(query_name, second_query_name)]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
+                    if preclusters.is_removable(preclusters.pairscores[key]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
                         n_removable += 1
                         continue
-                pairs.append((query_name, second_query_name))
+                pairs.append((a_name, b_name))
                 n_lines += 1
 
         print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
@@ -580,10 +585,11 @@ class PartitionDriver(object):
             pairscorefile.write('unique_id,second_unique_id,score\n')
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
-            last_id = None
+            last_key = None
             n_boundary_errors = 0
             for line in reader:
                 utils.intify(line, splitargs=('unique_ids', 'seqs'))
+
                 # check for errors
                 boundary_error = False
                 if line['errors'] != None and 'boundary' in line['errors'].split(':'):
@@ -593,35 +599,26 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 if algorithm == 'viterbi':
-                    id_a = line['unique_ids'][0]
-                    id_b = 'x'
-                    if len(line['unique_ids']) > 1:
-                        id_b = line['unique_ids'][1]
-                    line['seq'] = line['seqs'][0]  # need to add 'seq' to <line>
-                    line['unique_id'] = line['unique_ids'][0]  # temporary hack
-                    this_id = utils.get_key(id_a, id_b)
-                    if last_id != this_id:  # if this is the first line (match) for this query (or query pair), print the true event
+                    ids = line['unique_ids']
+                    line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
+                    line['unique_id'] = ids[0]
+                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+
+                    this_key = utils.get_key(ids)
+                    if last_key != this_key:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
-                            print '%-20s %20s' % (id_a, id_b),
-                            if self.args.n_sets > 1:
-                                print '   %d' % from_same_event(self.args.is_data, True, self.reco_info, id_a, id_b),
-                            print ''
-                        utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+                            print '%s   %d' % (''.join(['%s ' % i for i in ids]), from_same_event(self.args.is_data, True, self.reco_info, ids))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
                             if true_pcounter != None:  # increment true counters
-                                true_pcounter.increment(self.reco_info[id_a])
+                                true_pcounter.increment(self.reco_info[ids[0]])
                             if perfplotter != None:
-                                perfplotter.evaluate(self.reco_info[id_a], line)
+                                perfplotter.evaluate(self.reco_info[ids[0]], line)
                     if self.args.debug:
-                        if last_id == this_id:
-                            utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=False)
-                        if line['cdr3_length'] == -1:
-                            print '      ERROR %d failed to add match info' % id_a
-                        self.print_hmm_output(line, print_true=(last_id != this_id), perfplotter=perfplotter)
-                    last_id = utils.get_key(id_a, id_b)
+                        self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
+                    last_key = utils.get_key(ids)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     # if self.args.debug:
                     #     print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
@@ -644,14 +641,31 @@ class PartitionDriver(object):
             perfplotter.plot()
 
     # ----------------------------------------------------------------------------------------
+    def get_true_clusters(self, ids):
+        clusters = {}
+        for uid in ids:
+            rid = self.reco_info[uid]['reco_id']
+            found = False
+            for clid in clusters:
+                if rid == clid:
+                    clusters[clid].append(uid)
+                    found = True
+                    break
+            if not found:
+                clusters[rid] = [uid]
+        return clusters
+
+    # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False, perfplotter=None):
         out_str_list = []
         ilabel = ''
-        if print_true and not self.args.is_data:
-            out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][0]], extra_str='    ', return_string=True, label='true:'))
-            if self.args.n_sets > 1:
-                same_event = from_same_event(self.args.is_data, self.args.n_sets > 1, self.reco_info, line['unique_ids'][0], line['unique_ids'][1])
-                out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][1]], one_line=same_event, extra_str='    ', return_string=True))
+        if print_true and not self.args.is_data:  # first print true event (if this is simulation)
+            for reco_id, uids in self.get_true_clusters(line['unique_ids']).items():
+                for iid in range(len(uids)):
+                    out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid!=0)))
+            # if self.args.n_sets > 1:
+            #     same_event = from_same_event(self.args.is_data, self.args.n_sets > 1, self.reco_info, line['unique_ids'])
+            #     out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][1]], one_line=same_event, extra_str='    ', return_string=True))
             ilabel = 'inferred:'
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
@@ -665,8 +679,8 @@ class PartitionDriver(object):
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
         line['seq'] = None
 
-        if not self.args.is_data:
-            self.print_performance_info(line, perfplotter=perfplotter)
+        # if not self.args.is_data:
+        #     self.print_performance_info(line, perfplotter=perfplotter)
 
         if self.args.outfname == None:
             print ''.join(out_str_list),
