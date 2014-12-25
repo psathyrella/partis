@@ -11,7 +11,7 @@ from opener import opener
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, threshold, greater_than=True):  # put in same cluster if greater than threshold, or less than equal to?
+    def __init__(self, threshold, greater_than=True, singletons=[]):  # put in same cluster if greater than threshold, or less than equal to?
         self.threshold = threshold
         self.debug = False
         self.greater_than = greater_than
@@ -19,6 +19,9 @@ class Clusterer(object):
         self.cluster_ids = []
         self.query_clusters = {}  # map from query name to cluster id
         self.id_clusters = {}  # map from cluster id to list of query names
+        for st in singletons:
+            self.add_new_cluster(st, dbg_str_list=[])
+        self.singletons = singletons
         self.pairscores = {}  # used by external code to see if we saw a given pair
         self.plotscores = { 'all':[], 'same':[], 'diff':[]}  # keep track of scores for plotting
 
@@ -75,6 +78,9 @@ class Clusterer(object):
             if cluster_id not in self.id_clusters:
                 self.id_clusters[cluster_id] = []
             self.id_clusters[cluster_id].append(query)
+        for cluster_id, queries in self.id_clusters.items():
+            if len(queries) == 1:
+                self.singletons.append(queries[0])
 
         # print 'nearest',self.nearest_true_mate
         out_str_list = ['  clusters:\n', ]

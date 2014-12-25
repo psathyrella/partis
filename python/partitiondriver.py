@@ -247,16 +247,12 @@ class PartitionDriver(object):
 
         clusters = None
         if make_clusters:  # a.t.m. don't cluster on the k-hmm output -- just use it as a check if we should split any of the clusters
-            clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True)
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
             else:
-                print'hmm clusters'
+                print 'hmm clusters'
+            clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True, singletons=preclusters.singletons)
             clusters.cluster(pairscorefname, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
-            if preclusters != None:
-                for query_name in sw_info:  # check for singletons that got split out in the preclustering step
-                    if query_name not in clusters.query_clusters and query_name != 'all_best_matches':
-                        print '    singleton ', query_name
 
         if not self.args.no_clean:
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
@@ -550,7 +546,7 @@ class PartitionDriver(object):
             nsets = self.get_pairs(preclusters)
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
             assert preclusters != None
-            nsets = [ val for key, val in preclusters.id_clusters.items() ]  # <nsets> is a list of sets (well, lists) of query names
+            nsets = [ val for key, val in preclusters.id_clusters.items() if len(val) > 1 ]  # <nsets> is a list of sets (well, lists) of query names
         elif hmm_type == 'k=nsets':  # run on *every* combination of queries which has length <self.args.n_sets>
             nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)  # I <3 python
         else:
