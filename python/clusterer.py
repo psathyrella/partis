@@ -28,16 +28,17 @@ class Clusterer(object):
         # self.nearest_true_mate = {}  # 
 
     # ----------------------------------------------------------------------------------------
-    def cluster(self, infname, debug=False, reco_info=None, outfile=None, plotdir=''):
-        lines = []
-        with opener('r')(infname) as infile:
-            reader = csv.DictReader(infile)
-            for line in reader:
-                lines.append(line)
-        sorted_lines = sorted(lines, key=lambda k: float(k['score']))
+    def cluster(self, input_scores=[], infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
+        if infname != None:
+            assert len(input_scores) == 0  # should only specify <input_scores> *or* <infname>
+            with opener('r')(infname) as infile:
+                reader = csv.DictReader(infile)
+                for line in reader:
+                    input_scores.append(line)
+        sorted_lines = sorted(input_scores, key=lambda k: float(k['score']))
         for line in sorted_lines:
-            a_name = int(line['unique_id'])
-            b_name = int(line['second_unique_id'])
+            a_name = int(line['id_a'])
+            b_name = int(line['id_b'])
             score = float(line['score'])
             from_same_event = -1 if reco_info == None else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
             dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]

@@ -229,7 +229,7 @@ class PartitionDriver(object):
         print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
-        pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
+        # pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         if self.args.n_procs > 1:
             self.split_hmm_input(csv_infname)
@@ -245,7 +245,7 @@ class PartitionDriver(object):
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
         # if self.outfile != None and algorithm == 'forward':
         #     self.outfile.write('hmm pairscores\n')
-        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter, make_clusters=make_clusters)
+        hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, pcounter, perfplotter, true_pcounter, make_clusters=make_clusters)
 
         if count_parameters:
             pcounter.write_counts()
@@ -259,13 +259,13 @@ class PartitionDriver(object):
             else:
                 print '%shmm clusters' % prefix
             clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True, singletons=preclusters.singletons)
-            clusters.cluster(pairscorefname, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
+            clusters.cluster(input_scores=hmm_pairscores, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
 
         if not self.args.no_clean:
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
                 os.remove(csv_infname)
             os.remove(csv_outfname)
-            os.remove(pairscorefname)
+            # os.remove(pairscorefname)
 
         return clusters
 
@@ -396,25 +396,30 @@ class PartitionDriver(object):
         print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
         return pairs
 
+    # # ----------------------------------------------------------------------------------------
+    # def get_hamming_distances(self, ):
+
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self, preclusters=None):
         start = time.time()
         print 'hamming clustering'
         hammingfname = self.args.workdir + '/fractional-hamming-scores.csv'
         chopped_off_left_sides = False
+        hamming_info = []
         with opener('w')(hammingfname) as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
             writer.writeheader()
-            for query_name, second_query_name in self.get_pairs(preclusters):
-                query_seq = self.input_info[query_name]['seq']
-                second_query_seq = self.input_info[second_query_name]['seq']
+            for query_name_a, query_name_b in self.get_pairs(preclusters):
+                query_seq = self.input_info[query_name_a]['seq']
+                second_query_seq = self.input_info[query_name_b]['seq']
                 if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
                     min_length = min(len(query_seq), len(second_query_seq))
                     query_seq = query_seq[-min_length : ]
                     second_query_seq = second_query_seq[-min_length : ]
                     chopped_off_left_sides = True
                 mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
-                writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
+                hamming_info.append({'id_a':query_name_a, 'id_b':query_name_b, 'score':mutation_frac})
+                # writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
                 # utils.color_mutants(query_seq, second_query_seq, ref_label=str(query_name) + ' ' + str(second_query_name) + '   ', print_result=True)
                 # if self.args.debug:
                 #     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
@@ -422,7 +427,7 @@ class PartitionDriver(object):
         clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
         if self.outfile != None:
             self.outfile.write('hamming clusters\n')
-        clust.cluster(hammingfname, debug=self.args.debug, outfile=self.outfile)
+        clust.cluster(hamming_info, debug=self.args.debug, outfile=self.outfile, reco_info=self.reco_info)
         os.remove(hammingfname)
         if chopped_off_left_sides:
             print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
@@ -579,13 +584,14 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter, make_clusters=True):
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, pcounter, perfplotter, true_pcounter, make_clusters=True):
         # NOTE the input and output files for this function are almost identical at this point
 
         n_processed = 0
         # write header for pairwise score file
-        with opener('w')(pairscorefname) as pairscorefile:
-            pairscorefile.write('unique_id,second_unique_id,score\n')
+        # with opener('w')(pairscorefname) as pairscorefile:
+        #     pairscorefile.write('unique_id,second_unique_id,score\n')
+        pairscores = []
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
@@ -622,9 +628,11 @@ class PartitionDriver(object):
                                 perfplotter.evaluate(self.reco_info[ids[0]], line)
                     if self.args.debug:
                         self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
+                    line['seq'] = None
+                    line['unique_id'] = None
                     last_key = utils.get_key(ids)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
-                    if self.args.debug or not make_clusters:
+                    if not make_clusters:  # self.args.debug or 
                         print dbg_str + '   %10.3f' % float(line['score'])
                     if line['score'] == '-nan':
                         print '    WARNING encountered -nan, setting to -999999.0'
@@ -632,9 +640,10 @@ class PartitionDriver(object):
                     else:
                         score = float(line['score'])
                     if len(ids) == 2:
-                        with opener('a')(pairscorefname) as pairscorefile:
-                            pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
-                    if self.partitionwriter != None:
+                        pairscores.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
+                        # with opener('a')(pairscorefname) as pairscorefile:
+                        #     pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
+                    if self.args.partitionfname != None:
                         self.partitionwriter.writerow({'unique_ids':':'.join([str(uid) for uid in ids]), 'score':score})
                     n_processed += 1
 
@@ -643,6 +652,8 @@ class PartitionDriver(object):
             print '    %d boundary errors' % n_boundary_errors
         if perfplotter != None:
             perfplotter.plot()
+
+        return pairscores
 
     # ----------------------------------------------------------------------------------------
     def get_true_clusters(self, ids):
@@ -667,21 +678,12 @@ class PartitionDriver(object):
             for reco_id, uids in self.get_true_clusters(line['unique_ids']).items():
                 for iid in range(len(uids)):
                     out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid!=0)))
-            # if self.args.n_sets > 1:
-            #     same_event = from_same_event(self.args.is_data, self.args.n_sets > 1, self.reco_info, line['unique_ids'])
-            #     out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[line['unique_ids'][1]], one_line=same_event, extra_str='    ', return_string=True))
             ilabel = 'inferred:'
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
         for iextra in range(1, len(line['unique_ids'])):
             line['seq'] = line['seqs'][iextra]
             out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, one_line=True))
-        if self.args.n_sets > 1:
-            # assert False  # need to update this
-            # tmpseq = line['seqs'].split(':')[0]  # temporarily set 'seq' to the second query's seq. NOTE oh, man, that's a cludge
-            line['seq'] = line['seqs'][1]
-            out_str_list.append(utils.print_reco_event(self.germline_seqs, line, one_line=True, extra_str='    ', return_string=True))
-        line['seq'] = None
 
         # if not self.args.is_data:
         #     self.print_performance_info(line, perfplotter=perfplotter)
