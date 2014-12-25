@@ -598,8 +598,9 @@ class PartitionDriver(object):
                 else:
                     assert len(line['errors']) == 0
 
+                ids = line['unique_ids']
+                dbg_str = '%s   %d' % (''.join(['%20s ' % i for i in ids]), from_same_event(self.args.is_data, True, self.reco_info, ids))
                 if algorithm == 'viterbi':
-                    ids = line['unique_ids']
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
                     utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
@@ -608,7 +609,7 @@ class PartitionDriver(object):
                     if last_key != this_key:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
-                            print '%s   %d' % (''.join(['%s ' % i for i in ids]), from_same_event(self.args.is_data, True, self.reco_info, ids))
+                            print dbg_str
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
@@ -620,9 +621,8 @@ class PartitionDriver(object):
                         self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
                     last_key = utils.get_key(ids)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
-                    # if self.args.debug:
-                    #     print '%-20s %20s' % (str(line['unique_id']), str(line['second_unique_id'])),
-                    #     print '   %7.3f   %d' % (float(line['score']), from_same_event(self.args.is_data, self.args.pair, self.reco_info, line['unique_id'], line['second_unique_id']))
+                    if self.args.debug and not self.args.partition:
+                        print dbg_str + '   %10.3f' % float(line['score'])
                     if line['score'] == '-nan':
                         print '    WARNING encountered -nan, setting to -999999.0'
                         score = -999999.0

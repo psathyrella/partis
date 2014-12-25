@@ -35,8 +35,8 @@ common_args = ' --n-procs 10 --datadir ' + args.datadir  #+ ' --only-genes \'IGH
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args)
 if args.simfname == None:
-    args.simfname = 'caches/' + args.label + '/simu.csv'
-param_dir = 'caches/' + args.label
+    args.simfname = '_output/' + args.label + '/simu.csv'
+param_dir = '_output/' + args.label
 if args.plotdir == None:
     args.plotdir = os.getenv('www') + '/partis/' + args.label
 
