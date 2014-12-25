@@ -186,6 +186,7 @@ int main(int argc, const char * argv[]) {
   // hmms.CacheAll();
 
   for(size_t iqry = 0; iqry < seqs.size(); iqry++) {
+    if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
@@ -203,7 +204,7 @@ int main(int argc, const char * argv[]) {
     bool stop(false);
     do {
       // clock_t run_start(clock());
-      if(args.debug()) cout << "  ---------" << endl;
+      if(args.debug()) cout << "       ----" << endl;
       result = jh.Run(seqs[iqry], kbounds);
       numerator = result.total_score();
       bayes_factor = numerator;
