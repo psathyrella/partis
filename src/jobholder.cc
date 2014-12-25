@@ -1,8 +1,18 @@
 #include "jobholder.h"
 
 // ----------------------------------------------------------------------------------------
+KBounds KBounds::LogicalOr(KBounds rhs) {
+  KBounds kbr(rhs); // return value
+  if(vmin < kbr.vmin) kbr.vmin = vmin;
+  if(dmin < kbr.dmin) kbr.dmin = dmin;
+  if(vmax > kbr.vmax) kbr.vmax = vmax;
+  if(dmax > kbr.dmax) kbr.dmax = dmax;
+  return kbr;
+}  
+
+// ----------------------------------------------------------------------------------------
 void Result::check_boundaries(KSet best, KBounds kbounds) {
-  if(kbounds.vmax - kbounds.vmin <= 1 || kbounds.dmax - kbounds.dmin <= 2) return; // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
+  // if(kbounds.vmax - kbounds.vmin <= 1 || kbounds.dmax - kbounds.dmin <= 2) return; // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
 
   // see if we need to expand
   if(best.v == kbounds.vmin) {
@@ -194,18 +204,20 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
       cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
     } else {
-      cout << "        " << *total_score;
+      printf("        %9.3f", *total_score);
       cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
       cout << "    " << seqs.name_str() << endl;
     }
   }
 
   result.check_boundaries(best_kset, kbounds);
-  if(debug_ && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "WARNING maximum at boundary for " << seqs.name_str() << endl;
-    cout << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
-         << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")" << endl;
-    cout << "    expand to " << result.better_kbounds().stringify() << endl;
+  if(/*debug_ && */result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
+    cout << "      WARNING max at boundary for " << seqs.name_str()
+	 << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
+         << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
+	 << "    better: " << result.better_kbounds().stringify() << endl;
+    if(result.could_not_expand())
+      cout << "      WARNING couldn't expand though!" << endl;
   }
 
   return result;
