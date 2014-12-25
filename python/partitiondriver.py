@@ -366,72 +366,64 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_pairs(self, preclusters=None):
         """ Get all unique the pairs of sequences in input_info, skipping where preclustered out """
-        pair_keys = []  # keep track of the pairs we've done already
-        pairs = []
-        n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
-        for a_name in self.input_info:
-            for b_name in self.input_info:
-                if b_name == a_name:
-                    continue
+        all_pairs = itertools.combinations(self.input_info.keys(), 2)
+        if preclusters == None:
+            print '    ?? lines (no preclustering)'  # % len(list(all_pairs)) NOTE I'm all paranoid the list conversion will be slow (although it doesn't seem to be a.t.m.)
+            return all_pairs
+        else:  # if we've already run preclustering, skip the pairs that we know aren't matches
+            preclustered_pairs = []
+            n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
+            for a_name, b_name in all_pairs:
                 key = utils.get_key((a_name, b_name))
-                if key in pair_keys:  # already did this pair
+                # NOTE shouldn't need this any more:
+                if a_name not in preclusters.query_clusters or b_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
+                    n_singletons += 1
                     continue
-                pair_keys.append(key)
-                if preclusters != None:  # if we've already run preclustering, skip the pairs that we know aren't matches
-                    if a_name not in preclusters.query_clusters or b_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
-                        n_singletons += 1
-                        continue
-                    if key not in preclusters.pairscores:  # preclustered out in a previous preclustering step
-                        n_previously_preclustered += 1
-                        continue
-                    if preclusters.query_clusters[a_name] != preclusters.query_clusters[b_name]:  # not in same cluster
-                        n_preclustered += 1
-                        continue
-                    if preclusters.is_removable(preclusters.pairscores[key]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
-                        n_removable += 1
-                        continue
-                pairs.append((a_name, b_name))
+                if key not in preclusters.pairscores:  # preclustered out in a previous preclustering step
+                    n_previously_preclustered += 1
+                    continue
+                if preclusters.query_clusters[a_name] != preclusters.query_clusters[b_name]:  # not in same cluster
+                    n_preclustered += 1
+                    continue
+                if preclusters.is_removable(preclusters.pairscores[key]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
+                    n_removable += 1
+                    continue
+                preclustered_pairs.append((a_name, b_name))
                 n_lines += 1
-
-        print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
-        return pairs
-
-    # # ----------------------------------------------------------------------------------------
-    # def get_hamming_distances(self, ):
+            print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
+            return preclustered_pairs
 
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self, preclusters=None):
         start = time.time()
         print 'hamming clustering'
-        hammingfname = self.args.workdir + '/fractional-hamming-scores.csv'
         chopped_off_left_sides = False
         hamming_info = []
-        with opener('w')(hammingfname) as outfile:
-            writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'score'))
-            writer.writeheader()
-            for query_name_a, query_name_b in self.get_pairs(preclusters):
-                query_seq = self.input_info[query_name_a]['seq']
-                second_query_seq = self.input_info[query_name_b]['seq']
-                if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-                    min_length = min(len(query_seq), len(second_query_seq))
-                    query_seq = query_seq[-min_length : ]
-                    second_query_seq = second_query_seq[-min_length : ]
-                    chopped_off_left_sides = True
-                mutation_frac = utils.hamming(query_seq, second_query_seq) / float(len(query_seq))
-                hamming_info.append({'id_a':query_name_a, 'id_b':query_name_b, 'score':mutation_frac})
-                # writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'score':mutation_frac})
-                # utils.color_mutants(query_seq, second_query_seq, ref_label=str(query_name) + ' ' + str(second_query_name) + '   ', print_result=True)
-                # if self.args.debug:
-                #     print '    %20s %20s %8.2f' % (query_name, second_query_name, mutation_frac)
+        print 'getting pairs'
+        all_pairs = self.get_pairs(preclusters)
+        # all_pairs = itertools.combinations(self.input_info.keys(), 2)
+        print 'looping'
+        for query_a, query_b in all_pairs:
+            seq_a = self.input_info[query_a]['seq']
+            seq_b = self.input_info[query_b]['seq']
+            if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
+                min_length = min(len(seq_a), len(seq_b))
+                seq_a = seq_a[-min_length : ]
+                seq_b = seq_b[-min_length : ]
+                chopped_off_left_sides = True
+            mutation_frac = utils.hamming(seq_a, seq_b) / float(len(seq_a))
+            hamming_info.append({'id_a':query_a, 'id_b':query_b, 'score':mutation_frac})
 
-        clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
         if self.outfile != None:
             self.outfile.write('hamming clusters\n')
-        clust.cluster(hamming_info, debug=self.args.debug, outfile=self.outfile, reco_info=self.reco_info)
-        os.remove(hammingfname)
+
+        clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
+        clust.cluster(input_scores=hamming_info, debug=self.args.debug, outfile=self.outfile, reco_info=self.reco_info)
+
         if chopped_off_left_sides:
             print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
         print '    hamming time: %.3f' % (time.time()-start)
+
         return clust
     
     # ----------------------------------------------------------------------------------------
