@@ -832,7 +832,7 @@ def split_key(key):
     NOTE does not necessarily give a_ and b_ in the same order, though
     NOTE also that b_name may not be the same (if 0), and this just returns strings, even if original names were ints
     """
-    assert len(re.findall('.', key)) == 1  # make sure none of the keys had a dot in it
+    # assert len(re.findall('.', key)) == 1  # make sure none of the keys had a dot in it
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------

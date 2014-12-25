@@ -61,6 +61,13 @@ class PartitionDriver(object):
                 os.remove(self.args.outfname)
             self.outfile = open(self.args.outfname, 'a')
 
+        if self.args.partitionfname != None:  # arg! this is messy
+            if os.path.exists(self.args.partitionfname):
+                os.remove(self.args.partitionfname)
+            partitionfile = open(self.args.partitionfname, 'a')
+            self.partitionwriter = csv.DictWriter(partitionfile, ('unique_ids', 'score'))
+            self.partitionwriter.writeheader()
+
     # ----------------------------------------------------------------------------------------
     def clean(self, waterer):
         if self.args.no_clean:
@@ -174,7 +181,7 @@ class PartitionDriver(object):
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
         hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
 
-        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-')
+        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -238,7 +245,7 @@ class PartitionDriver(object):
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
         # if self.outfile != None and algorithm == 'forward':
         #     self.outfile.write('hmm pairscores\n')
-        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter)
+        self.read_hmm_output(algorithm, csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter, make_clusters=make_clusters)
 
         if count_parameters:
             pcounter.write_counts()
@@ -246,11 +253,11 @@ class PartitionDriver(object):
             true_pcounter.write_counts()
 
         clusters = None
-        if make_clusters:  # a.t.m. don't cluster on the k-hmm output -- just use it as a check if we should split any of the clusters
+        if make_clusters:
             if self.outfile != None:
                 self.outfile.write('hmm clusters\n')
             else:
-                print 'hmm clusters'
+                print '%shmm clusters' % prefix
             clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True, singletons=preclusters.singletons)
             clusters.cluster(pairscorefname, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
 
@@ -305,7 +312,7 @@ class PartitionDriver(object):
             workdir += '/hmm-' + str(iproc)
             cmd_str = cmd_str.replace(self.args.workdir, workdir)
 
-        print cmd_str
+        # print cmd_str
         check_call(cmd_str, shell=True)
 
         if not self.args.no_clean:
@@ -572,7 +579,7 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter):
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, pairscorefname, pcounter, perfplotter, true_pcounter, make_clusters=True):
         # NOTE the input and output files for this function are almost identical at this point
 
         n_processed = 0
@@ -617,17 +624,18 @@ class PartitionDriver(object):
                         self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
                     last_key = utils.get_key(ids)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
-                    if self.args.debug and not self.args.partition:
+                    if self.args.debug or not make_clusters:
                         print dbg_str + '   %10.3f' % float(line['score'])
                     if line['score'] == '-nan':
                         print '    WARNING encountered -nan, setting to -999999.0'
                         score = -999999.0
                     else:
                         score = float(line['score'])
-                    with opener('a')(pairscorefname) as pairscorefile:
-                        pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
-                    # if self.args.outfname != None:
-                    #     self.outfile.write('%d,%d,%f\n' % (line['unique_id'], line['second_unique_id'], float(line['score'])))
+                    if len(ids) == 2:
+                        with opener('a')(pairscorefname) as pairscorefile:
+                            pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
+                    if self.partitionwriter != None:
+                        self.partitionwriter.writerow({'unique_ids':':'.join([str(uid) for uid in ids]), 'score':score})
                     n_processed += 1
 
         print '  processed %d queries' % n_processed
