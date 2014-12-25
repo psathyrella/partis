@@ -14,22 +14,24 @@ KBounds KBounds::LogicalOr(KBounds rhs) {
 void Result::check_boundaries(KSet best, KBounds kbounds) {
   // if(kbounds.vmax - kbounds.vmin <= 1 || kbounds.dmax - kbounds.dmin <= 2) return; // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
 
+  int delta(2);  // be VERY VERY CAREFUL about subtracting move than the value off of a size_t. Yes, I know I should follow the google standards and not use unsigned integers but it wasn't my choice at the start... I'll switch eventually
+
   // see if we need to expand
   if(best.v == kbounds.vmin) {
     boundary_error_ = true;
-    better_kbounds_.vmin = max((size_t)1, kbounds.vmin - 1);
+    better_kbounds_.vmin = max((int)1, (int)kbounds.vmin - delta);
   }
   if(best.v == kbounds.vmax - 1) {
     boundary_error_ = true;
-    better_kbounds_.vmax = kbounds.vmax + 1;
+    better_kbounds_.vmax = kbounds.vmax + delta;
   }
   if(best.d == kbounds.dmin) {
     boundary_error_ = true;
-    better_kbounds_.dmin = max((size_t)1, kbounds.dmin - 1);
+    better_kbounds_.dmin = max((int)1, (int)kbounds.dmin - delta);
   }
   if(best.d == kbounds.dmax - 1) {
     boundary_error_ = true;
-    better_kbounds_.dmax = kbounds.dmax + 1;
+    better_kbounds_.dmax = kbounds.dmax + delta;
   }
 
   if(boundary_error_ && better_kbounds_.equals(kbounds))
