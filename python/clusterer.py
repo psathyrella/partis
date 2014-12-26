@@ -28,9 +28,12 @@ class Clusterer(object):
         # self.nearest_true_mate = {}  # 
 
     # ----------------------------------------------------------------------------------------
-    def cluster(self, input_scores=[], infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
-        if infname != None:
-            assert len(input_scores) == 0  # should only specify <input_scores> *or* <infname>
+    def cluster(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
+        if infname is None:
+            assert input_scores is not None
+        else:
+            assert input_scores is None  # should only specify <input_scores> *or* <infname>
+            input_scores = []
             with opener('r')(infname) as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:

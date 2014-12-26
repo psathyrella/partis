@@ -574,7 +574,9 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
 
     if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
         # print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
-        assert no_space
+        # assert no_space
+        if not no_space:
+            print 'ERROR no space'
         # print ' ...but we\'re out of space so it\'s expected'
 
     out_str_list = []
@@ -808,6 +810,22 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
 
+
+# ----------------------------------------------------------------------------------------
+def get_hamming_distances(pairs):
+    return_info = []
+    for info in pairs:
+        seq_a = info['seq_a']
+        seq_b = info['seq_b']
+        if True:  #self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
+            min_length = min(len(seq_a), len(seq_b))
+            seq_a = seq_a[-min_length : ]
+            seq_b = seq_b[-min_length : ]
+            chopped_off_left_sides = True
+        mutation_frac = hamming(seq_a, seq_b) / float(len(seq_a))
+        return_info.append({'id_a':info['id_a'], 'id_b':info['id_b'], 'score':mutation_frac})
+
+    return return_info
 
 # ----------------------------------------------------------------------------------------
 def hamming(seq1, seq2):

@@ -77,6 +77,7 @@ class Waterer(object):
             for iproc in range(self.args.n_procs):
                 proc = Process(target=self.run_vdjalign, args=(base_infname, base_outfname, iproc))
                 proc.start()
+                time.sleep(0.1)
             while len(active_children()) > 0:
                 # print ' wait %s' % len(active_children()),
                 sys.stdout.flush()

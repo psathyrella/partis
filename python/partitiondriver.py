@@ -3,7 +3,7 @@ import sys
 import json
 import itertools
 from Bio import SeqIO
-from multiprocessing import Process, active_children
+from multiprocessing import Process, active_children, Pool
 import math
 import os
 import glob
@@ -65,7 +65,7 @@ class PartitionDriver(object):
             if os.path.exists(self.args.partitionfname):
                 os.remove(self.args.partitionfname)
             partitionfile = open(self.args.partitionfname, 'a')
-            self.partitionwriter = csv.DictWriter(partitionfile, ('unique_ids', 'score'))
+            self.partitionwriter = csv.DictWriter(partitionfile, ('unique_ids', 'same_event', 'score'))
             self.partitionwriter.writeheader()
 
     # ----------------------------------------------------------------------------------------
@@ -232,13 +232,14 @@ class PartitionDriver(object):
         # pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         if self.args.n_procs > 1:
-            self.split_hmm_input(csv_infname)
+            self.split_input(infname=csv_infname, prefix='hmm')
             for iproc in range(self.args.n_procs):
                 proc = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
                 proc.start()
+                time.sleep(0.1)
             while len(active_children()) > 0:
                 # print ' wait %s' % len(active_children()),
-                sys.stdout.flush()
+                # sys.stdout.flush()
                 time.sleep(1)
             self.merge_hmm_outputs(csv_outfname)
         else:
@@ -270,25 +271,42 @@ class PartitionDriver(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def split_hmm_input(self, infname):
-        """ split the hmm input in <infname> into <self.args.n_procs> input files in subdirectories within <self.args.workdir> """
-        info = []
-        with opener('r')(infname) as infile:
-            reader = csv.DictReader(infile)
-            for line in reader:
-                info.append(line)
+    def split_input(self, infname=None, info=None, prefix='sub'):
+        """ 
+        If <infname> is specified split the csv info from it into <self.args.n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
+        If <info> is specified, instead split the list <info> into pieces and return a list of the resulting lists
+        """
+        if info is None:
+            assert infname is not None
+            info = []
+            with opener('r')(infname) as infile:
+                reader = csv.DictReader(infile)
+                for line in reader:
+                    info.append(line)
+        else:
+            assert infname is None  # make sure only *one* of 'em is specified
+            outlists = []
         queries_per_proc = float(len(info)) / self.args.n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
         for iproc in range(self.args.n_procs):
-            workdir = self.args.workdir + '/hmm-' + str(iproc)
-            utils.prep_dir(workdir)
-            with opener('w')(workdir + '/' + os.path.basename(infname)) as sub_outfile:
+            if infname is None:
+                outlists.append([])
+            else:
+                subworkdir = self.args.workdir + '/' + prefix + '-' + str(iproc)
+                utils.prep_dir(subworkdir)
+                sub_outfile = opener('w')(subworkdir + '/' + os.path.basename(infname))
                 writer = csv.DictWriter(sub_outfile, reader.fieldnames)
                 writer.writeheader()
-                for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
-                    if iquery >= len(info):
-                        break
+            for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
+                if iquery >= len(info):
+                    break
+                if infname is None:
+                    outlists[-1].append(info[iquery])
+                else:
                     writer.writerow(info[iquery])
+
+        if infname is None:
+            return outlists
 
     # ----------------------------------------------------------------------------------------
     def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
@@ -394,16 +412,10 @@ class PartitionDriver(object):
             return preclustered_pairs
 
     # ----------------------------------------------------------------------------------------
-    def hamming_precluster(self, preclusters=None):
-        start = time.time()
-        print 'hamming clustering'
-        chopped_off_left_sides = False
-        hamming_info = []
-        print 'getting pairs'
-        all_pairs = self.get_pairs(preclusters)
-        # all_pairs = itertools.combinations(self.input_info.keys(), 2)
-        print 'looping'
-        for query_a, query_b in all_pairs:
+    def get_hamming_distances(self, pairs):  #, return_info):
+        # NOTE duplicates a function in utils
+        return_info = []
+        for query_a, query_b in pairs:
             seq_a = self.input_info[query_a]['seq']
             seq_b = self.input_info[query_b]['seq']
             if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
@@ -412,13 +424,47 @@ class PartitionDriver(object):
                 seq_b = seq_b[-min_length : ]
                 chopped_off_left_sides = True
             mutation_frac = utils.hamming(seq_a, seq_b) / float(len(seq_a))
-            hamming_info.append({'id_a':query_a, 'id_b':query_b, 'score':mutation_frac})
+            return_info.append({'id_a':query_a, 'id_b':query_b, 'score':mutation_frac})
+
+        return return_info
+
+    # ----------------------------------------------------------------------------------------
+    def hamming_precluster(self, preclusters=None):
+        assert self.args.truncate_pairs
+        start = time.time()
+        print 'hamming clustering'
+        chopped_off_left_sides = False
+        hamming_info = []
+        all_pairs = self.get_pairs(preclusters)
+        print '    getting pairs: %.3f' % (time.time()-start); start = time.time()
+        # all_pairs = itertools.combinations(self.input_info.keys(), 2)
+        if self.args.n_procs > 1:
+            pool = Pool(processes=self.args.n_procs)
+            subqueries = self.split_input(info=list(all_pairs), prefix='hamming')  # NOTE 'casting' to a list here makes me nervous!
+            sublists = []
+            for queries in subqueries:
+                sublists.append([])
+                for id_a, id_b in queries:
+                    sublists[-1].append({'id_a':id_a, 'id_b':id_b, 'seq_a':self.input_info[id_a]['seq'], 'seq_b':self.input_info[id_b]['seq']})
+            
+            print '    preparing info: %.3f' % (time.time()-start); start = time.time()
+            subinfos = pool.map(utils.get_hamming_distances, sublists)
+            pool.close()
+            pool.join()
+            print '    starting pools: %.3f' % (time.time()-start); start = time.time()
+    
+            for isub in range(len(subinfos)):
+                hamming_info += subinfos[isub]
+            print '    merging pools: %.3f' % (time.time()-start); start = time.time()
+        else:
+            hamming_info = self.get_hamming_distances(all_pairs)
 
         if self.outfile != None:
             self.outfile.write('hamming clusters\n')
 
         clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
         clust.cluster(input_scores=hamming_info, debug=self.args.debug, outfile=self.outfile, reco_info=self.reco_info)
+        print '    clustering: %.3f' % (time.time()-start); start = time.time()
 
         if chopped_off_left_sides:
             print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
@@ -551,8 +597,11 @@ class PartitionDriver(object):
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
             assert preclusters != None
             nsets = [ val for key, val in preclusters.id_clusters.items() if len(val) > 1 ]  # <nsets> is a list of sets (well, lists) of query names
+            # nsets = []
+            # for cluster in preclusters.id_clusters.values():
+            #     nsets += itertools.combinations(cluster, 5)
         elif hmm_type == 'k=nsets':  # run on *every* combination of queries which has length <self.args.n_sets>
-            nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)  # I <3 python
+            nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
         else:
             assert False
 
@@ -600,7 +649,8 @@ class PartitionDriver(object):
                     assert len(line['errors']) == 0
 
                 ids = line['unique_ids']
-                dbg_str = '%s   %d' % (''.join(['%20s ' % i for i in ids]), from_same_event(self.args.is_data, True, self.reco_info, ids))
+                same_event = from_same_event(self.args.is_data, True, self.reco_info, ids)
+                dbg_str = '%s   %d' % (''.join(['%20s ' % i for i in ids]), same_event)
                 if algorithm == 'viterbi':
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
@@ -636,7 +686,7 @@ class PartitionDriver(object):
                         # with opener('a')(pairscorefname) as pairscorefile:
                         #     pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
                     if self.args.partitionfname != None:
-                        self.partitionwriter.writerow({'unique_ids':':'.join([str(uid) for uid in ids]), 'score':score})
+                        self.partitionwriter.writerow({'unique_ids':':'.join([str(uid) for uid in ids]), 'same_event':int(same_event), 'score':score})
                     n_processed += 1
 
         print '  processed %d queries' % n_processed
