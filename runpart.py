@@ -53,8 +53,8 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 
 # numerical inputs
-parser.add_argument('--hamming-cluster-cutoff', type=int, default=0.5, help='Threshold for hamming distance single-linkage preclustering')
-parser.add_argument('--pair-hmm-cluster-cutoff', type=int, default=0.0, help='Threshold for pair hmm single-linkage preclustering')
+parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.5, help='Threshold for hamming distance single-linkage preclustering')
+parser.add_argument('--pair-hmm-cluster-cutoff', type=float, default=0.0, help='Threshold for pair hmm single-linkage preclustering')
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
 parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')

@@ -179,9 +179,9 @@ class PartitionDriver(object):
 
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
+        # hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
 
-        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
+        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -436,7 +436,7 @@ class PartitionDriver(object):
         chopped_off_left_sides = False
         hamming_info = []
         all_pairs = self.get_pairs(preclusters)
-        print '    getting pairs: %.3f' % (time.time()-start); start = time.time()
+        # print '    getting pairs: %.3f' % (time.time()-start); start = time.time()
         # all_pairs = itertools.combinations(self.input_info.keys(), 2)
         if self.args.n_procs > 1:
             pool = Pool(processes=self.args.n_procs)
@@ -447,15 +447,16 @@ class PartitionDriver(object):
                 for id_a, id_b in queries:
                     sublists[-1].append({'id_a':id_a, 'id_b':id_b, 'seq_a':self.input_info[id_a]['seq'], 'seq_b':self.input_info[id_b]['seq']})
             
-            print '    preparing info: %.3f' % (time.time()-start); start = time.time()
+            # print '    preparing info: %.3f' % (time.time()-start); start = time.time()
             subinfos = pool.map(utils.get_hamming_distances, sublists)
+            # NOTE this starts the proper number of processes, but they seem to end up i/o blocking or something (wait % stays at zero, but they each only get 20 or 30 %cpu on stoat)
             pool.close()
             pool.join()
-            print '    starting pools: %.3f' % (time.time()-start); start = time.time()
+            # print '    starting pools: %.3f' % (time.time()-start); start = time.time()
     
             for isub in range(len(subinfos)):
                 hamming_info += subinfos[isub]
-            print '    merging pools: %.3f' % (time.time()-start); start = time.time()
+            # print '    merging pools: %.3f' % (time.time()-start); start = time.time()
         else:
             hamming_info = self.get_hamming_distances(all_pairs)
 
@@ -464,7 +465,7 @@ class PartitionDriver(object):
 
         clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
         clust.cluster(input_scores=hamming_info, debug=self.args.debug, outfile=self.outfile, reco_info=self.reco_info)
-        print '    clustering: %.3f' % (time.time()-start); start = time.time()
+        # print '    clustering: %.3f' % (time.time()-start); start = time.time()
 
         if chopped_off_left_sides:
             print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
@@ -650,7 +651,7 @@ class PartitionDriver(object):
 
                 ids = line['unique_ids']
                 same_event = from_same_event(self.args.is_data, True, self.reco_info, ids)
-                dbg_str = '%s   %d' % (''.join(['%20s ' % i for i in ids]), same_event)
+                id_str = ''.join(['%20s ' % i for i in ids])
                 if algorithm == 'viterbi':
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
@@ -660,7 +661,7 @@ class PartitionDriver(object):
                     if last_key != this_key:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
-                            print dbg_str
+                            print '%s   %d' % (id_str, same_event)
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
@@ -675,7 +676,7 @@ class PartitionDriver(object):
                     last_key = utils.get_key(ids)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     if not make_clusters:  # self.args.debug or 
-                        print dbg_str + '   %10.3f' % float(line['score'])
+                        print '%3d %10.3f    %s' % (same_event, float(line['score']), id_str)
                     if line['score'] == '-nan':
                         print '    WARNING encountered -nan, setting to -999999.0'
                         score = -999999.0
