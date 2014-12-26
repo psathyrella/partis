@@ -3,6 +3,7 @@
 
 import sys
 import os
+import random
 import json
 import numpy
 import math
@@ -64,8 +65,7 @@ class TreeGenerator(object):
     def __init__(self, args):
         self.args = args
         self.tree_generator = 'TreeSim'  # ape
-        self.n_trees = '1000'
-        self.branch_length_fname = self.args.hackey_extra_data_dir + '/branch-lengths.txt'
+        self.branch_length_fname = self.args.branch_length_fname
         # self.treefname = self.args.hackey_extra_data_dir + '/trees.tre'
         assert self.args.outfname != None
         self.treefname = self.args.outfname
@@ -120,24 +120,28 @@ class TreeGenerator(object):
         # build up the R command line
         r_command = 'R --slave'
         if self.tree_generator == 'ape':
-            r_command += ' -e \"'
-            r_command += 'library(ape); '
-            r_command += 'set.seed(0); '
-            r_command += 'for (itree in 1:' + self.n_trees+ ') { write.tree(rtree(' + str(n_leaves) + ', br = rexp, rate = 10), \'test.tre\', append=TRUE) }'
-            r_command += '\"'
-            check_call(r_command, shell=True)
+            assert False  # needs updating
+            # r_command += ' -e \"'
+            # r_command += 'library(ape); '
+            # r_command += 'set.seed(0); '
+            # r_command += 'for (itree in 1:' + str(self.args.n_trees)+ ') { write.tree(rtree(' + str(self.args.n_leaves) + ', br = rexp, rate = 10), \'test.tre\', append=TRUE) }'
+            # r_command += '\"'
+            # check_call(r_command, shell=True)
         elif self.tree_generator == 'TreeSim':
             # set parameters. NOTE gee, I'm not really sure these parameters are all right
-            n_species = '50'
             speciation_rate = '1'
             extinction_rate = '0.5'
             n_trees_each_run = '1'
             # build command line, one (painful) tree at a time
             with tempfile.NamedTemporaryFile() as commandfile:
                 commandfile.write('library(TreeSim)\n')
-                for it in range(int(self.n_trees)):
+                for it in range(self.args.n_trees):
+                    if self.args.random_number_of_leaves:
+                        n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
+                    else:
+                        n_leaves = self.args.n_leaves
                     age = self.choose_branch_length(bin_centers, contents)
-                    commandfile.write('trees <- sim.bd.taxa.age(' + n_species + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + age + ', ' + 'mrca = FALSE)\n')
+                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + age + ', ' + 'mrca = FALSE)\n')
                     commandfile.write('write.tree(trees[[1]], \"' + self.treefname + '\", append=TRUE)\n')
                 r_command += ' -f ' + commandfile.name
                 commandfile.flush()
