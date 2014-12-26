@@ -179,9 +179,9 @@ class PartitionDriver(object):
 
         hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        # hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
+        hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
 
-        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
+        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -232,7 +232,7 @@ class PartitionDriver(object):
         # pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         if self.args.n_procs > 1:
-            self.split_input(infname=csv_infname, prefix='hmm')
+            self.split_input(self.args.n_procs, infname=csv_infname, prefix='hmm')
             for iproc in range(self.args.n_procs):
                 proc = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
                 proc.start()
@@ -271,9 +271,9 @@ class PartitionDriver(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, infname=None, info=None, prefix='sub'):
+    def split_input(self, n_procs, infname=None, info=None, prefix='sub'):
         """ 
-        If <infname> is specified split the csv info from it into <self.args.n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
+        If <infname> is specified split the csv info from it into <n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
         If <info> is specified, instead split the list <info> into pieces and return a list of the resulting lists
         """
         if info is None:
@@ -286,9 +286,9 @@ class PartitionDriver(object):
         else:
             assert infname is None  # make sure only *one* of 'em is specified
             outlists = []
-        queries_per_proc = float(len(info)) / self.args.n_procs
+        queries_per_proc = float(len(info)) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
-        for iproc in range(self.args.n_procs):
+        for iproc in range(n_procs):
             if infname is None:
                 outlists.append([])
             else:
@@ -438,9 +438,9 @@ class PartitionDriver(object):
         all_pairs = self.get_pairs(preclusters)
         # print '    getting pairs: %.3f' % (time.time()-start); start = time.time()
         # all_pairs = itertools.combinations(self.input_info.keys(), 2)
-        if self.args.n_procs > 1:
-            pool = Pool(processes=self.args.n_procs)
-            subqueries = self.split_input(info=list(all_pairs), prefix='hamming')  # NOTE 'casting' to a list here makes me nervous!
+        if self.args.n_fewer_procs > 1:
+            pool = Pool(processes=self.args.n_fewer_procs)
+            subqueries = self.split_input(self.args.n_fewer_procs, info=list(all_pairs), prefix='hamming')  # NOTE 'casting' to a list here makes me nervous!
             sublists = []
             for queries in subqueries:
                 sublists.append([])

@@ -44,7 +44,8 @@ parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
 
 # run control
-parser.add_argument('--n-procs', type=int, default=1, help='number of processes over which to parallelize')
+parser.add_argument('--n-procs', type=int, default=1, help='Max number of processes over which to parallelize')
+parser.add_argument('--n-fewer-procs', type=int, default=1, help='Number of processes for Smith-Waterman and hamming distance')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
