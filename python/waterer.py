@@ -36,6 +36,7 @@ class Waterer(object):
             #         utils.prep_dir(plotdir + '/true/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
+        self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from',parameter_dir
@@ -452,6 +453,7 @@ class Waterer(object):
                 if self.args.debug:
                     print '            ...skipping'
                 self.n_unproductive += 1
+                self.info['skipped_unproductive_queries'].append(query_name)
                 return
 
         # best k_v, k_d:

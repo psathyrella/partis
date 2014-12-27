@@ -576,13 +576,23 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_sw_failures(self, query_names, sw_info):
-        non_failed_names = []
+        # if any of the queries in <query_names> was unproductive, skip the whole kitnkaboodle
+        unproductive = False
+        for qrn in query_names:
+            if qrn in sw_info['skipped_unproductive_queries']:
+                print '    skipping unproductive %s along with %s' % (query_names[0], ' '.join(query_names[1:]))
+                unproductive = True
+        if unproductive:
+            return []
+
+        # otherwise they should be in sw_info, but doesn't hurt to check
+        return_names = []
         for name in query_names:
             if name in sw_info:
-                non_failed_names.append(name)
+                return_names.append(name)
             else:
                 print '    %s not found in sw info' % ' '.join(query_names)
-        return non_failed_names
+        return return_names
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False):
@@ -611,6 +621,8 @@ class PartitionDriver(object):
 
         for query_names in nsets:
             non_failed_names = self.remove_sw_failures(query_names, sw_info)
+            if len(non_failed_names) == 0:
+                continue
             combined_query = self.combine_queries(sw_info, non_failed_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue

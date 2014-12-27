@@ -136,8 +136,8 @@ class PerformancePlotter(object):
                     normalize = '_norm' in column
                     guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
                 elif column == 'mute_freqs':
-                    trueval = utils.rounded_mutation_rate(true_line)
-                    guessval = utils.rounded_mutation_rate(line)
+                    trueval = utils.rounded_mutation_rate(self.germlines, true_line)
+                    guessval = utils.rounded_mutation_rate(self.germlines, line)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(line[column])
