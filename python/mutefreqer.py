@@ -22,15 +22,24 @@ class MuteFreqer(object):
         self.base_plotdir = base_plotdir
         if self.base_plotdir != '':
             self.base_plotdir += '/mute-freqs'
+            utils.prep_dir(self.base_plotdir + '/plots', '*.svg')
             for region in utils.regions:
                 utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
                 utils.prep_dir(self.base_plotdir + '/' + region + '-per-base/plots', '*.png')
         utils.prep_dir(self.outdir, '*.csv')
         self.germline_seqs = germline_seqs
         self.counts = {}
-    
+        self.mean_rates = {}
+
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
+        # first do overall mute freq
+        freq = utils.rounded_mutation_rate(self.germline_seqs, info)
+        if freq not in self.mean_rates:
+            self.mean_rates[freq] = 0
+        self.mean_rates[freq] += 1
+
+        # then per-gene per-position
         for region in utils.regions:
             if info[region + '_gene'] not in self.counts:
                 self.counts[info[region + '_gene']] = {}
@@ -156,6 +165,11 @@ class MuteFreqer(object):
                     cvn.SaveAs(plotfname)
 
         if has_root:
+            # make mean mute freq hist
+            hist = plotting.make_hist(self.mean_rates, 'int', 'mean-freq', normalize=True)
+            plotting.draw(hist, 'int', plotname='mean-freq', plotdir=self.base_plotdir)
+
+            # then write make html file and fix permissiions
             if self.base_plotdir != '':
                 for region in utils.regions:
                     check_call(['makeHtml', self.base_plotdir + '/' + region, '1', 'null', 'svg'])

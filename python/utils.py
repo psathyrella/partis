@@ -918,3 +918,14 @@ def merge_csvs(outfname, csv_list, cleanup=True):
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
+# ----------------------------------------------------------------------------------------
+def rounded_mutation_rate(germlines, line):
+    """ It's called rounded 'cause I multiply by a hundred and cast to an int. This makes plotting easier (see performanceplotter.py) """
+    naive_seq = get_full_naive_seq(germlines, line)
+    muted_seq = line['seq']
+    # print ''
+    # color_mutants(naive_seq, muted_seq, True)
+    # print 'naive', naive_seq
+    # print 'muted', muted_seq
+    n_mutes = hamming(naive_seq, muted_seq)
+    return int(100 * float(n_mutes) / len(naive_seq))  # hamming() asserts they're the same length

@@ -90,17 +90,6 @@ class PerformancePlotter(object):
             return total_distance
 
     # ----------------------------------------------------------------------------------------
-    def mutation_rate(self, line):
-        naive_seq = utils.get_full_naive_seq(self.germlines, line)
-        muted_seq = line['seq']
-        # print ''
-        # utils.color_mutants(naive_seq, muted_seq, True)
-        # print 'naive', naive_seq
-        # print 'muted', muted_seq
-        n_mutes = utils.hamming(naive_seq, muted_seq)
-        return int(100 * float(n_mutes) / len(naive_seq))  # utils.hamming() asserts they're the same length
-
-    # ----------------------------------------------------------------------------------------
     def add_fail(self):
         for column in self.values:
             if column in bool_columns:
@@ -147,11 +136,12 @@ class PerformancePlotter(object):
                     normalize = '_norm' in column
                     guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
                 elif column == 'mute_freqs':
-                    trueval = self.mutation_rate(true_line)
-                    guessval = self.mutation_rate(line)
+                    trueval = utils.rounded_mutation_rate(true_line)
+                    guessval = utils.rounded_mutation_rate(line)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(line[column])
+
                 diff = guessval - trueval
                 if diff not in self.values[column]:
                     self.values[column][diff] = 0
