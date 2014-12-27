@@ -232,7 +232,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
-        if not self.args.debug:
+        if self.args.debug < 2:
             return
         out_str_list = []
         buff_str = (20 - len(gene)) * ' '
