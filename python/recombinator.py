@@ -26,7 +26,7 @@ class Recombinator(object):
     def __init__(self, args, iprocess=None, total_length_from_right=-1):
         self.args = args
         if self.args.seed == None:
-            seed = time.time()
+            seed = int(time.time())
         else:
             seed = self.args.seed
 
