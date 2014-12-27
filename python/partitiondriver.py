@@ -181,8 +181,8 @@ class PartitionDriver(object):
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
         hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
 
-        # self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
-        self.run_hmm('viterbi', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
+        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
+        # self.run_hmm('viterbi', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
 
         # self.clean(waterer)
         if not self.args.no_clean:
