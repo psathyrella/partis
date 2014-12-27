@@ -22,7 +22,7 @@ class MuteFreqer(object):
         self.base_plotdir = base_plotdir
         if self.base_plotdir != '':
             self.base_plotdir += '/mute-freqs'
-            utils.prep_dir(self.base_plotdir + '/plots', '*.svg')
+            utils.prep_dir(self.base_plotdir + '/plots', multilings=('*.csv', '*.svg'))
             for region in utils.regions:
                 utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
                 utils.prep_dir(self.base_plotdir + '/' + region + '-per-base/plots', '*.png')
@@ -56,7 +56,7 @@ class MuteFreqer(object):
                 mute_counts[i_germline][query_seq[inuke]] += 1
 
     # ----------------------------------------------------------------------------------------
-    def write(self, calculate_uncertainty=True):
+    def write(self, calculate_uncertainty=True, csv_outfname=None):
         cvn = None
         if has_root:
             cvn = TCanvas("cvn", "", 6000, 1000)
@@ -167,7 +167,7 @@ class MuteFreqer(object):
         if has_root:
             # make mean mute freq hist
             hist = plotting.make_hist(self.mean_rates, 'int', 'mean-freq', normalize=True)
-            plotting.draw(hist, 'int', plotname='mean-freq', plotdir=self.base_plotdir, write_csv=True)
+            plotting.draw(hist, 'int', plotname='mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname)
 
             # then write make html file and fix permissiions
             if self.base_plotdir != '':

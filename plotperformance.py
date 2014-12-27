@@ -18,12 +18,13 @@ parser = argparse.ArgumentParser()
 # parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
-parser.add_argument('--n-sim-seqs', default='10000')
+parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to multiply by the number of leaves to get the number of sequences (default is 5, though, which'll give you 10k seqs)
 parser.add_argument('--datadir', required=True)  #default='data/imgt')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
 parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
 parser.add_argument('--simfname')
 parser.add_argument('--plotdir')
+parser.add_argument('--n-procs', type=int, default=10)
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 
@@ -32,7 +33,7 @@ args.extra_args = utils.get_arg_list(args.extra_args)
 args.actions = utils.get_arg_list(args.actions)
 
 cmd = './runpart.py'
-common_args = ' --n-procs 10 --datadir ' + args.datadir  #+ ' --only-genes \'IGHV1-18*01:IGHD3-10*01:IGHJ6*03\''
+common_args = ' --n-procs ' + str(args.n_procs) + ' --datadir ' + args.datadir  #+ ' --only-genes \'IGHV1-18*01:IGHD3-10*01:IGHJ6*03\''
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args)
 if args.simfname == None:
@@ -50,12 +51,10 @@ if 'cache-data-parameters' in args.actions:
     run_that_shit(cmd_str)
 
 if 'simulate' in args.actions:
-    n_reco_events = float(args.n_sim_seqs) / 5  # a.t.m. I'm just hard coding five seqs per reco event
-    assert n_reco_events > 0
     # simulate based on data parameters
     cmd_str = ' --simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm_parameters'
-    cmd_str += ' --n-max-queries ' + str(int(n_reco_events))
+    cmd_str += ' --n-max-queries ' + str(args.n_sim_events)  # NOTE confusing using n-max-queries for both these thigns, sorry...
     run_that_shit(cmd_str)
 
 if 'cache-simu-parameters' in args.actions:

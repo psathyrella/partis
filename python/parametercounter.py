@@ -122,7 +122,7 @@ class ParameterCounter(object):
             self.plot()
         print 'write mute freqs'
         mute_start = time.time()
-        n_cached, n_not_cached = self.mutefreqer.write(self.base_outdir)
+        n_cached, n_not_cached = self.mutefreqer.write(csv_outfname=self.base_outdir + '/mean-mute-freqs.csv')
         print 'mute freq write time: %.3f' % (time.time() - mute_start)
         print ' %d / %d cached' % (n_cached, n_cached + n_not_cached)
         for column in self.counts:

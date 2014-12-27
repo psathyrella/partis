@@ -75,6 +75,7 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 
 # ----------------------------------------------------------------------------------------
 def write_hist_to_file(fname, hist):
+    """ see the make_hist_from* functions to reverse this operation """
     with opener('w')(fname) as histfile:
         writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
         writer.writeheader()
@@ -227,7 +228,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False):
+def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False, csv_fname=None):
     if not has_root:
         return
     cvn = TCanvas('cvn', '', 700, 600)
@@ -320,7 +321,10 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more
 
     if write_csv:
         assert more_hists == None
-        write_hist_to_file(plotdir + '/plots/' + plotname + '.csv', hist)
+        if csv_fname == None:
+            write_hist_to_file(plotdir + '/plots/' + plotname + '.csv', hist)
+        else:
+            write_hist_to_file(csv_fname, hist)
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
 
 # ----------------------------------------------------------------------------------------

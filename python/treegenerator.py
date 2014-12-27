@@ -10,6 +10,7 @@ import math
 import tempfile
 from subprocess import check_call
 from opener import opener
+import plotting
 import utils
 
 # ----------------------------------------------------------------------------------------
@@ -62,60 +63,55 @@ class Hist(object):  # NOTE I wrote this class when I couldn't get pyroot to wor
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
-    def __init__(self, args):
+    def __init__(self, args, mute_freq_fname):
         self.args = args
         self.tree_generator = 'TreeSim'  # ape
-        self.branch_length_fname = self.args.branch_length_fname
-        # self.treefname = self.args.hackey_extra_data_dir + '/trees.tre'
+        self.read_mute_freqs(mute_freq_fname)
         assert self.args.outfname != None
-        self.treefname = self.args.outfname
-        self.make_branch_length_hists()
-        self.generate_trees()
+        if self.args.debug:
+            print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_fname)
+            if self.args.random_number_of_leaves:
+                print '    with random number of leaves in [2, %d]' % self.args.n_leaves
+            else:
+                print '    with %d leaves' % self.args.n_leaves
 
     #----------------------------------------------------------------------------------------
-    def make_branch_length_hists(self):
-        for human in utils.humans:
-            with opener('r')(self.args.tree_parameter_file) as infile:
-            # with opener('r')(data_dir + '/' + human + '/' + naivety + '/tree-parameters.json.gz') as infile:
-                js = json.load(infile)
-                hist = Hist(100, 0.0, 1.3)
-                il = 0
-                for length in js['branchLengths']:
-                    hist.fill(length)
-                    il += 1
-                    if il > 100:
-                        break
-                hist.normalize()
-                hist.write(self.branch_length_fname)
-    
+    def read_mute_freqs(self, mute_freq_fname):
+        # NOTE mute_freq_fname is mute freqs written as *percents* (it makes sense for plotting)
+        #  so we need to convert to branch lengths
+        # NOTE also I'm not doing it really correctly yet, but it's ok for now
+        self.branch_lengths = {}
+        self.branch_lengths['lengths'], self.branch_lengths['probs'] = [], []
+        mutehist = plotting.make_hist_from_bin_entry_file(mute_freq_fname, 'mute-freqs')
+
+        if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
+            print 'WARNING nonzero under/overflow bins read from %s' % mute_freq_fname
+
+        check_sum = 0.0
+        for ibin in range(1, mutehist.GetNbinsX()+1):  # ignore under/overflow bins
+            freq = mutehist.GetBinCenter(ibin)
+            branch_length = float(freq) / 100
+            prob = mutehist.GetBinContent(ibin)
+            self.branch_lengths['lengths'].append(branch_length)
+            self.branch_lengths['probs'].append(prob)
+            check_sum += self.branch_lengths['probs'][-1]
+        assert utils.is_normed(check_sum)
+
     #----------------------------------------------------------------------------------------
-    def choose_branch_length(self, bin_centers, contents):
+    def choose_branch_length(self):
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
-        # print '  %f' % iprob
-        for ibin in range(len(bin_centers)):
-            sum_prob += contents[ibin]
-            # print '    %5f %5f' % (contents[ibin], sum_prob)
+        for ibin in range(len(self.branch_lengths['lengths'])):
+            sum_prob += self.branch_lengths['probs'][ibin]
             if iprob < sum_prob:
-                # print '    returning %s' % bin_centers[ibin]
-                return bin_centers[ibin]
+                return self.branch_lengths['lengths'][ibin]
                 
         assert False  # shouldn't fall through to here
     
     # ----------------------------------------------------------------------------------------
-    def generate_trees(self):
-        # read branch length histogram
-        bin_centers, contents = [], []
-        with opener('r')(self.branch_length_fname) as branchfile:
-            check_sum = 0.0
-            for line in branchfile:
-                bin_centers.append(line.split()[0])  # keep it as a string
-                contents.append(float(line.split()[1]))  # probability of each bin
-                check_sum += contents[-1]
-            assert utils.is_normed(check_sum)
-    
-        if os.path.exists(self.treefname):
-            os.remove(self.treefname)
+    def generate_trees(self, outfname):
+        if os.path.exists(outfname):
+            os.remove(outfname)
 
         # build up the R command line
         r_command = 'R --slave'
@@ -140,9 +136,9 @@ class TreeGenerator(object):
                         n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
                     else:
                         n_leaves = self.args.n_leaves
-                    age = self.choose_branch_length(bin_centers, contents)
-                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + age + ', ' + 'mrca = FALSE)\n')
-                    commandfile.write('write.tree(trees[[1]], \"' + self.treefname + '\", append=TRUE)\n')
+                    age = self.choose_branch_length()
+                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + str(age) + ', ' + 'mrca = FALSE)\n')
+                    commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
                 r_command += ' -f ' + commandfile.name
                 commandfile.flush()
                 check_call(r_command, shell=True)

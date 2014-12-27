@@ -55,7 +55,7 @@ parser.add_argument('--n-best-events', type=int, default=3, help='Number of best
 
 # tree generation (see also branch-length-fname)
 parser.add_argument('--n-trees', type=int, default=20, help='Number of trees to generate')
-parser.add_argument('--n-leaves', type=int, help='Number of leaves per tree')
+parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
 parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves in [2, <n-leaves>] (inclusive!). Otherwise give all trees <n-leaves> leaves')
 
 # numerical inputs
@@ -68,7 +68,7 @@ parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
-parser.add_argument('--treefname', default='data/recombinator/trees.tre', help='File with list of newick-formated trees. Each rearrangement event chooses one at random')
+# parser.add_argument('--treefname', default='data/recombinator/trees.tre', help='File with list of newick-formated trees. Each rearrangement event chooses one at random')
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 parser.add_argument('--branch-length-fname', default='data/recombinator/branch-lengths.txt', help='Branch lengths from Connor\'s mebcell stuff')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
@@ -98,7 +98,8 @@ def run_simulation(args, iproc):
 if args.simulate or args.generate_trees:
     if args.generate_trees:
         from treegenerator import TreeGenerator, Hist
-        treegen = TreeGenerator(args)
+        treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
+        treegen.generate_trees(self.args.outfname)
         sys.exit(0)
     from recombinator import Recombinator
     assert args.parameter_dir != None and args.outfname != None
