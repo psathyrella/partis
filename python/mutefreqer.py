@@ -8,7 +8,7 @@ import csv
 import plotting
 has_root = plotting.has_root
 if has_root:
-    from ROOT import TCanvas, TH1F, TLine, kRed
+    from ROOT import TCanvas, TH1D, TLine, kRed
 
 import utils
 import fraction_uncertainty
@@ -129,16 +129,16 @@ class MuteFreqer(object):
             if has_root: # make a plot
                 paramutils.make_mutefreq_plot(self.base_plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 
-                hist = TH1F('hist_' + utils.sanitize_name(gene), '',
+                hist = TH1D('hist_' + utils.sanitize_name(gene), '',
                             sorted_positions[-1] - sorted_positions[0] + 1,
                             sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
-                lo_err_hist = TH1F(hist)
-                hi_err_hist = TH1F(hist)
+                lo_err_hist = TH1D(hist)
+                hi_err_hist = TH1D(hist)
                 for position in sorted_positions:
                     hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq'])
                     lo_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_lo_err'])
                     hi_err_hist.SetBinContent(hist.FindBin(position), mute_counts[position]['freq_hi_err'])
-                hframe = TH1F(hist)
+                hframe = TH1D(hist)
                 hframe.SetTitle(gene + ';;')
                 hframe.Reset()
                 hframe.SetMinimum(lo_err_hist.GetMinimum() - 0.03)

@@ -1,7 +1,7 @@
 import os
 import csv
 import operator
-from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
+from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import utils
 from opener import opener
@@ -102,7 +102,7 @@ def make_mutefreq_plot(plotdir, gene_name, positions):
 
     cvn = TCanvas('cvn-2', '', 1000, 300)
     n_bins = ibin
-    hframe = TH1F(gene_name + '-emission-frame', utils.unsanitize_name(gene_name), n_bins, -0.5, n_bins - 0.5)
+    hframe = TH1D(gene_name + '-emission-frame', utils.unsanitize_name(gene_name), n_bins, -0.5, n_bins - 0.5)
     hframe.SetNdivisions(202, 'y')
     hframe.SetNdivisions(0, 'x')
     hframe.Draw()

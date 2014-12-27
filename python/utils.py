@@ -14,8 +14,8 @@ from opener import opener
 from Bio import SeqIO
 
 #----------------------------------------------------------------------------------------
-eps = 1.0e-9  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
-# NOTE I also have an eps defined in hmmwriter
+# NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
+eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
 def is_normed(probs):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
         return is_normed([val for key, val in probs.items()])

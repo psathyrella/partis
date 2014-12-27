@@ -19,7 +19,7 @@ def check_root():
 sys.argv.append('-b')  # root just loves its stupid little splashes
 has_root = check_root()
 if has_root:
-    from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, kCyan, kOrange
+    from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, kCyan, kOrange
     gROOT.Macro("plotting/MitStyleRemix.cc+")
 else:
     print ' ROOT not found, proceeding without plotting'
@@ -107,7 +107,7 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
     low_edges = sorted(low_edges)
     for ib in range(n_bins+1):
         xbins[ib] = low_edges[ib+1]  # low_edges[1] is the lower edge of the first bin, i.e. the first bin after the underflow bin, and this will set the last entry in xbins to lower[n_bins+1], i.e. the lower edge of the overflow bin. Which, I bloody well think, is correct
-    hist = TH1F(hist_label, '', n_bins, xbins)  # this will barf if the csv file wasn't sorted by bin low edge
+    hist = TH1D(hist_label, '', n_bins, xbins)  # this will barf if the csv file wasn't sorted by bin low edge
     hist.GetXaxis().SetTitle(xtitle)
     for ib in range(n_bins+2):
         hist.SetBinContent(ib, contents[ib])
@@ -130,7 +130,7 @@ def make_hist_from_observation_file(fname, column, hist_label='', n_bins=30, log
     values = sorted(values)
     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
     set_bins(values, n_bins, 'x' in log, xbins, var_type='float')
-    hist = TH1F(hist_label, '', n_bins, xbins)
+    hist = TH1D(hist_label, '', n_bins, xbins)
     for value in values:
         hist.Fill(value)
 
@@ -139,7 +139,7 @@ def make_hist_from_observation_file(fname, column, hist_label='', n_bins=30, log
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
-    hist = TH1F(hist_label, '', 2, -0.5, 1.5)
+    hist = TH1D(hist_label, '', 2, -0.5, 1.5)
     hist.Sumw2()
 
     true_frac = float(n_true) / (n_true + n_false)
@@ -163,10 +163,10 @@ def make_hist_from_list(values, hist_label, n_bins=30):
     """ Fill a histogram with float values in a list """
     if len(values) == 0:
         print 'WARNING no values for %s in make_hist' % hist_label
-        return TH1F(hist_label, '', 1, 0, 1)
+        return TH1D(hist_label, '', 1, 0, 1)
     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
     set_bins(values, n_bins, is_log_x=False, xbins=xbins, var_type='float')
-    hist = TH1F(hist_label, '', n_bins, xbins)
+    hist = TH1D(hist_label, '', n_bins, xbins)
     for val in values:
         hist.Fill(val)
     return hist
@@ -178,7 +178,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
         return
     if len(values) == 0:
         print 'WARNING no values for %s in make_hist' % hist_label
-        return TH1F(hist_label, '', 1, 0, 1)
+        return TH1D(hist_label, '', 1, 0, 1)
 
     bin_labels = sorted(values)
     if not sort and var_type == 'string':  # for strings, sort so most common value is to left side
@@ -195,12 +195,12 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work them out dynamically
         if var_type == 'int':
-            hist = TH1F(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)
+            hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)
         else:
             set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
-            hist = TH1F(hist_label, '', n_bins, xbins)
+            hist = TH1D(hist_label, '', n_bins, xbins)
     else:
-      hist = TH1F(hist_label, '', n_bins, xmin_force, xmax_force)
+      hist = TH1D(hist_label, '', n_bins, xmin_force, xmax_force)
     hist.Sumw2()
         
 
@@ -247,7 +247,7 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more
             ymax = htmp.GetMaximum()
     if bounds != None:
         xmin, xmax = bounds
-    hframe = TH1F('hframe', '', hist.GetNbinsX(), xmin, xmax)
+    hframe = TH1D('hframe', '', hist.GetNbinsX(), xmin, xmax)
     if var_type == 'string' or var_type == 'bool':
         for ib in range(1, hframe.GetNbinsX()+1):
             hframe.GetXaxis().SetBinLabel(ib, hist.GetXaxis().GetBinLabel(ib))

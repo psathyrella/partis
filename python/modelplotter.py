@@ -9,7 +9,7 @@ import yaml
 import sys
 from subprocess import check_call
 sys.argv.append('-b')  # root just loves its stupid little splashes
-from ROOT import TH1F, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
+from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import plotting
 import paramutils
@@ -107,7 +107,7 @@ class ModelPlotter(object):
 
         cvn = TCanvas('cvn', '', 1000, 400)
         n_bins = ibin
-        hframe = TH1F(model.name + '-transition-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
+        hframe = TH1D(model.name + '-transition-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
         if utils.get_region(gene_name) in self.skip_boring_states:
             hframe.SetTitle(hframe.GetTitle() + ' (skipped boring states)')
         hframe.SetNdivisions(202, 'y')
