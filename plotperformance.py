@@ -24,7 +24,8 @@ parser.add_argument('--extra-args')  # args to pass on to commands (colon-separa
 parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
 parser.add_argument('--simfname')
 parser.add_argument('--plotdir')
-parser.add_argument('--actions', default='cache-data-parameters:simulate:cache-simu-parameters:plot-performance', help='Colon-separated list of actions to perform')
+all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
+parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 
 args = parser.parse_args()
 args.extra_args = utils.get_arg_list(args.extra_args)
@@ -71,3 +72,4 @@ if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str += ' --plotdir ' + args.plotdir
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_that_shit(cmd_str)
+ 

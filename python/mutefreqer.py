@@ -167,7 +167,7 @@ class MuteFreqer(object):
         if has_root:
             # make mean mute freq hist
             hist = plotting.make_hist(self.mean_rates, 'int', 'mean-freq', normalize=True)
-            plotting.draw(hist, 'int', plotname='mean-freq', plotdir=self.base_plotdir)
+            plotting.draw(hist, 'int', plotname='mean-freq', plotdir=self.base_plotdir, write_csv=True)
 
             # then write make html file and fix permissiions
             if self.base_plotdir != '':
