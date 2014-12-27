@@ -181,7 +181,8 @@ class PartitionDriver(object):
         # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
         hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
 
-        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
+        # self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
+        self.run_hmm('viterbi', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -430,6 +431,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self, preclusters=None):
+        """ If <seq_list> is specified, do pair clustering on those sequences. Otherwise do it on all the ones specified by <self.input_info>/<preclusteres. """
         assert self.args.truncate_pairs
         start = time.time()
         print 'hamming clustering'
@@ -579,7 +581,8 @@ class PartitionDriver(object):
             if name in sw_info:
                 non_failed_names.append(name)
             else:
-                print '    %s not found in sw info' % query_name
+                print '    %s not found in sw info' % ' '.join(query_names)
+        return non_failed_names
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False):
@@ -607,12 +610,12 @@ class PartitionDriver(object):
             assert False
 
         for query_names in nsets:
-            self.remove_sw_failures(query_names, sw_info)
-            combined_query = self.combine_queries(sw_info, query_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+            non_failed_names = self.remove_sw_failures(query_names, sw_info)
+            combined_query = self.combine_queries(sw_info, non_failed_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
-                          (':'.join([str(qn) for qn in query_names]),
+                          (':'.join([str(qn) for qn in non_failed_names]),
                            combined_query['k_v']['min'], combined_query['k_v']['max'],
                            combined_query['k_d']['min'], combined_query['k_d']['max'],
                            ':'.join(combined_query['only_genes']),
@@ -634,6 +637,7 @@ class PartitionDriver(object):
         # with opener('w')(pairscorefname) as pairscorefile:
         #     pairscorefile.write('unique_id,second_unique_id,score\n')
         pairscores = []
+        # viterbi_cluster_info = {}  # viterbi sequences for each cluster
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
@@ -655,9 +659,11 @@ class PartitionDriver(object):
                 if algorithm == 'viterbi':
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
-                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
-
                     this_key = utils.get_key(ids)
+                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+                    # if make_clusters:
+                    #     viterbi_cluster_info.append(utils.get_full_naive_seq(self.germline_seqs, line)
+
                     if last_key != this_key:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
