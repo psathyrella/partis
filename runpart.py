@@ -45,7 +45,7 @@ parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('H
 
 # run control
 parser.add_argument('--n-procs', type=int, default=1, help='Max number of processes over which to parallelize')
-parser.add_argument('--n-fewer-procs', type=int, default=1, help='Number of processes for Smith-Waterman and hamming distance')
+parser.add_argument('--n-fewer-procs', type=int, help='Number of processes for Smith-Waterman and hamming distance')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
@@ -83,6 +83,8 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
+if args.n_fewer_procs == None:
+    args.n_fewer_procs = args.n_procs
 
 def run_simulation(args, iproc):
     reco = Recombinator(args, iprocess=iproc, total_length_from_right=args.total_length_from_right)
