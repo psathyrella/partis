@@ -223,7 +223,7 @@ int main(int argc, const char * argv[]) {
       stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
       for(auto &res : denom_results)
 	stop &= !res.boundary_error() || res.could_not_expand();
-      if(!stop)
+      if(args.debug() && !stop)
 	cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
       // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
     } while(!stop);
