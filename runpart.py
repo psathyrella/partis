@@ -36,7 +36,7 @@ parser.add_argument('--seed', type=int, help='Random seed for use by recombinato
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
 parser.add_argument('--parameter-dir', required=True, help='Directory to write sample-specific parameters to and/or read \'em from (e.g. mutation freqs)')
-parser.add_argument('--datadir', required=True, help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parser.add_argument('--datadir', default='data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')
 parser.add_argument('--partitionfname')
 parser.add_argument('--plotdir', default='/tmp/partis/plots')
@@ -68,7 +68,6 @@ parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
-# parser.add_argument('--treefname', default='data/recombinator/trees.tre', help='File with list of newick-formated trees. Each rearrangement event chooses one at random')
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 parser.add_argument('--branch-length-fname', default='data/recombinator/branch-lengths.txt', help='Branch lengths from Connor\'s mebcell stuff')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
@@ -103,6 +102,7 @@ if args.simulate or args.generate_trees:
         sys.exit(0)
     from recombinator import Recombinator
     assert args.parameter_dir != None and args.outfname != None
+    assert args.n_max_queries > 0
     for iproc in range(args.n_procs):
         proc = Process(target=run_simulation, args=(args, iproc))
         proc.start()

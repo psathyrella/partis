@@ -7,7 +7,6 @@ from SCons.Script import Command, Depends
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
 
-datadir = 'data/imgt'
 parameter_dir = '_output/performance/test/simu/hmm_parameters'
 dummy_plotdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/dummy-plots'
 
@@ -15,7 +14,7 @@ testoutdir = '_output/test'
 if not os.path.exists('../' + testoutdir):
     os.makedirs('../' + testoutdir)
 
-base_cmd = './plotperformance.py --label test --datadir ' + datadir + ' --extra-args \' --seed:1\' --plotdir ' + testoutdir + '/plots'
+base_cmd = './plotperformance.py --label test --extra-args \' --seed:1\' --plotdir ' + testoutdir + '/plots'
 actions = OrderedDict()
 actions['cache-data-parameters'] = 'data'  # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
 actions['simulate'] = 'simu.csv'
@@ -25,9 +24,9 @@ actions['plot-performance'] = 'plots'
 tests = OrderedDict()
 for action in actions:
     tests[action] = base_cmd + ' --action ' + action
-tests['single-point-estimate'] = './runpart.py --point-estimate --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1'
-tests['partition-a-few'] = './runpart.py --partition --pair --datadir ' + datadir + ' --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
-tests['viterbi-pair'] = './runpart.py --point-estimate --pair --datadir ' + datadir + ' --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1 --truncate-pairs'
+tests['single-point-estimate'] = './runpart.py --point-estimate --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1'
+tests['partition-a-few'] = './runpart.py --partition --pair --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
+tests['viterbi-pair'] = './runpart.py --point-estimate --pair --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1 --truncate-pairs'
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/{}.passed'.format(name) for name in tests.keys()]

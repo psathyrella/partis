@@ -19,7 +19,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to multiply by the number of leaves to get the number of sequences (default is 5, though, which'll give you 10k seqs)
-parser.add_argument('--datadir', required=True)  #default='data/imgt')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
 parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
 parser.add_argument('--simfname')
@@ -33,7 +32,7 @@ args.extra_args = utils.get_arg_list(args.extra_args)
 args.actions = utils.get_arg_list(args.actions)
 
 cmd = './runpart.py'
-common_args = ' --n-procs ' + str(args.n_procs) + ' --datadir ' + args.datadir  #+ ' --only-genes \'IGHV1-18*01:IGHD3-10*01:IGHJ6*03\''
+common_args = ' --n-procs ' + str(args.n_procs)
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args)
 if args.simfname == None:
