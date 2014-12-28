@@ -116,7 +116,7 @@ class Recombinator(object):
         <irandom> is used as the seed for the myriad random number calls.
         If combine() is called with the same <irandom>, it will find the same event, i.e. it should be a random number, not just a seed
         """
-        if True: #self.args.debug:
+        if self.args.debug:
             print 'combine (seed %d)' % irandom
         numpy.random.seed(irandom)
         random.seed(irandom)
@@ -369,7 +369,7 @@ class Recombinator(object):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         if self.args.debug:
             print '  generating mutations (seed %d) with tree %s' % (irandom, chosen_tree)  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-        print 'paralelize this!'
+        # NOTE would be nice to parallelize this
         v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
         d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
         j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=irandom, is_insertion=False)
