@@ -105,7 +105,7 @@ class ModelPlotter(object):
     
             ibin += 1
 
-        cvn = TCanvas('cvn', '', 1000, 400)
+        cvn = TCanvas('mod-cvn', '', 1000, 400)
         n_bins = ibin
         hframe = TH1D(model.name + '-transition-frame', utils.unsanitize_name(model.name), n_bins, -0.5, n_bins - 0.5)
         if utils.get_region(gene_name) in self.skip_boring_states:

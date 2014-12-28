@@ -152,18 +152,20 @@ class State(object):
         if self.name == 'init':  # no emissions for 'init' state
             return
 
-        total = 0.0
-        for _, prob in self.emissions['probs'].iteritems():
-            assert prob >= 0.0
-            total += prob
-        assert utils.is_normed(total)
-
-        total = 0.0
-        for letter1 in self.pair_emissions['probs']:
-            for _, prob in self.pair_emissions['probs'][letter1].iteritems():
+        if len(self.emissions) > 0:
+            total = 0.0
+            for _, prob in self.emissions['probs'].iteritems():
                 assert prob >= 0.0
                 total += prob
-        assert utils.is_normed(total)
+            assert utils.is_normed(total)
+
+        if len(self.pair_emissions) > 0:
+            total = 0.0
+            for letter1 in self.pair_emissions['probs']:
+                for _, prob in self.pair_emissions['probs'][letter1].iteritems():
+                    assert prob >= 0.0
+                    total += prob
+            assert utils.is_normed(total)
 
 # ----------------------------------------------------------------------------------------
 class HMM(object):
@@ -599,7 +601,7 @@ class HmmWriter(object):
                     prob = 1.0 - mute_freq
                 else:
                     prob = mute_freq / 3.0
-            else:  # pair hmm
+            else:  # pair (well, k>1 now) hmm
                 if self.args.joint_emission:
                     # POSTSCRIPT this performs worse than independent emission (i.e. just multiply by 1-f or f for each base without regard to what the other sequence is)
                     #   - this is likely because the assumptions underlying these joint probabilities suck
@@ -642,30 +644,30 @@ class HmmWriter(object):
             elif 'right' in state.name:
                 insertion = self.insertions[1]
             assert insertion != ''
-        
-        # first add single emission
-        emission_probs = {}
-        total = 0.0
-        for nuke in utils.nukes:
-            emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
-            total += emission_probs[nuke]
-        if math.fabs(total - 1.0) >= self.eps:
-            print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
-            assert False
-        state.add_emission(self.track, emission_probs)
 
-        # then the pair emission
-        pair_emission_probs = {}
-        total = 0.0
-        for nuke1 in utils.nukes:
-            pair_emission_probs[nuke1] = {}
-            for nuke2 in utils.nukes:
-                pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
-                total += pair_emission_probs[nuke1][nuke2]
-        if math.fabs(total - 1.0) >= self.eps:
-            print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
+        if self.args.joint_emission:  # add pair emission (NOTE see note below, but really means requiring k=2 but allowing joint emission)
+            pair_emission_probs = {}
+            total = 0.0
             for nuke1 in utils.nukes:
+                pair_emission_probs[nuke1] = {}
                 for nuke2 in utils.nukes:
-                    print nuke1, nuke2, pair_emission_probs[nuke1][nuke2]
-            assert False
-        state.add_pair_emission(self.track, pair_emission_probs)
+                    pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
+                    total += pair_emission_probs[nuke1][nuke2]
+            if math.fabs(total - 1.0) >= self.eps:
+                print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
+                for nuke1 in utils.nukes:
+                    for nuke2 in utils.nukes:
+                        print nuke1, nuke2, pair_emission_probs[nuke1][nuke2]
+                assert False
+            state.add_pair_emission(self.track, pair_emission_probs)
+        else:  # or add single emission (NOTE ham usees this 'single' emission still for pair/k>1 emission, it just assumes non-joint emission, i.e. multiplies together for each sequence)
+            emission_probs = {}
+            total = 0.0
+            for nuke in utils.nukes:
+                emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
+                total += emission_probs[nuke]
+            if math.fabs(total - 1.0) >= self.eps:
+                print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
+                assert False
+            state.add_emission(self.track, emission_probs)
+    
