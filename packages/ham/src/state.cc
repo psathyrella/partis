@@ -43,9 +43,9 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   if(name_ == "init")
     return;
 
-  if(node["emissions"])
+  if(!node["emissions"].IsNull())
     emission_.Parse(node["emissions"], "single", trks);
-  if(node["pair_emissions"])
+  if(!node["pair_emissions"].IsNull())
     pair_emission_.Parse(node["pair_emissions"], "pair", trks);
   if(!node["emissions"] && !node["pair_emissions"]) {
     stringstream node_ss;
