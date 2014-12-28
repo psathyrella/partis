@@ -162,7 +162,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score);
+void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
@@ -202,7 +202,9 @@ int main(int argc, const char * argv[]) {
     double bayes_factor(-INFINITY); // final result
     vector<double> single_scores(seqs[iqry].n_seqs(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
     bool stop(false);
+    string errors;
     do {
+      errors = "";
       // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
       result = jh.Run(seqs[iqry], kbounds);
@@ -226,6 +228,11 @@ int main(int argc, const char * argv[]) {
       if(args.debug() && !stop)
 	cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
       // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+      if(result.boundary_error())
+	errors = "boundary";
+      for(auto &res : denom_results)  // NOTE <errors> will still just have one "boundary" in it even if multiple results had boundary errors
+	if(res.boundary_error())
+	  errors = "boundary";
     } while(!stop);
 
     // if(result.could_not_expand())
@@ -242,7 +249,7 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, seqs[iqry], bayes_factor);
+    StreamOutput(ofs, args, result.events_, seqs[iqry], bayes_factor, errors);
   }
 
   ofs.close();
@@ -250,7 +257,7 @@ int main(int argc, const char * argv[]) {
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score) {
+void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors) {
   if(args.algorithm() == "viterbi") {
     size_t n_max = min(size_t(args.n_best_events()), events.size());
     for(size_t ievt = 0; ievt < n_max; ++ievt) {
@@ -273,14 +280,14 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
 	<< "," << event->deletions_["j_3p"]
 	<< "," << event->score_
 	<< "," << seqs.seq_str(":")
-	<< "," << ""  //errors
+	<< "," << errors
 	<< endl;
     }
   } else {
     ofs
         << seqs.name_str(":")
         << "," << total_score
-        << "," << ""  //errors
+        << "," << errors
         << endl;
   }
 }
