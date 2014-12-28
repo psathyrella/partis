@@ -113,14 +113,16 @@ class Track(object):
 
 # ----------------------------------------------------------------------------------------
 class State(object):
-    def __init__(self, name):
+    def __init__(self, name, joint_pair_emission=False):
         self.name = name
         self.transitions = {}
-        self.emissions = {}  # partially implement emission to multiple tracks (I say 'partially' because I think I haven't written it into ham yet)
-        self.pair_emissions = {}
+        self.emissions = None
+        self.pair_emissions = None
         self.extras = {}  # any extra info you want to add
 
     def add_emission(self, track, emission_probs):  # NOTE we only allow one single (i.e. non-pair) emission a.t.m
+        if self.emissions == None:
+            self.emissions = {}
         for letter in track.letters:
             assert letter in emission_probs
         assert 'track' not in self.emissions
@@ -129,6 +131,8 @@ class State(object):
         self.emissions['probs'] = emission_probs
 
     def add_pair_emission(self, track, pair_emission_probs):  # NOTE we only allow one pair emission a.t.m
+        if self.pair_emissions == None:
+            self.pair_emissions = {}
         for letter1 in track.letters:
             assert letter1 in pair_emission_probs
             for letter2 in track.letters:
@@ -152,14 +156,14 @@ class State(object):
         if self.name == 'init':  # no emissions for 'init' state
             return
 
-        if len(self.emissions) > 0:
+        if self.emissions is not None:
             total = 0.0
             for _, prob in self.emissions['probs'].iteritems():
                 assert prob >= 0.0
                 total += prob
             assert utils.is_normed(total)
 
-        if len(self.pair_emissions) > 0:
+        if self.pair_emissions is not None:
             total = 0.0
             for letter1 in self.pair_emissions['probs']:
                 for _, prob in self.pair_emissions['probs'][letter1].iteritems():

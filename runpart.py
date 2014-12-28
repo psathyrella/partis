@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import time
+import random
 import sys
 from multiprocessing import Process, active_children
 import os
@@ -31,7 +32,7 @@ parser.add_argument('--skip-unproductive', action='store_true', help='Skip seque
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
-parser.add_argument('--seed', type=int, help='Random seed for use by recombinator (to allow reproducibility)')
+parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use by recombinator (to allow reproducibility)')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -85,13 +86,33 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 if args.n_fewer_procs == None:
     args.n_fewer_procs = args.n_procs
 
-def run_simulation(args, iproc):
-    reco = Recombinator(args, iprocess=iproc, total_length_from_right=args.total_length_from_right)
+# ----------------------------------------------------------------------------------------
+def run_simulation(args):
+    print 'simulating'
+    assert args.parameter_dir != None and args.outfname != None
+    assert args.n_max_queries > 0
+    random.seed(args.seed)
     n_per_proc = int(float(args.n_max_queries) / args.n_procs)
-    for ievt in range(n_per_proc):
-        print ievt,
+    all_random_ints = []
+    for iproc in range(args.n_procs):  # have to generate these all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
+        all_random_ints.append([random.randint(0, sys.maxint) for i in range(n_per_proc)])
+    for iproc in range(args.n_procs):
+        proc = Process(target=make_events, args=(args, n_per_proc, iproc, all_random_ints[iproc]))
+        proc.start()
+    while len(active_children()) > 0:
+        # print ' wait %s' % len(active_children()),
         sys.stdout.flush()
-        reco.combine()
+        time.sleep(1)
+    utils.merge_csvs(args.outfname, [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)], cleanup=(not args.no_clean))
+
+# ----------------------------------------------------------------------------------------
+def make_events(args, n_events, iproc, random_ints):
+    # NOTE all the different seeds! this sucks but is necessary
+    reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc), total_length_from_right=args.total_length_from_right)
+    for ievt in range(n_events):
+        # print ievt,
+        # sys.stdout.flush()
+        reco.combine(random_ints[ievt])
 
 # ----------------------------------------------------------------------------------------
 if args.simulate or args.generate_trees:
@@ -100,20 +121,10 @@ if args.simulate or args.generate_trees:
         treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
         treegen.generate_trees(self.args.outfname)
         sys.exit(0)
-    from recombinator import Recombinator
-    assert args.parameter_dir != None and args.outfname != None
-    assert args.n_max_queries > 0
-    for iproc in range(args.n_procs):
-        proc = Process(target=run_simulation, args=(args, iproc))
-        proc.start()
-    while len(active_children()) > 0:
-        # print ' wait %s' % len(active_children()),
-        sys.stdout.flush()
-        time.sleep(1)
-    utils.merge_csvs(args.outfname, [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)], cleanup=(not args.no_clean))
     # if not args.no_clean:
     #     os.rmdir(reco.workdir)
-        
+    from recombinator import Recombinator
+    run_simulation(args)
 else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver

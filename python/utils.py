@@ -899,9 +899,9 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     """ NOTE copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     header = None
     outfo = []
-    print 'merging'
+    # print 'merging'
     for infname in csv_list:
-        print '  ', infname
+        # print '  ', infname
         workdir = os.path.dirname(infname)
         with opener('r')(infname) as sub_outfile:
             reader = csv.DictReader(sub_outfile)
@@ -912,7 +912,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             os.remove(infname)
             os.rmdir(workdir)
 
-    print '  to', outfname
+    # print '  to', outfname
     with opener('w')(outfname) as outfile:
         writer = csv.DictWriter(outfile, header)
         writer.writeheader()

@@ -63,11 +63,14 @@ class Hist(object):  # NOTE I wrote this class when I couldn't get pyroot to wor
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
-    def __init__(self, args, mute_freq_fname):
+    def __init__(self, args, mute_freq_fname, seed):
         self.args = args
         self.tree_generator = 'TreeSim'  # ape
         self.read_mute_freqs(mute_freq_fname)
         assert self.args.outfname != None
+        assert self.args.n_leaves > 1
+        random.seed(seed)
+        numpy.random.seed(seed)
         if self.args.debug:
             print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_fname)
             if self.args.random_number_of_leaves:
@@ -109,7 +112,7 @@ class TreeGenerator(object):
         assert False  # shouldn't fall through to here
     
     # ----------------------------------------------------------------------------------------
-    def generate_trees(self, outfname):
+    def generate_trees(self, seed, outfname):
         if os.path.exists(outfname):
             os.remove(outfname)
 
@@ -131,6 +134,7 @@ class TreeGenerator(object):
             # build command line, one (painful) tree at a time
             with tempfile.NamedTemporaryFile() as commandfile:
                 commandfile.write('library(TreeSim)\n')
+                commandfile.write('set.seed(' + str(seed)+ ')\n')
                 for it in range(self.args.n_trees):
                     if self.args.random_number_of_leaves:
                         n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!

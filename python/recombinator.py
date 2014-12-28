@@ -24,29 +24,21 @@ import paramutils
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, iprocess=None, total_length_from_right=-1):
+    def __init__(self, args, seed, sublabel=None, total_length_from_right=-1):
         self.args = args
-        if self.args.seed == None:
-            seed = int(time.time())
-        else:
-            seed = self.args.seed
 
-        if iprocess == None:
+        if sublabel == None:
             self.workdir = self.args.workdir + '/recombinator'
             self.outfname = self.args.outfname
-        else:  # need a separate workdir and seed for each subprocess
-            self.workdir = self.args.workdir + '/recombinator-' + str(iprocess)
+        else:  # need a separate workdir for each subprocess
+            self.workdir = self.args.workdir + '/recombinator-' + sublabel
             self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
-            seed += iprocess
 
         utils.prep_dir(self.workdir)
         assert os.path.exists(self.args.parameter_dir)
         assert os.path.exists(self.args.parameter_dir)
         # parameters that control recombination, erosion, and whatnot
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
-
-        numpy.random.seed(seed)
-        random.seed(args.seed)
     
         self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
@@ -80,9 +72,9 @@ class Recombinator(object):
                     parameter_name = parameters[2]
                     assert model in self.mute_models[region]
                     self.mute_models[region][model][parameter_name] = line['value']
-            treegen = TreeGenerator(args, self.args.parameter_dir + '/mean-mute-freqs.csv')
+            treegen = TreeGenerator(args, self.args.parameter_dir + '/mean-mute-freqs.csv', seed=seed)
             self.treefname = self.workdir + '/trees.tre'
-            treegen.generate_trees(self.treefname)
+            treegen.generate_trees(seed, self.treefname)
             with opener('r')(self.treefname) as treefile:  # read in the trees that we just generated
                 self.trees = treefile.readlines()
             if not self.args.no_clean:
@@ -118,10 +110,17 @@ class Recombinator(object):
                 print '  insertion content for', bound, self.insertion_content_probs[bound]
 
     # ----------------------------------------------------------------------------------------
-    def combine(self):
-        """ create a recombination event and write it to disk """
-        if self.args.debug:
-            print 'combine'
+    def combine(self, irandom):
+        """ 
+        Create a recombination event and write it to disk
+        <irandom> is used as the seed for the myriad random number calls.
+        If combine() is called with the same <irandom>, it will find the same event, i.e. it should be a random number, not just a seed
+        """
+        if True: #self.args.debug:
+            print 'combine (seed %d)' % irandom
+        numpy.random.seed(irandom)
+        random.seed(irandom)
+
         reco_event = RecombinationEvent(self.all_seqs)
         self.choose_vdj_combo(reco_event)
         self.erode_and_insert(reco_event)
@@ -136,7 +135,7 @@ class Recombinator(object):
         reco_event.set_final_tryp_position(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
 
         if self.args.naivety == 'M':
-            self.add_mutants(reco_event)  # toss a bunch of clones: add point mutations
+            self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
         else:
             reco_event.final_seqs.append(reco_event.recombined_seq)
 
@@ -144,7 +143,7 @@ class Recombinator(object):
             reco_event.print_event(self.total_length_from_right)
 
         # write output to csv
-        reco_event.write_event(self.outfname, self.total_length_from_right)
+        reco_event.write_event(self.outfname, self.total_length_from_right, irandom=irandom)
 
         return True
 
@@ -366,16 +365,16 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def add_mutants(self, reco_event):
+    def add_mutants(self, reco_event, irandom):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
-        seed = random.randint(0, sys.maxint)
         if self.args.debug:
-            print '  generating mutations (seed %d) with tree %s' % (seed, chosen_tree)  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-        v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=seed, is_insertion=False)
-        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=seed, is_insertion=False)
-        j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=seed, is_insertion=False)
-        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event, seed=seed, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
-        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event, seed=seed, is_insertion=True)
+            print '  generating mutations (seed %d) with tree %s' % (irandom, chosen_tree)  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
+        print 'paralelize this!'
+        v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
+        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
+        j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=irandom, is_insertion=False)
+        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event, seed=irandom, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
+        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event, seed=irandom, is_insertion=True)
 
         assert len(reco_event.final_seqs) == 0
         for iseq in range(len(v_mutes)):

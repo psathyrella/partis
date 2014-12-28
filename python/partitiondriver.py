@@ -231,7 +231,9 @@ class PartitionDriver(object):
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         # pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
+        print '    writing input'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
+        print '    running'
         if self.args.n_procs > 1:
             self.split_input(self.args.n_procs, infname=csv_infname, prefix='hmm')
             for iproc in range(self.args.n_procs):
@@ -247,6 +249,7 @@ class PartitionDriver(object):
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
         # if self.outfile != None and algorithm == 'forward':
         #     self.outfile.write('hmm pairscores\n')
+        print '    read output'
         hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, pcounter, perfplotter, true_pcounter, make_clusters=make_clusters)
 
         if count_parameters:
@@ -580,7 +583,7 @@ class PartitionDriver(object):
         unproductive = False
         for qrn in query_names:
             if qrn in sw_info['skipped_unproductive_queries']:
-                print '    skipping unproductive %s along with %s' % (query_names[0], ' '.join(query_names[1:]))
+                # print '    skipping unproductive %s along with %s' % (query_names[0], ' '.join(query_names[1:]))
                 unproductive = True
         if unproductive:
             return []

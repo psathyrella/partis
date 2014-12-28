@@ -81,8 +81,17 @@ class RecombinationEvent(object):
             self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right
 
     # ----------------------------------------------------------------------------------------
-    def write_event(self, outfile, total_length_from_right=0):
-        """ Write out all info to csv file. """
+    def write_event(self, outfile, total_length_from_right=0, irandom=None):
+        """ 
+        Write out all info to csv file.
+        NOTE/RANT so, in calculating each sequence's unique id, we need to hash more than the information about the rearrangement
+            event and mutation, because if we create identical events and sequences in independent recombinator threads, we *need* them
+            to have different unique ids (otherwise all hell will break loose when you try to analyze them). The easy way to avoid this is
+            to add a random number to the information before you hash it... but then you have no way to reproduce that random number when 
+            you want to run again with a set random seed to get identical output. The FIX for this at the moment is to pass in <irandom>, i.e.
+            the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
+            means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
+        """
         columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', )
         mode = ''
         if os.path.isfile(outfile):
@@ -124,8 +133,13 @@ class RecombinationEvent(object):
                 unique_id = ''  # Hash to uniquely identify the sequence.
                 for column in row:
                     unique_id += str(row[column])
-                unique_id += str(numpy.random.uniform())
+                if irandom is None:  # NOTE see note above
+                    unique_id += str(numpy.random.uniform())
+                else:
+                    # print 'ievt',irandom
+                    unique_id += str(irandom)
                 row['unique_id'] = hash(unique_id)
+                # print row['unique_id'], unique_id
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
