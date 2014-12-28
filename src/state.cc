@@ -40,18 +40,17 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
     throw runtime_error("configuration");
   }
 
+  // emissions
   if(name_ == "init")
     return;
 
-  if(!node["emissions"].IsNull())
-    emission_.Parse(node["emissions"], "single", trks);
-  if(!node["pair_emissions"].IsNull())
-    pair_emission_.Parse(node["pair_emissions"], "pair", trks);
-  if(!node["emissions"] && !node["pair_emissions"]) {
+  // make sure at least one emission was specified
+  if(node["emissions"].IsNull()) {
     stringstream node_ss;
     node_ss << node;
     throw runtime_error("ERROR no emissions found in " + node_ss.str());
   }
+  emission_.Parse(node["emissions"], trks);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -64,7 +63,7 @@ double State::emission_logprob(Sequences *seqs, size_t pos) {
     double log_prob = emission_.score(seqs->get_ptr(0), pos);  // initialize <log_prob> for the emission from the first sequence
     for (size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq)  // then loop over the rest of the sequences
       // add to <log_prob> the emission log prob for the <iseq>th sequence, i.e. prob1 *and* prob2
-      log_prob = AddWithMinusInfinities(log_prob, emission_.score(seqs->get_ptr(iseq), pos));  // NOTE ignores pair emission table (for the moment, that's ok)
+      log_prob = AddWithMinusInfinities(log_prob, emission_.score(seqs->get_ptr(iseq), pos));
     return log_prob;
   }
 }
@@ -87,8 +86,6 @@ void State::Print() {
 
   cout << "  emissions:" << endl;;
   emission_.Print();
-  cout << "  pair emissions:" << endl;
-  pair_emission_.Print();
 }
 
 // ----------------------------------------------------------------------------------------
