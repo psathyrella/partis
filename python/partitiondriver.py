@@ -654,20 +654,22 @@ class PartitionDriver(object):
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
             n_boundary_errors = 0
+            boundary_error_queries = []
             for line in reader:
                 utils.intify(line, splitargs=('unique_ids', 'seqs'))
+                ids = line['unique_ids']
+                same_event = from_same_event(self.args.is_data, True, self.reco_info, ids)
+                id_str = ''.join(['%20s ' % i for i in ids])
 
                 # check for errors
                 boundary_error = False
                 if line['errors'] != None and 'boundary' in line['errors'].split(':'):
                     n_boundary_errors += 1
                     boundary_error = True
+                    boundary_error_queries.append(id_str)
                 else:
                     assert len(line['errors']) == 0
 
-                ids = line['unique_ids']
-                same_event = from_same_event(self.args.is_data, True, self.reco_info, ids)
-                id_str = ''.join(['%20s ' % i for i in ids])
                 if algorithm == 'viterbi':
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
@@ -710,7 +712,7 @@ class PartitionDriver(object):
 
         print '  processed %d queries' % n_processed
         if n_boundary_errors > 0:
-            print '    %d boundary errors' % n_boundary_errors
+            print '    %d boundary errors for %s' % (n_boundary_errors, ', '.join(boundary_error_queries)
         if perfplotter != None:
             perfplotter.plot()
 
