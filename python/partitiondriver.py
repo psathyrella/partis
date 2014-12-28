@@ -653,27 +653,24 @@ class PartitionDriver(object):
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
-            n_boundary_errors = 0
             boundary_error_queries = []
             for line in reader:
                 utils.intify(line, splitargs=('unique_ids', 'seqs'))
                 ids = line['unique_ids']
+                this_key = utils.get_key(ids)
                 same_event = from_same_event(self.args.is_data, True, self.reco_info, ids)
                 id_str = ''.join(['%20s ' % i for i in ids])
 
                 # check for errors
-                boundary_error = False
-                if line['errors'] != None and 'boundary' in line['errors'].split(':'):
-                    n_boundary_errors += 1
-                    boundary_error = True
-                    boundary_error_queries.append(id_str)
-                else:
-                    assert len(line['errors']) == 0
+                if last_key != this_key:  # if this is the first line for this set of ids (i.e. the best viterbi path or only forward score)
+                    if line['errors'] != None and 'boundary' in line['errors'].split(':'):
+                        boundary_error_queries.append(':'.join([str(uid) for uid in ids]))
+                    else:
+                        assert len(line['errors']) == 0
 
                 if algorithm == 'viterbi':
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
-                    this_key = utils.get_key(ids)
                     utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                     # if make_clusters:
                     #     viterbi_cluster_info.append(utils.get_full_naive_seq(self.germline_seqs, line)
@@ -693,7 +690,6 @@ class PartitionDriver(object):
                         self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
                     line['seq'] = None
                     line['unique_id'] = None
-                    last_key = utils.get_key(ids)
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     if not make_clusters:  # self.args.debug or 
                         print '%3d %10.3f    %s' % (same_event, float(line['score']), id_str)
@@ -710,9 +706,11 @@ class PartitionDriver(object):
                         self.partitionwriter.writerow({'unique_ids':':'.join([str(uid) for uid in ids]), 'same_event':int(same_event), 'score':score})
                     n_processed += 1
 
+                last_key = utils.get_key(ids)
+
         print '  processed %d queries' % n_processed
-        if n_boundary_errors > 0:
-            print '    %d boundary errors for %s' % (n_boundary_errors, ', '.join(boundary_error_queries)
+        if len(boundary_error_queries) > 0:
+            print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
         if perfplotter != None:
             perfplotter.plot()
 
