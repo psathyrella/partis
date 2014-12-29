@@ -926,14 +926,26 @@ def merge_csvs(outfname, csv_list, cleanup=True):
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
+
 # ----------------------------------------------------------------------------------------
 def rounded_mutation_rate(germlines, line, restrict_to_region=''):
     """ It's called rounded 'cause I multiply by a hundred and cast to an int. This makes plotting easier (see performanceplotter.py) """
-    naive_seq = get_full_naive_seq(germlines, line)
+    naive_seq = get_full_naive_seq(germlines, line)  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
-    if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
+    if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
+        mashed_naive_seq = ''
+        mashed_muted_seq = ''
+        for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
+            bounds = get_regional_naive_seq_bounds(region, germlines, line, subtract_unphysical_erosions=True)
+            mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
+            mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
+    else:
         bounds = get_regional_naive_seq_bounds(restrict_to_region, germlines, line, subtract_unphysical_erosions=True)
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
+
+
+    # print 'restrict %s' % restrict_to_region
+    # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     n_mutes = hamming(naive_seq, muted_seq)
-    return int(100 * float(n_mutes) / len(naive_seq))  # hamming() asserts they're the same length
+    return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length

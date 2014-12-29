@@ -13,6 +13,7 @@ if has_root:
 import utils
 import fraction_uncertainty
 import paramutils
+from hist import Hist
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
@@ -29,23 +30,20 @@ class MuteFreqer(object):
         utils.prep_dir(self.outdir, '*.csv')
         self.germline_seqs = germline_seqs
         self.counts = {}
-        self.mean_rates = {'all':{}}
+        n_bins, xmin, xmax = 100, 0.0, 1.0
+        self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
         for region in utils.regions:
-            self.mean_rates[region] = {}
+            self.mean_rates[region] = Hist(n_bins, xmin, xmax)
         
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         # first do overall mute freqs
         freq = utils.rounded_mutation_rate(self.germline_seqs, info)
-        if freq not in self.mean_rates['all']:
-            self.mean_rates['all'][freq] = 0
-        self.mean_rates['all'][freq] += 1
+        self.mean_rates['all'].fill(freq)
         for region in utils.regions:
             # then do per-region mean mute freqs
             freq = utils.rounded_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
-            if freq not in self.mean_rates[region]:
-                self.mean_rates[region][freq] = 0
-            self.mean_rates[region][freq] += 1
+            self.mean_rates[region].fill(freq)
 
             # then per-gene per-position
             if info[region + '_gene'] not in self.counts:
@@ -173,11 +171,15 @@ class MuteFreqer(object):
 
         if has_root:
             # make mean mute freq hists
-            hist = plotting.make_hist(self.mean_rates['all'], 'int', 'mean-freq', normalize=True)
-            plotting.draw(hist, 'int', plotname='all-mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname.replace('REGION', 'all'), stats='mean')  # hackey hackey hackey replacement... *sigh*
+            self.mean_rates['all'].normalize()
+            self.mean_rates['all'].write(csv_outfname.replace('REGION', 'all'))  # hackey hackey hackey replacement... *sigh*
+            hist = plotting.make_hist_from_bin_entry_file(csv_outfname.replace('REGION', 'all'), 'all-mean-freq')
+            plotting.draw(hist, 'float', plotname='all-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4))
             for region in utils.regions:
-                hist = plotting.make_hist(self.mean_rates[region], 'int', 'mean-freq', normalize=True)
-                plotting.draw(hist, 'int', plotname=region+'-mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname.replace('REGION', region), stats='mean')  # hackey hackey hackey replacement... *sigh*
+                self.mean_rates[region].normalize()
+                self.mean_rates[region].write(csv_outfname.replace('REGION', region))
+                hist = plotting.make_hist_from_bin_entry_file(csv_outfname.replace('REGION', region), region+'-mean-freq')
+                plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4))
             check_call(['makeHtml', self.base_plotdir, '3', 'null', 'svg'])
 
             # then write make html file and fix permissiions

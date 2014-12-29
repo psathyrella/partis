@@ -87,7 +87,10 @@ def write_hist_to_file(fname, hist):
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
-    """ return root histogram with each bin low edge and bin content read from <fname> """
+    """ 
+    Return root histogram with each bin low edge and bin content read from <fname> 
+    E.g. from the results of hist.Hist.write()
+    """
     low_edges, contents, bin_labels = [], [], []
     xtitle = ''
     with opener('r')(fname) as infile:
@@ -231,7 +234,7 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
 def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False, csv_fname=None):
     if not has_root:
         return
-    cvn = TCanvas('cvn', '', 700, 600)
+    cvn = TCanvas('cvn-'+plotname, '', 700, 600)
 
     hists = [hist,]
     if more_hists != None:
