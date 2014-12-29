@@ -4,6 +4,7 @@ import csv
 import time
 import json
 import random
+from cStringIO import StringIO
 from collections import OrderedDict
 from treegenerator import TreeGenerator
 import numpy
@@ -12,7 +13,7 @@ import os
 import re
 from subprocess import check_output
 
-from Bio import SeqIO
+from Bio import SeqIO, Phylo
 import dendropy
 
 from opener import opener
@@ -72,9 +73,13 @@ class Recombinator(object):
                     parameter_name = parameters[2]
                     assert model in self.mute_models[region]
                     self.mute_models[region][model][parameter_name] = line['value']
-            treegen = TreeGenerator(args, self.args.parameter_dir + '/mean-mute-freqs.csv', seed=seed)
+            treegen = TreeGenerator(args, self.args.parameter_dir + '/all-mean-mute-freqs.csv', seed=seed)
             self.treefname = self.workdir + '/trees.tre'
             treegen.generate_trees(seed, self.treefname)
+            # trees = Phylo.parse(self.treefname, 'newick')
+            # print 'branch lengths'
+            # for tree in trees:
+            #     print '  ', tree.total_branch_length()
             with opener('r')(self.treefname) as treefile:  # read in the trees that we just generated
                 self.trees = treefile.readlines()
             if not self.args.no_clean:
@@ -369,7 +374,7 @@ class Recombinator(object):
     def add_mutants(self, reco_event, irandom):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         if self.args.debug:
-            print '  generating mutations (seed %d) with tree %s' % (irandom, chosen_tree)  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
+            print '  generating mutations (seed %d) with tree %s (total length %f)' % (irandom, chosen_tree.strip(), Phylo.read(StringIO(chosen_tree), 'newick').total_branch_length())  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
         # NOTE would be nice to parallelize this
         v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
         d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)

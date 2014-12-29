@@ -9,6 +9,7 @@ import numpy
 import math
 import tempfile
 from subprocess import check_call
+from Bio import Phylo
 from opener import opener
 import plotting
 import utils
@@ -45,7 +46,7 @@ class TreeGenerator(object):
         check_sum = 0.0
         for ibin in range(1, mutehist.GetNbinsX()+1):  # ignore under/overflow bins
             freq = mutehist.GetBinCenter(ibin)
-            branch_length = float(freq) / 100
+            branch_length = float(freq)
             prob = mutehist.GetBinContent(ibin)
             self.branch_lengths['lengths'].append(branch_length)
             self.branch_lengths['probs'].append(prob)
@@ -63,6 +64,19 @@ class TreeGenerator(object):
                 
         assert False  # shouldn't fall through to here
     
+    # ----------------------------------------------------------------------------------------
+    def check_tree_lengths(self, treefname, ages):
+        trees = list(Phylo.parse(treefname, 'newick'))
+        print 'checking branch lengths'
+        assert len(trees) == len(ages)
+        treetotal, agetotal = 0.0, 0.0
+        for itree in range(len(ages)):
+            print '%7.4f  %7.4f' % (trees[itree].total_branch_length(), ages[itree])
+            treetotal += trees[itree].total_branch_length()
+            agetotal += ages[itree]
+
+        print 'means: %7.4f  %7.4f' % (treetotal / len(ages), agetotal / len(ages))
+
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
         if os.path.exists(outfname):
@@ -87,16 +101,18 @@ class TreeGenerator(object):
             with tempfile.NamedTemporaryFile() as commandfile:
                 commandfile.write('library(TreeSim)\n')
                 commandfile.write('set.seed(' + str(seed)+ ')\n')
-                for it in range(self.args.n_trees):
+                ages = []
+                for itree in range(self.args.n_trees):
                     if self.args.random_number_of_leaves:
                         n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
                     else:
                         n_leaves = self.args.n_leaves
-                    age = self.choose_branch_length()
-                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + str(age) + ', ' + 'mrca = FALSE)\n')
+                    ages.append(self.choose_branch_length())
+                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac = 1, ' + str(ages[itree]) + ', ' + 'mrca = FALSE)\n')
                     commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
                 r_command += ' -f ' + commandfile.name
                 commandfile.flush()
                 check_call(r_command, shell=True)
+            self.check_tree_lengths(outfname, ages)
         else:
             assert False

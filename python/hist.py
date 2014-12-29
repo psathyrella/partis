@@ -44,7 +44,6 @@ class Hist(object):
             self.bin_contents[ib] /= sum_value
         check_sum = 0.0
         for ib in range(1, self.n_bins + 1):  # check it
-            print 
             check_sum += self.bin_contents[ib]
         assert math.fabs(check_sum - 1.0) < 1e-10
 
