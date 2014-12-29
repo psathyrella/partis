@@ -29,14 +29,19 @@ class MuteFreqer(object):
         utils.prep_dir(self.outdir, '*.csv')
         self.germline_seqs = germline_seqs
         self.counts = {}
-        self.mean_rates = {}
+        self.mean_rates = {'all':{}}
         for region in utils.regions:
             self.mean_rates[region] = {}
         
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
+        # first do overall mute freqs
+        freq = utils.rounded_mutation_rate(self.germline_seqs, info)
+        if freq not in self.mean_rates['all']:
+            self.mean_rates['all'][freq] = 0
+        self.mean_rates['all'][freq] += 1
         for region in utils.regions:
-            # first do (per-region) overall mute freqs
+            # then do per-region mean mute freqs
             freq = utils.rounded_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
             if freq not in self.mean_rates[region]:
                 self.mean_rates[region][freq] = 0
@@ -167,10 +172,12 @@ class MuteFreqer(object):
                     cvn.SaveAs(plotfname)
 
         if has_root:
-            # make mean mute freq hist
+            # make mean mute freq hists
+            hist = plotting.make_hist(self.mean_rates['all'], 'int', 'mean-freq', normalize=True)
+            plotting.draw(hist, 'int', plotname='all-mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname.replace('REGION', 'all'), stats='mean')  # hackey hackey hackey replacement... *sigh*
             for region in utils.regions:
                 hist = plotting.make_hist(self.mean_rates[region], 'int', 'mean-freq', normalize=True)
-                plotting.draw(hist, 'int', plotname=region+'-mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname.replace('REGION',region), stats='mean')  # hackey hackey hackey replacement... *sigh*
+                plotting.draw(hist, 'int', plotname=region+'-mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname.replace('REGION', region), stats='mean')  # hackey hackey hackey replacement... *sigh*
             check_call(['makeHtml', self.base_plotdir, '3', 'null', 'svg'])
 
             # then write make html file and fix permissiions
