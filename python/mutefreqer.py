@@ -30,17 +30,19 @@ class MuteFreqer(object):
         self.germline_seqs = germline_seqs
         self.counts = {}
         self.mean_rates = {}
-
+        for region in utils.regions:
+            self.mean_rates[region] = {}
+        
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        # first do overall mute freq
-        freq = utils.rounded_mutation_rate(self.germline_seqs, info)
-        if freq not in self.mean_rates:
-            self.mean_rates[freq] = 0
-        self.mean_rates[freq] += 1
-
-        # then per-gene per-position
         for region in utils.regions:
+            # first do (per-region) overall mute freqs
+            freq = utils.rounded_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
+            if freq not in self.mean_rates[region]:
+                self.mean_rates[region][freq] = 0
+            self.mean_rates[region][freq] += 1
+
+            # then per-gene per-position
             if info[region + '_gene'] not in self.counts:
                 self.counts[info[region + '_gene']] = {}
             mute_counts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
@@ -166,8 +168,10 @@ class MuteFreqer(object):
 
         if has_root:
             # make mean mute freq hist
-            hist = plotting.make_hist(self.mean_rates, 'int', 'mean-freq', normalize=True)
-            plotting.draw(hist, 'int', plotname='mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname)
+            for region in utils.regions:
+                hist = plotting.make_hist(self.mean_rates[region], 'int', 'mean-freq', normalize=True)
+                plotting.draw(hist, 'int', plotname=region+'-mean-freq', plotdir=self.base_plotdir, write_csv=True, csv_fname=csv_outfname.replace('REGION',region), stats='mean')  # hackey hackey hackey replacement... *sigh*
+            check_call(['makeHtml', self.base_plotdir, '3', 'null', 'svg'])
 
             # then write make html file and fix permissiions
             if self.base_plotdir != '':

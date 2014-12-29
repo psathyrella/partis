@@ -60,9 +60,6 @@ class PerformancePlotter(object):
         bounds = None
         if restrict_to_region != '':
             bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, self.germlines, true_line)  # get the bounds of this *true* region
-            assert bounds[0] >= 0
-            assert bounds[1] >= 0
-            assert bounds[1] >= bounds[0]
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
 

@@ -310,6 +310,8 @@ def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more
     for htmp in hists:
         if 'rms' in stats:
             htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
+        if 'mean' in stats:
+            htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
         leg.AddEntry(htmp, htmp.GetTitle() , 'l')
     leg.Draw()
 

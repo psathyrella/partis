@@ -384,7 +384,7 @@ def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False
         line['cdr3_length'] = -1
 
 # ----------------------------------------------------------------------------------------
-def get_full_naive_seq(germlines, line):
+def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
     for erosion in real_erosions + effective_erosions:
         if line[erosion + '_del'] < 0:
             print 'ERROR %s less than zero %d' % (erosion, line[erosion + '_del'])
@@ -393,21 +393,16 @@ def get_full_naive_seq(germlines, line):
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    # print '-----'
-    # for key, val in line.items():
-    #     print key, val
-    # print '    fv_insertion', line['fv_insertion']
-    # print '    v', eroded_seqs['v']
-    # print '    vd_insertion', line['vd_insertion']
-    # print '    d', eroded_seqs['d']
-    # print '    dj_insertion', line['dj_insertion']
-    # print '    j', eroded_seqs['j']
-    # print '    jf', line['jf_insertion']
+    # if restrict_to_region == '':
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
-    # return eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j']  # hm, maybe this makes more sense without the fv and jf insertions?
+    # else:
+    # return eroded_seqs[restrict_to_region]
 
 # ----------------------------------------------------------------------------------------
-def get_regional_naive_seq_bounds(region, germlines, line):
+def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysical_erosions=False):
+    # NOTE it's kind of a matter of taste whether unphysical deletions (v left and j right) should be included in the 'naive sequence'.
+    # Unless <subtract_unphysical_erosions>, here we assume the naive sequence has *no* unphysical deletions
+
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
@@ -420,10 +415,23 @@ def get_regional_naive_seq_bounds(region, germlines, line):
     end['d'] = start['d'] + len(eroded_seqs['d'])
     start['j'] = end['d'] + len(line['dj_insertion'])
     end['j'] = start['j'] + len(eroded_seqs['j'] + line['jf_insertion'])
-    
+
+    if subtract_unphysical_erosions:
+        for tmpreg in regions:
+            start[tmpreg] -= line['v_5p_del']
+            end[tmpreg] -= line['v_5p_del']
+        # end['j'] -= line['j_3p_del']  # ARG.ARG.ARG
+
+    # for key, val in line.items():
+    #     print key, val
+    for chkreg in regions:
+        # print chkreg, start[chkreg], end[chkreg]
+        assert start[chkreg] >= 0
+        assert end[chkreg] >= 0
+        assert end[chkreg] >= start[chkreg]
     assert end['j'] == len(line['seq'])
 
-    return (start[region], end[region])
+    return (start[return_reg], end[return_reg])
 
 # ----------------------------------------------------------------------------------------
 def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False):
@@ -919,13 +927,13 @@ def merge_csvs(outfname, csv_list, cleanup=True):
         for line in outfo:
             writer.writerow(line)
 # ----------------------------------------------------------------------------------------
-def rounded_mutation_rate(germlines, line):
+def rounded_mutation_rate(germlines, line, restrict_to_region=''):
     """ It's called rounded 'cause I multiply by a hundred and cast to an int. This makes plotting easier (see performanceplotter.py) """
     naive_seq = get_full_naive_seq(germlines, line)
     muted_seq = line['seq']
-    # print ''
-    # color_mutants(naive_seq, muted_seq, True)
-    # print 'naive', naive_seq
-    # print 'muted', muted_seq
+    if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
+        bounds = get_regional_naive_seq_bounds(restrict_to_region, germlines, line, subtract_unphysical_erosions=True)
+        naive_seq = naive_seq[bounds[0] : bounds[1]]
+        muted_seq = muted_seq[bounds[0] : bounds[1]]
     n_mutes = hamming(naive_seq, muted_seq)
     return int(100 * float(n_mutes) / len(naive_seq))  # hamming() asserts they're the same length
