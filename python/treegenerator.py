@@ -67,15 +67,15 @@ class TreeGenerator(object):
     # ----------------------------------------------------------------------------------------
     def check_tree_lengths(self, treefname, ages):
         trees = list(Phylo.parse(treefname, 'newick'))
-        print 'checking branch lengths'
+        print 'checking branch lengths... ',
         assert len(trees) == len(ages)
         treetotal, agetotal = 0.0, 0.0
         for itree in range(len(ages)):
-            print '%7.4f  %7.4f' % (ages[itree], trees[itree].distance('t1'))
-            treetotal += trees[itree].distance('t1')
+            # print '%7.4f  %7.4f' % (ages[itree], trees[itree].distance('t1'))
+            treetotal += trees[itree].distance('t1')  # NOTE should be the same for t[0-9]... but I guess I should check at some point
             agetotal += ages[itree]
 
-        print 'means: %7.4f  %7.4f' % (agetotal / len(ages), treetotal / len(ages))
+        print '  mean: %7.4f (asked for %7.4f)' % (agetotal / len(ages), treetotal / len(ages))
 
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
