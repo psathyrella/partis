@@ -71,11 +71,11 @@ class TreeGenerator(object):
         assert len(trees) == len(ages)
         treetotal, agetotal = 0.0, 0.0
         for itree in range(len(ages)):
-            print '%7.4f  %7.4f' % (trees[itree].total_branch_length(), ages[itree])
-            treetotal += trees[itree].total_branch_length()
+            print '%7.4f  %7.4f' % (ages[itree], trees[itree].distance('t1'))
+            treetotal += trees[itree].distance('t1')
             agetotal += ages[itree]
 
-        print 'means: %7.4f  %7.4f' % (treetotal / len(ages), agetotal / len(ages))
+        print 'means: %7.4f  %7.4f' % (agetotal / len(ages), treetotal / len(ages))
 
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):

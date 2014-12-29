@@ -374,7 +374,7 @@ class Recombinator(object):
     def add_mutants(self, reco_event, irandom):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         if self.args.debug:
-            print '  generating mutations (seed %d) with tree %s (total length %f)' % (irandom, chosen_tree.strip(), Phylo.read(StringIO(chosen_tree), 'newick').total_branch_length())  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
+            print '  generating mutations (seed %d) with tree %s (total length %f)' % (irandom, chosen_tree.strip(), Phylo.read(StringIO(chosen_tree), 'newick').distance('t1'))  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
         # NOTE would be nice to parallelize this
         v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
         d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
