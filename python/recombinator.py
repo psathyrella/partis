@@ -324,6 +324,7 @@ class Recombinator(object):
         self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
 
         # build up the command line
+        # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
         bpp_binary = os.getcwd() + '/packages/bpp/bin/bppseqgen'
         if not os.path.exists(bpp_binary):
             print 'ERROR bpp not found in %s' % os.path.dirname(bpp_binary)
