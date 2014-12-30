@@ -371,13 +371,19 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
+    def rescale_tree(self, tree_str):
+        print 'WELL DO IT'
+
+    # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
             print '  generating mutations (seed %d) with tree %s ' % (irandom, chosen_tree.strip())  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-            print '    total distance %f' % Phylo.read(StringIO(chosen_tree), 'newick').distance('t1')
+            print '    total distance %f %f' % (Phylo.read(StringIO(chosen_tree), 'newick').distance('t1'), Phylo.read(StringIO(chosen_tree), 'newick').distance('t2'))
             Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
+
         # NOTE would be nice to parallelize this
+        self.rescale_tree(chosen_tree)
         v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
         d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
         j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=irandom, is_insertion=False)
