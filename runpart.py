@@ -55,7 +55,7 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 
 # tree generation (see also branch-length-fname)
-parser.add_argument('--n-trees', type=int, default=20, help='Number of trees to generate')
+parser.add_argument('--n-trees', type=int, default=100, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
 parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves in [2, <n-leaves>] (inclusive!). Otherwise give all trees <n-leaves> leaves')
 

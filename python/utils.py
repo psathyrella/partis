@@ -16,13 +16,13 @@ from Bio import SeqIO
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
 eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
-def is_normed(probs):
+def is_normed(probs, this_eps=eps):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
         return is_normed([val for key, val in probs.items()])
     elif hasattr(probs, '__getitem__'):  # if it's a list call yourself with their sum
         return is_normed(sum(probs))
     else:  # and if it's a float actually do what you're supposed to do
-        return math.fabs(probs - 1.0) < eps
+        return math.fabs(probs - 1.0) < this_eps
 
 # ----------------------------------------------------------------------------------------
 def get_arg_list(arg, intify=False):  # make lists from args that are passed as strings of colon-separated values
@@ -949,3 +949,15 @@ def rounded_mutation_rate(germlines, line, restrict_to_region=''):
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     n_mutes = hamming(naive_seq, muted_seq)
     return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length
+
+# ----------------------------------------------------------------------------------------
+def rescale_tree(treestr, factor):
+    """ 
+    Rescale the branch lengths in <treestr> (newick-formatted) by <factor>
+    I.e. multiply each float in <treestr> by <factor>.
+    """
+    for match in re.findall('[0-9]*\.[0-9][0-9]*', treestr):
+        print match
+    sys.exit()
+
+    return newtreestr

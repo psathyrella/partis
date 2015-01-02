@@ -73,7 +73,7 @@ class Recombinator(object):
                     parameter_name = parameters[2]
                     assert model in self.mute_models[region]
                     self.mute_models[region][model][parameter_name] = line['value']
-            treegen = TreeGenerator(args, self.args.parameter_dir + '/all-mean-mute-freqs.csv', seed=seed)
+            treegen = TreeGenerator(args, self.args.parameter_dir, seed=seed)
             self.treefname = self.workdir + '/trees.tre'
             treegen.generate_trees(seed, self.treefname)
             # trees = Phylo.parse(self.treefname, 'newick')
@@ -371,21 +371,40 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def rescale_tree(self, tree_str):
-        print 'WELL DO IT'
+    def get_rescaled_trees(self, treestr):
+        """ 
+        Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
+        the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for 
+        v, d, and j
+        """
+        tree = Phylo.read(StringIO(treestr), 'newick')
+        print 'root br', tree.root.branch_length
+        for tclade in tree.get_terminals():
+            print tree.distance(tclade.name), 'sum', tree.distance(tclade.name)+tree.root.branch_length
+        # get_[non]terminals
+        # print '-- iterate over clades'
+        # for subclade in tree.clade:
+        #     print '  ', subclade
+        #     for subsubclade in subclade:
+        #         print '    ', subsubclade
+        print '-- all depths'
+        for clade, dist in tree.depths().items():
+            print clade, dist
+        print treestr
+        print utils.rescale_tree(chosen_tree, 0.4)
+        return {'v':'f'}
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
         chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
-            print '  generating mutations (seed %d) with tree %s ' % (irandom, chosen_tree.strip())  # NOTE would be nice to make sure the distribution of trees you get *here* corresponds to what you started with before you ran it through treegenerator.py
-            print '    total distance %f %f' % (Phylo.read(StringIO(chosen_tree), 'newick').distance('t1'), Phylo.read(StringIO(chosen_tree), 'newick').distance('t2'))
+            print '  using tree with total distance t1 %f t2 %f' % (Phylo.read(StringIO(chosen_tree), 'newick').distance('t1'), Phylo.read(StringIO(chosen_tree), 'newick').distance('t2'))
             Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
 
+        scaled_trees = self.get_rescaled_trees(chosen_tree)
         # NOTE would be nice to parallelize this
-        self.rescale_tree(chosen_tree)
         v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
-        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_tree, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
+        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_treexx, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
         j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=irandom, is_insertion=False)
         vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event, seed=irandom, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
         dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event, seed=irandom, is_insertion=True)
