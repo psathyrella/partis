@@ -6,7 +6,7 @@ import json
 import random
 from cStringIO import StringIO
 from collections import OrderedDict
-from treegenerator import TreeGenerator
+import treegenerator
 import numpy
 import math
 import os
@@ -45,6 +45,7 @@ class Recombinator(object):
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
         self.mute_models = {}
+        # self.treeinfo = []  # list of newick-formatted tree strings with region-specific branch info tacked at the end
         for region in utils.regions:
             self.mute_models[region] = {}
             for model in ['gtr', 'gamma']:
@@ -73,15 +74,11 @@ class Recombinator(object):
                     parameter_name = parameters[2]
                     assert model in self.mute_models[region]
                     self.mute_models[region][model][parameter_name] = line['value']
-            treegen = TreeGenerator(args, self.args.parameter_dir, seed=seed)
+            treegen = treegenerator.TreeGenerator(args, self.args.parameter_dir, seed=seed)
             self.treefname = self.workdir + '/trees.tre'
             treegen.generate_trees(seed, self.treefname)
-            # trees = Phylo.parse(self.treefname, 'newick')
-            # print 'branch lengths'
-            # for tree in trees:
-            #     print '  ', tree.total_branch_length()
-            with opener('r')(self.treefname) as treefile:  # read in the trees that we just generated
-                self.trees = treefile.readlines()
+            with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
+                self.treeinfo = treefile.readlines()
             if not self.args.no_clean:
                 os.remove(self.treefname)
 
@@ -371,47 +368,52 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def get_rescaled_trees(self, treestr):
+    def get_rescaled_trees(self, treestr, branch_length_ratios):
         """ 
         Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
         the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for 
         v, d, and j
         """
-        tree = Phylo.read(StringIO(treestr), 'newick')
-        print 'root br', tree.root.branch_length
-        for tclade in tree.get_terminals():
-            print tree.distance(tclade.name), 'sum', tree.distance(tclade.name)+tree.root.branch_length
-        # get_[non]terminals
-        # print '-- iterate over clades'
-        # for subclade in tree.clade:
-        #     print '  ', subclade
-        #     for subsubclade in subclade:
-        #         print '    ', subsubclade
-        print '-- all depths'
-        for clade, dist in tree.depths().items():
-            print clade, dist
-        print treestr
-        print utils.rescale_tree(chosen_tree, 0.4)
-        return {'v':'f'}
+        rescaled_trees = {}
+        for region in utils.regions:
+            # rescale the tree
+            rescaled_trees[region] = treegenerator.rescale_tree(treestr, branch_length_ratios[region])
+            # and then check it NOTE can remove this eventually
+            initial_depths = {}
+            for node, depth in treegenerator.get_leaf_node_depths(treestr).items():
+                initial_depths[node] = depth
+            for node, depth in treegenerator.get_leaf_node_depths(rescaled_trees[region]).items():
+                depth_ratio = depth / initial_depths[node]
+                assert utils.is_normed(depth_ratio / branch_length_ratios[region], this_eps=1e-6)
+        return rescaled_trees
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
-        chosen_tree = self.trees[random.randint(0, len(self.trees)-1)]
-        if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
-            print '  using tree with total distance t1 %f t2 %f' % (Phylo.read(StringIO(chosen_tree), 'newick').distance('t1'), Phylo.read(StringIO(chosen_tree), 'newick').distance('t2'))
-            Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
+        chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
+        chosen_tree = chosen_treeinfo.split(';')[0] + ';'
+        branch_length_ratios = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all trees, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
+        for tmpstr in chosen_treeinfo.split(';')[1].split(','):
+            region = tmpstr.split(':')[0]
+            assert region in utils.regions
+            ratio = float(tmpstr.split(':')[1])
+            branch_length_ratios[region] = ratio
 
-        scaled_trees = self.get_rescaled_trees(chosen_tree)
+        if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
+            print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
+            Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
+            print '    with branch length ratios ', ', '.join([ '%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
+
+        scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)
         # NOTE would be nice to parallelize this
-        v_mutes = self.run_bppseqgen(reco_event.eroded_seqs['v'], chosen_tree, reco_event.genes['v'], reco_event, seed=irandom, is_insertion=False)
-        d_mutes = self.run_bppseqgen(reco_event.eroded_seqs['d'], chosen_treexx, reco_event.genes['d'], reco_event, seed=irandom, is_insertion=False)
-        j_mutes = self.run_bppseqgen(reco_event.eroded_seqs['j'], chosen_tree, reco_event.genes['j'], reco_event, seed=irandom, is_insertion=False)
-        vd_mutes = self.run_bppseqgen(reco_event.insertions['vd'], chosen_tree, 'vd_insert', reco_event, seed=irandom, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
-        dj_mutes = self.run_bppseqgen(reco_event.insertions['dj'], chosen_tree, 'dj_insert', reco_event, seed=irandom, is_insertion=True)
+        mutes = {}
+        for region in utils.regions:
+            mutes[region] = self.run_bppseqgen(reco_event.eroded_seqs[region], scaled_trees[region], reco_event.genes[region], reco_event, seed=irandom, is_insertion=False)
+        mutes['vd'] = self.run_bppseqgen(reco_event.insertions['vd'], scaled_trees['v'], 'vd_insert', reco_event, seed=irandom, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
+        mutes['dj'] = self.run_bppseqgen(reco_event.insertions['dj'], scaled_trees['j'], 'dj_insert', reco_event, seed=irandom, is_insertion=True)
 
         assert len(reco_event.final_seqs) == 0
-        for iseq in range(len(v_mutes)):
-            seq = v_mutes[iseq] + vd_mutes[iseq] + d_mutes[iseq] + dj_mutes[iseq] + j_mutes[iseq]  # build final sequence
+        for iseq in range(len(mutes['v'])):
+            seq = mutes['v'][iseq] + mutes['vd'][iseq] + mutes['d'][iseq] + mutes['dj'][iseq] + mutes['j'][iseq]  # build final sequence
             seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 

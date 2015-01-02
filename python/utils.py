@@ -949,15 +949,3 @@ def rounded_mutation_rate(germlines, line, restrict_to_region=''):
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     n_mutes = hamming(naive_seq, muted_seq)
     return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length
-
-# ----------------------------------------------------------------------------------------
-def rescale_tree(treestr, factor):
-    """ 
-    Rescale the branch lengths in <treestr> (newick-formatted) by <factor>
-    I.e. multiply each float in <treestr> by <factor>.
-    """
-    for match in re.findall('[0-9]*\.[0-9][0-9]*', treestr):
-        print match
-    sys.exit()
-
-    return newtreestr

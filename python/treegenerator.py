@@ -3,6 +3,7 @@
 
 import sys
 import os
+import re
 import random
 import json
 import numpy
@@ -14,6 +15,27 @@ from Bio import Phylo
 from opener import opener
 import plotting
 import utils
+
+
+# ----------------------------------------------------------------------------------------
+def get_leaf_node_depths(treestr):
+    """ return mapping from leaf node names to depths """
+    tree = Phylo.read(StringIO(treestr), 'newick')
+    nodes = {}
+    for tclade in tree.get_terminals():
+        length = tree.distance(tclade.name) + tree.root.branch_length
+        nodes[tclade.name] = length
+    return nodes
+
+# ----------------------------------------------------------------------------------------
+def rescale_tree(treestr, factor):
+    """ 
+    Rescale the branch lengths in <treestr> (newick-formatted) by <factor>
+    I.e. multiply each float in <treestr> by <factor>.
+    """
+    for match in re.findall('[0-9]*\.[0-9][0-9]*', treestr):
+        treestr = treestr.replace(match, str(factor*float(match)))
+    return treestr
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
@@ -42,7 +64,6 @@ class TreeGenerator(object):
             self.branch_lengths[mtype]['lengths'], self.branch_lengths[mtype]['probs'] = [], []
             mutehist = plotting.make_hist_from_bin_entry_file(infname, mtype+'-mute-freqs')
             self.branch_lengths[mtype]['mean'] = mutehist.GetMean()
-            print mtype, self.branch_lengths[mtype]['mean']
 
             if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
                 print 'WARNING nonzero under/overflow bins read from %s' % infname
@@ -57,18 +78,23 @@ class TreeGenerator(object):
                 check_sum += self.branch_lengths[mtype]['probs'][-1]
             assert utils.is_normed(check_sum)
 
+        if self.args.debug:
+            print '  mean branch lengths'
+            for mtype in ['all',] + utils.regions:
+                print '     %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
+
     #----------------------------------------------------------------------------------------
     def add_branch_lengths(self, treefname):
         """ 
         Each tree is written with branch length the mean branch length over the whole sequence
         So we need to add the length for each region afterward, so each line looks e.g. like
-        (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.003,d:0.008,j:.004
+        (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87
         """
         # first read the newick info for each tree
         with opener('r')(treefname) as treefile:
             treestrings = treefile.readlines()
         # then add the region-specific branch info
-        length_list = ['%s:%f'% (region, self.branch_lengths[region]['mean']) for region in utils.regions]
+        length_list = ['%s:%f'% (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
         for iline in range(len(treestrings)):
             treestrings[iline] = treestrings[iline].replace(';', ';' + ','.join(length_list))
         # and finally write out the final lines
@@ -89,28 +115,23 @@ class TreeGenerator(object):
         assert False  # shouldn't fall through to here
     
     # ----------------------------------------------------------------------------------------
-    def check_tree_lengths(self, treefname, ages):
+    def check_tree_lengths(self, treefname, ages, debug=False):
         treestrs = []
         with opener('r')(treefname) as treefile:
             for line in treefile:
                 treestrs.append(line.split(';')[0] + ';')  # ignore the info I added after the ';'
-        # trees = list(Phylo.parse(treefname, 'newick'))
-        print 'checking branch lengths... '
+        if debug:
+            print 'checking branch lengths... '
         assert len(treestrs) == len(ages)
-        # treetotal, agetotal = 0.0, 0.0
         for itree in range(len(ages)):
-            print '  ', ages[itree]
-            tree = Phylo.read(StringIO(treestrs[itree]), 'newick')
-            for tclade in tree.get_terminals():
-                length = tree.distance(tclade.name) + tree.root.branch_length
-                print '%s:%f' % (tclade.name, length),
-                assert utils.is_normed(length / ages[itree], this_eps=1e-6)  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
-            print ''
-            # treetotal += trees[itree].distance('t1')  # NOTE WRONG!
-            # agetotal += ages[itree]
-
-        # print '  WRONG mean: %7.4f (asked for %7.4f)' % (agetotal / len(ages), treetotal / len(ages))
-        sys.exit()
+            if debug:
+                print '  ', ages[itree]
+            for name, depth in get_leaf_node_depths(treestrs[itree]).items():
+                if debug:
+                    print '%s:%f' % (name, depth),
+                assert utils.is_normed(depth / ages[itree], this_eps=1e-6)  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
+            if debug:
+                print ''
 
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
