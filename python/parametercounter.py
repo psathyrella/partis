@@ -114,7 +114,7 @@ class ParameterCounter(object):
             plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir, errors=('_content' in column))
         if has_root:
             check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
-            check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])
+            check_call(['./makeHtml', self.plotdir, '3', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
     def write_counts(self):

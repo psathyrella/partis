@@ -1,0 +1,52 @@
+#!/bin/bash
+
+basedir=$1
+if ! [ $basedir ]; then echo "makeHtml: no dir given..."; exit 1; fi
+if ! [ -d $basedir ]; then echo "makeHtml: base dir \"$basedir\" does not exist..."; exit 1; fi
+
+row_length=$2  # number of plots per row
+if ! [ $row_length ]; then row_length=4; fi
+
+title=$3
+if ! [ $title ]; then title=null; fi
+
+ext=$4
+if ! [ $ext ]; then ext=png; fi
+
+ls $basedir/plots/*.$ext &>/dev/null
+if ! [ $? -eq 0 ]; then
+    echo "no .$ext files in $basedir"
+    exit 0
+fi
+
+htmlfile=$basedir/plots.html
+
+cat > $htmlfile <<EOF
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head><title>$title</title></head>
+<body bgcolor="000000">
+<h3 style="text-align:left; color:DD6600;">$title</h3>
+
+<table border="0" cellspacing="5" width="100%">
+<tr>
+EOF
+
+iplot=0
+for plotfile in `ls $basedir/plots/*.$ext | sort`; do
+    (( iplot ++ ))
+    file=`basename $plotfile`
+    echo '<td width="25%"><a target="_blank" href="plots/'$file'"><img src="plots/'$file'" alt="plots/'$file'" width="100%"></a></td>"' >> $htmlfile
+    if (( (iplot % row_length)==0 )); then
+	echo '</tr>' >> $htmlfile
+	echo '<tr>' >> $htmlfile
+    fi
+done
+
+cat >> $htmlfile <<EOF
+</tr>
+</table>
+</body>
+</html>
+EOF

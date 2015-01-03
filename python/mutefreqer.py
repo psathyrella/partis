@@ -180,13 +180,13 @@ class MuteFreqer(object):
                 self.mean_rates[region].write(csv_outfname.replace('REGION', region))
                 hist = plotting.make_hist_from_bin_entry_file(csv_outfname.replace('REGION', region), region+'-mean-freq')
                 plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4))
-            check_call(['makeHtml', self.base_plotdir, '3', 'null', 'svg'])
+            check_call(['./makeHtml', self.base_plotdir, '3', 'null', 'svg'])
 
             # then write make html file and fix permissiions
             if self.base_plotdir != '':
                 for region in utils.regions:
-                    check_call(['makeHtml', self.base_plotdir + '/' + region, '1', 'null', 'svg'])
-                    check_call(['makeHtml', self.base_plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
+                    check_call(['./makeHtml', self.base_plotdir + '/' + region, '1', 'null', 'svg'])
+                    check_call(['./makeHtml', self.base_plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
                 check_call(['./permissify-www', self.base_plotdir])  # NOTE this should really permissify starting a few directories higher up
         return (n_cached, n_not_cached)
 

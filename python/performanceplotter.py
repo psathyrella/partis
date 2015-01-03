@@ -164,4 +164,4 @@ class PerformancePlotter(object):
                     hist.GetXaxis().SetTitle('inferred - true')
                 plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
         check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['makeHtml', self.plotdir, '3', 'null', 'svg'])
+        check_call(['./makeHtml', self.plotdir, '3', 'null', 'svg'])

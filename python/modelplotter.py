@@ -53,7 +53,7 @@ class ModelPlotter(object):
                 # self.make_pair_emission_plot(gene_name, model)
 
         for ptype in plot_types:
-            check_call(['makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
+            check_call(['./makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
         check_call(['./permissify-www', self.base_plotdir])
 
             # break

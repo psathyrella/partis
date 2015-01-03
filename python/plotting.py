@@ -38,10 +38,9 @@ hard_bounds = {
     'd_5p_del' : (-8.5, 8.5),
     'dj_insertion' : (-10.5, 15.5),
     'j_5p_del' : (-10.5, 15.5),
-    'mute_freqs' : (-5.5, 5.5),
+    'mute_freqs' : (-15.5, 15.5),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-3.5, 3.5),
-    'vd_insertion' : (-8.5, 8.5)
-}
+    'vd_insertion' : (-8.5, 8.5)}
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
@@ -374,5 +373,5 @@ def compare_directories(outdir, dirs, names, xtitle='', stats=''):
             bounds = hard_bounds[varname]
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats, bounds=bounds, log=log, shift_overflows=False)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
-    check_call(['makeHtml', outdir, '3', 'null', 'svg'])
+    check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
         
