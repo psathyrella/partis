@@ -20,30 +20,13 @@ RUN pip install \
     biopython \
     cython \
     decorator \
+    dendropy \
     lxml \
     networkx \
     pysam \
-    pyyaml \
-    dendropy
+    pyyaml
 
-# set up auth
-RUN mkdir -p /root/.ssh && \
-    chmod 700 /root/.ssh
-ADD bunnyhutch_id_rsa /root/.ssh/id_rsa
-RUN chmod 600 /root/.ssh/id_rsa && \
-    ssh-keyscan github.com >> /root/.ssh/known_hosts
 
-# make
-RUN git clone git@github.com:psathyrella/partis.git
-WORKDIR /data/partis/packages/samtools/
-RUN make && \
-    mkdir /data/partis/_bin && \
-    ln -s $PWD/samtools /data/partis/_bin
-WORKDIR /data/partis/packages/ighutil/
-RUN make -C clj && \
-    pip install --user ./python
-WORKDIR /data/partis/packages/ham/
-RUN scons bcrham
-WORKDIR /data/partis/
-RUN mkdir -p /true/plots
-RUN export PATH=/data/partis/_bin:$PATH && scons test
+COPY . /partis
+WORKDIR /partis
+CMD ./build-and-test.sh
