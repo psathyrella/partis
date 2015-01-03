@@ -139,9 +139,8 @@ class PartitionDriver(object):
     def cache_parameters(self, parameter_dir=''):
         assert self.args.plotdir != None
         sw_plotdir, hmm_plotdir = '', ''
-        if os.getenv('www') != None:
-            sw_plotdir = self.args.plotdir + '/sw_parameters'
-            hmm_plotdir = self.args.plotdir + '/hmm_parameters'
+        sw_plotdir = self.args.plotdir + '/sw_parameters'
+        hmm_plotdir = self.args.plotdir + '/hmm_parameters'
 
         if parameter_dir == '':
             parameter_dir = self.args.parameter_dir

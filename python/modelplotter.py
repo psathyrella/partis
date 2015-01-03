@@ -147,4 +147,5 @@ args = parser.parse_args()
         
 if __name__ == '__main__':
     # hmmdir = os.getenv('HOME') + '/work/partis/caches/' + args.label + '/' + args.flavor + '_parameters/hmms'
+    assert os.path.exists(os.getenv('www'))
     mplot = ModelPlotter(args, os.getenv('www') + '/modelplots/', skip_boring_states='v')

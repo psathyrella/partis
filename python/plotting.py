@@ -230,7 +230,8 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=os.getenv('www'), plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False, csv_fname=None):
+def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False, csv_fname=None):
+    assert os.path.exists(plotdir)
     if not has_root:
         return
     cvn = TCanvas('cvn-'+plotname, '', 700, 600)
@@ -374,4 +375,8 @@ def compare_directories(outdir, dirs, names, xtitle='', stats=''):
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats, bounds=bounds, log=log, shift_overflows=False)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
-        
+
+# # ----------------------------------------------------------------------------------------
+# def make_html(plotdir, filetype):
+#     outfname = plotdir + '/plots.html'
+#     imagefiles = glob.glob(plotdir + )

@@ -17,6 +17,7 @@ class ParameterCounter(object):
     insertion (length and base content), and mutation """
     def __init__(self, germline_seqs, base_outdir, plotdir=''):
         self.base_outdir = base_outdir
+        assert plotdir != ''
         self.plotdir = plotdir
         self.total = 0
         self.counts = {}

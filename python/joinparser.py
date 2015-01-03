@@ -172,6 +172,7 @@ class JoinParser(object):
         self.queries = []
 
         self.germline_seqs = utils.read_germlines(datadir, remove_N_nukes=False)
+        assert os.path.exists(os.getenv('www'))
         self.perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/joinsolver_performance', 'js')
 
         # get info that was passed to joinsolver

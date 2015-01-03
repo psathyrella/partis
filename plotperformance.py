@@ -22,7 +22,7 @@ parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to mult
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' --option'
 parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
 parser.add_argument('--simfname')
-parser.add_argument('--plotdir')
+parser.add_argument('--plotdir', required=True)
 parser.add_argument('--n-procs', type=int, default=10)
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
@@ -38,8 +38,6 @@ if args.extra_args != None:
 if args.simfname == None:
     args.simfname = '_output/' + args.label + '/simu.csv'
 param_dir = '_output/' + args.label
-if args.plotdir == None:
-    args.plotdir = os.getenv('www') + '/partis/' + args.label
 
 if 'cache-data-parameters' in args.actions:
     # cache parameters from data

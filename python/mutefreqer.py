@@ -20,6 +20,7 @@ from opener import opener
 class MuteFreqer(object):
     def __init__(self, base_outdir, base_plotdir, germline_seqs):
         self.outdir = base_outdir + '/mute-freqs'
+        assert base_plotdir != ''
         self.base_plotdir = base_plotdir
         if self.base_plotdir != '':
             self.base_plotdir += '/mute-freqs'
