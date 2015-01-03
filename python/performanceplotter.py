@@ -135,6 +135,8 @@ class PerformancePlotter(object):
                 elif column == 'mute_freqs':
                     trueval = utils.rounded_mutation_rate(self.germlines, true_line)
                     guessval = utils.rounded_mutation_rate(self.germlines, line)
+                    trueval = int(1000 * trueval)
+                    guessval = int(1000 * guessval)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(line[column])
@@ -158,8 +160,6 @@ class PerformancePlotter(object):
                 log = ''
                 if column.find('hamming_to_true_naive') >= 0:
                     hist.GetXaxis().SetTitle('hamming distance')
-                    # if column.find('hamming_to_true_naive') > 0:
-                    #     log = 'y'
                 else:
                     hist.GetXaxis().SetTitle('inferred - true')
                 plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
