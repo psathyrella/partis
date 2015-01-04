@@ -7,7 +7,7 @@ from SCons.Script import Command, Depends
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
 
-parameter_dir = '_output/performance/test/simu/hmm_parameters'
+parameter_dir = '_output/test/simu/hmm_parameters'
 
 testoutdir = '_output/test'
 if not os.path.exists('../' + testoutdir):
