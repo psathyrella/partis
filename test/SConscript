@@ -23,9 +23,9 @@ actions['plot-performance'] = 'plots'
 tests = OrderedDict()
 for action in actions:
     tests[action] = base_cmd + ' --action ' + action
-tests['single-point-estimate'] = './runpart.py --point-estimate --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1'
-tests['partition-a-few'] = './runpart.py --partition --pair --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
-tests['viterbi-pair'] = './runpart.py --point-estimate --pair --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1 --truncate-pairs'
+tests['single-point-estimate'] = './runpart.py --run-algorithm viterbi --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 1 --debug 1'
+tests['partition-a-few'] = './runpart.py --partition --seqfile test/data/regression/simu.csv --parameter-dir ' + parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
+tests['viterbi-pair'] = './runpart.py --run-algorithm viterbi --n-sets 2 --seqfile test/data/regression/chopped-simu.csv --parameter-dir ' + parameter_dir + ' --debug 1 --truncate-pairs'
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/{}.passed'.format(name) for name in tests.keys()]
@@ -43,7 +43,7 @@ for name, test_cmd in tests.items():
         env.Command(out, '../' + cmd, test_cmd + ' && touch $TARGET')
         env.Command('_results/%s.passed' % name,
                     ['data/regression/parameters/' + target, '../' + testoutdir + '/' + target, out],
-                    'diff -qr  -x\'*.svg\' -x params ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
+                    'diff -qr  -x\'*.svg\' -x params -x plots.html ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
     else:
         env.Command(out, '../' + cmd, test_cmd + ' --outfname $TARGET')
         # touch a sentinel `passed` file if we get what we expect
