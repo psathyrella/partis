@@ -115,11 +115,11 @@ Sequences JobHolder::GetSubSeqs(Sequences &seqs, KSet kset, string region) {
   // get subsequences for one region
   size_t k_v(kset.v), k_d(kset.d);
   if(region == "v")
-    return seqs.GetSubSequences(0, k_v);  // v region (plus vd insert) runs from zero up to k_v
+    return Sequences(seqs, 0, k_v);  // v region (plus vd insert) runs from zero up to k_v
   else if(region == "d")
-    return seqs.GetSubSequences(k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
+    return Sequences(seqs, k_v, k_d);  // d region (plus dj insert) runs from k_v up to k_v + k_d
   else if(region == "j")
-    return seqs.GetSubSequences(k_v + k_d, seqs.GetSequenceLength() - k_v - k_d);  // j region runs from k_v + k_d to end
+    return Sequences(seqs, k_v + k_d, seqs.GetSequenceLength() - k_v - k_d);  // j region runs from k_v + k_d to end
   else
     assert(0);
 }

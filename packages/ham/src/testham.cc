@@ -41,10 +41,10 @@ int main(int argc, const char *argv[]) {
 
   // create sequences from command line
   Sequences seqs;
-  Sequence seq("seq", seq_arg.getValue(), hmm.track(0));
+  Sequence seq(hmm.track(0), "seq", seq_arg.getValue());
   seqs.AddSeq(seq);
   if(pair_arg.getValue()) {
-    Sequence seq2("seq2", seq2_arg.getValue(), hmm.track(0));
+    Sequence seq2(hmm.track(0), "seq2", seq2_arg.getValue());
     seqs.AddSeq(seq2);
   }
 
@@ -74,7 +74,7 @@ int main(int argc, const char *argv[]) {
   if (cache_check_arg.getValue()) {
     for (size_t length = 1; length < seqs.GetSequenceLength(); ++length) {
       // make another trellis on the substring of length <length>
-      Sequences subseqs(seqs.GetSubSequences(0, length));
+      Sequences subseqs(seqs, 0, length);
       trellis subtrell(&hmm, subseqs, &trell);
       subtrell.Viterbi();
       TracebackPath subpath(&hmm);

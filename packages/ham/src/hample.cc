@@ -39,10 +39,10 @@ int main(int argc, const char *argv[]) {
 
   // create sequences from command line
   Sequences seqs;
-  Sequence seq("seq", seq_arg.getValue(), hmm.track(0));
+  Sequence seq(hmm.track(0), "seq", seq_arg.getValue());
   seqs.AddSeq(seq);
   if(pair_arg.getValue()) {
-    Sequence seq2("seq2", seq2_arg.getValue(), hmm.track(0));
+    Sequence seq2(hmm.track(0), "seq2", seq2_arg.getValue());
     seqs.AddSeq(seq2);
   }
 
