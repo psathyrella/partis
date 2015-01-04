@@ -9,8 +9,10 @@ namespace ham {
 class Sequence {
   friend class Sequences;
 public:
-  Sequence(string name, string seq_str, Track* trk);  //, vector<uint8_t> *seq=nullptr, int pos=-1, int len=-1);
-  Sequence(const Sequence&);
+  Sequence(Track* trk, string name, string &undigitized);
+  Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len);  // create the subsequence from <pos> of length <len>
+  Sequence(Sequence &rhs, size_t pos, size_t len);
+  Sequence(const Sequence &rhs);
   ~Sequence();
 
   inline string name() const { return name_; }
@@ -19,11 +21,13 @@ public:
   inline string symbol(size_t pos) const { return track_->symbol((*seq_)[pos]); }  // get undigitized value at <pos>
   inline size_t size() const { return seq_->size(); }  // length of sequence
   inline Track* track() const { return track_; }
-  inline string undigitized() { return undigitized_; }
+  inline vector<uint8_t> *seq() { return seq_; }
+  inline string undigitized() const { return undigitized_; }
   Sequence GetSubSequence(size_t pos, size_t len);
 
   void Print(string separator = " "); // if separator is specified, print it between each element in the sequence
 private:
+  void Digitize();  // convert the string in <undigitized_> to a vector<uint8_t> in <seq_>
   string name_;
   string header_;
   string undigitized_;  // undigitized sequence
@@ -35,14 +39,15 @@ private:
 class Sequences {
 public:
   Sequences() : sequence_length_(0) {}
+  Sequences(Sequences &rhs, size_t pos, size_t len);  // copy <seqs> from <pos> to <pos> + <len>
   void AddSeq(Sequence sq);
 
   short value(size_t iseq, size_t ipos) { return seqs_.at(iseq).value(ipos); }  // return digitized value of <iseq>th sequence at position <ipos>
-  Sequence operator[](size_t index) {return seqs_.at(index); }
+  Sequence &operator[](size_t index) {return seqs_.at(index); }
   Sequence *get_ptr(size_t index) { return &seqs_.at(index); }
   size_t n_seqs() { return seqs_.size(); }
   size_t GetSequenceLength() { return sequence_length_;}
-  Sequences GetSubSequences(size_t pos, size_t len);
+  // Sequences GetSubSequences(size_t pos, size_t len);
 
   void Print();
   string name_str(string delimiter=" ") {

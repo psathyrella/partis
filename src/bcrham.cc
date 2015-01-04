@@ -152,7 +152,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
     Sequences seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
-      Sequence sq(args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq], trk);
+      Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
       seqs.AddSeq(sq);
     }
     all_seqs.push_back(seqs);
@@ -180,16 +180,17 @@ int main(int argc, const char * argv[]) {
   // init some infrastructure
   vector<string> characters {"A", "C", "G", "T"};
   Track trk("NUKES", characters);
-  vector<Sequences> seqs(GetSeqs(args, &trk));
+  vector<Sequences> qry_seq_list(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), gl);
   // hmms.CacheAll();
 
-  for(size_t iqry = 0; iqry < seqs.size(); iqry++) {
+  for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
+    Sequences qry_seqs(qry_seq_list[iqry]);
 
     JobHolder jh(gl, hmms, args.algorithm(), args.str_lists_["only_genes"][iqry]);
     jh.SetDebug(args.debug());
@@ -197,22 +198,22 @@ int main(int argc, const char * argv[]) {
     jh.SetNBestEvents(args.n_best_events());
 
     Result result(kbounds);
-    vector<Result> denom_results(seqs[iqry].n_seqs(), result);  // only used for forward if n_seqs > 1
+    vector<Result> denom_results(qry_seqs.n_seqs(), result);  // only used for forward if n_seqs > 1
     double numerator(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
     double bayes_factor(-INFINITY); // final result
-    vector<double> single_scores(seqs[iqry].n_seqs(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
+    vector<double> single_scores(qry_seqs.n_seqs(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
     bool stop(false);
     string errors;
     do {
       errors = "";
       // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
-      result = jh.Run(seqs[iqry], kbounds);
+      result = jh.Run(qry_seqs, kbounds);
       numerator = result.total_score();
       bayes_factor = numerator;
-      if(args.algorithm() == "forward" && seqs[iqry].n_seqs() > 1) {  // calculate factors for denominator
-	for(size_t iseq = 0; iseq < seqs[iqry].n_seqs(); ++iseq) {
-	  denom_results[iseq] = jh.Run(seqs[iqry][iseq], kbounds);  // result for a single sequence
+      if(args.algorithm() == "forward" && qry_seqs.n_seqs() > 1) {  // calculate factors for denominator
+	for(size_t iseq = 0; iseq < qry_seqs.n_seqs(); ++iseq) {
+	  denom_results[iseq] = jh.Run(qry_seqs[iseq], kbounds);  // result for a single sequence
 	  single_scores[iseq] = denom_results[iseq].total_score();
 	  bayes_factor -= single_scores[iseq];
 	}
@@ -236,11 +237,11 @@ int main(int argc, const char * argv[]) {
     } while(!stop);
 
     // if(result.could_not_expand())
-    //   cout << "WARNING " << seqs[iqry].name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
+    //   cout << "WARNING " << qry_seqs.name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
     // if(single_result.boundary_error())
-    //   cout << "WARNING boundary errors for " << seqs[iqry][iseq].name() << " when together with " << seqs[iqry].name_str() << endl;
+    //   cout << "WARNING boundary errors for " << qry_seqs[iseq].name() << " when together with " << qry_seqs.name_str() << endl;
 
-    if(args.debug() && args.algorithm() == "forward" && seqs[iqry].n_seqs() > 1)
+    if(args.debug() && args.algorithm() == "forward" && qry_seqs.n_seqs() > 1)
       print_forward_scores(numerator, single_scores, bayes_factor);
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
@@ -249,7 +250,7 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, seqs[iqry], bayes_factor, errors);
+    StreamOutput(ofs, args, result.events_, qry_seqs, bayes_factor, errors);
   }
 
   ofs.close();
