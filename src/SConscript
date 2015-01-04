@@ -12,9 +12,13 @@ binary_names = ['bcrham', 'hample', 'testham']
 
 sources = []
 for fname in glob.glob(os.getenv('PWD') + '/src/*.cc'):
+    is_binary = False
     for bname in binary_names:
-        if bname not in fname:
-            sources.append(fname)
+        if bname in fname:
+            is_binary = True
+            break
+    if not is_binary:
+        sources.append(fname)
 
 env.Library(target='ham', source=sources)
 
