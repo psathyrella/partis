@@ -14,6 +14,7 @@ RUN apt-get install -y \
     libxml2-dev \
     libxslt1-dev \
     python-scipy \
+    r-base \
     zlib1g-dev
 RUN pip install \
     beautifulsoup4 \
@@ -25,6 +26,7 @@ RUN pip install \
     networkx \
     pysam \
     pyyaml
+RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
 
 
 COPY . /partis

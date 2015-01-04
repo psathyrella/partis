@@ -7,7 +7,7 @@ from subprocess import check_call
 import utils
 import plotting
 from opener import opener
-# ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv 
+# ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ class Clusterer(object):
         self.pairscores = {}  # used by external code to see if we saw a given pair
         self.plotscores = { 'all':[], 'same':[], 'diff':[]}  # keep track of scores for plotting
 
-        # self.nearest_true_mate = {}  # 
+        # self.nearest_true_mate = {}  #
 
     # ----------------------------------------------------------------------------------------
     def cluster(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
@@ -75,7 +75,7 @@ class Clusterer(object):
                 hists[htype] = plotting.make_hist_from_list(self.plotscores[htype], htype + '_pairscores')
                 hists[htype].SetTitle(htype)
             plotting.draw(hists['all'], 'float', plotdir=plotdir, plotname='pairscores', more_hists=[hists['same'], hists['diff']])
-            check_call(['makeHtml', plotdir, '3', 'null', 'svg'])
+            check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
             check_call(['./permissify-www', plotdir])
 
         for query, cluster_id in self.query_clusters.iteritems():
