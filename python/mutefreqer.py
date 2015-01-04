@@ -26,8 +26,8 @@ class MuteFreqer(object):
             self.base_plotdir += '/mute-freqs'
             utils.prep_dir(self.base_plotdir + '/plots', multilings=('*.csv', '*.svg'))
             for region in utils.regions:
-                utils.prep_dir(self.base_plotdir + '/' + region + '/plots', '*.svg')
-                utils.prep_dir(self.base_plotdir + '/' + region + '-per-base/plots', '*.png')
+                utils.prep_dir(self.base_plotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
+                utils.prep_dir(self.base_plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
         utils.prep_dir(self.outdir, '*.csv')
         self.germline_seqs = germline_seqs
         self.counts = {}
@@ -175,12 +175,12 @@ class MuteFreqer(object):
             self.mean_rates['all'].normalize()
             self.mean_rates['all'].write(csv_outfname.replace('REGION', 'all'))  # hackey hackey hackey replacement... *sigh*
             hist = plotting.make_hist_from_bin_entry_file(csv_outfname.replace('REGION', 'all'), 'all-mean-freq')
-            plotting.draw(hist, 'float', plotname='all-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4))
+            plotting.draw(hist, 'float', plotname='all-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
             for region in utils.regions:
                 self.mean_rates[region].normalize()
                 self.mean_rates[region].write(csv_outfname.replace('REGION', region))
                 hist = plotting.make_hist_from_bin_entry_file(csv_outfname.replace('REGION', region), region+'-mean-freq')
-                plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4))
+                plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=self.base_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
             check_call(['./makeHtml', self.base_plotdir, '3', 'null', 'svg'])
 
             # then write make html file and fix permissiions

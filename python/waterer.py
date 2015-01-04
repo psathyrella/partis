@@ -29,7 +29,7 @@ class Waterer(object):
         if write_parameters:
             self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
             if plotdir != '':
-                utils.prep_dir(plotdir + '/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
+                utils.prep_dir(plotdir + '/plots', multilings=['*.svg', '*.csv'])
             # if not self.args.is_data:
             #     self.true_pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir + '/true')
             #     if plotdir != '':

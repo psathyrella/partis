@@ -112,7 +112,7 @@ class ParameterCounter(object):
                 values[column_val] += count
             hist = plotting.make_hist(values, var_type, column, sort=True)
 
-            plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir, errors=('_content' in column))
+            plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir, errors=('_content' in column), write_csv=True)
         if has_root:
             check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
             check_call(['./makeHtml', self.plotdir, '3', 'null', 'svg'])

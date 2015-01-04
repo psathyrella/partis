@@ -26,7 +26,7 @@ else:
 
 from opener import opener
 
-hard_bounds = {
+true_vs_inferred_hard_bounds = {
     'hamming_to_true_naive' : (-0.5, 25.5),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
@@ -41,6 +41,25 @@ hard_bounds = {
     'mute_freqs' : (-15.5, 15.5),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-3.5, 3.5),
     'vd_insertion' : (-8.5, 8.5)}
+
+default_hard_bounds = {
+    'hamming_to_true_naive' : (-0.5, 25.5),
+    'v_hamming_to_true_naive' : (-0.5, 8.5),
+    'd_hamming_to_true_naive' : (-0.5, 10.5),
+    'j_hamming_to_true_naive' : (-0.5, 12.5),
+    'v_hamming_to_true_naive_normed' : (-0.5, 8.5),
+    'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
+    'j_hamming_to_true_naive_normed' : (-0.5, 20),
+    'd_3p_del' : (-1, 15),
+    'd_5p_del' : (-1, 15),
+    'dj_insertion' : (-1, 13),
+    'j_5p_del' : (-1, 13),
+    'all-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
+    'v-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
+    'd-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
+    'j-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
+    'v_3p_del' : (-1, 4),
+    'vd_insertion' : (-1, 10)}
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
@@ -85,7 +104,7 @@ def write_hist_to_file(fname, hist):
                              'binlabel' : hist.GetXaxis().GetBinLabel(ibin)})
 
 # ----------------------------------------------------------------------------------------
-def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
+def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False):
     """ 
     Return root histogram with each bin low edge and bin content read from <fname> 
     E.g. from the results of hist.Hist.write()
@@ -115,6 +134,10 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
         hist.SetBinContent(ib, contents[ib])
         if bin_labels[ib] != '':
             hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
+
+    if normalize:
+        hist.Scale(1./hist.Integral())
+        hist.GetYaxis().SetTitle('freq')
 
     return hist
     
@@ -337,15 +360,15 @@ def get_hists_from_dir(dirname, histname):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
-        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname)
+        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=True)
         hists[varname].SetTitle(histname)
     if len(hists) == 0:
-        print 'ERROR no hists in',dirname
+        print 'ERROR no csvs in',dirname
         sys.exit()
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', stats=''):
+def compare_directories(outdir, dirs, names, xtitle='', stats='', use_hard_bounds=''):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', '*.svg')
     hists = []
@@ -370,8 +393,12 @@ def compare_directories(outdir, dirs, names, xtitle='', stats=''):
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
         bounds = None
-        if varname in hard_bounds:
-            bounds = hard_bounds[varname]
+        if use_hard_bounds == 'true_vs_inferred':
+            if varname in true_vs_inferred_hard_bounds:
+                bounds = true_vs_inferred_hard_bounds[varname]
+        else:
+            if varname in default_hard_bounds:
+                bounds = default_hard_bounds[varname]
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats, bounds=bounds, log=log, shift_overflows=False)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])

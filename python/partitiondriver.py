@@ -211,9 +211,9 @@ class PartitionDriver(object):
         if count_parameters and not self.args.is_data:
             true_pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir + '/true')
         if plotdir != '':
-            utils.prep_dir(plotdir + '/plots', '*.svg')
+            utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
             if count_parameters and not self.args.is_data:
-                utils.prep_dir(plotdir + '/true/plots', '*.svg')
+                utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
 
         perfplotter = None
         if plot_performance:
