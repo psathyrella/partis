@@ -9,7 +9,7 @@ import itertools
 import operator
 import pysam
 import contextlib
-from subprocess import check_call
+from subprocess import check_call, check_output
 
 import utils
 from opener import opener
@@ -124,6 +124,8 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         # start = time.time()
+        check_output(['which', 'vdjalign'])
+        check_output(['which', 'samtools'])
         workdir = self.args.workdir
         if iproc >= 0:
             workdir += '/sw-' + str(iproc)
