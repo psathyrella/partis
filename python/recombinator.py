@@ -108,8 +108,8 @@ class Recombinator(object):
                 self.insertion_content_probs[bound] = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
 
             assert utils.is_normed(self.insertion_content_probs[bound])
-            if self.args.debug:
-                print '  insertion content for', bound, self.insertion_content_probs[bound]
+            # if self.args.debug:
+            #     print '  insertion content for', bound, self.insertion_content_probs[bound]
 
     # ----------------------------------------------------------------------------------------
     def combine(self, irandom):

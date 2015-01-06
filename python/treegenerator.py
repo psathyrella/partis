@@ -49,11 +49,11 @@ class TreeGenerator(object):
         random.seed(seed)
         numpy.random.seed(seed)
         if self.args.debug:
-            print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_dir)
+            print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_dir),
             if self.args.random_number_of_leaves:
-                print '    with random number of leaves in [2, %d]' % self.args.n_leaves
+                print ' with random number of leaves in [2, %d]' % self.args.n_leaves
             else:
-                print '    with %d leaves' % self.args.n_leaves
+                print ' with %d leaves' % self.args.n_leaves
 
     #----------------------------------------------------------------------------------------
     def read_mute_freqs(self, mute_freq_dir):
@@ -115,23 +115,27 @@ class TreeGenerator(object):
         assert False  # shouldn't fall through to here
     
     # ----------------------------------------------------------------------------------------
-    def check_tree_lengths(self, treefname, ages, debug=False):
+    def check_tree_lengths(self, treefname, ages):
         treestrs = []
         with opener('r')(treefname) as treefile:
             for line in treefile:
                 treestrs.append(line.split(';')[0] + ';')  # ignore the info I added after the ';'
-        if debug:
-            print 'checking branch lengths... '
+        if self.args.debug > 1:
+            print '  checking branch lengths... '
         assert len(treestrs) == len(ages)
+        total = 0.0
         for itree in range(len(ages)):
-            if debug:
-                print '  ', ages[itree]
+            if self.args.debug > 1:
+                print '    asked for', ages[itree],
             for name, depth in get_leaf_node_depths(treestrs[itree]).items():
-                if debug:
+                if self.args.debug > 1:
                     print '%s:%f' % (name, depth),
                 assert utils.is_normed(depth / ages[itree], this_eps=1e-6)  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
-            if debug:
+            total += ages[itree]
+            if self.args.debug > 1:
                 print ''
+        if self.args.debug:
+            print '    branch lengths ok (mean %f)' % (total / len(ages))
 
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
