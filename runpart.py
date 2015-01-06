@@ -26,13 +26,15 @@ parser.add_argument('--generate-trees', action='store_true', help='generate tree
 
 # finer action control
 # parser.add_argument('--pair', action='store_true', help='Run on every pair of sequences in the input')
-parser.add_argument('--n-sets', type=int, default=1, help='Run algorithm on *all* possible combinations of the input queries of length <n-sets>')
+parser.add_argument('--n-sets', type=int, default=1, help='Run on sets of sequences of size <n> (i.e. \"k-hmm\")')
+parser.add_argument('--all-combinations', action='store_true', help='Run algorithm on *all* possible combinations of the input queries of length <n-sets>')
 parser.add_argument('--is-data', action='store_true', help='True if not simulation')
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use by recombinator (to allow reproducibility)')
+parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulting, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -55,6 +57,7 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 
 # tree generation (see also branch-length-fname)
+# NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-trees', type=int, default=100, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
 parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves in [2, <n-leaves>] (inclusive!). Otherwise give all trees <n-leaves> leaves')

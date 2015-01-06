@@ -9,6 +9,7 @@ import os
 import glob
 import csv
 import re
+from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE
 
 import_start = time.time()
@@ -47,7 +48,7 @@ class PartitionDriver(object):
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         self.precluster_info = {}
-        self.input_info = {}
+        self.input_info = OrderedDict()
         self.reco_info = None
         if not self.args.is_data:
             self.reco_info = {}  # generator truth information
@@ -219,7 +220,9 @@ class PartitionDriver(object):
         if plot_performance:
             assert self.args.plotdir != None
             assert not self.args.is_data
-            assert self.args.n_sets == 1  # well, you *could* check the performance on k-sets, but I haven't implemented it yet
+            if self.args.n_sets > 1:
+                print 'checking performance for k > 1!'
+            # assert self.args.n_sets == 1  # well, you *could* check the performance on k-sets, but I haven't implemented it yet
             assert algorithm == 'viterbi'  # same deal as previous assert
             from performanceplotter import PerformancePlotter
             perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/hmm_performance', 'hmm')
@@ -617,7 +620,20 @@ class PartitionDriver(object):
             # for cluster in preclusters.id_clusters.values():
             #     nsets += itertools.combinations(cluster, 5)
         elif hmm_type == 'k=nsets':  # run on *every* combination of queries which has length <self.args.n_sets>
-            nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
+            if self.args.all_combinations:
+                nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
+            else:  # put the first n together, and the second group of n (not the self.input_info is and OrderedDict)
+                nsets = []
+                keylist = self.input_info.keys()
+                this_set = []
+                for iquery in range(len(keylist)):
+                    if iquery % self.args.n_sets == 0:  # every nth query, start a new group
+                        if len(this_set) > 0:
+                            nsets.append(this_set)
+                        this_set = []
+                    this_set.append(keylist[iquery])
+                if len(this_set) > 0:
+                    nsets.append(this_set)
         else:
             assert False
 
