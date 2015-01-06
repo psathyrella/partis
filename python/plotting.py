@@ -253,6 +253,13 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
     return hist
 
 # ----------------------------------------------------------------------------------------
+def make_hist_from_my_hist_class(myhist, name):
+    roothist = TH1D(name, '', myhist.n_bins, myhist.xmin, myhist.xmax)
+    for ibin in range(myhist.n_bins + 2):
+        roothist.SetBinContent(ibin, myhist.bin_contents[ibin])
+    return roothist
+
+# ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False, csv_fname=None):
     assert os.path.exists(plotdir)
     if not has_root:
@@ -269,7 +276,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             xmin = htmp.GetBinLowEdge(1)
         if xmax == None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
             xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
-        if ymax == None or htmp.GetMaximum() > xmax:
+        if ymax == None or htmp.GetMaximum() > ymax:
             ymax = htmp.GetMaximum()
     if bounds != None:
         xmin, xmax = bounds
@@ -338,6 +345,8 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
         if 'mean' in stats:
             htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
+        if '0-bin' in stats:
+            htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
         leg.AddEntry(htmp, htmp.GetTitle() , 'l')
     leg.Draw()
 
@@ -368,7 +377,7 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', stats='', use_hard_bounds=''):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds=''):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', '*.svg')
     hists = []
@@ -399,6 +408,10 @@ def compare_directories(outdir, dirs, names, xtitle='', stats='', use_hard_bound
         else:
             if varname in default_hard_bounds:
                 bounds = default_hard_bounds[varname]
+        if '_gene' in varname:
+            stats = ' 0-bin'
+        else:
+            stats = ''
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats, bounds=bounds, log=log, shift_overflows=False)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])

@@ -928,8 +928,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def rounded_mutation_rate(germlines, line, restrict_to_region=''):
-    """ It's called rounded 'cause I multiply by a hundred and cast to an int. This makes plotting easier (see performanceplotter.py) """
+def get_mutation_rate(germlines, line, restrict_to_region=''):
     naive_seq = get_full_naive_seq(germlines, line)  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
     if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting

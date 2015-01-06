@@ -1,6 +1,7 @@
 import sys
 import utils
 import plotting
+from hist import Hist
 from subprocess import check_call
 
 assert plotting.check_root()
@@ -30,7 +31,10 @@ class PerformancePlotter(object):
         # for bound in utils.boundaries:
         #     self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion
         # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
-        self.values['mute_freqs'] = {}
+        # n_bins, xmin, xmax = 100, 0.0, 1.0
+        self.hists = {}
+        self.hists['mute_freqs'] = Hist(30, -0.05, 0.05)
+
     # ----------------------------------------------------------------------------------------
     def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=False):
         """
@@ -132,11 +136,6 @@ class PerformancePlotter(object):
                     restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
                     normalize = '_norm' in column
                     guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
-                elif column == 'mute_freqs':
-                    trueval = utils.rounded_mutation_rate(self.germlines, true_line)
-                    guessval = utils.rounded_mutation_rate(self.germlines, line)
-                    trueval = int(1000 * trueval)
-                    guessval = int(1000 * guessval)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(line[column])
@@ -146,6 +145,13 @@ class PerformancePlotter(object):
                     self.values[column][diff] = 0
                 self.values[column][diff] += 1
 
+        for column in self.hists:
+            trueval = utils.get_mutation_rate(self.germlines, true_line)
+            guessval = utils.get_mutation_rate(self.germlines, line)
+            self.hists[column].fill(guessval - trueval)
+            # assert False
+            # trueval = int(1000 * trueval)
+            # guessval = int(1000 * guessval)
     # ----------------------------------------------------------------------------------------
     def plot(self):
         for column in self.values:
@@ -163,5 +169,9 @@ class PerformancePlotter(object):
                 else:
                     hist.GetXaxis().SetTitle('inferred - true')
                 plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
+        for column in self.hists:
+            hist = plotting.make_hist_from_my_hist_class(self.hists[column], 'mute_freqs')
+            plotting.draw(hist, 'float', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
+        
         check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
         check_call(['./makeHtml', self.plotdir, '3', 'null', 'svg'])

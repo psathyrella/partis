@@ -39,11 +39,11 @@ class MuteFreqer(object):
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         # first do overall mute freqs
-        freq = utils.rounded_mutation_rate(self.germline_seqs, info)
+        freq = utils.get_mutation_rate(self.germline_seqs, info)
         self.mean_rates['all'].fill(freq)
         for region in utils.regions:
             # then do per-region mean mute freqs
-            freq = utils.rounded_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
+            freq = utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
             self.mean_rates[region].fill(freq)
 
             # then per-gene per-position

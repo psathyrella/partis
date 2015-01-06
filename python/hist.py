@@ -13,7 +13,7 @@ class Hist(object):
         self.centers = []  # center of each bin
         self.bin_contents = []
         dx = (self.xmax - self.xmin) / self.n_bins
-        for ib in range(self.n_bins + 2):  # ROOT conventions: zero is underflow and last bin is overflow
+        for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
             self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
             self.centers.append(self.low_edges[-1] + 0.5*dx)
             self.bin_contents.append(0.0)
