@@ -18,16 +18,16 @@ from parametercounter import ParameterCounter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir='', write_parameters=False, plotdir=''):
-        if write_parameters:
-            assert parameter_dir != ''
+    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir, write_parameters=False, plotdir=''):
+        self.parameter_dir = parameter_dir
+        self.plotdir = plotdir
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
         self.germline_seqs = germline_seqs
         self.pcounter, self.true_pcounter = None, None
         if write_parameters:
-            self.pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir)
+            self.pcounter = ParameterCounter(self.germline_seqs)  #, parameter_dir, plotdir=plotdir)
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', multilings=['*.svg', '*.csv'])
             # if not self.args.is_data:
@@ -87,7 +87,9 @@ class Waterer(object):
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
-            self.pcounter.write_counts()
+            self.pcounter.write(self.parameter_dir)
+            if self.plotdir != '':
+                self.pcounter.plot(self.plotdir)
         # if self.true_pcounter != None:
         #     self.true_pcounter.write_counts()
 

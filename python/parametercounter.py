@@ -15,20 +15,16 @@ has_root = plotting.check_root()
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, germline_seqs, base_outdir, plotdir=''):
-        self.base_outdir = base_outdir
-        assert plotdir != ''
-        self.plotdir = plotdir
+    def __init__(self, germline_seqs):   #, base_outdir='', plotdir='', write_parameters=True, plot_parameters=True):
         self.total = 0
         self.counts = {}
-        utils.prep_dir(self.base_outdir, '*.csv')
         self.counts['all'] = {}
         for column in utils.column_dependencies:
             self.counts[column] = {}
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion
         self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
-        self.mutefreqer = MuteFreqer(self.base_outdir, self.plotdir, germline_seqs)
+        self.mutefreqer = MuteFreqer(germline_seqs)  #, self.base_outdir, self.plotdir, write_parameters=self.write_parameters, plot_parameters=self.plot_parameters)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -95,7 +91,8 @@ class ParameterCounter(object):
         return ''.join(return_str)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self):
+    def plot(self, plotdir):
+        # NOTE hm, why isn't there a prep_dir here?
         for column in self.counts:
             if column == 'all':
                 continue
@@ -111,37 +108,38 @@ class ParameterCounter(object):
                     values[column_val] = 0.0
                 values[column_val] += count
             hist = plotting.make_hist(values, var_type, column, sort=True)
+            plotting.draw(hist, var_type, plotname=column, plotdir=plotdir, errors=('_content' in column), write_csv=True)
 
-            plotting.draw(hist, var_type, plotname=column, plotdir=self.plotdir, errors=('_content' in column), write_csv=True)
+        self.mutefreqer.plot(plotdir)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+
         if has_root:
-            check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
-            check_call(['./makeHtml', self.plotdir, '3', 'null', 'svg'])
+            check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+            check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
 
     # ----------------------------------------------------------------------------------------
-    def write_counts(self):
-        if self.plotdir != '' and has_root:
-            self.plot()
+    def write(self, base_outdir):
+        utils.prep_dir(base_outdir, '*.csv')
         print 'write mute freqs'
         mute_start = time.time()
-        n_cached, n_not_cached = self.mutefreqer.write(csv_outfname=self.base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        self.mutefreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
         print 'mute freq write time: %.3f' % (time.time() - mute_start)
-        print ' %d / %d cached' % (n_cached, n_cached + n_not_cached)
+        print ' %d / %d cached' % (self.mutefreqer.n_cached, self.mutefreqer.n_cached + self.mutefreqer.n_not_cached)
         for column in self.counts:
             index = None
             outfname = None
             if column == 'all':
                 index = utils.index_columns
-                outfname = self.base_outdir + '/' + utils.get_parameter_fname(column='all')
+                outfname = base_outdir + '/' + utils.get_parameter_fname(column='all')
             elif '_content' in column:
                 index = [column,]
-                outfname = self.base_outdir + '/' + column + '.csv'
+                outfname = base_outdir + '/' + column + '.csv'
             else:
                 index = [column,] + utils.column_dependencies[column]
-                outfname = self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index)
+                outfname = base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index)
             if os.path.isfile(outfname):
                 os.remove(outfname)
-            elif not os.path.exists(self.base_outdir):
-                os.makedirs(self.base_outdir)
+            elif not os.path.exists(base_outdir):
+                os.makedirs(base_outdir)
             with opener('w')(outfname) as outfile:
                 out_fieldnames = list(index)
                 out_fieldnames.append('count')

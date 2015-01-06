@@ -35,6 +35,8 @@ parser.add_argument('--truncate-pairs', action='store_true', help='If pairing tw
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use by recombinator (to allow reproducibility)')
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulting, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
+parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
+parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -88,6 +90,9 @@ args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
 if args.n_fewer_procs == None:
     args.n_fewer_procs = args.n_procs
+if args.slurm and '/tmp' in args.workdir:
+    print 'ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes'
+    sys.exit()
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):

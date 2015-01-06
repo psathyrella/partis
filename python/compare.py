@@ -13,6 +13,7 @@ parser.add_argument('-b', action='store_true')  # passed on to ROOT when plottin
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--plotdirs', required=True)
 parser.add_argument('--names', required=True)
+parser.add_argument('--stats', default='')
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.names = utils.get_arg_list(args.names)
@@ -22,7 +23,7 @@ assert len(args.names) < 5  # need to change plotting function to allow more
 
 plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
-                             names = args.names)
+                             names = args.names, stats=args.stats)
 
 # label = 'check-new-imgt'
 # plotdir = '/var/www/sharing/dralph/partis/performance/'

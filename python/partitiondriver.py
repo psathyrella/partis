@@ -195,7 +195,8 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        self.run_hmm(self.args.run_algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', plot_performance=self.args.plot_performance)
+        self.run_hmm(self.args.run_algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', \
+                     count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
         # self.clean(waterer)
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
@@ -204,20 +205,21 @@ class PartitionDriver(object):
         #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', count_parameters=False, plotdir='', plot_performance=False, make_clusters=False):
+    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
+                count_parameters=False, plotdir='', make_clusters=False):  # @parameterfetishist
         pcounter = None
         if count_parameters:
-            pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir)
+            pcounter = ParameterCounter(self.germline_seqs)  #, parameter_out_dir, plotdir=plotdir, write_parameters=(parameter_out_dir!=''))
         true_pcounter = None
-        if count_parameters and not self.args.is_data:
-            true_pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir + '/true')
+        # if count_parameters and not self.args.is_data:
+        #     true_pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir + '/true')
         if plotdir != '':
             utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
-            if count_parameters and not self.args.is_data:
-                utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
+            # if count_parameters and not self.args.is_data:
+            #     utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
 
         perfplotter = None
-        if plot_performance:
+        if self.args.plot_performance:
             assert self.args.plotdir != None
             assert not self.args.is_data
             if self.args.n_sets > 1:
@@ -255,9 +257,12 @@ class PartitionDriver(object):
         hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, pcounter, perfplotter, true_pcounter, make_clusters=make_clusters)
 
         if count_parameters:
-            pcounter.write_counts()
-        if count_parameters and not self.args.is_data:
-            true_pcounter.write_counts()
+            if parameter_out_dir != '':
+                pcounter.write(parameter_out_dir)
+            if plotdir != '':
+                pcounter.plot(plotdir)
+        # if count_parameters and not self.args.is_data:
+        #     true_pcounter.write_counts()
 
         clusters = None
         if make_clusters:
@@ -693,7 +698,7 @@ class PartitionDriver(object):
                     # if make_clusters:
                     #     viterbi_cluster_info.append(utils.get_full_naive_seq(self.germline_seqs, line)
 
-                    if last_key != this_key:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
+                    if last_key != this_key or self.args.plot_all_best_events:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
                             print '%s   %d' % (id_str, same_event)
