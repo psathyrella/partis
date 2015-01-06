@@ -158,7 +158,7 @@ class TreeGenerator(object):
             n_trees_each_run = '1'
             # build command line, one (painful) tree at a time
             with tempfile.NamedTemporaryFile() as commandfile:
-                commandfile.write('library(TreeSim)\n')
+                commandfile.write('require(TreeSim, quietly=TRUE)\n')
                 commandfile.write('set.seed(' + str(seed)+ ')\n')
                 ages = []
                 for itree in range(self.args.n_trees):

@@ -378,6 +378,7 @@ class Recombinator(object):
         for region in utils.regions:
             # rescale the tree
             rescaled_trees[region] = treegenerator.rescale_tree(treestr, branch_length_ratios[region])
+            # print 'rescaled %s by %f: %s -> %s' % (region, branch_length_ratios[region], treestr, rescaled_trees[region])
             # and then check it NOTE can remove this eventually
             initial_depths = {}
             for node, depth in treegenerator.get_leaf_node_depths(treestr).items():
@@ -391,11 +392,15 @@ class Recombinator(object):
     def add_mutants(self, reco_event, irandom):
         chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
         chosen_tree = chosen_treeinfo.split(';')[0] + ';'
-        branch_length_ratios = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all trees, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
-        for tmpstr in chosen_treeinfo.split(';')[1].split(','):
+        branch_length_ratios = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
+        for tmpstr in chosen_treeinfo.split(';')[1].split(','):  # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
             region = tmpstr.split(':')[0]
             assert region in utils.regions
             ratio = float(tmpstr.split(':')[1])
+            if self.args.branch_length_multiplier != None:  # multiply the branch lengths by some factor
+                # if self.args.debug:
+                # print '    adding branch length factor %f ' % self.args.branch_length_multiplier
+                ratio *= self.args.branch_length_multiplier
             branch_length_ratios[region] = ratio
 
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
