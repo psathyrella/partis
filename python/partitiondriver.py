@@ -17,6 +17,7 @@ import utils
 from opener import opener
 from clusterer import Clusterer
 from waterer import Waterer
+from hist import Hist
 from parametercounter import ParameterCounter
 import plotting
 
@@ -677,6 +678,9 @@ class PartitionDriver(object):
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
             boundary_error_queries = []
+            if self.args.plot_all_best_events:
+                assert self.args.n_max_queries == 1  # at least for now
+                scores = []  # list of scorse for all the events
             for line in reader:
                 utils.intify(line, splitargs=('unique_ids', 'seqs'))
                 ids = line['unique_ids']
@@ -702,6 +706,8 @@ class PartitionDriver(object):
                         n_processed += 1
                         if self.args.debug:
                             print '%s   %d' % (id_str, same_event)
+                        if self.args.plot_all_best_events:
+                            scores.append(float(line['score']))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
                             if pcounter != None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
@@ -736,6 +742,8 @@ class PartitionDriver(object):
             print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
         if perfplotter != None:
             perfplotter.plot()
+        if self.args.plot_all_best_events:
+            scores = sorted(scores)  # oh wait they're already sorted...
 
         return pairscores
 

@@ -92,7 +92,6 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir):
-        # NOTE hm, why isn't there a prep_dir here?
         for column in self.counts:
             if column == 'all':
                 continue
@@ -107,8 +106,8 @@ class ParameterCounter(object):
                 if column_val not in values:
                     values[column_val] = 0.0
                 values[column_val] += count
-            hist = plotting.make_hist(values, var_type, column, sort=True)
-            plotting.draw(hist, var_type, plotname=column, plotdir=plotdir, errors=('_content' in column), write_csv=True)
+            hist = plotting.make_hist_from_dict_of_counts(values, var_type, column, sort=True)
+            plotting.draw(hist, var_type, plotname=column, plotdir=plotdir, errors=True, write_csv=True)
 
         self.mutefreqer.plot(plotdir)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 

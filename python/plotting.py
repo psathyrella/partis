@@ -197,8 +197,11 @@ def make_hist_from_list(values, hist_label, n_bins=30):
     return hist
 
 # ----------------------------------------------------------------------------------------
-def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False, sort=False):
+# <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
+def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False, sort=False):
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
+    assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
+
     if not has_root:
         return
     if len(values) == 0:
@@ -211,32 +214,30 @@ def make_hist(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0
 
     if var_type == 'string':
         n_bins = len(values)
-    elif var_type == 'int':
-        n_bins = bin_labels[-1] - bin_labels[0] + 1
     else:
-        assert False
+        n_bins = bin_labels[-1] - bin_labels[0] + 1
 
     hist = None
     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
-    if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work them out dynamically
-        if var_type == 'int':
-            hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)
-        else:
+    if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work out what they should be
+        if var_type == 'string':
             set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
             hist = TH1D(hist_label, '', n_bins, xbins)
+        else:
+            hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the lat bin label (they're sorted)
     else:
       hist = TH1D(hist_label, '', n_bins, xmin_force, xmax_force)
     hist.Sumw2()
-        
 
     for ival in range(len(values)):
         if var_type == 'string':
             label = bin_labels[ival]
-            hist.GetXaxis().SetBinLabel(ival+1, label)
-            hist.SetBinContent(ival+1, values[bin_labels[ival]])
-            hist.SetBinError(ival+1, math.sqrt(values[bin_labels[ival]]))
+            ibin = ival + 1
+            hist.GetXaxis().SetBinLabel(ibin, label)
         else:
-            hist.Fill(bin_labels[ival], values[bin_labels[ival]])
+            ibin = hist.FindBin(bin_labels[ival])
+        hist.SetBinContent(ibin, values[bin_labels[ival]])
+        hist.SetBinError(ibin, math.sqrt(values[bin_labels[ival]]))
   
     # make sure there's no overflows
     if hist.GetBinContent(0) != 0.0 or hist.GetBinContent(hist.GetNbinsX()+1) != 0.0:
