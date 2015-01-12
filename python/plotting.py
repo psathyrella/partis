@@ -132,6 +132,7 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False)
     hist.GetXaxis().SetTitle(xtitle)
     for ib in range(n_bins+2):
         hist.SetBinContent(ib, contents[ib])
+        hist.SetBinError(ib, math.sqrt(contents[ib]))
         if bin_labels[ib] != '':
             hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
 
@@ -331,8 +332,8 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     for ih in range(len(hists)):
         htmp = hists[ih]
         htmp.SetLineColor(colors[ih])
-        if ih == 0:
-            htmp.SetMarkerSize(0)
+        # if ih == 0:
+        htmp.SetMarkerSize(0)
         assert ih < 6
         htmp.SetLineWidth(6-ih)
         htmp.Draw(draw_str)
@@ -396,9 +397,16 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         log = ''
 
         more_hists = []
+        missing_hist = False
         for idir in range(1, len(dirs)):
-            more_hists.append(hists[idir][varname])
-            
+            try:
+                more_hists.append(hists[idir][varname])
+            except:
+                print 'ERROR %s in %s but not %s' % (varname, dirs[0], dirs[idir])
+                missing_hist = True
+        if missing_hist:
+            continue        
+
         var_type = 'int'
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
@@ -413,7 +421,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             extrastats = ' 0-bin'
         else:
             extrastats = ''
-        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log, shift_overflows=False)
+        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log, shift_overflows=False, errors=True)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
 
