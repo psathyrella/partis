@@ -110,13 +110,14 @@ class ParameterCounter(object):
                         gene_values[gene] = {}
 
                 column_val = index[0]
-                if gene == None:
-                    these_vals = values
-                else:
-                    these_vals = gene_values[gene]
-                if column_val not in these_vals:
-                    these_vals[column_val] = 0.0
-                these_vals[column_val] += count
+                if gene is not None:
+                    if column_val not in gene_values[gene]:
+                        gene_values[gene][column_val] = 0.0
+                    gene_values[gene][column_val] += count
+                if column_val not in values:
+                    values[column_val] = 0.0
+                values[column_val] += count
+
                 try:  # figure out whether this is an integer or string (only used outside this loop when we make the plots)
                     int(column_val)
                     var_type = 'int'
@@ -132,10 +133,10 @@ class ParameterCounter(object):
                     plotting.draw(hist, var_type, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True)
                 check_call(['./permissify-www', thisplotdir])  # NOTE this should really permissify starting a few directories higher up
                 check_call(['./makeHtml', thisplotdir, '3', 'null', 'svg'])
-            else:
-                plotname = column
-                hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
-                plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
+
+            plotname = column
+            hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
+            plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
 
         self.mutefreqer.plot(plotdir)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 

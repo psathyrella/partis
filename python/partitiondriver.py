@@ -217,12 +217,12 @@ class PartitionDriver(object):
             pcounter = ParameterCounter(self.germline_seqs)  #, parameter_out_dir, plotdir=plotdir, write_parameters=(parameter_out_dir!=''))
         true_pcounter = None
         if count_parameters and not self.args.is_data:
-            true_pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir + '/true')
+            true_pcounter = ParameterCounter(self.germline_seqs)
         if plotdir != '':
             utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
             check_call(['./permissify-www', plotdir])
-            # if count_parameters and not self.args.is_data:
-            #     utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
+            if true_pcounter is not None:
+                utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
 
         perfplotter = None
         if self.args.plot_performance:
@@ -265,10 +265,12 @@ class PartitionDriver(object):
         if count_parameters:
             if parameter_out_dir != '':
                 pcounter.write(parameter_out_dir)
+                if true_pcounter is not None:
+                    true_pcounter.write(parameter_out_dir + '/true')
             if plotdir != '':
                 pcounter.plot(plotdir, subset_by_gene=True)
-        if count_parameters and not self.args.is_data:
-            true_pcounter.write_counts()
+                if true_pcounter is not None:
+                    true_pcounter.plot(plotdir + '/true', subset_by_gene=True)
 
         clusters = None
         if make_clusters:
