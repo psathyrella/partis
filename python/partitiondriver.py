@@ -40,6 +40,10 @@ def from_same_event(is_data, pair_hmm, reco_info, query_names):
 class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
+        if self.args.plotdir != None:
+            utils.prep_dir(self.args.plotdir + '/plots')
+            check_call(['./permissify-www', self.args.plotdir])
+
         self.germline_seqs = utils.read_germlines(self.args.datadir)  #, add_fp=True)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
@@ -216,6 +220,7 @@ class PartitionDriver(object):
         #     true_pcounter = ParameterCounter(self.germline_seqs, parameter_out_dir, plotdir=plotdir + '/true')
         if plotdir != '':
             utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
+            check_call(['./permissify-www', plotdir])
             # if count_parameters and not self.args.is_data:
             #     utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
 

@@ -30,6 +30,7 @@ class Waterer(object):
             self.pcounter = ParameterCounter(self.germline_seqs)  #, parameter_dir, plotdir=plotdir)
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', multilings=['*.svg', '*.csv'])
+                check_call(['./permissify-www', plotdir])
             # if not self.args.is_data:
             #     self.true_pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir + '/true')
             #     if plotdir != '':
@@ -89,7 +90,7 @@ class Waterer(object):
         if self.pcounter != None:
             self.pcounter.write(self.parameter_dir)
             if self.plotdir != '':
-                self.pcounter.plot(self.plotdir)
+                self.pcounter.plot(self.plotdir, subset_by_gene=True)
         # if self.true_pcounter != None:
         #     self.true_pcounter.write_counts()
 

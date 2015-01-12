@@ -96,11 +96,13 @@ class ParameterCounter(object):
             if column == 'all':
                 continue
             values, gene_values = {}, {}
-            # print '%s!' % column
             for index, count in self.counts[column].iteritems():
                 gene = None
-                if '_del' in column and subset_by_gene:  # option to subset deletion plots by gene
-                    region = column[0]
+                if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
+                    if '_del' in column:
+                        region = column[0]
+                    else:
+                        region = column[1]
                     assert region in utils.regions
                     assert 'IGH' + region.upper() in index[1]  # NOTE this is hackey, but it works find now and will fail obviously
                     gene = index[1]                            #   if I ever change the correlations to be incompatible. so screw it
@@ -109,10 +111,8 @@ class ParameterCounter(object):
 
                 column_val = index[0]
                 if gene == None:
-                    # print '  fill %s with %d' % (str(column_val), count)
                     these_vals = values
                 else:
-                    # print '  fill %s with %d for %s' % (str(column_val), count, gene)
                     these_vals = gene_values[gene]
                 if column_val not in these_vals:
                     these_vals[column_val] = 0.0
@@ -123,11 +123,15 @@ class ParameterCounter(object):
                 except:
                     var_type = 'string'
 
-            if '_del' in column and subset_by_gene:
+            if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
+                thisplotdir = plotdir + '/' + column
+                utils.prep_dir(thisplotdir + '/plots', multilings=['*.csv', '*.svg'])
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
-                    plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
+                    plotting.draw(hist, var_type, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True)
+                check_call(['./permissify-www', thisplotdir])  # NOTE this should really permissify starting a few directories higher up
+                check_call(['./makeHtml', thisplotdir, '3', 'null', 'svg'])
             else:
                 plotname = column
                 hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
