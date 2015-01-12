@@ -261,7 +261,7 @@ class PartitionDriver(object):
             if parameter_out_dir != '':
                 pcounter.write(parameter_out_dir)
             if plotdir != '':
-                pcounter.plot(plotdir)
+                pcounter.plot(plotdir, subset_by_gene=True)
         # if count_parameters and not self.args.is_data:
         #     true_pcounter.write_counts()
 

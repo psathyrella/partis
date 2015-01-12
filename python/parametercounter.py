@@ -95,25 +95,43 @@ class ParameterCounter(object):
         for column in self.counts:
             if column == 'all':
                 continue
-            values = {}
+            values, gene_values = {}, {}
+            # print '%s!' % column
             for index, count in self.counts[column].iteritems():
+                gene = None
+                if '_del' in column and subset_by_gene:  # option to subset deletion plots by gene
+                    region = column[0]
+                    assert region in utils.regions
+                    assert 'IGH' + region.upper() in index[1]  # NOTE this is hackey, but it works find now and will fail obviously
+                    gene = index[1]                            #   if I ever change the correlations to be incompatible. so screw it
+                    if gene not in gene_values:
+                        gene_values[gene] = {}
+
                 column_val = index[0]
-                # if column[0] in utils.regions:
-                #     region = column[0]
-                    
-                # else:
-                #     region = ''
-                # if region != '' and subset_by_gene:
-                try:
+                if gene == None:
+                    # print '  fill %s with %d' % (str(column_val), count)
+                    these_vals = values
+                else:
+                    # print '  fill %s with %d for %s' % (str(column_val), count, gene)
+                    these_vals = gene_values[gene]
+                if column_val not in these_vals:
+                    these_vals[column_val] = 0.0
+                these_vals[column_val] += count
+                try:  # figure out whether this is an integer or string (only used outside this loop when we make the plots)
                     int(column_val)
                     var_type = 'int'
                 except:
                     var_type = 'string'
-                if column_val not in values:
-                    values[column_val] = 0.0
-                values[column_val] += count
-            hist = plotting.make_hist_from_dict_of_counts(values, var_type, column, sort=True)
-            plotting.draw(hist, var_type, plotname=column, plotdir=plotdir, errors=True, write_csv=True)
+
+            if '_del' in column and subset_by_gene:
+                for gene in gene_values:
+                    plotname = utils.sanitize_name(gene) + '-' + column
+                    hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
+                    plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
+            else:
+                plotname = column
+                hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
+                plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
 
         self.mutefreqer.plot(plotdir)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 

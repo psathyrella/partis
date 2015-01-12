@@ -149,10 +149,6 @@ class PerformancePlotter(object):
             trueval = utils.get_mutation_rate(self.germlines, true_line)
             guessval = utils.get_mutation_rate(self.germlines, inf_line)
             self.hists[column].fill(guessval - trueval)
-            # print guessval- trueval
-            # assert False
-            # trueval = int(1000 * trueval)
-            # guessval = int(1000 * guessval)
 
     # ----------------------------------------------------------------------------------------
     def plot(self):
