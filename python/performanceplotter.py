@@ -114,11 +114,11 @@ class PerformancePlotter(object):
                 pass
 
     # ----------------------------------------------------------------------------------------
-    def evaluate(self, true_line, line):
+    def evaluate(self, true_line, inf_line):
         for column in self.values:
             if column in bool_columns:
-                if utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this above as well!
-                # if true_line[column] == line[column]:
+                if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE you have to change this above as well!
+                # if true_line[column] == inf_line[column]:
                     self.values[column]['right'] += 1
                 else:
                     self.values[column]['wrong'] += 1
@@ -126,19 +126,19 @@ class PerformancePlotter(object):
                 trueval, guessval = 0, 0
                 if column[2:] == '_insertion':  # insertion length
                     trueval = len(true_line[column])
-                    guessval = len(line[column])
+                    guessval = len(inf_line[column])
                 # elif '_content' in column:
-                #     seq_to_use = line[column[ : column.find('_', 3)]]  # NOTE has to work for seq_content *and* vd_insertion_content, hence the 3
+                #     seq_to_use = inf_line[column[ : column.find('_', 3)]]  # NOTE has to work for seq_content *and* vd_insertion_content, hence the 3
                 #         for nuke in seq_to_use:
                 #             self.counts[col][nuke] += 1
                 elif 'hamming_to_true_naive' in column:
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it does the job
                     restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
                     normalize = '_norm' in column
-                    guessval = self.hamming_distance_to_true_naive(true_line, line, line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
+                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, inf_line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
                 else:
                     trueval = int(true_line[column])
-                    guessval = int(line[column])
+                    guessval = int(inf_line[column])
 
                 diff = guessval - trueval
                 if diff not in self.values[column]:
@@ -147,11 +147,13 @@ class PerformancePlotter(object):
 
         for column in self.hists:
             trueval = utils.get_mutation_rate(self.germlines, true_line)
-            guessval = utils.get_mutation_rate(self.germlines, line)
+            guessval = utils.get_mutation_rate(self.germlines, inf_line)
             self.hists[column].fill(guessval - trueval)
+            # print guessval- trueval
             # assert False
             # trueval = int(1000 * trueval)
             # guessval = int(1000 * guessval)
+
     # ----------------------------------------------------------------------------------------
     def plot(self):
         for column in self.values:

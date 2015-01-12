@@ -331,7 +331,7 @@ class HmmWriter(object):
                     # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
                     if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
                         continue
-                    # the skip nonsense erosions that're too long for this gene, but were ok for another
+                    # then skip nonsense erosions that're too long for this gene, but were ok for another
                     if int(line[erosion + '_del']) >= len(self.germline_seq):
                         continue
 

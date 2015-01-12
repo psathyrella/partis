@@ -91,13 +91,19 @@ class ParameterCounter(object):
         return ''.join(return_str)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir):
+    def plot(self, plotdir, subset_by_gene=False):
         for column in self.counts:
             if column == 'all':
                 continue
             values = {}
             for index, count in self.counts[column].iteritems():
                 column_val = index[0]
+                # if column[0] in utils.regions:
+                #     region = column[0]
+                    
+                # else:
+                #     region = ''
+                # if region != '' and subset_by_gene:
                 try:
                     int(column_val)
                     var_type = 'int'
