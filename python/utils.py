@@ -399,7 +399,7 @@ def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
     # return eroded_seqs[restrict_to_region]
 
 # ----------------------------------------------------------------------------------------
-def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysical_erosions=False):
+def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysical_erosions=True):
     # NOTE it's kind of a matter of taste whether unphysical deletions (v left and j right) should be included in the 'naive sequence'.
     # Unless <subtract_unphysical_erosions>, here we assume the naive sequence has *no* unphysical deletions
 
@@ -429,6 +429,7 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
         assert start[chkreg] >= 0
         assert end[chkreg] >= 0
         assert end[chkreg] >= start[chkreg]
+    # print end['j'], len(line['seq']), line['v_5p_del'], line['j_3p_del']
     assert end['j'] == len(line['seq'])
 
     return (start[return_reg], end[return_reg])

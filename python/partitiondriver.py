@@ -721,7 +721,7 @@ class PartitionDriver(object):
                             if true_pcounter != None:  # increment true counters
                                 true_pcounter.increment(self.reco_info[ids[0]])
                             if perfplotter != None:
-                                perfplotter.evaluate(self.reco_info[ids[0]], line)
+                                perfplotter.evaluate(self.reco_info[ids[0]], line)  #, subtract_unphysical_erosions=True)
                     if self.args.debug:
                         self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
                     line['seq'] = None

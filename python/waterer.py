@@ -353,7 +353,7 @@ class Waterer(object):
         # if self.true_pcounter != None:
         #     self.true_pcounter.increment(self.reco_info[query_name])
         if perfplotter != None:
-            perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])
+            perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings):
