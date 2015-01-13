@@ -10,9 +10,10 @@ datadir=$basedir/data/hmm_parameters
 
 outdir=/var/www/sharing/dralph/partis/$label/data-vs-simu
 
-for param in $parameters $mute_parameters; do
+for param in . $parameters $mute_parameters; do
     if [ -d $simudir/$param ]; then
 	echo "comparing $param"
 	./python/compare.py --plotdirs $simudir/$param:$datadir/$param --names simu:data --outdir $outdir/$param
+	exit 1
     fi
 done

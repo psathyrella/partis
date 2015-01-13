@@ -134,7 +134,7 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_tryp_position(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
+        reco_event.set_final_cyst_tryp_positions(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
 
         if self.args.naivety == 'M':
             self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
@@ -157,8 +157,9 @@ class Recombinator(object):
             total = 0.0
             for line in in_data:
                 # NOTE do *not* assume the file is sorted
-                if int(line['cdr3_length']) == -1:
-                    continue  # couldn't find conserved codons when we were inferring things
+                #
+                # if int(line['cdr3_length']) == -1:
+                #     continue  # couldn't find conserved codons when we were inferring things
                 if self.args.only_genes != None:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.args.only_genes: continue  # oops, don't change this to a loop, 'cause you won't continue out of the right thing then
                     if line['d_gene'] not in self.args.only_genes: continue
@@ -168,16 +169,17 @@ class Recombinator(object):
                 assert index not in self.version_freq_table
                 self.version_freq_table[index] = float(line['count'])
 
-            if len(self.version_freq_table) == 0:
-                print 'ERROR didn\'t find any matching gene combinations'
-                assert False
+        if len(self.version_freq_table) == 0:
+            print 'ERROR didn\'t find any matching gene combinations'
+            assert False
 
-            # then normalize
-            test_total = 0.0
-            for index in self.version_freq_table:
-                self.version_freq_table[index] /= total
-                test_total += self.version_freq_table[index]
-            assert math.fabs(test_total - 1.0) < 1e-8
+        # then normalize
+        test_total = 0.0
+        for index in self.version_freq_table:
+            self.version_freq_table[index] /= total
+            test_total += self.version_freq_table[index]
+        assert utils.is_normed(test_total, this_eps=1e-8)
+        assert len(self.version_freq_table) < 1e8  # if it gets *too* large, choose_vdj_combo() below isn't going to work because of numerical underflow. Note there's nothing special about 1e8, it's just that I'm pretty sure we're fine *up* to that point, and once we get beyond it we should think about doing things differently
 
     # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
@@ -187,7 +189,7 @@ class Recombinator(object):
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug)
+                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)
                 return
 
         assert False  # shouldn't fall through to here
@@ -195,8 +197,8 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def erode(self, erosion, reco_event):
         """ apply <erosion> to the germline seqs in <reco_event> """
-        seq = reco_event.eroded_seqs[erosion[0]]  # <erosion> looks like v_3p
-        n_to_erode = reco_event.erosions[erosion]
+        seq = reco_event.eroded_seqs[erosion[0]]  # <erosion> looks like [vdj]_[35]p
+        n_to_erode = reco_event.erosions[erosion] if erosion in utils.real_erosions else reco_event.effective_erosions[erosion] 
         fragment_before = ''  # fragments to print
         fragment_after = ''
         if '5p' in erosion:
@@ -245,6 +247,9 @@ class Recombinator(object):
             reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
         for erosion in utils.real_erosions:
             self.erode(erosion, reco_event)
+        if self.args.mimic_data_read_length:
+            for erosion in utils.effective_erosions:
+                self.erode(erosion, reco_event)
         for boundary in utils.boundaries:
             self.insert(boundary, reco_event)
 

@@ -212,7 +212,7 @@ def are_conserved_codons_screwed_up(reco_event):
         return True
     for seq in reco_event.final_seqs:
         try:
-            check_both_conserved_codons(seq, reco_event.cyst_position, reco_event.final_tryp_position)
+            check_both_conserved_codons(seq, reco_event.final_cyst_position, reco_event.final_tryp_position)
         except AssertionError:
             return True
 
@@ -561,14 +561,14 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     insert_line += line['dj_insertion']
     insert_line += ' ' * lengths['j']
     insert_line += j_right_extra
-    # insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
+    insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
 
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
-    # d_line += j_right_extra
+    d_line += j_right_extra
     d_line += ' ' * j_3p_del
     # d_line += ' '*len(line['jf_insertion'])
 
@@ -577,7 +577,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
-    # vj_line += j_right_extra
+    vj_line += j_right_extra
     # vj_line += ' '*len(line['jf_insertion'])
 
     if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):

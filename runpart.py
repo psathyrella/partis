@@ -37,6 +37,7 @@ parser.add_argument('--seed', type=int, default=int(time.time()), help='Random s
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulting, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
+parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -48,7 +49,7 @@ parser.add_argument('--plotdir', default='/tmp/partis/plots')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
 
-# run control
+# run/batch control
 parser.add_argument('--n-procs', type=int, default=1, help='Max number of processes over which to parallelize')
 parser.add_argument('--n-fewer-procs', type=int, help='Number of processes for Smith-Waterman and hamming distance')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
@@ -83,7 +84,7 @@ parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='App
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
 parser.add_argument('--allow_unphysical_insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
-parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simulated sequences')
+# parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simulated sequences')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
 
 args = parser.parse_args()
@@ -116,7 +117,7 @@ def run_simulation(args):
 # ----------------------------------------------------------------------------------------
 def make_events(args, n_events, iproc, random_ints):
     # NOTE all the different seeds! this sucks but is necessary
-    reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc), total_length_from_right=args.total_length_from_right)
+    reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc))  #, total_length_from_right=args.total_length_from_right)
     for ievt in range(n_events):
         # print ievt,
         # sys.stdout.flush()
