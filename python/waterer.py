@@ -31,10 +31,10 @@ class Waterer(object):
             if plotdir != '':
                 utils.prep_dir(plotdir + '/plots', multilings=['*.svg', '*.csv'])
                 check_call(['./permissify-www', plotdir])
-            # if not self.args.is_data:
-            #     self.true_pcounter = ParameterCounter(self.germline_seqs, parameter_dir, plotdir=plotdir + '/true')
-            #     if plotdir != '':
-            #         utils.prep_dir(plotdir + '/true/plots', '*.svg')  #multilings=['*.svg', '*.csv'])
+            if not self.args.is_data:
+                self.true_pcounter = ParameterCounter(self.germline_seqs)  #, parameter_dir, plotdir=plotdir + '/true')
+                if plotdir != '':
+                    utils.prep_dir(plotdir + '/true/plots', multilings=['*.svg', '*.csv'])
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
@@ -65,8 +65,8 @@ class Waterer(object):
     def clean(self):
         if self.pcounter != None:
             self.pcounter.clean()
-        # if self.true_pcounter != None:
-        #     self.true_pcounter.clean()
+        if self.true_pcounter != None:
+            self.true_pcounter.clean()
 
     # ----------------------------------------------------------------------------------------
     def run(self):
@@ -89,10 +89,12 @@ class Waterer(object):
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write(self.parameter_dir)
+            # if self.true_pcounter != None:
+            #     self.true_pcounter.write(parameter_xxx_dir, plotdir=plotdir + '/true')
             if self.plotdir != '':
                 self.pcounter.plot(self.plotdir, subset_by_gene=True)
-        # if self.true_pcounter != None:
-        #     self.true_pcounter.write_counts()
+                if self.true_pcounter != None:
+                    self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True)
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname):
@@ -350,8 +352,8 @@ class Waterer(object):
 
         if self.pcounter != None:
             self.pcounter.increment(self.info[query_name])
-        # if self.true_pcounter != None:
-        #     self.true_pcounter.increment(self.reco_info[query_name])
+        if self.true_pcounter != None:
+            self.true_pcounter.increment(self.reco_info[query_name])
         if perfplotter != None:
             perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
 

@@ -14,6 +14,6 @@ for param in . $parameters $mute_parameters; do
     if [ -d $simudir/$param ]; then
 	echo "comparing $param"
 	./python/compare.py --plotdirs $simudir/$param:$datadir/$param --names simu:data --outdir $outdir/$param
-	exit 1
+	# exit 1
     fi
 done
