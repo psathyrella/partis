@@ -121,13 +121,16 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 def write_hist_to_file(fname, hist):
     """ see the make_hist_from* functions to reverse this operation """
     with opener('w')(fname) as histfile:
-        writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
+        writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'binerror', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
         writer.writeheader()
         for ibin in range(hist.GetNbinsX() + 2):
-            writer.writerow({'bin_low_edge' : hist.GetXaxis().GetBinLowEdge(ibin),
-                             'contents' : hist.GetBinContent(ibin),
-                             'xtitle' : hist.GetXaxis().GetTitle(),
-                             'binlabel' : hist.GetXaxis().GetBinLabel(ibin)})
+            writer.writerow({
+                'bin_low_edge' : hist.GetXaxis().GetBinLowEdge(ibin),
+                'contents' : hist.GetBinContent(ibin),
+                'binerror' : hist.GetBinError(ibin),
+                'xtitle' : hist.GetXaxis().GetTitle(),
+                'binlabel' : hist.GetXaxis().GetBinLabel(ibin)
+            })
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False):
@@ -135,13 +138,20 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False)
     Return root histogram with each bin low edge and bin content read from <fname> 
     E.g. from the results of hist.Hist.write()
     """
-    low_edges, contents, bin_labels = [], [], []
+    low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
     xtitle = ''
+    # print '---- %s' % fname
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
         for line in reader:
             low_edges.append(float(line['bin_low_edge']))
             contents.append(float(line['contents']))
+            if 'sum-weights-squared' in line:
+                # print '  ', line['contents'], line['sum-weights-squared']
+                sum_weights_squared.append(float(line['sum-weights-squared']))
+            if 'binerror' in line:
+                # print '  ', line['contents'], line['binerror']
+                bin_errors.append(float(line['binerror']))
             if 'binlabel' in line:
                 bin_labels.append(line['binlabel'])
             else:
@@ -158,7 +168,12 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False)
     hist.GetXaxis().SetTitle(xtitle)
     for ib in range(n_bins+2):
         hist.SetBinContent(ib, contents[ib])
-        hist.SetBinError(ib, math.sqrt(contents[ib]))
+        if len(sum_weights_squared) > 0:
+            hist.SetBinError(ib, math.sqrt(sum_weights_squared[ib]))
+        elif len(bin_errors) > 0:
+            hist.SetBinError(ib, bin_errors[ib])
+        else:
+            hist.SetBinError(ib, math.sqrt(contents[ib]))
         if bin_labels[ib] != '':
             hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
 
@@ -286,6 +301,8 @@ def make_hist_from_my_hist_class(myhist, name):
     for ibin in range(myhist.n_bins + 2):
         roothist.SetBinContent(ibin, myhist.bin_contents[ibin])
         roothist.SetBinError(ibin, math.sqrt(myhist.sum_weights_squared[ibin]))
+        # if 'all-mean-freq' in name:
+        #     print '  ', myhist.bin_contents[ibin], math.sqrt(myhist.sum_weights_squared[ibin])
     return roothist
 
 # ----------------------------------------------------------------------------------------

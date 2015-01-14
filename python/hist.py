@@ -50,7 +50,7 @@ class Hist(object):
             print 'WARNING under/overflows'
         for ib in range(1, self.n_bins + 1):
             self.bin_contents[ib] /= sum_value
-            self.sum_weights_squared[ib] /= sum_value
+            self.sum_weights_squared[ib] /= sum_value*sum_value
         check_sum = 0.0
         for ib in range(1, self.n_bins + 1):  # check it
             check_sum += self.bin_contents[ib]
