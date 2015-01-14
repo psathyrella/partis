@@ -1,6 +1,7 @@
 import csv
 import math
 from opener import opener
+from utils import is_normed
 
 # ----------------------------------------------------------------------------------------
 class Hist(object):
@@ -12,22 +13,29 @@ class Hist(object):
         self.low_edges = []  # lower edge of each bin
         self.centers = []  # center of each bin
         self.bin_contents = []
+        self.sum_weights_squared = []
         dx = (self.xmax - self.xmin) / self.n_bins
         for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
             self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
             self.centers.append(self.low_edges[-1] + 0.5*dx)
             self.bin_contents.append(0.0)
+            self.sum_weights_squared.append(0.0)
+
+    # ----------------------------------------------------------------------------------------
+    def fill_bin(self, ibin, weight=1.0):
+        self.bin_contents[ibin] += weight
+        self.sum_weights_squared[ibin] += weight*weight
 
     # ----------------------------------------------------------------------------------------
     def fill(self, value, weight=1.0):
         if value < self.low_edges[0]:  # underflow
-            self.bin_contents[0] += weight
+            self.fill_bin(0, weight)
         elif value >= self.low_edges[self.n_bins + 1]:  # overflow
-            self.bin_contents[self.n_bins + 1] += weight
+            self.fill_bin(self.n_bins + 1, weight)
         else:
             for ib in range(self.n_bins + 2):  # loop over the rest of the bins
                 if value >= self.low_edges[ib] and value < self.low_edges[ib+1]:
-                    self.bin_contents[ib] += weight
+                    self.fill_bin(ib, weight)
 
     # ----------------------------------------------------------------------------------------
     def normalize(self):
@@ -42,15 +50,16 @@ class Hist(object):
             print 'WARNING under/overflows'
         for ib in range(1, self.n_bins + 1):
             self.bin_contents[ib] /= sum_value
+            self.sum_weights_squared[ib] /= sum_value
         check_sum = 0.0
         for ib in range(1, self.n_bins + 1):  # check it
             check_sum += self.bin_contents[ib]
-        assert math.fabs(check_sum - 1.0) < 1e-10
+        assert is_normed(check_sum, this_eps=1e-10)
 
     # ----------------------------------------------------------------------------------------
     def write(self, outfname):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('bin_low_edge', 'contents'))
+            writer = csv.DictWriter(outfile, ('bin_low_edge', 'contents', 'sum-weights-squared'))
             writer.writeheader()
             for ib in range(self.n_bins + 2):
-                writer.writerow({'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib]})
+                writer.writerow({'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib], 'sum-weights-squared':self.sum_weights_squared[ib]})

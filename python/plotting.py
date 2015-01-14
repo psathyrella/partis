@@ -26,6 +26,32 @@ else:
 
 from opener import opener
 
+plot_titles = {
+    'v_gene' : 'V gene',
+    'd_gene' : 'D gene',
+    'j_gene' : 'J gene',
+    'hamming_to_true_naive' : 'HTTN',
+    'v_hamming_to_true_naive' : 'V HTTN',
+    'd_hamming_to_true_naive' : 'D HTTN',
+    'j_hamming_to_true_naive' : 'J HTTN',
+    'v_hamming_to_true_naive_normed' : 'V HTTN',
+    'd_hamming_to_true_naive_normed' : 'D HTTN',
+    'j_hamming_to_true_naive_normed' : 'J HTTN',
+    'd_3p_del' : 'D 3p del',
+    'd_5p_del' : 'D 5p del',
+    'dj_insertion' : 'DJ insert length',
+    'dj_insertion_content' : 'DJ insert base content',
+    'j_5p_del' : 'J 5p del',
+    'mute_freqs' : 'mute freq',
+    'v_3p_del' : 'V 3p del',
+    'vd_insertion' : 'VD insert length',
+    'vd_insertion_content' : 'VD insert base content',
+    'all-mean-freq' : 'sequence mutation freq',
+    'v-mean-freq' : 'V mutation freq',
+    'd-mean-freq' : 'D mutation freq',
+    'j-mean-freq' : 'J mutation freq',
+}
+
 true_vs_inferred_hard_bounds = {
     'hamming_to_true_naive' : (-0.5, 25.5),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
@@ -51,15 +77,15 @@ default_hard_bounds = {
     'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
     'j_hamming_to_true_naive_normed' : (-0.5, 20),
     'd_3p_del' : (-1, 15),
-    'd_5p_del' : (-1, 15),
+    'd_5p_del' : (-1, 18),
     'dj_insertion' : (-1, 13),
-    'j_5p_del' : (-1, 13),
+    'j_5p_del' : (-1, 15),
     'all-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
-    'v-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
-    'd-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
-    'j-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
-    'v_3p_del' : (-1, 4),
-    'vd_insertion' : (-1, 10)}
+    'v-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
+    'd-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
+    'j-mean-freq' : (0.0, 0.3),  # NOTE make sure you know where the decimal place is here!
+    'v_3p_del' : (-1, 6),
+    'vd_insertion' : (-1, 15)}
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
@@ -259,10 +285,12 @@ def make_hist_from_my_hist_class(myhist, name):
     roothist = TH1D(name, '', myhist.n_bins, myhist.xmin, myhist.xmax)
     for ibin in range(myhist.n_bins + 2):
         roothist.SetBinContent(ibin, myhist.bin_contents[ibin])
+        roothist.SetBinError(ibin, math.sqrt(myhist.sum_weights_squared[ibin]))
     return roothist
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None, errors=False, shift_overflows=False, csv_fname=None):
+def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None,
+         errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle=''):
     assert os.path.exists(plotdir)
     if not has_root:
         return
@@ -274,6 +302,12 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
 
     xmin, xmax, ymax = None, None, None
     for htmp in hists:
+        if rebin is not None:
+            htmp.Rebin(rebin)
+        if scale_errors is not None:
+            for ibin in range(htmp.GetNbinsX()+2):
+                htmp.SetBinError(ibin, htmp.GetBinError(ibin) * scale_errors)
+
         if xmin == None or htmp.GetBinLowEdge(1) < xmin:
             xmin = htmp.GetBinLowEdge(1)
         if xmax == None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
@@ -290,7 +324,9 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     hframe.SetMaximum(1.35*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
-    hframe.SetTitle(plotname + ';' + hist.GetXaxis().GetTitle() + ';')
+    if plottitle == '':
+        plottitle = plotname
+    hframe.SetTitle(plottitle + ';' + hist.GetXaxis().GetTitle() + ';')
     hframe.Draw('txt')
 
     if shift_overflows:
@@ -379,7 +415,7 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', '*.svg')
     hists = []
@@ -421,7 +457,15 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             extrastats = ' 0-bin'
         else:
             extrastats = ''
-        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log, shift_overflows=False, errors=errors)
+        plottitle = plot_titles[varname] if varname in plot_titles else ''
+        if 'IGH' in varname:
+            ilastdash = varname.rfind('-')
+            gene = utils.unsanitize_name(varname[:ilastdash])
+            base_varname = varname[ilastdash + 1 :]
+            base_plottitle = plot_titles[base_varname] if base_varname in plot_titles else ''
+            plottitle = gene + ' -- ' + base_plottitle
+        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log,
+             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
 

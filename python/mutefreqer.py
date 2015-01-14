@@ -105,7 +105,6 @@ class MuteFreqer(object):
             self.mean_rates[region].normalize()
 
         self.finalized = True
-        # return (n_cached, n_not_cached)
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir, mean_freq_outfname):

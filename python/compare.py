@@ -15,6 +15,8 @@ parser.add_argument('--plotdirs', required=True)
 parser.add_argument('--names', required=True)
 parser.add_argument('--stats', default='')
 parser.add_argument('--no-errors', action='store_true')
+parser.add_argument('--scale-errors', type=float)
+parser.add_argument('--rebin', type=int)
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -25,7 +27,7 @@ assert len(args.names) < 5  # need to change plotting function to allow more
 
 plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
-                             names = args.names, stats=args.stats, errors=(not args.no_errors))
+                             names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin)
 
 # label = 'check-new-imgt'
 # plotdir = '/var/www/sharing/dralph/partis/performance/'
