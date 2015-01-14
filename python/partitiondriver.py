@@ -614,7 +614,7 @@ class PartitionDriver(object):
             if name in sw_info:
                 return_names.append(name)
             else:
-                print '    %s not found in sw info' % ' '.join(query_names)
+                print '    %s not found in sw info' % ' '.join([str(qn) for qn in query_names])
         return return_names
 
     # ----------------------------------------------------------------------------------------
