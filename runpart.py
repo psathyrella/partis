@@ -38,6 +38,7 @@ parser.add_argument('--branch-length-multiplier', type=float, help='Multiply obs
 parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
 parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
+parser.add_argument('--baum-welch-iterations', type=int, default=1, help='Number of Baum-Welch-like iterations.')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

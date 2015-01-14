@@ -143,10 +143,11 @@ class PartitionDriver(object):
     
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self, parameter_dir=''):
+        assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd need to change some thing
         assert self.args.plotdir != None
+
         sw_plotdir, hmm_plotdir = '', ''
         sw_plotdir = self.args.plotdir + '/sw_parameters'
-        hmm_plotdir = self.args.plotdir + '/hmm_parameters'
 
         if parameter_dir == '':
             parameter_dir = self.args.parameter_dir
@@ -155,15 +156,18 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
         waterer.run()
 
-        print 'writing hmms with sw info'
         self.write_hmms(sw_parameter_dir, waterer.info['all_best_matches'])
 
-        hmm_parameter_dir = parameter_dir + '/hmm_parameters'
-        assert self.args.n_sets == 1  # er, could probably do it for forward pair, but I'm not really sure what it would mean
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=hmm_parameter_dir, hmm_type='k=1', count_parameters=True, plotdir=hmm_plotdir)
-
-        print 'writing hmms with hmm info'
-        self.write_hmms(hmm_parameter_dir, waterer.info['all_best_matches'])
+        parameter_in_dir = sw_parameter_dir
+        for ibw in range(self.args.baum_welch_iterations):
+            parameter_out_dir = parameter_dir + '/hmm_parameters'
+            hmm_plotdir = self.args.plotdir + '/hmm_parameters'
+            if self.args.baum_welch_iterations > 1:
+                parameter_out_dir += '-' + str(ibw)
+                hmm_plotdir += '-' + str(ibw)
+            self.run_hmm('viterbi', waterer.info, parameter_in_dir=parameter_in_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=hmm_plotdir)
+            self.write_hmms(parameter_out_dir, waterer.info['all_best_matches'])
+            parameter_in_dir = parameter_out_dir
 
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
@@ -495,6 +499,7 @@ class PartitionDriver(object):
     
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir, sw_matches):
+        print 'writing hmms with info from %s' % parameter_dir
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')

@@ -379,7 +379,7 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats=''):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', '*.svg')
     hists = []
@@ -421,7 +421,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             extrastats = ' 0-bin'
         else:
             extrastats = ''
-        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log, shift_overflows=False, errors=True)
+        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log, shift_overflows=False, errors=errors)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
 
