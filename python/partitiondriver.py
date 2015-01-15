@@ -2,19 +2,17 @@ import time
 import sys
 import json
 import itertools
-from Bio import SeqIO
 from multiprocessing import Process, active_children, Pool
 import math
 import os
 import glob
 import csv
 import re
-from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE
 
 import_start = time.time()
 import utils
-from opener import opener
+from opener import opener, get_seqfile_info
 from clusterer import Clusterer
 from waterer import Waterer
 from hist import Hist
@@ -53,13 +51,11 @@ class PartitionDriver(object):
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         self.precluster_info = {}
-        self.input_info = OrderedDict()
-        self.reco_info = None
-        if not self.args.is_data:
-            self.reco_info = {}  # generator truth information
 
-        if self.args.seqfile != None:
-            self.read_input_file()  # read simulation info and write sw input file
+        if self.args.seqfile is not None:
+            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data,
+                                                               self.germline_seqs, self.cyst_positions, self.tryp_positions,
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids)
 
         self.outfile = None
         if self.args.outfname != None:
@@ -91,56 +87,6 @@ class PartitionDriver(object):
             print self.args.workdir + '/' + over
         os.rmdir(self.args.workdir)
 
-    # ----------------------------------------------------------------------------------------
-    def read_input_file(self):
-        """ Read simulator info and write it to input file for sw step. Returns dict of simulation info. """
-        assert self.args.seqfile != None
-        if '.csv' in self.args.seqfile:
-            delimiter = ','
-            name_column = 'unique_id'
-            seq_column = 'seq'
-            seqfile = opener('r')(self.args.seqfile)
-            reader = csv.DictReader(seqfile, delimiter=delimiter)
-        elif '.tsv' in self.args.seqfile:
-            delimiter = '\t'
-            name_column = 'name'
-            seq_column = 'nucleotide'
-            seqfile = opener('r')(self.args.seqfile)
-            reader = csv.DictReader(seqfile, delimiter=delimiter)
-        elif '.fasta' in self.args.seqfile:
-            name_column = 'unique_id'
-            seq_column = 'seq'
-            reader = []
-            n_fasta_queries = 0
-            for seq_record in SeqIO.parse(self.args.seqfile, 'fasta'):
-                reader.append({})
-                reader[-1][name_column] = seq_record.name
-                reader[-1][seq_column] = str(seq_record.seq).upper()
-                n_fasta_queries += 1
-                if self.args.n_max_queries > 0 and n_fasta_queries >= self.args.n_max_queries:
-                    break
-        n_queries = 0
-        for line in reader:
-            utils.intify(line)
-            # if command line specified query or reco ids, skip other ones
-            if self.args.queries != None and line[name_column] not in self.args.queries:
-                continue
-            if self.args.reco_ids != None and line['reco_id'] not in self.args.reco_ids:
-                continue
-
-            self.input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}
-            if not self.args.is_data:
-                if 'fv_insertion' not in line:  # NOTE should be able to remove these lines now
-                    line['fv_insertion'] = ''
-                if 'jf_insertion' not in line:
-                    line['jf_insertion'] = ''
-                self.reco_info[line['unique_id']] = line
-                utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions)
-            n_queries += 1
-            if self.args.n_max_queries > 0 and n_queries >= self.args.n_max_queries:
-                break
-        assert len(self.input_info) > 0
-    
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self, parameter_dir=''):
         assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd need to change some thing

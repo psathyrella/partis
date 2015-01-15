@@ -346,7 +346,11 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     assert os.path.exists(plotdir)
     if not has_root:
         return
-    cvn = TCanvas('cvn-'+plotname, '', 700, 600)
+
+    cwidth, clength = 700, 600
+    if plotname == 'v_gene':
+        cwidth, clength = 4000, 1000
+    cvn = TCanvas('cvn-'+plotname, '', cwidth, clength)
 
     hists = [hist,]
     if more_hists != None:
