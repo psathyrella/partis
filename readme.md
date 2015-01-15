@@ -16,9 +16,16 @@
 
 `ham` is based on [StochHMM](https://github.com/KorfLab/StochHMM).
 
-# building
 
-Install [SCons](http://www.scons.org/) and then run
+# dependencies
+
+  - see https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile
+  - or
+    - boost headers
+    - astyle
+    - scons
+
+# building
 
     scons
 
@@ -59,14 +66,10 @@ goes wrong. In sum, implementing the huge and complex HMM that I needed, correct
 **StochHMM** has more concise plain text config files (although they are a custom format). Unfortunately, 
 while the overall code structure is great and there is a huge feature set, a large fraction of the features
 are not completely implemented, and a (different) large fraction are undocumented, so it is
-very difficult to know what you are telling it to do. It also does not have pair HMMS.
+difficult to know what you are telling it to do. It also does not have pair HMMS.
 
 While trying to implement pair HMMS in StochHMM, it became clear that it was going to be a complete rewrite.
-From a useability standpoint, the biggest difference is yaml config files. These are plain text files that are
-incredibly concise (the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
-is 438 characters). Yaml is also emminently scriptable from within python.
 
-# dependencies
-  - boost (just the headers)
-  - astyle
-...
+From a useability standpoint, ham is distinguished by the use of yaml config files. These are incredibly concise
+plain text (the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
+is 440 characters). Yaml is also emminently scriptable with existing python modules.
