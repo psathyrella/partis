@@ -17,17 +17,21 @@ parser.add_argument('--stats', default='')
 parser.add_argument('--no-errors', action='store_true')
 parser.add_argument('--scale-errors', type=float)
 parser.add_argument('--rebin', type=int)
+parser.add_argument('--colors')
+parser.add_argument('--linestyles')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
+args.colors = utils.get_arg_list(args.colors, intify=True)
+args.linestyles = utils.get_arg_list(args.linestyles, intify=True)
 args.names = utils.get_arg_list(args.names)
 
 assert len(args.plotdirs) == len(args.names)
-assert len(args.names) < 5  # need to change plotting function to allow more
 
 plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
-                             names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin)
+                             names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin,
+                             colors=args.colors, linestyles=args.linestyles)
 
 # label = 'check-new-imgt'
 # plotdir = '/var/www/sharing/dralph/partis/performance/'

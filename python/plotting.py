@@ -306,8 +306,43 @@ def make_hist_from_my_hist_class(myhist, name):
     return roothist
 
 # ----------------------------------------------------------------------------------------
+def add_bin_labels_not_in_all_hists(hists):
+    """ find the OR of all bin labels present in <hists>, and remake each hist in <hists> to have zero bins for any that weren't there already """
+    # first convert each hist to a map from bin label to entries
+    all_labels = []
+    histmaps = []
+    for hist in hists:
+        histmaps.append({})
+        for ibin in range(1, hist.GetNbinsX() + 1):  # ignore under/over flows, they're kinda useless for bin-labelled hists
+            label = hist.GetXaxis().GetBinLabel(ibin)
+            histmaps[-1][label] = (hist.GetBinContent(ibin), hist.GetBinError(ibin))  # 2-tuple with (content, error)
+            if label not in all_labels:
+                all_labels.append(label)
+
+    all_labels = sorted(all_labels)
+
+    # then go through and make new histograms for everybody
+    finalhists = []
+    for ih in range(len(histmaps)):
+        original_hist = hists[ih]
+        hmap = histmaps[ih]
+        finalhists.append(TH1D(original_hist.GetName(), original_hist.GetTitle(), len(all_labels), 0.5, len(all_labels) + 0.5))
+        for ilabel in range(len(all_labels)):
+            label = all_labels[ilabel]
+            ibin = ilabel + 1  # root conventions
+            if label in hmap:
+                finalhists[-1].SetBinContent(ibin, hmap[label][0])
+                finalhists[-1].SetBinError(ibin, hmap[label][1])
+            else:
+                finalhists[-1].SetBinContent(ibin, 0.0)
+                finalhists[-1].SetBinError(ibin, 0.0)
+
+    return finalhists
+
+# ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None,
-         errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle=''):
+         errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
+         colors=None, linestyles=None, unify_bin_labels=False):
     assert os.path.exists(plotdir)
     if not has_root:
         return
@@ -316,6 +351,9 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     hists = [hist,]
     if more_hists != None:
         hists = hists + more_hists
+
+    if unify_bin_labels:
+        hists = add_bin_labels_not_in_all_hists(hists)
 
     xmin, xmax, ymax = None, None, None
     for htmp in hists:
@@ -378,7 +416,17 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             htmp.SetBinContent(first_shown_bin, underflows + htmp.GetBinContent(first_shown_bin))
             htmp.SetBinContent(last_shown_bin, overflows + htmp.GetBinContent(last_shown_bin))
 
-    colors = (kRed, kBlue-4, kGreen+2, kOrange+1)
+    if colors is None:
+        assert len(hists) < 5
+        colors = (kRed, kBlue-4, kGreen+2, kOrange+1)  # 632, 596, 418, 801
+    else:
+        assert len(hists) == len(colors)
+    if linestyles is None:
+        assert len(hists) < 5
+        linestyles = [1 for _ in range(len(hists))]
+    else:
+        assert len(hists) == len(linestyles)
+
     draw_str = 'hist same'
     if errors:  # not working!
         draw_str = 'e ' + draw_str
@@ -387,8 +435,9 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         htmp.SetLineColor(colors[ih])
         # if ih == 0:
         htmp.SetMarkerSize(0)
-        assert ih < 6
-        htmp.SetLineWidth(6-ih)
+        htmp.SetLineStyle(linestyles[ih])
+        if ih < 6 and len(hists) < 5:
+            htmp.SetLineWidth(6-ih)
         htmp.Draw(draw_str)
 
     leg = TLegend(0.57, 0.72, 0.99, 0.9)
@@ -432,7 +481,7 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', '*.svg')
     hists = []
@@ -470,8 +519,10 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         else:
             if varname in default_hard_bounds:
                 bounds = default_hard_bounds[varname]
+        unify_bin_labels = False
         if '_gene' in varname:
             extrastats = ' 0-bin'
+            unify_bin_labels = True
         else:
             extrastats = ''
         plottitle = plot_titles[varname] if varname in plot_titles else ''
@@ -482,7 +533,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             base_plottitle = plot_titles[base_varname] if base_varname in plot_titles else ''
             plottitle = gene + ' -- ' + base_plottitle
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log,
-             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle)
+             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
 
