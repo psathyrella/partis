@@ -11,29 +11,18 @@ void ClearWhitespace(string white, string *input) {
 }
 
 // ----------------------------------------------------------------------------------------
-string IntToString(int input) {
-  stringstream ss;
-  ss << input;
-  return ss.str();
-}
-
-// ----------------------------------------------------------------------------------------
-string Join(vector<int> &input, char c) {
-  string out;
-  if(input.size() == 0) {
-    out = "";
-    return out;
-  } else if(input.size() == 1) {
-    out = IntToString(input[0]);
-    return out;
-  } else {
-    out = IntToString(input[0]);
-    for(size_t i = 1; i < input.size(); i++) {
-      out += c;
-      out += IntToString(input[i]);
-    }
-    return out;
+// split a colon-separated list in a string into a vector of strings, e.g. "a:b:c" --> {"a", "b", "c"}
+vector<string> SplitString(string argstr, string separated) {
+  vector<string> arglist;
+  while(true) {
+    size_t i_next_colon(argstr.find(":"));
+    string arg = argstr.substr(0, i_next_colon); // get the next arg in the colon-separated list
+    arglist.push_back(arg); // add it to arglist
+    argstr = argstr.substr(i_next_colon + 1); // then excise it from argstr
+    if(i_next_colon == string::npos)
+      break;
   }
+  return arglist;
 }
 
 }

@@ -3,6 +3,7 @@
 
 #include "model.h"
 #include "trellis.h"
+#include "text.h"
 #include "tclap/CmdLine.h"
 
 using namespace ham;

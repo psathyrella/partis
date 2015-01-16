@@ -4,9 +4,9 @@ from collections import OrderedDict
 from SCons.Script import Command, Depends
 
 tests = OrderedDict()
-tests['casino'] = ' --seq 666655666613423414513666666666666'
-tests['cpg'] = ' --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT'
-tests['pair-cpg'] = ' --pair --seq CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT'
+tests['casino'] = ('casino', '666655666613423414513666666666666')
+tests['cpg'] = ('cpg', 'ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT')
+tests['multi-cpg'] = ('cpg', 'CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT:GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT:GCGGAAACTTCGACCGTTTTTGCAGTGCTTGCGCGCGCGAGTTTTTTGCAAAAACGCATT')
 
 testdir = 'test/data/regression/bcrham'
 bcrham_args = ' --chunk-cache --debug 1 --n_best_events 3 --hmmdir ' + testdir + ' --datadir ' + testdir
@@ -30,11 +30,11 @@ for test, args in tests.items():
                 './${SOURCES[0]} ' + args + ' --outfile $TARGET')
         Depends(out, '../bcrham')
     else:
-        # Run testham with specified conditions.
+        # Run hample with specified conditions.
         Command(out,
-                ['../testham', '../examples/%s.yaml' % test],
-                './${SOURCES[0]} --hmmfname ${SOURCES[1]} ' + args + ' -o $TARGET')
-        Depends(out, '../testham')
+                ['../hample', '../examples/%s.yaml' % args[0]],
+                './${SOURCES[0]} --hmmfname ${SOURCES[1]} --seqs ' + args[1] + ' -o $TARGET')
+        Depends(out, '../hample')
 
     # Touch a sentinel `passed` file if we get what we expect.
     Command('_results/%s.passed' % test,
