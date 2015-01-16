@@ -348,7 +348,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         return
 
     cwidth, clength = 700, 600
-    if plotname == 'v_gene':
+    if '_gene' in plotname:
         cwidth, clength = 4000, 1000
     cvn = TCanvas('cvn-'+plotname, '', cwidth, clength)
 
@@ -383,6 +383,8 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     hframe.SetMaximum(1.35*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
+    if '_gene' in plotname:
+        hframe.GetXaxis().SetLabelSize(0.05)
     if plottitle == '':
         plottitle = plotname
     hframe.SetTitle(plottitle + ';' + hist.GetXaxis().GetTitle() + ';')
@@ -471,6 +473,8 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         else:
             write_hist_to_file(csv_fname, hist)
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
+    # if '_gene' in plotname:
+    #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
 # ----------------------------------------------------------------------------------------
 def get_hists_from_dir(dirname, histname):
@@ -485,9 +489,9 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, performance_plots=False):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
-    utils.prep_dir(outdir + '/plots', '*.svg')
+    utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg'])
     hists = []
     for idir in range(len(dirs)):
         hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir]))
@@ -524,11 +528,12 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             if varname in default_hard_bounds:
                 bounds = default_hard_bounds[varname]
         unify_bin_labels = False
+        extrastats = ''
         if '_gene' in varname:
-            extrastats = ' 0-bin'
-            unify_bin_labels = True
-        else:
-            extrastats = ''
+            if performance_plots:
+                extrastats = ' 0-bin'
+            else:
+                unify_bin_labels = True
         plottitle = plot_titles[varname] if varname in plot_titles else ''
         if 'IGH' in varname:
             ilastdash = varname.rfind('-')
