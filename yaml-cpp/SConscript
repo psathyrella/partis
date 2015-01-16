@@ -1,9 +1,11 @@
 import os
+import glob
 import sys
 
 env = Environment()
 env.Append(CPPFLAGS = ['-Wall', '-Ofast', '-g'])
 env.Append(CPPPATH = ['../../include'])
 
-sources = [ fname for fname in os.listdir(os.getenv('PWD') + '/yaml-cpp') if '.cpp' in fname]
+sources = [ fname.replace('yaml-cpp/', '_build/yaml-cpp/') for fname in glob.glob(os.getenv('PWD') + '/yaml-cpp/*.cpp') ]
+
 env.Library(target='yaml-cpp', source=sources)
