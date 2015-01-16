@@ -10,8 +10,8 @@ using namespace ham;
 using namespace TCLAP;
 using namespace std;
 
-// for checking with scons test, ignore if you're not scons
-void CheckChunkCaching(Model &hmm, trellis &trellis, Sequences seqs);
+// ----------------------------------------------------------------------------------------
+void CheckChunkCaching(Model &hmm, trellis &trellis, Sequences seqs);  // for checking with scons test, ignore if you're not scons
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char *argv[]) {
@@ -21,7 +21,7 @@ int main(int argc, const char *argv[]) {
   ValueArg<string> seqs_arg("s", "seqs", "colon-separated list of sequences", true, "", "string");
   ValueArg<string> outfile_arg("o", "outfile", "output text file", false, "", "string");
   try {
-    CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
+    CmdLine cmd("ham -- the fantabulous HMM compiler", ' ', "");
     cmd.add(hmmfname_arg);
     cmd.add(seqs_arg);
     cmd.add(outfile_arg);
