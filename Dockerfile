@@ -2,5 +2,5 @@ FROM matsengrp/cpp
 
 # make ham
 COPY . /ham
-RUN cd /ham && \
+CMD cd /ham && \
     scons test
