@@ -30,7 +30,6 @@ int main(int argc, const char *argv[]) {
     cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
     throw;
   }
-  return 1;
 
   // read hmm model file
   Model hmm;
