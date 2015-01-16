@@ -19,11 +19,10 @@
 
 # dependencies
 
-  - see https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile
-  - or
-    - boost headers
-    - astyle
-    - scons
+  - boost headers
+  - astyle
+  - scons
+  - or use: https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile
 
 # building
 
@@ -49,7 +48,7 @@ just tack on more colon-separated sequences:
 
     ./hample --hmmfname examples/cpg.yaml --seqs CGCCGCACTTTTACCGTCAGTGCAGTGCGC:TGCTTGCGCGCGCGAGCCGTTTGCATTAAC:GCGGCGCAAAAAACCGTCAGTGCAGTGCTT
     
-The Viterbi path should now be thought of as the most probable single path that all of the sequences could
+The Viterbi path should now be thought of as the single most probable path that all of the sequences could
 have taken together. Similarly, the Forward probability is now the total probability, summed over all paths,
 of these sequences having taken the same path.
 
@@ -58,11 +57,10 @@ of these sequences having taken the same path.
 There are already lots of HMM compilers out there. Why do we need a new one?
 
 **HMMOC** Works well once you get it doing what you want, but the xml config files are very difficult
-to use. You need to include blocks of actual c++ code in the xml, So
-you are using an xml file as a text editor to write c++ code. This is suboptimal.
-You then generate c++ code from this xml and compile it, and in practice auto-generated
+to use. You are in effect using an xml file as a text editor to write c++ code. We found this confusing.
+You then generate c++ source from this xml, and compile it. In practice auto-generated
 c++ is quite difficult to debug if anything goes wrong. Implementing the really big
-HMMs that we needed turned out not to be feasible.
+HMMs that we need turned out to be infeasible.
 
 **HMMER** works really well, and is super user friendly, but only does profile HMMS.
 
@@ -73,6 +71,6 @@ difficult to know what you are telling it to do. It also does not have pair HMMS
 
 While trying to implement pair HMMS in StochHMM, it became clear that it was going to be a complete rewrite.
 
-From a useability standpoint, ham is distinguished by the use of yaml config files. These are incredibly concise
-plain text (the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
+From a useability standpoint, ham is distinguished by the use of yaml config files. These are concise
+plain text (for example, the CPG island xml config in HMMOC is 5961 characters, while examples/cpg.yaml
 is 440 characters). Yaml is also emminently scriptable with existing python modules.
