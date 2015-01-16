@@ -27,28 +27,31 @@
 
 # building
 
+Running `scons` in the top-level directory will build the example binary called `hample`.
+
     scons
 
 # examples
 
-The occasionally dishonest casino example is in `examples/casino.yaml`. Run it with:
+An example of the occasionally dishonest casino is in `examples/casino.yaml`. Run it with:
 
-    ./hample --hmmfname examples/casino.yaml --seq 666655666613423414513666666666666
+    ./hample --hmmfname examples/casino.yaml --seqs 666655666613423414513666666666666
 
-This runs the Viterbi algorithm and prints the Viterbi (most probable) path and its log probability.
-It then runs the Forward algorithm and prints the total log probability of having taken any path.
+This runs the Viterbi algorithm, prints the Viterbi (most probable) path, and its log probability.
+It then runs the Forward algorithm and prints the log Forward probability (the probability of taking any path through the HMM).
 
-The similarly-canonical CPG island example may be found in `examples/cpg.yaml`. Run it with:
+The similarly-canonical CPG island example may be found in `examples/cpg.yaml`:
 
-    ./hample --hmmfname examples/cpg.yaml --seq ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT
+    ./hample --hmmfname examples/cpg.yaml --seqs ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT
 
-Finally, you will find a pair HMM variant of the CPG island example in `examples/pair-cpg.yaml`:
+To simultaneously emit onto as many sequences as you like (for two sequences we would call this a pair HMM),
+just tack on more colon-separated sequences:
 
-    ./hample --pair --hmmfname examples/pair-cpg.yaml --seq CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT --seq2 GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT
+    ./hample --hmmfname examples/cpg.yaml --seqs CGCCGCACTTTTACCGTCAGTGCAGTGCGC:TGCTTGCGCGCGCGAGCCGTTTGCATTAAC:GCGGCGCAAAAAACCGTCAGTGCAGTGCTT
     
-The Viterbi path should now be thought of as the most probable single path that the two sequences could
+The Viterbi path should now be thought of as the most probable single path that all of the sequences could
 have taken together. Similarly, the Forward probability is now the total probability, summed over all paths,
-of these two sequences having taken the same path.
+of these sequences having taken the same path.
 
 # why ham?
 
@@ -56,14 +59,14 @@ There are already lots of HMM compilers out there. Why do we need a new one?
 
 **HMMOC** Works well once you get it doing what you want, but the xml config files are very difficult
 to use. You need to include blocks of actual c++ code in the xml, So
-you are in essence using an xml file as a text editor to write c++ code. This is suboptimal.
+you are using an xml file as a text editor to write c++ code. This is suboptimal.
 You then generate c++ code from this xml and compile it, and in practice auto-generated
-c++ is extremely hard to debug and understand if anything goes wrong. In practice, something always
-goes wrong. In sum, implementing the huge and complex HMM that I needed, correctly, proved to be infeasible.
+c++ is quite difficult to debug if anything goes wrong. Implementing the really big
+HMMs that we needed turned out not to be feasible.
 
 **HMMER** works really well, and is super user friendly, but only does profile HMMS.
 
-**StochHMM** has more concise plain text config files (although they are a custom format). Unfortunately, 
+**StochHMM** has nice, concise plain text config files (although they are a custom format). Unfortunately,
 while the overall code structure is great and there is a huge feature set, a large fraction of the features
 are not completely implemented, and a (different) large fraction are undocumented, so it is
 difficult to know what you are telling it to do. It also does not have pair HMMS.

@@ -9,25 +9,35 @@ using namespace ham;
 using namespace TCLAP;
 using namespace std;
 
+// ----------------------------------------------------------------------------------------
+// split a colon-separated list in a string into a vector of strings, e.g. "a:b:c" --> {"a", "b", "c"}
+// NOTE copied from bcrham.cc
+vector<string> split_argument(string argstr) {
+  vector<string> arglist;
+  while(true) {
+    size_t i_next_colon(argstr.find(":"));
+    string arg = argstr.substr(0, i_next_colon); // get the next arg in the colon-separated list
+    arglist.push_back(arg); // add it to arglist
+    argstr = argstr.substr(i_next_colon + 1); // then excise it from argstr
+    if(i_next_colon == string::npos)
+      break;
+  }
+  return arglist;
+}
+
+// ----------------------------------------------------------------------------------------
 int main(int argc, const char *argv[]) {
+
   // set up command line arguments
   ValueArg<string> hmmfname_arg("f", "hmmfname", "hmm (.yaml) model file", true, "", "string");
-  ValueArg<string> seq_arg("s", "seq", "sequence of symbols", true, "", "string");
-  ValueArg<string> seq2_arg("t", "seq2", "second sequence", false, "", "string");
+  ValueArg<string> seqs_arg("s", "seqs", "colon-separated list of sequences", true, "", "string");
   ValueArg<string> outfile_arg("o", "outfile", "output text file", false, "", "string");
-  SwitchArg pair_arg("p", "pair", "is this a pair hmm?", false);
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmfname_arg);
-    cmd.add(seq_arg);
-    cmd.add(seq2_arg);
+    cmd.add(seqs_arg);
     cmd.add(outfile_arg);
-    cmd.add(pair_arg);
     cmd.parse(argc, argv);
-    if(pair_arg.getValue())
-      assert(seq2_arg.getValue() != "");
-    if(seq2_arg.getValue() != "")
-      assert(pair_arg.getValue());
   } catch(ArgException &e) {
     cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
     throw;
@@ -36,27 +46,22 @@ int main(int argc, const char *argv[]) {
   // read hmm model file
   Model hmm;
   hmm.Parse(hmmfname_arg.getValue());
-
+  vector<string> seqstrs = split_argument(seqs_arg.getValue());
+  
   // create sequences from command line
   Sequences seqs;
-  Sequence seq(hmm.track(0), "seq", seq_arg.getValue());
-  seqs.AddSeq(seq);
-  if(pair_arg.getValue()) {
-    Sequence seq2(hmm.track(0), "seq2", seq2_arg.getValue());
-    seqs.AddSeq(seq2);
-  }
+  for(auto &seqstr : seqstrs)
+    seqs.AddSeq(Sequence(hmm.track(0), "seq", seqstr));
 
-  // make trellis and run
+  // make the trellis, a wrapper for holding the DP tables and running the algorithms
   trellis trell(&hmm, seqs);
   trell.Viterbi();
   TracebackPath path(&hmm);
   trell.Traceback(path);
   cout << "viterbi path (log prob " << trell.ending_viterbi_log_prob() << "):" << endl;
-  cout << "  sequence: ";
-  seq.Print();
-  if(pair_arg.getValue()) {
-    cout << "         2: ";
-    seqs[1].Print();
+  for(unsigned iseq=0; iseq<seqs.n_seqs(); ++iseq) {
+    cout << "  sequence: ";
+    seqs[iseq].Print();
   }
 
   path.abbreviate();

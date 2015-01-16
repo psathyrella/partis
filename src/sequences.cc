@@ -85,7 +85,8 @@ void Sequences::AddSeq(Sequence sq) {
   if(n_seqs() == 0) {  // if this is the first sequence, set <sequence_length_>
     sequence_length_ = sq.size();
   } else {
-    assert(sq.size() == sequence_length_);  // all sequences must have the same length
+    if(sq.size() != sequence_length_)  // all sequences must have the same length
+      throw runtime_error("ERROR sequences must all have the same length, but got " + to_string(sq.size()) + " and " + to_string(sequence_length_));
   }
   seqs_.push_back(sq);  // NOTE we now own this sequence, i.e. we will delete it when we die
 }
