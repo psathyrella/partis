@@ -3,27 +3,15 @@
 
 #include "model.h"
 #include "trellis.h"
+#include "text.h"
 #include "tclap/CmdLine.h"
 
 using namespace ham;
 using namespace TCLAP;
 using namespace std;
 
-// ----------------------------------------------------------------------------------------
-// split a colon-separated list in a string into a vector of strings, e.g. "a:b:c" --> {"a", "b", "c"}
-// NOTE copied from bcrham.cc
-vector<string> split_argument(string argstr) {
-  vector<string> arglist;
-  while(true) {
-    size_t i_next_colon(argstr.find(":"));
-    string arg = argstr.substr(0, i_next_colon); // get the next arg in the colon-separated list
-    arglist.push_back(arg); // add it to arglist
-    argstr = argstr.substr(i_next_colon + 1); // then excise it from argstr
-    if(i_next_colon == string::npos)
-      break;
-  }
-  return arglist;
-}
+// for checking with scons test, ignore if you're not scons
+void CheckChunkCaching(Model &hmm, trellis &trellis, Sequences seqs);
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char *argv[]) {
@@ -46,7 +34,7 @@ int main(int argc, const char *argv[]) {
   // read hmm model file
   Model hmm;
   hmm.Parse(hmmfname_arg.getValue());
-  vector<string> seqstrs = split_argument(seqs_arg.getValue());
+  vector<string> seqstrs = SplitString(seqs_arg.getValue(), ":");
   
   // create sequences from command line
   Sequences seqs;
@@ -78,4 +66,39 @@ int main(int argc, const char *argv[]) {
     ofs << trell.ending_forward_log_prob() << "\t" << path << endl;
     ofs.close();
   }
+  CheckChunkCaching(hmm, trell, seqs);
+}
+
+// ----------------------------------------------------------------------------------------
+// check dp table chunk caching (just for use by `scons test`)
+void CheckChunkCaching(Model &hmm, trellis &trell, Sequences seqs) {
+  for (size_t length = 1; length < seqs.GetSequenceLength(); ++length) {
+    // first make a new trellis on the substring of length <length> using chunk caching
+    Sequences subseqs(seqs, 0, length);
+    trellis subtrell(&hmm, subseqs, &trell);
+    subtrell.Viterbi();
+    TracebackPath subpath(&hmm);
+    subtrell.Traceback(subpath);
+    subtrell.Forward();
+
+    // then make another one on the same sequence from scratch
+    trellis checktrell(&hmm, subseqs);
+    checktrell.Viterbi();
+    TracebackPath checkpath(&hmm);
+    checktrell.Traceback(checkpath);
+    checktrell.Forward();
+
+    // and finally, make sure they got the same answer
+    assert(checkpath.size() == subpath.size());
+    for (size_t ipos=0; ipos<length; ++ipos) {
+      if(checkpath[ipos] != subpath[ipos])
+	throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi path");
+    }
+    double eps(1e-10);
+    if(fabs(checktrell.ending_viterbi_log_prob() - subtrell.ending_viterbi_log_prob()) > eps)
+      throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi log prob " + to_string(checktrell.ending_viterbi_log_prob()) + " " + to_string(subtrell.ending_viterbi_log_prob()));
+    if(fabs(checktrell.ending_forward_log_prob() - subtrell.ending_forward_log_prob()) > eps)
+      throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same forward log prob: " + to_string(checktrell.ending_forward_log_prob()) + " " + to_string(subtrell.ending_forward_log_prob()));
+  }
+  cout << "caching ok!" << endl;
 }

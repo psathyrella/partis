@@ -288,8 +288,6 @@ void trellis::Forward() {
 }
 
 // ----------------------------------------------------------------------------------------
-//!Perform traceback through trellis
-//!\return path trackback_path
 void trellis::Traceback(TracebackPath& path) {
   assert(seqs_.GetSequenceLength() != 0);
   assert(traceback_table_);

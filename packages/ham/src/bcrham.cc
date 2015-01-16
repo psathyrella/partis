@@ -9,6 +9,7 @@
 #include <cfenv>
 #include "jobholder.h"
 #include "germlines.h"
+#include "text.h"
 #include "tclap/CmdLine.h"
 using namespace TCLAP;
 using namespace ham;
@@ -20,7 +21,6 @@ using namespace std;
 class Args {
 public:
   Args(int argc, const char * argv[]);
-  vector<string> Split(string arglist);  // str.split(':'), but all hackey-like 'cause it's c++
   string hmmdir() { return hmmdir_arg_.getValue(); }
   string datadir() { return datadir_arg_.getValue(); }
   string infile() { return infile_arg_.getValue(); }
@@ -119,7 +119,7 @@ Args::Args(int argc, const char * argv[]):
         strings_[head].push_back(tmpstr);
       } else if(str_list_headers_.find(head) != str_list_headers_.end()) {
 	ss >> tmpstr;
-	str_lists_[head].push_back(Split(tmpstr));
+	str_lists_[head].push_back(SplitString(tmpstr, ":"));
       } else if(int_headers_.find(head) != int_headers_.end()) {
         ss >> tmpint;
         integers_[head].push_back(tmpint);
@@ -128,20 +128,6 @@ Args::Args(int argc, const char * argv[]):
       }
     }
   }
-}
-
-// ----------------------------------------------------------------------------------------
-vector<string> Args::Split(string argstr) {
-  vector<string> arglist;
-  while(true) {
-    size_t i_next_colon(argstr.find(":"));
-    string arg = argstr.substr(0, i_next_colon); // get the next arg in the colon-separated list
-    arglist.push_back(arg); // add it to arglist
-    argstr = argstr.substr(i_next_colon + 1); // then excise it from argstr
-    if(i_next_colon == string::npos)
-      break;
-  }
-  return arglist;
 }
 
 // ----------------------------------------------------------------------------------------

@@ -32,7 +32,7 @@ public:
   double ending_forward_log_prob(size_t length);
   int_2D *traceback_table() const { return traceback_table_; }
 
-  // NOTE (and beware) this is confusing to subtract one from the length. BUT it is totally on purpose: I want the calling code to be able to just worry about how long it sequence is.
+  // NOTE (and beware) this is confusing to subtract one from the length. BUT it is totally on purpose: I want the calling code to be able to just worry about how long its sequence is.
   // In other words, I'm pretty sure we'll have to subtract (or add) 1 *somewhere*, and I've chosen to compartmentalize it into trellis.{h,cc}.
   // NOTE also that <viterbi_pointers_> *includes* the ending transition probability at each point.
   size_t viterbi_pointer(size_t length) {  // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1
