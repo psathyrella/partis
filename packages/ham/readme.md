@@ -19,11 +19,14 @@
 
 # dependencies
 
-  - boost headers (>= 1.54)
-  - g++ >= 4.8 (or equivalent level of c++11 support)
+  - boost headers
+  - g++
   - astyle
   - scons
-  - or use: https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile
+  - or look at
+    - [https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile]
+    - [http://dockerfile.github.io/#/python]
+    - [http://dockerfile.github.io/#/ubuntu]
 
 # building
 
