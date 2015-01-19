@@ -49,12 +49,13 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
         seq_column = 'nucleotide'
         seqfile = opener('r')(fname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
-    elif '.fasta' in fname:
+    elif '.fasta' in fname or '.fa' in fname or '.fastq' in fname or '.fq' in fname:
         name_column = 'unique_id'
         seq_column = 'seq'
         reader = []
         n_fasta_queries = 0
-        for seq_record in SeqIO.parse(fname, 'fasta'):
+        ftype = 'fasta' if ('.fasta' in fname or '.fa' in fname) else 'fastq'
+        for seq_record in SeqIO.parse(fname, ftype):
             reader.append({})
             reader[-1][name_column] = seq_record.name
             reader[-1][seq_column] = str(seq_record.seq).upper()

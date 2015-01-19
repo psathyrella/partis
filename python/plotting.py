@@ -527,6 +527,9 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         else:
             if varname in default_hard_bounds:
                 bounds = default_hard_bounds[varname]
+            if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
+                tmpname = varname[ varname.find('_insertion') - 2 : ]
+                bounds = default_hard_bounds[tmpname]
         unify_bin_labels = False
         extrastats = ''
         if '_gene' in varname:

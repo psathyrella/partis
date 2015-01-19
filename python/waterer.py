@@ -128,14 +128,14 @@ class Waterer(object):
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        # start = time.time()
+        start = time.time()
         check_output(['which', 'samtools'])
         workdir = self.args.workdir
         if iproc >= 0:
             workdir += '/sw-' + str(iproc)
         infname = workdir + '/' + base_infname
         outfname = workdir + '/' + base_outfname
-        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
+        cmd_str = 'time ' + self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'
@@ -146,7 +146,7 @@ class Waterer(object):
         check_call(cmd_str.split())
         if not self.args.no_clean:
             os.remove(infname)
-        # print '    s-w time: %.3f' % (time.time()-start)
+        print '    s-w time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, plot_performance=False):
