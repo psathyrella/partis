@@ -135,7 +135,7 @@ class Waterer(object):
             workdir += '/sw-' + str(iproc)
         infname = workdir + '/' + base_infname
         outfname = workdir + '/' + base_outfname
-        cmd_str = 'time ' + self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
+        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'

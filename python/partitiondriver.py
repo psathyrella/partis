@@ -12,7 +12,8 @@ from subprocess import Popen, check_call, PIPE
 
 import_start = time.time()
 import utils
-from opener import opener, get_seqfile_info
+from opener import opener
+from seqfileopener import get_seqfile_info
 from clusterer import Clusterer
 from waterer import Waterer
 from hist import Hist

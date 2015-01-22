@@ -53,7 +53,7 @@ plot_titles = {
 }
 
 true_vs_inferred_hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 25.5),
+    'hamming_to_true_naive' : (-0.5, 19.5),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),
@@ -64,12 +64,12 @@ true_vs_inferred_hard_bounds = {
     'd_5p_del' : (-8.5, 8.5),
     'dj_insertion' : (-10.5, 15.5),
     'j_5p_del' : (-10.5, 15.5),
-    'mute_freqs' : (-15.5, 15.5),  # NOTE make sure you know where the decimal place is here!
+    'mute_freqs' : (-.05, .05),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-3.5, 3.5),
     'vd_insertion' : (-8.5, 8.5)}
 
 default_hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 25.5),
+    'hamming_to_true_naive' : (-0.5, 19.5),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),
@@ -79,6 +79,8 @@ default_hard_bounds = {
     'd_3p_del' : (-1, 15),
     'd_5p_del' : (-1, 18),
     'dj_insertion' : (-1, 13),
+    'jf_insertion' : (-1, 13),
+    'fv_insertion' : (-1, 13),
     'j_5p_del' : (-1, 15),
     'all-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
     'v-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
@@ -177,7 +179,7 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False)
         if bin_labels[ib] != '':
             hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
 
-    if normalize:
+    if normalize and hist.Integral() > 0.0:
         hist.Scale(1./hist.Integral())
         hist.GetYaxis().SetTitle('freq')
 
@@ -342,15 +344,15 @@ def add_bin_labels_not_in_all_hists(hists):
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
-         colors=None, linestyles=None, unify_bin_labels=False):
+         colors=None, linestyles=None, unify_bin_labels=False, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None):
     assert os.path.exists(plotdir)
     if not has_root:
         return
 
-    cwidth, clength = 700, 600
-    if '_gene' in plotname:
-        cwidth, clength = 4000, 1000
-    cvn = TCanvas('cvn-'+plotname, '', cwidth, clength)
+    if hist.GetNbinsX() > 2 and ('_gene' in plotname or 'mute-freqs/v' in plotdir or 'mute-freqs/j' in plotdir):
+        # imagetype = 'png'
+        cwidth, cheight = 1000, 500
+    cvn = TCanvas('cvn-'+plotname, '', cwidth, cheight)
 
     hists = [hist,]
     if more_hists != None:
@@ -380,14 +382,22 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         for ib in range(1, hframe.GetNbinsX()+1):
             hframe.GetXaxis().SetBinLabel(ib, hist.GetXaxis().GetBinLabel(ib))
 
-    hframe.SetMaximum(1.35*ymax)
+    hframe.SetMaximum(1.2*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
     if '_gene' in plotname:
-        hframe.GetXaxis().SetLabelSize(0.05)
+        hframe.GetXaxis().SetLabelSize(0.03)
     if plottitle == '':
         plottitle = plotname
-    hframe.SetTitle(plottitle + ';' + hist.GetXaxis().GetTitle() + ';')
+    if xtitle is None:
+        xtitle = hist.GetXaxis().GetTitle()
+        if xtitle == '' and '_gene' not in plotname:
+            xtitle = 'bases'
+    if ytitle is None:
+        ytitle = hframe.GetYaxis().GetTitle()
+        if ytitle == '':
+            ytitle = 'freq'
+    hframe.SetTitle(plottitle + ';' + xtitle + ';' + ytitle)
     hframe.Draw('txt')
 
     if shift_overflows:
@@ -426,12 +436,12 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         assert len(hists) < 5
         colors = (kRed, kBlue-4, kGreen+2, kOrange+1)  # 632, 596, 418, 801
     else:
-        assert len(hists) == len(colors)
+        assert len(hists) <= len(colors)
     if linestyles is None:
-        assert len(hists) < 5
+        # assert len(hists) < 5
         linestyles = [1 for _ in range(len(hists))]
     else:
-        assert len(hists) == len(linestyles)
+        assert len(hists) <= len(linestyles)
 
     draw_str = 'hist same'
     if errors:  # not working!
@@ -446,7 +456,10 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             htmp.SetLineWidth(6-ih)
         htmp.Draw(draw_str)
 
-    leg = TLegend(0.57, 0.72, 0.99, 0.9)
+    if len(hists) < 5:
+        leg = TLegend(0.57, 0.72, 0.99, 0.9)
+    else:
+        leg = TLegend(0.57, 0.6, 0.99, 0.9)
     leg.SetFillColor(0)
     leg.SetFillStyle(0)
     leg.SetBorderSize(0)
@@ -472,7 +485,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             write_hist_to_file(plotdir + '/plots/' + plotname + '.csv', hist)
         else:
             write_hist_to_file(csv_fname, hist)
-    cvn.SaveAs(plotdir + '/plots/' + plotname + '.svg')
+    cvn.SaveAs(plotdir + '/plots/' + plotname + '.' + imagetype)
     # if '_gene' in plotname:
     #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
@@ -489,7 +502,7 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, performance_plots=False):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg'])
     hists = []
@@ -521,7 +534,8 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         if hist.GetXaxis().GetBinLabel(1) != '':
             var_type = 'bool'
         bounds = None
-        if use_hard_bounds == 'true_vs_inferred':
+        if plot_performance:
+            # use_hard_bounds == 'true_vs_inferred':
             if varname in true_vs_inferred_hard_bounds:
                 bounds = true_vs_inferred_hard_bounds[varname]
         else:
@@ -533,19 +547,25 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         unify_bin_labels = False
         extrastats = ''
         if '_gene' in varname:
-            if performance_plots:
+            if hist.GetNbinsX() == 2:
                 extrastats = ' 0-bin'
             else:
                 unify_bin_labels = True
         plottitle = plot_titles[varname] if varname in plot_titles else ''
+        xtitle = None
         if 'IGH' in varname:
-            ilastdash = varname.rfind('-')
-            gene = utils.unsanitize_name(varname[:ilastdash])
-            base_varname = varname[ilastdash + 1 :]
-            base_plottitle = plot_titles[base_varname] if base_varname in plot_titles else ''
-            plottitle = gene + ' -- ' + base_plottitle
+            if 'mute-freqs' in dirs[0]:
+                plottitle = utils.unsanitize_name(varname) + ' -- mutation frequency'
+                xtitle = 'position'
+            else:
+                ilastdash = varname.rfind('-')
+                gene = utils.unsanitize_name(varname[:ilastdash])
+                base_varname = varname[ilastdash + 1 :]
+                base_plottitle = plot_titles[base_varname] if base_varname in plot_titles else ''
+                plottitle = gene + ' -- ' + base_plottitle
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log,
-             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels)
+             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels,
+             xtitle=xtitle)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
 

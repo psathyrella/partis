@@ -34,10 +34,9 @@ for fname in $files; do
 
     label=mimic-$human
     ./plotperformance.py --label $label --plotdir $www/partis/$label \
-			 --extra-args " --mimic-data-read-length:--slurm:--workdir:tmp/$RANDOM" \
-			 --datafname $subfname --n-procs 20 --action cache-data-parameters &
-    # --datafname test/adaptive/$human/every-hundredth-subset-0.tsv.bz2
-    break
+			 --datafname $subfname --action cache-simu-parameters \
+			 --extra-args " --mimic-data-read-length:--slurm:--workdir:tmp/$RANDOM --n-procs 20" &
+			 # --extra-args " --mimic-data-read-length" --n-queries 1000
+    # break
     sleep 30
 done
-

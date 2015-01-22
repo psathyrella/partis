@@ -16,26 +16,29 @@ base_plotdir = '_compare/' + label
 targets = []
 
 test_file = 'j_5p_del.svg'
-test_cmd = ' '.join(['./plotperformance.py', '--label', label, '--only-plot-performance', '--datadir', 'data/imgt', '--plotdir', base_plotdir, '--simfname', 'data/performance/simu.csv'])
+# test_cmd = ' '.join(['./plotperformance.py', '--label', label, '--action', 'cache-simu-parameters', '--plotdir', base_plotdir, '--simfname', 'data/performance/simu.csv'])
+# test_cmd = ' '.join(['./plotperformance.py', '--label', label, '--action', 'plot-performance', '--plotdir', base_plotdir, '--simfname', 'data/performance/simu.csv'])
 target = '../' + base_plotdir + '/hmm_performance/plots/' + test_file
 targets.append(target)
-env.Command(target, glob.glob('*.py'), test_cmd)
+# env.Command(target, glob.glob('*.py'), test_cmd)
 
 for code in ['ihhhmmm', 'imgt', 'igblast']:
     test_cmd = ' '.join(['./python/' + code + 'parser.py', '--plotdir', base_plotdir + '/' + code + '/' + label])
     target = '../' + base_plotdir + '/' + code + '/' + label + '/plots/' + test_file
     targets.append(target)
-    env.Command(target, code + 'parser.py', test_cmd)
+    # env.Command(target, code + 'parser.py', test_cmd)
 
 env.Command('../' + base_plotdir + '/finished-all.out', targets, 'ls $SOURCES > $TARGET')
 
-plotdirs = base_plotdir + '/hmm_performance' + ':' \
+plotdirs = base_plotdir + '-multi/hmm_performance' + ':' \
+           + base_plotdir + '/hmm_performance' + ':' \
            + base_plotdir + '/sw_performance' + ':' \
+           + base_plotdir + '/ihhhmmm/' + label + ':' \
            + base_plotdir + '/igblast/' + label + ':' \
            + base_plotdir + '/imgt/' + label
 
-names = 'partis:s-w:igblast:imgt'
+names = 'partis@\(k=5\):partis@\(k=1\):ighutil:iHMMunealign:igblast:imgt'
 
 env.Command('../' + base_plotdir + '/comparisons.out',
             '../' + base_plotdir + '/finished-all.out',
-            './python/compare.py --outdir ' + base_plotdir + '/comparisons/igblast-vs-partis-vs-imgt --plotdirs ' + plotdirs + ' --names ' + names + ' && touch $TARGET')
+            './python/compare.py --plot-performance --outdir ' + base_plotdir + '/comparisons/all-vs-all --plotdirs ' + plotdirs + ' --names ' + names + ' --colors 810:634:596:418:798:869 && touch $TARGET')

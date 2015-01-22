@@ -167,6 +167,8 @@ class MuteFreqer(object):
             hi_err_hist = TH1D(hist)
             for position in sorted_positions:
                 hist.SetBinContent(hist.FindBin(position), counts[position]['freq'])
+                err = abs(counts[position]['freq_hi_err'] - counts[position]['freq_lo_err'])
+                hist.SetBinError(hist.FindBin(position), err)
                 lo_err_hist.SetBinContent(hist.FindBin(position), counts[position]['freq_lo_err'])
                 hi_err_hist.SetBinContent(hist.FindBin(position), counts[position]['freq_hi_err'])
             hframe = TH1D(hist)
@@ -180,7 +182,7 @@ class MuteFreqer(object):
             line.Draw()  # can't figure out how to convince hframe not to draw a horizontal line at y=0, so... cover it up
             hist.SetLineColor(419)
             hist.SetLineWidth(2)
-            hist.Draw('same')
+            hist.Draw('ehist same')
             lo_err_hist.SetLineColor(kRed+2)
             hi_err_hist.SetLineColor(kRed+2)
             lo_err_hist.SetMarkerColor(kRed+2)
@@ -189,10 +191,11 @@ class MuteFreqer(object):
             hi_err_hist.SetMarkerStyle(23)
             lo_err_hist.SetMarkerSize(1)
             hi_err_hist.SetMarkerSize(1)
-            lo_err_hist.Draw('p same')
-            hi_err_hist.Draw('p same')
+            # lo_err_hist.Draw('p same')
+            # hi_err_hist.Draw('p same')
             plotfname = plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
-            cvn.SaveAs(plotfname)
+            plotting.draw(hist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True)  #, cwidth=4000, cheight=1000)
+            # cvn.SaveAs(plotfname)
 
             paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 

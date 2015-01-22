@@ -7,6 +7,7 @@ import re
 from bs4 import BeautifulSoup
 import os
 
+sys.path.insert(1, './python')
 from opener import opener
 import utils
 from joinparser import resolve_overlapping_matches  # why the hell is this import so slow?
@@ -293,5 +294,9 @@ if __name__ == "__main__":
     args.queries = utils.get_arg_list(args.queries, intify=True)
     
     args.simfname = 'data/performance/simu.csv'
-    check_call(['tar', 'xzf', 'data/performance/igblast.tgz', '-C', 'data/performance/'])  # untar the igblast output
+    if os.path.isdir('data/performance/igblast'):
+        print 'skipping tar xzf \'cause output\'s already there'
+    else:
+        print 'untgzing...'
+        check_call(['tar', 'xzf', 'data/performance/igblast.tgz', '-C', 'data/performance/'])  # untar the igblast output
     igblastparser = IgblastParser(args)

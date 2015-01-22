@@ -418,8 +418,8 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
 
     if subtract_unphysical_erosions:
         for tmpreg in regions:
-            start[tmpreg] -= line['v_5p_del']
-            end[tmpreg] -= line['v_5p_del']
+            start[tmpreg] -= int(line['v_5p_del'])
+            end[tmpreg] -= int(line['v_5p_del'])
         # end['j'] -= line['j_3p_del']  # ARG.ARG.ARG
 
     # for key, val in line.items():

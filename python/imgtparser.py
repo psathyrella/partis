@@ -8,6 +8,7 @@ from subprocess import check_call
 import re
 from bs4 import BeautifulSoup
 
+sys.path.insert(1, './python')
 from opener import opener
 import utils
 import joinparser
@@ -273,6 +274,10 @@ if __name__ == "__main__":
     args.queries = utils.get_arg_list(args.queries)
     
     args.simfname = 'data/performance/simu.csv'
-    check_call(['tar', 'xzf', 'data/performance/imgt.tgz', '-C', 'data/performance/'])  # untar the imgt output
+    if os.path.isdir('data/performance/imgt'):
+        print 'skipping tar xzf \'cause output\'s already there'
+    else:
+        print 'untgzing...'
+        check_call(['tar', 'xzf', 'data/performance/imgt.tgz', '-C', 'data/performance/'])  # untar the imgt output
     args.indir = 'data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'  # folder with imgt result files
     imgtparser = IMGTParser(args)
