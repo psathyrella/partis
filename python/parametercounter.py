@@ -91,7 +91,7 @@ class ParameterCounter(object):
         return ''.join(return_str)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, subset_by_gene=False):
+    def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None):
         for column in self.counts:
             if column == 'all':
                 continue
@@ -141,7 +141,7 @@ class ParameterCounter(object):
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
             plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
 
-        self.mutefreqer.plot(plotdir)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 
         if has_root:
             check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up

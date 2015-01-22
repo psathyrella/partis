@@ -92,9 +92,9 @@ class Waterer(object):
             # if self.true_pcounter != None:
             #     self.true_pcounter.write(parameter_xxx_dir, plotdir=plotdir + '/true')
             if self.plotdir != '':
-                self.pcounter.plot(self.plotdir, subset_by_gene=True)
+                self.pcounter.plot(self.plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
                 if self.true_pcounter != None:
-                    self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True)
+                    self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname):

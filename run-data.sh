@@ -37,6 +37,6 @@ for fname in $files; do
 			 --datafname $subfname --action cache-simu-parameters \
 			 --extra-args " --mimic-data-read-length:--slurm:--workdir:tmp/$RANDOM --n-procs 20" &
 			 # --extra-args " --mimic-data-read-length" --n-queries 1000
-    # break
+    break
     sleep 30
 done

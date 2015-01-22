@@ -219,9 +219,9 @@ class PartitionDriver(object):
                 if true_pcounter is not None:
                     true_pcounter.write(parameter_out_dir + '/true')
             if plotdir != '':
-                pcounter.plot(plotdir, subset_by_gene=True)
+                pcounter.plot(plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
                 if true_pcounter is not None:
-                    true_pcounter.plot(plotdir + '/true', subset_by_gene=True)
+                    true_pcounter.plot(plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
         clusters = None
         if make_clusters:

@@ -344,14 +344,17 @@ def add_bin_labels_not_in_all_hists(hists):
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
-         colors=None, linestyles=None, unify_bin_labels=False, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None):
+         colors=None, linestyles=None, unify_bin_labels=False, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
+         xline=None, yline=None, draw_str=None):
     assert os.path.exists(plotdir)
     if not has_root:
         return
 
-    if hist.GetNbinsX() > 2 and ('_gene' in plotname or 'mute-freqs/v' in plotdir or 'mute-freqs/j' in plotdir):
-        # imagetype = 'png'
-        cwidth, cheight = 1000, 500
+    if hist.GetNbinsX() > 2:         #and ('_gene' in plotname or
+        if 'mute-freqs/v' in plotdir:
+            cwidth, cheight = 1200, 600
+        elif 'mute-freqs/j' in plotdir:
+            cwidth, cheight = 1000, 600
     cvn = TCanvas('cvn-'+plotname, '', cwidth, cheight)
 
     hists = [hist,]
@@ -443,7 +446,10 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     else:
         assert len(hists) <= len(linestyles)
 
-    draw_str = 'hist same'
+    if draw_str is None:
+        draw_str = 'hist same'
+    else:
+        draw_str += ' same'
     if errors:  # not working!
         draw_str = 'e ' + draw_str
     for ih in range(len(hists)):
@@ -472,6 +478,19 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
         leg.AddEntry(htmp, htmp.GetTitle() , 'l')
     leg.Draw()
+
+    if xline is not None:
+        if xline <= hframe.GetXaxis().GetXmin() or xline >= hframe.GetXaxis().GetXmax():  # make sure we got valid a x position for the line
+            print 'WARNING plotting x line at %f out of bounds (%f, %f)' % (float(xmin), hframe.GetXaxis().GetXmin(), hframe.GetXaxis().GetXmax())
+        # xl = TLine(xline, hframe.GetYaxis().GetXmin(), xline, 0.5*ymax)
+        xl = TLine(xline, -0.1*ymax, xline, 0.5*ymax)
+        xl.SetLineStyle(2)
+        xl.Draw()
+    if yline is not None:
+        if yline <= hframe.GetYaxis().GetXmin() or xline >= hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
+            print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
+        yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
+        yl.Draw()
 
     cvn.SetLogx('x' in log)
     cvn.SetLogy('y' in log)
@@ -502,7 +521,8 @@ def get_hists_from_dir(dirname, histname):
     return hists
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False):
+def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
+                        cyst_positions=None, tryp_positions=None):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
     utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg'])
     hists = []
@@ -552,11 +572,18 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             else:
                 unify_bin_labels = True
         plottitle = plot_titles[varname] if varname in plot_titles else ''
-        xtitle = None
+        xtitle, xline, draw_str = None, None, None
         if 'IGH' in varname:
             if 'mute-freqs' in dirs[0]:
-                plottitle = utils.unsanitize_name(varname) + ' -- mutation frequency'
+                gene = utils.unsanitize_name(varname)
+                plottitle = gene + ' -- mutation frequency'
                 xtitle = 'position'
+                xline = None
+                if utils.get_region(gene) == 'v' and cyst_positions is not None:
+                    xline = cyst_positions[gene]['cysteine-position']
+                elif utils.get_region(gene) == 'j' and tryp_positions is not None:
+                    xline = int(tryp_positions[gene])
+                draw_str = 'e'
             else:
                 ilastdash = varname.rfind('-')
                 gene = utils.unsanitize_name(varname[:ilastdash])
@@ -565,7 +592,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                 plottitle = gene + ' -- ' + base_plottitle
         draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log,
              shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels,
-             xtitle=xtitle)
+             xtitle=xtitle, xline=xline, draw_str=draw_str)
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
 

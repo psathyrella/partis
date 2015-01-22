@@ -143,7 +143,7 @@ class MuteFreqer(object):
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, base_plotdir):
+    def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None):
         if not self.finalized:
             self.finalize()
 
@@ -153,50 +153,23 @@ class MuteFreqer(object):
             utils.prep_dir(plotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
             utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
-        cvn = None
-        if has_root:
-            cvn = TCanvas("cvn", "", 6000, 1000)
-
         for gene in self.counts:
             counts, plotting_info = self.counts[gene], self.plotting_info[gene]
             sorted_positions = sorted(counts)
             hist = TH1D('hist_' + utils.sanitize_name(gene), '',
                         sorted_positions[-1] - sorted_positions[0] + 1,
                         sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
-            lo_err_hist = TH1D(hist)
-            hi_err_hist = TH1D(hist)
             for position in sorted_positions:
                 hist.SetBinContent(hist.FindBin(position), counts[position]['freq'])
                 err = abs(counts[position]['freq_hi_err'] - counts[position]['freq_lo_err'])
                 hist.SetBinError(hist.FindBin(position), err)
-                lo_err_hist.SetBinContent(hist.FindBin(position), counts[position]['freq_lo_err'])
-                hi_err_hist.SetBinContent(hist.FindBin(position), counts[position]['freq_hi_err'])
-            hframe = TH1D(hist)
-            hframe.SetTitle(gene + ';;')
-            hframe.Reset()
-            hframe.SetMinimum(lo_err_hist.GetMinimum() - 0.03)
-            hframe.SetMaximum(1.1*hi_err_hist.GetMaximum())
-            hframe.Draw('')
-            line = TLine(hist.GetXaxis().GetXmin(), 0., hist.GetXaxis().GetXmax(), 0.)
-            line.SetLineColor(0)
-            line.Draw()  # can't figure out how to convince hframe not to draw a horizontal line at y=0, so... cover it up
-            hist.SetLineColor(419)
-            hist.SetLineWidth(2)
-            hist.Draw('ehist same')
-            lo_err_hist.SetLineColor(kRed+2)
-            hi_err_hist.SetLineColor(kRed+2)
-            lo_err_hist.SetMarkerColor(kRed+2)
-            hi_err_hist.SetMarkerColor(kRed+2)
-            lo_err_hist.SetMarkerStyle(22)
-            hi_err_hist.SetMarkerStyle(23)
-            lo_err_hist.SetMarkerSize(1)
-            hi_err_hist.SetMarkerSize(1)
-            # lo_err_hist.Draw('p same')
-            # hi_err_hist.Draw('p same')
             plotfname = plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
-            plotting.draw(hist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True)  #, cwidth=4000, cheight=1000)
-            # cvn.SaveAs(plotfname)
-
+            xline = None
+            if utils.get_region(gene) == 'v' and cyst_positions is not None:
+                xline = cyst_positions[gene]['cysteine-position']
+            elif utils.get_region(gene) == 'j' and tryp_positions is not None:
+                xline = int(tryp_positions[gene])
+            plotting.draw(hist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, draw_str='e')  #, cwidth=4000, cheight=1000)
             paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 
         # make mean mute freq hists
