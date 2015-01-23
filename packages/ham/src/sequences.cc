@@ -45,8 +45,8 @@ void Sequence::Digitize()
 {
   seq_ = new vector<uint8_t>(undigitized_.size());
   for(size_t i = 0; i < undigitized_.size(); ++i) {
-    uint8_t symbl = track_->symbol_index(undigitized_.substr(i, 1));
-    (*seq_)[i] = symbl;
+    string symbol = undigitized_.substr(i, 1);
+    (*seq_)[i] = track_->symbol_index(symbol);
   }
 }
 
