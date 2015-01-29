@@ -866,22 +866,23 @@ def split_key(key):
 def prep_dir(dirname, wildling=None, multilings=None):
     """ make <dirname> if it d.n.e., and if shell glob <wildling> is specified, remove existing files which are thereby matched """
     if os.path.exists(dirname):
-        if wildling != None:
+        if wildling is not None:
             for fname in glob.glob(dirname + '/' + wildling):
                 os.remove(fname)
-        if multilings != None:  # allow multiple file name suffixes
+        if multilings is not None:  # allow multiple file name suffixes
             for wild in multilings:
                 for fname in glob.glob(dirname + '/' + wild):
                     os.remove(fname)
     else:
         os.makedirs(dirname)
-    if len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) != 0:  # make sure there's no other files in the dir
-        print 'ERROR files remain in',dirname,'despite wildling',
-        if wildling != None:
-            print wildling
-        if multilings != None:
-            print multilings
-        assert False
+    if wildling is not None or multilings is not None:
+        if len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) != 0:  # make sure there's no other files in the dir
+            print 'ERROR files remain in',dirname,'despite wildling',
+            if wildling != None:
+                print wildling
+            if multilings != None:
+                print multilings
+            assert False
 
 # ----------------------------------------------------------------------------------------
 def intify(info, splitargs=()):

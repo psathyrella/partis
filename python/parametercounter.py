@@ -92,6 +92,7 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None):
+        utils.prep_dir(plotdir + '/plots')  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
             if column == 'all':
                 continue
@@ -149,7 +150,7 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):
-        utils.prep_dir(base_outdir, '*.csv')
+        utils.prep_dir(base_outdir, multilings=('*.csv', '*.svg'))
         print 'write mute freqs'
         mute_start = time.time()
         self.mutefreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 

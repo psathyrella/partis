@@ -45,7 +45,6 @@ parser.add_argument('--seqfile', help='input sequence file')
 parser.add_argument('--parameter-dir', required=True, help='Directory to write sample-specific parameters to and/or read \'em from (e.g. mutation freqs)')
 parser.add_argument('--datadir', default='data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')
-parser.add_argument('--partitionfname')
 parser.add_argument('--plotdir', default='/tmp/partis/plots')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
@@ -96,6 +95,12 @@ if args.n_fewer_procs == None:
 if args.slurm and '/tmp' in args.workdir:
     print 'ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes'
     sys.exit()
+
+if args.plot_performance:
+    assert not args.is_data
+    # assert args.algorithm == 'viterbi'
+if args.plot_all_best_events:
+    assert args.n_max_queries == 1  # at least for now
 
 print 'setting mimic to true'
 args.mimic_data_read_length = True

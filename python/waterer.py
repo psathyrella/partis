@@ -18,7 +18,7 @@ from parametercounter import ParameterCounter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir, write_parameters=False, plotdir=''):
+    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir, write_parameters=False, plotdir=None):
         self.parameter_dir = parameter_dir
         self.plotdir = plotdir
         self.args = args
@@ -27,14 +27,9 @@ class Waterer(object):
         self.germline_seqs = germline_seqs
         self.pcounter, self.true_pcounter = None, None
         if write_parameters:
-            self.pcounter = ParameterCounter(self.germline_seqs)  #, parameter_dir, plotdir=plotdir)
-            if plotdir != '':
-                utils.prep_dir(plotdir + '/plots', multilings=['*.svg', '*.csv'])
-                check_call(['./permissify-www', plotdir])
+            self.pcounter = ParameterCounter(self.germline_seqs)
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.germline_seqs)  #, parameter_dir, plotdir=plotdir + '/true')
-                if plotdir != '':
-                    utils.prep_dir(plotdir + '/true/plots', multilings=['*.svg', '*.csv'])
+                self.true_pcounter = ParameterCounter(self.germline_seqs)
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
@@ -155,7 +150,7 @@ class Waterer(object):
             assert self.args.plotdir != None
             assert not self.args.is_data
             from performanceplotter import PerformancePlotter
-            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw_performance', 'sw')
+            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw/performance', 'sw')
 
         n_processed = 0
         for iproc in range(self.args.n_procs):

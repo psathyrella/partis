@@ -18,6 +18,7 @@ from clusterer import Clusterer
 from waterer import Waterer
 from hist import Hist
 from parametercounter import ParameterCounter
+from performanceplotter import PerformancePlotter
 import plotting
 
 print 'import time: %.3f' % (time.time() - import_start)
@@ -64,13 +65,6 @@ class PartitionDriver(object):
                 os.remove(self.args.outfname)
             self.outfile = open(self.args.outfname, 'a')
 
-        if self.args.partitionfname != None:  # arg! this is messy
-            if os.path.exists(self.args.partitionfname):
-                os.remove(self.args.partitionfname)
-            partitionfile = open(self.args.partitionfname, 'a')
-            self.partitionwriter = csv.DictWriter(partitionfile, ('unique_ids', 'same_event', 'score'))
-            self.partitionwriter.writeheader()
-
     # ----------------------------------------------------------------------------------------
     def clean(self, waterer):
         if self.args.no_clean:
@@ -89,26 +83,19 @@ class PartitionDriver(object):
         os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def cache_parameters(self, parameter_dir=''):
-        assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd need to change some thing
-        assert self.args.plotdir != None
+    def cache_parameters(self):
+        assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd want to think through a few things first
+        assert self.args.plotdir is not None
 
-        sw_plotdir, hmm_plotdir = '', ''
-        sw_plotdir = self.args.plotdir + '/sw_parameters'
-
-        if parameter_dir == '':
-            parameter_dir = self.args.parameter_dir
-
-        sw_parameter_dir = parameter_dir + '/sw_parameters'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=sw_plotdir)
+        sw_parameter_dir = self.args.parameter_dir + '/sw'
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=self.args.plotdir + '/sw')
         waterer.run()
-
         self.write_hmms(sw_parameter_dir, waterer.info['all_best_matches'])
 
         parameter_in_dir = sw_parameter_dir
         for ibw in range(self.args.baum_welch_iterations):
-            parameter_out_dir = parameter_dir + '/hmm_parameters'
-            hmm_plotdir = self.args.plotdir + '/hmm_parameters'
+            parameter_out_dir = self.args.parameter_dir + '/hmm'
+            hmm_plotdir = self.args.plotdir + '/hmm'
             if self.args.baum_welch_iterations > 1:
                 parameter_out_dir += '-' + str(ibw)
                 hmm_plotdir += '-' + str(ibw)
@@ -162,36 +149,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
-                count_parameters=False, plotdir='', make_clusters=False):  # @parameterfetishist
-        pcounter = None
-        if count_parameters:
-            pcounter = ParameterCounter(self.germline_seqs)  #, parameter_out_dir, plotdir=plotdir, write_parameters=(parameter_out_dir!=''))
-        true_pcounter = None
-        if count_parameters and not self.args.is_data:
-            true_pcounter = ParameterCounter(self.germline_seqs)
-        if plotdir != '':
-            utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
-            check_call(['./permissify-www', plotdir])
-            if true_pcounter is not None:
-                utils.prep_dir(plotdir + '/true/plots', multilings=('*.csv', '*.svg'))
-
-        perfplotter = None
-        if self.args.plot_performance:
-            assert self.args.plotdir != None
-            assert not self.args.is_data
-            if self.args.n_sets > 1:  # well, you *can* check the performance on k-sets, but you probably want to think things through before you do, to make sure everything's shipshape
-                print '\nchecking performance for k > 1!\n'
-            assert algorithm == 'viterbi'  # same deal as previous assert
-            from performanceplotter import PerformancePlotter
-            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/hmm_performance', 'hmm')
+                count_parameters=False, plotdir=None, make_clusters=False):  # @parameterfetishist
 
         if prefix == '' and stripped:
             prefix = 'stripped'
         print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
-        # pairscorefname = self.args.workdir + '/' + prefix + '_hmm_pairscores.csv'
-        print '    writing input'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         print '    running'
         if self.args.n_procs > 1:
@@ -201,26 +165,12 @@ class PartitionDriver(object):
                 proc.start()
                 time.sleep(0.1)
             while len(active_children()) > 0:
-                # print ' wait %s' % len(active_children()),
-                # sys.stdout.flush()
                 time.sleep(1)
             self.merge_hmm_outputs(csv_outfname)
         else:
             self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
-        # if self.outfile != None and algorithm == 'forward':
-        #     self.outfile.write('hmm pairscores\n')
-        print '    read output'
-        hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, pcounter, perfplotter, true_pcounter, make_clusters=make_clusters)
 
-        if count_parameters:
-            if parameter_out_dir != '':
-                pcounter.write(parameter_out_dir)
-                if true_pcounter is not None:
-                    true_pcounter.write(parameter_out_dir + '/true')
-            if plotdir != '':
-                pcounter.plot(plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
-                if true_pcounter is not None:
-                    true_pcounter.plot(plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+        hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
 
         clusters = None
         if make_clusters:
@@ -235,7 +185,6 @@ class PartitionDriver(object):
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
                 os.remove(csv_infname)
             os.remove(csv_outfname)
-            # os.remove(pairscorefname)
 
         return clusters
 
@@ -565,6 +514,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False):
+        print '    writing input'
         csvfile = opener('w')(csv_fname)
 
         # write header
@@ -623,22 +573,21 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, hmm_csv_outfname, pcounter, perfplotter, true_pcounter, make_clusters=True):
-        # NOTE the input and output files for this function are almost identical at this point
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, make_clusters=True, count_parameters=False, parameter_out_dir=None, plotdir=None):
+        print '    read output'
+        if count_parameters:
+            assert parameter_out_dir is not None
+            assert plotdir is not None
+        pcounter = ParameterCounter(self.germline_seqs) if count_parameters else None
+        true_pcounter = ParameterCounter(self.germline_seqs) if (count_parameters and not self.args.is_data) else None
+        perfplotter = PerformancePlotter(self.germline_seqs, plotdir + '/hmm/performance', 'hmm') if self.args.plot_performance else None
 
         n_processed = 0
-        # write header for pairwise score file
-        # with opener('w')(pairscorefname) as pairscorefile:
-        #     pairscorefile.write('unique_id,second_unique_id,score\n')
         pairscores = []
-        # viterbi_cluster_info = {}  # viterbi sequences for each cluster
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
             boundary_error_queries = []
-            if self.args.plot_all_best_events:
-                assert self.args.n_max_queries == 1  # at least for now
-                scores = []  # list of scorse for all the events
             for line in reader:
                 utils.intify(line, splitargs=('unique_ids', 'seqs'))
                 ids = line['unique_ids']
@@ -657,26 +606,24 @@ class PartitionDriver(object):
                     line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
                     line['unique_id'] = ids[0]
                     utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
-                    # if make_clusters:
-                    #     viterbi_cluster_info.append(utils.get_full_naive_seq(self.germline_seqs, line)
 
                     if last_key != this_key or self.args.plot_all_best_events:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         n_processed += 1
                         if self.args.debug:
                             print '%s   %d' % (id_str, same_event)
-                        if self.args.plot_all_best_events:
-                            scores.append(float(line['score']))
                         if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
-                            if pcounter != None:  # increment counters (but only for the best [first] match)
+                            if pcounter is not None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
-                            if true_pcounter != None:  # increment true counters
+                            if true_pcounter is not None:  # increment true counters
                                 true_pcounter.increment(self.reco_info[ids[0]])
-                            if perfplotter != None:
-                                perfplotter.evaluate(self.reco_info[ids[0]], line)  #, subtract_unphysical_erosions=True)
+                            if perfplotter is not None:
+                                perfplotter.evaluate(self.reco_info[ids[0]], line)
+
                     if self.args.debug:
                         self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
                     line['seq'] = None
                     line['unique_id'] = None
+
                 else:  # for forward, write the pair scores to file to be read by the clusterer
                     if not make_clusters:  # self.args.debug or 
                         print '%3d %10.3f    %s' % (same_event, float(line['score']), id_str)
@@ -687,21 +634,22 @@ class PartitionDriver(object):
                         score = float(line['score'])
                     if len(ids) == 2:
                         pairscores.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
-                        # with opener('a')(pairscorefname) as pairscorefile:
-                        #     pairscorefile.write('%d,%d,%f\n' % (line['unique_ids'][0], line['unique_ids'][1], score))
-                    if self.args.partitionfname != None:
-                        self.partitionwriter.writerow({'unique_ids':':'.join([str(uid) for uid in ids]), 'same_event':int(same_event), 'score':score})
                     n_processed += 1
 
                 last_key = utils.get_key(ids)
 
+        if pcounter is not None:
+            pcounter.write(parameter_out_dir)
+            pcounter.plot(plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+        if true_pcounter is not None:
+            true_pcounter.write(parameter_out_dir + '/true')
+            true_pcounter.plot(plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+        if perfplotter is not None:
+            perfplotter.plot()
+
         print '  processed %d queries' % n_processed
         if len(boundary_error_queries) > 0:
             print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
-        if perfplotter != None:
-            perfplotter.plot()
-        if self.args.plot_all_best_events:
-            scores = sorted(scores)  # oh wait they're already sorted...
 
         return pairscores
 
@@ -738,10 +686,7 @@ class PartitionDriver(object):
         # if not self.args.is_data:
         #     self.print_performance_info(line, perfplotter=perfplotter)
 
-        if self.args.outfname == None:
-            print ''.join(out_str_list),
-        else:
-            self.outfile.write(''.join(out_str_list))
+        print ''.join(out_str_list),
 
     # ----------------------------------------------------------------------------------------
     def print_performance_info(self, line, perfplotter=None):
