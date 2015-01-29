@@ -3,6 +3,8 @@ import os
 import glob
 import sys
 import csv
+import numpy
+from scipy import stats
 from array import array
 from subprocess import check_call
 
@@ -19,7 +21,7 @@ def check_root():
 sys.argv.append('-b')  # root just loves its stupid little splashes
 has_root = check_root()
 if has_root:
-    from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, kCyan, kOrange
+    from ROOT import gStyle, TH1D, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
     gROOT.Macro("plotting/MitStyleRemix.cc+")
 else:
     print ' ROOT not found, proceeding without plotting'
@@ -135,25 +137,23 @@ def write_hist_to_file(fname, hist):
             })
 
 # ----------------------------------------------------------------------------------------
-def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False):
+def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False, rescale_entries=None):
     """ 
     Return root histogram with each bin low edge and bin content read from <fname> 
     E.g. from the results of hist.Hist.write()
     """
     low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
     xtitle = ''
-    # print '---- %s' % fname
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
         for line in reader:
             low_edges.append(float(line['bin_low_edge']))
-            contents.append(float(line['contents']))
+            refactor = 1.0 if rescale_entries is None else rescale_entries
+            contents.append(float(line['contents']) / refactor)
             if 'sum-weights-squared' in line:
-                # print '  ', line['contents'], line['sum-weights-squared']
-                sum_weights_squared.append(float(line['sum-weights-squared']))
+                sum_weights_squared.append(float(line['sum-weights-squared']) / (refactor*refactor))
             if 'binerror' in line:
-                # print '  ', line['contents'], line['binerror']
-                bin_errors.append(float(line['binerror']))
+                bin_errors.append(float(line['binerror']) * math.sqrt(refactor))
             if 'binlabel' in line:
                 bin_labels.append(line['binlabel'])
             else:
@@ -457,6 +457,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         htmp.SetLineColor(colors[ih])
         # if ih == 0:
         htmp.SetMarkerSize(0)
+        htmp.SetMarkerColor(colors[ih])
         htmp.SetLineStyle(linestyles[ih])
         if ih < 6 and len(hists) < 5:
             htmp.SetLineWidth(6-ih)
@@ -509,11 +510,11 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
 # ----------------------------------------------------------------------------------------
-def get_hists_from_dir(dirname, histname):
+def get_hists_from_dir(dirname, histname, rescale_entries=None):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
-        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=True)
+        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=False, rescale_entries=rescale_entries)
         hists[varname].SetTitle(histname)
     if len(hists) == 0:
         print 'ERROR no csvs in',dirname
@@ -522,33 +523,64 @@ def get_hists_from_dir(dirname, histname):
 
 # ----------------------------------------------------------------------------------------
 def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
-                        cyst_positions=None, tryp_positions=None):
+                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None):
     """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
-    utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg'])
+    utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+    if leaves_per_tree is not None:
+        assert len(leaves_per_tree) == len(dirs)
     hists = []
     for idir in range(len(dirs)):
-        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir]))
+        rescale_entries = leaves_per_tree[idir] if leaves_per_tree is not None else None
+        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries))
+
+
+    histmisses = []
+    names, means, sems, normalized_means = [], [], [], []
     for varname, hist in hists[0].iteritems():
         if 'hamming_to_true_naive' in varname:
             hist.GetXaxis().SetTitle('hamming')
         if 'hamming_to_true_naive_normed' in varname:
             hist.GetXaxis().SetTitle('% hamming')
-        # deal with log axes
-        # if varname.find('hamming_to_true_naive') > 0:
-        #     log = 'y'
-        # else:
-        log = ''
+
+        meanvals, semvals = [hist.GetMean(),], [hist.GetMeanError(),]  # means for each human for <varname> (and standard error on each mean)
+        sum_total, total_entries = hist.GetMean() * hist.GetEntries(), hist.GetEntries()  # sums of weights for taking the weighted average
 
         more_hists = []
         missing_hist = False
         for idir in range(1, len(dirs)):
             try:
                 more_hists.append(hists[idir][varname])
+
+                meanvals.append(hists[idir][varname].GetMean())
+                semvals.append(hists[idir][varname].GetMeanError())
+                sum_total += hists[idir][varname].GetMean() * hists[idir][varname].Integral()
+                total_entries += hists[idir][varname].Integral()
             except:
-                print 'ERROR %s in %s but not %s' % (varname, dirs[0], dirs[idir])
+                # print 'WERRING skipping plot with missing hist (%s in %s but not %s)' % (varname, dirs[0], dirs[idir])
+                histmisses.append(varname)
                 missing_hist = True
+                break
         if missing_hist:
             continue        
+
+        # first find the mean over humans
+        mean_of_means = sum_total / total_entries
+        # then "normalize" each human's mean by this mean over humans, and that human's variance
+        normalized_meanvals = []
+        for im in range(len(meanvals)):
+            if semvals[im] > 0:
+                normalized_meanvals.append((meanvals[im] - mean_of_means) / semvals[im])
+            else:
+                normalized_meanvals.append(0)
+        names.append(varname)
+        means.append(meanvals)
+        sems.append(semvals)
+        normalized_means.append(normalized_meanvals)
+
+        # print '%s %.2f' % (varname, mean_of_means)
+        # for i in range(len(dirs)):
+        #     print '   %.2f %.2f %.2f %.2f' % (hists[i][varname].GetMean(), hists[i][varname].GetMeanError(), hists[i][varname].Integral(), meanvals[i]),
+        # print ''
 
         var_type = 'int'
         if hist.GetXaxis().GetBinLabel(1) != '':
@@ -590,11 +622,98 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                 base_varname = varname[ilastdash + 1 :]
                 base_plottitle = plot_titles[base_varname] if base_varname in plot_titles else ''
                 plottitle = gene + ' -- ' + base_plottitle
-        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds, log=log,
+        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels,
              xtitle=xtitle, xline=xline, draw_str=draw_str)
+
+    if len(histmisses) > 0:
+        print 'WARNING: missing hists for %s' % ' '.join(histmisses)
+
+    with opener('w')(outdir + '/plots/means.csv') as meanfile:
+        writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
+        writer.writeheader()
+        for ivar in range(len(means)):
+            writer.writerow({
+                'name':names[ivar],
+                'means':':'.join([str(m) for m in means[ivar]]),
+                'sems':':'.join([str(s) for s in sems[ivar]]),
+                'normalized-means':':'.join([str(nm) for nm in normalized_means[ivar]])
+            })
+    # meanlist, variancelist = [], []
+    # for ibin in range(0, len(means)):
+    #     # print '%5.2f %5.2f' % (numpy.mean(means[ibin]), numpy.var(means[ibin]))
+    #     meanlist.append(numpy.mean(means[ibin]))
+    #     variancelist.append(numpy.var(means[ibin]))
+
+    # # ----------------------------------------------------------------------------------------
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot
+    # gridsize=30
+    # pyplot.subplot(111)
+    # pyplot.hexbin(meanlist, variancelist, gridsize=gridsize, cmap=matplotlib.cm.jet, bins=None)
+    # cb = pyplot.colorbar()
+    # cb.set_label('mean value')
+
+    flatmeans = []
+    for mv in means:
+        flatmeans += mv
+    n, bins, patches = pyplot.hist(flatmeans)
+    pyplot.xlabel(r'$(x - \mu) / \sigma$')
+    # pyplot.ylabel('')
+    # pyplot.title('Histogram of IQ')
+    pyplot.text(-5, 15, r'$\sigma=' + str(math.sqrt(numpy.var(flatmeans))) + '$')
+    # pyplot.axis([-5, 5, 0, 25])
+
+    pyplot.savefig(outdir + '/plots/means.png')
+    # ----------------------------------------------------------------------------------------
+
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
+
+# ----------------------------------------------------------------------------------------
+def make_mean_plots(plotdir, subdirs, outdir):
+    meanlist, variancelist = [], []
+    normalized_means = []
+    for sd in subdirs:
+        with opener('r')(plotdir + '/' + sd + '/plots/means.csv') as meanfile:
+            reader = csv.DictReader(meanfile)
+            for line in reader:
+                means = [ float(m) for m in line['means'].split(':') ]
+                meanlist.append(numpy.mean(means))
+                variancelist.append(numpy.var(means))
+                nmvals = [ float(nm) for nm in line['normalized-means'].split(':') ]
+                normalized_means += nmvals
+
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot
+
+    # ----------------------------------------------------------------------------------------
+    # first make hexbin plot
+    pyplot.subplot(111)
+    pyplot.hexbin(meanlist, variancelist, gridsize=20, cmap=matplotlib.cm.gist_yarg, bins=None)
+    # pyplot.axis([0, 5, 0, 2])
+    pyplot.xlabel('mean')
+    pyplot.ylabel('variance')
+
+    cb = pyplot.colorbar()
+    cb.set_label('mean value')
+    utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+    pyplot.savefig(outdir + '/plots/hexmeans.png')
+    pyplot.clf()
+
+    # ----------------------------------------------------------------------------------------
+    # then make normalized mean plot
+    n, bins, patches = pyplot.hist(normalized_means, 50)
+    pyplot.xlabel(r'$(x_i - \mu) / \sigma_i$')
+    pyplot.title(r'$\sigma=' + str(math.sqrt(numpy.var(normalized_means))) + '$')
+    # pyplot.axis([-10, 10, 0, 220])
+
+    pyplot.savefig(outdir + '/plots/means.png')
+
+
+    check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
 
 # # ----------------------------------------------------------------------------------------
 # def make_html(plotdir, filetype):

@@ -88,6 +88,7 @@ parser.add_argument('--allow_unphysical_insertions', action='store_true', help='
 # parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simulated sequences')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
 
+
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
 if args.n_fewer_procs == None:
@@ -96,6 +97,8 @@ if args.slurm and '/tmp' in args.workdir:
     print 'ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes'
     sys.exit()
 
+print 'setting mimic to true'
+args.mimic_data_read_length = True
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
     print 'simulating'

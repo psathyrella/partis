@@ -179,9 +179,8 @@ class PartitionDriver(object):
         if self.args.plot_performance:
             assert self.args.plotdir != None
             assert not self.args.is_data
-            if self.args.n_sets > 1:
-                print 'checking performance for k > 1!'
-            # assert self.args.n_sets == 1  # well, you *could* check the performance on k-sets, but I haven't implemented it yet
+            if self.args.n_sets > 1:  # well, you *can* check the performance on k-sets, but you probably want to think things through before you do, to make sure everything's shipshape
+                print '\nchecking performance for k > 1!\n'
             assert algorithm == 'viterbi'  # same deal as previous assert
             from performanceplotter import PerformancePlotter
             perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/hmm_performance', 'hmm')

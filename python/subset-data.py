@@ -5,7 +5,8 @@ import csv
 
 sys.path.insert(1, './python')
 import utils
-from opener import opener, get_seqfile_info
+from seqfileopener import get_seqfile_info
+from opener import opener
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--infname', required=True)

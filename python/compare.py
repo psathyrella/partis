@@ -23,12 +23,14 @@ parser.add_argument('--rebin', type=int)
 parser.add_argument('--colors')
 parser.add_argument('--linestyles')
 parser.add_argument('--datadir', default='data/imgt')
+parser.add_argument('--leaves-per-tree')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.colors = utils.get_arg_list(args.colors, intify=True)
 args.linestyles = utils.get_arg_list(args.linestyles, intify=True)
 args.names = utils.get_arg_list(args.names)
+args.leaves_per_tree = utils.get_arg_list(args.leaves_per_tree, intify=True)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
 
@@ -44,7 +46,8 @@ with opener('r')(args.datadir + '/j_tryp.csv') as csv_file:  # get location of <
 plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
                              names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin,
-                             colors=args.colors, linestyles=args.linestyles, plot_performance=args.plot_performance, cyst_positions=cyst_positions, tryp_positions=tryp_positions)
+                             colors=args.colors, linestyles=args.linestyles, plot_performance=args.plot_performance, cyst_positions=cyst_positions, tryp_positions=tryp_positions,
+                             leaves_per_tree=args.leaves_per_tree)
 
 # label = 'check-new-imgt'
 # plotdir = '/var/www/sharing/dralph/partis/performance/'
