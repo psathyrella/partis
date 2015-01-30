@@ -7,7 +7,7 @@ import os
 import glob
 import csv
 import re
-from subprocess import Popen, check_call, PIPE
+from subprocess import Popen, check_call
 
 import_start = time.time()
 import utils

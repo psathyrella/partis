@@ -1,7 +1,6 @@
 import time
 import sys
 import json
-from multiprocessing import Process, active_children
 import math
 import csv
 import os
@@ -9,7 +8,7 @@ import itertools
 import operator
 import pysam
 import contextlib
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, Popen
 
 import utils
 from opener import opener
@@ -69,16 +68,22 @@ class Waterer(object):
         base_outfname = 'query-seqs.bam'
         self.write_vdjalign_input(base_infname)
         if self.args.n_procs == 1:
-            self.run_vdjalign(base_infname, base_outfname, -1)
+            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
+            check_call(cmd_str.split())
+            if not self.args.no_clean:
+                os.remove(self.args.workdir + '/' + base_infname)
         else:
+            procs = []
             for iproc in range(self.args.n_procs):
-                proc = Process(target=self.run_vdjalign, args=(base_infname, base_outfname, iproc))
-                proc.start()
+                cmd_str = self.get_vdjalign_cmd_str(self.args.workdir + '/sw-' + str(iproc), base_infname, base_outfname, iproc)
+                procs.append(Popen(cmd_str.split()))
                 time.sleep(0.1)
-            while len(active_children()) > 0:
-                # print ' wait %s' % len(active_children()),
-                sys.stdout.flush()
-                time.sleep(1)
+            for proc in procs:
+                proc.wait()
+            if not self.args.no_clean:
+                for iproc in range(self.args.n_procs):
+                    os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
+
         self.read_output(base_outfname, plot_performance=self.args.plot_performance)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
@@ -117,19 +122,13 @@ class Waterer(object):
                     sub_infile.write(self.input_info[query_name]['seq'] + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def run_vdjalign(self, base_infname, base_outfname, iproc=-1):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, iproc=-1):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        start = time.time()
         check_output(['which', 'samtools'])
-        workdir = self.args.workdir
-        if iproc >= 0:
-            workdir += '/sw-' + str(iproc)
-        infname = workdir + '/' + base_infname
-        outfname = workdir + '/' + base_outfname
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
@@ -137,11 +136,9 @@ class Waterer(object):
         cmd_str += ' --match 5 --mismatch 3'
         cmd_str += ' --gap-open 1000'
         cmd_str += ' --vdj-dir ' + self.args.datadir
-        cmd_str += ' ' + infname + ' ' + outfname
-        check_call(cmd_str.split())
-        if not self.args.no_clean:
-            os.remove(infname)
-        print '    s-w time: %.3f' % (time.time()-start)
+        cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+
+        return cmd_str
 
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, plot_performance=False):
