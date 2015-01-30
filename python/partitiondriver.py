@@ -2,7 +2,6 @@ import time
 import sys
 import json
 import itertools
-from multiprocessing import Process, active_children, Pool
 import math
 import os
 import glob
@@ -144,6 +143,27 @@ class PartitionDriver(object):
         #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
+        cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
+        if self.args.slurm:
+            cmd_str = 'srun ' + cmd_str
+        cmd_str += ' --algorithm ' + algorithm
+        cmd_str += ' --chunk-cache '
+        cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
+        cmd_str += ' --debug ' + str(self.args.debug)
+        cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
+        cmd_str += ' --datadir ' + self.args.datadir
+        cmd_str += ' --infile ' + csv_infname
+        cmd_str += ' --outfile ' + csv_outfname
+
+        workdir = self.args.workdir
+        if iproc >= 0:
+            workdir += '/hmm-' + str(iproc)
+            cmd_str = cmd_str.replace(self.args.workdir, workdir)
+
+        return cmd_str
+
+    # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
                 count_parameters=False, plotdir=None, make_clusters=False):  # @parameterfetishist
 
@@ -156,15 +176,20 @@ class PartitionDriver(object):
         print '    running'
         if self.args.n_procs > 1:
             self.split_input(self.args.n_procs, infname=csv_infname, prefix='hmm')
+            procs = []
             for iproc in range(self.args.n_procs):
-                proc = Process(target=self.run_hmm_binary, args=(algorithm, csv_infname, csv_outfname), kwargs={'parameter_dir':parameter_in_dir, 'iproc':iproc})
-                proc.start()
+                cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc)
+                procs.append(Popen(cmd_str.split()))
                 time.sleep(0.1)
-            while len(active_children()) > 0:
-                time.sleep(1)
+            for proc in procs:
+                proc.wait()
+            for iproc in range(self.args.n_procs):
+                if not self.args.no_clean:
+                    os.remove(csv_infname.replace(self.args.workdir, self.args.workdir + '/hmm-' + str(iproc)))
             self.merge_hmm_outputs(csv_outfname)
         else:
-            self.run_hmm_binary(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+            cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+            check_call(cmd_str.split())
 
         hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
 
@@ -221,36 +246,6 @@ class PartitionDriver(object):
 
         if infname is None:
             return outlists
-
-    # ----------------------------------------------------------------------------------------
-    def run_hmm_binary(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
-        # start = time.time()
-
-        # build the command line
-        cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
-        if self.args.slurm:
-            cmd_str = 'srun ' + cmd_str
-        cmd_str += ' --algorithm ' + algorithm
-        cmd_str += ' --chunk-cache '
-        cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
-        cmd_str += ' --debug ' + str(self.args.debug)
-        cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
-        cmd_str += ' --datadir ' + self.args.datadir
-        cmd_str += ' --infile ' + csv_infname
-        cmd_str += ' --outfile ' + csv_outfname
-
-        workdir = self.args.workdir
-        if iproc >= 0:
-            workdir += '/hmm-' + str(iproc)
-            cmd_str = cmd_str.replace(self.args.workdir, workdir)
-
-        # print cmd_str
-        check_call(cmd_str, shell=True)
-
-        if not self.args.no_clean:
-            os.remove(csv_infname.replace(self.args.workdir, workdir))
-
-        # print '    hmm run time: %.3f' % (time.time() - start)
 
     # ----------------------------------------------------------------------------------------
     def merge_hmm_outputs(self, outfname):
