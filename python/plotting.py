@@ -510,11 +510,11 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
 # ----------------------------------------------------------------------------------------
-def get_hists_from_dir(dirname, histname, rescale_entries=None):
+def get_hists_from_dir(dirname, histname, rescale_entries=None, normalize=False):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
-        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=False, rescale_entries=rescale_entries)
+        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=normalize, rescale_entries=rescale_entries)
         hists[varname].SetTitle(histname)
     if len(hists) == 0:
         print 'ERROR no csvs in',dirname
@@ -531,7 +531,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
     hists = []
     for idir in range(len(dirs)):
         rescale_entries = leaves_per_tree[idir] if leaves_per_tree is not None else None
-        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries))
+        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=True))
 
 
     histmisses = []

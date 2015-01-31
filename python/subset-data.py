@@ -24,7 +24,7 @@ for key, d in input_info.items():  # get field names (they should be the same fo
     fieldnames = d.keys()
     break
 
-utils.prep_dir(args.outdir, '*.bz2')
+utils.prep_dir(args.outdir)  #, '*.bz2')
 outfiles, writers = {}, {}
 for iout in args.start_indices:
     outfname = args.outdir + ('/every-' + str(args.modulo) + '-subset-%d.csv.bz2' % iout)

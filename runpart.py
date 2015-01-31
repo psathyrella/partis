@@ -102,7 +102,7 @@ if args.plot_performance:
 if args.plot_all_best_events:
     assert args.n_max_queries == 1  # at least for now
 
-print 'setting mimic to true'
+print '\nsetting mimic to true\n'
 args.mimic_data_read_length = True
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):

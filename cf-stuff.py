@@ -7,8 +7,10 @@ sys.path.insert(1, './python')
 import utils
 import plotting
 
+basedir = '/var/www/sharing/dralph/partis'
+
 h_vs_h = True  # human vs human, or data vs simu?
-dataset = 'both'
+dataset = 'adaptive'
 
 if dataset == 'stanford':
     humans = ['021-019', '021-044', '021-048', '021-050', '021-055', '021-057', '021-059', '021-060', '021-061', '021-063', '021-068', '021-071', '021-084', '021-018']
@@ -21,27 +23,31 @@ elif dataset == 'both':
 else:
     assert False
 
-labels = ['mimic-' + h for h in humans]
-basedir = '/var/www/sharing/dralph/partis'  #/$label/params
-subdirs = [ e + '_del' for e in utils.real_erosions ] + [ i + '_insertion' for i in utils.boundaries]
-# subdirs = [ 'dj_insertion', ]
+subsets = [ str(i) for i in range(4) ]
+
+labels = ['every-10-' + h + '-subset-' + s for h in humans for s in subsets]
+
+# subdirs = [ e + '_del' for e in utils.real_erosions ] + [ i + '_insertion' for i in utils.boundaries]
+subdirs = [ 'mute-freqs/v', ]
+
 if h_vs_h:
     outlabel = 'cf-' + dataset + '-data'
 else:
     outlabel = 'data-vs-true-simu'
 
 baseoutdir = '/var/www/sharing/dralph/partis/' + labels[0] + '/' + outlabel
-plotting.make_mean_plots(baseoutdir, subdirs,  baseoutdir + '/hexmean')
-sys.exit()
+# plotting.make_mean_plots(baseoutdir, subdirs,  baseoutdir + '/hexmean')
+# sys.exit()
 
 for subdir in subdirs:
     print subdir
-    plotdirs = ['data/hmm_parameters' for _ in range(len(humans)) ]
+    plotdirs = ['data/hmm' for _ in range(len(humans)) for _ in range(len(subsets)) ]
     if not h_vs_h:
         assert not stanford  # would need to update for stanford humans
-        plotdirs.insert(1, 'simu/hmm_parameters/true')
-        plotdirs.insert(3, 'simu/hmm_parameters/true')
-        plotdirs.insert(5, 'simu/hmm_parameters/true')
+        assert subsets is None
+        plotdirs.insert(1, 'simu/hmm/true')
+        plotdirs.insert(3, 'simu/hmm/true')
+        plotdirs.insert(5, 'simu/hmm/true')
 
     if h_vs_h:
         plotdirs = [ basedir + '/' + labels[ipd] + '/params/' + plotdirs[ipd] + '/' + subdir for ipd in range(len(plotdirs))]
@@ -49,7 +55,7 @@ for subdir in subdirs:
         plotdirs = [ basedir + '/' + labels[ipd/2] + '/params/' + plotdirs[ipd] + '/' + subdir for ipd in range(len(plotdirs))]
     
     if h_vs_h:
-        names = [ humans[i] for i in range(len(plotdirs)) ]
+        names = [ h + '@' + s for h in humans for s in subsets ]
     else:
         names = []
         for i in range(len(plotdirs)):
@@ -67,7 +73,8 @@ for subdir in subdirs:
     leaves_per_trees = [ '5' if 'simu' in pd else '1' for pd in plotdirs ]
     cmd += ' --leaves-per-tree ' + ':'.join(leaves_per_trees)
     
-    colorlist = ['632', '596', '418', '632', '596', '418', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1']
+    # colorlist = ['632', '596', '418', '632', '596', '418', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1']
+    colorlist = ['632', '632', '632', '632', '596', '596', '596', '596', '418', '418', '418', '418']
     cmd += ' --colors ' + ':'.join(colorlist)
     if not h_vs_h:
         cmd += ' --linestyles 1:1:1:2:2:2'
