@@ -6,36 +6,56 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins, xmin, xmax):
+    def __init__(self, n_bins, xmin, xmax, sumw2=False):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.n_bins = n_bins
         self.xmin = float(xmin)
         self.xmax = float(xmax)
         self.low_edges = []  # lower edge of each bin
         self.centers = []  # center of each bin
         self.bin_contents = []
-        self.sum_weights_squared = []
-        dx = (self.xmax - self.xmin) / self.n_bins
+        self.errors = None if sumw2 else []
+        self.sum_weights_squared = [] if sumw2 else None
+        dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
         for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
             self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
             self.centers.append(self.low_edges[-1] + 0.5*dx)
             self.bin_contents.append(0.0)
-            self.sum_weights_squared.append(0.0)
+            if sumw2:
+                self.sum_weights_squared.append(0.0)
+            else:
+                self.errors.append(None)  # don't set the error values until we <write> (that is unless you explicitly set them with <set_ibin()>
 
     # ----------------------------------------------------------------------------------------
-    def fill_bin(self, ibin, weight=1.0):
+    def set_ibin(self, ibin, value, error=None):
+        """ set <ibin>th bin to <value> """
+        self.bin_contents[ibin] = value
+        if error is not None:
+            assert self.errors is not None  # you shouldn't have set sumw2 to True in the constructor
+            self.errors[ibin] = error
+
+    # ----------------------------------------------------------------------------------------
+    def fill_ibin(self, ibin, weight=1.0):
+        """ fill <ibin>th bin with <weight> """
         self.bin_contents[ibin] += weight
-        self.sum_weights_squared[ibin] += weight*weight
+        if self.sum_weights_squared is not None:
+            self.sum_weights_squared[ibin] += weight*weight
 
     # ----------------------------------------------------------------------------------------
-    def fill(self, value, weight=1.0):
+    def find_bin(self, value):
+        """ find <ibin> corresponding to <value> """
         if value < self.low_edges[0]:  # underflow
-            self.fill_bin(0, weight)
+            return 0
         elif value >= self.low_edges[self.n_bins + 1]:  # overflow
-            self.fill_bin(self.n_bins + 1, weight)
+            return self.n_bins + 1
         else:
             for ib in range(self.n_bins + 2):  # loop over the rest of the bins
                 if value >= self.low_edges[ib] and value < self.low_edges[ib+1]:
-                    self.fill_bin(ib, weight)
+                    return ib
+
+    # ----------------------------------------------------------------------------------------
+    def fill(self, value, weight=1.0):
+        """ fill bin corresponding to <value> with <weight> """
+        self.fill_ibin(self.find_bin(value), weight)
 
     # ----------------------------------------------------------------------------------------
     def normalize(self):
@@ -50,7 +70,8 @@ class Hist(object):
             print 'WARNING under/overflows'
         for ib in range(1, self.n_bins + 1):
             self.bin_contents[ib] /= sum_value
-            self.sum_weights_squared[ib] /= sum_value*sum_value
+            if self.sum_weights_squared is not None:
+                self.sum_weights_squared[ib] /= sum_value*sum_value
         check_sum = 0.0
         for ib in range(1, self.n_bins + 1):  # check it
             check_sum += self.bin_contents[ib]
@@ -59,10 +80,20 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def write(self, outfname):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('bin_low_edge', 'contents', 'sum-weights-squared'))
+            header = [ 'bin_low_edge', 'contents' ]
+            if self.errors is not None:
+                header.append('error')
+            else:
+                header.append('sum-weights-squared')
+            writer = csv.DictWriter(outfile, header)
             writer.writeheader()
             for ib in range(self.n_bins + 2):
-                writer.writerow({'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib], 'sum-weights-squared':self.sum_weights_squared[ib]})
+                row = {'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib]}
+                if self.errors is not None:
+                    row['error'] = self.errors[ib] if self.errors[ib] is not None else 0.0
+                else:
+                    row['sum-weights-squared'] = self.sum_weights_squared[ib]
+                writer.writerow(row)
 
     # # ----------------------------------------------------------------------------------------
     # def read(fname, hist_label='', log='', normalize=False):

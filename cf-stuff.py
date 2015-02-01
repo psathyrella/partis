@@ -15,23 +15,23 @@ dataset = 'adaptive'
 if dataset == 'stanford':
     humans = ['021-019', '021-044', '021-048', '021-050', '021-055', '021-057', '021-059', '021-060', '021-061', '021-063', '021-068', '021-071', '021-084', '021-018']
 elif dataset == 'adaptive':
-    humans = ['A', 'B', 'C']
-    # humans = ['A', 'B', 'C', '021-019', '021-044', '021-048', '021-050', '021-055', '021-057']
-    # humans = ['021-019', '021-044', '021-048', '021-050', '021-055', '021-057']
+    # humans = ['A', 'B', 'C']
+    humans = ['B',]
 elif dataset == 'both':
     humans = ['A', 'B', 'C', '021-019', '021-044', '021-048', '021-050', '021-055', '021-057', '021-059', '021-060', '021-061', '021-063', '021-068', '021-071', '021-084', '021-018']
 else:
     assert False
 
-subsets = [ str(i) for i in range(4) ]
+subsets = [ str(i) for i in range(8) ]
 
 labels = ['every-10-' + h + '-subset-' + s for h in humans for s in subsets]
 
-# subdirs = [ e + '_del' for e in utils.real_erosions ] + [ i + '_insertion' for i in utils.boundaries]
-subdirs = [ 'mute-freqs/v', ]
+subdirs = [ e + '_del' for e in utils.real_erosions ] + [ i + '_insertion' for i in utils.boundaries] + [ '.', ]
+# subdirs = [ '.', ]
 
 if h_vs_h:
-    outlabel = 'cf-' + dataset + '-data'
+    # outlabel = 'cf-' + dataset + '-data'
+    outlabel = 'cf-subsets'
 else:
     outlabel = 'data-vs-true-simu'
 
@@ -74,7 +74,8 @@ for subdir in subdirs:
     cmd += ' --leaves-per-tree ' + ':'.join(leaves_per_trees)
     
     # colorlist = ['632', '596', '418', '632', '596', '418', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1']
-    colorlist = ['632', '632', '632', '632', '596', '596', '596', '596', '418', '418', '418', '418']
+    colors = ('632', '596', '418')
+    colorlist = [ colors[i] for i in range(len(humans)) for _ in range(len(subsets)) ]
     cmd += ' --colors ' + ':'.join(colorlist)
     if not h_vs_h:
         cmd += ' --linestyles 1:1:1:2:2:2'

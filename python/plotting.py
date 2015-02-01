@@ -10,6 +10,8 @@ from subprocess import check_call
 
 import utils
 import fraction_uncertainty
+import plotconfig
+from hist import Hist
 
 def check_root():
     try:
@@ -27,69 +29,6 @@ else:
     print ' ROOT not found, proceeding without plotting'
 
 from opener import opener
-
-plot_titles = {
-    'v_gene' : 'V gene',
-    'd_gene' : 'D gene',
-    'j_gene' : 'J gene',
-    'hamming_to_true_naive' : 'HTTN',
-    'v_hamming_to_true_naive' : 'V HTTN',
-    'd_hamming_to_true_naive' : 'D HTTN',
-    'j_hamming_to_true_naive' : 'J HTTN',
-    'v_hamming_to_true_naive_normed' : 'V HTTN',
-    'd_hamming_to_true_naive_normed' : 'D HTTN',
-    'j_hamming_to_true_naive_normed' : 'J HTTN',
-    'd_3p_del' : 'D 3p del',
-    'd_5p_del' : 'D 5p del',
-    'dj_insertion' : 'DJ insert length',
-    'dj_insertion_content' : 'DJ insert base content',
-    'j_5p_del' : 'J 5p del',
-    'mute_freqs' : 'mute freq',
-    'v_3p_del' : 'V 3p del',
-    'vd_insertion' : 'VD insert length',
-    'vd_insertion_content' : 'VD insert base content',
-    'all-mean-freq' : 'sequence mutation freq',
-    'v-mean-freq' : 'V mutation freq',
-    'd-mean-freq' : 'D mutation freq',
-    'j-mean-freq' : 'J mutation freq',
-}
-
-true_vs_inferred_hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 19.5),
-    'v_hamming_to_true_naive' : (-0.5, 8.5),
-    'd_hamming_to_true_naive' : (-0.5, 10.5),
-    'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'v_hamming_to_true_naive_normed' : (-0.5, 8.5),
-    'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
-    'j_hamming_to_true_naive_normed' : (-0.5, 20),
-    'd_3p_del' : (-8.5, 8.5),
-    'd_5p_del' : (-8.5, 8.5),
-    'dj_insertion' : (-10.5, 15.5),
-    'j_5p_del' : (-10.5, 15.5),
-    'mute_freqs' : (-.05, .05),  # NOTE make sure you know where the decimal place is here!
-    'v_3p_del' : (-3.5, 3.5),
-    'vd_insertion' : (-8.5, 8.5)}
-
-default_hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 19.5),
-    'v_hamming_to_true_naive' : (-0.5, 8.5),
-    'd_hamming_to_true_naive' : (-0.5, 10.5),
-    'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'v_hamming_to_true_naive_normed' : (-0.5, 8.5),
-    'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
-    'j_hamming_to_true_naive_normed' : (-0.5, 20),
-    'd_3p_del' : (-1, 15),
-    'd_5p_del' : (-1, 18),
-    'dj_insertion' : (-1, 13),
-    'jf_insertion' : (-1, 13),
-    'fv_insertion' : (-1, 13),
-    'j_5p_del' : (-1, 15),
-    'all-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
-    'v-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
-    'd-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
-    'j-mean-freq' : (0.0, 0.3),  # NOTE make sure you know where the decimal place is here!
-    'v_3p_del' : (-1, 6),
-    'vd_insertion' : (-1, 15)}
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
@@ -123,6 +62,7 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 
 # ----------------------------------------------------------------------------------------
 def write_hist_to_file(fname, hist):
+    assert False  # I *think* (well, hope) I'm not using this any more
     """ see the make_hist_from* functions to reverse this operation """
     with opener('w')(fname) as histfile:
         writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'binerror', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
@@ -152,8 +92,9 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False,
             contents.append(float(line['contents']) / refactor)
             if 'sum-weights-squared' in line:
                 sum_weights_squared.append(float(line['sum-weights-squared']) / (refactor*refactor))
-            if 'binerror' in line:
-                bin_errors.append(float(line['binerror']) * math.sqrt(refactor))
+            if 'error' in line:
+                assert 'sum-weights-squared' not in line
+                bin_errors.append(float(line['error']) * math.sqrt(refactor))
             if 'binlabel' in line:
                 bin_labels.append(line['binlabel'])
             else:
@@ -342,7 +283,7 @@ def add_bin_labels_not_in_all_hists(hists):
     return finalhists
 
 # ----------------------------------------------------------------------------------------
-def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats='', bounds=None,
+def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats=None, bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
          colors=None, linestyles=None, unify_bin_labels=False, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
          xline=None, yline=None, draw_str=None):
@@ -471,12 +412,13 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     leg.SetFillStyle(0)
     leg.SetBorderSize(0)
     for htmp in hists:
-        if 'rms' in stats:
-            htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
-        if 'mean' in stats:
-            htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
-        if '0-bin' in stats:
-            htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
+        if stats is not None:
+            if 'rms' in stats:
+                htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
+            if 'mean' in stats:
+                htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
+            if '0-bin' in stats:
+                htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
         leg.AddEntry(htmp, htmp.GetTitle() , 'l')
     leg.Draw()
 
@@ -514,96 +456,116 @@ def get_hists_from_dir(dirname, histname, rescale_entries=None, normalize=False)
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
-        hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=normalize, rescale_entries=rescale_entries)
-        hists[varname].SetTitle(histname)
+        try:
+            hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=normalize, rescale_entries=rescale_entries)
+            hists[varname].SetTitle(histname)
+        except KeyError:  # probably not a histogram csv
+            pass
     if len(hists) == 0:
         print 'ERROR no csvs in',dirname
         sys.exit()
     return hists
 
 # ----------------------------------------------------------------------------------------
+def get_mean_info(hists):
+    assert len(hists) > 0
+    means, sems, normalized_means = [], [], []
+    sum_total, total_entries = 0.0, 0.0
+    bin_values = {}  # map from (int-casted!) bin centers to list (over hists) of entries
+    for hist in hists:
+        means.append(hist.GetMean())
+        sems.append(hist.GetMeanError())  # NOTE is this actually right? depends if root uses .Integral() or .GetEntries() in the GetMeanError() call
+        sum_total += hist.GetMean() * hist.Integral()
+        total_entries += hist.Integral()
+
+        for ib in range(1, hist.GetNbinsX()+1):  # NOTE ignoring under/overflows
+            bincenter = int(hist.GetBinCenter(ib))
+            if bincenter not in bin_values:
+                bin_values[bincenter] = []
+            bin_values[bincenter].append(hist.GetBinContent(ib))
+
+    # find the mean over hists
+    mean_of_means = sum_total / total_entries
+    # then "normalize" each human's mean by this mean over humans, and that human's variance
+    normalized_means = []
+    for im in range(len(means)):
+        if sems[im] > 0.0:
+            normalized_means.append((means[im] - mean_of_means) / sems[im])
+        else:
+            normalized_means.append(0)
+
+    binlist = sorted(bin_values)  # list of all bin centers that occurred in any hist
+    # for k,v in bin_values.items():
+    #     print k, v
+    # for ib in binlist:
+    #     print ib
+    mean_bin_hist = Hist(binlist[-1] - binlist[0], binlist[0], binlist[-1])
+    for bincenter in binlist:
+        ibin = mean_bin_hist.find_bin(bincenter)
+        mean_bin_hist.set_ibin(ibin, numpy.mean(bin_values[bincenter]), error=numpy.std(bin_values[bincenter]))
+
+    return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':mean_bin_hist }
+
+# ----------------------------------------------------------------------------------------
 def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
                         cyst_positions=None, tryp_positions=None, leaves_per_tree=None):
-    """ read all the histograms stored as .csv files in dir1 and dir2, and for those with counterparts overlay them on a new plot """
+    """ 
+    Read all the histograms stored as .csv files in <dirs>, and overlay them on a new plot.
+    If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
+    """
     utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
     if leaves_per_tree is not None:
         assert len(leaves_per_tree) == len(dirs)
+
+    # read hists from <dirs>
     hists = []
     for idir in range(len(dirs)):
         rescale_entries = leaves_per_tree[idir] if leaves_per_tree is not None else None
         hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=True))
 
-
+    # then loop over all the <varname>s we found
     histmisses = []
-    names, means, sems, normalized_means = [], [], [], []
+    all_names, all_means, all_sems, all_normalized_means = [], [], [], []
     for varname, hist in hists[0].iteritems():
-        if 'hamming_to_true_naive' in varname:
-            hist.GetXaxis().SetTitle('hamming')
-        if 'hamming_to_true_naive_normed' in varname:
-            hist.GetXaxis().SetTitle('% hamming')
-
-        meanvals, semvals = [hist.GetMean(),], [hist.GetMeanError(),]  # means for each human for <varname> (and standard error on each mean)
-        sum_total, total_entries = hist.GetMean() * hist.GetEntries(), hist.GetEntries()  # sums of weights for taking the weighted average
-
-        more_hists = []
+        # add the hists
+        all_hists = [hist,]
         missing_hist = False
         for idir in range(1, len(dirs)):
-            try:
-                more_hists.append(hists[idir][varname])
-
-                meanvals.append(hists[idir][varname].GetMean())
-                semvals.append(hists[idir][varname].GetMeanError())
-                sum_total += hists[idir][varname].GetMean() * hists[idir][varname].Integral()
-                total_entries += hists[idir][varname].Integral()
-            except:
-                # print 'WERRING skipping plot with missing hist (%s in %s but not %s)' % (varname, dirs[0], dirs[idir])
+            try:  # add the hist
+                all_hists.append(hists[idir][varname])
+            except KeyError:  # oops, didn't find it in this dir, so skip this variable entirely
                 histmisses.append(varname)
                 missing_hist = True
                 break
         if missing_hist:
             continue        
 
-        # first find the mean over humans
-        mean_of_means = sum_total / total_entries
-        # then "normalize" each human's mean by this mean over humans, and that human's variance
-        normalized_meanvals = []
-        for im in range(len(meanvals)):
-            if semvals[im] > 0:
-                normalized_meanvals.append((meanvals[im] - mean_of_means) / semvals[im])
-            else:
-                normalized_meanvals.append(0)
-        names.append(varname)
-        means.append(meanvals)
-        sems.append(semvals)
-        normalized_means.append(normalized_meanvals)
+        # get mean info
+        meaninfo = get_mean_info(all_hists)
+        all_names.append(varname)
+        all_means.append(meaninfo['means'])
+        all_sems.append(meaninfo['sems'])
+        all_normalized_means.append(meaninfo['normalized_means'])
+        meaninfo['mean_bin_hist'].write(outdir + '/plots/' + varname + '-mean-bins.csv')
 
-        # print '%s %.2f' % (varname, mean_of_means)
-        # for i in range(len(dirs)):
-        #     print '   %.2f %.2f %.2f %.2f' % (hists[i][varname].GetMean(), hists[i][varname].GetMeanError(), hists[i][varname].Integral(), meanvals[i]),
-        # print ''
-
-        var_type = 'int'
-        if hist.GetXaxis().GetBinLabel(1) != '':
-            var_type = 'bool'
+        # bullshit complicated config stuff
+        var_type = 'int' if hist.GetXaxis().GetBinLabel(1) == '' else 'bool'
+        plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else ''
         bounds = None
         if plot_performance:
-            # use_hard_bounds == 'true_vs_inferred':
-            if varname in true_vs_inferred_hard_bounds:
-                bounds = true_vs_inferred_hard_bounds[varname]
+            bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
-            if varname in default_hard_bounds:
-                bounds = default_hard_bounds[varname]
-            if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
-                tmpname = varname[ varname.find('_insertion') - 2 : ]
-                bounds = default_hard_bounds[tmpname]
-        unify_bin_labels = False
-        extrastats = ''
+            bounds = None
+            # bounds = default_hard_bounds.setdefault(varname, None)
+            # if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
+            #     tmpname = varname[ varname.find('_insertion') - 2 : ]
+            #     bounds = default_hard_bounds[tmpname]
+        unify_bin_labels, extrastats = False, ''
         if '_gene' in varname:
             if hist.GetNbinsX() == 2:
-                extrastats = ' 0-bin'
-            else:
+                extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            else:  # whereas for the gene usage frequencies we need to make sure all the plots have the genes in the same order
                 unify_bin_labels = True
-        plottitle = plot_titles[varname] if varname in plot_titles else ''
         xtitle, xline, draw_str = None, None, None
         if 'IGH' in varname:
             if 'mute-freqs' in dirs[0]:
@@ -620,53 +582,28 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                 ilastdash = varname.rfind('-')
                 gene = utils.unsanitize_name(varname[:ilastdash])
                 base_varname = varname[ilastdash + 1 :]
-                base_plottitle = plot_titles[base_varname] if base_varname in plot_titles else ''
+                base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
                 plottitle = gene + ' -- ' + base_plottitle
-        draw(hist, var_type, plotname=varname, plotdir=outdir, more_hists=more_hists, write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
+
+        # draw that little #$*(!
+        draw(all_hists[0], var_type, plotname=varname, plotdir=outdir, more_hists=all_hists[1:], write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels,
              xtitle=xtitle, xline=xline, draw_str=draw_str)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)
 
+    # write mean info
     with opener('w')(outdir + '/plots/means.csv') as meanfile:
         writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
         writer.writeheader()
-        for ivar in range(len(means)):
+        for ivar in range(len(all_means)):
             writer.writerow({
-                'name':names[ivar],
-                'means':':'.join([str(m) for m in means[ivar]]),
-                'sems':':'.join([str(s) for s in sems[ivar]]),
-                'normalized-means':':'.join([str(nm) for nm in normalized_means[ivar]])
+                'name':all_names[ivar],
+                'means':':'.join([str(m) for m in all_means[ivar]]),
+                'sems':':'.join([str(s) for s in all_sems[ivar]]),
+                'normalized-means':':'.join([str(nm) for nm in all_normalized_means[ivar]])
             })
-    # meanlist, variancelist = [], []
-    # for ibin in range(0, len(means)):
-    #     # print '%5.2f %5.2f' % (numpy.mean(means[ibin]), numpy.var(means[ibin]))
-    #     meanlist.append(numpy.mean(means[ibin]))
-    #     variancelist.append(numpy.var(means[ibin]))
-
-    # # ----------------------------------------------------------------------------------------
-    import matplotlib
-    matplotlib.use('Agg')
-    from matplotlib import pyplot
-    # gridsize=30
-    # pyplot.subplot(111)
-    # pyplot.hexbin(meanlist, variancelist, gridsize=gridsize, cmap=matplotlib.cm.jet, bins=None)
-    # cb = pyplot.colorbar()
-    # cb.set_label('mean value')
-
-    flatmeans = []
-    for mv in means:
-        flatmeans += mv
-    n, bins, patches = pyplot.hist(flatmeans)
-    pyplot.xlabel(r'$(x - \mu) / \sigma$')
-    # pyplot.ylabel('')
-    # pyplot.title('Histogram of IQ')
-    pyplot.text(-5, 15, r'$\sigma=' + str(math.sqrt(numpy.var(flatmeans))) + '$')
-    # pyplot.axis([-5, 5, 0, 25])
-
-    pyplot.savefig(outdir + '/plots/means.png')
-    # ----------------------------------------------------------------------------------------
 
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])

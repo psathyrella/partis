@@ -33,14 +33,14 @@ for subset in 4 5 6 7 8 9; do
         subfname=test/$dtype/$human/every-$modulo-subset-$subset.csv.bz2
 
         label=every-$modulo-$human-subset-$subset
-        ./plotperformance.py --label $label --plotdir $www/partis/$label \
+        echo ./plotperformance.py --label $label --plotdir $www/partis/$label \
         		     --datafname $subfname --action cache-data-parameters \
-        		     --extra-args " --slurm:--workdir:tmp/$RANDOM --n-procs 50" &>>$label.log  &
+        		     --extra-args " --slurm:--workdir:tmp/$RANDOM --n-procs 50"  #&>>$label.log  &
         # --extra-args " --mimic-data-read-length" --n-queries 1000
         # if (( iproc >= 5 )); then
     	#     break
         # fi
         (( iproc++ ))
-        sleep 30
+        # sleep 30
     done
 done
