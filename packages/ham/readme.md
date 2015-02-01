@@ -14,8 +14,7 @@
 
 # ham -- the fantabulous HMM compiler
 
-`ham` is based on [StochHMM](https://github.com/KorfLab/StochHMM).
-
+`ham` began from [StochHMM](https://github.com/KorfLab/StochHMM), but has been completely rewritten.
 
 # dependencies
 
