@@ -24,6 +24,7 @@ parser.add_argument('--colors')
 parser.add_argument('--linestyles')
 parser.add_argument('--datadir', default='data/imgt')
 parser.add_argument('--leaves-per-tree')
+parser.add_argument('--calculate-mean-info', action='store_false')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -47,7 +48,7 @@ plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
                              names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin,
                              colors=args.colors, linestyles=args.linestyles, plot_performance=args.plot_performance, cyst_positions=cyst_positions, tryp_positions=tryp_positions,
-                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=False)
+                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=args.calculate_mean_info)
 
 # label = 'check-new-imgt'
 # plotdir = '/var/www/sharing/dralph/partis/performance/'

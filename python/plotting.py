@@ -599,8 +599,11 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
         xtitle, xline, draw_str = None, None, None
         if 'IGH' in varname:
+            varstr = varname
+            if '-mean-bins' in varname:
+                varstr = varname.replace('-mean-bins', '')
             if 'mute-freqs' in dirs[0]:
-                gene = utils.unsanitize_name(varname)
+                gene = utils.unsanitize_name(varstr)
                 plottitle = gene + ' -- mutation frequency'
                 xtitle = 'position'
                 xline = None
@@ -610,9 +613,9 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                     xline = int(tryp_positions[gene])
                 draw_str = 'e'
             else:
-                ilastdash = varname.rfind('-')
-                gene = utils.unsanitize_name(varname[:ilastdash])
-                base_varname = varname[ilastdash + 1 :]
+                ilastdash = varstr.rfind('-')
+                gene = utils.unsanitize_name(varstr[:ilastdash])
+                base_varname = varstr[ilastdash + 1 :]
                 base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
                 plottitle = gene + ' -- ' + base_plottitle
 
