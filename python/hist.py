@@ -10,6 +10,7 @@ class Hist(object):
         self.n_bins = n_bins
         self.xmin = float(xmin)
         self.xmax = float(xmax)
+        self.bin_labels = []
         self.low_edges = []  # lower edge of each bin
         self.centers = []  # center of each bin
         self.bin_contents = []
@@ -17,6 +18,7 @@ class Hist(object):
         self.sum_weights_squared = [] if sumw2 else None
         dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
         for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
+            self.bin_labels.append('')
             self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
             self.centers.append(self.low_edges[-1] + 0.5*dx)
             self.bin_contents.append(0.0)
@@ -26,12 +28,13 @@ class Hist(object):
                 self.errors.append(None)  # don't set the error values until we <write> (that is unless you explicitly set them with <set_ibin()>
 
     # ----------------------------------------------------------------------------------------
-    def set_ibin(self, ibin, value, error=None):
+    def set_ibin(self, ibin, value, error=None, label=''):
         """ set <ibin>th bin to <value> """
         self.bin_contents[ibin] = value
         if error is not None:
             assert self.errors is not None  # you shouldn't have set sumw2 to True in the constructor
             self.errors[ibin] = error
+        self.bin_labels[ibin] = label
 
     # ----------------------------------------------------------------------------------------
     def fill_ibin(self, ibin, weight=1.0):
@@ -80,7 +83,7 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def write(self, outfname):
         with opener('w')(outfname) as outfile:
-            header = [ 'bin_low_edge', 'contents' ]
+            header = [ 'bin_low_edge', 'contents', 'binlabel' ]
             if self.errors is not None:
                 header.append('error')
             else:
@@ -88,7 +91,7 @@ class Hist(object):
             writer = csv.DictWriter(outfile, header)
             writer.writeheader()
             for ib in range(self.n_bins + 2):
-                row = {'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib]}
+                row = {'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib], 'binlabel':self.bin_labels[ib] }
                 if self.errors is not None:
                     row['error'] = self.errors[ib] if self.errors[ib] is not None else 0.0
                 else:

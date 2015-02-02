@@ -269,10 +269,11 @@ def add_bin_labels_not_in_all_hists(hists):
     for ih in range(len(histmaps)):
         original_hist = hists[ih]
         hmap = histmaps[ih]
-        finalhists.append(TH1D(original_hist.GetName(), original_hist.GetTitle(), len(all_labels), 0.5, len(all_labels) + 0.5))
+        finalhists.append(TH1D('uni-bin-label-' + original_hist.GetName(), original_hist.GetTitle(), len(all_labels), 0.5, len(all_labels) + 0.5))
         for ilabel in range(len(all_labels)):
             label = all_labels[ilabel]
             ibin = ilabel + 1  # root conventions
+            finalhists[-1].GetXaxis().SetBinLabel(ibin, label)
             if label in hmap:
                 finalhists[-1].SetBinContent(ibin, hmap[label][0])
                 finalhists[-1].SetBinError(ibin, hmap[label][1])
@@ -285,7 +286,7 @@ def add_bin_labels_not_in_all_hists(hists):
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats=None, bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
-         colors=None, linestyles=None, unify_bin_labels=False, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
+         colors=None, linestyles=None, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
          xline=None, yline=None, draw_str=None):
     assert os.path.exists(plotdir)
     if not has_root:
@@ -305,9 +306,6 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     if more_hists != None:
         hists = hists + more_hists
 
-    if unify_bin_labels:
-        hists = add_bin_labels_not_in_all_hists(hists)
-
     xmin, xmax, ymax = None, None, None
     for htmp in hists:
         if rebin is not None:
@@ -317,16 +315,10 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                 htmp.SetBinError(ibin, htmp.GetBinError(ibin) * scale_errors)
 
         if xmin is None or htmp.GetBinLowEdge(1) < xmin:
-            if 'd_gene' in plotname:
-                print 'a', xmin, htmp.GetBinLowEdge(1)
             xmin = htmp.GetBinLowEdge(1)
         if xmax is None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
-            if 'd_gene' in plotname:
-                print 'b', xmax, htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
             xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
         if ymax is None or htmp.GetMaximum() > ymax:
-            if 'd_gene' in plotname:
-                print 'c', ymax, htmp.GetMaximum()
             ymax = htmp.GetMaximum()
     if bounds != None:
         xmin, xmax = bounds
@@ -508,6 +500,7 @@ def get_mean_info(hists):
     means, sems, normalized_means = [], [], []
     sum_total, total_entries = 0.0, 0.0
     bin_values = {}  # map from bin centers to list (over hists) of entries (corresponds to <ibin> in unihist)
+    bin_labels = {}
     unihist = get_unified_bin_hist(hists)
     for hist in hists:
         means.append(hist.GetMean())
@@ -519,7 +512,9 @@ def get_mean_info(hists):
             ibin = unihist.find_bin(hist.GetBinCenter(ib))
             if ibin not in bin_values:
                 bin_values[ibin] = []
+                bin_labels[ibin] = hist.GetXaxis().GetBinLabel(ib)
             bin_values[ibin].append(hist.GetBinContent(ib))
+            assert bin_labels[ibin] == hist.GetXaxis().GetBinLabel(ib)
 
     # find the mean over hists
     mean_of_means = sum_total / total_entries
@@ -537,13 +532,13 @@ def get_mean_info(hists):
     # for ib in binlist:
     #     print ib
     for ibin in binlist:  # NOTE this is *not* a weighted mean, i.e. you better have made sure the subsets all have the same sample size
-        unihist.set_ibin(ibin, numpy.mean(bin_values[ibin]), error=numpy.std(bin_values[ibin]))
+        unihist.set_ibin(ibin, numpy.mean(bin_values[ibin]), error=numpy.std(bin_values[ibin]), label=bin_labels[ibin])
 
     return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':unihist }
 
 # ----------------------------------------------------------------------------------------
 def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
-                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None):
+                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None, calculate_mean_info=True):
     """ 
     Read all the histograms stored as .csv files in <dirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
@@ -575,13 +570,16 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         if missing_hist:
             continue        
 
-        # get mean info
-        meaninfo = get_mean_info(all_hists)
-        all_names.append(varname)
-        all_means.append(meaninfo['means'])
-        all_sems.append(meaninfo['sems'])
-        all_normalized_means.append(meaninfo['normalized_means'])
-        meaninfo['mean_bin_hist'].write(outdir + '/plots/' + varname + '-mean-bins.csv')
+        if '_gene' in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
+            all_hists = add_bin_labels_not_in_all_hists(all_hists)
+
+        if calculate_mean_info:
+            meaninfo = get_mean_info(all_hists)
+            all_names.append(varname)
+            all_means.append(meaninfo['means'])
+            all_sems.append(meaninfo['sems'])
+            all_normalized_means.append(meaninfo['normalized_means'])
+            meaninfo['mean_bin_hist'].write(outdir + '/plots/' + varname + '-mean-bins.csv')
 
         # bullshit complicated config stuff
         var_type = 'int' if hist.GetXaxis().GetBinLabel(1) == '' else 'bool'
@@ -595,12 +593,10 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
             # if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
             #     tmpname = varname[ varname.find('_insertion') - 2 : ]
             #     bounds = default_hard_bounds[tmpname]
-        unify_bin_labels, extrastats = False, ''
+        extrastats = ''
         if '_gene' in varname:
             if hist.GetNbinsX() == 2:
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-            else:  # whereas for the gene usage frequencies we need to make sure all the plots have the genes in the same order
-                unify_bin_labels = True
         xtitle, xline, draw_str = None, None, None
         if 'IGH' in varname:
             if 'mute-freqs' in dirs[0]:
@@ -622,23 +618,24 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
 
         # draw that little #$*(!
         draw(all_hists[0], var_type, plotname=varname, plotdir=outdir, more_hists=all_hists[1:], write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
-             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles, unify_bin_labels=unify_bin_labels,
+             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles,
              xtitle=xtitle, xline=xline, draw_str=draw_str)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)
 
-    # write mean info
-    with opener('w')(outdir + '/plots/means.csv') as meanfile:
-        writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
-        writer.writeheader()
-        for ivar in range(len(all_means)):
-            writer.writerow({
-                'name':all_names[ivar],
-                'means':':'.join([str(m) for m in all_means[ivar]]),
-                'sems':':'.join([str(s) for s in all_sems[ivar]]),
-                'normalized-means':':'.join([str(nm) for nm in all_normalized_means[ivar]])
-            })
+    if calculate_mean_info:
+        # write mean info
+        with opener('w')(outdir + '/plots/means.csv') as meanfile:
+            writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
+            writer.writeheader()
+            for ivar in range(len(all_means)):
+                writer.writerow({
+                    'name':all_names[ivar],
+                    'means':':'.join([str(m) for m in all_means[ivar]]),
+                    'sems':':'.join([str(s) for s in all_sems[ivar]]),
+                    'normalized-means':':'.join([str(nm) for nm in all_normalized_means[ivar]])
+                })
 
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
     check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
