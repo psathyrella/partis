@@ -298,6 +298,9 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             cwidth, cheight = 1000, 600
     cvn = TCanvas('cvn-'+plotname, '', cwidth, cheight)
 
+    # if 'd_gene' in plotname:
+    #     for ib in range(hist.GetNbinsX()+1):
+    #         print hist.GetXaxis().GetBinLowEdge(ib), hist.GetBinContent(ib)
     hists = [hist,]
     if more_hists != None:
         hists = hists + more_hists
@@ -313,11 +316,17 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             for ibin in range(htmp.GetNbinsX()+2):
                 htmp.SetBinError(ibin, htmp.GetBinError(ibin) * scale_errors)
 
-        if xmin == None or htmp.GetBinLowEdge(1) < xmin:
+        if xmin is None or htmp.GetBinLowEdge(1) < xmin:
+            if 'd_gene' in plotname:
+                print 'a', xmin, htmp.GetBinLowEdge(1)
             xmin = htmp.GetBinLowEdge(1)
-        if xmax == None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
+        if xmax is None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
+            if 'd_gene' in plotname:
+                print 'b', xmax, htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
             xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
-        if ymax == None or htmp.GetMaximum() > ymax:
+        if ymax is None or htmp.GetMaximum() > ymax:
+            if 'd_gene' in plotname:
+                print 'c', ymax, htmp.GetMaximum()
             ymax = htmp.GetMaximum()
     if bounds != None:
         xmin, xmax = bounds
@@ -467,11 +476,39 @@ def get_hists_from_dir(dirname, histname, rescale_entries=None, normalize=False)
     return hists
 
 # ----------------------------------------------------------------------------------------
+def get_unified_bin_hist(hists):
+    """ 
+    Unify bins in <hists>.
+    Starts from the bins from <hists[0]>, then loops over the rest of 'em adding bins as it goes (with width from <hists[0]>) so we won't have any under/overflows.
+    NOTE totally ignores under/overflows in the original hists. That's on purpose, but like everying else in this foolish thing we call life may in fact turn out to be dumb later on.
+    """
+    assert len(hists) > 0
+    dx = hists[0].GetXaxis().GetBinLowEdge(2) - hists[0].GetXaxis().GetBinLowEdge(1)  # always have at least one bin, in which case this'd be the low edge of the overflow bin minus low edge of the first bin
+    # print 'dx:', dx
+    low_edges = []
+    for ib in range(1, hists[0].GetNbinsX()+1):
+        low_edges.append(hists[0].GetXaxis().GetBinLowEdge(ib))
+
+    # for d in [ low_edges[i] - low_edges[i-1] for i in range(1, len(low_edges)) ]:
+    #     print ' ', d
+
+    for hist in hists[1:]:
+        for ib in range(1, hist.GetNbinsX()+1):
+            bincenter = hist.GetXaxis().GetBinCenter(ib)
+            while bincenter <= low_edges[0]:  # as long as <bincenter> is outside of the current bounds, keep adding bins on the left...
+                low_edges.insert(0, low_edges[0] - dx)
+            while bincenter >= low_edges[-1] + dx:  # ...and same thing on the right
+                low_edges.insert(len(low_edges), low_edges[-1] + dx)
+
+    return Hist(len(low_edges), low_edges[0], low_edges[-1] + dx)
+
+# ----------------------------------------------------------------------------------------
 def get_mean_info(hists):
     assert len(hists) > 0
     means, sems, normalized_means = [], [], []
     sum_total, total_entries = 0.0, 0.0
-    bin_values = {}  # map from (int-casted!) bin centers to list (over hists) of entries
+    bin_values = {}  # map from bin centers to list (over hists) of entries (corresponds to <ibin> in unihist)
+    unihist = get_unified_bin_hist(hists)
     for hist in hists:
         means.append(hist.GetMean())
         sems.append(hist.GetMeanError())  # NOTE is this actually right? depends if root uses .Integral() or .GetEntries() in the GetMeanError() call
@@ -479,10 +516,10 @@ def get_mean_info(hists):
         total_entries += hist.Integral()
 
         for ib in range(1, hist.GetNbinsX()+1):  # NOTE ignoring under/overflows
-            bincenter = int(hist.GetBinCenter(ib))
-            if bincenter not in bin_values:
-                bin_values[bincenter] = []
-            bin_values[bincenter].append(hist.GetBinContent(ib))
+            ibin = unihist.find_bin(hist.GetBinCenter(ib))
+            if ibin not in bin_values:
+                bin_values[ibin] = []
+            bin_values[ibin].append(hist.GetBinContent(ib))
 
     # find the mean over hists
     mean_of_means = sum_total / total_entries
@@ -494,17 +531,15 @@ def get_mean_info(hists):
         else:
             normalized_means.append(0)
 
-    binlist = sorted(bin_values)  # list of all bin centers that occurred in any hist
+    binlist = sorted(bin_values)  # list of all bin indices that were filled in any hist
     # for k,v in bin_values.items():
     #     print k, v
     # for ib in binlist:
     #     print ib
-    mean_bin_hist = Hist(binlist[-1] - binlist[0], binlist[0], binlist[-1])
-    for bincenter in binlist:
-        ibin = mean_bin_hist.find_bin(bincenter)
-        mean_bin_hist.set_ibin(ibin, numpy.mean(bin_values[bincenter]), error=numpy.std(bin_values[bincenter]))
+    for ibin in binlist:  # NOTE this is *not* a weighted mean, i.e. you better have made sure the subsets all have the same sample size
+        unihist.set_ibin(ibin, numpy.mean(bin_values[ibin]), error=numpy.std(bin_values[ibin]))
 
-    return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':mean_bin_hist }
+    return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':unihist }
 
 # ----------------------------------------------------------------------------------------
 def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
