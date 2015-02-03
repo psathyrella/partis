@@ -32,18 +32,19 @@ class MuteFreqer(object):
         # first do overall mute freqs
         freq = utils.get_mutation_rate(self.germline_seqs, info)
         self.mean_rates['all'].fill(freq)
+
+        # then per-region stuff
         for region in utils.regions:
-            # then do per-region mean mute freqs
+            # per-region mean freqs
             freq = utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
             self.mean_rates[region].fill(freq)
 
-            # then per-gene per-position
+            # per-gene per-position
             if info[region + '_gene'] not in self.counts:
                 self.counts[info[region + '_gene']] = {}
             mute_counts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
             germline_seq = info[region + '_gl_seq']
             query_seq = info[region + '_qr_seq']
-            # utils.color_mutants(germline_seq, query_seq, print_result=True, extra_str='  ')
             assert len(germline_seq) == len(query_seq)
             for inuke in range(len(germline_seq)):
                 i_germline = inuke + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
@@ -54,12 +55,13 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, calculate_uncertainty=True):
+        """ convert from counts to mut freqs """
         assert not self.finalized
 
-        # calculate mute freqs
         self.n_cached, self.n_not_cached = 0, 0
         for gene in self.counts:
             self.freqs[gene], self.plotting_info[gene] = {}, []
+            # NOTE <counts> hold the overall (not per-base) frequencies, while <freqs> holds the per-base frequencies
             counts, freqs, plotting_info = self.counts[gene], self.freqs[gene], self.plotting_info[gene]
             sorted_positions = sorted(counts)
             for position in sorted_positions:
@@ -173,16 +175,14 @@ class MuteFreqer(object):
             paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 
         # make mean mute freq hists
-        # hist = plotting.make_hist_from_bin_entry_file(mean_freq_outfname.replace('REGION', 'all'), 'all-mean-freq')
         hist = plotting.make_hist_from_my_hist_class(self.mean_rates['all'], 'all-mean-freq')
         plotting.draw(hist, 'float', plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         for region in utils.regions:
-            # hist = plotting.make_hist_from_bin_entry_file(mean_freq_outfname.replace('REGION', region), region+'-mean-freq')
             hist = plotting.make_hist_from_my_hist_class(self.mean_rates[region], region+'-mean-freq')
             plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
 
-        # then write make html file and fix permissiions
+        # then write html file and fix permissiions
         for region in utils.regions:
             check_call(['./makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
             check_call(['./makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])

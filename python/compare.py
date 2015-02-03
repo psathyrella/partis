@@ -24,7 +24,8 @@ parser.add_argument('--colors')
 parser.add_argument('--linestyles')
 parser.add_argument('--datadir', default='data/imgt')
 parser.add_argument('--leaves-per-tree')
-parser.add_argument('--calculate-mean-info', action='store_false')
+parser.add_argument('--linewidth')
+parser.add_argument('--dont-calculate-mean-info', action='store_true')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -37,7 +38,6 @@ for iname in range(len(args.names)):
 
 assert len(args.plotdirs) == len(args.names)
 
-print 'reading data from %s' % args.datadir
 with opener('r')(args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
     cyst_positions = json.load(json_file)
 with opener('r')(args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
@@ -48,7 +48,7 @@ plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
                              names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin,
                              colors=args.colors, linestyles=args.linestyles, plot_performance=args.plot_performance, cyst_positions=cyst_positions, tryp_positions=tryp_positions,
-                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=args.calculate_mean_info)
+                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=(not args.dont_calculate_mean_info), linewidth=args.linewidth)
 
 # label = 'check-new-imgt'
 # plotdir = '/var/www/sharing/dralph/partis/performance/'

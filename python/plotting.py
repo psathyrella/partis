@@ -62,7 +62,7 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 
 # ----------------------------------------------------------------------------------------
 def write_hist_to_file(fname, hist):
-    assert False  # I *think* (well, hope) I'm not using this any more
+    # assert False  # I *think* (well, hope) I'm not using this any more
     """ see the make_hist_from* functions to reverse this operation """
     with opener('w')(fname) as histfile:
         writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'binerror', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
@@ -243,7 +243,12 @@ def make_hist_from_my_hist_class(myhist, name):
     roothist = TH1D(name, '', myhist.n_bins, myhist.xmin, myhist.xmax)
     for ibin in range(myhist.n_bins + 2):
         roothist.SetBinContent(ibin, myhist.bin_contents[ibin])
-        roothist.SetBinError(ibin, math.sqrt(myhist.sum_weights_squared[ibin]))
+        if myhist.sum_weights_squared is not None:
+            if myhist.sum_weights_squared[ibin] is not None:
+                roothist.SetBinError(ibin, math.sqrt(myhist.sum_weights_squared[ibin]))
+        elif myhist.errors is not None:
+            if myhist.errors[ibin] is not None:
+                roothist.SetBinError(ibin, myhist.errors[ibin])
         # if 'all-mean-freq' in name:
         #     print '  ', myhist.bin_contents[ibin], math.sqrt(myhist.sum_weights_squared[ibin])
     return roothist
@@ -284,10 +289,25 @@ def add_bin_labels_not_in_all_hists(hists):
     return finalhists
 
 # ----------------------------------------------------------------------------------------
+def GetMaximumWithBounds(hist, xmin, xmax):
+    """ root you fucking suck """
+    ymax = None
+    for ibin in range(1, hist.GetNbinsX()+1):
+        if hist.GetXaxis().GetBinUpEdge(ibin) < xmin:
+            continue
+        if hist.GetXaxis().GetBinLowEdge(ibin) > xmax:
+            continue
+        if ymax is None or hist.GetBinContent(ibin) > ymax:
+            ymax = hist.GetBinContent(ibin)
+
+    assert ymax is not None
+    return ymax
+
+# ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats=None, bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
          colors=None, linestyles=None, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
-         xline=None, yline=None, draw_str=None):
+         xline=None, yline=None, draw_str=None, normalization_bounds=None, linewidth=None):
     assert os.path.exists(plotdir)
     if not has_root:
         return
@@ -299,9 +319,6 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             cwidth, cheight = 1000, 600
     cvn = TCanvas('cvn-'+plotname, '', cwidth, cheight)
 
-    # if 'd_gene' in plotname:
-    #     for ib in range(hist.GetNbinsX()+1):
-    #         print hist.GetXaxis().GetBinLowEdge(ib), hist.GetBinContent(ib)
     hists = [hist,]
     if more_hists != None:
         hists = hists + more_hists
@@ -314,12 +331,22 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             for ibin in range(htmp.GetNbinsX()+2):
                 htmp.SetBinError(ibin, htmp.GetBinError(ibin) * scale_errors)
 
+        if normalization_bounds is None:  # renormalize the hist within these bounds
+            this_y_max = htmp.GetMaximum()
+        else:
+            ibin_start = 0 if normalization_bounds[0] is None else htmp.FindBin(normalization_bounds[0])
+            ibin_end = htmp.GetNbinsX() if normalization_bounds[1] is None else htmp.FindBin(normalization_bounds[1])
+            if htmp.Integral(ibin_start, ibin_end) > 0.0:
+                htmp.Scale(1./htmp.Integral(ibin_start, ibin_end))  # NOTE this is inclusive, i.e. includes <ibin_end>
+            this_y_max = GetMaximumWithBounds(htmp, htmp.GetXaxis().GetBinLowEdge(ibin_start), htmp.GetXaxis().GetBinUpEdge(ibin_end))
+
+        if ymax is None or this_y_max > ymax:
+            ymax = this_y_max
+
         if xmin is None or htmp.GetBinLowEdge(1) < xmin:
             xmin = htmp.GetBinLowEdge(1)
         if xmax is None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
             xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
-        if ymax is None or htmp.GetMaximum() > ymax:
-            ymax = htmp.GetMaximum()
     if bounds != None:
         xmin, xmax = bounds
     hframe = TH1D('hframe', '', hist.GetNbinsX(), xmin, xmax)
@@ -398,11 +425,14 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         htmp = hists[ih]
         htmp.SetLineColor(colors[ih])
         # if ih == 0:
-        htmp.SetMarkerSize(0)
+        # htmp.SetMarkerSize(0)
         htmp.SetMarkerColor(colors[ih])
         htmp.SetLineStyle(linestyles[ih])
-        if ih < 6 and len(hists) < 5:
-            htmp.SetLineWidth(6-ih)
+        if linewidth is None:
+            if ih < 6 and len(hists) < 5:
+                htmp.SetLineWidth(6-ih)
+        else:
+            htmp.SetLineWidth(int(linewidth))
         htmp.Draw(draw_str)
 
     if len(hists) < 5:
@@ -501,7 +531,7 @@ def get_mean_info(hists):
     sum_total, total_entries = 0.0, 0.0
     bin_values = {}  # map from bin centers to list (over hists) of entries (corresponds to <ibin> in unihist)
     bin_labels = {}
-    unihist = get_unified_bin_hist(hists)
+    unihist = get_unified_bin_hist(hists)  # empty hist with logical OR of bins in <hists> (with some assumptions... shit is complicated yo)
     for hist in hists:
         means.append(hist.GetMean())
         sems.append(hist.GetMeanError())  # NOTE is this actually right? depends if root uses .Integral() or .GetEntries() in the GetMeanError() call
@@ -527,10 +557,6 @@ def get_mean_info(hists):
             normalized_means.append(0)
 
     binlist = sorted(bin_values)  # list of all bin indices that were filled in any hist
-    # for k,v in bin_values.items():
-    #     print k, v
-    # for ib in binlist:
-    #     print ib
     for ibin in binlist:  # NOTE this is *not* a weighted mean, i.e. you better have made sure the subsets all have the same sample size
         unihist.set_ibin(ibin, numpy.mean(bin_values[ibin]), error=numpy.std(bin_values[ibin]), label=bin_labels[ibin])
 
@@ -538,7 +564,7 @@ def get_mean_info(hists):
 
 # ----------------------------------------------------------------------------------------
 def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
-                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None, calculate_mean_info=True):
+                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None, calculate_mean_info=True, linewidth=None):
     """ 
     Read all the histograms stored as .csv files in <dirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
@@ -551,7 +577,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
     hists = []
     for idir in range(len(dirs)):
         rescale_entries = leaves_per_tree[idir] if leaves_per_tree is not None else None
-        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=True))
+        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=(not calculate_mean_info)))
 
     # then loop over all the <varname>s we found
     histmisses = []
@@ -597,7 +623,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         if '_gene' in varname:
             if hist.GetNbinsX() == 2:
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-        xtitle, xline, draw_str = None, None, None
+        xtitle, xline, draw_str, normalization_bounds = None, None, None, None
         if 'IGH' in varname:
             varstr = varname
             if '-mean-bins' in varname:
@@ -609,9 +635,14 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                 xline = None
                 if utils.get_region(gene) == 'v' and cyst_positions is not None:
                     xline = cyst_positions[gene]['cysteine-position']
+                    normalization_bounds = (int(cyst_positions[gene]['cysteine-position']) - 70, None)
                 elif utils.get_region(gene) == 'j' and tryp_positions is not None:
                     xline = int(tryp_positions[gene])
-                draw_str = 'e'
+                    normalization_bounds = (None, int(tryp_positions[gene]) + 5)
+                if errors:
+                    draw_str = 'e'
+                else:
+                    draw_str = 'hist'
             else:
                 ilastdash = varstr.rfind('-')
                 gene = utils.unsanitize_name(varstr[:ilastdash])
@@ -622,7 +653,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         # draw that little #$*(!
         draw(all_hists[0], var_type, plotname=varname, plotdir=outdir, more_hists=all_hists[1:], write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles,
-             xtitle=xtitle, xline=xline, draw_str=draw_str)
+             xtitle=xtitle, xline=xline, draw_str=draw_str, normalization_bounds=normalization_bounds, linewidth=linewidth)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)
