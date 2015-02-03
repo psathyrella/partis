@@ -29,19 +29,19 @@ parser.add_argument('-b', action='store_true')  # passed on to ROOT when plottin
 # parser.add_argument('--write-means-over-subsets', action='store_true')
 args = parser.parse_args()
 
+subdirs = [ e + '_del' for e in utils.real_erosions ] \
+          + [ i + '_insertion' for i in utils.boundaries]
 # subdirs = [ '.', ] \
 #           + [ e + '_del' for e in utils.real_erosions ] \
 #           + [ i + '_insertion' for i in utils.boundaries] \
 #           + [ 'mute-freqs', ] \
 #           + [ 'mute-freqs/' + r for r in utils.regions ]
-subdirs = [ 'mute-freqs/v', ]
+# subdirs = [ 'd_3p_del', ]
 
 outlabel = 'cf-subsets'
 webdir = '/var/www/sharing/dralph/partis'
 subsets = [ str(i) for i in range(int(modulo)-1) ]
 print '\nNOT USING ALL SUBSETS\n'
-# plotting.make_mean_plots(baseoutdir, subdirs,  baseoutdir + '/hexmean')
-# sys.exit()
 
 colors = {'A':'595', 'B':'807', 'C':'834'}  #('632', '596', '418')
 
@@ -52,6 +52,9 @@ for subdir in subdirs:
         baselabel = 'every-' + modulo + '-' + human
         baseoutdir = webdir + '/' + baselabel + '/' + outlabel
         labels = [ baselabel + '-subset-' + s for s in subsets]
+
+        plotting.make_mean_plots(baseoutdir , subdirs,  baseoutdir + '/hexmean')
+        sys.exit()
     
         plotdirs = ['data/hmm' for _ in range(len(subsets)) ]
         plotdirs = [ basedir + '/' + labels[ipd] + '/params/' + plotdirs[ipd] + '/' + subdir for ipd in range(len(plotdirs))]
