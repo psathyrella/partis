@@ -84,6 +84,8 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False,
     """
     low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
     xtitle = ''
+    if normalize and ('mute-freqs/v' in fname or 'mute-freqs/d' in fname or 'mute-freqs/j' in fname):
+        print '\nERROR normalizing %s\n' % fname
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
         for line in reader:
@@ -307,7 +309,7 @@ def GetMaximumWithBounds(hist, xmin, xmax):
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats=None, bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
          colors=None, linestyles=None, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
-         xline=None, yline=None, draw_str=None, normalization_bounds=None, linewidth=None):
+         xline=None, yline=None, draw_str=None, normalization_bounds=None, linewidth=None, markersize=None):
     assert os.path.exists(plotdir)
     if not has_root:
         return
@@ -416,20 +418,20 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         assert len(hists) <= len(linestyles)
 
     if draw_str is None:
-        draw_str = 'hist same'
+        draw_str = 'same'
     else:
         draw_str += ' same'
-    if errors:  # not working!
-        draw_str = 'e ' + draw_str
+    if not errors:  # not working!
+        draw_str = 'hist ' + draw_str
     for ih in range(len(hists)):
         htmp = hists[ih]
         htmp.SetLineColor(colors[ih])
-        # if ih == 0:
-        # htmp.SetMarkerSize(0)
+        if markersize is not None:
+            htmp.SetMarkerSize(int(markersize))
         htmp.SetMarkerColor(colors[ih])
         htmp.SetLineStyle(linestyles[ih])
         if linewidth is None:
-            if ih < 6 and len(hists) < 5:
+            if ih < 6:  # and len(hists) < 5:
                 htmp.SetLineWidth(6-ih)
         else:
             htmp.SetLineWidth(int(linewidth))
@@ -564,7 +566,7 @@ def get_mean_info(hists):
 
 # ----------------------------------------------------------------------------------------
 def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
-                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None, calculate_mean_info=True, linewidth=None):
+                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None, calculate_mean_info=True, linewidth=None, markersize=None, normalize=False):
     """ 
     Read all the histograms stored as .csv files in <dirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
@@ -577,7 +579,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
     hists = []
     for idir in range(len(dirs)):
         rescale_entries = leaves_per_tree[idir] if leaves_per_tree is not None else None
-        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=(not calculate_mean_info)))
+        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=normalize))
 
     # then loop over all the <varname>s we found
     histmisses = []
@@ -614,8 +616,8 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         if plot_performance:
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
-            bounds = None
-            # bounds = default_hard_bounds.setdefault(varname, None)
+            # bounds = None
+            bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
             # if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
             #     tmpname = varname[ varname.find('_insertion') - 2 : ]
             #     bounds = default_hard_bounds[tmpname]
@@ -635,10 +637,10 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                 xline = None
                 if utils.get_region(gene) == 'v' and cyst_positions is not None:
                     xline = cyst_positions[gene]['cysteine-position']
-                    normalization_bounds = (int(cyst_positions[gene]['cysteine-position']) - 70, None)
+                    # normalization_bounds = (int(cyst_positions[gene]['cysteine-position']) - 70, None)
                 elif utils.get_region(gene) == 'j' and tryp_positions is not None:
                     xline = int(tryp_positions[gene])
-                    normalization_bounds = (None, int(tryp_positions[gene]) + 5)
+                    # normalization_bounds = (None, int(tryp_positions[gene]) + 5)
                 if errors:
                     draw_str = 'e'
                 else:
@@ -653,7 +655,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         # draw that little #$*(!
         draw(all_hists[0], var_type, plotname=varname, plotdir=outdir, more_hists=all_hists[1:], write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles,
-             xtitle=xtitle, xline=xline, draw_str=draw_str, normalization_bounds=normalization_bounds, linewidth=linewidth)
+             xtitle=xtitle, xline=xline, draw_str=draw_str, normalization_bounds=normalization_bounds, linewidth=linewidth, markersize=markersize)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)

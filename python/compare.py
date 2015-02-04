@@ -25,7 +25,9 @@ parser.add_argument('--linestyles')
 parser.add_argument('--datadir', default='data/imgt')
 parser.add_argument('--leaves-per-tree')
 parser.add_argument('--linewidth')
+parser.add_argument('--markersize')
 parser.add_argument('--dont-calculate-mean-info', action='store_true')
+parser.add_argument('--normalize', action='store_true')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -48,19 +50,4 @@ plotting.compare_directories(args.outdir,
                              dirs = args.plotdirs,
                              names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin,
                              colors=args.colors, linestyles=args.linestyles, plot_performance=args.plot_performance, cyst_positions=cyst_positions, tryp_positions=tryp_positions,
-                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=(not args.dont_calculate_mean_info), linewidth=args.linewidth)
-
-# label = 'check-new-imgt'
-# plotdir = '/var/www/sharing/dralph/partis/performance/'
-# plotting.compare_directories(plotdir + '/' + label + '/igblast-vs-partis-vs-imgt',
-#                              dirs = [plotdir + '/' + label + '/hmm/plots',
-#                                      plotdir + '/' + label + '/sw/plots',
-#                                      plotdir + 'igblast/' + label + '/plots',
-#                                      plotdir + 'imgt/' + label + '/plots'],
-#                              names = ['partis', 'sw', 'igblast', 'imgt'])
-
-# plotdir = '/var/www/sharing/dralph/partis/performance'
-# plotting.compare_directories(plotdir + '/adaptive-vs-vollmers',
-#                              dirs = [plotdir + '/compare-to-vollmers/params/data/hmm_parameters/plots',
-#                                      plotdir + '/vollmers/params/data/hmm_parameters/plots'],
-#                              names = ['adaptive', 'vollmers'])
+                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=(not args.dont_calculate_mean_info), linewidth=args.linewidth, normalize=args.normalize, markersize=args.markersize)
