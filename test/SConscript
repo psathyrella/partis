@@ -13,7 +13,7 @@ testoutdir = '_output/test'
 if not os.path.exists('../' + testoutdir):
     os.makedirs('../' + testoutdir)
 
-base_cmd = './plotperformance.py --label test --extra-args \' --seed:1\' --plotdir ' + testoutdir + '/plots'
+base_cmd = './plotperformance.py --label test --extra-args __seed:1\ --plotdir ' + testoutdir + '/plots'
 actions = OrderedDict()
 actions['cache-data-parameters'] = 'data'  # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
 actions['simulate'] = 'simu.csv'

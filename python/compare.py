@@ -41,13 +41,9 @@ for iname in range(len(args.names)):
 assert len(args.plotdirs) == len(args.names)
 
 with opener('r')(args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
-    cyst_positions = json.load(json_file)
+    args.cyst_positions = json.load(json_file)
 with opener('r')(args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
     tryp_reader = csv.reader(csv_file)
-    tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
+    args.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
-plotting.compare_directories(args.outdir,
-                             dirs = args.plotdirs,
-                             names = args.names, stats=args.stats, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin,
-                             colors=args.colors, linestyles=args.linestyles, plot_performance=args.plot_performance, cyst_positions=cyst_positions, tryp_positions=tryp_positions,
-                             leaves_per_tree=args.leaves_per_tree, calculate_mean_info=(not args.dont_calculate_mean_info), linewidth=args.linewidth, normalize=args.normalize, markersize=args.markersize)
+plotting.compare_directories(args)

@@ -23,7 +23,7 @@ def check_root():
 sys.argv.append('-b')  # root just loves its stupid little splashes
 has_root = check_root()
 if has_root:
-    from ROOT import gStyle, TH1D, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
+    from ROOT import gStyle, TH1D, TGraphErrors, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
     gROOT.Macro("plotting/MitStyleRemix.cc+")
 else:
     print ' ROOT not found, proceeding without plotting'
@@ -77,15 +77,13 @@ def write_hist_to_file(fname, hist):
             })
 
 # ----------------------------------------------------------------------------------------
-def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False, rescale_entries=None):
+def make_hist_from_bin_entry_file(fname, hist_label='', log='', rescale_entries=None):
     """ 
     Return root histogram with each bin low edge and bin content read from <fname> 
     E.g. from the results of hist.Hist.write()
     """
     low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
     xtitle = ''
-    if normalize and ('mute-freqs/v' in fname or 'mute-freqs/d' in fname or 'mute-freqs/j' in fname):
-        print '\nERROR normalizing %s\n' % fname
     with opener('r')(fname) as infile:
         reader = csv.DictReader(infile)
         for line in reader:
@@ -121,10 +119,6 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', normalize=False,
             hist.SetBinError(ib, math.sqrt(contents[ib]))
         if bin_labels[ib] != '':
             hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
-
-    if normalize and hist.Integral() > 0.0:
-        hist.Scale(1./hist.Integral())
-        hist.GetYaxis().SetTitle('freq')
 
     return hist
     
@@ -308,18 +302,14 @@ def GetMaximumWithBounds(hist, xmin, xmax):
 # ----------------------------------------------------------------------------------------
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats=None, bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
-         colors=None, linestyles=None, cwidth=700, cheight=600, imagetype='svg', xtitle=None, ytitle=None,
-         xline=None, yline=None, draw_str=None, normalization_bounds=None, linewidth=None, markersize=None):
+         colors=None, linestyles=None, cwidth=None, cheight=None, imagetype='svg', xtitle=None, ytitle=None,
+         xline=None, yline=None, draw_str=None, normalize=False, normalization_bounds=None, linewidth=None, markersize=None, no_labels=False,
+         graphify=False):
     assert os.path.exists(plotdir)
     if not has_root:
         return
 
-    if hist.GetNbinsX() > 2:         #and ('_gene' in plotname or
-        if 'mute-freqs/v' in plotdir:
-            cwidth, cheight = 1200, 600
-        elif 'mute-freqs/j' in plotdir:
-            cwidth, cheight = 1000, 600
-    cvn = TCanvas('cvn-'+plotname, '', cwidth, cheight)
+    cvn = TCanvas('cvn-'+plotname, '', 700 if cwidth is None else cwidth, 600 if cheight is None else cheight)
 
     hists = [hist,]
     if more_hists != None:
@@ -333,14 +323,20 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             for ibin in range(htmp.GetNbinsX()+2):
                 htmp.SetBinError(ibin, htmp.GetBinError(ibin) * scale_errors)
 
-        if normalization_bounds is None:  # renormalize the hist within these bounds
+        if not normalize:
+            assert normalization_bounds is None
             this_y_max = htmp.GetMaximum()
-        else:
-            ibin_start = 0 if normalization_bounds[0] is None else htmp.FindBin(normalization_bounds[0])
-            ibin_end = htmp.GetNbinsX() if normalization_bounds[1] is None else htmp.FindBin(normalization_bounds[1])
-            if htmp.Integral(ibin_start, ibin_end) > 0.0:
-                htmp.Scale(1./htmp.Integral(ibin_start, ibin_end))  # NOTE this is inclusive, i.e. includes <ibin_end>
-            this_y_max = GetMaximumWithBounds(htmp, htmp.GetXaxis().GetBinLowEdge(ibin_start), htmp.GetXaxis().GetBinUpEdge(ibin_end))
+        else:  # renormalize the hist within these bounds
+            if normalization_bounds is None:
+                factor = 1./htmp.Integral() if htmp.Integral() > 0.0 else 0.0
+                htmp.Scale(factor)
+                this_y_max = htmp.GetMaximum()
+            else:
+                ibin_start = 0 if normalization_bounds[0] is None else htmp.FindBin(normalization_bounds[0])
+                ibin_end = htmp.GetNbinsX() if normalization_bounds[1] is None else htmp.FindBin(normalization_bounds[1])
+                factor = htmp.Integral(ibin_start, ibin_end) if htmp.Integral(ibin_start, ibin_end) > 0.0 else 0.0  # NOTE this is inclusive, i.e. includes <ibin_end>
+                htmp.Scale(factor)
+                this_y_max = GetMaximumWithBounds(htmp, htmp.GetXaxis().GetBinLowEdge(ibin_start), htmp.GetXaxis().GetBinUpEdge(ibin_end))
 
         if ymax is None or this_y_max > ymax:
             ymax = this_y_max
@@ -349,28 +345,26 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
             xmin = htmp.GetBinLowEdge(1)
         if xmax is None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
             xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
+
     if bounds != None:
         xmin, xmax = bounds
     hframe = TH1D('hframe', '', hist.GetNbinsX(), xmin, xmax)
-    if var_type == 'string' or var_type == 'bool':
+    if not no_labels and (var_type == 'string' or var_type == 'bool'):
         for ib in range(1, hframe.GetNbinsX()+1):
             hframe.GetXaxis().SetBinLabel(ib, hist.GetXaxis().GetBinLabel(ib))
 
     hframe.SetMaximum(1.2*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
-    if '_gene' in plotname:
-        hframe.GetXaxis().SetLabelSize(0.03)
+
     if plottitle == '':
         plottitle = plotname
+
     if xtitle is None:
         xtitle = hist.GetXaxis().GetTitle()
-        if xtitle == '' and '_gene' not in plotname:
-            xtitle = 'bases'
     if ytitle is None:
         ytitle = hframe.GetYaxis().GetTitle()
-        if ytitle == '':
-            ytitle = 'freq'
+
     hframe.SetTitle(plottitle + ';' + xtitle + ';' + ytitle)
     hframe.Draw('txt')
 
@@ -417,26 +411,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     else:
         assert len(hists) <= len(linestyles)
 
-    if draw_str is None:
-        draw_str = 'same'
-    else:
-        draw_str += ' same'
-    if not errors:  # not working!
-        draw_str = 'hist ' + draw_str
-    for ih in range(len(hists)):
-        htmp = hists[ih]
-        htmp.SetLineColor(colors[ih])
-        if markersize is not None:
-            htmp.SetMarkerSize(int(markersize))
-        htmp.SetMarkerColor(colors[ih])
-        htmp.SetLineStyle(linestyles[ih])
-        if linewidth is None:
-            if ih < 6:  # and len(hists) < 5:
-                htmp.SetLineWidth(6-ih)
-        else:
-            htmp.SetLineWidth(int(linewidth))
-        htmp.Draw(draw_str)
-
+    # legends
     if len(hists) < 5:
         leg = TLegend(0.57, 0.72, 0.99, 0.9)
     else:
@@ -444,15 +419,59 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     leg.SetFillColor(0)
     leg.SetFillStyle(0)
     leg.SetBorderSize(0)
-    for htmp in hists:
-        if stats is not None:
-            if 'rms' in stats:
-                htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
-            if 'mean' in stats:
-                htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
-            if '0-bin' in stats:
-                htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
-        leg.AddEntry(htmp, htmp.GetTitle() , 'l')
+
+    # draw
+    if graphify:
+        graphs = []
+        for ih in range(len(hists)):
+            n_bins = hists[ih].GetNbinsX()
+            xvals, yvals, xerrs, yerrs = array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)])
+            for ib in range(1, n_bins+1):  # NOTE ignoring overflows
+                xvals[ib-1] = hists[ih].GetXaxis().GetBinCenter(ib)
+                xerrs[ib-1] = 0.0
+                yvals[ib-1] = hists[ih].GetBinContent(ib)
+                yerrs[ib-1] = hists[ih].GetBinError(ib)
+            gr = TGraphErrors(n_bins, xvals, yvals, xerrs, yerrs)
+            gr.SetLineColor(colors[ih])
+            if markersize is not None:
+                gr.SetMarkerSize(int(markersize))
+            gr.SetMarkerColor(colors[ih])
+            gr.SetLineStyle(linestyles[ih])
+            gr.Draw('p same')
+            leg.AddEntry(gr, hists[ih].GetTitle() , 'pl')
+            graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
+    else:
+        if draw_str is None:
+            draw_str = 'hist same'
+        else:
+            draw_str += ' same'
+        if errors:
+            draw_str += ' e'
+        for ih in range(len(hists)):
+            htmp = hists[ih]
+
+            if stats is not None:
+                if 'rms' in stats:
+                    htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
+                if 'mean' in stats:
+                    htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
+                if '0-bin' in stats:
+                    htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
+
+            htmp.SetLineColor(colors[ih])
+            if markersize is not None:
+                htmp.SetMarkerSize(int(markersize))
+            htmp.SetMarkerColor(colors[ih])
+            htmp.SetLineStyle(linestyles[ih])
+            if linewidth is None:
+                if ih < 6:  # and len(hists) < 5:
+                    htmp.SetLineWidth(6-ih)
+            else:
+                htmp.SetLineWidth(int(linewidth))
+
+            leg.AddEntry(htmp, htmp.GetTitle() , 'l')
+            htmp.Draw(draw_str)
+
     leg.Draw()
 
     if xline is not None:
@@ -485,12 +504,12 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
 # ----------------------------------------------------------------------------------------
-def get_hists_from_dir(dirname, histname, rescale_entries=None, normalize=False):
+def get_hists_from_dir(dirname, histname, rescale_entries=None):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
         try:
-            hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, normalize=normalize, rescale_entries=rescale_entries)
+            hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, rescale_entries=rescale_entries)
             hists[varname].SetTitle(histname)
         except KeyError:  # probably not a histogram csv
             pass
@@ -565,21 +584,20 @@ def get_mean_info(hists):
     return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':unihist }
 
 # ----------------------------------------------------------------------------------------
-def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stats='', errors=True, scale_errors=None, rebin=None, colors=None, linestyles=None, plot_performance=False,
-                        cyst_positions=None, tryp_positions=None, leaves_per_tree=None, calculate_mean_info=True, linewidth=None, markersize=None, normalize=False):
+def compare_directories(args, xtitle='', use_hard_bounds=''):
     """ 
-    Read all the histograms stored as .csv files in <dirs>, and overlay them on a new plot.
+    Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
     """
-    utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
-    if leaves_per_tree is not None:
-        assert len(leaves_per_tree) == len(dirs)
+    utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+    if args.leaves_per_tree is not None:
+        assert len(args.leaves_per_tree) == len(args.plotdirs)
 
-    # read hists from <dirs>
+    # read hists from <args.plotdirs>
     hists = []
-    for idir in range(len(dirs)):
-        rescale_entries = leaves_per_tree[idir] if leaves_per_tree is not None else None
-        hists.append(get_hists_from_dir(dirs[idir] + '/plots', names[idir], rescale_entries=rescale_entries, normalize=normalize))
+    for idir in range(len(args.plotdirs)):
+        rescale_entries = args.leaves_per_tree[idir] if args.leaves_per_tree is not None else None
+        hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], rescale_entries=rescale_entries))
 
     # then loop over all the <varname>s we found
     histmisses = []
@@ -588,7 +606,7 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         # add the hists
         all_hists = [hist,]
         missing_hist = False
-        for idir in range(1, len(dirs)):
+        for idir in range(1, len(args.plotdirs)):
             try:  # add the hist
                 all_hists.append(hists[idir][varname])
             except KeyError:  # oops, didn't find it in this dir, so skip this variable entirely
@@ -601,68 +619,97 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
         if '_gene' in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
             all_hists = add_bin_labels_not_in_all_hists(all_hists)
 
-        if calculate_mean_info:
+        if not args.dont_calculate_mean_info:
             meaninfo = get_mean_info(all_hists)
             all_names.append(varname)
             all_means.append(meaninfo['means'])
             all_sems.append(meaninfo['sems'])
             all_normalized_means.append(meaninfo['normalized_means'])
-            meaninfo['mean_bin_hist'].write(outdir + '/plots/' + varname + '-mean-bins.csv')
+            meaninfo['mean_bin_hist'].write(args.outdir + '/plots/' + varname + '-mean-bins.csv')
 
         # bullshit complicated config stuff
         var_type = 'int' if hist.GetXaxis().GetBinLabel(1) == '' else 'bool'
         plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else ''
-        bounds = None
-        if plot_performance:
+        bounds, cwidth, cheight, no_labels, graphify = None, None, None, False, False
+        extrastats = ''
+        xtitle, ytitle, xline, draw_str, normalization_bounds = hist.GetXaxis().GetTitle(), hist.GetYaxis().GetTitle(), None, None, None
+        simplevarname = varname.replace('-mean-bins', '')
+        plottitle = simplevarname
+
+        if args.normalize:
+            ytitle = 'frequency'
+
+        if 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/d' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
+            assert not args.normalize
+            ytitle = 'mutation freq'
+            graphify = True
+
+        if '_gene' in varname:
+            xtitle = 'gene version'
+            gStyle.SetNdivisions(0,"x")
+            # gStyle.SetLabelSize(0.00010, 'X')
+            if hist.GetNbinsX() == 2:
+                extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+        else:
+            xtitle = 'bases'
+
+        if args.plot_performance:
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
+            line_width_override = None
+            if '_gene' in varname:
+                no_labels = True
+                if 'j_' not in varname:
+                    cwidth, cheight = 1500, 700
+                # gStyle.SetTitleSize(0.00010, 'X')
+                # gStyle.SetLabelFont(42, 'X')
+                line_width_override = 1
+            elif 'mute-freqs/v' in args.plotdirs[0]:
+                cwidth, cheight = 1800, 600
+            elif 'mute-freqs/j' in args.plotdirs[0]:
+                cwidth, cheight = 1000, 600
             # bounds = None
             bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
             # if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
             #     tmpname = varname[ varname.find('_insertion') - 2 : ]
             #     bounds = default_hard_bounds[tmpname]
-        extrastats = ''
-        if '_gene' in varname:
-            if hist.GetNbinsX() == 2:
-                extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-        xtitle, xline, draw_str, normalization_bounds = None, None, None, None
+
         if 'IGH' in varname:
-            varstr = varname
-            if '-mean-bins' in varname:
-                varstr = varname.replace('-mean-bins', '')
-            if 'mute-freqs' in dirs[0]:
-                gene = utils.unsanitize_name(varstr)
-                plottitle = gene + ' -- mutation frequency'
+            if 'mute-freqs' in args.plotdirs[0]:
+                gene = utils.unsanitize_name(simplevarname)
+                plottitle = gene  # + ' -- mutation frequency'
                 xtitle = 'position'
                 xline = None
-                if utils.get_region(gene) == 'v' and cyst_positions is not None:
-                    xline = cyst_positions[gene]['cysteine-position']
+                if utils.get_region(gene) == 'v' and args.cyst_positions is not None:
+                    xline = args.cyst_positions[gene]['cysteine-position']
                     # normalization_bounds = (int(cyst_positions[gene]['cysteine-position']) - 70, None)
-                elif utils.get_region(gene) == 'j' and tryp_positions is not None:
-                    xline = int(tryp_positions[gene])
+                elif utils.get_region(gene) == 'j' and args.tryp_positions is not None:
+                    xline = int(args.tryp_positions[gene])
                     # normalization_bounds = (None, int(tryp_positions[gene]) + 5)
-                if errors:
+                if not args.no_errors:
                     draw_str = 'e'
                 else:
                     draw_str = 'hist'
             else:
-                ilastdash = varstr.rfind('-')
-                gene = utils.unsanitize_name(varstr[:ilastdash])
-                base_varname = varstr[ilastdash + 1 :]
+                ilastdash = simplevarname.rfind('-')
+                gene = utils.unsanitize_name(simplevarname[:ilastdash])
+                base_varname = simplevarname[ilastdash + 1 :]
                 base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
                 plottitle = gene + ' -- ' + base_plottitle
 
         # draw that little #$*(!
-        draw(all_hists[0], var_type, plotname=varname, plotdir=outdir, more_hists=all_hists[1:], write_csv=False, stats=stats + ' ' + extrastats, bounds=bounds,
-             shift_overflows=False, errors=errors, scale_errors=scale_errors, rebin=rebin, plottitle=plottitle, colors=colors, linestyles=linestyles,
-             xtitle=xtitle, xline=xline, draw_str=draw_str, normalization_bounds=normalization_bounds, linewidth=linewidth, markersize=markersize)
+        linewidth = line_width_override if line_width_override is not None else args.linewidth
+        draw(all_hists[0], var_type, plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
+             shift_overflows=False, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
+             xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=args.normalize, normalization_bounds=normalization_bounds,
+             linewidth=linewidth, markersize=args.markersize, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=graphify)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)
 
-    if calculate_mean_info:
+    if not args.dont_calculate_mean_info:
         # write mean info
-        with opener('w')(outdir + '/plots/means.csv') as meanfile:
+        with opener('w')(args.outdir + '/plots/means.csv') as meanfile:
             writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
             writer.writeheader()
             for ivar in range(len(all_means)):
@@ -673,8 +720,8 @@ def compare_directories(outdir, dirs, names, xtitle='', use_hard_bounds='', stat
                     'normalized-means':':'.join([str(nm) for nm in all_normalized_means[ivar]])
                 })
 
-    check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
-    check_call(['./makeHtml', outdir, '3', 'null', 'svg'])
+    check_call(['./permissify-www', args.outdir])  # NOTE this should really permissify starting a few directories higher up
+    check_call(['./makeHtml', args.outdir, '3', 'null', 'svg'])
 
 # ----------------------------------------------------------------------------------------
 def make_mean_plots(plotdir, subdirs, outdir):
