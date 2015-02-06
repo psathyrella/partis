@@ -11,7 +11,7 @@ from humans import humans
 
 basedir = '/var/www/sharing/dralph/partis'
 
-dataset = 'stanford'  #adaptive
+dataset = 'both'  #stanford  #adaptive
 
 modulo = '10'
 
@@ -22,12 +22,12 @@ args = parser.parse_args()
 
 # subdirs = [ e + '_del' for e in utils.real_erosions ] \
 #           + [ i + '_insertion' for i in utils.boundaries]
-subdirs = [ '.', ] \
-          + [ e + '_del' for e in utils.real_erosions ] \
-          + [ i + '_insertion' for i in utils.boundaries] \
-          + [ 'mute-freqs', ] \
-          + [ 'mute-freqs/' + r for r in utils.regions ]
-# subdirs = [ 'd_5p_del', ]
+# subdirs = [ '.', ] \
+#           + [ e + '_del' for e in utils.real_erosions ] \
+#           + [ i + '_insertion' for i in utils.boundaries] \
+#           + [ 'mute-freqs', ] \
+#           + [ 'mute-freqs/' + r for r in utils.regions ]
+subdirs = [ 'mute-freqs', ]
 
 outlabel = 'cf-subsets'
 webdir = '/var/www/sharing/dralph/partis'
@@ -69,11 +69,13 @@ for subdir in subdirs:
         if 'mute-freqs/v' not in subdir and 'mute-freqs/d' not in subdir and 'mute-freqs/j' not in subdir:
             cmd += ' --normalize'
 
-        check_call(cmd.split(' '))
+        # check_call(cmd.split(' '))
 
     print '  YOOOOO skipping subset plots'
 
-    final_cmd = './python/compare.py --dont-calculate-mean-info --colors ' + ':'.join(colors.values()) + ' --plotdirs ' + ':'.join(final_plotdirs) + ' --names ' + ':'.join(humans[dataset]) + ' --outdir ' + webdir + '/cf-data-' + dataset + '/' + subdir
+    final_cmd = './python/compare.py --dont-calculate-mean-info --colors ' + ':'.join([ colors[human] for human in humans[dataset] ]) + ' --plotdirs ' + ':'.join(final_plotdirs) + ' --names ' + ':'.join(humans[dataset]) + ' --outdir ' + webdir + '/cf-data-' + dataset + '/' + subdir
+    if dataset == 'both':
+        final_cmd += ' --linewidth 2'  # --linestyles ' + ':'.join()
     if 'mute-freqs/v' not in subdir and 'mute-freqs/d' not in subdir and 'mute-freqs/j' not in subdir:
         final_cmd += ' --normalize'
     if 'mute-freqs/v' in subdir or 'mute-freqs/d' in subdir:

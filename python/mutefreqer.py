@@ -163,7 +163,9 @@ class MuteFreqer(object):
                         sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
             for position in sorted_positions:
                 hist.SetBinContent(hist.FindBin(position), counts[position]['freq'])
-                err = abs(counts[position]['freq_hi_err'] - counts[position]['freq_lo_err'])
+                hi_diff = abs(counts[position]['freq'] - counts[position]['freq_hi_err'])
+                lo_diff = abs(counts[position]['freq'] - counts[position]['freq_lo_err'])
+                err = 0.5*(hi_diff + lo_diff)
                 hist.SetBinError(hist.FindBin(position), err)
             plotfname = plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
             xline = None

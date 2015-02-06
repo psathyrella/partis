@@ -430,14 +430,14 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                 xvals[ib-1] = hists[ih].GetXaxis().GetBinCenter(ib)
                 xerrs[ib-1] = 0.0
                 yvals[ib-1] = hists[ih].GetBinContent(ib)
-                yerrs[ib-1] = hists[ih].GetBinError(ib)
+                yerrs[ib-1] = hists[ih].GetBinError(ib) if errors else 0.0
             gr = TGraphErrors(n_bins, xvals, yvals, xerrs, yerrs)
             gr.SetLineColor(colors[ih])
             if markersize is not None:
                 gr.SetMarkerSize(int(markersize))
             gr.SetMarkerColor(colors[ih])
             gr.SetLineStyle(linestyles[ih])
-            gr.Draw('p same')
+            gr.Draw('lp same')
             leg.AddEntry(gr, hists[ih].GetTitle() , 'pl')
             graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
     else:
@@ -630,7 +630,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         # bullshit complicated config stuff
         var_type = 'int' if hist.GetXaxis().GetBinLabel(1) == '' else 'bool'
         plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else ''
-        bounds, cwidth, cheight, no_labels, graphify = None, None, None, False, False
+        bounds, cwidth, cheight, no_labels = None, None, None, False
         extrastats = ''
         xtitle, ytitle, xline, draw_str, normalization_bounds = hist.GetXaxis().GetTitle(), hist.GetYaxis().GetTitle(), None, None, None
         simplevarname = varname.replace('-mean-bins', '')
@@ -642,7 +642,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         if 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/d' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
             assert not args.normalize
             ytitle = 'mutation freq'
-            graphify = True
+            args.graphify = True
 
         if '_gene' in varname:
             xtitle = 'gene version'
@@ -686,10 +686,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 elif utils.get_region(gene) == 'j' and args.tryp_positions is not None:
                     xline = int(args.tryp_positions[gene])
                     # normalization_bounds = (None, int(tryp_positions[gene]) + 5)
-                if not args.no_errors:
-                    draw_str = 'e'
-                else:
-                    draw_str = 'hist'
             else:
                 ilastdash = simplevarname.rfind('-')
                 gene = utils.unsanitize_name(simplevarname[:ilastdash])
@@ -702,7 +698,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         draw(all_hists[0], var_type, plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
              xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=args.normalize, normalization_bounds=normalization_bounds,
-             linewidth=linewidth, markersize=args.markersize, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=graphify)
+             linewidth=linewidth, markersize=args.markersize, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=args.graphify)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)

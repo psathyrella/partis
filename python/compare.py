@@ -28,6 +28,7 @@ parser.add_argument('--linewidth')
 parser.add_argument('--markersize')
 parser.add_argument('--dont-calculate-mean-info', action='store_true')
 parser.add_argument('--normalize', action='store_true')
+parser.add_argument('--graphify', action='store_true')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)

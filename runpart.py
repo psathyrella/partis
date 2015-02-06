@@ -151,7 +151,7 @@ else:
     args.reco_ids = utils.get_arg_list(args.reco_ids, intify=True)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
     if len(args.n_max_per_region) != 3:
-        print 'ERROR n-max-per-region should be form \'x:y:z\', but I got', args.n_max_per_region
+        print 'ERROR n-max-per-region should be of the form \'x:y:z\', but I got', args.n_max_per_region
         sys.exit()
 
     utils.prep_dir(args.workdir)
