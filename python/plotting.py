@@ -504,10 +504,12 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
 # ----------------------------------------------------------------------------------------
-def get_hists_from_dir(dirname, histname, rescale_entries=None):
+def get_hists_from_dir(dirname, histname, rescale_entries=None, string_to_ignore=None):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
+        if string_to_ignore is not None:
+            varname = varname.replace(string_to_ignore, '')
         try:
             hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, rescale_entries=rescale_entries)
             hists[varname].SetTitle(histname)
@@ -597,7 +599,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     hists = []
     for idir in range(len(args.plotdirs)):
         rescale_entries = args.leaves_per_tree[idir] if args.leaves_per_tree is not None else None
-        hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], rescale_entries=rescale_entries))
+        string_to_ignore = None if args.strings_to_ignore is None else args.strings_to_ignore[idir]
+        hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], rescale_entries=rescale_entries, string_to_ignore=string_to_ignore))
 
     # then loop over all the <varname>s we found
     histmisses = []

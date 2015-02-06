@@ -40,7 +40,7 @@ missing = None  #('10-021-084_2',)
 action = 'simulate'
 
 procs = []
-for subset in range(3):  #modulo):
+for subset in range(1):  #modulo):
     for fname in files:
         if args.dtype == 'stanford':
     	    human = os.path.basename(fname).replace('_Lineages.fasta', '')
@@ -55,7 +55,7 @@ for subset in range(3):  #modulo):
             continue
 
         print human, subset
-        continue
+        # continue
 
         # oh wait this loops over subsets DOH fix it ./python/subset-data.py --infname $fname --outdir test/$dtype/$human --modulo $modulo --start-indices 0:1:2:3:4:5:6:7:8:9 &
         # sleep 1
@@ -64,7 +64,7 @@ for subset in range(3):  #modulo):
         subfname = 'test/' + args.dtype + '/' + human + '/every-' + str(modulo) + '-subset-' + str(subset) + '.csv.bz2'
 
         cmd = './plotperformance.py --label ' + label + ' --plotdir ' + os.getenv('www') + '/partis/' + label + ' --action ' + action
-        cmd += ' --n-procs 10 --n-sim-events 10000 --datafname ' + subfname + ' --extra-args __slurm:__workdir:tmp/' + str(random.randint(0,99999))
+        cmd += ' --n-procs 20 --n-sim-events 10000 --datafname ' + subfname + ' --extra-args __slurm:__workdir:tmp/' + str(random.randint(0,99999))
         # cmd += ' --n-queries 1000'
         # + ' --action cache-data-parameters \
         check_call(cmd.split())

@@ -7,9 +7,7 @@ sys.path.insert(1, './python')
 
 import utils
 import plotting
-from humans import humans
-
-basedir = '/var/www/sharing/dralph/partis'
+from humans import humans, colors
 
 dataset = 'both'  #stanford  #adaptive
 
@@ -50,7 +48,7 @@ for subdir in subdirs:
         # sys.exit()
     
         plotdirs = ['data/hmm' for _ in range(len(subsets)) ]
-        plotdirs = [ basedir + '/' + labels[ipd] + '/params/' + plotdirs[ipd] + '/' + subdir for ipd in range(len(plotdirs))]
+        plotdirs = [ webdir + '/' + labels[ipd] + '/params/' + plotdirs[ipd] + '/' + subdir for ipd in range(len(plotdirs))]
         # for p in plotdirs:
         #     print p
         

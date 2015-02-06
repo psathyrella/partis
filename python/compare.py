@@ -29,13 +29,17 @@ parser.add_argument('--markersize')
 parser.add_argument('--dont-calculate-mean-info', action='store_true')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--graphify', action='store_true')
+parser.add_argument('--strings-to-ignore')  # remove this string from the plot names in each dir (e.g. '-mean-bins') NOTE replaces '_' with '-'
 
 args = parser.parse_args()
+if args.strings_to_ignore is not None:
+    args.strings_to_ignore = args.strings_to_ignore.replace('_', '-')
 args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.colors = utils.get_arg_list(args.colors, intify=True)
 args.linestyles = utils.get_arg_list(args.linestyles, intify=True)
 args.names = utils.get_arg_list(args.names)
 args.leaves_per_tree = utils.get_arg_list(args.leaves_per_tree, intify=True)
+args.strings_to_ignore = utils.get_arg_list(args.strings_to_ignore)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
 
