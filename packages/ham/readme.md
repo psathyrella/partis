@@ -16,6 +16,8 @@
 
 `ham` began from [StochHMM](https://github.com/KorfLab/StochHMM), but has been completely rewritten.
 
+Ham is free software under the GPL v3.
+
 # dependencies
 
   - boost headers
