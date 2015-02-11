@@ -77,7 +77,7 @@ def write_hist_to_file(fname, hist):
             })
 
 # ----------------------------------------------------------------------------------------
-def make_hist_from_bin_entry_file(fname, hist_label='', log='', rescale_entries=None):
+def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
     """ 
     Return root histogram with each bin low edge and bin content read from <fname> 
     E.g. from the results of hist.Hist.write()
@@ -88,13 +88,12 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log='', rescale_entries=
         reader = csv.DictReader(infile)
         for line in reader:
             low_edges.append(float(line['bin_low_edge']))
-            refactor = 1.0 if rescale_entries is None else rescale_entries
-            contents.append(float(line['contents']) / refactor)
+            contents.append(float(line['contents']))
             if 'sum-weights-squared' in line:
-                sum_weights_squared.append(float(line['sum-weights-squared']) / (refactor*refactor))
+                sum_weights_squared.append(float(line['sum-weights-squared']))
             if 'error' in line:
                 assert 'sum-weights-squared' not in line
-                bin_errors.append(float(line['error']) * math.sqrt(refactor))
+                bin_errors.append(float(line['error']))
             if 'binlabel' in line:
                 bin_labels.append(line['binlabel'])
             else:
@@ -303,8 +302,8 @@ def GetMaximumWithBounds(hist, xmin, xmax):
 def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, write_csv=False, stats=None, bounds=None,
          errors=False, shift_overflows=False, csv_fname=None, scale_errors=None, rebin=None, plottitle='',
          colors=None, linestyles=None, cwidth=None, cheight=None, imagetype='svg', xtitle=None, ytitle=None,
-         xline=None, yline=None, draw_str=None, normalize=False, normalization_bounds=None, linewidth=None, markersize=None, no_labels=False,
-         graphify=False):
+         xline=None, yline=None, draw_str=None, normalize=False, normalization_bounds=None, linewidths=None, markersizes=None, no_labels=False,
+         graphify=False, translegend=(0.0, 0.0)):
     assert os.path.exists(plotdir)
     if not has_root:
         return
@@ -353,7 +352,10 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         for ib in range(1, hframe.GetNbinsX()+1):
             hframe.GetXaxis().SetBinLabel(ib, hist.GetXaxis().GetBinLabel(ib))
 
-    hframe.SetMaximum(1.2*ymax)
+    if 'y' in log:
+        hframe.SetMaximum(3*ymax)
+    else:
+        hframe.SetMaximum(1.2*ymax)
     if var_type == 'bool':
         hframe.GetXaxis().SetLabelSize(0.1)
 
@@ -366,6 +368,13 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         ytitle = hframe.GetYaxis().GetTitle()
 
     hframe.SetTitle(plottitle + ';' + xtitle + ';' + ytitle)
+    # gStyle.SetTitleFontSize(.075)
+    # gStyle.SetTitleY(gStyle.GetTitleY() + .0004)
+    if cwidth is not None:
+        gStyle.SetTitleOffset(0.99*gStyle.GetTitleOffset('y'), 'y')
+    # gStyle.SetTitleFillStyle(0)
+    # hframe.SetTitleSize(gStyle.GetTitleSize())
+    # hframe.SetTitleFont(gStyle.GetTitleFont())
     hframe.Draw('txt')
 
     if shift_overflows:
@@ -412,10 +421,11 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         assert len(hists) <= len(linestyles)
 
     # legends
+    x0, y0, x1, y1 = 0.57+translegend[0], 0.66+translegend[1], 0.99+translegend[0], 0.88+translegend[1]
     if len(hists) < 5:
-        leg = TLegend(0.57, 0.72, 0.99, 0.9)
+        leg = TLegend(x0, y0, x1, y1)
     else:
-        leg = TLegend(0.57, 0.6, 0.99, 0.9)
+        leg = TLegend(x0, y0-0.05, x1, y1)
     leg.SetFillColor(0)
     leg.SetFillStyle(0)
     leg.SetBorderSize(0)
@@ -432,12 +442,25 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                 yvals[ib-1] = hists[ih].GetBinContent(ib)
                 yerrs[ib-1] = hists[ih].GetBinError(ib) if errors else 0.0
             gr = TGraphErrors(n_bins, xvals, yvals, xerrs, yerrs)
-            gr.SetLineColor(colors[ih])
-            if markersize is not None:
-                gr.SetMarkerSize(int(markersize))
+
+            if markersizes is not None:
+                imark = ih if len(markersizes) > 1 else 0
+                gr.SetMarkerSize(markersizes[imark])
             gr.SetMarkerColor(colors[ih])
+            if linewidths is None:
+                if ih < 6:  # and len(hists) < 5:
+                    gr.SetLineWidth(6-ih)
+            else:
+                ilw = ih if len(linewidths) > 1 else 0
+                gr.SetLineWidth(linewidths[ilw])
+            gr.SetLineColor(colors[ih])
+            # if int(linewidth) == 1:
+            #     gr.SetLineColorAlpha(colors[ih], 0.4)
             gr.SetLineStyle(linestyles[ih])
-            gr.Draw('lp same')
+
+            if draw_str is None:
+                draw_str = 'lpz'
+            gr.Draw(draw_str + ' same')
             leg.AddEntry(gr, hists[ih].GetTitle() , 'pl')
             graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
     else:
@@ -459,15 +482,17 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                     htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
 
             htmp.SetLineColor(colors[ih])
-            if markersize is not None:
-                htmp.SetMarkerSize(int(markersize))
+            if markersizes is not None:
+                imark = ih if len(markersizes) > 1 else 0
+                htmp.SetMarkerSize(markersizes[imark])
             htmp.SetMarkerColor(colors[ih])
             htmp.SetLineStyle(linestyles[ih])
             if linewidth is None:
                 if ih < 6:  # and len(hists) < 5:
                     htmp.SetLineWidth(6-ih)
             else:
-                htmp.SetLineWidth(int(linewidth))
+                ilw = ih if len(linewidths) > 1 else 0
+                htmp.SetLineWidth(linewidths[ilw])
 
             leg.AddEntry(htmp, htmp.GetTitle() , 'l')
             htmp.Draw(draw_str)
@@ -500,18 +525,16 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         else:
             write_hist_to_file(csv_fname, hist)
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.' + imagetype)
-    # if '_gene' in plotname:
-    #     cvn.SaveAs(plotdir + '/plots/' + plotname + '.png')
 
 # ----------------------------------------------------------------------------------------
-def get_hists_from_dir(dirname, histname, rescale_entries=None, string_to_ignore=None):
+def get_hists_from_dir(dirname, histname, string_to_ignore=None):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
         varname = os.path.basename(fname).replace('.csv', '')
         if string_to_ignore is not None:
             varname = varname.replace(string_to_ignore, '')
         try:
-            hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname, rescale_entries=rescale_entries)
+            hists[varname] = make_hist_from_bin_entry_file(fname, histname + '-csv-' + varname)
             hists[varname].SetTitle(histname)
         except KeyError:  # probably not a histogram csv
             pass
@@ -598,9 +621,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     # read hists from <args.plotdirs>
     hists = []
     for idir in range(len(args.plotdirs)):
+        assert args.leaves_per_tree is None
         rescale_entries = args.leaves_per_tree[idir] if args.leaves_per_tree is not None else None
         string_to_ignore = None if args.strings_to_ignore is None else args.strings_to_ignore[idir]
-        hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], rescale_entries=rescale_entries, string_to_ignore=string_to_ignore))
+        hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], string_to_ignore=string_to_ignore))
 
     # then loop over all the <varname>s we found
     histmisses = []
@@ -632,12 +656,11 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         # bullshit complicated config stuff
         var_type = 'int' if hist.GetXaxis().GetBinLabel(1) == '' else 'bool'
-        plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else ''
-        bounds, cwidth, cheight, no_labels = None, None, None, False
-        extrastats = ''
+        bounds, cwidth, cheight, translegend, no_labels = None, None, None, (0.0, 0.0), False
+        extrastats, log = '', ''
         xtitle, ytitle, xline, draw_str, normalization_bounds = hist.GetXaxis().GetTitle(), hist.GetYaxis().GetTitle(), None, None, None
         simplevarname = varname.replace('-mean-bins', '')
-        plottitle = simplevarname
+        plottitle = plotconfig.plot_titles[simplevarname] if simplevarname in plotconfig.plot_titles else simplevarname
 
         if args.normalize:
             ytitle = 'frequency'
@@ -653,24 +676,29 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             # gStyle.SetLabelSize(0.00010, 'X')
             if hist.GetNbinsX() == 2:
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            if 'v_gene' in varname:
+                pass
+                # log += 'y'
         else:
+            gStyle.SetNdivisions(505,"x")
             xtitle = 'bases'
 
+        line_width_override = None
         if args.plot_performance:
+            xtitle = 'inferred - true'
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
-            line_width_override = None
             if '_gene' in varname:
                 no_labels = True
                 if 'j_' not in varname:
-                    cwidth, cheight = 1500, 700
+                    cwidth, cheight = 1000, 500
                 # gStyle.SetTitleSize(0.00010, 'X')
                 # gStyle.SetLabelFont(42, 'X')
                 line_width_override = 1
             elif 'mute-freqs/v' in args.plotdirs[0]:
-                cwidth, cheight = 1800, 600
+                cwidth, cheight = 1000, 500
             elif 'mute-freqs/j' in args.plotdirs[0]:
-                cwidth, cheight = 1000, 600
+                cwidth, cheight = 1000, 500
             # bounds = None
             bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
             # if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
@@ -682,6 +710,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 gene = utils.unsanitize_name(simplevarname)
                 plottitle = gene  # + ' -- mutation frequency'
                 xtitle = 'position'
+                if utils.get_region(gene) == 'j':
+                    translegend = (-0.35, -0.02)
+                else:
+                    translegend = (0.15, -0.02)
                 xline = None
                 if utils.get_region(gene) == 'v' and args.cyst_positions is not None:
                     xline = args.cyst_positions[gene]['cysteine-position']
@@ -697,11 +729,11 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 plottitle = gene + ' -- ' + base_plottitle
 
         # draw that little #$*(!
-        linewidth = line_width_override if line_width_override is not None else args.linewidth
+        linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
         draw(all_hists[0], var_type, plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
              xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=args.normalize, normalization_bounds=normalization_bounds,
-             linewidth=linewidth, markersize=args.markersize, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=args.graphify)
+             linewidths=linewidths, markersizes=args.markersizes, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=args.graphify, log=log, translegend=translegend)
 
     if len(histmisses) > 0:
         print 'WARNING: missing hists for %s' % ' '.join(histmisses)

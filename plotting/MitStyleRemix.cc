@@ -134,6 +134,9 @@ void SetStyle()
   MITStyle->SetTitleBorderSize(0);
   MITStyle->SetTitleFillColor (0);
   MITStyle->SetTitleX         (0.2);
+  // printf("%f",MITStyle->GetTitleY());
+  MITStyle->SetTitleY         (1.009);
+  MITStyle->SetTitleFontSize(0.075);
 
   int font(22); //62);//132); // originally 42, times: 22
   MITStyle->SetTitleSize  (0.075,"X"); // was 0.055

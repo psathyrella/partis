@@ -9,7 +9,7 @@ import utils
 import plotting
 from humans import humans, colors
 
-dataset = 'both'  #stanford  #adaptive
+dataset = 'adaptive'  #both  #stanford
 
 modulo = '10'
 
@@ -25,7 +25,7 @@ args = parser.parse_args()
 #           + [ i + '_insertion' for i in utils.boundaries] \
 #           + [ 'mute-freqs', ] \
 #           + [ 'mute-freqs/' + r for r in utils.regions ]
-subdirs = [ 'mute-freqs', ]
+subdirs = [ '.', ]
 
 outlabel = 'cf-subsets'
 webdir = '/var/www/sharing/dralph/partis'
@@ -49,17 +49,11 @@ for subdir in subdirs:
     
         plotdirs = ['data/hmm' for _ in range(len(subsets)) ]
         plotdirs = [ webdir + '/' + labels[ipd] + '/params/' + plotdirs[ipd] + '/' + subdir for ipd in range(len(plotdirs))]
-        # for p in plotdirs:
-        #     print p
         
         names = [ human + '@' + s for s in subsets ]
-        # for n in names:
-        #     print n
 
         cmd = './python/compare.py --no-errors --linewidth 1 --plotdirs ' + ':'.join(plotdirs) + ' --names ' + ':'.join(names) + ' --outdir ' + baseoutdir + '/' + subdir
         final_plotdirs.append(baseoutdir + '/' + subdir)
-        # leaves_per_trees = [ '5' if 'simu' in pd else '1' for pd in plotdirs ]
-        # cmd += ' --leaves-per-tree ' + ':'.join(leaves_per_trees)
         
         colorlist = [ colors[human] for _ in range(len(subsets)) ]
         cmd += ' --colors ' + ':'.join(colorlist)
@@ -78,6 +72,8 @@ for subdir in subdirs:
         final_cmd += ' --normalize'
     if 'mute-freqs/v' in subdir or 'mute-freqs/d' in subdir:
         final_cmd += ' --markersize 1 --linewidth 1'
-    else:
-        final_cmd += ' --markersize 0'
+    # else:
+    #     final_cmd += ' --markersize 0'
+    final_cmd += ' --graphify --linewidth 1'  # --linestyles ' + ':'.join(['2' for _ in final_plotdirs])
+
     check_call(final_cmd.split(' '))

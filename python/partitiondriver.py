@@ -128,7 +128,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self):
-        assert os.path.exists(self.args.parameter_dir)
+        if not os.path.exists(self.args.parameter_dir):
+            raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
         assert self.args.run_algorithm != None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()

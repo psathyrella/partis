@@ -42,7 +42,7 @@ plot_titles = {
     'dj_insertion' : 'DJ insert length',
     'dj_insertion_content' : 'DJ insert base content',
     'j_5p_del' : 'J 5p del',
-    'mute_freqs' : 'mute freq',
+    'mute_freqs' : 'sequence mutation freq',
     'v_3p_del' : 'V 3p del',
     'vd_insertion' : 'VD insert length',
     'vd_insertion_content' : 'VD insert base content',
@@ -69,7 +69,8 @@ true_vs_inferred_hard_bounds = {
     'vd_insertion' : (-8.5, 8.5)}
 
 default_hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 19.5),
+    # 'hamming_to_true_naive' : (-0.5, 19.5),
+    'hamming_to_true_naive' : (-0.5, 10),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),

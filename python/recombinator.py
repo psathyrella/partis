@@ -36,8 +36,9 @@ class Recombinator(object):
             self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
 
         utils.prep_dir(self.workdir)
-        assert os.path.exists(self.args.parameter_dir)
-        assert os.path.exists(self.args.parameter_dir)
+        if not os.path.exists(self.args.parameter_dir):
+            raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
+
         # parameters that control recombination, erosion, and whatnot
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
     
@@ -134,7 +135,11 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_cyst_tryp_positions(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
+        try:
+            reco_event.set_final_cyst_tryp_positions(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
+        except AssertionError:
+            print 'ERROR bad conserved codos, what the hell?'
+            return False
 
         if self.args.naivety == 'M':
             self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations

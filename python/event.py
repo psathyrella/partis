@@ -75,6 +75,7 @@ class RecombinationEvent(object):
         if debug:
             print '  final_tryp_position - final_cyst_position + 3 = %d - %d + 3 = %d (should be %d)' % (self.final_tryp_position, self.final_cyst_position, final_cdr3_length, self.cdr3_length)
         utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.final_cyst_position, self.final_tryp_position)
+            
         assert final_cdr3_length == int(self.cdr3_length)
 
         assert total_length_from_right == -1  # deprecated (I think) now that I'm adding the mimic_data_read_length option

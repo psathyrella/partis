@@ -1,6 +1,7 @@
 import glob
 import os
 import sys
+from subprocess import check_call
 from SCons.Script import Command, Depends
 
 # ----------------------------------------------------------------------------------------
@@ -39,6 +40,7 @@ plotdirs = base_plotdir + '-multi/hmm_performance' + ':' \
 
 names = 'partis@\(k=5\):partis@\(k=1\):ighutil:iHMMunealign:igblast:imgt'
 
-env.Command('../' + base_plotdir + '/comparisons.out',
-            '../' + base_plotdir + '/finished-all.out',
-            './python/compare.py --plot-performance --outdir ' + base_plotdir + '/comparisons/all-vs-all --plotdirs ' + plotdirs + ' --names ' + names + ' --colors 810:634:596:418:798:869 && touch $TARGET')
+# env.Command('../' + base_plotdir + '/comparisons.out',
+#             '../' + base_plotdir + '/finished-all.out',
+check_call('cd ..; ./python/compare.py --plot-performance --no-errors --normalize --markersizes 0 --linestyles 2:1:1:1:1:1 --outdir ' + base_plotdir + '/comparisons/all-vs-all --graphify --plotdirs ' + plotdirs + ' --names ' + names + ' --colors 810:634:596:418:798:869', shell=True)
+ # && touch $TARGET')

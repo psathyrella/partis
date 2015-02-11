@@ -37,7 +37,7 @@ missing = None  #('10-021-084_2',)
 #  '10-021-084_0',
 #  '10-021-018_1')
 
-action = 'simulate'
+action = 'cache-simu-parameters'
 
 procs = []
 for subset in range(1):  #modulo):
@@ -51,11 +51,14 @@ for subset in range(1):  #modulo):
 
         # if missing is not None and str(modulo) + '-' + human + '_' + str(subset) not in missing:
         #     continue
-        if os.path.exists('_output/' + label + '/simu.csv'):
+        # if os.path.exists('_output/' + label + '/simu.csv'):
+        #     print 'exists:', '_output/' + label + '/simu.csv'
+        #     continue
+        if os.path.exists('_output/' + label + '/simu'):
+            print 'ok', label
             continue
 
         print human, subset
-        # continue
 
         # oh wait this loops over subsets DOH fix it ./python/subset-data.py --infname $fname --outdir test/$dtype/$human --modulo $modulo --start-indices 0:1:2:3:4:5:6:7:8:9 &
         # sleep 1
