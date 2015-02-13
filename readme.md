@@ -18,7 +18,7 @@
 
 Ham is free software under the GPL v3.
 
-# dependencies
+## dependencies
 
   - boost headers
   - g++
