@@ -18,6 +18,7 @@ from waterer import Waterer
 from hist import Hist
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
+import viterbicluster
 import plotting
 
 print 'import time: %.3f' % (time.time() - import_start)
@@ -135,7 +136,8 @@ class PartitionDriver(object):
         waterer.run()
 
         self.run_hmm(self.args.run_algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', \
-                     count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
+                               count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
+
         # self.clean(waterer)
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
@@ -195,7 +197,10 @@ class PartitionDriver(object):
 
         print '      hmm run time: %.3f' % (time.time()-start)
 
-        hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
+        hmminfo = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
+
+        if self.args.pants_seated_clustering:
+            viterbicluster.cluster(hmminfo)
 
         clusters = None
         if make_clusters:
@@ -204,7 +209,7 @@ class PartitionDriver(object):
             else:
                 print '%shmm clusters' % prefix
             clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True, singletons=preclusters.singletons)
-            clusters.cluster(input_scores=hmm_pairscores, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
+            clusters.cluster(input_scores=hmminfo, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
 
         if not self.args.no_clean:
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
@@ -582,7 +587,7 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir + '/hmm/performance', 'hmm') if self.args.plot_performance else None
 
         n_processed = 0
-        pairscores = []
+        hmminfo = []
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
@@ -610,7 +615,8 @@ class PartitionDriver(object):
                         n_processed += 1
                         if self.args.debug:
                             print '%s   %d' % (id_str, same_event)
-                        if not (self.args.skip_unproductive and line['cdr3_length'] == -1):
+                        if line['cdr3_length'] != -1 or not self.args.skip_unproductive:  # if it's productive, or if we're not skipping unproductive rearrangements
+                            hmminfo.append(dict([('unique_id', line['unique_ids'][0]), ] + line.items()))
                             if pcounter is not None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
                             if true_pcounter is not None:  # increment true counters
@@ -632,7 +638,7 @@ class PartitionDriver(object):
                     else:
                         score = float(line['score'])
                     if len(ids) == 2:
-                        pairscores.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
+                        hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
                     n_processed += 1
 
                 last_key = utils.get_key(ids)
@@ -652,7 +658,7 @@ class PartitionDriver(object):
         if len(boundary_error_queries) > 0:
             print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
 
-        return pairscores
+        return hmminfo
 
     # ----------------------------------------------------------------------------------------
     def get_true_clusters(self, ids):
