@@ -487,7 +487,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                 htmp.SetMarkerSize(markersizes[imark])
             htmp.SetMarkerColor(colors[ih])
             htmp.SetLineStyle(linestyles[ih])
-            if linewidth is None:
+            if linewidths is None:
                 if ih < 6:  # and len(hists) < 5:
                     htmp.SetLineWidth(6-ih)
             else:

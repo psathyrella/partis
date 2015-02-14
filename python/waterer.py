@@ -64,6 +64,8 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
+        start = time.time()
+
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.bam'
         self.write_vdjalign_input(base_infname)
@@ -85,13 +87,14 @@ class Waterer(object):
                     os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
 
         self.read_output(base_outfname, plot_performance=self.args.plot_performance)
+        print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write(self.parameter_dir)
             # if self.true_pcounter != None:
             #     self.true_pcounter.write(parameter_xxx_dir, plotdir=plotdir + '/true')
-            if self.plotdir != '':
+            if not self.args.no_plot and self.plotdir != '':
                 self.pcounter.plot(self.plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
                 if self.true_pcounter != None:
                     self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)

@@ -92,6 +92,8 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None):
+        print '  plotting parameters'
+        start = time.time()
         utils.prep_dir(plotdir + '/plots')  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
             if column == 'all':
@@ -148,14 +150,18 @@ class ParameterCounter(object):
             check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
             check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
 
+        print '    parameter plot time: %.3f' % (time.time()-start)
+
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):
+        print '  writing parameters'
+        start = time.time()
+
         utils.prep_dir(base_outdir, multilings=('*.csv', '*.svg'))
-        print 'write mute freqs'
         mute_start = time.time()
         self.mutefreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
-        print 'mute freq write time: %.3f' % (time.time() - mute_start)
-        print ' %d / %d cached' % (self.mutefreqer.n_cached, self.mutefreqer.n_cached + self.mutefreqer.n_not_cached)
+        print '      mut freq write time: %.3f' % (time.time() - mute_start)
+        # print ' %d / %d cached' % (self.mutefreqer.n_cached, self.mutefreqer.n_cached + self.mutefreqer.n_not_cached)
         for column in self.counts:
             index = None
             outfname = None
@@ -184,3 +190,5 @@ class ParameterCounter(object):
                         line[index[ic]] = key[ic]
                     line['count'] = count
                     out_data.writerow(line)
+
+        print '    parameter write time: %.3f' % (time.time()-start)

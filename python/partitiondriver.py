@@ -175,6 +175,7 @@ class PartitionDriver(object):
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         print '    running'
+        start = time.time()
         if self.args.n_procs > 1:
             self.split_input(self.args.n_procs, infname=csv_infname, prefix='hmm')
             procs = []
@@ -191,6 +192,8 @@ class PartitionDriver(object):
         else:
             cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
             check_call(cmd_str.split())
+
+        print '      hmm run time: %.3f' % (time.time()-start)
 
         hmm_pairscores = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
 
@@ -387,6 +390,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir, sw_matches):
         print 'writing hmms with info from %s' % parameter_dir
+        start = time.time()
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
@@ -400,11 +404,14 @@ class PartitionDriver(object):
                         gene_list.append(gene)
 
         for gene in gene_list:
-            print '  %s' % utils.color_gene(gene)
+            if self.args.debug:
+                print '  %s' % utils.color_gene(gene)
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety,
                                self.germline_seqs[utils.get_region(gene)][gene],
                                self.args)
             writer.write()
+
+        print '    time to write hmms: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir, query_name, second_query_name=None):
@@ -632,10 +639,12 @@ class PartitionDriver(object):
 
         if pcounter is not None:
             pcounter.write(parameter_out_dir)
-            pcounter.plot(plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+            if not self.args.no_plot:
+                pcounter.plot(plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if true_pcounter is not None:
             true_pcounter.write(parameter_out_dir + '/true')
-            true_pcounter.plot(plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+            if not self.args.no_plot:
+                true_pcounter.plot(plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if perfplotter is not None:
             perfplotter.plot()
 

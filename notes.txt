@@ -1,3 +1,26 @@
+sw
+  run 52 (x10 = 520 sec / 10k seqs --> .052)
+  write parameters 17 (9 for 1k, 6 for 200)
+  write hmms 76 (37 for 1k, 22 for 200)
+hmm
+  run 58 (x10 = 580 / 10k seqs --> .058)
+  write parameters 17 (7 for 1k, 5 for 200)
+  write true parameters 10 (6 for 1k, 4 for 200)
+  write hmms 81 (38 for 1k, 17 for 200)
+
+sum: 311
+
+total 338 sec
+
+
+# ----------------------------------------------------------------------------------------
+
+run-algorithm viterbi
+
+sw  .030
+hmm .046 (-->36 on 10k)
+
+# ----------------------------------------------------------------------------------------
 - performance
   - ihmmune-align: 2.6s per seq or thereabouts
   - note that imgt actually does well on j gene id and j gene hamming-to-true-naive

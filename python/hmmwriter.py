@@ -224,8 +224,9 @@ class HmmWriter(object):
         self.n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
         replacement_genes = None
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
-            print '    only saw it %d times, use info from other genes' % self.n_occurences
-            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=True)
+            if self.args.debug:
+                print '    only saw it %d times, use info from other genes' % self.n_occurences
+            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
 
         self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
 
@@ -366,7 +367,8 @@ class HmmWriter(object):
             assert utils.is_normed(test_total)
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
-            print '    erosions used:', ' '.join(genes_used)
+            if self.args.debug:
+                print '    erosions used:', ' '.join(genes_used)
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_info(self, this_gene, approved_genes=None):
@@ -400,10 +402,12 @@ class HmmWriter(object):
             interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
 
             if 0 not in self.insertion_probs[insertion] or len(self.insertion_probs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
-                print '    WARNING adding pseudocount to 1-bin in insertion probs'
+                if self.args.debug:
+                    print '    WARNING adding pseudocount to 1-bin in insertion probs'
                 self.insertion_probs[insertion][0] = 1
                 self.insertion_probs[insertion][1] = 1
-                print '      ', self.insertion_probs[insertion]
+                if self.args.debug:
+                    print '      ', self.insertion_probs[insertion]
 
             assert 0 in self.insertion_probs[insertion] and len(self.insertion_probs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
@@ -425,7 +429,8 @@ class HmmWriter(object):
             self.read_insertion_content(insertion)  # also read the base content of the insertions
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
-            print '    insertions used:', ' '.join(genes_used)
+            if self.args.debug:
+                print '    insertions used:', ' '.join(genes_used)
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, insertion):
