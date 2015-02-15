@@ -7,6 +7,7 @@ import os
 import glob
 import csv
 import re
+from multiprocessing import Pool
 from subprocess import Popen, check_call
 
 import_start = time.time()
@@ -520,6 +521,7 @@ class PartitionDriver(object):
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False):
         print '    writing input'
         csvfile = opener('w')(csv_fname)
+        start = time.time()
 
         # write header
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader 
@@ -575,6 +577,7 @@ class PartitionDriver(object):
                 print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
 
         csvfile.close()
+        print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, make_clusters=True, count_parameters=False, parameter_out_dir=None, plotdir=None):

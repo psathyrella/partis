@@ -40,10 +40,10 @@ class Clusterer(object):
                     input_scores.append(line)
         sorted_lines = sorted(input_scores, key=lambda k: float(k['score']))
         for line in sorted_lines:
-            a_name = int(line['id_a'])
-            b_name = int(line['id_b'])
+            a_name = line['id_a']
+            b_name = line['id_b']
             score = float(line['score'])
-            from_same_event = -1 if reco_info == None else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
+            from_same_event = -1 if (reco_info == None or a_name not in reco_info or b_name not in reco_info) else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
             dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]
             self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
             self.pairscores[(utils.get_key((a_name, b_name)))] = score
@@ -87,7 +87,7 @@ class Clusterer(object):
                 self.singletons.append(queries[0])
 
         # print 'nearest',self.nearest_true_mate
-        out_str_list = ['  clusters:\n', ]
+        out_str_list = ['  %d clusters:\n'%len(self.id_clusters), ]
         for cluster_id in self.id_clusters:
             out_str_list.append('   ' + ' '.join([str(x) for x in self.id_clusters[cluster_id]]) + '\n')
         if outfile == None:
