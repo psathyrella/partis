@@ -742,7 +742,7 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
             probs[region][gene] = float(counts[region][gene]) / total
 
     if only_gene not in counts[get_region(only_gene)]:
-        print '      %s not found in overall gene probs, returning zero' % only_gene
+        print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
         if normalize:
             return 0.0
         else:

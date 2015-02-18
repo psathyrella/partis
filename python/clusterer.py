@@ -75,8 +75,8 @@ class Clusterer(object):
                 hists[htype] = plotting.make_hist_from_list(self.plotscores[htype], htype + '_pairscores')
                 hists[htype].SetTitle(htype)
             plotting.draw(hists['all'], 'float', plotdir=plotdir, plotname='pairscores', more_hists=[hists['same'], hists['diff']])
-            check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
-            check_call(['./permissify-www', plotdir])
+            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+            check_call(['./bin/permissify-www', plotdir])
 
         for query, cluster_id in self.query_clusters.iteritems():
             if cluster_id not in self.id_clusters:

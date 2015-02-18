@@ -33,13 +33,13 @@ for code in args.run_codes:
             print cmd
             check_call(cmd.split())
     else:
-        cmd = './python/' + code + 'parser.py --plotdir ' + base_plotdir + '/' + code + ' --n-max-queries 100'
+        cmd = './python/' + code + 'parser.py --plotdir ' + base_plotdir + '/' + code
         print cmd
         check_call(cmd.split())
 
-plotdirs = [ 'multi-partis/params/simu/hmm',
-             'partis/params/simu/hmm',
-             'partis/params/simu/sw',
+plotdirs = [ 'multi-partis/hmm/performance',
+             'partis/hmm/performance',
+             'partis/sw/performance',
              'ihhhmmm/',
              'igblast/',
              'imgt/' ]

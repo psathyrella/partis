@@ -473,7 +473,8 @@ class HmmWriter(object):
         if mean_length > 0.0:
             inverse_length = 1.0 / mean_length
         if insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
-            print '    WARNING small mean insert length %f' % mean_length
+            if self.args.debug:
+                print '      small mean insert length %f' % mean_length
 
         return inverse_length
 
@@ -491,8 +492,9 @@ class HmmWriter(object):
             self_transition_prob = non_zero_sum / float(non_zero_sum + self.insertion_probs[insertion][0])  # NOTE this otter be less than 1, since we only get here if the mean length is less than 1
             assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
             if insertion != 'fv' and insertion != 'jf':  # we pretty much expect this for unphysical insertions
-                print '    WARNING using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob)
-                print '      ', self.insertion_probs[insertion]
+                if self.args.debug:
+                    print '    WARNING using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob)
+                    print '      ', self.insertion_probs[insertion]
             return self_transition_prob
 
     # ----------------------------------------------------------------------------------------

@@ -171,5 +171,5 @@ class PerformancePlotter(object):
             hist = plotting.make_hist_from_my_hist_class(self.hists[column], 'mute_freqs')
             plotting.draw(hist, 'float', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
         
-        check_call(['./permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['./makeHtml', self.plotdir, '3', 'null', 'svg'])
+        check_call(['./bin/makeHtml', self.plotdir, '3', 'null', 'svg'])
+        check_call(['./bin/permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up

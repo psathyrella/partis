@@ -182,13 +182,13 @@ class MuteFreqer(object):
         for region in utils.regions:
             hist = plotting.make_hist_from_my_hist_class(self.mean_rates[region], region+'-mean-freq')
             plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
-        check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
+        check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
 
         # then write html file and fix permissiions
         for region in utils.regions:
-            check_call(['./makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
-            check_call(['./makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
-        check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+            check_call(['./bin/makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
+            check_call(['./bin/makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
+        check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
 
     # ----------------------------------------------------------------------------------------
     def clean(self):

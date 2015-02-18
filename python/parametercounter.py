@@ -137,8 +137,8 @@ class ParameterCounter(object):
                     plotname = utils.sanitize_name(gene) + '-' + column
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
                     plotting.draw(hist, var_type, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True)
-                check_call(['./permissify-www', thisplotdir])  # NOTE this should really permissify starting a few directories higher up
-                check_call(['./makeHtml', thisplotdir, '3', 'null', 'svg'])
+                check_call(['./bin/makeHtml', thisplotdir, '3', 'null', 'svg'])
+                check_call(['./bin/permissify-www', thisplotdir])  # NOTE this should really permissify starting a few directories higher up
 
             plotname = column
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
@@ -147,8 +147,8 @@ class ParameterCounter(object):
         self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 
         if has_root:
-            check_call(['./permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
-            check_call(['./makeHtml', plotdir, '3', 'null', 'svg'])
+            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+            check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
 
         print '    parameter plot time: %.3f' % (time.time()-start)
 
