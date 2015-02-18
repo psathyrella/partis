@@ -7,7 +7,7 @@ samplesizes = (10000, 5000, 1000, 500, 100, 50)  #, 25)
 baseplotdir = os.getenv('www') + '/partis'
 for size in samplesizes:
     label = 'sample-size-' + str(size)
-    cmd = './plotperformance.py --label ' + label + ' --plotdir ' + baseplotdir + '/' + label + ' --action plot-performance --simfname _output/test/simu.csv --n-queries ' + str(size)
+    cmd = './bin/run-driver.py --label ' + label + ' --plotdir ' + baseplotdir + '/' + label + ' --action plot-performance --simfname _output/test/simu.csv --n-queries ' + str(size)
     # Popen(cmd.split(' '))
 
 plotdirs = [ baseplotdir + '/sample-size-' + str(s) + '/hmm/performance' for s in samplesizes ]

@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--leaves', type=int, required=True)
 args = parser.parse_args()
 
-cmd = './runpart.py'
+cmd = './bin/partis.py'
 
 events = 50  #int(100./args.leaves)
 cmdstr = cmd + ' --simulate --outfname _output/viterbi-cluster-' + str(args.leaves) + '/simu.csv --n-procs 10 --parameter-dir _output/every-10-A-subset-0/data/hmm --n-max-queries ' + str(events) + ' --n-leaves ' + str(args.leaves)

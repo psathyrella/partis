@@ -9,7 +9,7 @@ sys.path.insert(1, './python')
 import utils
 
 # ----------------------------------------------------------------------------------------
-def run_that_shit(cmd_str):
+def run_command(cmd_str):
     print 'RUN', cmd + cmd_str
     check_call([cmd,] + cmd_str.split())
 
@@ -31,7 +31,7 @@ args = parser.parse_args()
 args.extra_args = utils.get_arg_list(args.extra_args)
 args.actions = utils.get_arg_list(args.actions)
 
-cmd = './runpart.py'
+cmd = './bin/partis.py'
 common_args = ' --n-procs ' + str(args.n_procs)
 if args.extra_args != None:
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--')
@@ -45,14 +45,14 @@ if 'cache-data-parameters' in args.actions:
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
     cmd_str += ' --n-max-queries ' + args.n_queries
-    run_that_shit(cmd_str)
+    run_command(cmd_str)
 
 if 'simulate' in args.actions:
     # simulate based on data parameters
     cmd_str = ' --simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
     cmd_str += ' --n-max-queries ' + str(args.n_sim_events)  # NOTE confusing using n-max-queries for both these thigns, sorry...
-    run_that_shit(cmd_str)
+    run_command(cmd_str)
 
 if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
@@ -60,12 +60,11 @@ if 'cache-simu-parameters' in args.actions:
     cmd_str += ' --parameter-dir ' + param_dir + '/simu'
     cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
     cmd_str += ' --n-max-queries ' + args.n_queries
-    run_that_shit(cmd_str)
+    run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --run-algorithm viterbi --plot-performance --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
     cmd_str += ' --plotdir ' + args.plotdir
     cmd_str += ' --n-max-queries ' + args.n_queries
-    run_that_shit(cmd_str)
- 
+    run_command(cmd_str)

@@ -6,6 +6,7 @@ required
   - scons
   - pip
   - java 7 (for ighutil)
+  - ROOT
   - python packages
     - pysam
     - pyyaml
@@ -19,10 +20,6 @@ required only for simulator
 --------------
   - dendropy
   - TreeSim
-
-optional
---------------
-  - ROOT
 
 included
 --------------
@@ -42,6 +39,7 @@ scons
 cd ../samtools/
 make
 ln -s $PWD/samtools ~/bin/
+export PATH=~/bin:$PATH
 cd ../ighutil/
 make -C clj
 pip install --user ./python
