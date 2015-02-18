@@ -27,7 +27,7 @@ parser.add_argument('--generate-trees', action='store_true', help='generate tree
 # finer action control
 # parser.add_argument('--pair', action='store_true', help='Run on every pair of sequences in the input')
 parser.add_argument('--n-sets', type=int, default=1, help='Run on sets of sequences of size <n> (i.e. \"k-hmm\")')
-parser.add_argument('--all-combinations', action='store_true', help='Run algorithm on *all* possible combinations of the input queries of length <n-sets>')
+parser.add_argument('--all-combinations', action='store_true', help='Run algorithm on *all* possible combinations of the input queries of length <n-sets> (otherwise we run on sequential sets of <n-sets> in the input file).')
 parser.add_argument('--is-data', action='store_true', help='True if not simulation')
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')

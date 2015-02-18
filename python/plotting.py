@@ -684,7 +684,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             args.graphify = True
 
         if '_gene' in varname:
-            xtitle = 'gene version'
+            xtitle = 'allele'
             gStyle.SetNdivisions(0,"x")
             # gStyle.SetLabelSize(0.00010, 'X')
             if hist.GetNbinsX() == 2:
@@ -698,7 +698,12 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         line_width_override = None
         if args.plot_performance:
-            xtitle = 'inferred - true'
+            if 'hamming_to_true_naive' in varname:
+                xtitle = 'hamming distance'
+                if '_normed' in varname:
+                    xtitle = 'fractional ' + xtitle
+            else:
+                xtitle = 'inferred - true'
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
             bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)

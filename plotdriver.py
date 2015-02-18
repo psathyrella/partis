@@ -9,7 +9,7 @@ import utils
 import plotting
 from humans import humans, colors
 
-dataset = 'adaptive'  #both  #stanford
+dataset = 'adaptive'  #stanford  #both
 
 modulo = '10'
 
@@ -20,20 +20,18 @@ args = parser.parse_args()
 
 # subdirs = [ e + '_del' for e in utils.real_erosions ] \
 #           + [ i + '_insertion' for i in utils.boundaries]
-# subdirs = [ '.', ] \
-#           + [ e + '_del' for e in utils.real_erosions ] \
-#           + [ i + '_insertion' for i in utils.boundaries] \
-#           + [ 'mute-freqs', ] \
-#           + [ 'mute-freqs/' + r for r in utils.regions ]
-subdirs = [ 'mute-freqs/j', ]
+subdirs = [ '.', ] \
+          + [ e + '_del' for e in utils.real_erosions ] \
+          + [ i + '_insertion' for i in utils.boundaries] \
+          + [ 'mute-freqs', ] \
+          + [ 'mute-freqs/' + r for r in utils.regions ]
+# subdirs = [ 'mute-freqs', ]
 
 outlabel = 'cf-subsets'
 webdir = '/var/www/sharing/dralph/partis'
 subsets = [ str(i) for i in range(int(modulo)) ]
 
 #('632', '596', '418')
-colors = {'A':'595', 'B':'807', 'C':'834',
-          '021-019': '1', '021-044': '1', '021-048': '1', '021-050': '1', '021-055': '1', '021-057': '1', '021-059': '1', '021-060': '1', '021-061': '1', '021-063': '1', '021-068': '1', '021-071': '1', '021-084': '1', '021-018': '1'}
 
 for subdir in subdirs:
     print subdir, '-----------------'
@@ -66,6 +64,8 @@ for subdir in subdirs:
     print '  YOOOOO skipping subset plots'
 
     final_cmd = './python/compare.py --dont-calculate-mean-info --colors ' + ':'.join([ colors[human] for human in humans[dataset] ]) + ' --plotdirs ' + ':'.join(final_plotdirs) + ' --names ' + ':'.join(humans[dataset]) + ' --outdir ' + webdir + '/cf-data-' + dataset + '/' + subdir
+    if subdir == 'mute-freqs':
+        final_cmd += ' --rebin 5'
     if dataset == 'both':
         final_cmd += ' --linewidth 2'  # --linestyles ' + ':'.join()
     if 'mute-freqs/v' not in subdir and 'mute-freqs/d' not in subdir and 'mute-freqs/j' not in subdir:
