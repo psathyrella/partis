@@ -349,7 +349,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def hamming_precluster(self, preclusters=None):
-        """ If <seq_list> is specified, do pair clustering on those sequences. Otherwise do it on all the ones specified by <self.input_info>/<preclusteres. """
         assert self.args.truncate_pairs
         start = time.time()
         print 'hamming clustering'

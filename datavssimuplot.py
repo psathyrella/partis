@@ -32,7 +32,7 @@ subset = 0
 
 for subdir in subdirs:
     print subdir, '-----------------'
-    plotdirs, names, colorlist, linestyles, linewidths, markersizes, leaves_per_tree, strings_to_ignore = [], [], [], [], [], [], [], []
+    plotdirs, names, colorlist, linestyles, linewidths, markersizes, scale_errors, strings_to_ignore = [], [], [], [], [], [], [], []
     for human in humans[dataset]:
         print '  ', human
         baselabel = 'every-' + modulo + '-' + human
@@ -47,7 +47,7 @@ for subdir in subdirs:
         linestyles += ['1', '2']
         linewidths += ['1', '2']
         markersizes += ['1', '0']
-        leaves_per_tree += ['1', '5']
+        scale_errors += ['1.414', '2.24']
         strings_to_ignore += ['_mean-bins', '']
 
     cmd = './python/compare.py --dont-calculate-mean-info --colors ' + ':'.join(colorlist)
@@ -56,8 +56,8 @@ for subdir in subdirs:
     cmd += ' --names ' + ':'.join(names)
     cmd += ' --outdir ' + webdir + '/data-vs-simu-' + dataset + '/' + subdir
     cmd += ' --strings-to-ignore ' + ':'.join(strings_to_ignore)
-    # cmd += ' --leaves-per-tree ' + ':'.join(leaves_per_tree)
-    cmd += ' --no-errors'
+    cmd += ' --scale-errors ' + ':'.join(scale_errors)
+    # cmd += ' --no-errors'
 
     if dataset == 'both':
         cmd += ' --linewidth 2'  # --linestyles ' + ':'.join()

@@ -52,8 +52,7 @@ parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
 
 # run/batch control
-parser.add_argument('--n-procs', type=int, default=1, help='Max number of processes over which to parallelize')
-parser.add_argument('--n-fewer-procs', type=int, help='Number of processes for Smith-Waterman and hamming distance')
+parser.add_argument('--n-procs', default='1', help='Max number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
@@ -92,8 +91,14 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
-if args.n_fewer_procs == None:
-    args.n_fewer_procs = args.n_procs
+
+args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
+if len(args.n_procs) == 1:
+    args.n_fewer_procs = args.n_procs[0]
+else:
+    args.n_fewer_procs = args.n_procs[1]
+args.n_procs = args.n_procs[0]
+
 if args.slurm and '/tmp' in args.workdir:
     print 'ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes'
     sys.exit()
@@ -149,7 +154,7 @@ else:
     # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
 
-    args.queries = utils.get_arg_list(args.queries, intify=True)
+    args.queries = utils.get_arg_list(args.queries, intify=False)
     args.reco_ids = utils.get_arg_list(args.reco_ids, intify=True)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
     if len(args.n_max_per_region) != 3:

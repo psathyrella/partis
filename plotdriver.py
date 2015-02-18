@@ -25,7 +25,7 @@ args = parser.parse_args()
 #           + [ i + '_insertion' for i in utils.boundaries] \
 #           + [ 'mute-freqs', ] \
 #           + [ 'mute-freqs/' + r for r in utils.regions ]
-subdirs = [ '.', ]
+subdirs = [ 'mute-freqs/j', ]
 
 outlabel = 'cf-subsets'
 webdir = '/var/www/sharing/dralph/partis'
@@ -75,5 +75,6 @@ for subdir in subdirs:
     # else:
     #     final_cmd += ' --markersize 0'
     final_cmd += ' --graphify --linewidth 1'  # --linestyles ' + ':'.join(['2' for _ in final_plotdirs])
+    final_cmd += ' --scale-errors 1.414'
 
     check_call(final_cmd.split(' '))

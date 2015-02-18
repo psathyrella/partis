@@ -91,9 +91,10 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
             contents.append(float(line['contents']))
             if 'sum-weights-squared' in line:
                 sum_weights_squared.append(float(line['sum-weights-squared']))
-            if 'error' in line:
+            if 'error' in line or 'binerror' in line:
                 assert 'sum-weights-squared' not in line
-                bin_errors.append(float(line['error']))
+                tmp_error = float(line['error']) if 'error' in line else float(line['binerror'])
+                bin_errors.append(tmp_error)
             if 'binlabel' in line:
                 bin_labels.append(line['binlabel'])
             else:
@@ -308,6 +309,11 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     if not has_root:
         return
 
+    if normalization_bounds is not None:
+        assert bounds is None
+    if bounds is not None:
+        assert normalization_bounds is None
+
     cvn = TCanvas('cvn-'+plotname, '', 700 if cwidth is None else cwidth, 600 if cheight is None else cheight)
 
     hists = [hist,]
@@ -315,16 +321,23 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         hists = hists + more_hists
 
     xmin, xmax, ymax = None, None, None
+    ih = 0
     for htmp in hists:
         if rebin is not None:
             htmp.Rebin(rebin)
         if scale_errors is not None:
+            factor = float(scale_errors[0]) if len(scale_errors) == 1 else float(scale_errors[ih])
             for ibin in range(htmp.GetNbinsX()+2):
-                htmp.SetBinError(ibin, htmp.GetBinError(ibin) * scale_errors)
+                htmp.SetBinError(ibin, htmp.GetBinError(ibin) * factor)
 
         if not normalize:
             assert normalization_bounds is None
-            this_y_max = htmp.GetMaximum()
+            if bounds is not None:
+                ibin_start = htmp.FindBin(bounds[0])
+                ibin_end = htmp.FindBin(bounds[1])
+                this_y_max = GetMaximumWithBounds(htmp, htmp.GetXaxis().GetBinLowEdge(ibin_start), htmp.GetXaxis().GetBinUpEdge(ibin_end))
+            else:
+                this_y_max = htmp.GetMaximum()
         else:  # renormalize the hist within these bounds
             if normalization_bounds is None:
                 factor = 1./htmp.Integral() if htmp.Integral() > 0.0 else 0.0
@@ -345,7 +358,9 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
         if xmax is None or htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX()) > xmax:
             xmax = htmp.GetXaxis().GetBinUpEdge(htmp.GetNbinsX())
 
-    if bounds != None:
+        ih += 1
+
+    if bounds is not None:
         xmin, xmax = bounds
     hframe = TH1D('hframe', '', hist.GetNbinsX(), xmin, xmax)
     if not no_labels and (var_type == 'string' or var_type == 'bool'):
@@ -621,8 +636,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     # read hists from <args.plotdirs>
     hists = []
     for idir in range(len(args.plotdirs)):
-        assert args.leaves_per_tree is None
-        rescale_entries = args.leaves_per_tree[idir] if args.leaves_per_tree is not None else None
         string_to_ignore = None if args.strings_to_ignore is None else args.strings_to_ignore[idir]
         hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], string_to_ignore=string_to_ignore))
 
@@ -688,22 +701,17 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             xtitle = 'inferred - true'
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
+            bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
             if '_gene' in varname:
                 no_labels = True
                 if 'j_' not in varname:
                     cwidth, cheight = 1000, 500
-                # gStyle.SetTitleSize(0.00010, 'X')
-                # gStyle.SetLabelFont(42, 'X')
                 line_width_override = 1
             elif 'mute-freqs/v' in args.plotdirs[0]:
                 cwidth, cheight = 1000, 500
             elif 'mute-freqs/j' in args.plotdirs[0]:
                 cwidth, cheight = 1000, 500
-            # bounds = None
-            bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
-            # if '_insertion' in varname and 'content' not in varname:  # subsetting by gene now, so the above line doesn't always work
-            #     tmpname = varname[ varname.find('_insertion') - 2 : ]
-            #     bounds = default_hard_bounds[tmpname]
+                bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
 
         if 'IGH' in varname:
             if 'mute-freqs' in args.plotdirs[0]:
@@ -711,7 +719,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 plottitle = gene  # + ' -- mutation frequency'
                 xtitle = 'position'
                 if utils.get_region(gene) == 'j':
-                    translegend = (-0.35, -0.02)
+                    translegend = (0.1, 0.)  #(-0.35, -0.02)
                 else:
                     translegend = (0.15, -0.02)
                 xline = None
@@ -730,6 +738,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         # draw that little #$*(!
         linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
+        assert args.leaves_per_tree is None
+        # scale_errors = math.sqrt(args.leaves_per_tree[idir]) if args.leaves_per_tree is not None else args.scale_errors
         draw(all_hists[0], var_type, plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
              shift_overflows=False, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
              xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=args.normalize, normalization_bounds=normalization_bounds,

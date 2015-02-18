@@ -88,5 +88,15 @@ default_hard_bounds = {
     'd-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'j-mean-freq' : (0.0, 0.3),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-1, 6),
-    'vd_insertion' : (-1, 15)
+    'vd_insertion' : (-1, 15),
+    'IGHJ6*02' : (-0.5, 39.5),
+    'IGHJ3*02' : (-0.5, 26),
+    'IGHJ1*01' : (-0.5, 28),
+    'IGHJ2*01' : (-0.5, 28),
+    'IGHJ3*01' : (-0.5, 25),
+    'IGHJ4*01' : (-0.5, 23),
+    'IGHJ4*02' : (-0.5, 24),
+    'IGHJ4*03' : (-0.5, 24),
+    'IGHJ5*01' : (-0.5, 27),
+    'IGHJ5*02' : (-0.5, 28)
 }
