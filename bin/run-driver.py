@@ -20,7 +20,7 @@ parser.add_argument('--label', required=True)  # label for this test run. e.g. r
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to multiply by the number of leaves to get the number of sequences (default is 5, though, which'll give you 10k seqs)
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args ' __option' (NOTE replaces __ with --)
-parser.add_argument('--datafname', default='test/every-hundredth-data.tsv.bz2')
+parser.add_argument('--datafname')
 parser.add_argument('--simfname')
 parser.add_argument('--plotdir', required=True)
 parser.add_argument('--n-procs', type=int, default=10)
@@ -40,6 +40,8 @@ if args.simfname == None:
 param_dir = '_output/' + args.label
 
 if 'cache-data-parameters' in args.actions:
+    if args.datafname is None or not os.path.exists(args.datafname):
+        raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))
     # cache parameters from data
     cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data'

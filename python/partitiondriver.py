@@ -10,7 +10,6 @@ import re
 from multiprocessing import Pool
 from subprocess import Popen, check_call
 
-import_start = time.time()
 import utils
 from opener import opener
 from seqfileopener import get_seqfile_info
@@ -21,8 +20,6 @@ from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 import viterbicluster
 import plotting
-
-print 'import time: %.3f' % (time.time() - import_start)
 
 # ----------------------------------------------------------------------------------------
 def from_same_event(is_data, pair_hmm, reco_info, query_names):
@@ -205,7 +202,7 @@ class PartitionDriver(object):
 
         clusters = None
         if make_clusters:
-            if self.outfile != None:
+            if self.outfile is not None:
                 self.outfile.write('hmm clusters\n')
             else:
                 print '%shmm clusters' % prefix
@@ -379,7 +376,7 @@ class PartitionDriver(object):
         else:
             hamming_info = self.get_hamming_distances(all_pairs)
 
-        if self.outfile != None:
+        if self.outfile is not None:
             self.outfile.write('hamming clusters\n')
 
         clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
