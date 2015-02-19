@@ -4,6 +4,7 @@ from subprocess import check_call
 import os
 import sys
 import argparse
+import multiprocessing
 
 sys.path.insert(1, './python')
 import utils
@@ -15,7 +16,6 @@ def run_command(cmd_str):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-# parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to multiply by the number of leaves to get the number of sequences (default is 5, though, which'll give you 10k seqs)
@@ -23,7 +23,7 @@ parser.add_argument('--extra-args')  # args to pass on to commands (colon-separa
 parser.add_argument('--datafname')
 parser.add_argument('--simfname')
 parser.add_argument('--plotdir', required=True)
-parser.add_argument('--n-procs', type=int, default=10)
+parser.add_argument('--n-procs', type=int, default=max(1, multiprocessing.cpu_count() / 2))
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 
