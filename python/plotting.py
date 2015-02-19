@@ -475,8 +475,9 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
 
             if draw_str is None:
                 draw_str = 'lpz'
-            gr.Draw(draw_str + ' same')
-            leg.AddEntry(gr, hists[ih].GetTitle() , 'pl')
+            if hists[ih].Integral() != 0.0:
+                gr.Draw(draw_str + ' same')
+                leg.AddEntry(gr, hists[ih].GetTitle() , 'pl')
             graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
     else:
         if draw_str is None:
@@ -640,7 +641,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         hists.append(get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], string_to_ignore=string_to_ignore))
 
     # then loop over all the <varname>s we found
-    histmisses = []
     all_names, all_means, all_sems, all_normalized_means = [], [], [], []
     for varname, hist in hists[0].iteritems():
         # add the hists
@@ -650,11 +650,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             try:  # add the hist
                 all_hists.append(hists[idir][varname])
             except KeyError:  # oops, didn't find it in this dir, so skip this variable entirely
-                histmisses.append(varname)
-                missing_hist = True
-                break
-        if missing_hist:
-            continue        
+                print args.names[idir], varname
+                all_hists.append(TH1D())
 
         if '_gene' in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
             all_hists = add_bin_labels_not_in_all_hists(all_hists)
@@ -712,9 +709,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 if 'j_' not in varname:
                     cwidth, cheight = 1000, 500
                 line_width_override = 1
-            elif 'mute-freqs/v' in args.plotdirs[0]:
-                cwidth, cheight = 1000, 500
-            elif 'mute-freqs/j' in args.plotdirs[0]:
+            elif 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
                 cwidth, cheight = 1000, 500
                 bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
 
@@ -749,9 +744,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
              shift_overflows=False, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
              xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=args.normalize, normalization_bounds=normalization_bounds,
              linewidths=linewidths, markersizes=args.markersizes, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=args.graphify, log=log, translegend=translegend)
-
-    if len(histmisses) > 0:
-        print 'WARNING: missing hists for %s' % ' '.join(histmisses)
 
     if not args.dont_calculate_mean_info:
         # write mean info

@@ -55,7 +55,7 @@ for subdir in args.subdirs:
     cmd += ' --scale-errors ' + ':'.join(scale_errors)
 
     if subdir == 'mute-freqs':
-        cmd += '  --rebin 5'
+        cmd += ' --rebin 5'
     if 'mute-freqs/v' not in subdir and 'mute-freqs/d' not in subdir and 'mute-freqs/j' not in subdir:
         cmd += ' --normalize'
     if 'mute-freqs/v' in subdir or 'mute-freqs/d' in subdir or 'mute-freqs/j' in subdir:

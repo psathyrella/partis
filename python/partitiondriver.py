@@ -175,6 +175,7 @@ class PartitionDriver(object):
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
         self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
         print '    running'
+        sys.stdout.flush()
         start = time.time()
         if self.args.n_procs > 1:
             self.split_input(self.args.n_procs, infname=csv_infname, prefix='hmm')
@@ -193,6 +194,7 @@ class PartitionDriver(object):
             cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
             check_call(cmd_str.split())
 
+        sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
 
         hmminfo = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)

@@ -68,6 +68,7 @@ class Waterer(object):
 
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.bam'
+        sys.stdout.flush()
         self.write_vdjalign_input(base_infname)
         if self.args.n_procs == 1:
             cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
@@ -86,6 +87,7 @@ class Waterer(object):
                 for iproc in range(self.args.n_procs):
                     os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
 
+        sys.stdout.flush()
         self.read_output(base_outfname, plot_performance=self.args.plot_performance)
         print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
