@@ -1,0 +1,577 @@
+!!python/object:hmmwriter.HMM
+extras: {gene_prob: 1.0e-06}
+name: IGHJ2P_star_01
+states:
+- !!python/object:hmmwriter.State
+  emissions: null
+  extras: {}
+  name: init
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_0: 0.027973592928275705, IGHJ2P_star_01_1: 0.015851702659356235, IGHJ2P_star_01_10: 0.004662265488045951, IGHJ2P_star_01_11: 0.0018649061952183805,
+    IGHJ2P_star_01_12: 0.0018649061952183805, IGHJ2P_star_01_13: 0.003729812390436761, IGHJ2P_star_01_14: 0.0009324530976091902, IGHJ2P_star_01_15: 0.0009324530976091902,
+    IGHJ2P_star_01_16: 0.0009324530976091902, IGHJ2P_star_01_17: 0.0009324530976091902, IGHJ2P_star_01_18: 0.0009324530976091902, IGHJ2P_star_01_19: 0.0008806501477420129,
+    IGHJ2P_star_01_2: 0.009324530976091903, IGHJ2P_star_01_20: 0.0008288471978748357, IGHJ2P_star_01_21: 0.0007770442480076584, IGHJ2P_star_01_22: 0.0007252412981404811,
+    IGHJ2P_star_01_23: 0.0006734383482733039, IGHJ2P_star_01_24: 0.0006216353984061267, IGHJ2P_star_01_25: 0.0005698324485389494, IGHJ2P_star_01_26: 0.0005180294986717721,
+    IGHJ2P_star_01_27: 0.0004662265488045949, IGHJ2P_star_01_28: 0.00041442359893741765, IGHJ2P_star_01_29: 0.0003626206490702404, IGHJ2P_star_01_3: 0.013986796464137852,
+    IGHJ2P_star_01_30: 0.00031081769920306314, IGHJ2P_star_01_31: 0.0002590147493358859, IGHJ2P_star_01_32: 0.00020721179946870863, IGHJ2P_star_01_33: 0.0001554088496015314,
+    IGHJ2P_star_01_34: 0.00010360589973435418, IGHJ2P_star_01_35: 5.180294986717695e-05, IGHJ2P_star_01_4: 0.013054343366528663, IGHJ2P_star_01_5: 0.011189437171310284,
+    IGHJ2P_star_01_6: 0.013986796464137852, IGHJ2P_star_01_7: 0.013054343366528663, IGHJ2P_star_01_8: 0.006527171683264331, IGHJ2P_star_01_9: 0.004662265488045951,
+    insert_left_A: 0.1571455092758351, insert_left_C: 0.23798915277612018, insert_left_G: 0.30793252973704105, insert_left_T: 0.14261182055668273}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9189923493068367, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {}
+  name: insert_left_A
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_0: 0.026603254337055765, IGHJ2P_star_01_1: 0.015075177457664936, IGHJ2P_star_01_10: 0.004433875722842628, IGHJ2P_star_01_11: 0.0017735502891370511,
+    IGHJ2P_star_01_12: 0.0017735502891370511, IGHJ2P_star_01_13: 0.0035471005782741023, IGHJ2P_star_01_14: 0.0008867751445685256, IGHJ2P_star_01_15: 0.0008867751445685256,
+    IGHJ2P_star_01_16: 0.0008867751445685256, IGHJ2P_star_01_17: 0.0008867751445685256, IGHJ2P_star_01_18: 0.0008867751445685256, IGHJ2P_star_01_19: 0.000837509858759163,
+    IGHJ2P_star_01_2: 0.008867751445685256, IGHJ2P_star_01_20: 0.0007882445729498006, IGHJ2P_star_01_21: 0.0007389792871404379, IGHJ2P_star_01_22: 0.0006897140013310753,
+    IGHJ2P_star_01_23: 0.0006404487155217128, IGHJ2P_star_01_24: 0.0005911834297123502, IGHJ2P_star_01_25: 0.0005419181439029878, IGHJ2P_star_01_26: 0.0004926528580936251,
+    IGHJ2P_star_01_27: 0.0004433875722842626, IGHJ2P_star_01_28: 0.00039412228647490007, IGHJ2P_star_01_29: 0.00034485700066553746, IGHJ2P_star_01_3: 0.013301627168527883,
+    IGHJ2P_star_01_30: 0.00029559171485617496, IGHJ2P_star_01_31: 0.0002463264290468124, IGHJ2P_star_01_32: 0.00019706114323744984, IGHJ2P_star_01_33: 0.00014779585742808732,
+    IGHJ2P_star_01_34: 9.85305716187248e-05, IGHJ2P_star_01_35: 4.9265285809362265e-05, IGHJ2P_star_01_4: 0.01241485202395936, IGHJ2P_star_01_5: 0.010641301734822308,
+    IGHJ2P_star_01_6: 0.013301627168527883, IGHJ2P_star_01_7: 0.01241485202395936, IGHJ2P_star_01_8: 0.00620742601197968, IGHJ2P_star_01_9: 0.004433875722842628,
+    insert_left_A: 0.15855026578763295, insert_left_C: 0.2401165874934094, insert_left_G: 0.31068520290177787, insert_left_T: 0.14388665739108886}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {}
+  name: insert_left_C
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_0: 0.026603254337055765, IGHJ2P_star_01_1: 0.015075177457664936, IGHJ2P_star_01_10: 0.004433875722842628, IGHJ2P_star_01_11: 0.0017735502891370511,
+    IGHJ2P_star_01_12: 0.0017735502891370511, IGHJ2P_star_01_13: 0.0035471005782741023, IGHJ2P_star_01_14: 0.0008867751445685256, IGHJ2P_star_01_15: 0.0008867751445685256,
+    IGHJ2P_star_01_16: 0.0008867751445685256, IGHJ2P_star_01_17: 0.0008867751445685256, IGHJ2P_star_01_18: 0.0008867751445685256, IGHJ2P_star_01_19: 0.000837509858759163,
+    IGHJ2P_star_01_2: 0.008867751445685256, IGHJ2P_star_01_20: 0.0007882445729498006, IGHJ2P_star_01_21: 0.0007389792871404379, IGHJ2P_star_01_22: 0.0006897140013310753,
+    IGHJ2P_star_01_23: 0.0006404487155217128, IGHJ2P_star_01_24: 0.0005911834297123502, IGHJ2P_star_01_25: 0.0005419181439029878, IGHJ2P_star_01_26: 0.0004926528580936251,
+    IGHJ2P_star_01_27: 0.0004433875722842626, IGHJ2P_star_01_28: 0.00039412228647490007, IGHJ2P_star_01_29: 0.00034485700066553746, IGHJ2P_star_01_3: 0.013301627168527883,
+    IGHJ2P_star_01_30: 0.00029559171485617496, IGHJ2P_star_01_31: 0.0002463264290468124, IGHJ2P_star_01_32: 0.00019706114323744984, IGHJ2P_star_01_33: 0.00014779585742808732,
+    IGHJ2P_star_01_34: 9.85305716187248e-05, IGHJ2P_star_01_35: 4.9265285809362265e-05, IGHJ2P_star_01_4: 0.01241485202395936, IGHJ2P_star_01_5: 0.010641301734822308,
+    IGHJ2P_star_01_6: 0.013301627168527883, IGHJ2P_star_01_7: 0.01241485202395936, IGHJ2P_star_01_8: 0.00620742601197968, IGHJ2P_star_01_9: 0.004433875722842628,
+    insert_left_A: 0.15855026578763295, insert_left_C: 0.2401165874934094, insert_left_G: 0.31068520290177787, insert_left_T: 0.14388665739108886}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.9189923493068367, T: 0.027002550231054443}
+    track: nukes
+  extras: {}
+  name: insert_left_G
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_0: 0.026603254337055765, IGHJ2P_star_01_1: 0.015075177457664936, IGHJ2P_star_01_10: 0.004433875722842628, IGHJ2P_star_01_11: 0.0017735502891370511,
+    IGHJ2P_star_01_12: 0.0017735502891370511, IGHJ2P_star_01_13: 0.0035471005782741023, IGHJ2P_star_01_14: 0.0008867751445685256, IGHJ2P_star_01_15: 0.0008867751445685256,
+    IGHJ2P_star_01_16: 0.0008867751445685256, IGHJ2P_star_01_17: 0.0008867751445685256, IGHJ2P_star_01_18: 0.0008867751445685256, IGHJ2P_star_01_19: 0.000837509858759163,
+    IGHJ2P_star_01_2: 0.008867751445685256, IGHJ2P_star_01_20: 0.0007882445729498006, IGHJ2P_star_01_21: 0.0007389792871404379, IGHJ2P_star_01_22: 0.0006897140013310753,
+    IGHJ2P_star_01_23: 0.0006404487155217128, IGHJ2P_star_01_24: 0.0005911834297123502, IGHJ2P_star_01_25: 0.0005419181439029878, IGHJ2P_star_01_26: 0.0004926528580936251,
+    IGHJ2P_star_01_27: 0.0004433875722842626, IGHJ2P_star_01_28: 0.00039412228647490007, IGHJ2P_star_01_29: 0.00034485700066553746, IGHJ2P_star_01_3: 0.013301627168527883,
+    IGHJ2P_star_01_30: 0.00029559171485617496, IGHJ2P_star_01_31: 0.0002463264290468124, IGHJ2P_star_01_32: 0.00019706114323744984, IGHJ2P_star_01_33: 0.00014779585742808732,
+    IGHJ2P_star_01_34: 9.85305716187248e-05, IGHJ2P_star_01_35: 4.9265285809362265e-05, IGHJ2P_star_01_4: 0.01241485202395936, IGHJ2P_star_01_5: 0.010641301734822308,
+    IGHJ2P_star_01_6: 0.013301627168527883, IGHJ2P_star_01_7: 0.01241485202395936, IGHJ2P_star_01_8: 0.00620742601197968, IGHJ2P_star_01_9: 0.004433875722842628,
+    insert_left_A: 0.15855026578763295, insert_left_C: 0.2401165874934094, insert_left_G: 0.31068520290177787, insert_left_T: 0.14388665739108886}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.9189923493068367}
+    track: nukes
+  extras: {}
+  name: insert_left_T
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_0: 0.026603254337055765, IGHJ2P_star_01_1: 0.015075177457664936, IGHJ2P_star_01_10: 0.004433875722842628, IGHJ2P_star_01_11: 0.0017735502891370511,
+    IGHJ2P_star_01_12: 0.0017735502891370511, IGHJ2P_star_01_13: 0.0035471005782741023, IGHJ2P_star_01_14: 0.0008867751445685256, IGHJ2P_star_01_15: 0.0008867751445685256,
+    IGHJ2P_star_01_16: 0.0008867751445685256, IGHJ2P_star_01_17: 0.0008867751445685256, IGHJ2P_star_01_18: 0.0008867751445685256, IGHJ2P_star_01_19: 0.000837509858759163,
+    IGHJ2P_star_01_2: 0.008867751445685256, IGHJ2P_star_01_20: 0.0007882445729498006, IGHJ2P_star_01_21: 0.0007389792871404379, IGHJ2P_star_01_22: 0.0006897140013310753,
+    IGHJ2P_star_01_23: 0.0006404487155217128, IGHJ2P_star_01_24: 0.0005911834297123502, IGHJ2P_star_01_25: 0.0005419181439029878, IGHJ2P_star_01_26: 0.0004926528580936251,
+    IGHJ2P_star_01_27: 0.0004433875722842626, IGHJ2P_star_01_28: 0.00039412228647490007, IGHJ2P_star_01_29: 0.00034485700066553746, IGHJ2P_star_01_3: 0.013301627168527883,
+    IGHJ2P_star_01_30: 0.00029559171485617496, IGHJ2P_star_01_31: 0.0002463264290468124, IGHJ2P_star_01_32: 0.00019706114323744984, IGHJ2P_star_01_33: 0.00014779585742808732,
+    IGHJ2P_star_01_34: 9.85305716187248e-05, IGHJ2P_star_01_35: 4.9265285809362265e-05, IGHJ2P_star_01_4: 0.01241485202395936, IGHJ2P_star_01_5: 0.010641301734822308,
+    IGHJ2P_star_01_6: 0.013301627168527883, IGHJ2P_star_01_7: 0.01241485202395936, IGHJ2P_star_01_8: 0.00620742601197968, IGHJ2P_star_01_9: 0.004433875722842628,
+    insert_left_A: 0.15855026578763295, insert_left_C: 0.2401165874934094, insert_left_G: 0.31068520290177787, insert_left_T: 0.14388665739108886}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.03993806626767094, C: 0.03993806626767094, G: 0.8801858011969872, T: 0.03993806626767094}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_0
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_1: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.08269641198608707, C: 0.7519107640417388, G: 0.08269641198608707, T: 0.08269641198608707}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_1
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_2: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.03466209806297632, C: 0.03466209806297632, G: 0.03466209806297632, T: 0.8960137058110711}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_2
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_3: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.6976061503722308, C: 0.10079794987592307, G: 0.10079794987592307, T: 0.10079794987592307}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_3
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_4: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.060461064065584554, C: 0.8186168078032463, G: 0.060461064065584554, T: 0.060461064065584554}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_4
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_5: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.8631430917659453, C: 0.04561896941135157, G: 0.04561896941135157, T: 0.04561896941135157}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_5
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_6: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.8274458221321106, C: 0.05751805928929648, G: 0.05751805928929648, T: 0.05751805928929648}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_6
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_7: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.048042671781779005, C: 0.048042671781779005, G: 0.855871984654663, T: 0.048042671781779005}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_7
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_8: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.029312865872026268, C: 0.029312865872026268, G: 0.029312865872026268, T: 0.9120614023839212}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_8
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_9: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.0417996574834368, C: 0.0417996574834368, G: 0.8746010275496896, T: 0.0417996574834368}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_9
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_10: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.04507853396513787, C: 0.8647643981045864, G: 0.04507853396513787, T: 0.04507853396513787}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_10
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_11: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.04975537209915561, C: 0.04975537209915561, G: 0.04975537209915561, T: 0.8507338837025331}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_11
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_12: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.06736260500559478, C: 0.06736260500559478, G: 0.06736260500559478, T: 0.7979121849832156}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_12
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_13: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.04221154612871042, C: 0.04221154612871042, G: 0.8733653616138688, T: 0.04221154612871042}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_13
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_14: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.02642870260638441, C: 0.02642870260638441, G: 0.9207138921808468, T: 0.02642870260638441}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_14
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_15: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9462742584145807, C: 0.017908580528473106, G: 0.017908580528473106, T: 0.017908580528473106}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_15
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_16: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.015364884264336074, C: 0.015364884264336074, G: 0.9539053472069918, T: 0.015364884264336074}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_16
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_17: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.014814519701871295, C: 0.9555564408943861, G: 0.014814519701871295, T: 0.014814519701871295}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_17
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_18: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9492565092753319, C: 0.0169144969082227, G: 0.0169144969082227, T: 0.0169144969082227}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_18
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_19: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.017911530470610407, C: 0.9462654085881688, G: 0.017911530470610407, T: 0.017911530470610407}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_19
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_20: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.020510025073286368, C: 0.020510025073286368, G: 0.020510025073286368, T: 0.9384699247801409}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_20
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_21: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.02722230418713478, C: 0.02722230418713478, G: 0.9183330874385957, T: 0.02722230418713478}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_21
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_22: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.015433191430812962, C: 0.015433191430812962, G: 0.9537004257075611, T: 0.015433191430812962}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_22
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_23: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.01261566026640565, C: 0.01261566026640565, G: 0.962153019200783, T: 0.01261566026640565}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_23
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_24: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.020237031803205307, C: 0.020237031803205307, G: 0.939288904590384, T: 0.020237031803205307}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_24
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_25: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.024552887829895145, C: 0.9263413365103146, G: 0.024552887829895145, T: 0.024552887829895145}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_25
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_26: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9407766093955513, C: 0.019741130201482885, G: 0.019741130201482885, T: 0.019741130201482885}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_26
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_27: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027546839446200566, C: 0.027546839446200566, G: 0.9173594816613984, T: 0.027546839446200566}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_27
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_28: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.026822022009467674, C: 0.026822022009467674, G: 0.919533933971597, T: 0.026822022009467674}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_28
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_29: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.016998888514245126, C: 0.016998888514245126, G: 0.9490033344572646, T: 0.016998888514245126}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_29
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_30: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.014861383243157231, C: 0.9554158502705283, G: 0.014861383243157231, T: 0.014861383243157231}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_30
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_31: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9631405891477947, C: 0.012286470284068455, G: 0.012286470284068455, T: 0.012286470284068455}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_31
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_32: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.012286470284068455, C: 0.012286470284068455, G: 0.9631405891477947, T: 0.012286470284068455}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_32
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_33: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.023475556435354806, C: 0.9295733306939356, G: 0.023475556435354806, T: 0.023475556435354806}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_33
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_34: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.012286470284068455, C: 0.9631405891477947, G: 0.012286470284068455, T: 0.012286470284068455}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_34
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_35: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.017764157602737612, C: 0.9467075271917872, G: 0.017764157602737612, T: 0.017764157602737612}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_35
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_36: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.04853703746509314, C: 0.04853703746509314, G: 0.8543888876047205, T: 0.04853703746509314}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_36
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_37: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.1018158884527297, C: 0.1018158884527297, G: 0.694552334641811, T: 0.1018158884527297}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_37
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_38: 0.9675324675324676, end: 0.032467532467532464}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9631405891477947, C: 0.012286470284068455, G: 0.012286470284068455, T: 0.012286470284068455}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_38
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_39: 0.2987012987012987, end: 0.7012987012987013}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.012286470284068455, C: 0.9631405891477947, G: 0.012286470284068455, T: 0.012286470284068455}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_39
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_40: 0.7467532467532467, end: 0.2532467532467532}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.973910193805326, C: 0.008696602064891359, G: 0.008696602064891359, T: 0.008696602064891359}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_40
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_41: 0.987012987012987, end: 0.012987012987012988}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.0511065, C: 0.8466805, G: 0.0511065, T: 0.0511065}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_41
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_42: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_42
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_43: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.9189923493068367, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_43
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_44: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.9189923493068367}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_44
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_45: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_45
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_46: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.9189923493068367}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_46
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_47: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_47
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_48: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_48
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_49: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_49
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_50: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.9189923493068367}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_50
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_51: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.9189923493068367, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_51
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_52: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.9189923493068367, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_52
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_53: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.9189923493068367, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_53
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_54: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9189923493068367, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_54
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_55: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9189923493068367, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_55
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_56: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_56
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_57: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.9189923493068367, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: G}
+  name: IGHJ2P_star_01_57
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_58: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.9189923493068367}
+    track: nukes
+  extras: {germline: T}
+  name: IGHJ2P_star_01_58
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_59: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027002550231054443, C: 0.9189923493068367, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: C}
+  name: IGHJ2P_star_01_59
+  pair_emissions: null
+  transitions: {IGHJ2P_star_01_60: 1.0}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9189923493068367, C: 0.027002550231054443, G: 0.027002550231054443, T: 0.027002550231054443}
+    track: nukes
+  extras: {germline: A}
+  name: IGHJ2P_star_01_60
+  pair_emissions: null
+  transitions: {end: 1.0}
+tracks:
+  nukes: [A, C, G, T]
