@@ -3,15 +3,14 @@ import glob
 from collections import OrderedDict
 import sys
 from SCons.Script import Command, Depends
-# SConscript('test/SConscript', duplicate=0)
-
-# `scons test`
-Alias('test', 'test/_results/ALL.passed')
 
 Alias('validate', '_output/validation/valid.out')
 Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-driver.py --label validation --plotdir _output/validation/plots --datafname test/A-every-100-subset-0.tsv.bz2 && touch $TARGET')
 
 # ----------------------------------------------------------------------------------------
+# scons test
+
+Alias('test', 'test/_results/ALL.passed')
 
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
@@ -49,11 +48,10 @@ for name, test_cmd in tests.items():
     out = 'test/_results/%s.out' % name
     Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])
     if name in actions:
-        target = actions[name]  # some targets are dirs, which scons doesn't handle, but either way we want to diff the whole target
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name,
-                    ['test/regression/parameters/' + target, testoutdir + '/' + target, out],
-                    'diff -qr  -x\'*.svg\' -x params -x plots.html ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')
+                    out,
+                    'diff -qr  -x\'*.svg\' -x params -x plots.html ' + 'test/regression/parameters/' + actions[name] + ' ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
     else:
         env.Command(out, cmd, test_cmd + ' >$TARGET')
         # touch a sentinel `passed` file if we get what we expect
