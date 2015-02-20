@@ -15,6 +15,8 @@ required
     - decorator
     - lxml
     - bs4 (beautiful soup)
+    - pandas
+    - seaborn
 
 required only for simulator
 --------------

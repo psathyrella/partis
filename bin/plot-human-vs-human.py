@@ -7,13 +7,7 @@ sys.path.insert(1, './python')
 
 import utils
 import plotting
-from humans import humans, colors
-
-all_subdirs = [ '.', ] \
-              + [ e + '_del' for e in utils.real_erosions ] \
-              + [ i + '_insertion' for i in utils.boundaries] \
-              + [ 'mute-freqs', ] \
-              + [ 'mute-freqs/' + r for r in utils.regions ]
+from humans import humans, colors, all_subdirs
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting

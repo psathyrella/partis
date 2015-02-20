@@ -7,13 +7,7 @@ sys.path.insert(1, './python')
 
 import utils
 import plotting
-from humans import humans, colors
-
-all_subdirs = [ '.', ] \
-              + [ e + '_del' for e in utils.real_erosions ] \
-              + [ i + '_insertion' for i in utils.boundaries] \
-              + [ 'mute-freqs', ] \
-              + [ 'mute-freqs/' + r for r in utils.regions ]
+from humans import humans, colors, all_subdirs
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
@@ -31,6 +25,8 @@ subset = 0
 
 for subdir in args.subdirs:
     print subdir, '-----------------'
+    if subdir not in all_subdirs:
+        raise Exception('ERROR bad subdir: ' + str(subdir))
     plotdirs, names, colorlist, linestyles, linewidths, markersizes, scale_errors, strings_to_ignore = [], [], [], [], [], [], [], []
     for human in humans[args.dataset]:
         print '  ', human

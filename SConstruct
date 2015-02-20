@@ -49,8 +49,7 @@ for name, test_cmd in tests.items():
     Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])
     if name in actions:
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
-        env.Command('test/_results/%s.passed' % name,
-                    out,
+        env.Command('test/_results/%s.passed' % name, out,
                     'diff -qr  -x\'*.svg\' -x params -x plots.html ' + 'test/regression/parameters/' + actions[name] + ' ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
     else:
         env.Command(out, cmd, test_cmd + ' >$TARGET')
