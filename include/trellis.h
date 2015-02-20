@@ -19,8 +19,8 @@ typedef vector<vector<double> > double_2D;
 // ----------------------------------------------------------------------------------------
 class trellis {
 public:
-  trellis(Model *hmm, Sequence seq, trellis *cached_trellis=nullptr);
-  trellis(Model *hmm, Sequences seqs, trellis *cached_trellis=nullptr);
+  trellis(Model *hmm, Sequence seq, trellis *cached_trellis = nullptr);
+  trellis(Model *hmm, Sequences seqs, trellis *cached_trellis = nullptr);
   void Init();
   ~trellis();
 
@@ -37,7 +37,7 @@ public:
   // NOTE also that <viterbi_pointers_> *includes* the ending transition probability at each point.
   size_t viterbi_pointer(size_t length) {  // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1
     assert(length <= viterbi_pointers_->size());
-    return (*viterbi_pointers_)[length-1];
+    return (*viterbi_pointers_)[length - 1];
   }
   vector<double> *viterbi_log_probs() { return viterbi_log_probs_; }
   vector<double> *forward_log_probs() { return forward_log_probs_; }

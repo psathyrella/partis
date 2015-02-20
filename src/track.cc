@@ -3,9 +3,8 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-  Track::Track(string name, vector<string> symbols) :
-  name_(name)
-  {
+Track::Track(string name, vector<string> symbols) :
+  name_(name) {
   AddSymbols(symbols);
 }
 

@@ -61,7 +61,7 @@ double State::emission_logprob(Sequences *seqs, size_t pos) {
   } else {
     assert(seqs->n_seqs() > 1);
     double log_prob = emission_.score(seqs->get_ptr(0), pos);  // initialize <log_prob> for the emission from the first sequence
-    for (size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq)  // then loop over the rest of the sequences
+    for(size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq)   // then loop over the rest of the sequences
       // add to <log_prob> the emission log prob for the <iseq>th sequence, i.e. prob1 *and* prob2
       log_prob = AddWithMinusInfinities(log_prob, emission_.score(seqs->get_ptr(iseq), pos));
     return log_prob;

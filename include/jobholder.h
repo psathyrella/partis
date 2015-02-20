@@ -75,7 +75,7 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes={});
+  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes = {});
   ~JobHolder();
   void Clear();
   Result Run(Sequences seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
