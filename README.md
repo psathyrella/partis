@@ -18,7 +18,11 @@
 
 `ham` is free software under the GPL v3.
 
-## dependencies
+## installation
+
+As an alternative to installation, consider using the latest [docker image](https://registry.hub.docker.com/u/psathyrella/ham/).
+
+#### dependencies
 
   - boost headers
   - g++
@@ -29,7 +33,7 @@
     - [http://dockerfile.github.io/#/python]
     - [http://dockerfile.github.io/#/ubuntu]
 
-## building
+#### building
 
 Running `scons` in the top-level directory will build the example binary called `hample`.
 
