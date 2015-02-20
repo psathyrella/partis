@@ -24,10 +24,9 @@ As an alternative to installation, consider using the latest [docker image](http
 
 #### dependencies
 
-  - boost headers
-  - g++
-  - astyle
-  - scons
+  - [boost](http://www.boost.org/) headers
+  - [GCC](https://gcc.gnu.org/)
+  - [scons](http://scons.org/)
   - or look at
     - [https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile]
     - [http://dockerfile.github.io/#/python]

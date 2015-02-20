@@ -16,13 +16,13 @@ using namespace std;
 // ----------------------------------------------------------------------------------------
 class Insertions {
 public:
-  Insertions() : v_{"fv"}, d_{"vd"}, j_{"dj", "jf"} {
+  Insertions() : v_ {"fv"}, d_ {"vd"}, j_ {"dj", "jf"} {
     insertions_["v"] = v_;
     insertions_["d"] = d_;
     insertions_["j"] = j_;
   }
   vector<string> operator[](string region) { return insertions_[region]; }
-  
+
 private:
   vector<string> v_, d_, j_;
   map<string, vector<string> > insertions_;
@@ -65,14 +65,14 @@ public:
     return region;
   }
   // ----------------------------------------------------------------------------------------
-  string ColorMutants(string color, string seq, string ref_1="", vector<string> other_refs={}) {
+  string ColorMutants(string color, string seq, string ref_1 = "", vector<string> other_refs = {}) {
     // Return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal.
     // If <refs> are specified, use bold text and reverse video to show if <seq> is muted w/respect to more than one ref
     if(ref_1 != "")
       other_refs.push_back(ref_1);  // only doing it this way so we can call it without specifying <other_refs>
-    for(auto &ref : other_refs) {
+    for(auto & ref : other_refs) {
       if(ref.size() != seq.size()) {
-	throw runtime_error("ERROR seqs not same length in color_mutants: " + ref + "\n                                              " + seq);
+        throw runtime_error("ERROR seqs not same length in color_mutants: " + ref + "\n                                              " + seq);
       }
     }
 
@@ -81,14 +81,14 @@ public:
       if(seq[inuc] == 'i') {
         return_str += Color("yellow", seq.substr(inuc, 1));
       } else {
-	int ndiff(0);  // number of reference sequences that differ at base inuc
-	for(auto &ref : other_refs) {
-	  if(seq[inuc] != ref[inuc])
-	    ndiff += 1;
-	}
+        int ndiff(0);  // number of reference sequences that differ at base inuc
+        for(auto & ref : other_refs) {
+          if(seq[inuc] != ref[inuc])
+            ndiff += 1;
+        }
         if(ndiff == 0)
           return_str += seq[inuc];
-	else if(ndiff == 1)
+        else if(ndiff == 1)
           return_str += Color(color, seq.substr(inuc, 1));
         else
           return_str += Color("reverse", Color(color, seq.substr(inuc, 1)));

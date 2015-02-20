@@ -50,18 +50,18 @@ public:
   // Sequences GetSubSequences(size_t pos, size_t len);
 
   void Print();
-  string name_str(string delimiter=" ") {
+  string name_str(string delimiter = " ") {
     string name_str;
-    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) {
-      if (iseq > 0) name_str += delimiter;
+    for(size_t iseq = 0; iseq < n_seqs(); ++iseq) {
+      if(iseq > 0) name_str += delimiter;
       name_str += seqs_[iseq].name();
     }
     return name_str;
   }
-  string seq_str(string delimiter=" ") {
+  string seq_str(string delimiter = " ") {
     string seq_str;
-    for (size_t iseq = 0; iseq < n_seqs(); ++iseq) {
-      if (iseq > 0) seq_str += delimiter;
+    for(size_t iseq = 0; iseq < n_seqs(); ++iseq) {
+      if(iseq > 0) seq_str += delimiter;
       seq_str += seqs_[iseq].undigitized_;
     }
     return seq_str;

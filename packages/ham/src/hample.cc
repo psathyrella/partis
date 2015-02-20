@@ -35,10 +35,10 @@ int main(int argc, const char *argv[]) {
   Model hmm;
   hmm.Parse(hmmfname_arg.getValue());
   vector<string> seqstrs = SplitString(seqs_arg.getValue(), ":");
-  
+
   // create sequences from command line
   Sequences seqs;
-  for(auto &seqstr : seqstrs)
+  for(auto & seqstr : seqstrs)
     seqs.AddSeq(Sequence(hmm.track(0), "seq", seqstr));
 
   // make the trellis, a wrapper for holding the DP tables and running the algorithms
@@ -47,7 +47,7 @@ int main(int argc, const char *argv[]) {
   TracebackPath path(&hmm);
   trell.Traceback(path);
   cout << "viterbi path (log prob " << trell.ending_viterbi_log_prob() << "):" << endl;
-  for(unsigned iseq=0; iseq<seqs.n_seqs(); ++iseq) {
+  for(unsigned iseq = 0; iseq < seqs.n_seqs(); ++iseq) {
     cout << "  sequence: ";
     seqs[iseq].Print();
   }
@@ -72,7 +72,7 @@ int main(int argc, const char *argv[]) {
 // ----------------------------------------------------------------------------------------
 // check dp table chunk caching (just for use by `scons test`)
 void CheckChunkCaching(Model &hmm, trellis &trell, Sequences seqs) {
-  for (size_t length = 1; length < seqs.GetSequenceLength(); ++length) {
+  for(size_t length = 1; length < seqs.GetSequenceLength(); ++length) {
     // first make a new trellis on the substring of length <length> using chunk caching
     Sequences subseqs(seqs, 0, length);
     trellis subtrell(&hmm, subseqs, &trell);
@@ -90,9 +90,9 @@ void CheckChunkCaching(Model &hmm, trellis &trell, Sequences seqs) {
 
     // and finally, make sure they got the same answer
     assert(checkpath.size() == subpath.size());
-    for (size_t ipos=0; ipos<length; ++ipos) {
+    for(size_t ipos = 0; ipos < length; ++ipos) {
       if(checkpath[ipos] != subpath[ipos])
-	throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi path");
+        throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi path");
     }
     double eps(1e-10);
     if(fabs(checktrell.ending_viterbi_log_prob() - subtrell.ending_viterbi_log_prob()) > eps)

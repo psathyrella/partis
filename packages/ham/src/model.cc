@@ -117,7 +117,7 @@ void Model::Finalize() {
 
 // ----------------------------------------------------------------------------------------
 void Model::FinalizeState(State *st) {
-  // Modiry to_state_ and from_state_ bitsets in <st> and its transition partners 
+  // Modiry to_state_ and from_state_ bitsets in <st> and its transition partners
   vector<Transition*>* transitions(st->transitions());
   for(size_t it = 0; it < transitions->size(); ++it) { // loops over the transitions out of <st>
     string to_state_name(transitions->at(it)->to_state_name());
@@ -144,8 +144,8 @@ void Model::CheckTopology() {
   // make sure all states are reachable from init
 
   vector<uint16_t> states_to_check;  // Dynamic vector of states to which we've managed to get (starting from init).
-                                     // i.e. we push onto <states_to_check> when we first encounter a state,
-                                     // and pop that state back off when we've verified the state has a non-self transition
+  // i.e. we push onto <states_to_check> when we first encounter a state,
+  // and pop that state back off when we've verified the state has a non-self transition
 
   AddToStateIndices(initial_, states_to_check);  // push init's transitions onto <states_to_check>
 
@@ -164,10 +164,10 @@ void Model::CheckTopology() {
     // make sure <icheck>th state has at least one non-self transition
     if(num_visited == 0) {  // if we didn't visit any, <icheck> better have a transition to 'end'
       if(states_[icheck]->trans_to_end() == nullptr)
-	throw runtime_error("ERROR state '" + states_[icheck]->name() + "' in '" + name_ + "' has no transitions");
+        throw runtime_error("ERROR state '" + states_[icheck]->name() + "' in '" + name_ + "' has no transitions");
     } else if(num_visited == 1 && tmp_visited[0] == icheck) {  // if <icheck> only visited itself
       if(states_[icheck]->trans_to_end() == nullptr)
-	throw runtime_error("ERROR state '"  + states_[icheck]->name() + "' in '" + name_ + "' has only a transition to itself");
+        throw runtime_error("ERROR state '"  + states_[icheck]->name() + "' in '" + name_ + "' has only a transition to itself");
     }
 
     checked_states[icheck] = true;
@@ -175,7 +175,7 @@ void Model::CheckTopology() {
     // push onto <states_to_check> the states to which we can transition from <icheck>
     for(size_t i = 0; i < tmp_visited.size(); ++i) {
       if(!checked_states[tmp_visited[i]])  // skip 'em if we've already verified that they're reachable
-	states_to_check.push_back(tmp_visited[i]);
+        states_to_check.push_back(tmp_visited[i]);
     }
   }
 
@@ -199,7 +199,7 @@ void Model::CheckTopology() {
 
 // ----------------------------------------------------------------------------------------
 void Model::AddToStateIndices(State *st, vector<uint16_t> &visited) {
-  // push onto <visited> the index of each state to which we can transition from <st> 
+  // push onto <visited> the index of each state to which we can transition from <st>
   for(size_t i = 0; i < st->transitions()->size(); ++i) {
     if(st->transitions()->at(i))
       visited.push_back(st->transitions()->at(i)->to_state()->index());

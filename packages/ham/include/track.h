@@ -16,7 +16,7 @@ class Tracks;
 class Track {
   friend class Tracks;
 public:
-  Track(){}
+  Track() {}
   Track(string, vector<string>);
   void set_name(string nm) { name_ = nm; }
   void AddSymbol(string symbol);

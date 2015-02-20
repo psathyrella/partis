@@ -5,8 +5,7 @@ namespace ham {
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Track* trk, string name, string &undigitized):
   name_(name),
-  track_(trk)
-{
+  track_(trk) {
   undigitized_ = undigitized;
   ClearWhitespace("\n", &undigitized_);
   Digitize();
@@ -15,8 +14,7 @@ Sequence::Sequence(Track* trk, string name, string &undigitized):
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len):
   name_(name),
-  track_(trk)
-{
+  track_(trk) {
   undigitized_ = undigitized.substr(pos, len);  // <len> better be greater than zero
   ClearWhitespace("\n", &undigitized_);
   Digitize();
@@ -41,8 +39,7 @@ Sequence::Sequence(const Sequence &rhs) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Sequence::Digitize()
-{
+void Sequence::Digitize() {
   seq_ = new vector<uint8_t>(undigitized_.size());
   for(size_t i = 0; i < undigitized_.size(); ++i) {
     string symbol = undigitized_.substr(i, 1);
@@ -57,7 +54,7 @@ Sequence::~Sequence() {
 
 // ----------------------------------------------------------------------------------------
 Sequences::Sequences(Sequences &seqs, size_t pos, size_t len) : sequence_length_(0) {
-  for(auto &seq : seqs.seqs_)
+  for(auto & seq : seqs.seqs_)
     AddSeq(Sequence(seq, pos, len));
 }
 

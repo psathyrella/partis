@@ -15,7 +15,7 @@ string read_file(string fname) {
   ifstream ifs(fname);
   string seq;
   string line;
-  while (getline(ifs, line)) {
+  while(getline(ifs, line)) {
     seq += line;
   }
   return seq;
