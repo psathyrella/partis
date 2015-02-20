@@ -6,7 +6,7 @@ A docker image can be found [here](https://registry.hub.docker.com/u/psathyrella
 
 Partis is free software under the GPL v3.
 
-#### basic usage
+###### basic usage
 
 For the full analysis chain, run
 ```
