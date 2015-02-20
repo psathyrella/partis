@@ -66,6 +66,5 @@ StochHMM, meanwhile, had a custom configuration file format, lacked a pair-HMM i
 However, StochHMM's overall structure, and its basic idea of reading HMM structure from a text file rather than generating code, were similar to what we required, so we used it as a starting point for a complete rewrite.
 (As an aside, we note that the excellent HMMER tool only implements profile HMMs, and thus is not appropriate for our needs.)
 
-While trying to implement pair HMMS in StochHMM, it became clear that it was going to require a complete rewrite.
 From a usability standpoint, ham is distinguished by the use of [YAML](http://yaml.org) config files.
 These are concise plain text (for example, the CPG island XML config in HMMoC is 5961 characters, while examples/cpg.yaml is 440 characters) files which are also eminently scriptable using libraries for a variety of languages.
