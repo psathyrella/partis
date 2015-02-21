@@ -2,6 +2,7 @@
 import csv
 import glob
 import argparse
+import math
 import os
 from subprocess import check_call
 import numpy
@@ -17,7 +18,8 @@ import utils
 from humans import humans, colors, all_subdirs
 
 sns.set_style("ticks")
-mpl.rcParams['font.size'] = 48.0
+mpl.rcParams.update({'font.size': 48})
+# mpl.rcParams['font.size'] = 48.0
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--subdirs', default='v_3p_del:d_5p_del:d_3p_del:j_5p_del:vd_insertion:dj_insertion', help='Which variable categories?')
@@ -33,7 +35,11 @@ modulo = '10'
 assert os.getenv('www') is not None
 baseplotdir = os.getenv('www') + '/partis'
 
-fig, axes = plt.subplots(1, len(humans[args.dataset]), figsize=(5*len(humans[args.dataset]), 5), sharey=True,)
+max_cols = 4
+n_humans = len(humans[args.dataset])
+n_cols = min(max_cols, n_humans)
+n_rows = max(1, int(math.ceil(float(n_humans)/n_cols)))
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 5), sharey=False)
 
 for indiv_n in range(len(humans[args.dataset])):
     indiv = humans[args.dataset][indiv_n]
@@ -41,15 +47,15 @@ for indiv_n in range(len(humans[args.dataset])):
     for meanfname in [ baseplotdir + '/every-' + modulo + '-' + indiv + '/cf-subsets/' + sd + '/plots/means.csv' for sd in args.subdirs ]:
         if not os.path.exists(meanfname):
             raise Exception('ERROR means files d.n.e.: ' + meanfname)
-        # print meanfname
         with open(meanfname, 'r') as meanfile:
             reader = csv.DictReader(meanfile)
             for line in reader:
                 means = [ float(m) for m in line['means'].split(':') ]
                 meanlist.append(numpy.mean(means))
                 variancelist.append(numpy.var(means))
-                # print ' ', meanlist[-1], variancelist[-1]
-    ax = axes[indiv_n]
+    irow = indiv_n / n_cols
+    icol = indiv_n % n_rows
+    ax = axes[irow][icol]
     df = pd.DataFrame({'mean': meanlist, 'variance': variancelist})
     df.plot(kind='hist', ax=ax, bins=50)
     ax.set_title(indiv)
@@ -59,6 +65,10 @@ for indiv_n in range(len(humans[args.dataset])):
 sns.despine(fig=fig,offset=10, trim=True);
 
 outdir = baseplotdir + '/every-' + modulo + '-' + args.dataset
-os.makedirs(outdir)
-fig.savefig(outdir + '/mean-variance-hist.svg')
+outfname = outdir + '/mean-variance-hist.svg'
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+if os.path.exists(outfname):
+    os.remove(outfname)
+fig.savefig(outfname)
 check_call(['./bin/permissify-www', outdir])

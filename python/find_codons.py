@@ -5,6 +5,9 @@ from Bio import SeqIO
 import utils
 from opener import opener
 
+""" find conserved cysteine and tryptophan in new alleles/genes """
+
+
 dirname = 'data/imgt'
 align_fname = dirname + '/ighv-aligned.fasta'
 
