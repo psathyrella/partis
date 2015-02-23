@@ -39,7 +39,7 @@ max_cols = 4
 n_humans = len(humans[args.dataset])
 n_cols = min(max_cols, n_humans)
 n_rows = max(1, int(math.ceil(float(n_humans)/n_cols)))
-fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 5), sharey=False)
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 5))  #, sharex=True)
 
 for indiv_n in range(len(humans[args.dataset])):
     indiv = humans[args.dataset][indiv_n]

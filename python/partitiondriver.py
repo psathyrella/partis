@@ -126,6 +126,22 @@ class PartitionDriver(object):
             os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
+    def hierarch_agglom(self):
+        assert os.path.exists(self.args.parameter_dir)
+
+        # run smith-waterman
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer.run()
+
+        hmminfo = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=args.hierarch_agglom)
+        for stuff in hmminfo:
+            print stuff
+
+        # self.clean(waterer)
+        if not self.args.no_clean:
+            os.rmdir(self.args.workdir)
+
+    # ----------------------------------------------------------------------------------------
     def run_algorithm(self):
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
@@ -156,6 +172,9 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
+        cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
+        if self.args.hierarch_agglom:
+            cmd_str += ' --hierarch-agglom'
 
         workdir = self.args.workdir
         if iproc >= 0:
@@ -166,7 +185,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
-                count_parameters=False, plotdir=None, make_clusters=False):  # @parameterfetishist
+                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False):  # @parameterfetishist
 
         if prefix == '' and stripped:
             prefix = 'stripped'
@@ -197,10 +216,12 @@ class PartitionDriver(object):
         sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
 
-        hmminfo = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
+        hmminfo = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir, do_hierarch_agglom=do_hierarch_agglom)
 
         if self.args.pants_seated_clustering:
             viterbicluster.cluster(hmminfo)
+        if do_hierarch_agglom:
+            return hmminfo
 
         clusters = None
         if make_clusters:
@@ -532,13 +553,13 @@ class PartitionDriver(object):
         elif hmm_type == 'k=2':  # pair hmm
             nsets = self.get_pairs(preclusters)
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
-            assert preclusters != None
+            assert preclusters is not None
             nsets = [ val for key, val in preclusters.id_clusters.items() if len(val) > 1 ]  # <nsets> is a list of sets (well, lists) of query names
             # nsets = []
             # for cluster in preclusters.id_clusters.values():
             #     nsets += itertools.combinations(cluster, 5)
-        elif hmm_type == 'k=nsets':  # run on *every* combination of queries which has length <self.args.n_sets>
-            if self.args.all_combinations:
+        elif hmm_type == 'k=nsets':
+            if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
                 nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
             else:  # put the first n together, and the second group of n (not the self.input_info is and OrderedDict)
                 nsets = []
@@ -578,7 +599,7 @@ class PartitionDriver(object):
         print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, hmm_csv_outfname, make_clusters=True, count_parameters=False, parameter_out_dir=None, plotdir=None):
+    def read_hmm_output(self, algorithm, hmm_csv_outfname, make_clusters=True, count_parameters=False, parameter_out_dir=None, plotdir=None, do_hierarch_agglom=False):
         print '    read output'
         if count_parameters:
             assert parameter_out_dir is not None
@@ -638,7 +659,9 @@ class PartitionDriver(object):
                         score = -999999.0
                     else:
                         score = float(line['score'])
-                    if len(ids) == 2:
+                    if do_hierarch_agglom:
+                        hmminfo.append({'unique_ids':line['unique_ids'], 'score':score})
+                    elif len(ids) == 2:
                         hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
                     n_processed += 1
 

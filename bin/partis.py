@@ -41,6 +41,7 @@ parser.add_argument('--mimic-data-read-length', action='store_true', help='Simul
 parser.add_argument('--baum-welch-iterations', type=int, default=1, help='Number of Baum-Welch-like iterations.')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--pants-seated-clustering', action='store_true', help='Perform seat-of-the-pants estimate of the clusters')
+parser.add_argument('--hierarch-agglom', action='store_true')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -172,5 +173,7 @@ else:
         parter.cache_parameters()
     elif args.run_algorithm != None:
         parter.run_algorithm()
+    elif args.hierarch_agglom:
+        parter.hierarch_agglom()
     else:
         parter.partition()
