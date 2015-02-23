@@ -371,10 +371,11 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   //   // NOTE this is really, really, really wastefull to recalculate the individual-cluster (denomiator) log probs every time through
   //   for(size_t jqry = iqry+1; jqry < qry_seq_list.size(); jqry++) {
       // if(iqry == jqry) continue;
-      if(args.debug()) cout << "  ---------" << endl;
+      if(args.debug()) cout << "  " << kv_a.first << " " << kv_b.first << "  ---------" << endl;
       // Sequences qry_seqs_a(qry_seq_list[iqry]), qry_seqs_b(qry_seq_list[jqry]);
       Sequences qry_seqs_a(kv_a.second), qry_seqs_b(kv_b.second);
-      double hamming_fraction = minimal_hamming_distance(qry_seqs_a, qry_seqs_b) / qry_seqs_a[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+      double hamming_fraction = float(minimal_hamming_distance(qry_seqs_a, qry_seqs_b)) / qry_seqs_a[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+      cout << hamming_fraction << " " << args.hamming_fraction_cutoff() << endl;
       if(hamming_fraction > args.hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
 	if(args.debug()) cout << "    skipping hamming: " << hamming_fraction << endl;
 	continue;
@@ -463,13 +464,17 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   kbinfo[max_seqs.name_str(":")] = max_kbounds;
   only_genes[max_seqs.name_str(":")] = max_only_genes;
 
-  if(args.debug())
-    cout << "  clustering " << max_pair.first << " " << max_pair.second << endl;
-
   info.erase(max_pair.first);
   info.erase(max_pair.second);
   kbinfo.erase(max_pair.first);
   kbinfo.erase(max_pair.second);
   only_genes.erase(max_pair.first);
   only_genes.erase(max_pair.second);
+
+  if(args.debug()) {
+    cout << "  clustering " << max_pair.first << " " << max_pair.second << endl;
+    cout << "  to give" << endl;
+    for(auto &kv : info) cout << kv.first << endl;
+  }
+
 }
