@@ -595,6 +595,8 @@ def get_mean_info(hists):
     bin_labels = {}
     unihist = get_unified_bin_hist(hists)  # empty hist with logical OR of bins in <hists> (with some assumptions... shit is complicated yo)
     for hist in hists:
+        # if hist.Integral() == 0.0:
+        #     continue
         means.append(hist.GetMean())
         sems.append(hist.GetMeanError())  # NOTE is this actually right? depends if root uses .Integral() or .GetEntries() in the GetMeanError() call
         sum_total += hist.GetMean() * hist.Integral()
@@ -609,7 +611,7 @@ def get_mean_info(hists):
             assert bin_labels[ibin] == hist.GetXaxis().GetBinLabel(ib)
 
     # find the mean over hists
-    mean_of_means = sum_total / total_entries
+    mean_of_means = 0.0 if total_entries == 0 else sum_total / total_entries
     # then "normalize" each human's mean by this mean over humans, and that human's variance
     normalized_means = []
     for im in range(len(means)):
