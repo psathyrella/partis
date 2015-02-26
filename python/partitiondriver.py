@@ -101,7 +101,7 @@ class PartitionDriver(object):
             os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def partition(self):
+    def single_link_partition(self):
         assert os.path.exists(self.args.parameter_dir)
 
         # run smith-waterman
@@ -126,7 +126,8 @@ class PartitionDriver(object):
             os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def hierarch_agglom(self):
+    def partition(self):
+        assert self.args.n_procs == 1
         assert os.path.exists(self.args.parameter_dir)
 
         # run smith-waterman
@@ -142,14 +143,13 @@ class PartitionDriver(object):
             os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def run_algorithm(self):
+    def run_algorithm(self, algorithm):
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
-        assert self.args.run_algorithm != None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        self.run_hmm(self.args.run_algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', \
+        self.run_hmm(algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', \
                                count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
 
         # self.clean(waterer)

@@ -17,12 +17,7 @@ parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions:
-parser.add_argument('--cache-parameters', action='store_true', help='cache parameter counts and hmm files in dir specified by <parameter_dir>')
-parser.add_argument('--run-algorithm', choices=['viterbi', 'forward'], help='Run the specified algorithm once')
-parser.add_argument('--partition', action='store_true', help='Find the best partition for the given sequences')
-parser.add_argument('--simulate', action='store_true', help='Create simulated rearrangement events')
-parser.add_argument('--build-hmms', action='store_true', help='just build hmms (and write \'em out) from existing parameter csvs')
-parser.add_argument('--generate-trees', action='store_true', help='generate trees to pass to bppseqgen for simulation')
+parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', '--simulate', '--build-hmms', '--generate-trees'), help='What do you want to do?')
 
 # finer action control
 # parser.add_argument('--pair', action='store_true', help='Run on every pair of sequences in the input')
@@ -41,7 +36,6 @@ parser.add_argument('--mimic-data-read-length', action='store_true', help='Simul
 parser.add_argument('--baum-welch-iterations', type=int, default=1, help='Number of Baum-Welch-like iterations.')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--pants-seated-clustering', action='store_true', help='Perform seat-of-the-pants estimate of the clusters')
-parser.add_argument('--hierarch-agglom', action='store_true')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -141,8 +135,8 @@ def make_events(args, n_events, iproc, random_ints):
         reco.combine(random_ints[ievt])
 
 # ----------------------------------------------------------------------------------------
-if args.simulate or args.generate_trees:
-    if args.generate_trees:
+if args.action == 'simulate' or args.action == 'generate-trees':
+    if args.action == 'generate-trees':
         from treegenerator import TreeGenerator, Hist
         treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
         treegen.generate_trees(self.args.outfname)
@@ -165,15 +159,13 @@ else:
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
 
-    if args.build_hmms:        
+    if args.action == 'build-hmms':  # just build hmms without doing anything else -- you wouldn't normally do this
         parter.write_hmms(args.parameter_dir, None)
-        sys.exit()
-
-    if args.cache_parameters:
+    elif args.action == 'cache-parameters':
         parter.cache_parameters()
-    elif args.run_algorithm != None:
-        parter.run_algorithm()
-    elif args.hierarch_agglom:
-        parter.hierarch_agglom()
-    else:
+    elif 'run-' in args.action:
+        parter.run_algorithm(args.action.replace('run-', ''))
+    elif args.action == 'partition':
         parter.partition()
+    else:
+        raise Exception('ERROR bad action ' + args.action)
