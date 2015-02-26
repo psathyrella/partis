@@ -141,11 +141,18 @@ str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as c
 // read input sequences from file and return as vector of sequences
 vector<Sequences> GetSeqs(Args &args, Track *trk) {
   vector<Sequences> all_seqs;
+  set<string> all_names;  // keeps track which sequences we've added to make sure we weren't passed duplicates
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     Sequences seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
+
+      if(all_names.count(sq.name()))
+	throw runtime_error("ERROR tried to add sequence with name " + sq.name() + " twice in bcrham::GetSeqs");
+      else
+	all_names.insert(sq.name());
+
       seqs.AddSeq(sq);
     }
     all_seqs.push_back(seqs);
@@ -159,27 +166,48 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
 void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs);
 void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info, map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs);
+
+// // ----------------------------------------------------------------------------------------
+// void check_cache(string name, map<string, double> &cache) {
+//   if(cached.count(name))
+//     cout << "    cached " << cache[name] << " - " << cvals[ic] << " = " << cached_log_probs[cnames[ic]] - cvals[ic] << endl;
+//   else
+//     cached_log_probs[cnames[ic]] = cvals[ic];
+  
 // ----------------------------------------------------------------------------------------
-double get_logprob(Args &args, Jobholder &jh, Sequences &seqs, KBounds &kbounds) {
-  string errors;
-  Result result;
-  double logprob(-INFINITY);
+string sort_name_list(string unsorted_str) {
+  // alphabetically sort the space-separated name list in <unsorted_str>
+  vector<string> unsorted_vector(SplitString(unsorted_str, " "));
+  sort(unsorted_vector.begin(), unsorted_vector.end());
+  string return_str;
+  for(size_t ic=0; ic<unsorted_vector.size(); ++ic) {
+    if(ic > 0)
+      return_str += " ";
+    return_str += unsorted_vector[ic];
+  }
+  return return_str;    
+}
+
+// ----------------------------------------------------------------------------------------
+void get_result(Args &args, JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, map<string, double> &cached_log_probs, string &errors) {
+  // if(cached_log_probs.count(name))  // already did it
+  //   return;
+    
+  Result result(kbounds);
   bool stop(false);
   do {
-    errors = "";
-    if(args.debug()) cout << "       ----" << endl;
     result = jh.Run(seqs, kbounds);
-    logprob = result.total_score();
-
     kbounds = result.better_kbounds();
-
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args.debug() && !stop)
       cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-    if(result.boundary_error())
-      errors = "boundary";
   } while(!stop);
+
+  cached_log_probs[name] = result.total_score();
+  if(result.boundary_error())
+    errors = "boundary";
 }
+
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -377,104 +405,59 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   vector<string> max_only_genes;
   KBounds max_kbounds;
 
-  set<string> finished;
-  for(auto &kv_a : info) {
+  set<string> finished;  // keeps track of which  a-b pairs we've already done
+  for(auto &kv_a : info) {  // note that c++ maps are ordered
     for(auto &kv_b : info) {
       if(kv_a.first == kv_b.first) continue;
       vector<string> names{kv_a.first, kv_b.first};
       sort(names.begin(), names.end());
-      string namekey(names[0] + "---" + names[1]);
-      if(finished.count(namekey)) {
+      string bothnamestr(names[0] + " " + names[1]);
+      if(finished.count(bothnamestr))
 	continue;
-      } else {
-	finished.insert(namekey);
-      }
+      else
+	finished.insert(bothnamestr);
 
-// ----------------------------------------------------------------------------------------
-      // NOTE this is really, really, really wastefull to recalculate the individual-cluster (denomiator) log probs every time through  OPTIMIZATION
-// ----------------------------------------------------------------------------------------
-
-      // if(args.debug()) cout << "  " << kv_a.first << " " << kv_b.first << "  ---------" << endl;
-      Sequences qry_seqs_a(kv_a.second), qry_seqs_b(kv_b.second);
-      double hamming_fraction = float(minimal_hamming_distance(qry_seqs_a, qry_seqs_b)) / qry_seqs_a[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);
+      // TODO cache hamming fraction as well
+      double hamming_fraction = float(minimal_hamming_distance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
       if(hamming_fraction > args.hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
 	// if(args.debug() > 0) cout << "    skipping hamming: " << hamming_fraction << endl;
 	continue;
       }
 
-      Sequences union_seqs;
-      for(size_t is=0; is<qry_seqs_a.n_seqs(); ++is)
-	union_seqs.AddSeq(qry_seqs_a[is]);
-      for(size_t is=0; is<qry_seqs_b.n_seqs(); ++is)
-	union_seqs.AddSeq(qry_seqs_b[is]);
-      vector<string> union_only_genes = only_genes[kv_a.first];
+      // TODO skip all this stuff if we don't already have all three of 'em cached
+      Sequences ab_seqs(a_seqs.Union(b_seqs));
+      vector<string> ab_only_genes = only_genes[kv_a.first];
       for(auto &g : only_genes[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
-	union_only_genes.push_back(g);
-      KBounds union_kbounds = kbinfo[kv_a.first].LogicalOr(kbinfo[kv_b.first]);
+	ab_only_genes.push_back(g);
+      KBounds ab_kbounds = kbinfo[kv_a.first].LogicalOr(kbinfo[kv_b.first]);
 
-      JobHolder jh(gl, hmms, args.algorithm(), union_only_genes);
+      JobHolder jh(gl, hmms, args.algorithm(), ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
       jh.SetDebug(args.debug());
       jh.SetChunkCache(args.chunk_cache());
       jh.SetNBestEvents(args.n_best_events());
 
-      // double numer_logprob(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
-      // double logprob_a(-INFINITY), logprob_b(-INFINITY);
-
-      // see if we've got anything we need cached
-      // vector<string> cnames{kv_a.first, kv_b.first, kv_a.first + " " + kv_b.first};
-      // vector<double> cvals{logprob_a, logprob_b, numer_logprob};
-      map<string, double> logprobs;
-      logprobs[kv_a.first] = -INFINITY;
-      logprobs[kv_b.first] = -INFINITY;
-      logprobs[kv_a.first + " " + kv_b.first] = -INFINITY;  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
-      for(size_t ic=0; ic<cnames.size(); ++ic) {
-	if(cached_log_probs.count(cnames[ic]))
-	  cout << "    cached " << cached_log_probs[cnames[ic]] << " - " << cvals[ic] << " = " << cached_log_probs[cnames[ic]] - cvals[ic] << endl;
-	else
-	  cached_log_probs[cnames[ic]] = cvals[ic];
-      }
-
+      if(args.debug()) cout << "       ----" << endl;
       string errors;
-      Result numer_result(union_kbounds), result_a(union_kbounds), result_b(union_kbounds);
-      double bayes_factor(-INFINITY); // or maybe likelihood ratio?
-      bool stop(false);
-      do {  // NOTE running all sequences on a k space window that works for all sequences may be overly conservative OPTIMIZATION
-	errors = "";
-	// clock_t run_start(clock());
-	if(args.debug()) cout << "       ----" << endl;
-	numer_result = jh.Run(union_seqs, union_kbounds);
-	numer_logprob = numer_result.total_score();
-	result_a = jh.Run(qry_seqs_a, union_kbounds);
-	result_b = jh.Run(qry_seqs_b, union_kbounds);
-	logprob_a = result_a.total_score();
-	logprob_b = result_b.total_score();
-	bayes_factor = numer_logprob - logprob_a - logprob_b;
+      // NOTE error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
+      get_result(args, jh, kv_a.first, a_seqs, kbinfo[kv_a.first], cached_log_probs, errors);
+      get_result(args, jh, kv_b.first, b_seqs, kbinfo[kv_b.first], cached_log_probs, errors);
+      get_result(args, jh, bothnamestr, ab_seqs, ab_kbounds, cached_log_probs, errors);
 
-	union_kbounds = numer_result.better_kbounds();
-	union_kbounds = union_kbounds.LogicalOr(result_a.better_kbounds());
-	union_kbounds = union_kbounds.LogicalOr(result_b.better_kbounds());
+      // clock_t run_start(clock());
+      // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
 
-	stop = !numer_result.boundary_error() || numer_result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
-	stop &= !result_a.boundary_error() || result_a.could_not_expand();
-	stop &= !result_b.boundary_error() || result_b.could_not_expand();
-	if(args.debug() && !stop)
-	  cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-	// cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
-	if(numer_result.boundary_error() || result_a.boundary_error() || result_b.boundary_error())
-	  errors = "boundary";
-      } while(!stop);
-
+      double bayes_factor(cached_log_probs[bothnamestr] - cached_log_probs[kv_a.first] - cached_log_probs[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args.debug())
-	print_forward_scores(numer_logprob, {logprob_a, logprob_b}, bayes_factor);
-
+	print_forward_scores(cached_log_probs[bothnamestr], {cached_log_probs[kv_a.first], cached_log_probs[kv_b.first]}, bayes_factor);
 
       // StreamOutput(ofs, args, numer_result.events_, qry_seqs, bayes_factor, errors);
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
-	max_pair = pair<string, string>(kv_a.first, kv_b.first);
-	// max_seqs = union_seqs;
-	max_only_genes = union_only_genes;
-	max_kbounds = union_kbounds;
+	max_pair = pair<string, string>(kv_a.first, kv_b.first);  // REMINDER not always same order as names[0], names[1]
+	// max_seqs = ab_seqs;
+	max_only_genes = ab_only_genes;
+	max_kbounds = ab_kbounds;
       }
     }
   }
@@ -483,23 +466,14 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   if(max_log_prob == -INFINITY) {
     throw runtime_error("no more (max log prob infinite)\n");
   }
-  // info[max_seqs.name_str()] = max_seqs;
-  Sequences max_seqs;
-  // info[max_seqs.name_str()] = Sequences();
-  // for(size_t is=0; is<info[max_pair.first].n_seqs(); ++is)
-  //   info[max_seqs.name_str()].AddSeq(info[max_pair.first][is]);
-  // cout << "1---" << endl;
-  // for(size_t is=0; is<info[max_pair.second].n_seqs(); ++is)
-  //   info[max_seqs.name_str()].AddSeq(info[max_pair.second][is]);
 
-  // NOTE malloc/free problems with the way of setting max_seqs above!!! should figure that out
-  for(size_t is=0; is<info[max_pair.first].n_seqs(); ++is)
-    max_seqs.AddSeq(info[max_pair.first][is]);
-  for(size_t is=0; is<info[max_pair.second].n_seqs(); ++is)
-    max_seqs.AddSeq(info[max_pair.second][is]);
-  info[max_seqs.name_str()] = max_seqs;
-  kbinfo[max_seqs.name_str()] = max_kbounds;
-  only_genes[max_seqs.name_str()] = max_only_genes;
+  vector<string> max_names{max_pair.first, max_pair.second};
+  sort(max_names.begin(), max_names.end());
+  Sequences max_seqs(info[max_names[0]].Union(info[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
+  string max_name_str(max_names[0] + " " + max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
+  info[max_name_str] = max_seqs;
+  kbinfo[max_name_str] = max_kbounds;
+  only_genes[max_name_str] = max_only_genes;
 
   info.erase(max_pair.first);
   info.erase(max_pair.second);
