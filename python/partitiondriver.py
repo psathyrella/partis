@@ -133,7 +133,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        hmminfo = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=args.hierarch_agglom)
+        hmminfo = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
         for stuff in hmminfo:
             print stuff
 
@@ -160,7 +160,7 @@ class PartitionDriver(object):
         #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
-    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1):
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1, do_hierarch_agglom=False):
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
@@ -173,7 +173,7 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
-        if self.args.hierarch_agglom:
+        if do_hierarch_agglom:
             cmd_str += ' --hierarch-agglom'
 
         workdir = self.args.workdir
@@ -200,7 +200,7 @@ class PartitionDriver(object):
             self.split_input(self.args.n_procs, infname=csv_infname, prefix='hmm')
             procs = []
             for iproc in range(self.args.n_procs):
-                cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc)
+                cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc, do_hierarch_agglom=do_hierarch_agglom)
                 procs.append(Popen(cmd_str.split()))
                 time.sleep(0.1)
             for proc in procs:
@@ -210,7 +210,7 @@ class PartitionDriver(object):
                     os.remove(csv_infname.replace(self.args.workdir, self.args.workdir + '/hmm-' + str(iproc)))
             self.merge_hmm_outputs(csv_outfname)
         else:
-            cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir)
+            cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom)
             check_call(cmd_str.split())
 
         sys.stdout.flush()
