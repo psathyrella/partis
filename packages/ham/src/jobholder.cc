@@ -202,7 +202,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
   // print debug info
   if(debug_) {
     if(algorithm_ == "viterbi") {
-      cout << "    " << setw(48) << seqs.name_str();
+      cout << "       " << setw(48) << seqs.name_str();
       cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
     } else {
