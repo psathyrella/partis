@@ -158,7 +158,28 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
 void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs);
-void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info, map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes);
+void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info, map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs);
+// ----------------------------------------------------------------------------------------
+double get_logprob(Args &args, Jobholder &jh, Sequences &seqs, KBounds &kbounds) {
+  string errors;
+  Result result;
+  double logprob(-INFINITY);
+  bool stop(false);
+  do {
+    errors = "";
+    if(args.debug()) cout << "       ----" << endl;
+    result = jh.Run(seqs, kbounds);
+    logprob = result.total_score();
+
+    kbounds = result.better_kbounds();
+
+    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    if(args.debug() && !stop)
+      cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+    if(result.boundary_error())
+      errors = "boundary";
+  } while(!stop);
+}
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -328,27 +349,28 @@ int minimal_hamming_distance(Sequences &seqs_a, Sequences &seqs_b) {
 
 // ----------------------------------------------------------------------------------------
 void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs) {  // reminder: <qry_seq_list> is a list of lists
-  map<string, Sequences> info;  // convert the vector to a map
+  map<string, Sequences> info;
   map<string, vector<string> > only_genes;
   map<string, KBounds> kbinfo;
+  // convert the vector to a map 
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
-    info[qry_seq_list[iqry].name_str(":")] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
-    only_genes[qry_seq_list[iqry].name_str(":")] = args.str_lists_["only_genes"][iqry];
+    info[qry_seq_list[iqry].name_str()] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
+    only_genes[qry_seq_list[iqry].name_str()] = args.str_lists_["only_genes"][iqry];
 
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kb(kmin, kmax);
-    kbinfo[qry_seq_list[iqry].name_str(":")] = kb;
+    kbinfo[qry_seq_list[iqry].name_str()] = kb;
   }
-  // for(int i=0; i<3; ++i) {
+  map<string, double> cached_log_probs;
   while(info.size() > 0) {
     cout << "===================================" << endl;
-    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes);
+    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs);
   }
 }
 // ----------------------------------------------------------------------------------------
 void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info,
-				 map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes) {  // reminder: <qry_seq_list> is a list of lists
+				 map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs) {  // reminder: <qry_seq_list> is a list of lists
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   // Sequences max_seqs;
@@ -367,17 +389,16 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       } else {
 	finished.insert(namekey);
       }
-  // for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
-  //   // NOTE this is really, really, really wastefull to recalculate the individual-cluster (denomiator) log probs every time through
-  //   for(size_t jqry = iqry+1; jqry < qry_seq_list.size(); jqry++) {
-      // if(iqry == jqry) continue;
-      if(args.debug()) cout << "  " << kv_a.first << " " << kv_b.first << "  ---------" << endl;
-      // Sequences qry_seqs_a(qry_seq_list[iqry]), qry_seqs_b(qry_seq_list[jqry]);
+
+// ----------------------------------------------------------------------------------------
+      // NOTE this is really, really, really wastefull to recalculate the individual-cluster (denomiator) log probs every time through  OPTIMIZATION
+// ----------------------------------------------------------------------------------------
+
+      // if(args.debug()) cout << "  " << kv_a.first << " " << kv_b.first << "  ---------" << endl;
       Sequences qry_seqs_a(kv_a.second), qry_seqs_b(kv_b.second);
       double hamming_fraction = float(minimal_hamming_distance(qry_seqs_a, qry_seqs_b)) / qry_seqs_a[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
-      cout << hamming_fraction << " " << args.hamming_fraction_cutoff() << endl;
       if(hamming_fraction > args.hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	if(args.debug()) cout << "    skipping hamming: " << hamming_fraction << endl;
+	// if(args.debug() > 0) cout << "    skipping hamming: " << hamming_fraction << endl;
 	continue;
       }
 
@@ -387,22 +408,37 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       for(size_t is=0; is<qry_seqs_b.n_seqs(); ++is)
 	union_seqs.AddSeq(qry_seqs_b[is]);
       vector<string> union_only_genes = only_genes[kv_a.first];
-      for(auto &g : only_genes[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though)
+      for(auto &g : only_genes[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
 	union_only_genes.push_back(g);
+      KBounds union_kbounds = kbinfo[kv_a.first].LogicalOr(kbinfo[kv_b.first]);
 
       JobHolder jh(gl, hmms, args.algorithm(), union_only_genes);
       jh.SetDebug(args.debug());
       jh.SetChunkCache(args.chunk_cache());
       jh.SetNBestEvents(args.n_best_events());
 
-      KBounds union_kbounds = kbinfo[kv_a.first].LogicalOr(kbinfo[kv_b.first]);
+      // double numer_logprob(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
+      // double logprob_a(-INFINITY), logprob_b(-INFINITY);
+
+      // see if we've got anything we need cached
+      // vector<string> cnames{kv_a.first, kv_b.first, kv_a.first + " " + kv_b.first};
+      // vector<double> cvals{logprob_a, logprob_b, numer_logprob};
+      map<string, double> logprobs;
+      logprobs[kv_a.first] = -INFINITY;
+      logprobs[kv_b.first] = -INFINITY;
+      logprobs[kv_a.first + " " + kv_b.first] = -INFINITY;  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
+      for(size_t ic=0; ic<cnames.size(); ++ic) {
+	if(cached_log_probs.count(cnames[ic]))
+	  cout << "    cached " << cached_log_probs[cnames[ic]] << " - " << cvals[ic] << " = " << cached_log_probs[cnames[ic]] - cvals[ic] << endl;
+	else
+	  cached_log_probs[cnames[ic]] = cvals[ic];
+      }
+
+      string errors;
       Result numer_result(union_kbounds), result_a(union_kbounds), result_b(union_kbounds);
-      double numer_logprob(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
-      double logprob_a(-INFINITY), logprob_b(-INFINITY);
       double bayes_factor(-INFINITY); // or maybe likelihood ratio?
       bool stop(false);
-      string errors;
-      do {
+      do {  // NOTE running all sequences on a k space window that works for all sequences may be overly conservative OPTIMIZATION
 	errors = "";
 	// clock_t run_start(clock());
 	if(args.debug()) cout << "       ----" << endl;
@@ -431,6 +467,7 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       if(args.debug())
 	print_forward_scores(numer_logprob, {logprob_a, logprob_b}, bayes_factor);
 
+
       // StreamOutput(ofs, args, numer_result.events_, qry_seqs, bayes_factor, errors);
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
@@ -444,25 +481,25 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
 
   // then merge the two best clusters
   if(max_log_prob == -INFINITY) {
-    throw runtime_error("no more!\n");
+    throw runtime_error("no more (max log prob infinite)\n");
   }
-  // info[max_seqs.name_str(":")] = max_seqs;
+  // info[max_seqs.name_str()] = max_seqs;
   Sequences max_seqs;
-  // info[max_seqs.name_str(":")] = Sequences();
+  // info[max_seqs.name_str()] = Sequences();
   // for(size_t is=0; is<info[max_pair.first].n_seqs(); ++is)
-  //   info[max_seqs.name_str(":")].AddSeq(info[max_pair.first][is]);
+  //   info[max_seqs.name_str()].AddSeq(info[max_pair.first][is]);
   // cout << "1---" << endl;
   // for(size_t is=0; is<info[max_pair.second].n_seqs(); ++is)
-  //   info[max_seqs.name_str(":")].AddSeq(info[max_pair.second][is]);
+  //   info[max_seqs.name_str()].AddSeq(info[max_pair.second][is]);
 
   // NOTE malloc/free problems with the way of setting max_seqs above!!! should figure that out
   for(size_t is=0; is<info[max_pair.first].n_seqs(); ++is)
     max_seqs.AddSeq(info[max_pair.first][is]);
   for(size_t is=0; is<info[max_pair.second].n_seqs(); ++is)
     max_seqs.AddSeq(info[max_pair.second][is]);
-  info[max_seqs.name_str(":")] = max_seqs;
-  kbinfo[max_seqs.name_str(":")] = max_kbounds;
-  only_genes[max_seqs.name_str(":")] = max_only_genes;
+  info[max_seqs.name_str()] = max_seqs;
+  kbinfo[max_seqs.name_str()] = max_kbounds;
+  only_genes[max_seqs.name_str()] = max_only_genes;
 
   info.erase(max_pair.first);
   info.erase(max_pair.second);
@@ -471,10 +508,12 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   only_genes.erase(max_pair.first);
   only_genes.erase(max_pair.second);
 
-  if(args.debug()) {
-    cout << "  clustering " << max_pair.first << " " << max_pair.second << endl;
+  // if(args.debug()) {
+    cout << "  clustering with " << max_log_prob << endl
+	 << "       " << max_pair.first << endl
+	 << "       " << max_pair.second << endl;
     cout << "  to give" << endl;
     for(auto &kv : info) cout << kv.first << endl;
-  }
+  // }
 
 }
