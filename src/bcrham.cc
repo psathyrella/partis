@@ -190,8 +190,8 @@ string sort_name_list(string unsorted_str) {
 
 // ----------------------------------------------------------------------------------------
 void get_result(Args &args, JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, map<string, double> &cached_log_probs, string &errors) {
-  // if(cached_log_probs.count(name))  // already did it
-  //   return;
+  if(cached_log_probs.count(name))  // already did it
+    return;
     
   Result result(kbounds);
   bool stop(false);
