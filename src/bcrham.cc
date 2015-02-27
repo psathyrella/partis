@@ -33,7 +33,7 @@ public:
   // int debug() { return debug_; }
   int n_best_events() { return n_best_events_arg_.getValue(); }
   bool chunk_cache() { return chunk_cache_arg_.getValue(); }
-  bool hagglom() { return hagglom_arg_.getValue(); }
+  bool partition() { return partition_arg_.getValue(); }
 
   // command line arguments
   vector<string> algo_strings_;
@@ -43,7 +43,7 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, algorithm_arg_;
   ValueArg<float> hamming_fraction_cutoff_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_;
-  SwitchArg chunk_cache_arg_, hagglom_arg_;
+  SwitchArg chunk_cache_arg_, partition_arg_;
 
   // arguments read from csv input file
   map<string, vector<string> > strings_;
@@ -72,7 +72,7 @@ Args::Args(int argc, const char * argv[]):
               debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
               n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
               chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-              hagglom_arg_("z", "hierarch-agglom", "", false),
+              partition_arg_("z", "partition", "", false),
               str_headers_ {},
               int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
 str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as colon-separated lists
@@ -87,7 +87,7 @@ str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as c
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
     cmd.add(chunk_cache_arg_);
-    cmd.add(hagglom_arg_);
+    cmd.add(partition_arg_);
 
     cmd.parse(argc, argv);
 
@@ -217,7 +217,9 @@ int main(int argc, const char * argv[]) {
   assert(ofs.is_open());
   if(args.algorithm() == "viterbi")
     ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
-  else
+  else if(args.partition())
+    ofs << "partition,score,errors" << endl;
+  else if(args.algorithm() == "forward")
     ofs << "unique_ids,score,errors" << endl;
 
   // init some infrastructure
@@ -228,7 +230,7 @@ int main(int argc, const char * argv[]) {
   HMMHolder hmms(args.hmmdir(), gl);
   // hmms.CacheAll();
 
-  if(args.hagglom()) {
+  if(args.partition()) {
     hierarch_agglom(hmms, gl, qry_seq_list, args, ofs);
     ofs.close();
     return 0;
@@ -460,7 +462,6 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       if(args.debug())
 	print_forward_scores(cached_log_probs[bothnamestr], {cached_log_probs[kv_a.first], cached_log_probs[kv_b.first]}, bayes_factor);
 
-      // StreamOutput(ofs, args, numer_result.events_, qry_seqs, bayes_factor, errors);
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
 	max_pair = pair<string, string>(kv_a.first, kv_b.first);  // REMINDER not always same order as names[0], names[1]
@@ -505,6 +506,10 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
     best_partition = partition;
     max_log_prob_of_partition = total_log_prob;
   }
+
+  // maybe write each partition here?
+  // for(
+  // ofs << 
 }
 
 // ----------------------------------------------------------------------------------------
@@ -539,4 +544,13 @@ void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_
   assert(list_of_partitions.size() == max_log_probs.size());
   cout << "-----------------" << endl;  
   print_partition(best_partition, cached_log_probs, "best");
+
+  for(size_t ic=0; ic<best_partition.size(); ++ic) {
+    if(ic > 0)
+      ofs << ":";
+    ofs << best_partition[ic];
+  }
+  ofs << ",";
+  ofs << max_log_prob_of_partition << ",";
+  ofs << "n/a\n";
 }
