@@ -165,7 +165,6 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
 void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs);
-void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info, map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs);
 
 // // ----------------------------------------------------------------------------------------
 // void check_cache(string name, map<string, double> &cache) {
@@ -372,60 +371,70 @@ int minimal_hamming_distance(Sequences &seqs_a, Sequences &seqs_b) {
   }
   return min_distance;
 }
-// ----------------------------------------------------------------------------------------
-
 
 // ----------------------------------------------------------------------------------------
-void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs) {  // reminder: <qry_seq_list> is a list of lists
-  map<string, Sequences> info;
-  map<string, vector<string> > only_genes;
-  map<string, KBounds> kbinfo;
-  // convert the vector to a map 
-  for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
-    info[qry_seq_list[iqry].name_str()] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
-    only_genes[qry_seq_list[iqry].name_str()] = args.str_lists_["only_genes"][iqry];
-
-    KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
-    KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
-    KBounds kb(kmin, kmax);
-    kbinfo[qry_seq_list[iqry].name_str()] = kb;
-  }
-  map<string, double> cached_log_probs;
-  while(info.size() > 0) {
-    cout << "===================================" << endl;
-    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs);
-  }
+vector<string> get_cluster_list(map<string, Sequences> &partinfo) {
+  vector<string> clusters;
+  for(auto &kv : partinfo)
+    clusters.push_back(kv.first);
+  return clusters;
 }
+
+// ----------------------------------------------------------------------------------------
+double log_prob_of_partition(vector<string> &clusters, map<string, double> &log_probs) {
+  // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
+  double total_log_prob(0.0);
+  for(auto &key : clusters) {
+    if(log_probs.count(key) == 0)
+      throw runtime_error("ERROR couldn't find key " + key + " in cached log probs\n");
+    total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs[key]);
+  }
+  return total_log_prob;
+}
+
+// ----------------------------------------------------------------------------------------
+void print_partition(vector<string> &clusters, map<string, double> &log_probs, string extrastr) {
+  const char *extra_cstr(extrastr.c_str());
+  if(log_probs.size() == 0)
+    printf("    %s partition\n", extra_cstr);
+  else
+    printf("    %-8.2f %s partition\n", log_prob_of_partition(clusters, log_probs), extra_cstr);
+  for(auto &key : clusters)
+    cout << "          " << key << endl;
+}
+
 // ----------------------------------------------------------------------------------------
 void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info,
-				 map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs) {  // reminder: <qry_seq_list> is a list of lists
+	       map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs,
+	       vector<double> &max_log_probs, vector<vector<string> > &list_of_partitions,
+	       double &max_log_prob_of_partition, vector<string> &best_partition, bool &finished) {  // reminder: <qry_seq_list> is a list of lists
+
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   // Sequences max_seqs;
   vector<string> max_only_genes;
   KBounds max_kbounds;
 
-  set<string> finished;  // keeps track of which  a-b pairs we've already done
+  set<string> already_done;  // keeps track of which  a-b pairs we've already done
   for(auto &kv_a : info) {  // note that c++ maps are ordered
     for(auto &kv_b : info) {
       if(kv_a.first == kv_b.first) continue;
       vector<string> names{kv_a.first, kv_b.first};
       sort(names.begin(), names.end());
       string bothnamestr(names[0] + " " + names[1]);
-      if(finished.count(bothnamestr))
+      if(already_done.count(bothnamestr))  // already did this pair
 	continue;
       else
-	finished.insert(bothnamestr);
+	already_done.insert(bothnamestr);
 
       Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);
       // TODO cache hamming fraction as well
       double hamming_fraction = float(minimal_hamming_distance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
       if(hamming_fraction > args.hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	// if(args.debug() > 0) cout << "    skipping hamming: " << hamming_fraction << endl;
 	continue;
       }
 
-      // TODO skip all this stuff if we don't already have all three of 'em cached
+      // TODO skip all this stuff if we already have all three of 'em cached
       Sequences ab_seqs(a_seqs.Union(b_seqs));
       vector<string> ab_only_genes = only_genes[kv_a.first];
       for(auto &g : only_genes[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
@@ -462,11 +471,16 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
     }
   }
 
-  // then merge the two best clusters
+  // if <info> only has one cluster, if hamming is too large between all remaining clusters/remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
-    throw runtime_error("no more (max log prob infinite)\n");
+    // throw runtime_error("no more (max log prob infinite)\n");
+    finished = true;
+    return;
   }
 
+  max_log_probs.push_back(max_log_prob);
+
+  // then merge the two best clusters
   vector<string> max_names{max_pair.first, max_pair.second};
   sort(max_names.begin(), max_names.end());
   Sequences max_seqs(info[max_names[0]].Union(info[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
@@ -482,12 +496,47 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   only_genes.erase(max_pair.first);
   only_genes.erase(max_pair.second);
 
-  // if(args.debug()) {
-    cout << "  clustering with " << max_log_prob << endl
-	 << "       " << max_pair.first << endl
-	 << "       " << max_pair.second << endl;
-    cout << "  to give" << endl;
-    for(auto &kv : info) cout << kv.first << endl;
-  // }
+  printf("       merged %-8.2f (%s) and (%s)\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+  vector<string> partition(get_cluster_list(info));
+  list_of_partitions.push_back(partition);
+  print_partition(partition, cached_log_probs, "current");
+  double total_log_prob = log_prob_of_partition(partition, cached_log_probs);
+  if(total_log_prob > max_log_prob_of_partition) {
+    best_partition = partition;
+    max_log_prob_of_partition = total_log_prob;
+  }
+}
 
+// ----------------------------------------------------------------------------------------
+void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs) {  // reminder: <qry_seq_list> is a list of lists
+  // first convert the vector to a map 
+  map<string, Sequences> info;
+  map<string, vector<string> > only_genes;
+  map<string, KBounds> kbinfo;
+  for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
+    info[qry_seq_list[iqry].name_str()] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
+    only_genes[qry_seq_list[iqry].name_str()] = args.str_lists_["only_genes"][iqry];
+
+    KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
+    KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
+    KBounds kb(kmin, kmax);
+    kbinfo[qry_seq_list[iqry].name_str()] = kb;
+  }
+
+  vector<string> initial_partition(get_cluster_list(info));
+  // then glomerate 'em
+  map<string, double> cached_log_probs;
+  vector<double> max_log_probs;  // TODO I think I don't need this any more
+  vector<vector<string> > list_of_partitions;  // TODO I think I don't need this any more
+  double max_log_prob_of_partition(-INFINITY);  // 
+  vector<string> best_partition;
+  print_partition(initial_partition, cached_log_probs, "initial");
+  bool finished(false);
+  do {
+    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs, max_log_probs, list_of_partitions, max_log_prob_of_partition, best_partition, finished);
+  } while(!finished);
+
+  assert(list_of_partitions.size() == max_log_probs.size());
+  cout << "-----------------" << endl;  
+  print_partition(best_partition, cached_log_probs, "best");
 }
