@@ -127,16 +127,18 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
-        assert self.args.n_procs == 1
+        # assert self.args.n_procs == 1
         assert os.path.exists(self.args.parameter_dir)
 
         # run smith-waterman
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        hmminfo = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
-        for stuff in hmminfo:
-            print stuff
+        clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
+        for cluster in clusters:
+            for unique_id in cluster:
+                print unique_id,
+            print ''
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -174,7 +176,7 @@ class PartitionDriver(object):
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
         if do_hierarch_agglom:
-            cmd_str += ' --hierarch-agglom'
+            cmd_str += ' --partition'
 
         workdir = self.args.workdir
         if iproc >= 0:
@@ -218,10 +220,11 @@ class PartitionDriver(object):
 
         hmminfo = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir, do_hierarch_agglom=do_hierarch_agglom)
 
-        if self.args.pants_seated_clustering:
-            viterbicluster.cluster(hmminfo)
         if do_hierarch_agglom:
             return hmminfo
+
+        if self.args.pants_seated_clustering:
+            viterbicluster.cluster(hmminfo)
 
         clusters = None
         if make_clusters:
@@ -601,6 +604,16 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, make_clusters=True, count_parameters=False, parameter_out_dir=None, plotdir=None, do_hierarch_agglom=False):
         print '    read output'
+
+        if do_hierarch_agglom:
+            clusters = []
+            with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
+                reader = csv.DictReader(hmm_csv_outfile)
+                for line in reader:
+                    clusters += [ cluster.split() for cluster in line['partition'].split(':') ]
+                    
+            return clusters
+
         if count_parameters:
             assert parameter_out_dir is not None
             assert plotdir is not None
