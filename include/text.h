@@ -8,6 +8,6 @@
 using namespace std;
 namespace ham {
 void ClearWhitespace(string white, string *input);
-vector<string> SplitString(string argstr, string separator);
+vector<string> SplitString(string argstr, string delimiter=":");
 }
 #endif
