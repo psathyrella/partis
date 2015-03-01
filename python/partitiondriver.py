@@ -135,14 +135,12 @@ class PartitionDriver(object):
         waterer.run()
 
         pre_partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
-        glomclusters = Clusterer()
-        glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=pre_partition)
+        pre_glomclusters = Clusterer()
+        pre_glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=pre_partition)
 
-        clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type='k=preclusters', make_clusters=False, do_hierarch_agglom=True, n_proc_override=1)
-        for cluster in clusters:
-            for unique_id in cluster:
-                print unique_id,
-            print ''
+        partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=pre_glomclusters, hmm_type='k=preclusters', make_clusters=False, do_hierarch_agglom=True, n_proc_override=1)
+        glomclusters = Clusterer()
+        glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition)
 
         # self.clean(waterer)
         if not self.args.no_clean:
@@ -199,7 +197,7 @@ class PartitionDriver(object):
         print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom)
         print '    running'
         sys.stdout.flush()
         start = time.time()
@@ -216,7 +214,10 @@ class PartitionDriver(object):
             for iproc in range(n_procs):
                 if not self.args.no_clean:
                     os.remove(csv_infname.replace(self.args.workdir, self.args.workdir + '/hmm-' + str(iproc)))
-            self.merge_hmm_outputs(csv_outfname)
+            if do_hierarch_agglom:
+                self.merge_hmm_outputs(outfname=csv_outfname.replace('.csv', '-logprob-cache.csv'), partitionfname=csv_outfname)
+            else:
+                self.merge_hmm_outputs(csv_outfname)
         else:
             cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom)
             check_call(cmd_str.split())
@@ -287,7 +288,32 @@ class PartitionDriver(object):
             return outlists
 
     # ----------------------------------------------------------------------------------------
-    def merge_hmm_outputs(self, outfname):
+    def merge_hmm_outputs(self, outfname, partitionfname=None):
+        if partitionfname is not None:  # merge partitions from several files
+            merged_log_prob = 0
+            merged_partition = []
+            for iproc in range(self.args.n_procs):
+                workdir = self.args.workdir + '/hmm-' + str(iproc)
+                glomerer = Clusterer()
+                partition_info = self.read_partition_info(workdir + '/' + os.path.basename(partitionfname))
+                glomerer.hierarch_agglom(partitions=partition_info)
+                if math.isnan(glomerer.max_minus_ten_log_prob):  # NOTE this should really have a way of handling -INFINITY
+                    raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_prob))
+                merged_log_prob += glomerer.max_minus_ten_log_prob
+                for cluster in glomerer.best_minus_ten_partition:
+                    merged_partition.append(cluster)
+
+                if not self.args.no_clean:
+                    os.remove(workdir + '/' + os.path.basename(partitionfname))
+
+            for cluster in merged_partition:
+                print ' ', cluster
+            with opener('w')(partitionfname) as partitionfile:
+                writer = csv.DictWriter(partitionfile, ('partition', 'score'))
+                writer.writeheader()
+                writer.writerow({'partition' : ';'.join([ ':'.join([ str(uid) for uid in uids ]) for uids in merged_partition] ),
+                                 'score' : merged_log_prob})
+
         header = None
         outfo = []
         for iproc in range(self.args.n_procs):
@@ -546,7 +572,7 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False):
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False):
         print '    writing input'
         csvfile = opener('w')(csv_fname)
         start = time.time()
@@ -563,7 +589,10 @@ class PartitionDriver(object):
             nsets = self.get_pairs(preclusters)
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
             assert preclusters is not None
-            nsets = [ val for key, val in preclusters.id_clusters.items() if len(val) > 1 ]  # <nsets> is a list of sets (well, lists) of query names
+            if do_hierarch_agglom:
+                nsets = preclusters.best_minus_ten_partition
+            else:
+                nsets = [ val for key, val in preclusters.id_clusters.items() if len(val) > 1 ]  # <nsets> is a list of sets (well, lists) of query names
             # nsets = []
             # for cluster in preclusters.id_clusters.values():
             #     nsets += itertools.combinations(cluster, 5)
@@ -608,6 +637,21 @@ class PartitionDriver(object):
         print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
+    def read_partition_info(self, fname):
+        partition_info = []
+        with opener('r')(fname) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for line in reader:
+                uids = []
+                for cluster in line['partition'].split(';'):
+                    try:
+                        uids.append([ int(unique_id) for unique_id in cluster.split(':') ])
+                    except ValueError:
+                        uids.append([ unique_id for unique_id in cluster.split(':') ])
+                partition_info.append({'clusters':uids, 'score':float(line['score'])})
+        return partition_info
+
+    # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, hmm_csv_outfname, make_clusters=True, count_parameters=False, parameter_out_dir=None, plotdir=None, do_hierarch_agglom=False):
         print '    read output'
 
@@ -618,18 +662,7 @@ class PartitionDriver(object):
                 for line in reader:
                     cached_log_probs[line['unique_ids']] = float(line['score'])
             
-            partition_info = []
-            with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
-                reader = csv.DictReader(hmm_csv_outfile)
-                for line in reader:
-                    # partition_info += [ cluster.split() for cluster in line['partition'].split(':') ]
-                    uids = []
-                    for cluster in line['partition'].split(';'):
-                        try:
-                            uids.append([ int(unique_id) for unique_id in cluster.split(':') ])
-                        except ValueError:
-                            uids.append([ unique_id for unique_id in cluster.split(':') ])
-                    partition_info.append({'clusters':uids, 'score':float(line['score'])})
+            partition_info = self.read_partition_info(hmm_csv_outfname)
                     
             return partition_info, cached_log_probs  # TODO this is ugly!
 
