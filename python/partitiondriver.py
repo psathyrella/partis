@@ -140,7 +140,9 @@ class PartitionDriver(object):
 
         partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=pre_glomclusters, hmm_type='k=preclusters', make_clusters=False, do_hierarch_agglom=True, n_proc_override=1, cached_log_probs=cached_log_probs)
         glomclusters = Clusterer()
-        glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition)
+        glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
+
+        check_call(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/partition.csv', self.args.workdir + '/true-partition.csv'])
 
         # self.clean(waterer)
         for fname in os.listdir(self.args.workdir):

@@ -41,7 +41,7 @@ class Clusterer(object):
             print stuff[1], stuff[0]
 
     # ----------------------------------------------------------------------------------------
-    def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
+    def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
         # """ If we get <log_probs> but not <partitions>, do hierarchical agglomeration from scratch
         # self.glomerate(log_probs)
         self.max_log_prob, self.best_partition = None, None
@@ -69,6 +69,22 @@ class Clusterer(object):
         print 'best minus ten ', self.max_minus_ten_log_prob
         for cluster in self.best_minus_ten_partition:
             print '   ', ':'.join([ str(uid) for uid in cluster ])
+
+        if reco_info is not None:
+            assert workdir is not None
+            with opener('w')(workdir + '/partition.csv') as outfile:
+                writer = csv.DictWriter(outfile, ('group', 'name'))
+                writer.writeheader()
+                cluster_id = 0
+                for cluster in self.best_partition:
+                    for uid in cluster:
+                        writer.writerow({'group':cluster_id, 'name':uid})
+                    cluster_id += 1
+            with opener('w')(workdir + '/true-partition.csv') as outfile:
+                writer = csv.DictWriter(outfile, ('group', 'name'))
+                writer.writeheader()
+                for uid, info in reco_info.items():
+                    writer.writerow({'group':info['reco_id'], 'name':uid})
 
     # ----------------------------------------------------------------------------------------
     def single_link(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
