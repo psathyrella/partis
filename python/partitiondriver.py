@@ -143,6 +143,8 @@ class PartitionDriver(object):
         glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition)
 
         # self.clean(waterer)
+        for fname in os.listdir(self.args.workdir):
+            print fname
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
 
@@ -230,9 +232,6 @@ class PartitionDriver(object):
         # NOTE this is kind of weird to reset <cached_log_probs>, but bcrham will have read in all the ones we started with, so we won't lose any
         hmminfo, cached_log_probs = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir, do_hierarch_agglom=do_hierarch_agglom)
 
-        if do_hierarch_agglom:
-            return hmminfo, cached_log_probs  # TODO this is ugly!
-
         if self.args.pants_seated_clustering:
             viterbicluster.single_link(hmminfo)
 
@@ -248,9 +247,14 @@ class PartitionDriver(object):
         if not self.args.no_clean:
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
                 os.remove(csv_infname)
-            if cached_log_probs is not None and os.path.exists(csv_infname.replace('.csv', '-logprob-cache.csv')):
+            if cached_log_probs is not None and os.path.exists(csv_infname.replace('.csv', '-logprob-cache.csv')):  # TODO hackey hackey hackey
                 os.remove(csv_infname.replace('.csv', '-logprob-cache.csv'))
             os.remove(csv_outfname)
+            if cached_log_probs is not None and os.path.exists(csv_outfname.replace('.csv', '-logprob-cache.csv')):
+                os.remove(csv_outfname.replace('.csv', '-logprob-cache.csv'))
+
+        if do_hierarch_agglom:
+            return hmminfo, cached_log_probs  # TODO this is ugly!
 
         return clusters
 
