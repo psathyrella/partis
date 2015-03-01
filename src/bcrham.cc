@@ -46,7 +46,6 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
       seqs.AddSeq(sq);
     }
-    cout << "adding " << seqs.name_str(":") << endl;
     all_seqs.push_back(seqs);
   }
   assert(all_seqs.size() == args.str_lists_["names"].size());
@@ -477,17 +476,17 @@ void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_
   vector<string> initial_partition(get_cluster_list(info));
   // then glomerate 'em
   map<string, double> cached_log_probs = read_cached_log_probs(args.incachefile());
-  cout << "initial cache" << endl;
-  for(auto &kv : cached_log_probs)
-    cout << kv.first << " " << kv.second << endl;
+  // cout << "initial cache" << endl;
+  // for(auto &kv : cached_log_probs)
+  //   cout << kv.first << " " << kv.second << endl;
   vector<double> list_of_log_probs;  // TODO I think I don't need this any more
   vector<vector<string> > list_of_partitions;  // TODO I think I don't need this any more
   double max_log_prob_of_partition(-INFINITY);  // 
   vector<string> best_partition;
-  cout << "initial" << endl;
-  for(auto &key : initial_partition)
-    cout << key << endl;
-  cout << "---" << endl;
+  // cout << "initial" << endl;
+  // for(auto &key : initial_partition)
+  //   cout << key << endl;
+  // cout << "---" << endl;
   print_partition(initial_partition, cached_log_probs, "initial");
   bool finished(false);
   do {
