@@ -706,6 +706,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
             bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
+            if bounds is None and 'insertion' in varname:
+                bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
             if '_gene' in varname:
                 no_labels = True
                 if 'j_' not in varname:

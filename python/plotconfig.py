@@ -89,6 +89,7 @@ default_hard_bounds = {
     'j-mean-freq' : (0.0, 0.3),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-1, 6),
     'vd_insertion' : (-1, 15),
+    'all_insertions' : (-0.5, 20),
     'IGHJ6*02' : (-0.5, 39.5),
     'IGHJ3*02' : (-0.5, 26),
     'IGHJ1*01' : (-0.5, 28),

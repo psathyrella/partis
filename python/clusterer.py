@@ -11,7 +11,14 @@ from opener import opener
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, threshold, greater_than=True, singletons=[]):  # put in same cluster if greater than threshold, or less than equal to?
+    def __init__(self, threshold=0.0, greater_than=True, singletons=[]):  # put in same cluster if greater than threshold, or less than equal to?
+        # self.method = method
+        # if method == 'single-link':
+        #     pass
+        # elif method == 'hierarch-agglom':
+        #     pass
+        # else:
+        #     raise Exception('ERROR bad clustering method ' + method)
         self.threshold = threshold
         self.debug = False
         self.greater_than = greater_than
@@ -28,7 +35,43 @@ class Clusterer(object):
         # self.nearest_true_mate = {}  #
 
     # ----------------------------------------------------------------------------------------
-    def cluster(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
+    def glomerate(self, log_probs):
+        sorted_log_probs = sorted(log_probs.items(), key=itemgetter(1))
+        for stuff in sorted_log_probs:
+            print stuff[1], stuff[0]
+
+    # ----------------------------------------------------------------------------------------
+    def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
+        # """ If we get <log_probs> but not <partitions>, do hierarchical agglomeration from scratch
+        # self.glomerate(log_probs)
+        self.max_log_prob, self.best_partition = None, None
+        for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
+            print '  %-8.3f' % part['score'],
+            for cluster in part['clusters']:
+                print ':'.join([ str(uid) for uid in cluster]),
+            print ''
+
+            if self.max_log_prob is None or part['score'] > self.max_log_prob:
+                self.max_log_prob = part['score']
+                self.best_partition = part['clusters']
+
+        print 'best partition ', self.max_log_prob
+        for cluster in self.best_partition:
+            print '   ', ':'.join([ str(uid) for uid in cluster ])
+
+        self.max_minus_ten_log_prob, self.best_minus_ten_partition = None, None  # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
+        for part in partitions:
+            if part['score'] > self.max_log_prob - 10.0:
+                self.max_minus_ten_log_prob = part['score']
+                self.best_minus_ten_partition = part['clusters']
+                break
+                
+        print 'best minus ten ', self.max_minus_ten_log_prob
+        for cluster in self.best_minus_ten_partition:
+            print '   ', ':'.join([ str(uid) for uid in cluster ])
+
+    # ----------------------------------------------------------------------------------------
+    def single_link(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
         if infname is None:
             assert input_scores is not None
         else:
@@ -144,6 +187,7 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
+        """ figure out how to add query pair into clusters using single-link"""
         if math.isnan(score):
             print 'ERROR nan passed for %d %d (dbg %s)' %(query_name, second_query_name, dbg_str_list)
             sys.exit()
