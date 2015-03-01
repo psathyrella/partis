@@ -11,131 +11,22 @@
 #include "jobholder.h"
 #include "germlines.h"
 #include "text.h"
+#include "args.h"
 #include "tclap/CmdLine.h"
 using namespace TCLAP;
 using namespace ham;
 using namespace std;
 
-// ----------------------------------------------------------------------------------------
-// input processing class
-// NOTE some input is passed on the command line (global configuration), while some is passed in a csv file (stuff that depends on each (pair of) sequence(s)).
-class Args {
-public:
-  Args(int argc, const char * argv[]);
-  string hmmdir() { return hmmdir_arg_.getValue(); }
-  string datadir() { return datadir_arg_.getValue(); }
-  string infile() { return infile_arg_.getValue(); }
-  string outfile() { return outfile_arg_.getValue(); }
-  float hamming_fraction_cutoff() { return hamming_fraction_cutoff_arg_.getValue(); }
-  string algorithm() { return algorithm_arg_.getValue(); }
-  // string algorithm() { return algorithm_; }
-  int debug() { return debug_arg_.getValue(); }
-  // int debug() { return debug_; }
-  int n_best_events() { return n_best_events_arg_.getValue(); }
-  bool chunk_cache() { return chunk_cache_arg_.getValue(); }
-  bool partition() { return partition_arg_.getValue(); }
-
-  // command line arguments
-  vector<string> algo_strings_;
-  vector<int> debug_ints_;
-  ValuesConstraint<string> algo_vals_;
-  ValuesConstraint<int> debug_vals_;
-  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, algorithm_arg_;
-  ValueArg<float> hamming_fraction_cutoff_arg_;
-  ValueArg<int> debug_arg_, n_best_events_arg_;
-  SwitchArg chunk_cache_arg_, partition_arg_;
-
-  // arguments read from csv input file
-  map<string, vector<string> > strings_;
-  map<string, vector<int> > integers_;
-  map<string, vector<vector<string> > > str_lists_;
-  set<string> str_headers_, int_headers_, str_list_headers_;
-
-  // // extra values to cache command line args (TCLAP calls to ValuesConstraint::check() seem to be really slow
-  // UPDATE hmm, didn't seem to help. leave it for the moment
-  // string algorithm_;
-  // int debug_;
-};
-
-// ----------------------------------------------------------------------------------------
-Args::Args(int argc, const char * argv[]):
-  algo_strings_ {"viterbi", "forward"},
-              debug_ints_ {0, 1, 2},
-              algo_vals_(algo_strings_),
-              debug_vals_(debug_ints_),
-              hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
-              datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
-              infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
-              outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
-              algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
-              hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", true, -1.0, "float"),
-              debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
-              n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-              chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-              partition_arg_("z", "partition", "", false),
-              str_headers_ {},
-              int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
-str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as colon-separated lists
-  try {
-    CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
-    cmd.add(hmmdir_arg_);
-    cmd.add(datadir_arg_);
-    cmd.add(infile_arg_);
-    cmd.add(outfile_arg_);
-    cmd.add(hamming_fraction_cutoff_arg_);
-    cmd.add(algorithm_arg_);
-    cmd.add(debug_arg_);
-    cmd.add(n_best_events_arg_);
-    cmd.add(chunk_cache_arg_);
-    cmd.add(partition_arg_);
-
-    cmd.parse(argc, argv);
-
-    // algorithm_ = algorithm_arg_.getValue();
-    // debug_ = debug_arg_.getValue();
-  } catch(ArgException &e) {
-    cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
-    throw;
-  }
-
-  for(auto & head : str_headers_)
-    strings_[head] = vector<string>();
-  for(auto & head : int_headers_)
-    integers_[head] = vector<int>();
-
-  ifstream ifs(infile());
-  assert(ifs.is_open());
-  string line;
-  // get header line
-  getline(ifs, line);
-  stringstream ss(line);
-  vector<string> headers;  // keep track of the file's column order
-  while(!ss.eof()) {
-    string head;
-    ss >> head;
-    if(head != "")   // make sure not to add a blank header at the end of the file
-      headers.push_back(head);
-  }
-  while(getline(ifs, line)) {
-    stringstream ss(line);
-    string tmpstr;
-    int tmpint;
-    for(auto & head : headers) {
-      if(str_headers_.find(head) != str_headers_.end()) {
-        ss >> tmpstr;
-        strings_[head].push_back(tmpstr);
-      } else if(str_list_headers_.find(head) != str_list_headers_.end()) {
-        ss >> tmpstr;
-        str_lists_[head].push_back(SplitString(tmpstr, ":"));
-      } else if(int_headers_.find(head) != int_headers_.end()) {
-        ss >> tmpint;
-        integers_[head].push_back(tmpint);
-      } else {
-        throw runtime_error("ERROR header " + head + "' not found");
-      }
-    }
-  }
-}
+// class Glomerator {
+// public:
+//   Glomerator();
+// private:
+//   map<string, Sequences> current_partition_;
+//   map<string, vector<string> > only_genes_;
+//   map<string, KBounds> kbinfo_;
+//   map<string, double> cached_log_probs_;
+//   vector<double> 
+// }
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
@@ -408,7 +299,7 @@ void print_partition(vector<string> &clusters, map<string, double> &log_probs, s
 // ----------------------------------------------------------------------------------------
 void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info,
 	       map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs,
-	       vector<double> &max_log_probs, vector<vector<string> > &list_of_partitions,
+	       vector<double> &list_of_log_probs, vector<vector<string> > &list_of_partitions,
 	       double &max_log_prob_of_partition, vector<string> &best_partition, bool &finished) {  // reminder: <qry_seq_list> is a list of lists
 
   double max_log_prob(-INFINITY);
@@ -423,7 +314,7 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       if(kv_a.first == kv_b.first) continue;
       vector<string> names{kv_a.first, kv_b.first};
       sort(names.begin(), names.end());
-      string bothnamestr(names[0] + " " + names[1]);
+      string bothnamestr(names[0] + ":" + names[1]);
       if(already_done.count(bothnamestr))  // already did this pair
 	continue;
       else
@@ -432,8 +323,12 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);
       // TODO cache hamming fraction as well
       double hamming_fraction = float(minimal_hamming_distance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+      bool TMP_only_get_single_log_probs(false);
       if(hamming_fraction > args.hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	continue;
+	if(cached_log_probs.count(kv_a.first) == 0 || cached_log_probs.count(kv_b.first) == 0)
+	  TMP_only_get_single_log_probs = true;
+	else
+	  continue;
       }
 
       // TODO skip all this stuff if we already have all three of 'em cached
@@ -444,6 +339,7 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       KBounds ab_kbounds = kbinfo[kv_a.first].LogicalOr(kbinfo[kv_b.first]);
 
       JobHolder jh(gl, hmms, args.algorithm(), ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
+      // TODO make sure that using <ab_only_genes> doesn't introduce some bias
       jh.SetDebug(args.debug());
       jh.SetChunkCache(args.chunk_cache());
       jh.SetNBestEvents(args.n_best_events());
@@ -453,6 +349,8 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       // NOTE error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       get_result(args, jh, kv_a.first, a_seqs, kbinfo[kv_a.first], cached_log_probs, errors);
       get_result(args, jh, kv_b.first, b_seqs, kbinfo[kv_b.first], cached_log_probs, errors);
+      if(TMP_only_get_single_log_probs)
+	continue;
       get_result(args, jh, bothnamestr, ab_seqs, ab_kbounds, cached_log_probs, errors);
 
       // clock_t run_start(clock());
@@ -479,13 +377,11 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
     return;
   }
 
-  max_log_probs.push_back(max_log_prob);
-
   // then merge the two best clusters
   vector<string> max_names{max_pair.first, max_pair.second};
   sort(max_names.begin(), max_names.end());
   Sequences max_seqs(info[max_names[0]].Union(info[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
-  string max_name_str(max_names[0] + " " + max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
+  string max_name_str(max_names[0] + ":" + max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
   info[max_name_str] = max_seqs;
   kbinfo[max_name_str] = max_kbounds;
   only_genes[max_name_str] = max_only_genes;
@@ -497,19 +393,40 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   only_genes.erase(max_pair.first);
   only_genes.erase(max_pair.second);
 
-  printf("       merged %-8.2f (%s) and (%s)\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+  printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+
   vector<string> partition(get_cluster_list(info));
-  list_of_partitions.push_back(partition);
   print_partition(partition, cached_log_probs, "current");
   double total_log_prob = log_prob_of_partition(partition, cached_log_probs);
+
+  list_of_log_probs.push_back(total_log_prob);
+  list_of_partitions.push_back(partition);
+
   if(total_log_prob > max_log_prob_of_partition) {
     best_partition = partition;
     max_log_prob_of_partition = total_log_prob;
   }
-
-  // maybe write each partition here?
   // for(
-  // ofs << 
+  //     cache_ofs << 
+}
+
+// ----------------------------------------------------------------------------------------
+void write_cached_log_probs(ofstream &log_prob_ofs, map<string, double> &cached_log_probs) {
+  log_prob_ofs << "unique_ids,score" << endl;
+  for(auto &kv : cached_log_probs)
+    log_prob_ofs << kv.first << "," << kv.second << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void write_partition(ofstream &ofs, vector<string> partition, double log_prob) {
+  for(size_t ic=0; ic<partition.size(); ++ic) {
+    if(ic > 0)
+      ofs << ";";
+    ofs << partition[ic];
+  }
+  ofs << ",";
+  ofs << log_prob << ",";
+  ofs << "n/a\n";
 }
 
 // ----------------------------------------------------------------------------------------
@@ -531,26 +448,28 @@ void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_
   vector<string> initial_partition(get_cluster_list(info));
   // then glomerate 'em
   map<string, double> cached_log_probs;
-  vector<double> max_log_probs;  // TODO I think I don't need this any more
+  vector<double> list_of_log_probs;  // TODO I think I don't need this any more
   vector<vector<string> > list_of_partitions;  // TODO I think I don't need this any more
   double max_log_prob_of_partition(-INFINITY);  // 
   vector<string> best_partition;
   print_partition(initial_partition, cached_log_probs, "initial");
   bool finished(false);
   do {
-    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs, max_log_probs, list_of_partitions, max_log_prob_of_partition, best_partition, finished);
+    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs, list_of_log_probs, list_of_partitions, max_log_prob_of_partition, best_partition, finished);
   } while(!finished);
 
-  assert(list_of_partitions.size() == max_log_probs.size());
+  // assert(list_of_partitions.size() == max_log_probs.size());
   cout << "-----------------" << endl;  
   print_partition(best_partition, cached_log_probs, "best");
 
-  for(size_t ic=0; ic<best_partition.size(); ++ic) {
-    if(ic > 0)
-      ofs << ":";
-    ofs << best_partition[ic];
-  }
-  ofs << ",";
-  ofs << max_log_prob_of_partition << ",";
-  ofs << "n/a\n";
+  // TODO oh, damn, if the initial partition is better than any subsequent ones this breaks
+  // TODO it might be mroe efficient to write the partitions as I go so I don't have to keep them around in memory
+  write_partition(ofs, initial_partition, log_prob_of_partition(initial_partition, cached_log_probs));
+  for(size_t ip=0; ip<list_of_partitions.size(); ++ip)
+    write_partition(ofs, list_of_partitions[ip], list_of_log_probs[ip]);
+
+  ofstream log_prob_ofs;
+  log_prob_ofs.open(args.cachefile());
+  write_cached_log_probs(log_prob_ofs, cached_log_probs);
+  log_prob_ofs.close();
 }
