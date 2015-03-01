@@ -138,7 +138,7 @@ class PartitionDriver(object):
         pre_glomclusters = Clusterer()
         pre_glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=pre_partition)
 
-        partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=pre_glomclusters, hmm_type='k=preclusters', make_clusters=False, do_hierarch_agglom=True, n_proc_override=1)
+        partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=pre_glomclusters, hmm_type='k=preclusters', make_clusters=False, do_hierarch_agglom=True, n_proc_override=1, cached_log_probs=cached_log_probs)
         glomclusters = Clusterer()
         glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition)
 
@@ -164,7 +164,7 @@ class PartitionDriver(object):
         #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
 
     # ----------------------------------------------------------------------------------------
-    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1, do_hierarch_agglom=False):
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1, do_hierarch_agglom=False, initial_logprob_cache=False):
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
@@ -179,7 +179,9 @@ class PartitionDriver(object):
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
         if do_hierarch_agglom:
             cmd_str += ' --partition'
-            cmd_str += ' --cachefile ' + csv_outfname.replace('.csv', '-logprob-cache.csv')
+            if initial_logprob_cache:
+                cmd_str += ' --incachefile ' + csv_infname.replace('.csv', '-logprob-cache.csv')
+            cmd_str += ' --outcachefile ' + csv_outfname.replace('.csv', '-logprob-cache.csv')
 
         workdir = self.args.workdir
         if iproc >= 0:
@@ -190,14 +192,14 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
-                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False, n_proc_override=None):  # @parameterfetishist
+                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False, n_proc_override=None, cached_log_probs=None):  # @parameterfetishist
 
         if prefix == '' and stripped:
             prefix = 'stripped'
         print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom, cached_log_probs=cached_log_probs)
         print '    running'
         sys.stdout.flush()
         start = time.time()
@@ -206,7 +208,7 @@ class PartitionDriver(object):
             self.split_input(n_procs, infname=csv_infname, prefix='hmm')
             procs = []
             for iproc in range(n_procs):
-                cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc, do_hierarch_agglom=do_hierarch_agglom)
+                cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc, do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
                 procs.append(Popen(cmd_str.split()))
                 time.sleep(0.1)
             for proc in procs:
@@ -215,16 +217,17 @@ class PartitionDriver(object):
                 if not self.args.no_clean:
                     os.remove(csv_infname.replace(self.args.workdir, self.args.workdir + '/hmm-' + str(iproc)))
             if do_hierarch_agglom:
-                self.merge_hmm_outputs(outfname=csv_outfname.replace('.csv', '-logprob-cache.csv'), partitionfname=csv_outfname)
+                self.merge_hmm_outputs(outfname=csv_outfname.replace('.csv', '-logprob-cache.csv'), partitionfname=csv_outfname, initial_logprob_cache=(cached_log_probs is not None))
             else:
                 self.merge_hmm_outputs(csv_outfname)
         else:
-            cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom)
+            cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
             check_call(cmd_str.split())
 
         sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
 
+        # NOTE this is kind of weird to reset <cached_log_probs>, but bcrham will have read in all the ones we started with, so we won't lose any
         hmminfo, cached_log_probs = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir, do_hierarch_agglom=do_hierarch_agglom)
 
         if do_hierarch_agglom:
@@ -245,6 +248,8 @@ class PartitionDriver(object):
         if not self.args.no_clean:
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
                 os.remove(csv_infname)
+            if cached_log_probs is not None and os.path.exists(csv_infname.replace('.csv', '-logprob-cache.csv')):
+                os.remove(csv_infname.replace('.csv', '-logprob-cache.csv'))
             os.remove(csv_outfname)
 
         return clusters
@@ -288,7 +293,7 @@ class PartitionDriver(object):
             return outlists
 
     # ----------------------------------------------------------------------------------------
-    def merge_hmm_outputs(self, outfname, partitionfname=None):
+    def merge_hmm_outputs(self, outfname, partitionfname=None, initial_logprob_cache=False):
         if partitionfname is not None:  # merge partitions from several files
             merged_log_prob = 0
             merged_partition = []
@@ -325,6 +330,8 @@ class PartitionDriver(object):
                     outfo.append(line)
             if not self.args.no_clean:
                 os.remove(workdir + '/' + os.path.basename(outfname))
+                if initial_logprob_cache:
+                    os.remove(workdir + '/' + os.path.basename(outfname.replace('.csv', '-logprob-cache.csv')))  # TODO this is messy!
                 os.rmdir(workdir)
 
         with opener('w')(outfname) as outfile:
@@ -572,8 +579,16 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False):
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False, cached_log_probs=None):
         print '    writing input'
+        if cached_log_probs is not None:
+            with opener('w')(csv_fname.replace('.csv', '-logprob-cache.csv')) as cachefile:
+                writer = csv.DictWriter(cachefile, ('unique_ids', 'score'))
+                writer.writeheader()
+                for uids, logprob in cached_log_probs.items():
+                    # writer.writerow({'unique_ids':':'.join([str(uid) for uid in uids]), 'score':logprob})
+                    writer.writerow({'unique_ids':uids, 'score':logprob})
+
         csvfile = opener('w')(csv_fname)
         start = time.time()
 
