@@ -46,6 +46,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 
       seqs.AddSeq(sq);
     }
+    cout << "adding " << seqs.name_str(":") << endl;
     all_seqs.push_back(seqs);
   }
   assert(all_seqs.size() == args.str_lists_["names"].size());
@@ -64,19 +65,19 @@ void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_
 //   else
 //     cached_log_probs[cnames[ic]] = cvals[ic];
   
-// ----------------------------------------------------------------------------------------
-string sort_name_list(string unsorted_str) {
-  // alphabetically sort the space-separated name list in <unsorted_str>
-  vector<string> unsorted_vector(SplitString(unsorted_str, " "));
-  sort(unsorted_vector.begin(), unsorted_vector.end());
-  string return_str;
-  for(size_t ic=0; ic<unsorted_vector.size(); ++ic) {
-    if(ic > 0)
-      return_str += " ";
-    return_str += unsorted_vector[ic];
-  }
-  return return_str;    
-}
+// // ----------------------------------------------------------------------------------------
+// string sort_name_list(string unsorted_str) {
+//   // alphabetically sort the space-separated name list in <unsorted_str>
+//   vector<string> unsorted_vector(SplitString(unsorted_str, " "));
+//   sort(unsorted_vector.begin(), unsorted_vector.end());
+//   string return_str;
+//   for(size_t ic=0; ic<unsorted_vector.size(); ++ic) {
+//     if(ic > 0)
+//       return_str += " ";
+//     return_str += unsorted_vector[ic];
+//   }
+//   return return_str;    
+// }
 
 // ----------------------------------------------------------------------------------------
 void get_result(Args &args, JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, map<string, double> &cached_log_probs, string &errors) {
@@ -430,28 +431,63 @@ void write_partition(ofstream &ofs, vector<string> partition, double log_prob) {
 }
 
 // ----------------------------------------------------------------------------------------
+map<string, double> read_cached_log_probs(string fname) {
+  map<string, double> cached_log_probs;
+  if(fname == "")
+    return cached_log_probs;
+  ifstream ifs(fname);
+  assert(ifs.is_open());
+  string line;
+
+  // check the header is right TODO should write a general csv reader
+  getline(ifs, line);
+  vector<string> headstrs(SplitString(line, ","));
+  cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << endl;
+  assert(headstrs[0].find("unique_ids") == 0);
+  assert(headstrs[1].find("score") == 0);
+
+  while(getline(ifs, line)) {
+    vector<string> column_list = SplitString(line, ",");
+    assert(column_list.size() == 2);
+    string unique_ids(column_list[0]);
+    double logprob(stof(column_list[1]));
+    cached_log_probs[unique_ids] = logprob;
+  }
+
+  return cached_log_probs;
+}
+// ----------------------------------------------------------------------------------------
 void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs) {  // reminder: <qry_seq_list> is a list of lists
   // first convert the vector to a map 
   map<string, Sequences> info;
   map<string, vector<string> > only_genes;
   map<string, KBounds> kbinfo;
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
-    info[qry_seq_list[iqry].name_str()] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
-    only_genes[qry_seq_list[iqry].name_str()] = args.str_lists_["only_genes"][iqry];
+    string key(qry_seq_list[iqry].name_str(":"));
 
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
+
     KBounds kb(kmin, kmax);
-    kbinfo[qry_seq_list[iqry].name_str()] = kb;
+    info[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
+    only_genes[key] = args.str_lists_["only_genes"][iqry];
+    kbinfo[key] = kb;
   }
 
   vector<string> initial_partition(get_cluster_list(info));
   // then glomerate 'em
-  map<string, double> cached_log_probs;
+  map<string, double> cached_log_probs = read_cached_log_probs(args.incachefile());
+  cout << "initial cache" << endl;
+  for(auto &kv : cached_log_probs)
+    cout << kv.first << " " << kv.second << endl;
   vector<double> list_of_log_probs;  // TODO I think I don't need this any more
   vector<vector<string> > list_of_partitions;  // TODO I think I don't need this any more
   double max_log_prob_of_partition(-INFINITY);  // 
   vector<string> best_partition;
+  cout << "initial" << endl;
+  for(auto &key : initial_partition)
+    cout << key << endl;
+  cout << "---" << endl;
   print_partition(initial_partition, cached_log_probs, "initial");
   bool finished(false);
   do {
@@ -468,8 +504,9 @@ void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_
   for(size_t ip=0; ip<list_of_partitions.size(); ++ip)
     write_partition(ofs, list_of_partitions[ip], list_of_log_probs[ip]);
 
+  // TODO really pass the cachefile as arg? maybe do something cleaner
   ofstream log_prob_ofs;
-  log_prob_ofs.open(args.cachefile());
+  log_prob_ofs.open(args.outcachefile());
   write_cached_log_probs(log_prob_ofs, cached_log_probs);
   log_prob_ofs.close();
 }
