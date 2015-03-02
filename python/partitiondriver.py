@@ -8,6 +8,7 @@ import glob
 import csv
 import re
 from multiprocessing import Pool
+from collections import OrderedDict
 from subprocess import Popen, check_call
 
 import utils
@@ -18,7 +19,7 @@ from waterer import Waterer
 from hist import Hist
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
-import viterbicluster
+# import viterbicluster
 import plotting
 
 # ----------------------------------------------------------------------------------------
@@ -142,7 +143,9 @@ class PartitionDriver(object):
         glomclusters = Clusterer()
         glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
 
-        check_call(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/partition.csv', self.args.workdir + '/true-partition.csv'])
+        check_call(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+        os.remove(self.args.workdir + '/true-partition.csv')
+        os.remove(self.args.workdir + '/partition.csv')
 
         # self.clean(waterer)
         for fname in os.listdir(self.args.workdir):
@@ -235,7 +238,10 @@ class PartitionDriver(object):
         hmminfo, cached_log_probs = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir, do_hierarch_agglom=do_hierarch_agglom)
 
         if self.args.pants_seated_clustering:
-            viterbicluster.single_link(hmminfo)
+            vollmers_clusterer = Clusterer()
+            vollmers_clusterer.vollmers_cluster(hmminfo)
+            sys.exit()
+            # viterbicluster.cluster(hmminfo)
 
         clusters = None
         if make_clusters:
@@ -695,7 +701,7 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir + '/hmm/performance', 'hmm') if self.args.plot_performance else None
 
         n_processed = 0
-        hmminfo = []
+        hmminfo = OrderedDict()
         with opener('r')(hmm_csv_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             last_key = None
@@ -724,7 +730,7 @@ class PartitionDriver(object):
                         if self.args.debug:
                             print '%s   %d' % (id_str, same_event)
                         if line['cdr3_length'] != -1 or not self.args.skip_unproductive:  # if it's productive, or if we're not skipping unproductive rearrangements
-                            hmminfo.append(dict([('unique_id', line['unique_ids'][0]), ] + line.items()))
+                            hmminfo[':'.join([str(uid) for uid in line['unique_ids']])] = line
                             if pcounter is not None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
                             if true_pcounter is not None:  # increment true counters
@@ -768,7 +774,7 @@ class PartitionDriver(object):
         if len(boundary_error_queries) > 0:
             print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
 
-        return hmminfo
+        return hmminfo, None
 
     # ----------------------------------------------------------------------------------------
     def get_true_clusters(self, ids):

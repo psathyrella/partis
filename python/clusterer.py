@@ -155,6 +155,71 @@ class Clusterer(object):
             outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
+    def vollmers_cluster(self, info):
+        """ 
+        Cluster together sequences with similar rearrangement parameters
+    
+        From Vollmers paper:
+            Lineage Clustering. IGH sequences were clustered into IGH lineages according
+            to similarity in their junctional region. Lineages were created according to the
+            following steps. A lineage is formed and populated with one IGH sequence (seed). Then, all
+            IGH sequences in the lineages (initially only the seed) are compared with all
+            other IGH sequences of the same length using the same V and J segments. If
+            their junctional regions (untemplated nucleotides and D segments) are at
+            least 90% identical, the IGH sequence is added to the lineage. This process is
+            repeated until the lineage does not grow.
+
+        NOTE I'm interpreting this to mean that if *any* sequence already in the cluster is 90% in cdr3 region to the prospective sequence that it's added to the cluster
+        """
+
+        def get_cdr3_seq(uid):
+            cpos = info[uid]['cyst_position']
+            tpos = info[uid]['tryp_position']
+            assert len(info[uid]['seqs']) == 1
+            seq = info[uid]['seqs'][0]
+            cdr3_seq = seq[cpos : tpos+3]
+            if len(cdr3_seq) != info[uid]['cdr3_length']:
+                raise Exception('ERROR bad cdr3 sequence %s %d' % (cdr3_seq, info[uid]['cdr3_length']))
+            return cdr3_seq
+
+        def from_same_lineage(cluster_id, uid):
+            for clid in self.id_clusters[cluster_id]:  # loop over seqs already in the cluster (it only has to match one of 'em)
+                is_match = True
+                for key in ('cdr3_length', 'v_gene', 'j_gene'):  # same cdr3 length, v gene, and d gene
+                    if info[clid][key] != info[uid][key]:
+                        print '    %s doesn\'t match' % key
+                        is_match = False
+                if not is_match:
+                    continue
+                # assert 'cyst_position' in info[clid]
+                # assert 'tryp_position' in info[clid]
+                cl_cdr3_seq = get_cdr3_seq(clid)
+                u_cdr3_seq = get_cdr3_seq(uid)
+                # print utils.color_mutants(cl_cdr3_seq, u_cdr3_seq, print_result=False)
+                hamming_frac = float(utils.hamming(cl_cdr3_seq, u_cdr3_seq)) / len(cl_cdr3_seq)
+                if hamming_frac > 0.1:  # if cdr3 is more than 10 percent different we got no match
+                    print '    hamming too large', hamming_frac
+                    continue
+
+                return True  # if we get to here, it's a match
+
+            return False
+
+        unclustered_seqs = info.keys()
+        last_cluster_id = 0
+        self.id_clusters[last_cluster_id] = [ unclustered_seqs[0] ]
+        last_size = len(self.id_clusters[last_cluster_id])
+        # for ... todo
+        print '  %s ' % ':'.join([str(uid) for uid in self.id_clusters[last_cluster_id]])
+        for unique_id, line in info.items():
+            if unique_id in self.id_clusters[last_cluster_id]:  # sequence is already in this cluster
+                print '   ', unique_id, 'already in cluster'
+                continue
+            if from_same_lineage(last_cluster_id, unique_id):
+                print '   adding', unique_id
+                self.id_clusters[last_cluster_id].append(unique_id)
+    
+    # ----------------------------------------------------------------------------------------
     def add_new_cluster(self, query_name, dbg_str_list):
         dbg_str_list.append('    new cluster ' + str(query_name))
         assert query_name not in self.query_clusters

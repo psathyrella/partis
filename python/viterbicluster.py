@@ -5,9 +5,24 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 def cluster(viterbi_info):
-    """ cluster together sequences with the same rearrangement parameters """
+    """ 
+    Cluster together sequences with similar rearrangement parameters
+
+    From Vollmers paper:
+        Lineage Clustering. IGH sequences were clustered into IGH lineages according
+        to similarity in their junctional region. Lineages were created according to the
+        following steps. A lineage is formed and populated with one IGH sequence (seed). Then, all
+        IGH sequences in the lineages (initially only the seed) are compared with all
+        other IGH sequences of the same length using the same V and J segments. If
+        their junctional regions (untemplated nucleotides and D segments) are at
+        least 90% identical, the IGH sequence is added to the lineage. This process is
+        repeated until the lineage does not grow.
+    """
+
     clusters = {}
     # il = 0
+    unclustered_seqs = [ d['unique_id'] for d in viterbi_info ]
+
     for line in viterbi_info:
         # first make a list of all the rearrangement parameters
         # if (il%5) == 0:
