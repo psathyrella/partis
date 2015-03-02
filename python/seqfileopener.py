@@ -71,9 +71,8 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
             break
 
     if len(input_info) == 0:
-        print 'ERROR didn\'t end up pulling any input info out of %s' % fname
-        assert False
-
+        raise Exception('ERROR didn\'t end up pulling any input info out of %s while looking for %s\n' % (fname, ':'.join([str(qr) for qr in queries])))
+    
     # for k in reco_info.keys():
     #     print reco_info[k]['reco_id']
     if randomize_order:

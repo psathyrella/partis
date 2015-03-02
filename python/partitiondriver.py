@@ -142,15 +142,21 @@ class PartitionDriver(object):
         partition, cached_log_probs, glomclusters = None, None, None
 
         n_procs = self.args.n_procs
-        # while len(glomclusters.best_partition) >
+        n_proc_list = []
         while n_procs > 0:
-            print 'run with %d procs' % n_procs
+            print 'run on %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
             partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
                                                        do_hierarch_agglom=True, n_proc_override=n_procs, cached_log_probs=cached_log_probs, randomize_input_order=True)
+            n_proc_list.append(n_procs)
             glomclusters = Clusterer()
             glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
-            if len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:  # if we wouldn't be running with too many clusters per process
+            if n_procs == 1:
+                break
+
+            # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process
+            if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
+               len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
                 n_procs = n_procs / 2
 
         import ast
