@@ -44,6 +44,7 @@ class Clusterer(object):
     def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
         # """ If we get <log_probs> but not <partitions>, do hierarchical agglomeration from scratch
         # self.glomerate(log_probs)
+        print '  glomerating in clusterer'
         self.max_log_prob, self.best_partition = None, None
         for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
             print '  %-8.3f' % part['score'],
@@ -169,9 +170,14 @@ class Clusterer(object):
             least 90% identical, the IGH sequence is added to the lineage. This process is
             repeated until the lineage does not grow.
 
-        NOTE I'm interpreting this to mean that if *any* sequence already in the cluster is 90% in cdr3 region to the prospective sequence that it's added to the cluster
-        NOTE I'm using cdr3 a.t.m. rather than d-region plus insertions
+        NOTE I'm interpreting this to mean
+          - if *any* sequence already in the cluster is 90% to the prospective sequence that it's added to the cluster
+          - 'sequences the same length' means cdr3 the same length (entire sequence the same length only made sense for their primers
+          - since the 90% is on d + insertions, also have to not merge if the d + insertions aren't the same length
         """
+
+        def get_d_plus_insertions(uid):
+            return info[uid]['vd_insertion'] + info[uid]['d_qr_seq'] + info[uid]['dj_insertion']
 
         def get_cdr3_seq(uid):
             cpos = info[uid]['cyst_position']
@@ -192,12 +198,14 @@ class Clusterer(object):
                         is_match = False
                 if not is_match:
                     continue
-                # assert 'cyst_position' in info[clid]
-                # assert 'tryp_position' in info[clid]
-                cl_cdr3_seq = get_cdr3_seq(clid)
-                u_cdr3_seq = get_cdr3_seq(uid)
+                # cl_cdr3_seq = get_cdr3_seq(clid)
+                # u_cdr3_seq = get_cdr3_seq(uid)
                 # print utils.color_mutants(cl_cdr3_seq, u_cdr3_seq, print_result=False)
-                hamming_frac = float(utils.hamming(cl_cdr3_seq, u_cdr3_seq)) / len(cl_cdr3_seq)
+                cl_seq = get_d_plus_insertions(clid)
+                u_seq = get_d_plus_insertions(uid)
+                if len(cl_seq) != len(u_seq):
+                    continue
+                hamming_frac = float(utils.hamming(cl_seq, u_seq)) / len(cl_seq)
                 if hamming_frac > 0.1:  # if cdr3 is more than 10 percent different we got no match
                     # print '      hamming too large', hamming_frac
                     continue
