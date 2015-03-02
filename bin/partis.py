@@ -36,6 +36,7 @@ parser.add_argument('--mimic-data-read-length', action='store_true', help='Simul
 parser.add_argument('--baum-welch-iterations', type=int, default=1, help='Number of Baum-Welch-like iterations.')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--pants-seated-clustering', action='store_true', help='Perform seat-of-the-pants estimate of the clusters')
+parser.add_argument('--randomize-input-order', action='store_true', help='Randomize the input sequence order (if your true clusters are all next to each other in the file, it makes partitioning run unrealistically fast)')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -54,6 +55,7 @@ parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-ev
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
+parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
 # tree generation (see also branch-length-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated

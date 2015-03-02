@@ -47,10 +47,10 @@ class Clusterer(object):
         print '  glomerating in clusterer'
         self.max_log_prob, self.best_partition = None, None
         for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
-            print '  %-8.3f' % part['score'],
-            for cluster in part['clusters']:
-                print ':'.join([ str(uid) for uid in cluster]),
-            print ''
+            # print '  %-8.3f' % part['score'],
+            # for cluster in part['clusters']:
+            #     print ':'.join([ str(uid) for uid in cluster]),
+            # print ''
 
             if self.max_log_prob is None or part['score'] > self.max_log_prob:
                 self.max_log_prob = part['score']

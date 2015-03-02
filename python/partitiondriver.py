@@ -7,6 +7,7 @@ import os
 import glob
 import csv
 import re
+import random
 from multiprocessing import Pool
 from collections import OrderedDict
 from subprocess import Popen, check_call, check_output
@@ -52,7 +53,7 @@ class PartitionDriver(object):
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data,
                                                                self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids)
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=self.args.randomize_input_order)
 
         self.outfile = None
         if self.args.outfname != None:
@@ -128,7 +129,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
-        # assert self.args.n_procs == 1
+        assert self.args.randomize_input_order
         assert os.path.exists(self.args.parameter_dir)
 
         # run smith-waterman
@@ -146,10 +147,11 @@ class PartitionDriver(object):
             print 'run with %d procs' % n_procs
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
             partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
-                                                       do_hierarch_agglom=True, n_proc_override=n_procs, cached_log_probs=cached_log_probs)
+                                                       do_hierarch_agglom=True, n_proc_override=n_procs, cached_log_probs=cached_log_probs, randomize_input_order=True)
             glomclusters = Clusterer()
             glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
-            n_procs = n_procs / 2
+            if len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:  # if we wouldn't be running with too many clusters per process
+                n_procs = n_procs / 2
 
         import ast
         linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
@@ -163,8 +165,8 @@ class PartitionDriver(object):
         os.remove(self.args.workdir + '/partition.csv')
 
         # self.clean(waterer)
-        for fname in os.listdir(self.args.workdir):
-            print fname
+        # for fname in os.listdir(self.args.workdir):
+        #     print fname
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
 
@@ -214,14 +216,16 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
-                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False, n_proc_override=None, cached_log_probs=None):  # @parameterfetishist
+                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False, n_proc_override=None, cached_log_probs=None,
+                randomize_input_order=False):  # @parameterfetishist
 
         if prefix == '' and stripped:
             prefix = 'stripped'
         print '\n%shmm' % prefix
         csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
         csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom, cached_log_probs=cached_log_probs)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir,
+                             do_hierarch_agglom=do_hierarch_agglom, cached_log_probs=cached_log_probs, randomize_input_order=randomize_input_order)
         print '    running'
         sys.stdout.flush()
         start = time.time()
@@ -344,8 +348,6 @@ class PartitionDriver(object):
                 if not self.args.no_clean:
                     os.remove(workdir + '/' + os.path.basename(partitionfname))
 
-            for cluster in merged_partition:
-                print ' ', cluster
             with opener('w')(partitionfname) as partitionfile:
                 writer = csv.DictWriter(partitionfile, ('partition', 'score'))
                 writer.writeheader()
@@ -612,7 +614,8 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False, cached_log_probs=None):
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False,
+                        cached_log_probs=None, randomize_input_order=False):
         print '    writing input'
         if cached_log_probs is not None:
             with opener('w')(csv_fname.replace('.csv', '-logprob-cache.csv')) as cachefile:
@@ -661,6 +664,19 @@ class PartitionDriver(object):
                     nsets.append(this_set)
         else:
             assert False
+
+        # for k in nsets:
+        #     print k
+        if randomize_input_order:  # NOTE nsets is a list of *lists* of ids
+            random_nsets = []
+            while len(nsets) > 0:
+                irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
+                random_nsets.append(nsets[irand])
+                nsets.remove(nsets[irand])
+            nsets = random_nsets
+        # print '---'
+        # for k in nsets:
+        #     print k
 
         for query_names in nsets:
             non_failed_names = self.remove_sw_failures(query_names, sw_info)
