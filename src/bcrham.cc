@@ -372,7 +372,6 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
 
   // if <info> only has one cluster, if hamming is too large between all remaining clusters/remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
-    // throw runtime_error("no more (max log prob infinite)\n");
     finished = true;
     return;
   }
@@ -406,8 +405,11 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
     best_partition = partition;
     max_log_prob_of_partition = total_log_prob;
   }
-  // for(
-  //     cache_ofs << 
+
+  if(max_log_prob_of_partition - total_log_prob > 1000.0) {  // stop if we've moved too far past the maximum
+    cout << "    stopping after drop " << max_log_prob_of_partition << " --> " << total_log_prob << endl;
+    finished = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
+  }
 }
 
 // ----------------------------------------------------------------------------------------
