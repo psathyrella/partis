@@ -155,7 +155,7 @@ class Clusterer(object):
             outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def vollmers_cluster(self, info):
+    def vollmers_cluster(self, info, reco_info=None, workdir=None):
         """ 
         Cluster together sequences with similar rearrangement parameters
     
@@ -170,6 +170,7 @@ class Clusterer(object):
             repeated until the lineage does not grow.
 
         NOTE I'm interpreting this to mean that if *any* sequence already in the cluster is 90% in cdr3 region to the prospective sequence that it's added to the cluster
+        NOTE I'm using cdr3 a.t.m. rather than d-region plus insertions
         """
 
         def get_cdr3_seq(uid):
@@ -187,7 +188,7 @@ class Clusterer(object):
                 is_match = True
                 for key in ('cdr3_length', 'v_gene', 'j_gene'):  # same cdr3 length, v gene, and d gene
                     if info[clid][key] != info[uid][key]:
-                        print '    %s doesn\'t match' % key
+                        # print '      %s doesn\'t match' % key
                         is_match = False
                 if not is_match:
                     continue
@@ -198,27 +199,59 @@ class Clusterer(object):
                 # print utils.color_mutants(cl_cdr3_seq, u_cdr3_seq, print_result=False)
                 hamming_frac = float(utils.hamming(cl_cdr3_seq, u_cdr3_seq)) / len(cl_cdr3_seq)
                 if hamming_frac > 0.1:  # if cdr3 is more than 10 percent different we got no match
-                    print '    hamming too large', hamming_frac
+                    # print '      hamming too large', hamming_frac
                     continue
 
                 return True  # if we get to here, it's a match
 
             return False
 
+        def check_unclustered_seqs():
+            uids_to_remove = []
+            for unique_id in unclustered_seqs:
+                if unique_id in self.id_clusters[last_cluster_id]:  # sequence is already in this cluster
+                    continue
+                if from_same_lineage(last_cluster_id, unique_id):
+                    print '     adding', unique_id
+                    self.id_clusters[last_cluster_id].append(unique_id)
+                    uids_to_remove.append(unique_id)
+            for uid in uids_to_remove:
+                unclustered_seqs.remove(uid)
+
+        def add_cluster(clid):
+            print '  starting cluster %d' % clid
+            self.id_clusters[clid] = [ unclustered_seqs[0], ]
+            unclustered_seqs.remove(unclustered_seqs[0])
+            while True:
+                last_size = len(self.id_clusters[clid])
+                check_unclustered_seqs()
+                if last_size == len(self.id_clusters[clid]):  # stop when cluster stops growing
+                    break
+                print '    running again (%d --> %d)' % (last_size, len(self.id_clusters[clid]))
+        
         unclustered_seqs = info.keys()
         last_cluster_id = 0
-        self.id_clusters[last_cluster_id] = [ unclustered_seqs[0] ]
-        last_size = len(self.id_clusters[last_cluster_id])
-        # for ... todo
-        print '  %s ' % ':'.join([str(uid) for uid in self.id_clusters[last_cluster_id]])
-        for unique_id, line in info.items():
-            if unique_id in self.id_clusters[last_cluster_id]:  # sequence is already in this cluster
-                print '   ', unique_id, 'already in cluster'
-                continue
-            if from_same_lineage(last_cluster_id, unique_id):
-                print '   adding', unique_id
-                self.id_clusters[last_cluster_id].append(unique_id)
+        while len(unclustered_seqs) > 0:
+            add_cluster(last_cluster_id)
+            last_cluster_id += 1
+
+        for v in self.id_clusters.values():
+            print ':'.join(v)
     
+        if reco_info is not None:
+            assert workdir is not None
+            with opener('w')(workdir + '/partition.csv') as outfile:
+                writer = csv.DictWriter(outfile, ('group', 'name'))
+                writer.writeheader()
+                for clid, uids in self.id_clusters.items():
+                    for uid in uids:
+                        writer.writerow({'group':clid, 'name':uid})
+            with opener('w')(workdir + '/true-partition.csv') as outfile:
+                writer = csv.DictWriter(outfile, ('group', 'name'))
+                writer.writeheader()
+                for uid, info in reco_info.items():
+                    writer.writerow({'group':info['reco_id'], 'name':uid})
+
     # ----------------------------------------------------------------------------------------
     def add_new_cluster(self, query_name, dbg_str_list):
         dbg_str_list.append('    new cluster ' + str(query_name))

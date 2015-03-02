@@ -239,7 +239,10 @@ class PartitionDriver(object):
 
         if self.args.pants_seated_clustering:
             vollmers_clusterer = Clusterer()
-            vollmers_clusterer.vollmers_cluster(hmminfo)
+            vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info, workdir=self.args.workdir)
+            check_call(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+            # os.remove(self.args.workdir + '/true-partition.csv')
+            # os.remove(self.args.workdir + '/partition.csv')
             sys.exit()
             # viterbicluster.cluster(hmminfo)
 
