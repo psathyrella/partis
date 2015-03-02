@@ -9,7 +9,7 @@ import csv
 import re
 from multiprocessing import Pool
 from collections import OrderedDict
-from subprocess import Popen, check_call
+from subprocess import Popen, check_call, check_output
 
 import utils
 from opener import opener
@@ -135,15 +135,30 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        pre_partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
-        pre_glomclusters = Clusterer()
-        pre_glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=pre_partition)
+        # partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
+        # glomclusters = Clusterer()
+        # glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition)
+        partition, cached_log_probs, glomclusters = None, None, None
 
-        partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=pre_glomclusters, hmm_type='k=preclusters', make_clusters=False, do_hierarch_agglom=True, n_proc_override=1, cached_log_probs=cached_log_probs)
-        glomclusters = Clusterer()
-        glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
+        n_procs = self.args.n_procs
+        # while len(glomclusters.best_partition) >
+        while n_procs > 0:
+            print 'run with %d procs' % n_procs
+            hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
+            partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
+                                                       do_hierarch_agglom=True, n_proc_override=n_procs, cached_log_probs=cached_log_probs)
+            glomclusters = Clusterer()
+            glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
+            n_procs = n_procs / 2
 
-        check_call(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+        import ast
+        linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+        linsim_out = ast.literal_eval(linsim_out_str)
+        print '  mutual information %f' % linsim_out['metrics']['mi']
+        print '         adjusted mi %f' % linsim_out['metrics']['adjusted_mi']
+        print '       normalized mi %f' % linsim_out['metrics']['normalized_mi']
+        print '  completeness score %f' % linsim_out['metrics']['completeness_score']
+        print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
         os.remove(self.args.workdir + '/true-partition.csv')
         os.remove(self.args.workdir + '/partition.csv')
 
@@ -212,7 +227,7 @@ class PartitionDriver(object):
         start = time.time()
         n_procs = n_proc_override if n_proc_override is not None else self.args.n_procs
         if n_procs > 1:
-            self.split_input(n_procs, infname=csv_infname, prefix='hmm')
+            self.split_input(n_procs, infname=csv_infname, prefix='hmm', cached_log_probs=cached_log_probs)
             procs = []
             for iproc in range(n_procs):
                 cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc, do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
@@ -224,9 +239,9 @@ class PartitionDriver(object):
                 if not self.args.no_clean:
                     os.remove(csv_infname.replace(self.args.workdir, self.args.workdir + '/hmm-' + str(iproc)))
             if do_hierarch_agglom:
-                self.merge_hmm_outputs(outfname=csv_outfname.replace('.csv', '-logprob-cache.csv'), partitionfname=csv_outfname, initial_logprob_cache=(cached_log_probs is not None))
+                self.merge_hmm_outputs(outfname=csv_outfname.replace('.csv', '-logprob-cache.csv'), n_procs=n_procs, partitionfname=csv_outfname, initial_logprob_cache=(cached_log_probs is not None))
             else:
-                self.merge_hmm_outputs(csv_outfname)
+                self.merge_hmm_outputs(csv_outfname, n_procs)
         else:
             cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
             check_call(cmd_str.split())
@@ -270,7 +285,7 @@ class PartitionDriver(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname=None, info=None, prefix='sub'):
+    def split_input(self, n_procs, infname=None, info=None, prefix='sub', cached_log_probs=None):
         """ 
         If <infname> is specified split the csv info from it into <n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
         If <info> is specified, instead split the list <info> into pieces and return a list of the resulting lists
@@ -304,15 +319,18 @@ class PartitionDriver(object):
                 else:
                     writer.writerow(info[iquery])
 
+            if cached_log_probs is not None:
+                check_call(['cp', infname.replace('.csv', '-logprob-cache.csv'), subworkdir])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
+
         if infname is None:
             return outlists
 
     # ----------------------------------------------------------------------------------------
-    def merge_hmm_outputs(self, outfname, partitionfname=None, initial_logprob_cache=False):
+    def merge_hmm_outputs(self, outfname, n_procs, partitionfname=None, initial_logprob_cache=False):
         if partitionfname is not None:  # merge partitions from several files
             merged_log_prob = 0
             merged_partition = []
-            for iproc in range(self.args.n_procs):
+            for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
                 glomerer = Clusterer()
                 partition_info = self.read_partition_info(workdir + '/' + os.path.basename(partitionfname))
@@ -336,7 +354,7 @@ class PartitionDriver(object):
 
         header = None
         outfo = []
-        for iproc in range(self.args.n_procs):
+        for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             with opener('r')(workdir + '/' + os.path.basename(outfname)) as sub_outfile:
                 reader = csv.DictReader(sub_outfile)
@@ -345,8 +363,8 @@ class PartitionDriver(object):
                     outfo.append(line)
             if not self.args.no_clean:
                 os.remove(workdir + '/' + os.path.basename(outfname))
-                if initial_logprob_cache:
-                    os.remove(workdir + '/' + os.path.basename(outfname.replace('.csv', '-logprob-cache.csv')))  # TODO this is messy!
+                # if initial_logprob_cache:
+                #     os.remove(workdir + '/' + os.path.basename(outfname.replace('.csv', '-logprob-cache.csv')))  # TODO this is messy!
                 os.rmdir(workdir)
 
         with opener('w')(outfname) as outfile:
