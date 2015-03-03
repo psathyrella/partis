@@ -21,7 +21,7 @@ from performanceplotter import PerformancePlotter
 import viterbicluster
 import plotting
 
-# ----------------------------------------------------------------------------------------
+## ----------------------------------------------------------------------------------------
 def from_same_event(is_data, pair_hmm, reco_info, query_names):
     if is_data:
         return False
