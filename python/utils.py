@@ -99,6 +99,19 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
+def from_same_event(is_data, reco_info, query_names):
+    if is_data:
+        return None
+    if len(query_names) > 1:
+        reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
+        for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
+            if reco_id != reco_info[query_names[iq]]['reco_id']:
+                return False
+        return True
+    else:
+        return True
+
+# ----------------------------------------------------------------------------------------
 # bash color codes
 Colors = {}
 Colors['head'] = '\033[95m'

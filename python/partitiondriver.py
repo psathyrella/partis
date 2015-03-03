@@ -24,19 +24,6 @@ from performanceplotter import PerformancePlotter
 import plotting
 
 # ----------------------------------------------------------------------------------------
-def from_same_event(is_data, pair_hmm, reco_info, query_names):
-    if is_data:
-        return False
-    if len(query_names) > 1:
-        reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
-        for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
-            if reco_id != reco_info[query_names[iq]]['reco_id']:
-                return False
-        return True
-    else:
-        return False
-
-# ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
@@ -751,7 +738,7 @@ class PartitionDriver(object):
                 utils.intify(line, splitargs=('unique_ids', 'seqs'))
                 ids = line['unique_ids']
                 this_key = utils.get_key(ids)
-                same_event = from_same_event(self.args.is_data, True, self.reco_info, ids)
+                same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
                 id_str = ''.join(['%20s ' % i for i in ids])
 
                 # check for errors

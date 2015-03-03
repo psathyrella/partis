@@ -57,8 +57,12 @@ class Clusterer(object):
                 self.best_partition = part['clusters']
 
         print 'best partition ', self.max_log_prob
+        print ' clonal?   ids'
         for cluster in self.best_partition:
-            print '   ', ':'.join([ str(uid) for uid in cluster ])
+            same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
+            if same_event is None:
+                same_event = -1
+            print '   %d    %s' % (int(same_event), ':'.join([ str(uid) for uid in cluster ]))
 
         self.max_minus_ten_log_prob, self.best_minus_ten_partition = None, None  # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
         for part in partitions:

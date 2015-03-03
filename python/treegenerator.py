@@ -123,7 +123,7 @@ class TreeGenerator(object):
         if self.args.debug > 1:
             print '  checking branch lengths... '
         assert len(treestrs) == len(ages)
-        total = 0.0
+        total_length, total_leaves = 0.0, 0
         for itree in range(len(ages)):
             if self.args.debug > 1:
                 print '    asked for', ages[itree],
@@ -132,11 +132,13 @@ class TreeGenerator(object):
                     print '%s:%f' % (name, depth),
                 if not utils.is_normed(depth / ages[itree], this_eps=1e-6):
                     raise Exception('ERROR asked for branch length %f but got %f' % (ages[itree], depth))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
-            total += ages[itree]
+            total_length += ages[itree]
+            total_leaves += len(re.findall('t', treestrs[itree]))
             if self.args.debug > 1:
                 print ''
         if self.args.debug:
-            print '    branch lengths ok (mean %f)' % (total / len(ages))
+            print '    mean branch length %.5f' % (total_length / len(ages))
+            print '    mean n leaves %.2f' % (float(total_leaves) / len(ages))
 
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
@@ -174,7 +176,7 @@ class TreeGenerator(object):
                         n_leaves = self.args.n_leaves
                     age = self.choose_mean_branch_length()
                     ages.append(age)
-                    if n_leaves == 1:
+                    if n_leaves == 1:  # TODO doesn't work yet
                         with open(outfname, 'a') as outfile:
                             outfile.write('t1:%f;\n' % age)
                         continue
