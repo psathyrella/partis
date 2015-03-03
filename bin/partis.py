@@ -17,7 +17,7 @@ parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions:
-parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', '--simulate', '--build-hmms', '--generate-trees'), help='What do you want to do?')
+parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', 'simulate', 'build-hmms', 'generate-trees'), help='What do you want to do?')
 
 # finer action control
 # parser.add_argument('--pair', action='store_true', help='Run on every pair of sequences in the input')

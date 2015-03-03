@@ -136,11 +136,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
-        # partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=None, hmm_type='k=1', make_clusters=False, do_hierarch_agglom=True)
-        # glomclusters = Clusterer()
-        # glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition)
         partition, cached_log_probs, glomclusters = None, None, None
-
         n_procs = self.args.n_procs
         n_proc_list = []
         while n_procs > 0:
@@ -155,6 +151,8 @@ class PartitionDriver(object):
                 break
 
             # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process
+            # TODO I think there's really no way around the fact that eventually I'm going to have to delve into the cached log probs to decide how many procs
+            # TODO it probably makes sense to always run with 2 procs. Or, more generally, don't divide by 2
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
                len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
                 n_procs = n_procs / 2

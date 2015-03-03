@@ -55,9 +55,9 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
     for line in reader:
         utils.intify(line)
         # if command line specified query or reco ids, skip other ones
-        if queries is not None and line[name_column] not in queries:
+        if queries is not None and str(line[name_column]) not in queries:
             continue
-        if reco_ids is not None and line['reco_id'] not in reco_ids:
+        if reco_ids is not None and str(line['reco_id']) not in reco_ids:
             continue
 
         input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}
