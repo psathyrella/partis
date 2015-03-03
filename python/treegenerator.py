@@ -51,7 +51,7 @@ class TreeGenerator(object):
         if self.args.debug:
             print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_dir),
             if self.args.random_number_of_leaves:
-                print ' with random number of leaves in [2, %d]' % self.args.n_leaves
+                print ' with random number of leaves with parameter %d' % self.args.n_leaves
             else:
                 print ' with %d leaves' % self.args.n_leaves
 
@@ -84,7 +84,7 @@ class TreeGenerator(object):
                 print '     %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
 
     #----------------------------------------------------------------------------------------
-    def add_branch_lengths(self, treefname):
+    def add_branch_lengths_and_things(self, treefname):
         """ 
         Each tree is written with branch length the mean branch length over the whole sequence
         So we need to add the length for each region afterward, so each line looks e.g. like
@@ -130,7 +130,8 @@ class TreeGenerator(object):
             for name, depth in get_leaf_node_depths(treestrs[itree]).items():
                 if self.args.debug > 1:
                     print '%s:%f' % (name, depth),
-                assert utils.is_normed(depth / ages[itree], this_eps=1e-6)  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
+                if not utils.is_normed(depth / ages[itree], this_eps=1e-6):
+                    raise Exception('ERROR asked for branch length %f but got %f' % (ages[itree], depth))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
             total += ages[itree]
             if self.args.debug > 1:
                 print ''
@@ -167,17 +168,22 @@ class TreeGenerator(object):
                 ages = []
                 for itree in range(self.args.n_trees):
                     if self.args.random_number_of_leaves:
-                        n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
+                        n_leaves = max(2, int(numpy.random.exponential(scale=self.args.n_leaves)))
+                        # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
                     else:
                         n_leaves = self.args.n_leaves
                     age = self.choose_mean_branch_length()
                     ages.append(age)
+                    if n_leaves == 1:
+                        with open(outfname, 'a') as outfile:
+                            outfile.write('t1:%f;\n' % age)
+                        continue
                     commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
                     commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
                 r_command += ' -f ' + commandfile.name
                 commandfile.flush()
                 check_call(r_command, shell=True)
-            self.add_branch_lengths(outfname)
+            self.add_branch_lengths_and_things(outfname)
             self.check_tree_lengths(outfname, ages)
         else:
             assert False

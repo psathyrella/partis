@@ -61,7 +61,7 @@ parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-trees', type=int, default=100, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
-parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves in [2, <n-leaves>] (inclusive!). Otherwise give all trees <n-leaves> leaves')
+parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves based on <n-leaves> (a.t.m. from a hacktified exponential). Otherwise give all trees <n-leaves> leaves')
 
 # numerical inputs
 parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.5, help='Threshold for hamming distance single-linkage preclustering')
