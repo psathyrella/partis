@@ -392,10 +392,12 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
   only_genes.erase(max_pair.first);
   only_genes.erase(max_pair.second);
 
-  printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+  if(args.debug())
+    printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
 
   vector<string> partition(get_cluster_list(info));
-  print_partition(partition, cached_log_probs, "current");
+  if(args.debug())
+    print_partition(partition, cached_log_probs, "current");
   double total_log_prob = log_prob_of_partition(partition, cached_log_probs);
 
   list_of_log_probs.push_back(total_log_prob);
@@ -478,26 +480,22 @@ void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_
   vector<string> initial_partition(get_cluster_list(info));
   // then glomerate 'em
   map<string, double> cached_log_probs = read_cached_log_probs(args.incachefile());
-  // cout << "initial cache" << endl;
-  // for(auto &kv : cached_log_probs)
-  //   cout << kv.first << " " << kv.second << endl;
   vector<double> list_of_log_probs;  // TODO I think I don't need this any more
   vector<vector<string> > list_of_partitions;  // TODO I think I don't need this any more
   double max_log_prob_of_partition(-INFINITY);  // 
   vector<string> best_partition;
-  // cout << "initial" << endl;
-  // for(auto &key : initial_partition)
-  //   cout << key << endl;
-  // cout << "---" << endl;
-  print_partition(initial_partition, cached_log_probs, "initial");
+  if(args.debug())
+    print_partition(initial_partition, cached_log_probs, "initial");
   bool finished(false);
   do {
     glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs, list_of_log_probs, list_of_partitions, max_log_prob_of_partition, best_partition, finished);
   } while(!finished);
 
   // assert(list_of_partitions.size() == max_log_probs.size());
-  cout << "-----------------" << endl;  
-  print_partition(best_partition, cached_log_probs, "best");
+  if(args.debug()) {
+    cout << "-----------------" << endl;  
+    print_partition(best_partition, cached_log_probs, "best");
+  }
 
   // TODO oh, damn, if the initial partition is better than any subsequent ones this breaks
   // TODO it might be mroe efficient to write the partitions as I go so I don't have to keep them around in memory
