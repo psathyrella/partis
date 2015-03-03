@@ -117,7 +117,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def partition(self):
         assert self.args.randomize_input_order
-        assert os.path.exists(self.args.parameter_dir)
+        if not os.path.exists(self.args.parameter_dir):
+            raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
 
         # run smith-waterman
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)

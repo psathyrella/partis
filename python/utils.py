@@ -935,8 +935,9 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             os.remove(infname)
             os.rmdir(workdir)
 
-    if not os.path.exists(os.path.dirname(outfname)):
-        os.makedirs(os.path.dirname(outfname))
+    outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     with opener('w')(outfname) as outfile:
         writer = csv.DictWriter(outfile, header)
         writer.writeheader()

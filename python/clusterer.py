@@ -44,7 +44,7 @@ class Clusterer(object):
     def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
         # """ If we get <log_probs> but not <partitions>, do hierarchical agglomeration from scratch
         # self.glomerate(log_probs)
-        print '  glomerating in clusterer'
+        print 'glomerating in clusterer'
         self.max_log_prob, self.best_partition = None, None
         for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
             # print '  %-8.3f' % part['score'],
@@ -71,9 +71,9 @@ class Clusterer(object):
                 self.best_minus_ten_partition = part['clusters']
                 break
                 
-        print 'best minus ten ', self.max_minus_ten_log_prob
+        print '      best minus ten ', self.max_minus_ten_log_prob
         for cluster in self.best_minus_ten_partition:
-            print '   ', ':'.join([ str(uid) for uid in cluster ])
+            print '         ', ':'.join([ str(uid) for uid in cluster ])
 
         if reco_info is not None:
             assert workdir is not None
