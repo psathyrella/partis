@@ -965,3 +965,15 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     n_mutes = hamming(naive_seq, muted_seq)
     return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length
+
+# ----------------------------------------------------------------------------------------
+def print_linsim_output(outstr):
+    import ast
+    linsim_out = ast.literal_eval(outstr)
+    print '       true clusters %d' % linsim_out['true_cluster_count']
+    print '   inferred clusters %d' % linsim_out['inferred_cluster_count']
+    print '  mutual information %f' % linsim_out['metrics']['mi']
+    print '         adjusted mi %f' % linsim_out['metrics']['adjusted_mi']
+    print '       normalized mi %f' % linsim_out['metrics']['normalized_mi']
+    print '  completeness score %f' % linsim_out['metrics']['completeness_score']
+    print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']

@@ -143,16 +143,14 @@ class PartitionDriver(object):
             # TODO it probably makes sense to always run with 2 procs. Or, more generally, don't divide by 2
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
                len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
-                n_procs = n_procs / 2
+                if n_procs > 5:
+                    n_procs = n_procs / 2
+                else:
+                    n_procs -= 1
 
         import ast
         linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
-        linsim_out = ast.literal_eval(linsim_out_str)
-        print '  mutual information %f' % linsim_out['metrics']['mi']
-        print '         adjusted mi %f' % linsim_out['metrics']['adjusted_mi']
-        print '       normalized mi %f' % linsim_out['metrics']['normalized_mi']
-        print '  completeness score %f' % linsim_out['metrics']['completeness_score']
-        print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
+        utils.print_linsim_output(linsim_out_str)
         os.remove(self.args.workdir + '/true-partition.csv')
         os.remove(self.args.workdir + '/partition.csv')
 
@@ -251,7 +249,8 @@ class PartitionDriver(object):
         if self.args.pants_seated_clustering:
             vollmers_clusterer = Clusterer()
             vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info, workdir=self.args.workdir)
-            check_call(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+            linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+            utils.print_linsim_output(linsim_out_str)
             # os.remove(self.args.workdir + '/true-partition.csv')
             # os.remove(self.args.workdir + '/partition.csv')
             sys.exit()
