@@ -143,8 +143,10 @@ class PartitionDriver(object):
             # TODO it probably makes sense to always run with 2 procs. Or, more generally, don't divide by 2
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
                len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
-                if n_procs > 5:
+                if n_procs > 20:
                     n_procs = n_procs / 2
+                elif n_procs > 6:
+                    n_procs = n_procs / 1.5
                 else:
                     n_procs -= 1
 

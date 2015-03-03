@@ -5,7 +5,7 @@ import sys
 from SCons.Script import Command, Depends
 
 Alias('validate', '_output/validation/valid.out')
-Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-driver.py --label validation --plotdir _output/validation/plots --datafname test/A-every-100-subset-0.tsv.bz2 && touch $TARGET')
+Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-driver.py --label validation --plotdir _output/validation/plots --datafname test/adaptive-A-250.tsv.bz2 && touch $TARGET')
 
 # ----------------------------------------------------------------------------------------
 # scons test
@@ -19,7 +19,7 @@ testoutdir = '_output/test'
 if not os.path.exists(testoutdir):
     os.makedirs(testoutdir)
 cmd = './bin/partis.py'
-base_cmd = './bin/run-driver.py --label test --extra-args __seed:1:--no-plot --datafname test/A-every-100-subset-0.tsv.bz2 --plotdir ' + testoutdir + '/plots --n-queries 250 --n-sim-events 50 --n-procs 5'
+base_cmd = './bin/run-driver.py --label test --extra-args __seed:1:--no-plot --datafname test/adaptive-A-250.tsv.bz2 --plotdir ' + testoutdir + '/plots --n-queries 250 --n-sim-events 50 --n-procs 5'
 actions = OrderedDict()
 actions['cache-data-parameters'] = 'data'  # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
 actions['simulate'] = 'simu.csv'
