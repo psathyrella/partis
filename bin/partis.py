@@ -16,13 +16,8 @@ sys.argv.append('-b')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
-# basic actions:
-parser.add_argument('--cache-parameters', action='store_true', help='cache parameter counts and hmm files in dir specified by <parameter_dir>')
-parser.add_argument('--run-algorithm', choices=['viterbi', 'forward'], help='Run the specified algorithm once')
-parser.add_argument('--partition', action='store_true', help='Find the best partition for the given sequences')
-parser.add_argument('--simulate', action='store_true', help='Create simulated rearrangement events')
-parser.add_argument('--build-hmms', action='store_true', help='just build hmms (and write \'em out) from existing parameter csvs')
-parser.add_argument('--generate-trees', action='store_true', help='generate trees to pass to bppseqgen for simulation')
+# basic actions
+parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', 'simulate', 'build-hmms', 'generate-trees'), help='What do you want to do?')
 
 # finer action control
 # parser.add_argument('--pair', action='store_true', help='Run on every pair of sequences in the input')
@@ -140,8 +135,8 @@ def make_events(args, n_events, iproc, random_ints):
         reco.combine(random_ints[ievt])
 
 # ----------------------------------------------------------------------------------------
-if args.simulate or args.generate_trees:
-    if args.generate_trees:
+if args.action == 'simulate' or args.action == 'generate-trees':
+    if args.action == 'generate-trees':
         from treegenerator import TreeGenerator, Hist
         treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
         treegen.generate_trees(self.args.outfname)
@@ -151,26 +146,25 @@ if args.simulate or args.generate_trees:
     from recombinator import Recombinator
     run_simulation(args)
 else:
-    # assert args.cache_parameters or args.point_estimate or args.partition
     from partitiondriver import PartitionDriver
 
     args.queries = utils.get_arg_list(args.queries, intify=False)
     args.reco_ids = utils.get_arg_list(args.reco_ids, intify=True)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
     if len(args.n_max_per_region) != 3:
-        print 'ERROR n-max-per-region should be of the form \'x:y:z\', but I got', args.n_max_per_region
-        sys.exit()
+        raise Exception('ERROR n-max-per-region should be of the form \'x:y:z\', but I got' + str(args.n_max_per_region))
 
     utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
 
-    if args.build_hmms:        
+    if args.action == 'build-hmms':  # just build hmms without doing anything else -- you wouldn't normally do this
         parter.write_hmms(args.parameter_dir, None)
         sys.exit()
-
-    if args.cache_parameters:
+    elif args.action == 'cache-parameters':
         parter.cache_parameters()
-    elif args.run_algorithm != None:
-        parter.run_algorithm()
-    else:
+    elif 'run-' in args.action:
+        parter.run_algorithm(args.action.replace('run-', ''))
+    elif args.action == 'partition':
         parter.partition()
+    else:
+        raise Exception('ERROR bad action ' + args.action)

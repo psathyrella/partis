@@ -43,7 +43,7 @@ if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):
         raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))
     # cache parameters from data
-    cmd_str = ' --cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
+    cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
     cmd_str += ' --n-max-queries ' + args.n_queries
@@ -51,21 +51,21 @@ if 'cache-data-parameters' in args.actions:
 
 if 'simulate' in args.actions:
     # simulate based on data parameters
-    cmd_str = ' --simulate --outfname ' + args.simfname + common_args
+    cmd_str = ' --action simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
     cmd_str += ' --n-max-queries ' + str(args.n_sim_events)  # NOTE confusing using n-max-queries for both these thigns, sorry...
     run_command(cmd_str)
 
 if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
-    cmd_str = ' --cache-parameters --seqfile ' + args.simfname + common_args
+    cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu'
     cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
-    cmd_str = ' --run-algorithm viterbi --plot-performance --seqfile ' + args.simfname + common_args
+    cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
     cmd_str += ' --plotdir ' + args.plotdir
     cmd_str += ' --n-max-queries ' + args.n_queries
