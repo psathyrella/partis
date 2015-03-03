@@ -61,6 +61,9 @@ def plot(n_points):
     from pandas import DataFrame
     import matplotlib.pyplot as plt
     import pandas as pd
+    import seaborn as sns
+    import numpy
+    sns.set_style("ticks")
 
     fsize = 20
     mpl.rcParams.update({
@@ -96,10 +99,24 @@ def plot(n_points):
     voll_data = [0.516429,  0.554832,  0.528608,  0.483539,  0.476215,  0.554915,  0.523752,  0.546284,  0.569974,  0.491566]
 
     df = DataFrame({'partis':partis_data, 'annotation-based':voll_data})
-    fig = df.plot(kind='hist', bins=50)
-    plt.xlim(0, 1.1)
+    fig = df.plot(kind='hist', bins=50)  #, figsize=(6,4))
+    fig.grid(False)
+    # plt.locator_params(nbins=16)
+    
+    axes = plt.gca()
+    ylimits = axes.get_ylim()
+    axes.set_ylim(ylimits[0], 1.2*ylimits[1])
+    xmin, xmax = 0, 1.02
+    plt.xlim(xmin, xmax)
+    # axes.set_xticks([x for x in numpy.arange(xmin, xmax, 0.1)])
     plt.xlabel('adjusted MI')
     plt.ylabel('entries')
+    plt.subplots_adjust(bottom=0.14)   # <--
+    axes.spines["right"].set_visible(False)
+    axes.spines["top"].set_visible(False)
+    axes.yaxis.set_ticks_position('left')
+    axes.xaxis.set_ticks_position('bottom')
+
     plotdir = os.getenv('www') + '/clustering'
     plt.savefig(plotdir + '/adj-mi.svg')
     check_call(['./bin/permissify-www', plotdir])
@@ -108,8 +125,8 @@ plot(10)
 sys.exit()
 
 procs = []
-voll=True
-for iproc in range(0, 10):
+voll=False
+for iproc in range(10, 20):
     label = baselabel + '-' + str(iproc)
     # simulate(label)
     proc = runstuff(label, voll=voll)
