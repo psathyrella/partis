@@ -146,7 +146,7 @@ class PartitionDriver(object):
                 if n_procs > 20:
                     n_procs = n_procs / 2
                 elif n_procs > 6:
-                    n_procs = n_procs / 1.5
+                    n_procs = int(n_procs / 1.5)
                 else:
                     n_procs -= 1
 
@@ -160,7 +160,11 @@ class PartitionDriver(object):
         # for fname in os.listdir(self.args.workdir):
         #     print fname
         if not self.args.no_clean:
-            os.rmdir(self.args.workdir)
+            try:
+                os.rmdir(self.args.workdir)
+            except:
+                print 'ERROR not empty'
+                print os.listdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
@@ -358,9 +362,15 @@ class PartitionDriver(object):
                     outfo.append(line)
             if not self.args.no_clean:
                 os.remove(workdir + '/' + os.path.basename(outfname))
-                # if initial_logprob_cache:
-                #     os.remove(workdir + '/' + os.path.basename(outfname.replace('.csv', '-logprob-cache.csv')))  # TODO this is messy!
-                os.rmdir(workdir)
+                if initial_logprob_cache:
+                    print 'outfname', outfname
+                    print 'partitionfname', partitionfname
+                    os.remove(workdir + '/' + os.path.basename(partitionfname.replace('output', 'input').replace('.csv', '-logprob-cache.csv')))  # TODO this is messy!
+                try:
+                    os.rmdir(workdir)
+                except:
+                    print 'ERROR not empty'
+                    print os.listdir(workdir)
 
         with opener('w')(outfname) as outfile:
             writer = csv.DictWriter(outfile, header)
