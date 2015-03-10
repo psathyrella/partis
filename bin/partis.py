@@ -29,7 +29,7 @@ parser.add_argument('--plot-performance', action='store_true', help='Write out p
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use by recombinator (to allow reproducibility)')
-parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulting, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
+parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
 parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
@@ -59,7 +59,7 @@ parser.add_argument('--n-best-events', type=int, default=3, help='Number of best
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-trees', type=int, default=100, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
-parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves in [2, <n-leaves>] (inclusive!). Otherwise give all trees <n-leaves> leaves')
+parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves. Otherwise give all trees <n-leaves> leaves')
 
 # numerical inputs
 parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.5, help='Threshold for hamming distance single-linkage preclustering')
