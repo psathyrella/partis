@@ -4,7 +4,7 @@ Partis is an HMM-based framework for B-cell receptor annotation, simulation, and
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ighutil](https://github.com/cmccoy/ighutil) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
-This manual is organized into the following sections: Quick Start, if you want to start doing things without understanding what they do; Installation; Subcommands, a rundown on each of the actions `partis.py` can run; and Higher Abstractions, for a description of scripts that automate a number of `partis.py` actions.
+This manual is organized into the following sections: Quick Start, if you want to start doing things without understanding what they do; Installation; Subcommands, a rundown on each of the actions `partis.py` can run; Parallelization; and Higher Abstractions, for a description of scripts that automate a number of `partis.py` actions.
 There are also many flags and optional parameters; unless mentioned below these are (tautologically) beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation `./bin/partis.py --help`.
 In general, we will assume that the reader is familiar with the [paper](TODO add a link) describing partis.
@@ -90,11 +90,11 @@ cd ..
 `partis.py`, in `bin/`, is the script that drives everything you can get partis to do.
 Every time you invoke it, you choose from a list of actions you want it to perform
 
-```./bin/partis.py --action cache-parameters|run-viterbi|run-forward|partition|simulate|build-hmms|generate-trees ```.
+```./bin/partis.py --action cache-parameters|simulate|run-viterbi|run-forward|partition|build-hmms|generate-trees ```.
 
 Each of these subcommands is described in detail below.
 
-#### `cache-parameters`: write out parameter values and HMM model files for a given data set
+##### `cache-parameters`: write out parameter values and HMM model files for a given data set
 
 When presented with a new data set, the first thing we need to do is infer a set of parameters, a task for which we need a preliminary annotation.
 As such, partis first runs ighutil on the data set.
@@ -103,34 +103,61 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 The full command you'd need to cache parameters would look like this: TODO use a different example data file here
 
-``` ./bin/partis.py --action cache-parameters --seqfile test/A-every-100-subset-0.tsv.bz2 --is-data --skip-unproductive --parameter-dir _output/example/data --plotdir _plots ```
+``` ./bin/partis.py --action cache-parameters --seqfile test/A-every-100-subset-0.tsv.bz2 --is-data --skip-unproductive --parameter-dir _output/example/data --plotdir _plots/example```
 
 `--seqfile` tells it where we've put the input sequences (this example is a subset of the Adaptive data set).
 `--is-data` lets it know not to expect simulation information (which would be used for validation purposes).
 `--skip-unproductive` ignores sequences that are annotated to be unproductive rearrangements.
 The final two arguments tell it where to put output: parameter values and HMM model files will go in `--parameter-dir`, and plots in `--plotdir`.
 
-Mention `n-procs` here!
+If you poke around in the output directory after running, you'll find `sw` (for ighutil parameters) and `hmm` subdirectories.
+Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
+There is also a `mute-freqs` directory, which has per-position mutation frequencies for each observed allele; and an `hmms` directory, which contains yaml HMM model files for each observed allele.
 
-RUN ./bin/partis.py --action cache-parameters --seqfile test/A-every-100-subset-0.tsv.bz2 --is-data --skip-unproductive --n-procs 2 --parameter-dir _output/foo/data --plotdir /tmp/dkralph/params/data --n-max-queries -1
-RUN ./bin/partis.py --action simulate --outfname _output/foo/simu.csv --n-procs 2 --parameter-dir _output/foo/data/hmm --n-max-queries 2000
-RUN ./bin/partis.py --action cache-parameters --seqfile _output/foo/simu.csv --n-procs 2 --parameter-dir _output/foo/simu --plotdir /tmp/dkralph/params/simu --n-max-queries -1
-RUN ./bin/partis.py --action run-viterbi --plot-performance --seqfile _output/foo/simu.csv --n-procs 2 --parameter-dir _output/foo/simu/hmm --plotdir /tmp/dkralph --n-max-queries -1
+##### `simulate`: make simulated sequences
+
+Now that we've got a set of parameters for this data set, we can use them to create simulated sequences that mimic it as closely as possible.
+This will allow us to test how well our algorithms work on a data set for which we know the correct annotations.
+The basic command to run simulation is
+
+```./bin/partis.py --action simulate --outfname _output/example/simu.csv --parameter-dir _output/example/data/hmm --n-max-queries 10```.
+
+This will spit out simulated sequences to `<outfname>` using the parameters we just made in `<parameter-dir>`.
+We also specify that we want it to simulate 10 rearrangement events (*not* 10 sequences) with `<n-max-queries>`.
+To get the actual number of sequences, we multiply this by the number of leaves per tree.
+There are a couple of levers available for setting the number of leaves per tree.
+At the start of a simulation run, we use TreeSim to generate a set of `--n-trees` trees.
+Throughout the run, we then sample a tree at random from this set for each rearrangement event.
+If `--random-number-of-leaves` is false, all the trees in this set will have the same number of leaves (`--n-leaves`).
+Otherwise, we choose a number of leaves at random for each tree, from some distribution (subject to change TODO decide what to say about this).
+
+##### `run-viterbi`: find most likely annotations
+
+If you already have parameters and HMM files cached from a previous run, you can also just run the Viterbi algorithm by itself.
+As an example invocation, we could find the 5 most likely annotations for the first sequence in a test the previous data set TODO make sure this works without a plotdir specified
+
+```./bin/partis.py --action run-viterbi --seqfile test/A-every-100-subset-0.tsv.bz2 --is-data --parameter-dir _output/example/data/hmm --n-best-events 5 --n-max-queries 1 --debug 1```
+
+Here I've kicked the debug level up to 1, so it prints out a colored summary of the candidate rearrangement events.
+
+##### `run-forward`: find total probability of sequences
+
+Exactly the same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
+
+### Parallelization
+
+Happily enough, sequence annotation lends itself quite readily to independent parallelization.
+You specify the number of processes on your local machine with `--n-procs`.
+If you also throw in the `--slurm` flag, subsidiary processes will be run with slurm (under the hood this just adds 'srun' to the front of the commands).
+Now partis writes a lot of temporary files in a working directory, which is by default under `/tmp/$USER`.
+If you're running with slurm, though, you need the working directory to be a network mount everybody can see, so you also need to set `--workdir` to something visible by your batch nodes.
+A suitable choice on our systems is `_tmp/$RANDOM`.
 
 ### Higher Abstractions
 
-Starting with a small data set, this runs a preliminary annotation step with ighutil, then uses these parameters to build a preliminary set of HMM model files.
-These files are then used for an HMM annotation run which builds a more accurate set of parameters.
-These new parameters are then passed to 
+The script `bin/run-driver.py` can help to automate some of these steps.
+The command
 
-This does parameter inference and model building on a sample data file, then makes a sample of simulated sequences, then does parameter inference and model building on the simulation sample, and finally evaluates performance on this simulation.
+```./bin/run-driver.py --label example --datafname test/A-every-100-subset-0.tsv.bz2 --plotdir _plots/example```
 
-Under the hood, this just runs `./bin/run-driver.py` once with a few command line options; this in turn runs `./bin/partis.py` several times with different options.
-The full command line is printed at each step, so if you want to redo some steps with different data or options you can just rerun those steps by copying and modifying the printed command lines.
-Both of these commands will also print usage messages if you pass them `--help`.
-
-
-
-
-
-Note that if you only want to run things (not edit the source), it is probably easier to just use the [docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
+will cache data parameters, run simulation, cache simulation parameters, and then run annotation a final time in order to plot performance.
