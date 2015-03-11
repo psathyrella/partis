@@ -19,4 +19,4 @@ It began from [StochHMM](https://github.com/KorfLab/StochHMM), but has been comp
 
 `ham` is free software under the GPL v3.
 
-The manual is available [here](https://github.com/psathyrella/ham/blob/master/README.md).
+The manual is available [here](https://github.com/psathyrella/ham/blob/master/manual.md).
