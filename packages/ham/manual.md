@@ -5,6 +5,15 @@ You specify emission and transition probabilities, and the HMM topology, with fi
 Ham is very young: while we think its virtues will prove useful to others, we've focused so far on implementing features that we needed.
 If you'd like something added, submit a [new issue](https://github.com/psathyrella/ham/issues/new) on github -- it might be really easy and we'd love to help.
 
+In writing ham, We were greatly inspired by the [HMMoC](http://genserv.anat.ox.ac.uk/downloads/software/hmmoc/) and [StochHMM](https://github.com/KorfLab/StochHMM) tools, but neither of them fully satisfied our needs.
+We found the XML input format in HMMoC complicated to script, and the paradigm of auto-generated C++ code to be extremely difficult to test and debug.
+StochHMM, meanwhile, had a custom configuration file format, lacked a pair-HMM implementation, and possessed an extraordinarily extensive but not entirely functional feature set.
+However, StochHMM's overall structure, and its basic idea of reading HMM structure from a text file rather than generating code, were similar to what we required, so we used it as a starting point for a complete rewrite.
+(As an aside, we note that the excellent HMMER tool only implements profile HMMs, and thus is not appropriate for our needs.)
+
+From a usability standpoint, ham is distinguished by the use of [YAML](http://yaml.org) config files.
+These are concise plain text (for example, the CPG island XML config in HMMoC is 5961 characters, while examples/cpg.yaml is 440 characters) files which are also eminently scriptable using libraries for a variety of languages.
+
 This manual is divided into sections on installation, input specification and running.
 
 ### Installation
@@ -83,8 +92,11 @@ To simultaneously emit onto as many sequences as you like (for two sequences we 
 
     ./hample --hmmfname examples/cpg.yaml --seqs CGCCGCACTTTTACCGTCAGTGCAGTGCGC:TGCTTGCGCGCGCGAGCCGTTTGCATTAAC:GCGGCGCAAAAAACCGTCAGTGCAGTGCTT
 
+The Viterbi path should now be thought of as the single most probable path that all of the sequences could have taken together.
+Similarly, the Forward probability is now the total probability, summed over all paths, of these sequences having taken the same path.
 The example directory also has the occasionally dishonest casino:
 
     ./hample --hmmfname examples/casino.yaml --seqs 666655666613423414513666666666666
 
 If you want to do more complicated things with the output, start from the source file for this example binary, `src/hample.cc`.
+
