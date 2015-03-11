@@ -1,7 +1,7 @@
 ### Introduction
 
 Ham is a general-purpose HMM compiler with an emphasis on minimizing both development and run time.
-You specify emission and transition probabilities, and the HMM topology, with files in the [YAML](http://yaml.org) text format, then run on these files with an existing c++ binary.
+You specify emission and transition probabilities, and the HMM topology, with files in the [YAML](http://yaml.org) text format, then run on these files with an existing C++ binary.
 Ham is very young: while we think its virtues will prove useful to others, we've focused so far on implementing features that we needed.
 If you'd like something added, submit a [new issue](https://github.com/psathyrella/ham/issues/new) on github -- it might be really easy and we'd love to help.
 
@@ -70,7 +70,7 @@ Most states will also have emissions, which consist of the track on which to emi
 Some of your states also have to go to the `end` state.
 
 For complicated HMMs, you'll want to script things.
-There exist yaml modules for most popular languages; we like those for \href{http://pyyaml.org/}{python} and \href{https://code.google.com/p/yaml-cpp/}{C++}).
+There exist yaml modules for most popular languages; we like those for [python](http://pyyaml.org/) and [C++](https://code.google.com/p/yaml-cpp/).
 
 ### Running
 
