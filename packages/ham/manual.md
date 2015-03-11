@@ -18,11 +18,7 @@ You will need to have recent versions of the following dependencies on your syst
 
 The package is guaranteed to build with the [matsengrp/cpp](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile) Docker container.
 
-To compile the library and `hample` (the example binary) run
-
-```scons```
-
-in the top-level directory.
+To compile the library and `hample` (the example binary) run `scons` in the top-level directory.
 
 
 ### Input specification
