@@ -344,7 +344,6 @@ void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, 
       jh.SetChunkCache(args.chunk_cache());
       jh.SetNBestEvents(args.n_best_events());
 
-      if(args.debug()) cout << "       ----" << endl;
       string errors;
       // NOTE error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       get_result(args, jh, kv_a.first, a_seqs, kbinfo[kv_a.first], cached_log_probs, errors);
