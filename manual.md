@@ -27,7 +27,7 @@ Then enter it with
 ``` sudo docker run -t -i psathyrella/partis /bin/bash ```.
 
 This will drop you into the main `partis/` directory.
-From here, follow the installation nstructions below, skipping the dependencies part.
+From here, follow the installation instructions below, skipping the dependencies part.
 Then, you can run the full analysis chain, if you will, with
 
 ```scons validate```.
