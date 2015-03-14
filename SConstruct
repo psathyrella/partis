@@ -4,16 +4,16 @@ from collections import OrderedDict
 import sys
 from SCons.Script import Command, Depends
 
+env = Environment(ENV=os.environ, SHELL='/bin/bash')
+sys.path.append(os.getenv('HOME') + '/bin')
+
 Alias('validate', '_output/validation/valid.out')
-Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-driver.py --label validation --plotdir _output/validation/plots --datafname test/adaptive-A-250.tsv.bz2 && touch $TARGET')
+env.Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-driver.py --label validation --plotdir _output/validation/plots --datafname test/adaptive-A-250.tsv.bz2 && touch $TARGET')
 
 # ----------------------------------------------------------------------------------------
 # scons test
 
 Alias('test', 'test/_results/ALL.passed')
-
-env = Environment(ENV=os.environ, SHELL='/bin/bash')
-sys.path.append(os.getenv('HOME') + '/bin')
 
 testoutdir = '_output/test'
 if not os.path.exists(testoutdir):
