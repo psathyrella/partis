@@ -3,11 +3,11 @@ import csv
 import math
 from operator import itemgetter
 from subprocess import check_call
+from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 import utils
 import plotting
 from opener import opener
-# ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
@@ -76,20 +76,14 @@ class Clusterer(object):
             print '         ', ':'.join([ str(uid) for uid in cluster ])
 
         if reco_info is not None:
-            assert workdir is not None
-            with opener('w')(workdir + '/partition.csv') as outfile:
-                writer = csv.DictWriter(outfile, ('group', 'name'))
-                writer.writeheader()
-                cluster_id = 0
-                for cluster in self.best_partition:
-                    for uid in cluster:
-                        writer.writerow({'group':cluster_id, 'name':uid})
-                    cluster_id += 1
-            with opener('w')(workdir + '/true-partition.csv') as outfile:
-                writer = csv.DictWriter(outfile, ('group', 'name'))
-                writer.writeheader()
-                for uid, info in reco_info.items():
-                    writer.writerow({'group':info['reco_id'], 'name':uid})
+            true_cluster_list, inferred_cluster_list = [], []
+            for iclust in range(len(self.best_partition)):
+                for uid in self.best_partition[iclust]:
+                    true_cluster_list.append(reco_info[uid]['reco_id'])
+                    inferred_cluster_list.append(iclust)
+            print '       true clusters %d' % len(set(true_cluster_list))
+            print '   inferred clusters %d' % len(set(inferred_cluster_list))
+            print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
 
     # ----------------------------------------------------------------------------------------
     def single_link(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
@@ -161,6 +155,7 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def vollmers_cluster(self, info, reco_info=None, workdir=None):
+        # ./bin/partis.py --action run-viterbi --vollmers-clustering --seqfile test/regression/parameters/simu.csv --parameter-dir test/regression/parameters/simu/hmm --n-max-queries -1 --n-procs 10  --debug 0 --truncate-pairs
         """ 
         Cluster together sequences with similar rearrangement parameters
     
@@ -251,18 +246,17 @@ class Clusterer(object):
             print ':'.join(v)
     
         if reco_info is not None:
-            assert workdir is not None
-            with opener('w')(workdir + '/partition.csv') as outfile:
-                writer = csv.DictWriter(outfile, ('group', 'name'))
-                writer.writeheader()
-                for clid, uids in self.id_clusters.items():
-                    for uid in uids:
-                        writer.writerow({'group':clid, 'name':uid})
-            with opener('w')(workdir + '/true-partition.csv') as outfile:
-                writer = csv.DictWriter(outfile, ('group', 'name'))
-                writer.writeheader()
-                for uid, info in reco_info.items():
-                    writer.writerow({'group':info['reco_id'], 'name':uid})
+            true_cluster_list, inferred_cluster_list = [], []
+            for clid, uids in self.id_clusters.items():
+                for uid in uids:
+                    try:
+                        true_cluster_list.append(reco_info[uid]['reco_id'])
+                    except KeyError:
+                        true_cluster_list.append(reco_info[int(uid)]['reco_id'])
+                    inferred_cluster_list.append(clid)
+            print '       true clusters %d' % len(set(true_cluster_list))
+            print '   inferred clusters %d' % len(set(inferred_cluster_list))
+            print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
 
     # ----------------------------------------------------------------------------------------
     def add_new_cluster(self, query_name, dbg_str_list):

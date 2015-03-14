@@ -37,7 +37,7 @@ def runstuff(label, voll=False):
 
     cmd_str = cmd
     if voll:
-        cmd_str += ' --action run-viterbi --pants-seated-clustering'
+        cmd_str += ' --action run-viterbi --vollmers-clustering'
         cmd_str += ' --n-procs 10'
     else:
         cmd_str += ' --action partition'
@@ -152,4 +152,4 @@ for iproc in range(15, 30):
 
 # cmd +  --action simulate --outfname _output/vary-n-leaves/simu.csv --parameter-dir _output/every-10-A-subset-0/simu/hmm --n-max-queries 5000 --n-procs 15 --n-leaves 2 --random-number-of-leaves
 # cmd +  --action partition --randomize-input-order --seqfile _output/vary-n-leaves/simu.csv --parameter-dir _output/every-10-A-subset-0/simu/hmm --no-clean --n-procs 100:5 --slurm --workdir tmp/$RANDOM --n-max-queries 1000
-# cmd +  --action run-viterbi --seqfile _output/vary-n-leaves/simu.csv --parameter-dir _output/every-10-A-subset-0/simu/hmm --n-max-queries 1000 --debug 0 --n-procs 10 --pants-seated-clustering --no-clean
+# cmd +  --action run-viterbi --seqfile _output/vary-n-leaves/simu.csv --parameter-dir _output/every-10-A-subset-0/simu/hmm --n-max-queries 1000 --debug 0 --n-procs 10 --vollmers-clustering --no-clean

@@ -116,7 +116,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
-        assert self.args.randomize_input_order
+        if not self.args.is_data:
+            assert self.args.randomize_input_order
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
 
@@ -149,12 +150,6 @@ class PartitionDriver(object):
                     n_procs = int(n_procs / 1.5)
                 else:
                     n_procs -= 1
-
-        import ast
-        linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
-        utils.print_linsim_output(linsim_out_str)
-        os.remove(self.args.workdir + '/true-partition.csv')
-        os.remove(self.args.workdir + '/partition.csv')
 
         # self.clean(waterer)
         # for fname in os.listdir(self.args.workdir):
@@ -252,15 +247,15 @@ class PartitionDriver(object):
         # NOTE this is kind of weird to reset <cached_log_probs>, but bcrham will have read in all the ones we started with, so we won't lose any
         hmminfo, cached_log_probs = self.read_hmm_output(algorithm, csv_outfname, make_clusters=make_clusters, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir, do_hierarch_agglom=do_hierarch_agglom)
 
-        if self.args.pants_seated_clustering:
+        if self.args.vollmers_clustering:
             vollmers_clusterer = Clusterer()
             vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info, workdir=self.args.workdir)
-            linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
-            utils.print_linsim_output(linsim_out_str)
-            # os.remove(self.args.workdir + '/true-partition.csv')
-            # os.remove(self.args.workdir + '/partition.csv')
-            sys.exit()
-            # viterbicluster.cluster(hmminfo)
+            # linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
+            # utils.print_linsim_output(linsim_out_str)
+            # # os.remove(self.args.workdir + '/true-partition.csv')
+            # # os.remove(self.args.workdir + '/partition.csv')
+            # sys.exit()
+            # # viterbicluster.cluster(hmminfo)
 
         clusters = None
         if make_clusters:

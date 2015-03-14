@@ -35,7 +35,7 @@ parser.add_argument('--plot-parameters', action='store_true', help='Plot inferre
 parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
 parser.add_argument('--baum-welch-iterations', type=int, default=1, help='Number of Baum-Welch-like iterations.')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
-parser.add_argument('--pants-seated-clustering', action='store_true', help='Perform seat-of-the-pants estimate of the clusters')
+parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--randomize-input-order', action='store_true', help='Randomize the input sequence order (if your true clusters are all next to each other in the file, it makes partitioning run unrealistically fast)')
 
 # input and output locations

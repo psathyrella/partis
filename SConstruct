@@ -30,7 +30,7 @@ tests = OrderedDict()
 existing_parameter_dir = 'test/regression/parameters/simu/hmm'
 # first add the simple, few-sequence tests (using partis.py)
 tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 1 --debug 1'
-# tests['partition-a-few'] = cmd + ' --action partition --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
+tests['partition-a-few'] = cmd + ' --action partition --randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 8 --debug 1 --truncate-pairs'
 tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --debug 1 --truncate-pairs --n-max-queries 3'
 # then add the tests that run over the framework (using run-driver.py)
 for action in actions:
@@ -47,6 +47,8 @@ for path in individual_passed + [all_passed]:
 for name, test_cmd in tests.items():
     out = 'test/_results/%s.out' % name
     Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])
+    print test_cmd
+    continue
     if name in actions:
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name, out,
