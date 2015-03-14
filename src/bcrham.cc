@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <algorithm>
 #include <map>
 #include <iomanip>
 // #include <ctime>
@@ -10,134 +11,39 @@
 #include "jobholder.h"
 #include "germlines.h"
 #include "text.h"
+#include "args.h"
 #include "tclap/CmdLine.h"
 using namespace TCLAP;
 using namespace ham;
 using namespace std;
 
-// ----------------------------------------------------------------------------------------
-// input processing class
-// NOTE some input is passed on the command line (global configuration), while some is passed in a csv file (stuff that depends on each (pair of) sequence(s)).
-class Args {
-public:
-  Args(int argc, const char * argv[]);
-  string hmmdir() { return hmmdir_arg_.getValue(); }
-  string datadir() { return datadir_arg_.getValue(); }
-  string infile() { return infile_arg_.getValue(); }
-  string outfile() { return outfile_arg_.getValue(); }
-  string algorithm() { return algorithm_arg_.getValue(); }
-  // string algorithm() { return algorithm_; }
-  int debug() { return debug_arg_.getValue(); }
-  // int debug() { return debug_; }
-  int n_best_events() { return n_best_events_arg_.getValue(); }
-  bool chunk_cache() { return chunk_cache_arg_.getValue(); }
-
-  // command line arguments
-  vector<string> algo_strings_;
-  vector<int> debug_ints_;
-  ValuesConstraint<string> algo_vals_;
-  ValuesConstraint<int> debug_vals_;
-  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, algorithm_arg_;
-  ValueArg<int> debug_arg_, n_best_events_arg_;
-  SwitchArg chunk_cache_arg_;
-
-  // arguments read from csv input file
-  map<string, vector<string> > strings_;
-  map<string, vector<int> > integers_;
-  map<string, vector<vector<string> > > str_lists_;
-  set<string> str_headers_, int_headers_, str_list_headers_;
-
-  // // extra values to cache command line args (TCLAP calls to ValuesConstraint::check() seem to be really slow
-  // UPDATE hmm, didn't seem to help. leave it for the moment
-  // string algorithm_;
-  // int debug_;
-};
-
-// ----------------------------------------------------------------------------------------
-Args::Args(int argc, const char * argv[]):
-  algo_strings_ {"viterbi", "forward"},
-              debug_ints_ {0, 1, 2},
-              algo_vals_(algo_strings_),
-              debug_vals_(debug_ints_),
-              hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
-              datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
-              infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
-              outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
-              algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
-              debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
-              n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-              chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-              str_headers_ {},
-              int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
-str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as colon-separated lists
-  try {
-    CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
-    cmd.add(hmmdir_arg_);
-    cmd.add(datadir_arg_);
-    cmd.add(infile_arg_);
-    cmd.add(outfile_arg_);
-    cmd.add(algorithm_arg_);
-    cmd.add(debug_arg_);
-    cmd.add(n_best_events_arg_);
-    cmd.add(chunk_cache_arg_);
-
-    cmd.parse(argc, argv);
-
-    // algorithm_ = algorithm_arg_.getValue();
-    // debug_ = debug_arg_.getValue();
-  } catch(ArgException &e) {
-    cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
-    throw;
-  }
-
-  for(auto & head : str_headers_)
-    strings_[head] = vector<string>();
-  for(auto & head : int_headers_)
-    integers_[head] = vector<int>();
-
-  ifstream ifs(infile());
-  assert(ifs.is_open());
-  string line;
-  // get header line
-  getline(ifs, line);
-  stringstream ss(line);
-  vector<string> headers;  // keep track of the file's column order
-  while(!ss.eof()) {
-    string head;
-    ss >> head;
-    if(head != "")   // make sure not to add a blank header at the end of the file
-      headers.push_back(head);
-  }
-  while(getline(ifs, line)) {
-    stringstream ss(line);
-    string tmpstr;
-    int tmpint;
-    for(auto & head : headers) {
-      if(str_headers_.find(head) != str_headers_.end()) {
-        ss >> tmpstr;
-        strings_[head].push_back(tmpstr);
-      } else if(str_list_headers_.find(head) != str_list_headers_.end()) {
-        ss >> tmpstr;
-        str_lists_[head].push_back(SplitString(tmpstr, ":"));
-      } else if(int_headers_.find(head) != int_headers_.end()) {
-        ss >> tmpint;
-        integers_[head].push_back(tmpint);
-      } else {
-        throw runtime_error("ERROR header " + head + "' not found");
-      }
-    }
-  }
-}
+// class Glomerator {
+// public:
+//   Glomerator();
+// private:
+//   map<string, Sequences> current_partition_;
+//   map<string, vector<string> > only_genes_;
+//   map<string, KBounds> kbinfo_;
+//   map<string, double> cached_log_probs_;
+//   vector<double> 
+// }
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
 vector<Sequences> GetSeqs(Args &args, Track *trk) {
   vector<Sequences> all_seqs;
+  set<string> all_names;  // keeps track which sequences we've added to make sure we weren't passed duplicates
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     Sequences seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
+
+      if(all_names.count(sq.name()))
+	throw runtime_error("ERROR tried to add sequence with name " + sq.name() + " twice in bcrham::GetSeqs");
+      else
+	all_names.insert(sq.name());
+
       seqs.AddSeq(sq);
     }
     all_seqs.push_back(seqs);
@@ -149,6 +55,49 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
+void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs);
+
+// // ----------------------------------------------------------------------------------------
+// void check_cache(string name, map<string, double> &cache) {
+//   if(cached.count(name))
+//     cout << "    cached " << cache[name] << " - " << cvals[ic] << " = " << cached_log_probs[cnames[ic]] - cvals[ic] << endl;
+//   else
+//     cached_log_probs[cnames[ic]] = cvals[ic];
+  
+// // ----------------------------------------------------------------------------------------
+// string sort_name_list(string unsorted_str) {
+//   // alphabetically sort the space-separated name list in <unsorted_str>
+//   vector<string> unsorted_vector(SplitString(unsorted_str, " "));
+//   sort(unsorted_vector.begin(), unsorted_vector.end());
+//   string return_str;
+//   for(size_t ic=0; ic<unsorted_vector.size(); ++ic) {
+//     if(ic > 0)
+//       return_str += " ";
+//     return_str += unsorted_vector[ic];
+//   }
+//   return return_str;    
+// }
+
+// ----------------------------------------------------------------------------------------
+void get_result(Args &args, JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, map<string, double> &cached_log_probs, string &errors) {
+  if(cached_log_probs.count(name))  // already did it
+    return;
+    
+  Result result(kbounds);
+  bool stop(false);
+  do {
+    result = jh.Run(seqs, kbounds);
+    kbounds = result.better_kbounds();
+    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    if(args.debug() && !stop)
+      cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+  } while(!stop);
+
+  cached_log_probs[name] = result.total_score();
+  if(result.boundary_error())
+    errors = "boundary";
+}
+
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
@@ -159,7 +108,9 @@ int main(int argc, const char * argv[]) {
   assert(ofs.is_open());
   if(args.algorithm() == "viterbi")
     ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
-  else
+  else if(args.partition())
+    ofs << "partition,score,errors" << endl;
+  else if(args.algorithm() == "forward")
     ofs << "unique_ids,score,errors" << endl;
 
   // init some infrastructure
@@ -170,6 +121,12 @@ int main(int argc, const char * argv[]) {
   HMMHolder hmms(args.hmmdir(), gl);
   // hmms.CacheAll();
 
+  if(args.partition()) {
+    hierarch_agglom(hmms, gl, qry_seq_list, args, ofs);
+    ofs.close();
+    return 0;
+  }
+  
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
@@ -285,4 +242,269 @@ void print_forward_scores(double numerator, vector<double> single_scores, double
     printf(" - %8.2f", score);
   printf("\n");
 }
+// ----------------------------------------------------------------------------------------
+int minimal_hamming_distance(Sequences &seqs_a, Sequences &seqs_b) {
+  // Minimal hamming distance between any sequence in <seqs_a> and any sequence in <seqs_b>
+  // NOTE for now, we require sequences are the same length (otherwise we have to deal with alignming them which is what we would call a CAN OF WORMS.
+  assert(seqs_a.n_seqs() > 0 && seqs_b.n_seqs() > 0);
+  int min_distance(seqs_a[0].size());
+  for(size_t is=0; is<seqs_a.n_seqs(); ++is) {
+    for(size_t js=0; js<seqs_b.n_seqs(); ++js) {
+      Sequence seq_a = seqs_a[is];
+      Sequence seq_b = seqs_b[js];
+      assert(seq_a.size() == seq_b.size());
+      int distance(0);
+      for(size_t ic=0; ic<seq_a.size(); ++ic) {
+	if(seq_a[ic] != seq_b[ic])
+	  ++distance;
+      }
+      if(distance < min_distance)
+	min_distance = distance;
+    }
+  }
+  return min_distance;
+}
 
+// ----------------------------------------------------------------------------------------
+vector<string> get_cluster_list(map<string, Sequences> &partinfo) {
+  vector<string> clusters;
+  for(auto &kv : partinfo)
+    clusters.push_back(kv.first);
+  return clusters;
+}
+
+// ----------------------------------------------------------------------------------------
+double log_prob_of_partition(vector<string> &clusters, map<string, double> &log_probs) {
+  // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
+  double total_log_prob(0.0);
+  for(auto &key : clusters) {
+    if(log_probs.count(key) == 0)
+      throw runtime_error("ERROR couldn't find key " + key + " in cached log probs\n");
+    total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs[key]);
+  }
+  return total_log_prob;
+}
+
+// ----------------------------------------------------------------------------------------
+void print_partition(vector<string> &clusters, map<string, double> &log_probs, string extrastr) {
+  const char *extra_cstr(extrastr.c_str());
+  if(log_probs.size() == 0)
+    printf("    %s partition\n", extra_cstr);
+  else
+    printf("    %-8.2f %s partition\n", log_prob_of_partition(clusters, log_probs), extra_cstr);
+  for(auto &key : clusters)
+    cout << "          " << key << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void glomerate(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs, map<string, Sequences> &info,
+	       map<string, KBounds> &kbinfo, map<string, vector<string> > &only_genes, map<string, double> &cached_log_probs,
+	       vector<double> &list_of_log_probs, vector<vector<string> > &list_of_partitions,
+	       double &max_log_prob_of_partition, vector<string> &best_partition, bool &finished) {  // reminder: <qry_seq_list> is a list of lists
+
+  double max_log_prob(-INFINITY);
+  pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
+  // Sequences max_seqs;
+  vector<string> max_only_genes;
+  KBounds max_kbounds;
+
+  set<string> already_done;  // keeps track of which  a-b pairs we've already done
+  for(auto &kv_a : info) {  // note that c++ maps are ordered
+    for(auto &kv_b : info) {
+      if(kv_a.first == kv_b.first) continue;
+      vector<string> names{kv_a.first, kv_b.first};
+      sort(names.begin(), names.end());
+      string bothnamestr(names[0] + ":" + names[1]);
+      if(already_done.count(bothnamestr))  // already did this pair
+	continue;
+      else
+	already_done.insert(bothnamestr);
+
+      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);
+      // TODO cache hamming fraction as well
+      double hamming_fraction = float(minimal_hamming_distance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+      bool TMP_only_get_single_log_probs(false);
+      if(hamming_fraction > args.hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
+	if(cached_log_probs.count(kv_a.first) == 0 || cached_log_probs.count(kv_b.first) == 0)
+	  TMP_only_get_single_log_probs = true;
+	else
+	  continue;
+      }
+
+      // TODO skip all this stuff if we already have all three of 'em cached
+      Sequences ab_seqs(a_seqs.Union(b_seqs));
+      vector<string> ab_only_genes = only_genes[kv_a.first];
+      for(auto &g : only_genes[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
+	ab_only_genes.push_back(g);
+      KBounds ab_kbounds = kbinfo[kv_a.first].LogicalOr(kbinfo[kv_b.first]);
+
+      JobHolder jh(gl, hmms, args.algorithm(), ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
+      // TODO make sure that using <ab_only_genes> doesn't introduce some bias
+      jh.SetDebug(args.debug());
+      jh.SetChunkCache(args.chunk_cache());
+      jh.SetNBestEvents(args.n_best_events());
+
+      string errors;
+      // NOTE error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
+      get_result(args, jh, kv_a.first, a_seqs, kbinfo[kv_a.first], cached_log_probs, errors);
+      get_result(args, jh, kv_b.first, b_seqs, kbinfo[kv_b.first], cached_log_probs, errors);
+      if(TMP_only_get_single_log_probs)
+	continue;
+      get_result(args, jh, bothnamestr, ab_seqs, ab_kbounds, cached_log_probs, errors);
+
+      // clock_t run_start(clock());
+      // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+
+      double bayes_factor(cached_log_probs[bothnamestr] - cached_log_probs[kv_a.first] - cached_log_probs[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
+      if(args.debug())
+	print_forward_scores(cached_log_probs[bothnamestr], {cached_log_probs[kv_a.first], cached_log_probs[kv_b.first]}, bayes_factor);
+
+      if(bayes_factor > max_log_prob) {
+	max_log_prob = bayes_factor;
+	max_pair = pair<string, string>(kv_a.first, kv_b.first);  // REMINDER not always same order as names[0], names[1]
+	// max_seqs = ab_seqs;
+	max_only_genes = ab_only_genes;
+	max_kbounds = ab_kbounds;
+      }
+    }
+  }
+
+  // if <info> only has one cluster, if hamming is too large between all remaining clusters/remaining bayes factors are -INFINITY
+  if(max_log_prob == -INFINITY) {
+    finished = true;
+    return;
+  }
+
+  // then merge the two best clusters
+  vector<string> max_names{max_pair.first, max_pair.second};
+  sort(max_names.begin(), max_names.end());
+  Sequences max_seqs(info[max_names[0]].Union(info[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
+  string max_name_str(max_names[0] + ":" + max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
+  info[max_name_str] = max_seqs;
+  kbinfo[max_name_str] = max_kbounds;
+  only_genes[max_name_str] = max_only_genes;
+
+  info.erase(max_pair.first);
+  info.erase(max_pair.second);
+  kbinfo.erase(max_pair.first);
+  kbinfo.erase(max_pair.second);
+  only_genes.erase(max_pair.first);
+  only_genes.erase(max_pair.second);
+
+  if(args.debug())
+    printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+
+  vector<string> partition(get_cluster_list(info));
+  if(args.debug())
+    print_partition(partition, cached_log_probs, "current");
+  double total_log_prob = log_prob_of_partition(partition, cached_log_probs);
+
+  list_of_log_probs.push_back(total_log_prob);
+  list_of_partitions.push_back(partition);
+
+  if(total_log_prob > max_log_prob_of_partition) {
+    best_partition = partition;
+    max_log_prob_of_partition = total_log_prob;
+  }
+
+  if(max_log_prob_of_partition - total_log_prob > 1000.0) {  // stop if we've moved too far past the maximum
+    cout << "    stopping after drop " << max_log_prob_of_partition << " --> " << total_log_prob << endl;
+    finished = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+void write_cached_log_probs(ofstream &log_prob_ofs, map<string, double> &cached_log_probs) {
+  log_prob_ofs << "unique_ids,score" << endl;
+  for(auto &kv : cached_log_probs)
+    log_prob_ofs << kv.first << "," << kv.second << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void write_partition(ofstream &ofs, vector<string> partition, double log_prob) {
+  for(size_t ic=0; ic<partition.size(); ++ic) {
+    if(ic > 0)
+      ofs << ";";
+    ofs << partition[ic];
+  }
+  ofs << ",";
+  ofs << log_prob << ",";
+  ofs << "n/a\n";
+}
+
+// ----------------------------------------------------------------------------------------
+map<string, double> read_cached_log_probs(string fname) {
+  map<string, double> cached_log_probs;
+  if(fname == "")
+    return cached_log_probs;
+  ifstream ifs(fname);
+  assert(ifs.is_open());
+  string line;
+
+  // check the header is right TODO should write a general csv reader
+  getline(ifs, line);
+  vector<string> headstrs(SplitString(line, ","));
+  cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << endl;
+  assert(headstrs[0].find("unique_ids") == 0);
+  assert(headstrs[1].find("score") == 0);
+
+  while(getline(ifs, line)) {
+    vector<string> column_list = SplitString(line, ",");
+    assert(column_list.size() == 2);
+    string unique_ids(column_list[0]);
+    double logprob(stof(column_list[1]));
+    cached_log_probs[unique_ids] = logprob;
+  }
+
+  return cached_log_probs;
+}
+// ----------------------------------------------------------------------------------------
+void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs) {  // reminder: <qry_seq_list> is a list of lists
+  // first convert the vector to a map 
+  map<string, Sequences> info;
+  map<string, vector<string> > only_genes;
+  map<string, KBounds> kbinfo;
+  for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
+    string key(qry_seq_list[iqry].name_str(":"));
+
+    KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
+    KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
+
+    KBounds kb(kmin, kmax);
+    info[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
+    only_genes[key] = args.str_lists_["only_genes"][iqry];
+    kbinfo[key] = kb;
+  }
+
+  vector<string> initial_partition(get_cluster_list(info));
+  // then glomerate 'em
+  map<string, double> cached_log_probs = read_cached_log_probs(args.incachefile());
+  vector<double> list_of_log_probs;  // TODO I think I don't need this any more
+  vector<vector<string> > list_of_partitions;  // TODO I think I don't need this any more
+  double max_log_prob_of_partition(-INFINITY);  // 
+  vector<string> best_partition;
+  if(args.debug())
+    print_partition(initial_partition, cached_log_probs, "initial");
+  bool finished(false);
+  do {
+    glomerate(hmms, gl, qry_seq_list, args, ofs, info, kbinfo, only_genes, cached_log_probs, list_of_log_probs, list_of_partitions, max_log_prob_of_partition, best_partition, finished);
+  } while(!finished);
+
+  // assert(list_of_partitions.size() == max_log_probs.size());
+  if(args.debug()) {
+    cout << "-----------------" << endl;  
+    print_partition(best_partition, cached_log_probs, "best");
+  }
+
+  // TODO oh, damn, if the initial partition is better than any subsequent ones this breaks
+  // TODO it might be mroe efficient to write the partitions as I go so I don't have to keep them around in memory
+  write_partition(ofs, initial_partition, log_prob_of_partition(initial_partition, cached_log_probs));
+  for(size_t ip=0; ip<list_of_partitions.size(); ++ip)
+    write_partition(ofs, list_of_partitions[ip], list_of_log_probs[ip]);
+
+  // TODO really pass the cachefile as arg? maybe do something cleaner
+  ofstream log_prob_ofs;
+  log_prob_ofs.open(args.outcachefile());
+  write_cached_log_probs(log_prob_ofs, cached_log_probs);
+  log_prob_ofs.close();
+}
