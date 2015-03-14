@@ -44,8 +44,6 @@ void Glomerator::Cluster() {
 
   // TODO oh, damn, if the initial partition is better than any subsequent ones this breaks
   WritePartition(initial_partition, LogProbOfPartition(initial_partition));
-  // for(size_t ip=0; ip<list_of_partitions_.size(); ++ip)
-  //   WritePartition(list_of_partitions_[ip], list_of_log_probs_[ip]);
   for(auto &pr : list_of_partitions_)
     WritePartition(pr.second, pr.first);
 
@@ -276,7 +274,6 @@ void Glomerator::Merge() {
     PrintPartition(partition, "current");
   double total_log_prob = LogProbOfPartition(partition);
 
-  // list_of_log_probs_.push_back(total_log_prob);
   list_of_partitions_.push_back(pair<double, vector<string> >(total_log_prob, partition));
 
   if(total_log_prob > max_log_prob_of_partition_) {

@@ -18,17 +18,6 @@ using namespace TCLAP;
 using namespace ham;
 using namespace std;
 
-// class Glomerator {
-// public:
-//   Glomerator();
-// private:
-//   map<string, Sequences> current_partition_;
-//   map<string, vector<string> > only_genes_;
-//   map<string, KBounds> kbinfo_;
-//   map<string, double> cached_log_probs_;
-//   vector<double> 
-// }
-
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
 vector<Sequences> GetSeqs(Args &args, Track *trk) {
@@ -56,28 +45,6 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
-// void hierarch_agglom(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args &args, ofstream &ofs);
-
-// // ----------------------------------------------------------------------------------------
-// void check_cache(string name, map<string, double> &cache) {
-//   if(cached.count(name))
-//     cout << "    cached " << cache[name] << " - " << cvals[ic] << " = " << cached_log_probs[cnames[ic]] - cvals[ic] << endl;
-//   else
-//     cached_log_probs[cnames[ic]] = cvals[ic];
-  
-// // ----------------------------------------------------------------------------------------
-// string sort_name_list(string unsorted_str) {
-//   // alphabetically sort the space-separated name list in <unsorted_str>
-//   vector<string> unsorted_vector(SplitString(unsorted_str, " "));
-//   sort(unsorted_vector.begin(), unsorted_vector.end());
-//   string return_str;
-//   for(size_t ic=0; ic<unsorted_vector.size(); ++ic) {
-//     if(ic > 0)
-//       return_str += " ";
-//     return_str += unsorted_vector[ic];
-//   }
-//   return return_str;    
-// }
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
@@ -89,8 +56,6 @@ int main(int argc, const char * argv[]) {
   assert(ofs.is_open());
   if(args.algorithm() == "viterbi")
     ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
-  // else if(args.partition())
-  //   ofs << "partition,score,errors" << endl;
   else if(args.algorithm() == "forward")
     ofs << "unique_ids,score,errors" << endl;
 
@@ -102,15 +67,13 @@ int main(int argc, const char * argv[]) {
   HMMHolder hmms(args.hmmdir(), gl);
   // hmms.CacheAll();
 
-  if(args.partition()) {
+  if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
     Glomerator glom(hmms, gl, qry_seq_list, &args);
     glom.Cluster();
-    // hierarch_agglom(hmms, gl, qry_seq_list, args, ofs);
     ofs.close();
     return 0;
   }
   
-  map<string, double> cached_log_probs;
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
@@ -122,10 +85,6 @@ int main(int argc, const char * argv[]) {
     jh.SetDebug(args.debug());
     jh.SetChunkCache(args.chunk_cache());
     jh.SetNBestEvents(args.n_best_events());
-
-// // ----------------------------------------------------------------------------------------
-//       get_result(args, jh, kv_a.first, a_seqs, kbinfo[kv_a.first], cached_log_probs, errors);
-//       // ----------------------------------------------------------------------------------------
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.n_seqs(), result);  // only used for forward if n_seqs > 1

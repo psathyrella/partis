@@ -44,8 +44,6 @@ private:
 
   // cumulative information
   map<string, double> log_probs_;
-  // vector<double> list_of_log_probs_;
-  // vector<vector<string> > list_of_partitions_;
   vector<pair<double, vector<string> > > list_of_partitions_;
 };
 
