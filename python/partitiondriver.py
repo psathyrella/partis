@@ -751,6 +751,8 @@ class PartitionDriver(object):
                 ids = line['unique_ids']
                 this_key = utils.get_key(ids)
                 same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
+                if same_event is None:
+                    same_event = -1
                 id_str = ''.join(['%20s ' % i for i in ids])
 
                 # check for errors
