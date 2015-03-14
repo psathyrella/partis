@@ -117,7 +117,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def partition(self):
         if not self.args.is_data:
-            assert self.args.randomize_input_order
+            assert self.args.randomize_input_order or self.args.force_dont_randomize_input_order
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
 
