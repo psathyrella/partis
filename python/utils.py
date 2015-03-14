@@ -99,6 +99,19 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
+def from_same_event(is_data, reco_info, query_names):
+    if is_data:
+        return None
+    if len(query_names) > 1:
+        reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
+        for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
+            if reco_id != reco_info[query_names[iq]]['reco_id']:
+                return False
+        return True
+    else:
+        return True
+
+# ----------------------------------------------------------------------------------------
 # bash color codes
 Colors = {}
 Colors['head'] = '\033[95m'
@@ -922,8 +935,9 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             os.remove(infname)
             os.rmdir(workdir)
 
-    if not os.path.exists(os.path.dirname(outfname)):
-        os.makedirs(os.path.dirname(outfname))
+    outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     with opener('w')(outfname) as outfile:
         writer = csv.DictWriter(outfile, header)
         writer.writeheader()
@@ -951,3 +965,15 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     n_mutes = hamming(naive_seq, muted_seq)
     return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length
+
+# ----------------------------------------------------------------------------------------
+def print_linsim_output(outstr):
+    import ast
+    linsim_out = ast.literal_eval(outstr)
+    print '       true clusters %d' % linsim_out['true_cluster_count']
+    print '   inferred clusters %d' % linsim_out['inferred_cluster_count']
+    print '  mutual information %f' % linsim_out['metrics']['mi']
+    print '         adjusted mi %f' % linsim_out['metrics']['adjusted_mi']
+    print '       normalized mi %f' % linsim_out['metrics']['normalized_mi']
+    print '  completeness score %f' % linsim_out['metrics']['completeness_score']
+    print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']

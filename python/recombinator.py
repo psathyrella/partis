@@ -361,7 +361,6 @@ class Recombinator(object):
         command += ' input.infos.states=state'
         command += ' input.infos=' + reco_seq_fname
         command += ' input.infos.rates=rate'
-        # print command
         check_output(command, shell=True)
 
         mutated_seqs = []
@@ -415,7 +414,8 @@ class Recombinator(object):
 
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
             print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
-            Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
+            if len(re.findall('t', chosen_tree)) > 1:  # if more than one leaf
+                Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
             print '    with branch length ratios ', ', '.join([ '%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
 
         scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)

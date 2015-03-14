@@ -1,6 +1,7 @@
 #ifndef HAM_SEQUENCE_H
 #define HAM_SEQUENCE_H
 
+#include <set>
 #include "track.h"
 
 using namespace std;
@@ -47,6 +48,7 @@ public:
   Sequence *get_ptr(size_t index) { return &seqs_.at(index); }
   size_t n_seqs() { return seqs_.size(); }
   size_t GetSequenceLength() { return sequence_length_;}
+  Sequences Union(Sequences &otherseqs);  // return union set of self and <otherseqs>
   // Sequences GetSubSequences(size_t pos, size_t len);
 
   void Print();
