@@ -39,7 +39,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
 
-      if(all_names.count(sq.name()))
+      if(args.partition() && all_names.count(sq.name()))  // Not reall sure if we need this check, but I don't feel like thinking about it right now. In any case, we want to be able to add the same sequqence twice for run_algorithm
 	throw runtime_error("ERROR tried to add sequence with name " + sq.name() + " twice in bcrham::GetSeqs");
       else
 	all_names.insert(sq.name());
