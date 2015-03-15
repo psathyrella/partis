@@ -66,13 +66,15 @@ void Glomerator::ReadCachedLogProbs(string fname, Track *track) {
 
   // check the header is right TODO should write a general csv reader
   getline(ifs, line);
+  line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   vector<string> headstrs(SplitString(line, ","));
-  cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << headstrs[2] << "x" << endl;
+  // cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << headstrs[2] << "x" << endl;
   assert(headstrs[0].find("unique_ids") == 0);
   assert(headstrs[1].find("score") == 0);
   assert(headstrs[2].find("naive-seq") == 0);
 
   while(getline(ifs, line)) {
+    line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> column_list = SplitString(line, ",");
     assert(column_list.size() == 3);
     string unique_ids(column_list[0]);
@@ -157,7 +159,8 @@ void Glomerator::WritePartitions() {
 
 // ----------------------------------------------------------------------------------------
 int Glomerator::HammingDistance(string seq_a, string seq_b) {
-  assert(seq_a.size() == seq_b.size());
+  if(seq_a.size() != seq_b.size())
+    throw runtime_error("ERROR sequences different length in Glomerator::HammingDistance (" + seq_a + "," + seq_b + ")\n");
   int distance(0);
   for(size_t ic=0; ic<seq_a.size(); ++ic) {
     if(seq_a[ic] != seq_b[ic])
@@ -337,7 +340,6 @@ void Glomerator::Merge() {
   kbinfo_[max_name_str] = max_kbounds;
   only_genes_[max_name_str] = max_only_genes;
 
-  cout << "getting " << max_name_str << endl;
   GetNaiveSeq(max_name_str);
 
   info_.erase(max_pair.first);
