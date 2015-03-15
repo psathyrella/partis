@@ -141,7 +141,6 @@ class PartitionDriver(object):
 
             # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process
             # TODO I think there's really no way around the fact that eventually I'm going to have to delve into the cached log probs to decide how many procs
-            # TODO it probably makes sense to always run with 2 procs. Or, more generally, don't divide by 2
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
                len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
                 if n_procs > 20:
@@ -615,13 +614,13 @@ class PartitionDriver(object):
     def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False,
                         cached_log_probs=None, randomize_input_order=False):
         print '    writing input'
-        if cached_log_probs is not None:
+        if cached_log_probs is not None:  # TODO no longer just log probs -- should change the name
             with opener('w')(csv_fname.replace('.csv', '-logprob-cache.csv')) as cachefile:
-                writer = csv.DictWriter(cachefile, ('unique_ids', 'score'))
+                writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq'))
                 writer.writeheader()
-                for uids, logprob in cached_log_probs.items():
+                for uids, cachefo in cached_log_probs.items():  # TODO maybe speed this up by using the SW naive seq?
                     # writer.writerow({'unique_ids':':'.join([str(uid) for uid in uids]), 'score':logprob})
-                    writer.writerow({'unique_ids':uids, 'score':logprob})
+                    writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
         csvfile = opener('w')(csv_fname)
         start = time.time()
@@ -722,7 +721,14 @@ class PartitionDriver(object):
             with opener('r')(hmm_csv_outfname.replace('.csv', '-logprob-cache.csv')) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
-                    cached_log_probs[line['unique_ids']] = float(line['score'])
+                    cached_log_probs[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
+                # for key_a in cached_log_probs:
+                #     for key_b in cached_log_probs:
+                #         if key_a == key_b:
+                #             continue
+                #         if len(cached_log_probs[key_a]['naive-seq']) > 0 and len(cached_log_probs[key_b]['naive-seq']) > 0:
+                #             hamming_fraction = utils.hamming(cached_log_probs[key_a]['naive-seq'], cached_log_probs[key_b]['naive-seq']) / float(len(cached_log_probs[key_a]['naive-seq']))
+                #             print '%.2f %d %s %s' % (hamming_fraction, utils.from_same_event(self.args.is_data, self.reco_info, [int(key) for key in key_a.split(':') + key_b.split(':')]), key_a, key_b)
             
             partition_info = self.read_partition_info(hmm_csv_outfname)
                     
