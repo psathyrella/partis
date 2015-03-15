@@ -2,6 +2,11 @@
 
 namespace ham {
 
+// // ----------------------------------------------------------------------------------------
+// Sequence::Sequence() {
+//   seq_ = new vector<uint8_t>();
+// }
+
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Track* trk, string name, string &undigitized):
   name_(name),
