@@ -29,10 +29,13 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
+  // first add the initial partition
   vector<string> initial_partition(GetClusterList(info_));
+  list_of_partitions_.push_back(pair<double, vector<string> >(LogProbOfPartition(initial_partition), initial_partition));
   if(args_->debug())
     PrintPartition(initial_partition, "initial");
 
+  // then agglomerate
   do {
     Merge();
   } while(!finished_);
@@ -43,9 +46,7 @@ void Glomerator::Cluster() {
   }
 
   // TODO oh, damn, if the initial partition is better than any subsequent ones this breaks
-  WritePartition(initial_partition, LogProbOfPartition(initial_partition));
-  for(auto &pr : list_of_partitions_)
-    WritePartition(pr.second, pr.first);
+  WritePartitions();
 
   // TODO really pass the cachefile inside args_? maybe do something cleaner
   WriteCachedLogProbs();
@@ -88,12 +89,23 @@ vector<string> Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
 }
 
 // ----------------------------------------------------------------------------------------
+void Glomerator::GetSoloLogProb(string key) {
+  JobHolder jh(gl_, hmms_, args_->algorithm(), only_genes_[key]);
+  jh.SetDebug(args_->debug());
+  jh.SetChunkCache(args_->chunk_cache());
+  jh.SetNBestEvents(args_->n_best_events());
+  string errors;
+  GetResult(jh, key, info_[key], kbinfo_[key], errors);  // TODO make sure these errors will get stored somewhere
+}
+
+// ----------------------------------------------------------------------------------------
 double Glomerator::LogProbOfPartition(vector<string> &clusters) {
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
   for(auto &key : clusters) {
     if(log_probs_.count(key) == 0)
-      throw runtime_error("ERROR couldn't find key " + key + " in cached log probs\n");
+      GetSoloLogProb(key);  // should only happen for the initial partition
+      // throw runtime_error("ERROR couldn't find key " + key + " in cached log probs\n");
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs_[key]);
   }
   return total_log_prob;
@@ -102,10 +114,10 @@ double Glomerator::LogProbOfPartition(vector<string> &clusters) {
 // ----------------------------------------------------------------------------------------
 void Glomerator::PrintPartition(vector<string> &clusters, string extrastr) {
   const char *extra_cstr(extrastr.c_str());
-  if(log_probs_.size() == 0)
-    printf("    %s partition\n", extra_cstr);
-  else
-    printf("    %-8.2f %s partition\n", LogProbOfPartition(clusters), extra_cstr);
+  // if(log_probs_.size() == 0)
+  //   printf("    %s partition\n", extra_cstr);
+  // else
+  printf("    %-8.2f %s partition\n", LogProbOfPartition(clusters), extra_cstr);
   for(auto &key : clusters)
     cout << "          " << key << endl;
 }
@@ -121,15 +133,17 @@ void Glomerator::WriteCachedLogProbs() {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WritePartition(vector<string> partition, double log_prob) {
-  for(size_t ic=0; ic<partition.size(); ++ic) {
-    if(ic > 0)
-      ofs_ << ";";
-    ofs_ << partition[ic];
+void Glomerator::WritePartitions() {
+  for(auto &pr : list_of_partitions_) {
+    for(size_t ic=0; ic<pr.second.size(); ++ic) {
+      if(ic > 0)
+	ofs_ << ";";
+      ofs_ << pr.second[ic];
+    }
+    ofs_ << ",";
+    ofs_ << pr.first << ",";
+    ofs_ << "n/a\n";
   }
-  ofs_ << ",";
-  ofs_ << log_prob << ",";
-  ofs_ << "n/a\n";
 }
 
 // ----------------------------------------------------------------------------------------
@@ -156,6 +170,7 @@ int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
 }
 
 // ----------------------------------------------------------------------------------------
+// add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
 void Glomerator::GetResult(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, string &errors) {
   if(log_probs_.count(name))  // already did it
     return;
@@ -183,6 +198,8 @@ void Glomerator::Merge() {
   vector<string> max_only_genes;
   KBounds max_kbounds;
 
+  int n_total_pairs(0), n_skipped_hamming(0);
+
   set<string> already_done;  // keeps track of which  a-b pairs we've already done
   for(auto &kv_a : info_) {  // note that c++ maps are ordered
     for(auto &kv_b : info_) {
@@ -195,15 +212,17 @@ void Glomerator::Merge() {
       else
 	already_done.insert(bothnamestr);
 
-      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);
-      // TODO cache hamming fraction as well
+      ++n_total_pairs;
+      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);  // TODO cache hamming fraction as well
       double hamming_fraction = float(MinimalHammingDistance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
-      bool TMP_only_get_single_log_probs(false);  // TODO replace this var with something sensibler
+      // bool TMP_only_get_single_log_probs(false);  // TODO replace this var with something sensibler
       if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	if(log_probs_.count(kv_a.first) == 0 || log_probs_.count(kv_b.first) == 0)
-	  TMP_only_get_single_log_probs = true;
-	else
-	  continue;
+	// if(log_probs_.count(kv_a.first) == 0 || log_probs_.count(kv_b.first) == 0) {
+	//   TMP_only_get_single_log_probs = true;
+	// } else {
+	++n_skipped_hamming;
+	continue;
+	// }
       }
 
       // TODO skip all this stuff if we already have all three of 'em cached
@@ -223,8 +242,10 @@ void Glomerator::Merge() {
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       GetResult(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first], errors);
       GetResult(jh, kv_b.first, b_seqs, kbinfo_[kv_b.first], errors);
-      if(TMP_only_get_single_log_probs)
-	continue;
+      // if(TMP_only_get_single_log_probs) {
+      // 	printf("      only got singles\n");
+      // 	continue;
+      // }
       GetResult(jh, bothnamestr, ab_seqs, ab_kbounds, errors);
 
       double bayes_factor(log_probs_[bothnamestr] - log_probs_[kv_a.first] - log_probs_[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
@@ -266,8 +287,10 @@ void Glomerator::Merge() {
   only_genes_.erase(max_pair.first);
   only_genes_.erase(max_pair.second);
 
-  if(args_->debug())
+  if(args_->debug()) {
+    printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+  }
 
   vector<string> partition(GetClusterList(info_));
   if(args_->debug())
