@@ -68,7 +68,7 @@ int main(int argc, const char * argv[]) {
   // hmms.CacheAll();
 
   if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
-    Glomerator glom(hmms, gl, qry_seq_list, &args);
+    Glomerator glom(hmms, gl, qry_seq_list, &args, &trk);
     glom.Cluster();
     ofs.close();
     return 0;

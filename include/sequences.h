@@ -10,6 +10,7 @@ namespace ham {
 class Sequence {
   friend class Sequences;
 public:
+  // Sequence();  // NOTE don't use this! It's only so I can use stl maps without crashing
   Sequence(Track* trk, string name, string &undigitized);
   Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len);  // create the subsequence from <pos> of length <len>
   Sequence(Sequence &rhs, size_t pos, size_t len);

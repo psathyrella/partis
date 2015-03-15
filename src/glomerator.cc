@@ -2,7 +2,7 @@
 
 namespace ham {
 
-Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args):  // reminder: <qry_seq_list> is a list of lists
+Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track):  // reminder: <qry_seq_list> is a list of lists
   hmms_(hmms),
   gl_(gl),
   args_(args),
@@ -22,7 +22,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
     kbinfo_[key] = kb;
   }
 
-  ReadCachedLogProbs(args->incachefile());
+  ReadCachedLogProbs(args->incachefile(), track);
   ofs_.open(args_->outfile());
   ofs_ << "partition,score,errors" << endl;
 }
@@ -36,12 +36,13 @@ void Glomerator::Cluster() {
     PrintPartition(initial_partition, "initial");
 
   // then agglomerate
+  if(args_->debug()) cout << "   glomerating" << endl;
   do {
     Merge();
   } while(!finished_);
 
   if(args_->debug()) {
-    cout << "-----------------" << endl;  
+    cout << "  -----------------" << endl;  
     PrintPartition(best_partition_, "best");
   }
 
@@ -55,7 +56,7 @@ void Glomerator::Cluster() {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::ReadCachedLogProbs(string fname) {
+void Glomerator::ReadCachedLogProbs(string fname, Track *track) {
   if(fname == "")
     return;
 
@@ -66,16 +67,20 @@ void Glomerator::ReadCachedLogProbs(string fname) {
   // check the header is right TODO should write a general csv reader
   getline(ifs, line);
   vector<string> headstrs(SplitString(line, ","));
-  cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << endl;
+  cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << headstrs[2] << "x" << endl;
   assert(headstrs[0].find("unique_ids") == 0);
   assert(headstrs[1].find("score") == 0);
+  assert(headstrs[2].find("naive-seq") == 0);
 
   while(getline(ifs, line)) {
     vector<string> column_list = SplitString(line, ",");
-    assert(column_list.size() == 2);
+    assert(column_list.size() == 3);
     string unique_ids(column_list[0]);
     double logprob(stof(column_list[1]));
+    string naive_seq(column_list[2]);
     log_probs_[unique_ids] = logprob;
+    if(naive_seq.size() > 0)
+      naive_seqs_[unique_ids] = naive_seq;  //Sequence(track, unique_ids, naive_seq_str);
   }
 }
 
@@ -90,12 +95,13 @@ vector<string> Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::GetSoloLogProb(string key) {
-  JobHolder jh(gl_, hmms_, args_->algorithm(), only_genes_[key]);
+  // TODO the only reason to have this separate from GetLogProb is the only_genes stuff... which needs to be thought about
+  JobHolder jh(gl_, hmms_, "forward", only_genes_[key]);
   jh.SetDebug(args_->debug());
   jh.SetChunkCache(args_->chunk_cache());
   jh.SetNBestEvents(args_->n_best_events());
   string errors;
-  GetResult(jh, key, info_[key], kbinfo_[key], errors);  // TODO make sure these errors will get stored somewhere
+  GetLogProb(jh, key, info_[key], kbinfo_[key], errors);  // TODO make sure these errors will get stored somewhere
 }
 
 // ----------------------------------------------------------------------------------------
@@ -113,10 +119,7 @@ double Glomerator::LogProbOfPartition(vector<string> &clusters) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::PrintPartition(vector<string> &clusters, string extrastr) {
-  const char *extra_cstr(extrastr.c_str());
-  // if(log_probs_.size() == 0)
-  //   printf("    %s partition\n", extra_cstr);
-  // else
+  const char *extra_cstr(extrastr.c_str());  // dammit I shouldn't need this line
   printf("    %-8.2f %s partition\n", LogProbOfPartition(clusters), extra_cstr);
   for(auto &key : clusters)
     cout << "          " << key << endl;
@@ -126,9 +129,15 @@ void Glomerator::PrintPartition(vector<string> &clusters, string extrastr) {
 void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->outcachefile());
   assert(log_prob_ofs.is_open());
-  log_prob_ofs << "unique_ids,score" << endl;
-  for(auto &kv : log_probs_)
-    log_prob_ofs << kv.first << "," << kv.second << endl;
+  log_prob_ofs << "unique_ids,score,naive-seq" << endl;
+  for(auto &kv : log_probs_) {
+    // if(naive_seqs_.count(kv.first) == 0) {
+    //   cout << "LATE " << kv.first << endl;
+    //   GetNaiveSeq(kv.first);
+    //   // throw runtime_error("ERROR don't have naive seq for " + kv.first + "\n");
+    // }
+    log_prob_ofs << kv.first << "," << kv.second << "," << naive_seqs_[kv.first] << endl;  // NOTE if we didn't calculate the naive sequence, it'll print as null string, which is fine
+  }
   log_prob_ofs.close();
 }
 
@@ -147,6 +156,34 @@ void Glomerator::WritePartitions() {
 }
 
 // ----------------------------------------------------------------------------------------
+int Glomerator::HammingDistance(string seq_a, string seq_b) {
+  assert(seq_a.size() == seq_b.size());
+  int distance(0);
+  for(size_t ic=0; ic<seq_a.size(); ++ic) {
+    if(seq_a[ic] != seq_b[ic])
+      ++distance;
+  }
+  return distance;
+}
+
+// ----------------------------------------------------------------------------------------
+int Glomerator::HammingDistance(Sequence seq_a, Sequence seq_b) {
+  assert(seq_a.size() == seq_b.size());
+  int distance(0);
+  for(size_t ic=0; ic<seq_a.size(); ++ic) {
+    if(seq_a[ic] != seq_b[ic])
+      ++distance;
+  }
+  return distance;
+}
+
+// ----------------------------------------------------------------------------------------
+int Glomerator::NaiveHammingDistance(string key_a, string key_b) {
+  GetNaiveSeq(key_a);
+  GetNaiveSeq(key_b);
+  return HammingDistance(naive_seqs_[key_a], naive_seqs_[key_b]);
+}
+// ----------------------------------------------------------------------------------------
 int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
   // Minimal hamming distance between any sequence in <seqs_a> and any sequence in <seqs_b>
   // NOTE for now, we require sequences are the same length (otherwise we have to deal with alignming them which is what we would call a CAN OF WORMS.
@@ -154,14 +191,7 @@ int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
   int min_distance(seqs_a[0].size());
   for(size_t is=0; is<seqs_a.n_seqs(); ++is) {
     for(size_t js=0; js<seqs_b.n_seqs(); ++js) {
-      Sequence seq_a = seqs_a[is];
-      Sequence seq_b = seqs_b[js];
-      assert(seq_a.size() == seq_b.size());
-      int distance(0);
-      for(size_t ic=0; ic<seq_a.size(); ++ic) {
-	if(seq_a[ic] != seq_b[ic])
-	  ++distance;
-      }
+      int distance = HammingDistance(seqs_a[is], seqs_b[js]);
       if(distance < min_distance)
 	min_distance = distance;
     }
@@ -170,8 +200,38 @@ int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
 }
 
 // ----------------------------------------------------------------------------------------
+// add log prob for <key>/<seqs> to <log_probs_> (if it isn't already there)
+void Glomerator::GetNaiveSeq(string key) {
+  if(naive_seqs_.count(key))  // already did it
+    return;
+
+  string errors;  // TODO make sure these errors get collected as well
+  JobHolder jh(gl_, hmms_, "viterbi", only_genes_[key]);
+  jh.SetDebug(args_->debug());
+  jh.SetChunkCache(args_->chunk_cache());
+  jh.SetNBestEvents(args_->n_best_events());
+  Result result(kbinfo_[key]);
+  bool stop(false);
+  do {
+    result = jh.Run(info_[key], kbinfo_[key]);
+    kbinfo_[key] = result.better_kbounds();
+    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    if(args_->debug() && !stop)
+      cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+  } while(!stop);
+
+  if(result.events_.size() < 1)
+    throw runtime_error("ERROR no events for" + key + "\n");
+  // naive_seqs_[key] = Sequence(info_[key][0].track(), key, result.events_[0].naive_seq_);  // TODO it might be a bit wasteful to store these digitized? Or maybe it's better...
+  naive_seqs_[key] = result.events_[0].naive_seq_;  // TODO it might be a bit wasteful to store these digitized? Or maybe it's better...
+  if(result.boundary_error())
+    errors = "boundary";
+}
+
+// ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetResult(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, string &errors) {
+void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, string &errors) {
+  // TODO note that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name))  // already did it
     return;
     
@@ -214,16 +274,17 @@ void Glomerator::Merge() {
 
       ++n_total_pairs;
       Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);  // TODO cache hamming fraction as well
-      double hamming_fraction = float(MinimalHammingDistance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
-      // bool TMP_only_get_single_log_probs(false);  // TODO replace this var with something sensibler
+
+      double hamming_fraction = float(NaiveHammingDistance(kv_a.first, kv_b.first)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
       if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	// if(log_probs_.count(kv_a.first) == 0 || log_probs_.count(kv_b.first) == 0) {
-	//   TMP_only_get_single_log_probs = true;
-	// } else {
 	++n_skipped_hamming;
 	continue;
-	// }
       }
+      // double hamming_fraction = float(MinimalHammingDistance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+      // if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
+      // 	++n_skipped_hamming;
+      // 	continue;
+      // }
 
       // TODO skip all this stuff if we already have all three of 'em cached
       Sequences ab_seqs(a_seqs.Union(b_seqs));
@@ -232,7 +293,7 @@ void Glomerator::Merge() {
 	ab_only_genes.push_back(g);
       KBounds ab_kbounds = kbinfo_[kv_a.first].LogicalOr(kbinfo_[kv_b.first]);
 
-      JobHolder jh(gl_, hmms_, args_->algorithm(), ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
+      JobHolder jh(gl_, hmms_, "forward", ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
       // TODO make sure that using <ab_only_genes> doesn't introduce some bias
       jh.SetDebug(args_->debug());
       jh.SetChunkCache(args_->chunk_cache());
@@ -240,17 +301,13 @@ void Glomerator::Merge() {
 
       string errors;
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetResult(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first], errors);
-      GetResult(jh, kv_b.first, b_seqs, kbinfo_[kv_b.first], errors);
-      // if(TMP_only_get_single_log_probs) {
-      // 	printf("      only got singles\n");
-      // 	continue;
-      // }
-      GetResult(jh, bothnamestr, ab_seqs, ab_kbounds, errors);
+      GetLogProb(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first], errors);
+      GetLogProb(jh, kv_b.first, b_seqs, kbinfo_[kv_b.first], errors);
+      GetLogProb(jh, bothnamestr, ab_seqs, ab_kbounds, errors);
 
       double bayes_factor(log_probs_[bothnamestr] - log_probs_[kv_a.first] - log_probs_[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
-	printf("   %8.3f = ", bayes_factor);
+	printf("       %8.3f = ", bayes_factor);
 	printf("%2s %8.2f", "", log_probs_[bothnamestr]);
 	printf(" - %8.2f - %8.2f", log_probs_[kv_a.first], log_probs_[kv_b.first]);
 	printf("\n");
@@ -279,6 +336,9 @@ void Glomerator::Merge() {
   info_[max_name_str] = max_seqs;
   kbinfo_[max_name_str] = max_kbounds;
   only_genes_[max_name_str] = max_only_genes;
+
+  cout << "getting " << max_name_str << endl;
+  GetNaiveSeq(max_name_str);
 
   info_.erase(max_pair.first);
   info_.erase(max_pair.second);

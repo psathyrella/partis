@@ -187,6 +187,7 @@ public:
   map<string, string> insertions_;
   string seq_name_;
   string seq_;
+  string naive_seq_;
   vector<string> auxiliary_seq_names_;
   vector<string> auxiliary_seqs_;
   float score_;
@@ -197,12 +198,27 @@ public:
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
   void SetSeq(string seq_name, string seq) { seq_name_ = seq_name; seq_ = seq; }
+  void SetNaiveSeq(GermLines &gl) {  // NOTE this probably duplicates some code in Print() below, but I don't want to mess with that code at the moment (doesn't really get used any more)
+    map<string, string> original_seqs, eroded_seqs;
+    map<string, int> lengths;
+    for(auto & region : gl.regions_) {
+      int del_5p = deletions_[region + "_5p"];
+      int del_3p = deletions_[region + "_3p"];
+      original_seqs[region] = gl.seqs_[genes_[region]];
+      lengths[region] = original_seqs[region].size() - del_5p - del_3p;
+      eroded_seqs[region] = original_seqs[region].substr(del_5p, lengths[region]);
+    }
+    naive_seq_ = insertions_["fv"] + eroded_seqs["v"] + insertions_["vd"] + eroded_seqs["d"] + insertions_["dj"] + eroded_seqs["j"] + insertions_["jf"];
+  }
+
+  // ----------------------------------------------------------------------------------------
   void AddAuxiliarySeqs(string name, string seq) {  // NOTE this class should in general be treated as representing a *single* event with a *single* sequence. It's just that we allow the possiblity here of attaching auxiliary sequences, but e.g. the insertions should *not* be assumed to correspond to these other sequences
     assert(seq.size() == seq_.size());  // make sure we already have a first seq, and also that the new seq is the same size
     auxiliary_seq_names_.push_back(name);
     auxiliary_seqs_.push_back(seq);
   }
 
+  // ----------------------------------------------------------------------------------------
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
   void Print(GermLines &germlines, size_t cyst_position = 0, size_t final_tryp_position = 0, bool one_line = false, string extra_indent = "") {

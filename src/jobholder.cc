@@ -367,6 +367,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
   for(size_t iseq = 1; iseq < seq_strs.size(); ++iseq)
     event.AddAuxiliarySeqs(seqs[iseq].name(), seq_strs[iseq]);
   event.SetScore(score);
+  event.SetNaiveSeq(gl_);
   return event;
 }
 
