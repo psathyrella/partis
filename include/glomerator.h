@@ -20,10 +20,11 @@ public:
 private:
   void ReadCachedLogProbs(string fname);
   vector<string> GetClusterList(map<string, Sequences> &partinfo);
+  void GetSoloLogProb(string key);
   double LogProbOfPartition(vector<string> &clusters);
   void PrintPartition(vector<string> &clusters, string extrastr);
   void WriteCachedLogProbs();
-  void WritePartition(vector<string> partition, double log_prob);
+  void WritePartitions();
   int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
   void GetResult(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, string &errors);
   void Merge();
