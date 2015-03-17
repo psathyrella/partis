@@ -38,6 +38,7 @@ parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plo
 parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--randomize-input-order', action='store_true', help='Randomize the input sequence order (if your true clusters are all next to each other in the file, it makes partitioning run unrealistically fast)')
 parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide previous option.')
+parser.add_argument('--naive-preclustering', action='store_true', help='')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
