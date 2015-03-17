@@ -30,6 +30,7 @@ public:
   int n_best_events() { return n_best_events_arg_.getValue(); }
   bool chunk_cache() { return chunk_cache_arg_.getValue(); }
   bool partition() { return partition_arg_.getValue(); }
+  bool naive_preclustering() { return naive_preclustering_arg_.getValue(); }
 
   // command line arguments
   vector<string> algo_strings_;
@@ -39,7 +40,7 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, incachefile_arg_, outcachefile_arg_, algorithm_arg_;
   ValueArg<float> hamming_fraction_cutoff_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_;
-  SwitchArg chunk_cache_arg_, partition_arg_;
+  SwitchArg chunk_cache_arg_, naive_preclustering_arg_, partition_arg_;
 
   // arguments read from csv input file
   map<string, vector<string> > strings_;

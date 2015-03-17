@@ -256,6 +256,10 @@ void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
 void Glomerator::Merge() {
+  if(args_->naive_preclustering())
+    cout << "merging with naive preclustering" << endl;
+  else
+    cout << "merging with minimal mature preclustering" << endl;
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   vector<string> max_only_genes;
@@ -278,16 +282,19 @@ void Glomerator::Merge() {
       ++n_total_pairs;
       Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);  // TODO cache hamming fraction as well
 
-      double hamming_fraction = float(NaiveHammingDistance(kv_a.first, kv_b.first)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
-      if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	++n_skipped_hamming;
-	continue;
+      if(args_->naive_preclustering()) {
+	double hamming_fraction = float(NaiveHammingDistance(kv_a.first, kv_b.first)) / a_seqs[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
+	if(hamming_fraction > args_->hamming_fraction_cutoff()) {
+	  ++n_skipped_hamming;
+	  continue;
+	}
+      } else {
+	double hamming_fraction = float(MinimalHammingDistance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
+	if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
+	  ++n_skipped_hamming;
+	  continue;
+	}
       }
-      // double hamming_fraction = float(MinimalHammingDistance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
-      // if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-      // 	++n_skipped_hamming;
-      // 	continue;
-      // }
 
       // TODO skip all this stuff if we already have all three of 'em cached
       Sequences ab_seqs(a_seqs.Union(b_seqs));
@@ -349,6 +356,7 @@ void Glomerator::Merge() {
   only_genes_.erase(max_pair.first);
   only_genes_.erase(max_pair.second);
 
+  printf("          hamming skipped %d / %d = %.2f\n", n_skipped_hamming, n_total_pairs, float(n_skipped_hamming) / n_total_pairs);
   if(args_->debug()) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
