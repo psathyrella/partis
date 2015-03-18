@@ -75,12 +75,9 @@ class PartitionDriver(object):
         waterer.run()
         self.write_hmms(sw_parameter_dir, waterer.info['all_best_matches'])
 
-        parameter_in_dir = sw_parameter_dir
         parameter_out_dir = self.args.parameter_dir + '/hmm'
-        hmm_plotdir = self.args.plotdir + '/hmm'
-        self.run_hmm('viterbi', waterer.info, parameter_in_dir=parameter_in_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=hmm_plotdir)
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=self.args.plotdir + '/hmm')
         self.write_hmms(parameter_out_dir, waterer.info['all_best_matches'])
-        parameter_in_dir = parameter_out_dir
 
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
