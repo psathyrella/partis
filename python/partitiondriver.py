@@ -191,8 +191,7 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
-        if self.args.naive_preclustering:
-            cmd_str += ' --naive-preclustering'
+        cmd_str += ' --naive-preclustering'  # TODO the option to not do this from ham code
         if do_hierarch_agglom:
             cmd_str += ' --partition'
             if initial_logprob_cache:
