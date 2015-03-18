@@ -20,8 +20,7 @@ public:
   string datadir() { return datadir_arg_.getValue(); }
   string infile() { return infile_arg_.getValue(); }
   string outfile() { return outfile_arg_.getValue(); }
-  string incachefile() { return incachefile_arg_.getValue(); }
-  string outcachefile() { return outcachefile_arg_.getValue(); }
+  string cachefile() { return cachefile_arg_.getValue(); }
   float hamming_fraction_cutoff() { return hamming_fraction_cutoff_arg_.getValue(); }
   string algorithm() { return algorithm_arg_.getValue(); }
   // string algorithm() { return algorithm_; }
@@ -37,7 +36,7 @@ public:
   vector<int> debug_ints_;
   ValuesConstraint<string> algo_vals_;
   ValuesConstraint<int> debug_vals_;
-  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, incachefile_arg_, outcachefile_arg_, algorithm_arg_;
+  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, cachefile_arg_, algorithm_arg_;
   ValueArg<float> hamming_fraction_cutoff_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_;
   SwitchArg chunk_cache_arg_, naive_preclustering_arg_, partition_arg_;

@@ -53,7 +53,8 @@ int main(int argc, const char * argv[]) {
   // write csv output headers
   ofstream ofs;
   ofs.open(args.outfile());
-  assert(ofs.is_open());
+  if(!ofs.is_open())
+    throw runtime_error("ERROR --outfile (" + args.outfile() + ") d.n.e.\n");
   if(args.algorithm() == "viterbi")
     ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
   else if(args.algorithm() == "forward")

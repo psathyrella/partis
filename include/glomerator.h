@@ -18,7 +18,7 @@ public:
   Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track);
   void Cluster();
 private:
-  void ReadCachedLogProbs(string fname, Track *track);
+  void ReadCachedLogProbs(Track *track);
   vector<string> GetClusterList(map<string, Sequences> &partinfo);
   void GetSoloLogProb(string key);
   double LogProbOfPartition(vector<string> &clusters);

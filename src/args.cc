@@ -12,8 +12,7 @@ Args::Args(int argc, const char * argv[]):
               datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
               infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
               outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
-              incachefile_arg_("u", "incachefile", "input cache log prob csv file", false, "", "string"),
-              outcachefile_arg_("t", "outcachefile", "output cache log prob csv file", false, "", "string"),
+              cachefile_arg_("u", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
               algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
               hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", true, -1.0, "float"),
               debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
@@ -30,8 +29,7 @@ str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as c
     cmd.add(datadir_arg_);
     cmd.add(infile_arg_);
     cmd.add(outfile_arg_);
-    cmd.add(incachefile_arg_);
-    cmd.add(outcachefile_arg_);
+    cmd.add(cachefile_arg_);
     cmd.add(hamming_fraction_cutoff_arg_);
     cmd.add(algorithm_arg_);
     cmd.add(debug_arg_);
