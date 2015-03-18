@@ -22,7 +22,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
     kbinfo_[key] = kb;
   }
 
-  ReadCachedLogProbs(args->incachefile(), track);
+  ReadCachedLogProbs(track);
   ofs_.open(args_->outfile());
   ofs_ << "partition,score,errors" << endl;
 }
@@ -56,19 +56,20 @@ void Glomerator::Cluster() {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::ReadCachedLogProbs(string fname, Track *track) {
-  if(fname == "")
+void Glomerator::ReadCachedLogProbs(Track *track) {
+  ifstream ifs(args_->cachefile());
+  if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
+    // throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
     return;
-
-  ifstream ifs(fname);
-  assert(ifs.is_open());
+  }
   string line;
 
   // check the header is right TODO should write a general csv reader
-  getline(ifs, line);
+  if(!getline(ifs, line)) {
+    return;  // return for zero length file
+  }
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   vector<string> headstrs(SplitString(line, ","));
-  // cout << "x" << headstrs[0] << "x" << headstrs[1] << "x" << headstrs[2] << "x" << endl;
   assert(headstrs[0].find("unique_ids") == 0);
   assert(headstrs[1].find("score") == 0);
   assert(headstrs[2].find("naive-seq") == 0);
@@ -82,8 +83,9 @@ void Glomerator::ReadCachedLogProbs(string fname, Track *track) {
     string naive_seq(column_list[2]);
     log_probs_[unique_ids] = logprob;
     if(naive_seq.size() > 0)
-      naive_seqs_[unique_ids] = naive_seq;  //Sequence(track, unique_ids, naive_seq_str);
+      naive_seqs_[unique_ids] = naive_seq;
   }
+  cout << "      read " << log_probs_.size() << " cached results" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -129,8 +131,9 @@ void Glomerator::PrintPartition(vector<string> &clusters, string extrastr) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteCachedLogProbs() {
-  ofstream log_prob_ofs(args_->outcachefile());
-  assert(log_prob_ofs.is_open());
+  ofstream log_prob_ofs(args_->cachefile());
+  if(!log_prob_ofs.is_open())
+    throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
   log_prob_ofs << "unique_ids,score,naive-seq" << endl;
   for(auto &kv : log_probs_) {
     // if(naive_seqs_.count(kv.first) == 0) {
@@ -256,10 +259,12 @@ void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
 void Glomerator::Merge() {
-  if(args_->naive_preclustering())
-    cout << "merging with naive preclustering" << endl;
-  else
-    cout << "merging with minimal mature preclustering" << endl;
+  if(args_->debug()) {
+    if(args_->naive_preclustering())
+      cout << "merging with naive preclustering" << endl;
+    else
+      cout << "merging with minimal mature preclustering" << endl;
+  }
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   vector<string> max_only_genes;
