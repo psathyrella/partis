@@ -27,43 +27,26 @@ import plotting
 class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
-        self.germline_seqs = utils.read_germlines(self.args.datadir)  #, add_fp=True)
-
+        self.germline_seqs = utils.read_germlines(self.args.datadir)
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
             self.cyst_positions = json.load(json_file)
-        with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
+        with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
-        self.precluster_info = {}
-
         if self.args.seqfile is not None:
-            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data,
-                                                               self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=self.args.randomize_input_order)
+            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=(self.args.action=='partition'))  # if we're partitioning, we need to randomize input order (at least for simulation)
 
-        self.outfile = None
-        if self.args.outfname != None:
-            if os.path.exists(self.args.outfname):
-                os.remove(self.args.outfname)
-            self.outfile = open(self.args.outfname, 'a')
+        utils.prep_dir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def clean(self, waterer):
-        if self.args.no_clean:
-            return
-        if not self.args.read_cached_parameters:  # ha ha I don't have this arg any more
-            waterer.clean()  # remove all the parameter files that the waterer's ParameterCounter made
-            for fname in glob.glob(waterer.parameter_dir + '/hmms/*.yaml'):  # remove all the hmm files from the same directory
-                os.remove(fname)
-            os.rmdir(waterer.parameter_dir + '/hmms')
-            os.rmdir(waterer.parameter_dir)
-
-        # check to see if we missed anything
-        leftovers = [ fname for fname in os.listdir(self.args.workdir) ]
-        for over in leftovers:
-            print self.args.workdir + '/' + over
-        os.rmdir(self.args.workdir)
+    def __del__(self):
+        if not self.args.no_clean:
+            try:
+                os.rmdir(self.args.workdir)
+            except OSError:
+                raise Exception('ERROR workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -79,13 +62,18 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', waterer.info, parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=self.args.plotdir + '/hmm')
         self.write_hmms(parameter_out_dir, waterer.info['all_best_matches'])
 
-        if not self.args.no_clean:
-            os.rmdir(self.args.workdir)
+    # ----------------------------------------------------------------------------------------
+    def run_algorithm(self, algorithm):
+        if not os.path.exists(self.args.parameter_dir):
+            raise Exception('ERROR parameter dir (' + self.args.parameter_dir + ') d.n.e')
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer.run()
+
+        self.run_hmm(algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', \
+                     count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
-        if not self.args.is_data:  # if this is simulation, we want to be *sure* you don't want to randomize the sequence order (e.g. for testing)
-            assert self.args.randomize_input_order or self.args.force_dont_randomize_input_order
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
 
@@ -95,12 +83,12 @@ class PartitionDriver(object):
 
         partition, cached_log_probs, glomclusters = None, None, None
         n_procs = self.args.n_procs
-        n_proc_list = []
+        n_proc_list = []  # list of the number of procs we used for each run
         while n_procs > 0:
             print 'run on %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)  # write_hmm_input uses the best-minus-ten partition
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
             partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
-                                                       do_hierarch_agglom=True, n_proc_override=n_procs, cached_log_probs=cached_log_probs, randomize_input_order=True)
+                                                       do_hierarch_agglom=True, n_procs=n_procs, cached_log_probs=cached_log_probs, shuffle_input_order=True)
             n_proc_list.append(n_procs)
             glomclusters = Clusterer()
             glomclusters.hierarch_agglom(log_probs=cached_log_probs, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
@@ -118,35 +106,8 @@ class PartitionDriver(object):
                 else:
                     n_procs -= 1
 
-        # self.clean(waterer)
-        # for fname in os.listdir(self.args.workdir):
-        #     print fname
-        if not self.args.no_clean:
-            try:
-                os.rmdir(self.args.workdir)
-            except:
-                print 'ERROR not empty'
-                print os.listdir(self.args.workdir)
-
     # ----------------------------------------------------------------------------------------
-    def run_algorithm(self, algorithm):
-        if not os.path.exists(self.args.parameter_dir):
-            raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
-        waterer.run()
-
-        self.run_hmm(algorithm, waterer.info, parameter_in_dir=self.args.parameter_dir, hmm_type='k=nsets', \
-                     count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
-
-        # self.clean(waterer)
-        if not self.args.no_clean:
-            os.rmdir(self.args.workdir)
-
-        # if self.args.plot_performance:
-        #     plotting.compare_directories(self.args.plotdir + '/hmm-vs-sw', self.args.plotdir + '/hmm/plots', 'hmm', self.args.plotdir + '/sw/plots', 'smith-water', xtitle='inferred - true', stats='rms')
-
-    # ----------------------------------------------------------------------------------------
-    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, iproc=-1, do_hierarch_agglom=False, initial_logprob_cache=False):
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, do_hierarch_agglom=False, initial_logprob_cache=False):
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
@@ -159,42 +120,41 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
-        cmd_str += ' --naive-preclustering'  # TODO the option to not do this from ham code
+        cmd_str += ' --naive-preclustering'  # TODO remove the option to not do this from ham code
         if do_hierarch_agglom:
             cmd_str += ' --partition'
             if initial_logprob_cache:
                 cmd_str += ' --incachefile ' + csv_infname.replace('.csv', '-logprob-cache.csv')
             cmd_str += ' --outcachefile ' + csv_outfname.replace('.csv', '-logprob-cache.csv')
 
-        workdir = self.args.workdir
-        if iproc >= 0:
-            workdir += '/hmm-' + str(iproc)
-            cmd_str = cmd_str.replace(self.args.workdir, workdir)
-
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', stripped=False, prefix='', \
-                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False, n_proc_override=None, cached_log_probs=None,
-                randomize_input_order=False):  # @parameterfetishist
+    def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', prefix='', \
+                count_parameters=False, plotdir=None, make_clusters=False, do_hierarch_agglom=False, n_procs=None, cached_log_probs=None,  # NOTE the local <n_procs> as well as the one inside <self.args>
+                shuffle_input_order=False):  # @parameterfetishist
+        print '\nhmm'
+        if n_procs is None:
+            n_procs = self.args.n_procs
+        csv_infname = self.args.workdir + '/hmm_input.csv'
+        csv_outfname = self.args.workdir + '/hmm_output.csv'
 
-        if prefix == '' and stripped:
-            prefix = 'stripped'
-        print '\n%shmm' % prefix
-        csv_infname = self.args.workdir + '/' + prefix + '_hmm_input.csv'
-        csv_outfname = self.args.workdir + '/' + prefix + '_hmm_output.csv'
-        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, stripped=stripped, parameter_dir=parameter_in_dir,
-                             do_hierarch_agglom=do_hierarch_agglom, cached_log_probs=cached_log_probs, randomize_input_order=randomize_input_order)
+        self.write_hmm_input(csv_infname, sw_info, preclusters=preclusters, hmm_type=hmm_type, parameter_dir=parameter_in_dir,
+                             do_hierarch_agglom=do_hierarch_agglom, cached_results=cached_log_probs, shuffle_input_order=shuffle_input_order)
+
         print '    running'
         sys.stdout.flush()
         start = time.time()
-        n_procs = n_proc_override if n_proc_override is not None else self.args.n_procs
-        if n_procs > 1:
+        cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir,  # TODO clean up this do_hierarch_agglom and initial_logprob_cache cache bullshit
+                                       do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
+        if n_procs == 1:
+            check_call(cmd_str.split())
+        else:
             self.split_input(n_procs, infname=csv_infname, prefix='hmm', cached_log_probs=cached_log_probs)
             procs = []
             for iproc in range(n_procs):
-                cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, iproc=iproc, do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
-                procs.append(Popen(cmd_str.split()))
+                workdir = self.args.workdir + '/hmm-' + str(iproc)
+                procs.append(Popen(cmd_str.replace(self.args.workdir, workdir).split()))
                 time.sleep(0.1)
             for proc in procs:
                 proc.wait()
@@ -205,9 +165,6 @@ class PartitionDriver(object):
                 self.merge_hmm_outputs(outfname=csv_outfname.replace('.csv', '-logprob-cache.csv'), n_procs=n_procs, partitionfname=csv_outfname, initial_logprob_cache=(cached_log_probs is not None))
             else:
                 self.merge_hmm_outputs(csv_outfname, n_procs)
-        else:
-            cmd_str = self.get_hmm_cmd_str(algorithm, csv_infname, csv_outfname, parameter_dir=parameter_in_dir, do_hierarch_agglom=do_hierarch_agglom, initial_logprob_cache=(cached_log_probs is not None))
-            check_call(cmd_str.split())
 
         sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
@@ -218,21 +175,12 @@ class PartitionDriver(object):
         if self.args.vollmers_clustering:
             vollmers_clusterer = Clusterer()
             vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info, workdir=self.args.workdir)
-            # linsim_out_str = check_output(['/home/dralph/.local/bin/linsim', 'compare-clustering', self.args.workdir + '/true-partition.csv', self.args.workdir + '/partition.csv'])
-            # utils.print_linsim_output(linsim_out_str)
-            # # os.remove(self.args.workdir + '/true-partition.csv')
-            # # os.remove(self.args.workdir + '/partition.csv')
-            # sys.exit()
-            # # viterbicluster.cluster(hmminfo)
 
         clusters = None
         if make_clusters:
-            if self.outfile is not None:
-                self.outfile.write('hmm clusters\n')
-            else:
-                print '%shmm clusters' % prefix
-            clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True, singletons=preclusters.singletons)
-            clusters.single_link(input_scores=hmminfo, debug=self.args.debug, reco_info=self.reco_info, outfile=self.outfile, plotdir=self.args.plotdir+'/pairscores')
+            print 'hmm clusters DEPRECATED i think'
+            # clusters = Clusterer(self.args.pair_hmm_cluster_cutoff, greater_than=True, singletons=preclusters.singletons)
+            # clusters.single_link(input_scores=hmminfo, debug=self.args.debug, reco_info=self.reco_info, outfile=TODO, plotdir=self.args.plotdir+'/pairscores')
 
         if not self.args.no_clean:
             if os.path.exists(csv_infname):  # if only one proc, this will already be deleted
@@ -442,11 +390,9 @@ class PartitionDriver(object):
         else:
             hamming_info = self.get_hamming_distances(all_pairs)
 
-        if self.outfile is not None:
-            self.outfile.write('hamming clusters\n')
-
         clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
-        clust.single_link(input_scores=hamming_info, debug=self.args.debug, outfile=self.outfile, reco_info=self.reco_info)
+        raise Exception('DEPRECATED')
+        # clust.single_link(input_scores=hamming_info, debug=self.args.debug, outfile=TODO, reco_info=self.reco_info)
         # print '    clustering: %.3f' % (time.time()-start); start = time.time()
 
         if chopped_off_left_sides:
@@ -464,11 +410,11 @@ class PartitionDriver(object):
         utils.prep_dir(hmm_dir, '*.yaml')
 
         gene_list = self.args.only_genes
-        if gene_list == None:  # if specific genes weren't specified, do the ones for which we have matches
+        if gene_list == None:  # if specific genes weren't specified, do the ones for which we have sw matches
             gene_list = []
             for region in utils.regions:
                 for gene in self.germline_seqs[region]:
-                    if sw_matches == None or gene in sw_matches:  # shouldn't be None really, but I'm testing something
+                    if gene in sw_matches:
                         gene_list.append(gene)
 
         for gene in gene_list:
@@ -514,7 +460,7 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def combine_queries(self, sw_info, query_names, parameter_dir, stripped=False, skipped_gene_matches=None):
+    def combine_queries(self, sw_info, query_names, parameter_dir, skipped_gene_matches=None):
         combo = {
             'k_v':{'min':99999, 'max':-1},
             'k_d':{'min':99999, 'max':-1},
@@ -541,14 +487,6 @@ class PartitionDriver(object):
     
             only_genes = info['all'].split(':')
             self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, name)
-            if stripped:  # strip down the hmm -- only use the single best gene for each sequence, and don't fuzz at all
-                assert False  # need to check some things here
-                # only_genes = [ a_info[region + '_gene'] for region in utils.regions ]
-                # b_only_genes = [ b_info[region + '_gene'] for region in utils.regions ]
-                # k_v['min'] = a_info['k_v']['best'] - a_chop  # NOTE since this only uses <a_info>, you shouldn't expect it to be very accurate
-                # k_v['max'] = k_v['min'] + 1
-                # k_d['min'] = a_info['k_d']['best']
-                # k_d['max'] = k_d['min'] + 1
     
             combo['only_genes'] = list(set(only_genes) | set(combo['only_genes']))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
 
@@ -579,15 +517,14 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', pair_hmm=False, stripped=False, do_hierarch_agglom=False,
-                        cached_log_probs=None, randomize_input_order=False):
+    def write_hmm_input(self, csv_fname, sw_info, parameter_dir, preclusters=None, hmm_type='', do_hierarch_agglom=False,
+                        cached_results=None, shuffle_input_order=False):
         print '    writing input'
-        if cached_log_probs is not None:  # TODO no longer just log probs -- should change the name
+        if cached_results is not None:
             with opener('w')(csv_fname.replace('.csv', '-logprob-cache.csv')) as cachefile:
                 writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq'))
                 writer.writeheader()
-                for uids, cachefo in cached_log_probs.items():  # TODO maybe speed this up by using the SW naive seq?
-                    # writer.writerow({'unique_ids':':'.join([str(uid) for uid in uids]), 'score':logprob})
+                for uids, cachefo in cached_results.items():
                     writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
         csvfile = opener('w')(csv_fname)
@@ -630,7 +567,7 @@ class PartitionDriver(object):
         else:
             assert False
 
-        if randomize_input_order:  # NOTE nsets is a list of *lists* of ids
+        if shuffle_input_order:  # This is *really* important if you're partitioning in parallel
             random_nsets = []
             while len(nsets) > 0:
                 irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
@@ -645,7 +582,7 @@ class PartitionDriver(object):
             non_failed_names = self.remove_sw_failures(query_names, sw_info)
             if len(non_failed_names) == 0:
                 continue
-            combined_query = self.combine_queries(sw_info, non_failed_names, parameter_dir, stripped=stripped, skipped_gene_matches=skipped_gene_matches)
+            combined_query = self.combine_queries(sw_info, non_failed_names, parameter_dir, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             csvfile.write('%s %d %d %d %d %s %s\n' %  # NOTE csv.DictWriter can handle tsvs, so this should really be switched to use that
@@ -683,22 +620,22 @@ class PartitionDriver(object):
         print '    read output'
 
         if do_hierarch_agglom:
-            cached_log_probs = {}
+            cached_results = {}
             with opener('r')(hmm_csv_outfname.replace('.csv', '-logprob-cache.csv')) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
-                    cached_log_probs[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
-                # for key_a in cached_log_probs:
-                #     for key_b in cached_log_probs:
+                    cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
+                # for key_a in cached_results:
+                #     for key_b in cached_results:
                 #         if key_a == key_b:
                 #             continue
-                #         if len(cached_log_probs[key_a]['naive-seq']) > 0 and len(cached_log_probs[key_b]['naive-seq']) > 0:
-                #             hamming_fraction = utils.hamming(cached_log_probs[key_a]['naive-seq'], cached_log_probs[key_b]['naive-seq']) / float(len(cached_log_probs[key_a]['naive-seq']))
+                #         if len(cached_results[key_a]['naive-seq']) > 0 and len(cached_results[key_b]['naive-seq']) > 0:
+                #             hamming_fraction = utils.hamming(cached_results[key_a]['naive-seq'], cached_results[key_b]['naive-seq']) / float(len(cached_results[key_a]['naive-seq']))
                 #             print '%.2f %d %s %s' % (hamming_fraction, utils.from_same_event(self.args.is_data, self.reco_info, [int(key) for key in key_a.split(':') + key_b.split(':')]), key_a, key_b)
             
             partition_info = self.read_partition_info(hmm_csv_outfname)
                     
-            return partition_info, cached_log_probs  # TODO this is ugly!
+            return partition_info, cached_results  # TODO this is ugly!
 
         if count_parameters:
             assert parameter_out_dir is not None

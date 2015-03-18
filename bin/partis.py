@@ -35,20 +35,19 @@ parser.add_argument('--plot-parameters', action='store_true', help='Plot inferre
 parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
-parser.add_argument('--randomize-input-order', action='store_true', help='Randomize the input sequence order (if your true clusters are all next to each other in the file, it makes partitioning run unrealistically fast)')
-parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide previous option.')
+parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide randomization of sequence order.')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
-parser.add_argument('--parameter-dir', required=True, help='Directory to write sample-specific parameters to and/or read \'em from (e.g. mutation freqs)')
+parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
 parser.add_argument('--datadir', default='data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')
-parser.add_argument('--plotdir', default='/tmp/partis/plots')
+parser.add_argument('--plotdir', default='_plots')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
-parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
+parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999)), help='Temporary working directory (see also <no-clean>)')
 
 # run/batch control
-parser.add_argument('--n-procs', default='1', help='Max number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
+parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
@@ -155,7 +154,6 @@ else:
     if len(args.n_max_per_region) != 3:
         raise Exception('ERROR n-max-per-region should be of the form \'x:y:z\', but I got' + str(args.n_max_per_region))
 
-    utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
 
     if args.action == 'build-hmms':  # just build hmms without doing anything else -- you wouldn't normally do this
