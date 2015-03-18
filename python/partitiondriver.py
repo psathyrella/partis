@@ -76,15 +76,11 @@ class PartitionDriver(object):
         self.write_hmms(sw_parameter_dir, waterer.info['all_best_matches'])
 
         parameter_in_dir = sw_parameter_dir
-        for ibw in range(self.args.baum_welch_iterations):
-            parameter_out_dir = self.args.parameter_dir + '/hmm'
-            hmm_plotdir = self.args.plotdir + '/hmm'
-            if self.args.baum_welch_iterations > 1:
-                parameter_out_dir += '-' + str(ibw)
-                hmm_plotdir += '-' + str(ibw)
-            self.run_hmm('viterbi', waterer.info, parameter_in_dir=parameter_in_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=hmm_plotdir)
-            self.write_hmms(parameter_out_dir, waterer.info['all_best_matches'])
-            parameter_in_dir = parameter_out_dir
+        parameter_out_dir = self.args.parameter_dir + '/hmm'
+        hmm_plotdir = self.args.plotdir + '/hmm'
+        self.run_hmm('viterbi', waterer.info, parameter_in_dir=parameter_in_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=hmm_plotdir)
+        self.write_hmms(parameter_out_dir, waterer.info['all_best_matches'])
+        parameter_in_dir = parameter_out_dir
 
         if not self.args.no_clean:
             os.rmdir(self.args.workdir)
