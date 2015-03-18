@@ -356,7 +356,6 @@ void Glomerator::Merge() {
   only_genes_.erase(max_pair.first);
   only_genes_.erase(max_pair.second);
 
-  printf("          hamming skipped %d / %d = %.2f\n", n_skipped_hamming, n_total_pairs, float(n_skipped_hamming) / n_total_pairs);
   if(args_->debug()) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
