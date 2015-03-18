@@ -28,7 +28,7 @@ parser.add_argument('--skip-unproductive', action='store_true', help='Skip seque
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
-parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use by recombinator (to allow reproducibility)')
+parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
@@ -98,8 +98,7 @@ else:
 args.n_procs = args.n_procs[0]
 
 if args.slurm and '/tmp' in args.workdir:
-    print 'ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes'
-    sys.exit()
+    raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
 if args.plot_performance:
     assert not args.is_data

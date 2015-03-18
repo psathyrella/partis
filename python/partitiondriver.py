@@ -90,33 +90,8 @@ class PartitionDriver(object):
             os.rmdir(self.args.workdir)
 
     # ----------------------------------------------------------------------------------------
-    def single_link_partition(self):
-        assert os.path.exists(self.args.parameter_dir)
-
-        # run smith-waterman
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
-        waterer.run()
-
-        # cdr3 length partitioning
-        cdr3_cluster = False  # don't precluster on cdr3 length for the moment -- I cannot accurately infer cdr3 length in some sequences, so I need a way to pass query seqs to the clusterer with several possible cdr3 lengths (and I don't know how to do that!)
-        cdr3_length_clusters = None
-        if cdr3_cluster:
-            cdr3_length_clusters = self.cdr3_length_precluster(waterer)
-
-        hamming_clusters = self.hamming_precluster(cdr3_length_clusters)
-        # stripped_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, stripped=True)
-        hmm_clusters = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hamming_clusters, hmm_type='k=2', make_clusters=True)
-
-        self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
-        # self.run_hmm('viterbi', waterer.info, self.args.parameter_dir, preclusters=hmm_clusters, hmm_type='k=preclusters', prefix='k-', make_clusters=False)
-
-        # self.clean(waterer)
-        if not self.args.no_clean:
-            os.rmdir(self.args.workdir)
-
-    # ----------------------------------------------------------------------------------------
     def partition(self):
-        if not self.args.is_data:
+        if not self.args.is_data:  # if this is simulation, we want to be *sure* you don't want to randomize the sequence order (e.g. for testing)
             assert self.args.randomize_input_order or self.args.force_dont_randomize_input_order
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
@@ -129,7 +104,7 @@ class PartitionDriver(object):
         n_procs = self.args.n_procs
         n_proc_list = []
         while n_procs > 0:
-            print 'run on %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)
+            print 'run on %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)  # write_hmm_input uses the best-minus-ten partition
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
             partition, cached_log_probs = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
                                                        do_hierarch_agglom=True, n_proc_override=n_procs, cached_log_probs=cached_log_probs, randomize_input_order=True)
@@ -139,7 +114,7 @@ class PartitionDriver(object):
             if n_procs == 1:
                 break
 
-            # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process
+            # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process, then reduce <n_procs> for the next run
             # TODO I think there's really no way around the fact that eventually I'm going to have to delve into the cached log probs to decide how many procs
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
                len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
@@ -518,8 +493,7 @@ class PartitionDriver(object):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
         # first get the list of genes for which we don't have hmm files
         if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
-            print 'ERROR no yamels in %s' % parameter_dir
-            sys.exit()
+            raise Exception('ERROR no yamels in %s' % parameter_dir)
 
         genes_to_remove = []
         for gene in gene_list:
@@ -648,7 +622,7 @@ class PartitionDriver(object):
         elif hmm_type == 'k=nsets':
             if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
                 nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
-            else:  # put the first n together, and the second group of n (not the self.input_info is and OrderedDict)
+            else:  # put the first n together, and the second group of n (note that self.input_info is an OrderedDict)
                 nsets = []
                 keylist = self.input_info.keys()
                 this_set = []
@@ -663,8 +637,6 @@ class PartitionDriver(object):
         else:
             assert False
 
-        # for k in nsets:
-        #     print k
         if randomize_input_order:  # NOTE nsets is a list of *lists* of ids
             random_nsets = []
             while len(nsets) > 0:
