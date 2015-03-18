@@ -55,7 +55,8 @@ str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as c
     integers_[head] = vector<int>();
 
   ifstream ifs(infile());
-  assert(ifs.is_open());
+  if(!ifs.is_open())
+    throw runtime_error("ERROR infile (" + infile() + ") d.n.e.\n");
   string line;
   // get header line
   getline(ifs, line);
