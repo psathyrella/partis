@@ -64,7 +64,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
-        start = time.time()
+        # start = time.time()
 
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.bam'
@@ -90,7 +90,7 @@ class Waterer(object):
 
         sys.stdout.flush()
         self.read_output(base_outfname, plot_performance=self.args.plot_performance, n_procs=n_procs)
-        print '    sw time: %.3f' % (time.time()-start)
+        # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:

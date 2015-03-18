@@ -34,35 +34,30 @@ class Clusterer(object):
 
         # self.nearest_true_mate = {}  #
 
-    # ----------------------------------------------------------------------------------------
-    def glomerate(self, log_probs):
-        sorted_log_probs = sorted(log_probs.items(), key=itemgetter(1))
-        for stuff in sorted_log_probs:
-            print stuff[1], stuff[0]
+    # # ----------------------------------------------------------------------------------------
+    # def glomerate(self, log_probs):
+    #     sorted_log_probs = sorted(log_probs.items(), key=itemgetter(1))
+    #     for stuff in sorted_log_probs:
+    #         print stuff[1], stuff[0]
 
     # ----------------------------------------------------------------------------------------
     def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
-        # """ If we get <log_probs> but not <partitions>, do hierarchical agglomeration from scratch
-        # self.glomerate(log_probs)
-        print 'glomerating in clusterer'
+        # if debug:
+        #     print 'glomerating in clusterer'
         self.max_log_prob, self.best_partition = None, None
         for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
-            # print '  %-8.3f' % part['score'],
-            # for cluster in part['clusters']:
-            #     print ':'.join([ str(uid) for uid in cluster]),
-            # print ''
-
             if self.max_log_prob is None or part['score'] > self.max_log_prob:
                 self.max_log_prob = part['score']
                 self.best_partition = part['clusters']
 
-        print 'best partition ', self.max_log_prob
-        print ' clonal?   ids'
-        for cluster in self.best_partition:
-            same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
-            if same_event is None:
-                same_event = -1
-            print '   %d    %s' % (int(same_event), ':'.join([ str(uid) for uid in cluster ]))
+        if debug:
+            print '  best partition ', self.max_log_prob
+            print '   clonal?   ids'
+            for cluster in self.best_partition:
+                same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
+                if same_event is None:
+                    same_event = -1
+                print '     %d    %s' % (int(same_event), ':'.join([ str(uid) for uid in cluster ]))
 
         self.max_minus_ten_log_prob, self.best_minus_ten_partition = None, None  # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
         for part in partitions:
@@ -70,20 +65,23 @@ class Clusterer(object):
                 self.max_minus_ten_log_prob = part['score']
                 self.best_minus_ten_partition = part['clusters']
                 break
-                
-        print '      best minus ten ', self.max_minus_ten_log_prob
-        for cluster in self.best_minus_ten_partition:
-            print '         ', ':'.join([ str(uid) for uid in cluster ])
 
-        if reco_info is not None:
-            true_cluster_list, inferred_cluster_list = [], []
-            for iclust in range(len(self.best_partition)):
-                for uid in self.best_partition[iclust]:
-                    true_cluster_list.append(reco_info[uid]['reco_id'])
-                    inferred_cluster_list.append(iclust)
-            print '       true clusters %d' % len(set(true_cluster_list))
-            print '   inferred clusters %d' % len(set(inferred_cluster_list))
-            print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+        if debug:
+            # print '        best minus ten ', self.max_minus_ten_log_prob
+            # for cluster in self.best_minus_ten_partition:
+            #     print '           ', ':'.join([ str(uid) for uid in cluster ])
+
+            if reco_info is not None:
+                true_cluster_list, inferred_cluster_list = [], []
+                for iclust in range(len(self.best_partition)):
+                    for uid in self.best_partition[iclust]:
+                        if uid not in reco_info:
+                            raise Exception('ERROR %s' % str(uid))
+                        true_cluster_list.append(reco_info[uid]['reco_id'])
+                        inferred_cluster_list.append(iclust)
+                print '       true clusters %d' % len(set(true_cluster_list))
+                print '   inferred clusters %d' % len(set(inferred_cluster_list))
+                print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
 
     # ----------------------------------------------------------------------------------------
     def single_link(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):

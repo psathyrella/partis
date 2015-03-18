@@ -90,13 +90,13 @@ class PartitionDriver(object):
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
         while n_procs > 0:
-            print 'run on %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)  # write_hmm_input uses the best-minus-ten partition
+            print '--> %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)  # write_hmm_input uses the best-minus-ten partition
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
             partition = self.run_hmm('forward', waterer.info, self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
                                      n_procs=n_procs, shuffle_input_order=True)
             n_proc_list.append(n_procs)
             glomclusters = Clusterer()
-            glomclusters.hierarch_agglom(log_probs=self.cached_results, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir)
+            glomclusters.hierarch_agglom(log_probs=self.cached_results, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir, debug=True)
             if n_procs == 1:
                 break
 
@@ -128,8 +128,7 @@ class PartitionDriver(object):
         cmd_str += ' --naive-preclustering'  # TODO remove the option to not do this from ham code
         if self.args.action == 'partition':
             cmd_str += ' --partition'
-            if self.cached_results is not None:
-                cmd_str += ' --cachefile ' + self.hmm_cachefname
+            cmd_str += ' --cachefile ' + self.hmm_cachefname
 
         return cmd_str
 
@@ -137,7 +136,7 @@ class PartitionDriver(object):
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', prefix='', \
                 count_parameters=False, plotdir=None, make_clusters=False, n_procs=None,  # NOTE the local <n_procs> as well as the one inside <self.args>
                 shuffle_input_order=False):  # @parameterfetishist
-        print '\nhmm'
+        print 'hmm'
         if n_procs is None:
             n_procs = self.args.n_procs
 
@@ -145,7 +144,7 @@ class PartitionDriver(object):
 
         print '    running'
         sys.stdout.flush()
-        start = time.time()
+        # start = time.time()
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
         if n_procs == 1:
             check_call(cmd_str.split())
@@ -161,7 +160,7 @@ class PartitionDriver(object):
             self.merge_hmm_outputs(n_procs)
 
         sys.stdout.flush()
-        print '      hmm run time: %.3f' % (time.time()-start)
+        # print '      hmm run time: %.3f' % (time.time()-start)
 
         if self.args.action == 'partition':
             hmminfo = self.read_partition_output()
@@ -170,9 +169,6 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             os.remove(self.hmm_infname)
-            os.remove(self.hmm_outfname)
-            if self.cached_results is not None:
-                os.remove(self.hmm_cachefname)
 
         if self.args.vollmers_clustering:
             vollmers_clusterer = Clusterer()
@@ -181,7 +177,7 @@ class PartitionDriver(object):
         return hmminfo
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname=None, info=None, prefix='sub', cached_log_probs=None):
+    def split_input(self, n_procs, infname=None, info=None, prefix='sub'):
         """ 
         If <infname> is specified split the csv info from it into <n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
         If <info> is specified, instead split the list <info> into pieces and return a list of the resulting lists
@@ -207,16 +203,19 @@ class PartitionDriver(object):
                 sub_outfile = opener('w')(subworkdir + '/' + os.path.basename(infname))
                 writer = csv.DictWriter(sub_outfile, reader.fieldnames)
                 writer.writeheader()
-            for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
-                if iquery >= len(info):
-                    break
+            # for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):  # NOTE this is the old version
+            for iquery in range(len(info)):  # TODO this is probably pretty wasteful
+                # if iquery >= len(info):  # NOTE this is the old version
+                #     break
+                if iquery % n_procs != iproc:
+                    continue
                 if infname is None:
                     outlists[-1].append(info[iquery])
                 else:
                     writer.writerow(info[iquery])
 
-            if cached_log_probs is not None:
-                check_call(['cp', infname.replace('.csv', '-logprob-cache.csv'), subworkdir])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
+            if os.path.exists(self.hmm_cachefname):
+                check_call(['cp', self.hmm_cachefname, subworkdir + '/'])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
 
         if infname is None:
             return outlists
@@ -228,8 +227,8 @@ class PartitionDriver(object):
         for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             glomerer = Clusterer()
-            partition_info = self.read_partition_info(workdir + '/' + os.path.basename(self.fname))
-            glomerer.hierarch_agglom(partitions=partition_info)
+            partition_info = self.read_partition_info(workdir + '/' + os.path.basename(fname))
+            glomerer.hierarch_agglom(partitions=partition_info, debug=False)
             if math.isnan(glomerer.max_minus_ten_log_prob):  # NOTE this should really have a way of handling -INFINITY
                 raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_prob))
             merged_log_prob += glomerer.max_minus_ten_log_prob
@@ -239,7 +238,7 @@ class PartitionDriver(object):
             if not self.args.no_clean:
                 os.remove(workdir + '/' + os.path.basename(fname))
 
-        with opener('w')(self.fname) as partitionfile:
+        with opener('w')(fname) as partitionfile:
             writer = csv.DictWriter(partitionfile, ('partition', 'score'))
             writer.writeheader()
             writer.writerow({'partition' : ';'.join([ ':'.join([ str(uid) for uid in uids ]) for uids in merged_partition] ),
@@ -275,7 +274,9 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             for iproc in range(n_procs):
-                os.rmdir(self.args.workdir + '/hmm-' + str(iproc))
+                workdir = self.args.workdir + '/hmm-' + str(iproc)
+                os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
+                os.rmdir(workdir)
 
     # ----------------------------------------------------------------------------------------
     def cdr3_length_precluster(self, waterer, preclusters=None):
@@ -515,7 +516,7 @@ class PartitionDriver(object):
                     writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
         csvfile = opener('w')(self.hmm_infname)
-        start = time.time()
+        # start = time.time()
 
         # write header
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader 
@@ -558,9 +559,6 @@ class PartitionDriver(object):
                 random_nsets.append(nsets[irand])
                 nsets.remove(nsets[irand])
             nsets = random_nsets
-        # print '---'
-        # for k in nsets:
-        #     print k
 
         for query_names in nsets:
             non_failed_names = self.remove_sw_failures(query_names, sw_info)
@@ -582,7 +580,7 @@ class PartitionDriver(object):
                 print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in skipped_gene_matches if utils.get_region(gene) == region]))
 
         csvfile.close()
-        print '        input write time: %.3f' % (time.time()-start)
+        # print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def read_partition_info(self, fname):
@@ -590,10 +588,12 @@ class PartitionDriver(object):
         with opener('r')(fname) as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
+                if line['partition'] == '':
+                    raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more
                 uids = []
                 for cluster in line['partition'].split(';'):
                     try:
-                        uids.append([ int(unique_id) for unique_id in cluster.split(':') ])
+                        uids.append([ int(unique_id) for unique_id in cluster.split(':') ])  # TODO remove this try/except bullshit
                     except ValueError:
                         uids.append([ unique_id for unique_id in cluster.split(':') ])
                 partition_info.append({'clusters':uids, 'score':float(line['score'])})
@@ -681,9 +681,7 @@ class PartitionDriver(object):
                         score = -999999.0
                     else:
                         score = float(line['score'])
-                    if do_hierarch_agglom:
-                        hmminfo.append({'unique_ids':line['unique_ids'], 'score':score})
-                    elif len(ids) == 2:
+                    if len(ids) == 2:
                         hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
                     n_processed += 1
 
