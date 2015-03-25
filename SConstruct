@@ -56,8 +56,8 @@ for name, test_cmd in tests.items():
         # touch a sentinel `passed` file if we get what we expect
         # NOTE [vdj]: regex is a hack. I can't figure out a.t.m. why the missing genes come up in a different order each time
         env.Command('test/_results/%s.passed' % name,
-                [out, 'test/regression/%s.out' % name],
-                'diff -ub -I \'[vdj]:\' -I \'time:\' ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')  # ignore the lines telling you how long things took
+                ['test/regression/%s.out' % name, out],
+                'diff -ub -I \'[vdj]:\' ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')  # ignore the lines telling you how long things took
 
 # Set up sentinel dependency of all passed on the individual_passed sentinels.
 Command(all_passed,

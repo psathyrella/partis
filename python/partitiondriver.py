@@ -6,22 +6,17 @@ import math
 import os
 import glob
 import csv
-import re
 import random
-from multiprocessing import Pool
 from collections import OrderedDict
-from subprocess import Popen, check_call, check_output
+from subprocess import Popen, check_call
 
 import utils
 from opener import opener
 from seqfileopener import get_seqfile_info
 from clusterer import Clusterer
 from waterer import Waterer
-from hist import Hist
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
-# import viterbicluster
-import plotting
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -34,9 +29,10 @@ class PartitionDriver(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
+        randomize_order = self.args.action == 'partition' and not self.args.force_dont_randomize_input_order
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=(self.args.action=='partition'))  # if we're partitioning, we need to randomize input order (at least for simulation)
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=randomize_order)  # if we're partitioning, we need to randomize input order (at least for simulation)
 
         self.cached_results = None
 
@@ -134,7 +130,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', prefix='', \
-                count_parameters=False, plotdir=None, make_clusters=False, n_procs=None,  # NOTE the local <n_procs> as well as the one inside <self.args>
+                count_parameters=False, plotdir=None, n_procs=None,  # NOTE the local <n_procs>, which overrides the one inside <self.args>
                 shuffle_input_order=False):  # @parameterfetishist
         print 'hmm'
         if n_procs is None:
@@ -193,7 +189,7 @@ class PartitionDriver(object):
             assert infname is None  # make sure only *one* of 'em is specified
             outlists = []
         queries_per_proc = float(len(info)) / n_procs
-        n_queries_per_proc = int(math.ceil(queries_per_proc))
+        # n_queries_per_proc = int(math.ceil(queries_per_proc))
         for iproc in range(n_procs):
             if infname is None:
                 outlists.append([])
@@ -241,7 +237,7 @@ class PartitionDriver(object):
         with opener('w')(fname) as partitionfile:
             writer = csv.DictWriter(partitionfile, ('partition', 'score'))
             writer.writeheader()
-            writer.writerow({'partition' : ';'.join([ ':'.join([ str(uid) for uid in uids ]) for uids in merged_partition] ),
+            writer.writerow({'partition' : ';'.join([':'.join([str(uid) for uid in uids]) for uids in merged_partition]),
                              'score' : merged_log_prob})
 
     # ----------------------------------------------------------------------------------------
@@ -341,55 +337,11 @@ class PartitionDriver(object):
                 min_length = min(len(seq_a), len(seq_b))
                 seq_a = seq_a[-min_length : ]
                 seq_b = seq_b[-min_length : ]
-                chopped_off_left_sides = True
             mutation_frac = utils.hamming(seq_a, seq_b) / float(len(seq_a))
             return_info.append({'id_a':query_a, 'id_b':query_b, 'score':mutation_frac})
 
         return return_info
 
-    # ----------------------------------------------------------------------------------------
-    def hamming_precluster(self, preclusters=None):
-        assert self.args.truncate_pairs
-        start = time.time()
-        print 'hamming clustering'
-        chopped_off_left_sides = False
-        hamming_info = []
-        all_pairs = self.get_pairs(preclusters)
-        # print '    getting pairs: %.3f' % (time.time()-start); start = time.time()
-        # all_pairs = itertools.combinations(self.input_info.keys(), 2)
-        if self.args.n_fewer_procs > 1:
-            pool = Pool(processes=self.args.n_fewer_procs)
-            subqueries = self.split_input(self.args.n_fewer_procs, info=list(all_pairs), prefix='hamming')  # NOTE 'casting' to a list here makes me nervous!
-            sublists = []
-            for queries in subqueries:
-                sublists.append([])
-                for id_a, id_b in queries:
-                    sublists[-1].append({'id_a':id_a, 'id_b':id_b, 'seq_a':self.input_info[id_a]['seq'], 'seq_b':self.input_info[id_b]['seq']})
-            
-            # print '    preparing info: %.3f' % (time.time()-start); start = time.time()
-            subinfos = pool.map(utils.get_hamming_distances, sublists)
-            # NOTE this starts the proper number of processes, but they seem to end up i/o blocking or something (wait % stays at zero, but they each only get 20 or 30 %cpu on stoat)
-            pool.close()
-            pool.join()
-            # print '    starting pools: %.3f' % (time.time()-start); start = time.time()
-    
-            for isub in range(len(subinfos)):
-                hamming_info += subinfos[isub]
-            # print '    merging pools: %.3f' % (time.time()-start); start = time.time()
-        else:
-            hamming_info = self.get_hamming_distances(all_pairs)
-
-        clust = Clusterer(self.args.hamming_cluster_cutoff, greater_than=False)  # NOTE this 0.5 is reasonable but totally arbitrary
-        raise Exception('DEPRECATED')
-        # clust.single_link(input_scores=hamming_info, debug=self.args.debug, outfile=TODO, reco_info=self.reco_info)
-        # print '    clustering: %.3f' % (time.time()-start); start = time.time()
-
-        if chopped_off_left_sides:
-            print 'WARNING encountered unequal-length sequences, so chopped off the left-hand sides of each'
-        print '    hamming time: %.3f' % (time.time()-start)
-
-        return clust
-    
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir, sw_matches):
         print 'writing hmms with info from %s' % parameter_dir
@@ -417,7 +369,7 @@ class PartitionDriver(object):
         print '    time to write hmms: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir, query_name, second_query_name=None):
+    def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir):  #, query_name, second_query_name=None):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
         # first get the list of genes for which we don't have hmm files
         if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
@@ -441,7 +393,7 @@ class PartitionDriver(object):
         # and finally, make sure we're left with at least one gene in each region
         for region in utils.regions:
             if 'IGH' + region.upper() not in ':'.join(gene_list):
-                print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if second_query_name==None else second_query_name)
+                print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if (second_query_name  == None) else second_query_name)
                 print '          skipped %s' % (':'.join(skipped_gene_matches))
                 print 'ERROR giving up on query'
                 return False
@@ -468,15 +420,15 @@ class PartitionDriver(object):
                 chop = max(0, len(query_seq) - min_length)
                 query_seq = query_seq[ : min_length]
             combo['seqs'].append(query_seq)
-    
+
             combo['k_v']['min'] = min(info['k_v']['min'] - chop, combo['k_v']['min'])
             combo['k_v']['max'] = max(info['k_v']['max'] - chop, combo['k_v']['max'])
             combo['k_d']['min'] = min(info['k_d']['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(info['k_d']['max'], combo['k_d']['max'])
-    
+
             only_genes = info['all'].split(':')
-            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir, name)
-    
+            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)  #, name)
+
             combo['only_genes'] = list(set(only_genes) | set(combo['only_genes']))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
 
         # self.check_hmm_existence(combo['only_genes'], skipped_gene_matches, parameter_dir, name)  # this should be superfluous now
@@ -519,7 +471,7 @@ class PartitionDriver(object):
         # start = time.time()
 
         # write header
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader 
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs']  # I wish I had a good c++ csv reader
         csvfile.write(' '.join(header) + '\n')
 
         skipped_gene_matches = set()
@@ -533,7 +485,7 @@ class PartitionDriver(object):
             if self.args.action == 'partition':
                 nsets = preclusters.best_minus_ten_partition
             else:
-                nsets = [ val for key, val in preclusters.id_clusters.items() if len(val) > 1 ]  # <nsets> is a list of sets (well, lists) of query names
+                nsets = [val for val in preclusters.id_clusters.values() if len(val) > 1]  # <nsets> is a list of sets (well, lists) of query names
         elif hmm_type == 'k=nsets':
             if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
                 nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
@@ -593,9 +545,9 @@ class PartitionDriver(object):
                 uids = []
                 for cluster in line['partition'].split(';'):
                     try:
-                        uids.append([ int(unique_id) for unique_id in cluster.split(':') ])  # TODO remove this try/except bullshit
+                        uids.append([int(unique_id) for unique_id in cluster.split(':')])  # TODO remove this try/except bullshit
                     except ValueError:
-                        uids.append([ unique_id for unique_id in cluster.split(':') ])
+                        uids.append([unique_id for unique_id in cluster.split(':')])
                 partition_info.append({'clusters':uids, 'score':float(line['score'])})
         return partition_info
 
@@ -669,20 +621,20 @@ class PartitionDriver(object):
                                 perfplotter.evaluate(self.reco_info[ids[0]], line)
 
                     if self.args.debug:
-                        self.print_hmm_output(line, print_true=(last_key != this_key), perfplotter=perfplotter)
+                        self.print_hmm_output(line, print_true=(last_key != this_key))  #, perfplotter=perfplotter)
                     line['seq'] = None
                     line['unique_id'] = None
 
                 else:  # for forward, write the pair scores to file to be read by the clusterer
-                    if not make_clusters:  # self.args.debug or 
-                        print '%3d %10.3f    %s' % (same_event, float(line['score']), id_str)
+                    print '%3d %10.3f    %s' % (same_event, float(line['score']), id_str)
                     if line['score'] == '-nan':
                         print '    WARNING encountered -nan, setting to -999999.0'
                         score = -999999.0
                     else:
                         score = float(line['score'])
                     if len(ids) == 2:
-                        hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
+                        raise Exception('DEPRECATED')
+                        # hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
                     n_processed += 1
 
                 last_key = utils.get_key(ids)
@@ -723,13 +675,13 @@ class PartitionDriver(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def print_hmm_output(self, line, print_true=False, perfplotter=None):
+    def print_hmm_output(self, line, print_true=False):  #, perfplotter=None):
         out_str_list = []
         ilabel = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            for reco_id, uids in self.get_true_clusters(line['unique_ids']).items():
+            for uids in self.get_true_clusters(line['unique_ids']).values():
                 for iid in range(len(uids)):
-                    out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid!=0)))
+                    out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0)))
             ilabel = 'inferred:'
 
         out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
@@ -745,9 +697,9 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def print_performance_info(self, line, perfplotter=None):
         true_line = self.reco_info[line['unique_id']]
-        genes_ok = [ 'ok'  if line[region+'_gene']==true_line[region+'_gene'] else 'no' for region in utils.regions]
+        genes_ok = ['ok'  if (line[region+'_gene'] == true_line[region+'_gene']) else 'no' for region in utils.regions]
         print '         v  d  j   hamming      erosions      insertions'
         print '        %3s%3s%3s' % tuple(genes_ok),
         print '  %3d' % (perfplotter.hamming_distance_to_true_naive(true_line, line, line['unique_id']) if perfplotter != None else -1),
-        print '   %4d%4d%4d%4d' % tuple([ int(line[ero+'_del']) - int(true_line[ero+'_del']) for ero in utils.real_erosions]),
+        print '   %4d%4d%4d%4d' % tuple([int(line[ero+'_del']) - int(true_line[ero+'_del']) for ero in utils.real_erosions]),
         print '   %4d%4d' % tuple([len(line[bound+'_insertion']) - len(true_line[bound+'_insertion']) for bound in utils.boundaries])
