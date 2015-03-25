@@ -1,6 +1,7 @@
 set -eu
 
 export LEIN_ROOT=1
+echo 'HERE'
 cd /partis/packages/samtools/ && make
 mkdir -p /partis/_bin
 ln -s $PWD/samtools /partis/_bin

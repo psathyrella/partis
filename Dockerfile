@@ -14,6 +14,7 @@ RUN apt-get install -y \
     libxml2-dev \
     libxslt1-dev \
     python-scipy \
+    python-sklearn \
     r-base \
     zlib1g-dev
 RUN pip install \
@@ -31,4 +32,4 @@ RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstud
 
 COPY . /partis
 WORKDIR /partis
-CMD ./build-and-test.sh
+CMD ./bin/build-and-test.sh
