@@ -50,6 +50,7 @@ for subdir in args.subdirs:
             cmd += ' --normalize'
 
         check_call(cmd.split(' '))
+        # print 'SKIPPING'
 
     # then make the human-comparison plots
     final_cmd = './python/compare.py --dont-calculate-mean-info --colors ' + ':'.join([ colors[human] for human in humans[args.dataset] ]) \

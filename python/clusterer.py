@@ -3,15 +3,22 @@ import csv
 import math
 from operator import itemgetter
 from subprocess import check_call
+from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 import utils
 import plotting
 from opener import opener
-# ./venv/bin/linsim compare-clustering --true-name-column unique_id --inferred-name-column unique_id  --true-group-column reco_id --inferred-group-column reco_id /tmp/dralph/true.csv /tmp/dralph/inf.csv
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, threshold, greater_than=True, singletons=[]):  # put in same cluster if greater than threshold, or less than equal to?
+    def __init__(self, threshold=0.0, greater_than=True, singletons=[]):  # put in same cluster if greater than threshold, or less than equal to?
+        # self.method = method
+        # if method == 'single-link':
+        #     pass
+        # elif method == 'hierarch-agglom':
+        #     pass
+        # else:
+        #     raise Exception('ERROR bad clustering method ' + method)
         self.threshold = threshold
         self.debug = False
         self.greater_than = greater_than
@@ -27,8 +34,57 @@ class Clusterer(object):
 
         # self.nearest_true_mate = {}  #
 
+    # # ----------------------------------------------------------------------------------------
+    # def glomerate(self, log_probs):
+    #     sorted_log_probs = sorted(log_probs.items(), key=itemgetter(1))
+    #     for stuff in sorted_log_probs:
+    #         print stuff[1], stuff[0]
+
     # ----------------------------------------------------------------------------------------
-    def cluster(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
+    def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
+        # if debug:
+        #     print 'glomerating in clusterer'
+        self.max_log_prob, self.best_partition = None, None
+        for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
+            if self.max_log_prob is None or part['score'] > self.max_log_prob:
+                self.max_log_prob = part['score']
+                self.best_partition = part['clusters']
+
+        if debug:
+            print '  best partition ', self.max_log_prob
+            print '   clonal?   ids'
+            for cluster in self.best_partition:
+                same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
+                if same_event is None:
+                    same_event = -1
+                print '     %d    %s' % (int(same_event), ':'.join([ str(uid) for uid in cluster ]))
+
+        self.max_minus_ten_log_prob, self.best_minus_ten_partition = None, None  # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
+        for part in partitions:
+            if part['score'] > self.max_log_prob - 10.0:
+                self.max_minus_ten_log_prob = part['score']
+                self.best_minus_ten_partition = part['clusters']
+                break
+
+        if debug:
+            # print '        best minus ten ', self.max_minus_ten_log_prob
+            # for cluster in self.best_minus_ten_partition:
+            #     print '           ', ':'.join([ str(uid) for uid in cluster ])
+
+            if reco_info is not None:
+                true_cluster_list, inferred_cluster_list = [], []
+                for iclust in range(len(self.best_partition)):
+                    for uid in self.best_partition[iclust]:
+                        if uid not in reco_info:
+                            raise Exception('ERROR %s' % str(uid))
+                        true_cluster_list.append(reco_info[uid]['reco_id'])
+                        inferred_cluster_list.append(iclust)
+                print '       true clusters %d' % len(set(true_cluster_list))
+                print '   inferred clusters %d' % len(set(inferred_cluster_list))
+                print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+
+    # ----------------------------------------------------------------------------------------
+    def single_link(self, input_scores=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir=''):
         if infname is None:
             assert input_scores is not None
         else:
@@ -96,6 +152,111 @@ class Clusterer(object):
             outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
+    def vollmers_cluster(self, info, reco_info=None, workdir=None):
+        # ./bin/partis.py --action run-viterbi --vollmers-clustering --seqfile test/regression/parameters/simu.csv --parameter-dir test/regression/parameters/simu/hmm --n-max-queries -1 --n-procs 10  --debug 0 --truncate-pairs
+        """ 
+        Cluster together sequences with similar rearrangement parameters
+    
+        From Vollmers paper:
+            Lineage Clustering. IGH sequences were clustered into IGH lineages according
+            to similarity in their junctional region. Lineages were created according to the
+            following steps. A lineage is formed and populated with one IGH sequence (seed). Then, all
+            IGH sequences in the lineages (initially only the seed) are compared with all
+            other IGH sequences of the same length using the same V and J segments. If
+            their junctional regions (untemplated nucleotides and D segments) are at
+            least 90% identical, the IGH sequence is added to the lineage. This process is
+            repeated until the lineage does not grow.
+
+        NOTE I'm interpreting this to mean
+          - if *any* sequence already in the cluster is 90% to the prospective sequence that it's added to the cluster
+          - 'sequences the same length' means cdr3 the same length (entire sequence the same length only made sense for their primers
+          - since the 90% is on d + insertions, also have to not merge if the d + insertions aren't the same length
+        """
+
+        def get_d_plus_insertions(uid):
+            return info[uid]['vd_insertion'] + info[uid]['d_qr_seq'] + info[uid]['dj_insertion']
+
+        def get_cdr3_seq(uid):
+            cpos = info[uid]['cyst_position']
+            tpos = info[uid]['tryp_position']
+            assert len(info[uid]['seqs']) == 1
+            seq = info[uid]['seqs'][0]
+            cdr3_seq = seq[cpos : tpos+3]
+            if len(cdr3_seq) != info[uid]['cdr3_length']:
+                raise Exception('ERROR bad cdr3 sequence %s %d' % (cdr3_seq, info[uid]['cdr3_length']))
+            return cdr3_seq
+
+        def from_same_lineage(cluster_id, uid):
+            for clid in self.id_clusters[cluster_id]:  # loop over seqs already in the cluster (it only has to match one of 'em)
+                is_match = True
+                for key in ('cdr3_length', 'v_gene', 'j_gene'):  # same cdr3 length, v gene, and d gene
+                    if info[clid][key] != info[uid][key]:
+                        # print '      %s doesn\'t match' % key
+                        is_match = False
+                if not is_match:
+                    continue
+                # cl_cdr3_seq = get_cdr3_seq(clid)
+                # u_cdr3_seq = get_cdr3_seq(uid)
+                # print utils.color_mutants(cl_cdr3_seq, u_cdr3_seq, print_result=False)
+                cl_seq = get_d_plus_insertions(clid)
+                u_seq = get_d_plus_insertions(uid)
+                if len(cl_seq) != len(u_seq):
+                    continue
+                hamming_frac = float(utils.hamming(cl_seq, u_seq)) / len(cl_seq)
+                if hamming_frac > 0.1:  # if cdr3 is more than 10 percent different we got no match
+                    # print '      hamming too large', hamming_frac
+                    continue
+
+                return True  # if we get to here, it's a match
+
+            return False
+
+        def check_unclustered_seqs():
+            uids_to_remove = []
+            for unique_id in unclustered_seqs:
+                if unique_id in self.id_clusters[last_cluster_id]:  # sequence is already in this cluster
+                    continue
+                if from_same_lineage(last_cluster_id, unique_id):
+                    print '     adding', unique_id
+                    self.id_clusters[last_cluster_id].append(unique_id)
+                    uids_to_remove.append(unique_id)
+            for uid in uids_to_remove:
+                unclustered_seqs.remove(uid)
+
+        def add_cluster(clid):
+            print '  starting cluster %d' % clid
+            self.id_clusters[clid] = [ unclustered_seqs[0], ]
+            unclustered_seqs.remove(unclustered_seqs[0])
+            while True:
+                last_size = len(self.id_clusters[clid])
+                check_unclustered_seqs()
+                if last_size == len(self.id_clusters[clid]):  # stop when cluster stops growing
+                    break
+                print '    running again (%d --> %d)' % (last_size, len(self.id_clusters[clid]))
+        
+        unclustered_seqs = info.keys()
+        last_cluster_id = 0
+        while len(unclustered_seqs) > 0:
+            add_cluster(last_cluster_id)
+            last_cluster_id += 1
+
+        for v in self.id_clusters.values():
+            print ':'.join(v)
+    
+        if reco_info is not None:
+            true_cluster_list, inferred_cluster_list = [], []
+            for clid, uids in self.id_clusters.items():
+                for uid in uids:
+                    try:
+                        true_cluster_list.append(reco_info[uid]['reco_id'])
+                    except KeyError:
+                        true_cluster_list.append(reco_info[int(uid)]['reco_id'])
+                    inferred_cluster_list.append(clid)
+            print '       true clusters %d' % len(set(true_cluster_list))
+            print '   inferred clusters %d' % len(set(inferred_cluster_list))
+            print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+
+    # ----------------------------------------------------------------------------------------
     def add_new_cluster(self, query_name, dbg_str_list):
         dbg_str_list.append('    new cluster ' + str(query_name))
         assert query_name not in self.query_clusters
@@ -144,6 +305,7 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
+        """ figure out how to add query pair into clusters using single-link"""
         if math.isnan(score):
             print 'ERROR nan passed for %d %d (dbg %s)' %(query_name, second_query_name, dbg_str_list)
             sys.exit()

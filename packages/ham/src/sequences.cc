@@ -2,6 +2,11 @@
 
 namespace ham {
 
+// // ----------------------------------------------------------------------------------------
+// Sequence::Sequence() {
+//   seq_ = new vector<uint8_t>();
+// }
+
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Track* trk, string name, string &undigitized):
   name_(name),
@@ -53,12 +58,6 @@ Sequence::~Sequence() {
 }
 
 // ----------------------------------------------------------------------------------------
-Sequences::Sequences(Sequences &seqs, size_t pos, size_t len) : sequence_length_(0) {
-  for(auto & seq : seqs.seqs_)
-    AddSeq(Sequence(seq, pos, len));
-}
-
-// ----------------------------------------------------------------------------------------
 void Sequence::Print(string separator) {
   if(!header_.empty())
     cout << header_ << endl;
@@ -68,6 +67,35 @@ void Sequence::Print(string separator) {
 }
 
 // ****************************************************************************************
+// ----------------------------------------------------------------------------------------
+Sequences Sequences::Union(Sequences &otherseqs) {
+  Sequences union_seqs;
+  set<string> already_added;  // set of sequences names to make sure we don't add the same sequence twice (this is really just a neurotic double check of whatever code is sending us sequences)
+
+  for(size_t is=0; is<seqs_.size(); ++is) {
+    if(already_added.count(seqs_[is].name()))
+      throw runtime_error("ERROR tried to add sequence with name " + seqs_[is].name() + " twice in Sequences::Union");
+    else
+      already_added.insert(seqs_[is].name());
+    union_seqs.AddSeq(seqs_[is]);
+  }
+
+  for(size_t is=0; is<otherseqs.n_seqs(); ++is) {
+    if(already_added.count(otherseqs[is].name()))
+      throw runtime_error("ERROR tried to add sequence with name " + otherseqs[is].name() + " twice in Sequences::Union");
+    else
+      already_added.insert(otherseqs[is].name());
+    union_seqs.AddSeq(otherseqs[is]);
+  }
+
+  return union_seqs;
+}
+// ----------------------------------------------------------------------------------------
+Sequences::Sequences(Sequences &seqs, size_t pos, size_t len) : sequence_length_(0) {
+  for(auto & seq : seqs.seqs_)
+    AddSeq(Sequence(seq, pos, len));
+}
+
 // ----------------------------------------------------------------------------------------
 void Sequences::Print() {
   for(size_t i = 0; i < seqs_.size(); ++i) {

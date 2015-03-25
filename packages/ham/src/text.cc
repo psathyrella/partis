@@ -11,12 +11,12 @@ void ClearWhitespace(string white, string *input) {
 }
 
 // ----------------------------------------------------------------------------------------
-// split a colon-separated list in a string into a vector of strings, e.g. "a:b:c" --> {"a", "b", "c"}
-vector<string> SplitString(string argstr, string separated) {
+// split a <delimiter>-separated list in a string into a vector of strings, e.g. "a:b:c" --> {"a", "b", "c"}
+vector<string> SplitString(string argstr, string delimiter) {
   vector<string> arglist;
   while(true) {
-    size_t i_next_colon(argstr.find(":"));
-    string arg = argstr.substr(0, i_next_colon); // get the next arg in the colon-separated list
+    size_t i_next_colon(argstr.find(delimiter));  // not necessarily colon, but it does default to that
+    string arg = argstr.substr(0, i_next_colon); // get the next arg in the <delimiter>-separated list
     arglist.push_back(arg); // add it to arglist
     argstr = argstr.substr(i_next_colon + 1); // then excise it from argstr
     if(i_next_colon == string::npos)

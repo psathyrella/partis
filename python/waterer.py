@@ -64,32 +64,33 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
-        start = time.time()
+        # start = time.time()
 
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
-        self.write_vdjalign_input(base_infname)
-        if self.args.n_procs == 1:
+        n_procs = self.args.n_fewer_procs
+        self.write_vdjalign_input(base_infname, n_procs=n_procs)
+        if n_procs == 1:
             cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
             check_call(cmd_str.split())
             if not self.args.no_clean:
                 os.remove(self.args.workdir + '/' + base_infname)
         else:
             procs = []
-            for iproc in range(self.args.n_procs):
+            for iproc in range(n_procs):
                 cmd_str = self.get_vdjalign_cmd_str(self.args.workdir + '/sw-' + str(iproc), base_infname, base_outfname, iproc)
                 procs.append(Popen(cmd_str.split()))
                 time.sleep(0.1)
             for proc in procs:
                 proc.wait()
             if not self.args.no_clean:
-                for iproc in range(self.args.n_procs):
+                for iproc in range(n_procs):
                     os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
 
         sys.stdout.flush()
-        self.read_output(base_outfname, plot_performance=self.args.plot_performance)
-        print '    sw time: %.3f' % (time.time()-start)
+        self.read_output(base_outfname, plot_performance=self.args.plot_performance, n_procs=n_procs)
+        # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if self.pcounter != None:
@@ -102,19 +103,19 @@ class Waterer(object):
                     self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
     # ----------------------------------------------------------------------------------------
-    def write_vdjalign_input(self, base_infname):
+    def write_vdjalign_input(self, base_infname, n_procs):
         # first make a list of query names so we can iterate over an ordered collection
         ordered_info = []
         for query_name in self.input_info:
             ordered_info.append(query_name)
 
-        queries_per_proc = float(len(self.input_info)) / self.args.n_procs
+        queries_per_proc = float(len(self.input_info)) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
-        if self.args.n_procs == 1:  # double check for rounding problems or whatnot
+        if n_procs == 1:  # double check for rounding problems or whatnot
             assert n_queries_per_proc == len(self.input_info)
-        for iproc in range(self.args.n_procs):
+        for iproc in range(n_procs):
             workdir = self.args.workdir
-            if self.args.n_procs > 1:
+            if n_procs > 1:
                 workdir += '/sw-' + str(iproc)
                 utils.prep_dir(workdir)
             infname = workdir + '/' + base_infname
@@ -134,6 +135,8 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         check_output(['which', 'samtools'])
+        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
+            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
@@ -146,7 +149,7 @@ class Waterer(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def read_output(self, base_outfname, plot_performance=False):
+    def read_output(self, base_outfname, plot_performance=False, n_procs=1):
         perfplotter = None
         if plot_performance:
             assert self.args.plotdir != None
@@ -155,9 +158,9 @@ class Waterer(object):
             perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw/performance', 'sw')
 
         n_processed = 0
-        for iproc in range(self.args.n_procs):
+        for iproc in range(n_procs):
             workdir = self.args.workdir
-            if self.args.n_procs > 1:
+            if n_procs > 1:
                 workdir += '/sw-' + str(iproc)
             outfname = workdir + '/' + base_outfname
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
@@ -169,7 +172,7 @@ class Waterer(object):
 
             if not self.args.no_clean:
                 os.remove(outfname)
-                if self.args.n_procs > 1:  # still need the top-level workdir
+                if n_procs > 1:  # still need the top-level workdir
                     os.rmdir(workdir)
 
         print '  processed %d queries' % n_processed

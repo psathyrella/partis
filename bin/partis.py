@@ -28,41 +28,42 @@ parser.add_argument('--skip-unproductive', action='store_true', help='Skip seque
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-pairs', action='store_true', help='If pairing two sequences (for hamming distance or hmm pair scores) of different length, truncate the left side of the longer one.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
-parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use by recombinator (to allow reproducibility)')
+parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
 parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
-parser.add_argument('--baum-welch-iterations', type=int, default=1, help='Number of Baum-Welch-like iterations.')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
-parser.add_argument('--pants-seated-clustering', action='store_true', help='Perform seat-of-the-pants estimate of the clusters')
+parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
+parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide randomization of sequence order.')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
-parser.add_argument('--parameter-dir', required=True, help='Directory to write sample-specific parameters to and/or read \'em from (e.g. mutation freqs)')
+parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
 parser.add_argument('--datadir', default='data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')
-parser.add_argument('--plotdir', default='/tmp/partis/plots')
+parser.add_argument('--plotdir', default='_plots')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
-parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(os.getpid()), help='Temporary working directory (see also <no-clean>)')
+parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999)), help='Temporary working directory (see also <no-clean>)')
 
 # run/batch control
-parser.add_argument('--n-procs', default='1', help='Max number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
+parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
+parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
 # tree generation (see also branch-length-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-trees', type=int, default=100, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
-parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves. Otherwise give all trees <n-leaves> leaves')
+parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves based on <n-leaves> (a.t.m. from a hacktified exponential). Otherwise give all trees <n-leaves> leaves')
 
 # numerical inputs
-parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.5, help='Threshold for hamming distance single-linkage preclustering')
+parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.2, help='Threshold for hamming distance single-linkage preclustering')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths
 parser.add_argument('--pair-hmm-cluster-cutoff', type=float, default=0.0, help='Threshold for pair hmm single-linkage preclustering')
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
@@ -95,8 +96,7 @@ else:
 args.n_procs = args.n_procs[0]
 
 if args.slurm and '/tmp' in args.workdir:
-    print 'ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes'
-    sys.exit()
+    raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
 if args.plot_performance:
     assert not args.is_data
@@ -154,12 +154,10 @@ else:
     if len(args.n_max_per_region) != 3:
         raise Exception('ERROR n-max-per-region should be of the form \'x:y:z\', but I got' + str(args.n_max_per_region))
 
-    utils.prep_dir(args.workdir)
     parter = PartitionDriver(args)
 
     if args.action == 'build-hmms':  # just build hmms without doing anything else -- you wouldn't normally do this
         parter.write_hmms(args.parameter_dir, None)
-        sys.exit()
     elif args.action == 'cache-parameters':
         parter.cache_parameters()
     elif 'run-' in args.action:
