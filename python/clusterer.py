@@ -1,6 +1,7 @@
 import sys
 import csv
 import math
+import itertools
 from operator import itemgetter
 from subprocess import check_call
 from sklearn.metrics.cluster import adjusted_mutual_info_score
@@ -34,14 +35,48 @@ class Clusterer(object):
 
         # self.nearest_true_mate = {}  #
 
-    # # ----------------------------------------------------------------------------------------
-    # def glomerate(self, log_probs):
-    #     sorted_log_probs = sorted(log_probs.items(), key=itemgetter(1))
-    #     for stuff in sorted_log_probs:
-    #         print stuff[1], stuff[0]
+    # ----------------------------------------------------------------------------------------
+    def naive_seq_glomerate(self, naive_seqs, n_clusters):
+        clusters = [ [names, ] for names in naive_seqs.keys() ]
+        # for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
+        #     if len(seq_a) != len(seq_b):
+        #         print '  different lengths'
+        #         continue
+        #     print seq_a, seq_b, utils.hamming(seq_a, seq_b)
+
+        distances = {}
+        def glomerate(debug=False):
+            smallest_min_distance = None
+            clusters_to_merge = None
+            for clust_a, clust_b in itertools.combinations(clusters, 2):
+                min_distance = None  # find the minimal hamming distance between any two sequences in the two clusters
+                for query_a in clust_a:
+                    for query_b in clust_b:
+                        joint_key = ';'.join(sorted([query_a, query_b]))
+                        if joint_key not in distances:
+                            distances[joint_key] = utils.hamming(naive_seqs[query_a], naive_seqs[query_b])
+                        if debug:
+                            print '    %25s %25s   %4d   (%s)' % (query_a, query_b, distances[joint_key], joint_key)
+                        if min_distance is None or distances[joint_key] < min_distance:
+                            min_distance = distances[joint_key]
+                if smallest_min_distance is None or min_distance < smallest_min_distance:
+                    smallest_min_distance = min_distance
+                    clusters_to_merge = (clust_a, clust_b)
+            if debug:
+                print 'merging', clusters_to_merge
+            clusters.append(clusters_to_merge[0] + clusters_to_merge[1])
+            clusters.remove(clusters_to_merge[0])
+            clusters.remove(clusters_to_merge[1])
+            
+        while len(clusters) > n_clusters:
+            glomerate(debug=False)
+            # for clust in clusters:
+            #     print '  ', clust
+
+        return clusters
 
     # ----------------------------------------------------------------------------------------
-    def hierarch_agglom(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
+    def read_cached_agglomeration(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
         # if debug:
         #     print 'glomerating in clusterer'
         self.max_log_prob, self.best_partition = None, None
