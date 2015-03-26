@@ -34,7 +34,7 @@ class Waterer(object):
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
-                print '  reading gene choice probs from',parameter_dir
+                print '  reading gene choice probs from', parameter_dir
             self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
 
         with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
@@ -118,7 +118,6 @@ class Waterer(object):
             if n_procs > 1:
                 workdir += '/sw-' + str(iproc)
                 utils.prep_dir(workdir)
-            infname = workdir + '/' + base_infname
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
                 for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
                     if iquery >= len(ordered_info):
@@ -128,7 +127,7 @@ class Waterer(object):
                     sub_infile.write(self.input_info[query_name]['seq'] + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, iproc=-1):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
@@ -230,8 +229,8 @@ class Waterer(object):
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
-            
-            all_match_names[region].append((score,gene))  # NOTE it is important that this is ordered such that the best match is first
+
+            all_match_names[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
 
@@ -284,12 +283,12 @@ class Waterer(object):
                         print '      ERROR both lengths went to zero'
                         assert False
                     elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
-                      if (l_portion + r_portion) % 2 == 0:
-                          l_portion += 1  # give one base to the left
-                          l_length -= 1
-                      else:
-                          r_portion += 1  # and one to the right
-                          r_length -= 1
+                        if (l_portion + r_portion) % 2 == 0:
+                            l_portion += 1  # give one base to the left
+                            l_length -= 1
+                        else:
+                            r_portion += 1  # and one to the right
+                            r_length -= 1
                     elif l_length > 1:
                         l_portion += 1
                         l_length -= 1
@@ -304,7 +303,7 @@ class Waterer(object):
                 glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
                 qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
                 glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
-                
+
                 best[l_reg + '_gl_seq'] = self.germline_seqs[l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
                 best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
                 best[r_reg + '_gl_seq'] = self.germline_seqs[r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
@@ -423,10 +422,10 @@ class Waterer(object):
 
             if self.args.debug and n_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_skipped, region)
-                        
+
         for region in utils.regions:
             if region not in best:
-                print '    no',region,'match found for',query_name  # NOTE if no d match found, we should really should just assume entire d was eroded
+                print '    no', region, 'match found for', query_name  # NOTE if no d match found, we should really should just assume entire d was eroded
                 if not self.args.is_data:
                     print '    true:'
                     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
@@ -470,7 +469,7 @@ class Waterer(object):
             if self.args.debug:
                 print '  expanding k_d'
             k_d_max = max(8, k_d_max)
-            
+
         if 'IGHJ4*' in best['j'] and self.germline_seqs['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
             if self.args.debug:
                 print '  doubly expanding k_d'

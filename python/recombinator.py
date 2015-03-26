@@ -1,14 +1,12 @@
-""" Simulates the process of VDJ recombination """ 
+""" Simulates the process of VDJ recombination """
 import sys
 import csv
 import time
 import json
 import random
 from cStringIO import StringIO
-from collections import OrderedDict
 import treegenerator
 import numpy
-import math
 import os
 import re
 from subprocess import check_output
@@ -20,7 +18,6 @@ from opener import opener
 import paramutils
 import utils
 from event import RecombinationEvent
-import paramutils
 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
@@ -41,7 +38,7 @@ class Recombinator(object):
 
         # parameters that control recombination, erosion, and whatnot
         self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
-    
+
         self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
@@ -62,6 +59,7 @@ class Recombinator(object):
 
         # then read stuff that's specific to each person
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
+        self.insertion_content_probs = None
         self.read_insertion_content()
         if self.args.naivety == 'M':  # read shm info if non-naive is requested
             # NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
@@ -114,7 +112,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def combine(self, irandom):
-        """ 
+        """
         Create a recombination event and write it to disk
         <irandom> is used as the seed for the myriad random number calls.
         If combine() is called with the same <irandom>, it will find the same event, i.e. it should be a random number, not just a seed
@@ -166,9 +164,12 @@ class Recombinator(object):
                 # if int(line['cdr3_length']) == -1:
                 #     continue  # couldn't find conserved codons when we were inferring things
                 if self.args.only_genes != None:  # are we restricting ourselves to a subset of genes?
-                    if line['v_gene'] not in self.args.only_genes: continue  # oops, don't change this to a loop, 'cause you won't continue out of the right thing then
-                    if line['d_gene'] not in self.args.only_genes: continue
-                    if line['j_gene'] not in self.args.only_genes: continue
+                    if line['v_gene'] not in self.args.only_genes:
+                        continue
+                    if line['d_gene'] not in self.args.only_genes:
+                        continue
+                    if line['j_gene'] not in self.args.only_genes:
+                        continue
                 total += float(line['count'])
                 index = tuple(line[column] for column in utils.index_columns)
                 assert index not in self.version_freq_table
@@ -189,7 +190,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
         """ Choose which combination germline variants to use """
-        iprob = numpy.random.uniform(0,1)
+        iprob = numpy.random.uniform(0, 1)
         sum_prob = 0.0
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
@@ -203,7 +204,7 @@ class Recombinator(object):
     def erode(self, erosion, reco_event):
         """ apply <erosion> to the germline seqs in <reco_event> """
         seq = reco_event.eroded_seqs[erosion[0]]  # <erosion> looks like [vdj]_[35]p
-        n_to_erode = reco_event.erosions[erosion] if erosion in utils.real_erosions else reco_event.effective_erosions[erosion] 
+        n_to_erode = reco_event.erosions[erosion] if erosion in utils.real_erosions else reco_event.effective_erosions[erosion]
         fragment_before = ''  # fragments to print
         fragment_after = ''
         if '5p' in erosion:
@@ -230,7 +231,7 @@ class Recombinator(object):
         insert_seq_str = ''
         probs = self.insertion_content_probs[boundary]
         for _ in range(0, reco_event.insertion_lengths[boundary]):
-            iprob = numpy.random.uniform(0,1)
+            iprob = numpy.random.uniform(0, 1)
             sum_prob = 0.0
             new_nuke = ''  # this is just to make sure I don't fall through the loop over nukes
             for nuke in utils.nukes:  # assign each nucleotide a segment of the interval [0,1], and choose the one which contains <iprob>
@@ -240,7 +241,7 @@ class Recombinator(object):
                     break
             assert new_nuke != ''
             insert_seq_str += new_nuke
-                
+
         reco_event.insertions[boundary] = insert_seq_str
 
     # ----------------------------------------------------------------------------------------
@@ -301,7 +302,7 @@ class Recombinator(object):
             reco_seq_file.write('state\trate\n')
             for inuke in range(len(seq)):
                 reco_seq_file.write('%s\t%.15f\n' % (seq[inuke], rates[inuke]))
-                
+
         # NOTE I need to find a tool to give me the total branch length of the chosen tree, so I can compare to the number of mutations I see
 
     # ----------------------------------------------------------------------------------------
@@ -316,7 +317,7 @@ class Recombinator(object):
         if is_insertion:
             region = 'v'  # NOTE should really do something other than just use the v model for insertion mutations
         else:
-             region = utils.get_region(gene_name)
+            region = utils.get_region(gene_name)
 
         if len(seq) == 0:  # zero length insertion (or d)
             treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
@@ -378,9 +379,9 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def get_rescaled_trees(self, treestr, branch_length_ratios):
-        """ 
+        """
         Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
-        the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for 
+        the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for
         v, d, and j
         """
         rescaled_trees = {}
@@ -416,7 +417,7 @@ class Recombinator(object):
             print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
             if len(re.findall('t', chosen_tree)) > 1:  # if more than one leaf
                 Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
-            print '    with branch length ratios ', ', '.join([ '%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
+            print '    with branch length ratios ', ', '.join(['%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
 
         scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)
         # NOTE would be nice to parallelize this
