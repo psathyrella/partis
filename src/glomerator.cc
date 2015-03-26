@@ -136,11 +136,12 @@ void Glomerator::WriteCachedLogProbs() {
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
   log_prob_ofs << "unique_ids,score,naive-seq" << endl;
   for(auto &kv : log_probs_) {
-    // if(naive_seqs_.count(kv.first) == 0) {
-    //   cout << "LATE " << kv.first << endl;
-    //   GetNaiveSeq(kv.first);
-    //   // throw runtime_error("ERROR don't have naive seq for " + kv.first + "\n");
-    // }
+    if(naive_seqs_.count(kv.first) == 0) {
+      cout << "MISSING " << kv.first << endl;
+      continue;
+      // GetNaiveSeq(kv.first);
+      // throw runtime_error("ERROR don't have naive seq for " + kv.first + "\n");
+    }
     log_prob_ofs << kv.first << "," << kv.second << "," << naive_seqs_[kv.first] << endl;  // NOTE if we didn't calculate the naive sequence, it'll print as null string, which is fine
   }
   log_prob_ofs.close();
