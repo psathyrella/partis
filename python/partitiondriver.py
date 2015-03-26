@@ -20,6 +20,7 @@ from performanceplotter import PerformancePlotter
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
+    """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
         self.germline_seqs = utils.read_germlines(self.args.datadir)
@@ -51,6 +52,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
+        """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd want to think through a few things first
         assert self.args.plotdir is not None
 
@@ -65,6 +67,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
+        """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR parameter dir (' + self.args.parameter_dir + ') d.n.e')
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
@@ -75,6 +78,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
+        """ Partition sequences in <self.input_info> into clonally related lineages """
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
 
@@ -109,6 +113,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
+        """ Return the appropriate bcrham command string """
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
@@ -132,6 +137,7 @@ class PartitionDriver(object):
     def run_hmm(self, algorithm, sw_info, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', prefix='', \
                 count_parameters=False, plotdir=None, n_procs=None,  # NOTE the local <n_procs>, which overrides the one inside <self.args>
                 shuffle_input_order=False):  # @parameterfetishist
+        """ Run bcrham, possibly with many processes, and parse and interpret the output """
         print 'hmm'
         if n_procs is None:
             n_procs = self.args.n_procs
@@ -159,7 +165,7 @@ class PartitionDriver(object):
         # print '      hmm run time: %.3f' % (time.time()-start)
 
         if self.args.action == 'partition':
-            hmminfo = self.read_partition_output()
+            hmminfo = self.read_partition_outfiles()
         else:
             hmminfo = self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
 
@@ -174,22 +180,22 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def split_input(self, n_procs, infname=None, info=None, prefix='sub'):
-        """ 
+        """
         If <infname> is specified split the csv info from it into <n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
         If <info> is specified, instead split the list <info> into pieces and return a list of the resulting lists
         """
         if info is None:
-            assert infname is not None
+            assert infname is not None  # make sure only *one* of 'em is specified
             info = []
             with opener('r')(infname) as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:
                     info.append(line)
         else:
-            assert infname is None  # make sure only *one* of 'em is specified
+            assert infname is None
             outlists = []
         queries_per_proc = float(len(info)) / n_procs
-        # n_queries_per_proc = int(math.ceil(queries_per_proc))
+        # n_queries_per_proc = int(math.ceil(queries_per_proc))  # NOTE these comments are how I was splitting stuff up before... leaving visible at least for a bit
         for iproc in range(n_procs):
             if infname is None:
                 outlists.append([])
@@ -199,7 +205,7 @@ class PartitionDriver(object):
                 sub_outfile = opener('w')(subworkdir + '/' + os.path.basename(infname))
                 writer = csv.DictWriter(sub_outfile, reader.fieldnames)
                 writer.writeheader()
-            # for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):  # NOTE this is the old version
+            # for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
             for iquery in range(len(info)):  # TODO this is probably pretty wasteful
                 # if iquery >= len(info):  # NOTE this is the old version
                 #     break
@@ -218,12 +224,18 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_partition_files(self, fname, n_procs):
+        """ 
+        Merge the output partition files from several independent bcrham hierarchical agglomeration processes.
+        The method is to 'rewind' each individual partition back by 10 units of log probability, and rewind these partitions.
+        This is conservative, and doesn't seem to kick up any problems, but in the end is of course dependent on how accurate our model is.
+        """
+
         merged_log_prob = 0
         merged_partition = []
         for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             glomerer = Clusterer()
-            partition_info = self.read_partition_info(workdir + '/' + os.path.basename(fname))
+            partition_info = self.read_partitions(workdir + '/' + os.path.basename(fname))
             glomerer.hierarch_agglom(partitions=partition_info, debug=False)
             if math.isnan(glomerer.max_minus_ten_log_prob):  # NOTE this should really have a way of handling -INFINITY
                 raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_prob))
@@ -242,6 +254,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_csv_files(self, fname, n_procs):
+        """ Merge the output csv files from subsidiary bcrham processes, remaining agnostic about the csv content """
         header = None
         outfo = []
         for iproc in range(n_procs):
@@ -262,6 +275,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_hmm_outputs(self, n_procs):
+        """ Merge any/all output files from subsidiary bcrham processes """
         if self.args.action == 'partition':  # merge partitions from several files
             self.merge_partition_files(self.hmm_outfname, n_procs)
             self.merge_csv_files(self.hmm_cachefname, n_procs)
@@ -273,28 +287,6 @@ class PartitionDriver(object):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
                 os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
                 os.rmdir(workdir)
-
-    # ----------------------------------------------------------------------------------------
-    def cdr3_length_precluster(self, waterer, preclusters=None):
-        cdr3lengthfname = self.args.workdir + '/cdr3lengths.csv'
-        with opener('w')(cdr3lengthfname) as outfile:
-            writer = csv.DictWriter(outfile, ('unique_id', 'second_unique_id', 'cdr3_length', 'second_cdr3_length', 'score'))
-            writer.writeheader()
-            for query_name, second_query_name in self.get_pairs(preclusters):
-                cdr3_length = waterer.info[query_name]['cdr3_length']
-                second_cdr3_length = waterer.info[second_query_name]['cdr3_length']
-                same_length = cdr3_length == second_cdr3_length
-                if not self.args.is_data:
-                    assert cdr3_length == int(self.reco_info[query_name]['cdr3_length'])
-                    if second_cdr3_length != int(self.reco_info[second_query_name]['cdr3_length']):
-                        print 'WARNING did not infer correct cdr3 length'
-                        assert False
-                writer.writerow({'unique_id':query_name, 'second_unique_id':second_query_name, 'cdr3_length':cdr3_length, 'second_cdr3_length':second_cdr3_length, 'score':int(same_length)})
-
-        clust = Clusterer(0.5, greater_than=True)  # i.e. cluster together if same_length == True
-        clust.single_link(cdr3lengthfname, debug=False)
-        os.remove(cdr3lengthfname)
-        return clust
 
     # ----------------------------------------------------------------------------------------
     def get_pairs(self, preclusters=None):
@@ -327,25 +319,10 @@ class PartitionDriver(object):
             return preclustered_pairs
 
     # ----------------------------------------------------------------------------------------
-    def get_hamming_distances(self, pairs):  #, return_info):
-        # NOTE duplicates a function in utils
-        return_info = []
-        for query_a, query_b in pairs:
-            seq_a = self.input_info[query_a]['seq']
-            seq_b = self.input_info[query_b]['seq']
-            if self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-                min_length = min(len(seq_a), len(seq_b))
-                seq_a = seq_a[-min_length : ]
-                seq_b = seq_b[-min_length : ]
-            mutation_frac = utils.hamming(seq_a, seq_b) / float(len(seq_a))
-            return_info.append({'id_a':query_a, 'id_b':query_b, 'score':mutation_frac})
-
-        return return_info
-
-    # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir, sw_matches):
+        """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
         print 'writing hmms with info from %s' % parameter_dir
-        start = time.time()
+        # start = time.time()
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
@@ -366,7 +343,7 @@ class PartitionDriver(object):
                                self.args)
             writer.write()
 
-        print '    time to write hmms: %.3f' % (time.time()-start)
+        # print '    time to write hmms: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir):  #, query_name, second_query_name=None):
@@ -390,10 +367,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def all_regions_present(self, gene_list, skipped_gene_matches, query_name, second_query_name=None):
-        # and finally, make sure we're left with at least one gene in each region
+        """ Check that we have at least one gene for each region """
         for region in utils.regions:
             if 'IGH' + region.upper() not in ':'.join(gene_list):
-                print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if (second_query_name  == None) else second_query_name)
+                print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if (second_query_name == None) else second_query_name)
                 print '          skipped %s' % (':'.join(skipped_gene_matches))
                 print 'ERROR giving up on query'
                 return False
@@ -402,6 +379,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def combine_queries(self, sw_info, query_names, parameter_dir, skipped_gene_matches=None):
+        """ Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets """
         combo = {
             'k_v':{'min':99999, 'max':-1},
             'k_d':{'min':99999, 'max':-1},
@@ -439,7 +417,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_sw_failures(self, query_names, sw_info):
-        # if any of the queries in <query_names> was unproductive, skip the whole kitnkaboodle
+        """ If any of the queries in <query_names> was unproductive, return an empty list (which will be skipped entirely), otherwise return the original name list """
         unproductive = False
         for qrn in query_names:
             if qrn in sw_info['skipped_unproductive_queries']:
@@ -459,6 +437,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, sw_info, parameter_dir, preclusters=None, hmm_type='', shuffle_input_order=False):
+        """ Write input file for bcrham """
         print '    writing input'
         if self.cached_results is not None:
             with opener('w')(self.hmm_cachefname) as cachefile:
@@ -535,7 +514,8 @@ class PartitionDriver(object):
         # print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def read_partition_info(self, fname):
+    def read_partitions(self, fname):
+        """ Read partitions output by bcrham from <fname> """
         partition_info = []
         with opener('r')(fname) as csvfile:
             reader = csv.DictReader(csvfile)
@@ -552,8 +532,9 @@ class PartitionDriver(object):
         return partition_info
 
     # ----------------------------------------------------------------------------------------
-    def read_partition_output(self):
-        partition_info = self.read_partition_info(self.hmm_outfname)
+    def read_partition_outfiles(self):
+        """ Read bcrham output partitions and cached partition info """
+        partition_info = self.read_partitions(self.hmm_outfname)
 
         if self.cached_results is None:
             self.cached_results = {}
@@ -571,6 +552,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):
+        """ Read bcrham annotation output """
         print '    read output'
 
         if count_parameters:
