@@ -79,7 +79,7 @@ class Waterer(object):
         else:
             procs = []
             for iproc in range(n_procs):
-                cmd_str = self.get_vdjalign_cmd_str(self.args.workdir + '/sw-' + str(iproc), base_infname, base_outfname, iproc)
+                cmd_str = self.get_vdjalign_cmd_str(self.args.workdir + '/sw-' + str(iproc), base_infname, base_outfname)
                 procs.append(Popen(cmd_str.split()))
                 time.sleep(0.1)
             for proc in procs:
