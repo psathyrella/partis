@@ -17,7 +17,7 @@ But the upshot is that partis is kind of a pain to install from scratch.
 So, unless you need to do a lot of mucking about under the hood, you'll have an easier time of it just using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
 
-To use Docker, you'll first want to follow the installation instructions for your particular system.
+To use Docker, you'll first want to follow Docker's instructions for your particular system.
 Once you have Docker installed, pull the partis image from dockerhub
 
 ``` sudo docker pull psathyrella/partis ```.
@@ -26,9 +26,13 @@ Then enter it with
 
 ``` sudo docker run -t -i psathyrella/partis /bin/bash ```.
 
-This will drop you into the main `partis/` directory.
-From here, follow the installation instructions below, skipping the dependencies part.
-Then, you can run the full analysis chain, if you will, with
+This will drop you into the main `partis/` directory, from which you'll want to build:
+
+```
+. ./bin/handbuild.sh
+```
+
+Then, you can run the full analysis chain with
 
 ```scons validate```.
 
@@ -67,19 +71,17 @@ The following packages are also used by partis, but they're included as sub tree
   - samtools
   - bppseqgen
 
-Once you've got all the necessary things on your system, you can proceed to install:
+Once you've got all the necessary things on your system, you can proceed to clone the repository:
 
 ```
 git clone git@github.com:psathyrella/partis
-cd partis/packages/ham/
-scons
-cd ../samtools/
-make
-export PATH=$PWD:$PATH
-cd ../ighutil/
-make -C clj
-pip install --user ./python
-cd ../../
+cd partis
+```
+
+And then build:
+
+```
+. ./bin/handbuild.sh
 ```
 
 ### Subcommands
