@@ -240,11 +240,11 @@ class PartitionDriver(object):
                 writer.writeheader()
             for iquery in range(len(info)):
                 # if self.args.divvy:
-                if info[iquery]['names'] not in divvied_queries[iproc]:
+                if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
                     continue
                 # else:
-                #     if iquery % n_procs != iproc:  # old way (keep around for a bit)
-                #         continue
+                # if iquery % n_procs != iproc:  # old way (keep around for a bit)
+                #     continue
                 if infname is None:
                     outlists[-1].append(info[iquery])
                 else:
@@ -580,6 +580,8 @@ class PartitionDriver(object):
         with opener('r')(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
+                if line['errors'] != '':
+                    raise Exception('ERROR in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
                 if line['unique_ids'] not in self.cached_results:
                     self.cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
                     if line['naive-seq'] == '':
