@@ -50,14 +50,14 @@ for name, test_cmd in tests.items():
     if name in actions:
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name, out,
-                    'diff -qr  -x\'*.svg\' -x params -x plots.html ' + 'test/regression/parameters/' + actions[name] + ' ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
+                    './bin/diff-parameters.py --dir1 test/regression/parameters/' + actions[name] + ' --dir2 ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
     else:
         env.Command(out, cmd, test_cmd + ' >$TARGET')
         # touch a sentinel `passed` file if we get what we expect
         # NOTE [vdj]: regex is a hack. I can't figure out a.t.m. why the missing genes come up in a different order each time
         env.Command('test/_results/%s.passed' % name,
                 ['test/regression/%s.out' % name, out],
-                'diff -ub -I \'[vdj]:\' ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')  # ignore the lines telling you how long things took
+                'diff -ub -I MISSING -I \'[vdj]:\' <(sort ${SOURCES[0]}) <(sort ${SOURCES[1]}) && touch $TARGET')  # ignore the lines telling you how long things took
 
 # Set up sentinel dependency of all passed on the individual_passed sentinels.
 Command(all_passed,

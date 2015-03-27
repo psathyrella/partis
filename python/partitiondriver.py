@@ -182,22 +182,23 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info):
-        print 'divvy'
+        # print 'divvy'
         naive_seqs = {}
         for line in info:
             try:
                 query = int(line['names'])
             except:
                 query = line['names']
-            print ' ', query,
+            # print ' ', query,
             if self.cached_results is not None and str(query) in self.cached_results:
-                print '   cached'  #, self.cached_results[query]
+                # print '   cached'  #, self.cached_results[query]
                 naive_seqs[str(query)] = self.cached_results[str(query)]['naive-seq']
             elif query in self.sw_info:
-                print '   sw'  #, self.sw_info[query]
+                # print '   sw'  #, self.sw_info[query]
                 naive_seqs[str(query)] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
             else:
                 print '   NOOOOOope', query
+                assert False
             if naive_seqs[str(query)] == '':
                 print 'ack', str(query)
                 sys.exit()
@@ -226,6 +227,7 @@ class PartitionDriver(object):
             assert infname is None
             outlists = []
         queries_per_proc = float(len(info)) / n_procs
+        # if self.args.divvy:
         divvied_queries = self.divvy_up_queries(n_procs, info)
         for iproc in range(n_procs):
             if infname is None:
@@ -237,20 +239,25 @@ class PartitionDriver(object):
                 writer = csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=' ')
                 writer.writeheader()
             for iquery in range(len(info)):
+                # if self.args.divvy:
                 if info[iquery]['names'] not in divvied_queries[iproc]:
                     continue
-                # if iquery % n_procs != iproc:  # old way (keep around for a bit)
-                #     continue
+                # else:
+                #     if iquery % n_procs != iproc:  # old way (keep around for a bit)
+                #         continue
                 if infname is None:
                     outlists[-1].append(info[iquery])
                 else:
                     writer.writerow(info[iquery])
+            if infname is not None:
+                sub_outfile.close()
 
             if os.path.exists(self.hmm_cachefname):
                 check_call(['cp', self.hmm_cachefname, subworkdir + '/'])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
 
         if infname is None:
             return outlists
+        # sys.exit()
 
     # ----------------------------------------------------------------------------------------
     def merge_partition_files(self, fname, n_procs):
@@ -511,7 +518,8 @@ class PartitionDriver(object):
         else:
             assert False
 
-        if shuffle_input_order:  # This is *really* important if you're partitioning in parallel
+        # randomize the order of the query list in <nsets>. Note that the list gets split into chunks for parallelization later
+        if shuffle_input_order:  # This can be *really* important if you're partitioning in parallel
             random_nsets = []
             while len(nsets) > 0:
                 irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
