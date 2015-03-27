@@ -136,12 +136,8 @@ void Glomerator::WriteCachedLogProbs() {
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
   log_prob_ofs << "unique_ids,score,naive-seq" << endl;
   for(auto &kv : log_probs_) {
-    if(naive_seqs_.count(kv.first) == 0) {
-      cout << "MISSING " << kv.first << endl;
+    if(naive_seqs_.count(kv.first) == 0)  // we end up having the log prob for a key, but not the naive sequence, if we calculated the merged prob for two clusters but didn't end up merging them
       continue;
-      // GetNaiveSeq(kv.first);
-      // throw runtime_error("ERROR don't have naive seq for " + kv.first + "\n");
-    }
     log_prob_ofs << kv.first << "," << kv.second << "," << naive_seqs_[kv.first] << endl;  // NOTE if we didn't calculate the naive sequence, it'll print as null string, which is fine
   }
   log_prob_ofs.close();
