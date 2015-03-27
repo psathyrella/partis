@@ -30,7 +30,7 @@ private:
   int HammingDistance(Sequence seq_a, Sequence seq_b);
   int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
   void GetNaiveSeq(string key);
-  void GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, string &errors);
+  void GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds);
   void Merge();
 
   // input info
@@ -50,6 +50,7 @@ private:
   // cumulative information
   map<string, double> log_probs_;  // includes cached info from previous runs
   map<string, string> naive_seqs_;  // includes cached info from previous runs
+  map<string, string> errors_;
   vector<pair<double, vector<string> > > list_of_partitions_;
 };
 
