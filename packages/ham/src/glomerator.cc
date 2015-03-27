@@ -23,8 +23,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   }
 
   ReadCachedLogProbs(track);
-  ofs_.open(args_->outfile());
-  ofs_ << "partition,score,errors" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -46,13 +44,8 @@ void Glomerator::Cluster() {
     PrintPartition(best_partition_, "best");
   }
 
-  // TODO oh, damn, if the initial partition is better than any subsequent ones this breaks
   WritePartitions();
-
-  // TODO really pass the cachefile inside args_? maybe do something cleaner
   WriteCachedLogProbs();
-
-  ofs_.close();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -64,7 +57,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
   }
   string line;
 
-  // check the header is right TODO should write a general csv reader
+  // check the header is right (no cached info)
   if(!getline(ifs, line)) {
     return;  // return for zero length file
   }
@@ -99,13 +92,12 @@ vector<string> Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::GetSoloLogProb(string key) {
-  // TODO the only reason to have this separate from GetLogProb is the only_genes stuff... which needs to be thought about
+  // NOTE the only reason to have this separate from GetLogProb is the only_genes stuff
   JobHolder jh(gl_, hmms_, "forward", only_genes_[key]);
   jh.SetDebug(args_->debug());
   jh.SetChunkCache(args_->chunk_cache());
   jh.SetNBestEvents(args_->n_best_events());
-  string errors;
-  GetLogProb(jh, key, info_[key], kbinfo_[key], errors);  // TODO make sure these errors will get stored somewhere
+  GetLogProb(jh, key, info_[key], kbinfo_[key]);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -134,27 +126,28 @@ void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->cachefile());
   if(!log_prob_ofs.is_open())
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "unique_ids,score,naive-seq" << endl;
+  log_prob_ofs << "unique_ids,score,naive-seq,errors" << endl;
   for(auto &kv : log_probs_) {
     if(naive_seqs_.count(kv.first) == 0)  // we end up having the log prob for a key, but not the naive sequence, if we calculated the merged prob for two clusters but didn't end up merging them
       continue;
-    log_prob_ofs << kv.first << "," << kv.second << "," << naive_seqs_[kv.first] << endl;  // NOTE if we didn't calculate the naive sequence, it'll print as null string, which is fine
+    log_prob_ofs << kv.first << "," << kv.second << "," << naive_seqs_[kv.first] << "," << errors_[kv.first] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
   }
   log_prob_ofs.close();
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions() {
+  ofs_.open(args_->outfile());
+  ofs_ << "partition,score" << endl;
   for(auto &pr : list_of_partitions_) {
     for(size_t ic=0; ic<pr.second.size(); ++ic) {
       if(ic > 0)
 	ofs_ << ";";
       ofs_ << pr.second[ic];
     }
-    ofs_ << ",";
-    ofs_ << pr.first << ",";
-    ofs_ << "n/a\n";
+    ofs_ << "," << pr.first << "\n";
   }
+  ofs_.close();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -208,7 +201,6 @@ void Glomerator::GetNaiveSeq(string key) {
   if(naive_seqs_.count(key))  // already did it
     return;
 
-  string errors;  // TODO make sure these errors get collected as well
   JobHolder jh(gl_, hmms_, "viterbi", only_genes_[key]);
   jh.SetDebug(args_->debug());
   jh.SetChunkCache(args_->chunk_cache());
@@ -228,12 +220,12 @@ void Glomerator::GetNaiveSeq(string key) {
   // naive_seqs_[key] = Sequence(info_[key][0].track(), key, result.events_[0].naive_seq_);  // TODO it might be a bit wasteful to store these digitized? Or maybe it's better...
   naive_seqs_[key] = result.events_[0].naive_seq_;  // TODO it might be a bit wasteful to store these digitized? Or maybe it's better...
   if(result.boundary_error())
-    errors = "boundary";
+    errors_[key] = errors_[key] + ":boundary";
 }
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds, string &errors) {
+void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds) {
   // TODO note that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name))  // already did it
     return;
@@ -250,7 +242,7 @@ void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds
 
   log_probs_[name] = result.total_score();
   if(result.boundary_error())
-    errors = "boundary";
+    errors_[name] = errors_[name] + ":boundary";
 }
 
 // ----------------------------------------------------------------------------------------
@@ -311,11 +303,10 @@ void Glomerator::Merge() {
       jh.SetChunkCache(args_->chunk_cache());
       jh.SetNBestEvents(args_->n_best_events());
 
-      string errors;
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetLogProb(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first], errors);
-      GetLogProb(jh, kv_b.first, b_seqs, kbinfo_[kv_b.first], errors);
-      GetLogProb(jh, bothnamestr, ab_seqs, ab_kbounds, errors);
+      GetLogProb(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first]);
+      GetLogProb(jh, kv_b.first, b_seqs, kbinfo_[kv_b.first]);
+      GetLogProb(jh, bothnamestr, ab_seqs, ab_kbounds);
 
       double bayes_factor(log_probs_[bothnamestr] - log_probs_[kv_a.first] - log_probs_[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
