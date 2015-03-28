@@ -183,22 +183,19 @@ class PartitionDriver(object):
         # print 'divvy'
         naive_seqs = {}
         for line in info:
-            try:
-                query = int(line['names'])
-            except:
-                query = line['names']
+            query = line['names']
             # print ' ', query,
-            if self.cached_results is not None and str(query) in self.cached_results:
+            if self.cached_results is not None and query in self.cached_results:
                 # print '   cached'  #, self.cached_results[query]
-                naive_seqs[str(query)] = self.cached_results[str(query)]['naive-seq']
+                naive_seqs[query] = self.cached_results[query]['naive-seq']
             elif query in self.sw_info:
                 # print '   sw'  #, self.sw_info[query]
-                naive_seqs[str(query)] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
+                naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
             else:
                 print '   NOOOOOope', query
                 assert False
-            if naive_seqs[str(query)] == '':
-                print 'ack', str(query)
+            if naive_seqs[query] == '':
+                print 'ack', query
                 sys.exit()
 
         clust = Clusterer()
@@ -284,7 +281,7 @@ class PartitionDriver(object):
         with opener('w')(fname) as partitionfile:
             writer = csv.DictWriter(partitionfile, ('partition', 'score'))
             writer.writeheader()
-            writer.writerow({'partition' : ';'.join([':'.join([str(uid) for uid in uids]) for uids in merged_partition]),
+            writer.writerow({'partition' : ';'.join([':'.join([uid for uid in uids]) for uids in merged_partition]),
                              'score' : merged_log_prob})
 
     # ----------------------------------------------------------------------------------------
@@ -467,7 +464,7 @@ class PartitionDriver(object):
             if name in self.sw_info:
                 return_names.append(name)
             else:
-                print '    %s not found in sw info' % ' '.join([str(qn) for qn in query_names])
+                print '    %s not found in sw info' % ' '.join([qn for qn in query_names])
         return return_names
 
     # ----------------------------------------------------------------------------------------
@@ -482,7 +479,7 @@ class PartitionDriver(object):
                     writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
         csvfile = opener('w')(self.hmm_infname)
-        writer = csv.DictWriter(csvfile, ('names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs'), delimiter=' ')  # TODO rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
+        writer = csv.DictWriter(csvfile, ('names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs'), delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         writer.writeheader()
         # start = time.time()
 
@@ -533,7 +530,7 @@ class PartitionDriver(object):
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
-                'names' : ':'.join([str(qn) for qn in non_failed_names]),
+                'names' : ':'.join([qn for qn in non_failed_names]),
                 'k_v_min' : combined_query['k_v']['min'],
                 'k_v_max' : combined_query['k_v']['max'],
                 'k_d_min' : combined_query['k_d']['min'],
@@ -561,10 +558,7 @@ class PartitionDriver(object):
                     raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more
                 uids = []
                 for cluster in line['partition'].split(';'):
-                    try:
-                        uids.append([int(unique_id) for unique_id in cluster.split(':')])  # TODO remove this try/except bullshit
-                    except ValueError:
-                        uids.append([unique_id for unique_id in cluster.split(':')])
+                    uids.append([unique_id for unique_id in cluster.split(':')])
                 partition_info.append({'clusters':uids, 'score':float(line['score'])})
         return partition_info
 
@@ -610,7 +604,10 @@ class PartitionDriver(object):
             last_key = None
             boundary_error_queries = []
             for line in reader:
-                utils.intify(line, splitargs=('unique_ids', 'seqs'))
+                utils.process_input_line(line,
+                                         splitargs=('unique_ids', 'seqs'),
+                                         int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
+                                         float_columns=('score'))
                 ids = line['unique_ids']
                 this_key = utils.get_key(ids)
                 same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
@@ -621,7 +618,7 @@ class PartitionDriver(object):
                 # check for errors
                 if last_key != this_key:  # if this is the first line for this set of ids (i.e. the best viterbi path or only forward score)
                     if line['errors'] != None and 'boundary' in line['errors'].split(':'):
-                        boundary_error_queries.append(':'.join([str(uid) for uid in ids]))
+                        boundary_error_queries.append(':'.join([uid for uid in ids]))
                     else:
                         assert len(line['errors']) == 0
 
@@ -635,7 +632,7 @@ class PartitionDriver(object):
                         if self.args.debug:
                             print '%s   %d' % (id_str, same_event)
                         if line['cdr3_length'] != -1 or not self.args.skip_unproductive:  # if it's productive, or if we're not skipping unproductive rearrangements
-                            hmminfo[':'.join([str(uid) for uid in line['unique_ids']])] = line
+                            hmminfo[':'.join([uid for uid in line['unique_ids']])] = line
                             if pcounter is not None:  # increment counters (but only for the best [first] match)
                                 pcounter.increment(line)
                             if true_pcounter is not None:  # increment true counters
@@ -649,12 +646,12 @@ class PartitionDriver(object):
                     line['unique_id'] = None
 
                 else:  # for forward, write the pair scores to file to be read by the clusterer
-                    print '%3d %10.3f    %s' % (same_event, float(line['score']), id_str)
+                    print '%3d %10.3f    %s' % (same_event, line['score'], id_str)
                     if line['score'] == '-nan':
                         print '    WARNING encountered -nan, setting to -999999.0'
                         score = -999999.0
                     else:
-                        score = float(line['score'])
+                        score = line['score']
                     if len(ids) == 2:
                         raise Exception('DEPRECATED')
                         # hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})

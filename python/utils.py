@@ -898,24 +898,27 @@ def prep_dir(dirname, wildling=None, multilings=None):
             assert False
 
 # ----------------------------------------------------------------------------------------
-def intify(info, splitargs=()):
+def process_input_line(info, splitargs=(), int_columns=(), float_columns=()):
     """ 
     Attempt to convert all the keys and values in <info> from str to int.
     The keys listed in <splitargs> will be split as colon-separated lists before intification.
     """
+    if len(splitargs) == 0 and len(int_columns) == 0 and len(float_columns) == 0:  # nothing to do
+        return
+
     for key, val in info.items():
         if key in splitargs:
             info[key] = info[key].split(':')
             for i in range(len(info[key])):
-                try:
+                if key in int_columns:
                     info[key][i] = int(info[key][i])
-                except ValueError:
-                    pass
+                elif key in float_columns:
+                    info[key][i] = float(info[key][i])
         else:
-            try:
-                info[key] = int(val)
-            except ValueError:
-                pass
+            if key in int_columns:
+                info[key] = int(info[key])
+            elif key in float_columns:
+                info[key] = float(info[key])
 
 # ----------------------------------------------------------------------------------------
 def merge_csvs(outfname, csv_list, cleanup=True):

@@ -53,7 +53,7 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
     n_queries = 0
     namelist = []  # only used for randomization
     for line in reader:
-        utils.intify(line)
+        utils.process_input_line(line, int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'))
         # if command line specified query or reco ids, skip other ones
         if queries is not None and str(line[name_column]) not in queries:
             continue
