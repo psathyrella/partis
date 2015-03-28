@@ -8,7 +8,7 @@ import glob
 import csv
 import random
 from collections import OrderedDict
-from subprocess import Popen, check_call
+from subprocess import Popen, check_call, PIPE
 
 import utils
 from opener import opener
@@ -155,10 +155,16 @@ class PartitionDriver(object):
             procs = []
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
-                procs.append(Popen(cmd_str.replace(self.args.workdir, workdir).split()))
+                proc = Popen(cmd_str.replace(self.args.workdir, workdir).split(), stdout=PIPE)
+                procs.append(proc)
                 time.sleep(0.1)
             for proc in procs:
                 proc.wait()
+            if self.args.debug:
+                for iproc in range(len(procs)):
+                    print '  proc %d' % iproc
+                    out, err = procs[iproc].communicate()
+                    print out
             self.merge_hmm_outputs(n_procs)
 
         sys.stdout.flush()

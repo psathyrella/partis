@@ -30,7 +30,7 @@ tests = OrderedDict()
 existing_parameter_dir = 'test/regression/parameters/simu/hmm'
 # first add the simple, few-sequence tests (using partis.py)
 tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 1 --debug 1'
-tests['partition-a-few'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 30 --debug 1 --truncate-pairs'  # NOTE it's important to test for >1 proc
+tests['partition-a-few'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 --truncate-pairs'
 tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --debug 1 --truncate-pairs --n-max-queries 3'
 # then add the tests that run over the framework (using run-driver.py)
 for action in actions:
@@ -57,7 +57,7 @@ for name, test_cmd in tests.items():
         # NOTE [vdj]: regex is a hack. I can't figure out a.t.m. why the missing genes come up in a different order each time
         env.Command('test/_results/%s.passed' % name,
                 ['test/regression/%s.out' % name, out],
-                'diff -ub <(sort ${SOURCES[0]}) <(sort ${SOURCES[1]}) && touch $TARGET')  # ignore the lines telling you how long things took
+                'diff -ub ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')  # ignore the lines telling you how long things took
 
 # Set up sentinel dependency of all passed on the individual_passed sentinels.
 Command(all_passed,
