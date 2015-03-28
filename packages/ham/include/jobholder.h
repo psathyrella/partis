@@ -11,7 +11,7 @@
 
 #include "trellis.h"
 #include "mathutils.h"
-#include "germlines.h"
+#include "bcrutils.h"
 
 using namespace std;
 using namespace ham;
