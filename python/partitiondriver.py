@@ -103,7 +103,6 @@ class PartitionDriver(object):
                 break
 
             # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process, then reduce <n_procs> for the next run
-            # TODO I think there's really no way around the fact that eventually I'm going to have to delve into the cached log probs to decide how many procs
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
                len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
                 if n_procs > 20:
@@ -128,7 +127,6 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
-        cmd_str += ' --naive-preclustering'  # TODO remove the option to not do this from ham code
         if self.args.action == 'partition':
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
