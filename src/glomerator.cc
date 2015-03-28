@@ -217,8 +217,7 @@ void Glomerator::GetNaiveSeq(string key) {
 
   if(result.events_.size() < 1)
     throw runtime_error("ERROR no events for" + key + "\n");
-  // naive_seqs_[key] = Sequence(info_[key][0].track(), key, result.events_[0].naive_seq_);  // TODO it might be a bit wasteful to store these digitized? Or maybe it's better...
-  naive_seqs_[key] = result.events_[0].naive_seq_;  // TODO it might be a bit wasteful to store these digitized? Or maybe it's better...
+  naive_seqs_[key] = result.events_[0].naive_seq_;  // NOTE it might be a bit wasteful to store these digitized? Or maybe it's better...
   if(result.boundary_error())
     errors_[key] = errors_[key] + ":boundary";
 }
@@ -226,7 +225,7 @@ void Glomerator::GetNaiveSeq(string key) {
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
 void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds) {
-  // TODO note that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
+  // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name))  // already did it
     return;
     
@@ -248,12 +247,6 @@ void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
 void Glomerator::Merge() {
-  if(args_->debug()) {
-    if(args_->naive_preclustering())
-      cout << "merging with naive preclustering" << endl;
-    else
-      cout << "merging with minimal mature preclustering" << endl;
-  }
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   vector<string> max_only_genes;
@@ -274,23 +267,15 @@ void Glomerator::Merge() {
 	already_done.insert(bothnamestr);
 
       ++n_total_pairs;
-      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);  // TODO cache hamming fraction as well
+      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);  // NOTE it might help to also cache hamming fractions
 
-      if(args_->naive_preclustering()) {
-	double hamming_fraction = float(NaiveHammingDistance(kv_a.first, kv_b.first)) / a_seqs[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
-	if(hamming_fraction > args_->hamming_fraction_cutoff()) {
-	  ++n_skipped_hamming;
-	  continue;
-	}
-      } else {
-	double hamming_fraction = float(MinimalHammingDistance(a_seqs, b_seqs)) / a_seqs[0].size();  // minimal_hamming_distance() will fail if the seqs aren't all the same length
-	if(hamming_fraction > args_->hamming_fraction_cutoff()) {  // if all sequences in a are too far away from all sequences in b
-	  ++n_skipped_hamming;
-	  continue;
-	}
+      double hamming_fraction = float(NaiveHammingDistance(kv_a.first, kv_b.first)) / a_seqs[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
+      if(hamming_fraction > args_->hamming_fraction_cutoff()) {
+	++n_skipped_hamming;
+	continue;
       }
 
-      // TODO skip all this stuff if we already have all three of 'em cached
+      // NOTE it's a bit wasteful to do this if we already have all three of 'em cached
       Sequences ab_seqs(a_seqs.Union(b_seqs));
       vector<string> ab_only_genes = only_genes_[kv_a.first];
       for(auto &g : only_genes_[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
@@ -298,7 +283,6 @@ void Glomerator::Merge() {
       KBounds ab_kbounds = kbinfo_[kv_a.first].LogicalOr(kbinfo_[kv_b.first]);
 
       JobHolder jh(gl_, hmms_, "forward", ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
-      // TODO make sure that using <ab_only_genes> doesn't introduce some bias
       jh.SetDebug(args_->debug());
       jh.SetChunkCache(args_->chunk_cache());
       jh.SetNBestEvents(args_->n_best_events());
