@@ -29,7 +29,7 @@ Then enter it with
 This will drop you into the main `partis/` directory, from which you'll want to build:
 
 ```
-. ./bin/handbuild.sh
+source ./bin/handbuild.sh
 ```
 
 Then, you can run the full analysis chain with
@@ -81,7 +81,7 @@ cd partis
 And then build:
 
 ```
-. ./bin/handbuild.sh
+source ./bin/handbuild.sh
 ```
 
 ### Subcommands
