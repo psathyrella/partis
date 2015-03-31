@@ -2,7 +2,7 @@
 
 namespace ham {
 // ----------------------------------------------------------------------------------------
-Model::Model() : overall_prob_(0.0), initial_(NULL), finalized_(false) {
+Model::Model() : overall_prob_(0.0), original_overall_mute_freq_(0.0), rescale_ratio_(-INFINITY), initial_(NULL), finalized_(false) {
   ending_ = new State;
 }
 
@@ -19,8 +19,8 @@ void Model::Parse(string infname) {
     name_ = config["name"].as<string>();
     if(config["extras"] && config["extras"]["gene_prob"])
       overall_prob_ = config["extras"]["gene_prob"].as<double>();
-    if(config["extras"] && config["extras"]["overall_mean_mute_freq"])
-      overall_mean_mute_freq_ = config["extras"]["overall_mean_mute_freq"].as<double>();
+    if(config["extras"] && config["extras"]["overall_mute_freq"])
+      original_overall_mute_freq_ = config["extras"]["overall_mute_freq"].as<double>();
   } catch(...) {
     cerr << "ERROR invalid model header info in " << infname << endl;
     throw;
@@ -89,6 +89,19 @@ void Model::AddState(State* state) {
   states_.push_back(state);
   states_by_name_[state->name()] = state;
   return;
+}
+
+// ----------------------------------------------------------------------------------------
+void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
+  if(overall_mute_freq != -INFINITY) {  // we're resetting the mute freqs
+    rescale_ratio_ = overall_mute_freq / original_overall_mute_freq_;  // REMINDER still not in log space
+    for(auto &state : states_)
+      state->RescaleOverallMuteFreq(rescale_ratio_);
+  } else {  // otherwise we're *re*-resetting 'em
+    for(auto &state : states_)
+      state->RescaleOverallMuteFreq(1./rescale_ratio_);
+    rescale_ratio_ = -INFINITY;
+  }
 }
 
 // ----------------------------------------------------------------------------------------

@@ -3,8 +3,8 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-State::State() : trans_to_end_(nullptr), index_(SIZE_MAX) {
-  transitions_ = new(nothrow) vector<Transition*>;
+State::State() : name_(""), germline_nuc_(""), trans_to_end_(nullptr), index_(SIZE_MAX) {
+  transitions_ = new vector<Transition*>;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -17,6 +17,8 @@ State::~State() {
 void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   name_ = node["name"].as<string>();
   assert(name_.size() > 0);
+  if(node["extras"]["germline"])
+    germline_nuc_ = node["extras"]["germline"].as<string>();
 
   double total(0.0); // make sure things add to 1.0
   for(YAML::const_iterator it = node["transitions"].begin(); it != node["transitions"].end(); ++it) {
@@ -54,6 +56,32 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 }
 
 // ----------------------------------------------------------------------------------------
+void State::RescaleOverallMuteFreq(double factor) {
+  // cout << "before" << endl;
+  // Print();
+
+  vector<vector<double> > new_log_probs(emission_.log_probs());
+  assert(new_log_probs.size() == 1);  // only support one column a.t.m.
+  size_t icol(0);
+  assert(new_log_probs[0].size() == emission_.track()->alphabet_size());
+  for(size_t ip=0; ip<new_log_probs[icol].size(); ++ip) {
+    // cout << emission_.track()->symbol(ip) << " " << exp(emission_.score(ip)) << endl;
+    // TODO this is wasteful to go out of and back into log space
+    double prob(exp(new_log_probs[icol][ip]));
+    if(emission_.track()->symbol(ip) == germline_nuc_) {  // germline
+      double mute_freq = 1. - prob;
+      new_log_probs[icol][ip] = log(1.0 - factor*mute_freq);
+    } else {  // mutated
+      double mute_freq = 3. * prob;
+      new_log_probs[icol][ip] = log(factor*mute_freq / 3.);
+    }
+  }
+
+  emission_.ReplaceLogProbs(new_log_probs);
+  // cout << "after" << endl;
+  // Print();
+}
+// ----------------------------------------------------------------------------------------
 double State::emission_logprob(Sequences *seqs, size_t pos) {
   if(seqs->n_seqs() == 1) {
     // NOTE they're log probs, not scores, but I haven't yet managed to eliminate all the old 'score' names
@@ -70,12 +98,17 @@ double State::emission_logprob(Sequences *seqs, size_t pos) {
 
 // ----------------------------------------------------------------------------------------
 void State::Print() {
-  cout << "state: " << name_ << endl;
+  cout << "state: " << name_;
+  if(germline_nuc_ != "")
+    cout << " (" << germline_nuc_ << ")";
+  cout << endl;
 
   cout << "  transitions:" << endl;;
   for(size_t i = 0; i < transitions_->size(); ++i) {
-    if((*transitions_)[i] == nullptr) { assert(0); continue;} // wait wtf would this happen?
-    (*transitions_)[i]->Print();
+    if((*transitions_)[i] == nullptr)  // reminder: this is a bitset over all states, with the bit set (well, with a non-null-pointer set) if we can transition to the corresponding state; *not* a vector of allowed transitions
+      continue;
+    else
+      (*transitions_)[i]->Print();
   }
 
   if(trans_to_end_)
@@ -97,16 +130,16 @@ double State::end_transition_logprob() {
 }
 
 // ----------------------------------------------------------------------------------------
-// On initial import of the states they are pushed onto <transitions_> in
-// the order written in the model file. But later on we need them to be in the order specified by <index_>.
-// So here we make a new vector <fixed_transitions> with the proper ordering and replace <transitions_> with this
+// On initial import of the states the allowed transitions are pushed onto <transitions_> in
+// the order written in the model file. But later on we need them to be in the order specified by <index_>, in a vector of length <n_states>.
+// So here we make a new vector <fixed_transitions> with the proper ordering and length <n_states> (each set to nullptr by default), and replace <transitions_> with this
 // new vector.
 void State::ReorderTransitions(map<string, State*> &state_indices) {
   size_t n_states(state_indices.size());
   vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states - 1, nullptr); // subtract 1 because initial state is kept separate
 
   // find the proper place for the transition and put it in the correct position
-  for(size_t i = 0; i < transitions_->size(); ++i) {
+  for(size_t i = 0; i < transitions_->size(); ++i) {  // reminder: transitions_ and fixed_transitions are not the same length
     Transition* temp = (*transitions_)[i];
     string to_state_name(temp->to_state_name());
     assert(state_indices.count(to_state_name));

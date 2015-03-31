@@ -68,17 +68,12 @@ void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, d
   // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
   // Seriously! If you don't re-rescale 'em when you're done with the sequences to which <overall_mute_freq> correspond, the mute freqs in the hmms will be *wrong*
 
-  // rearrange only_genes
-  set<string> only_gene_set;
-  for(auto &region : gl_.regions_)
-    for(auto &gene : only_genes[region])
-      only_gene_set.insert(gene);
-
   // then actually do the rescaling for each necessary gene
-  for(auto &kv : hmms_) {
-    if(only_gene_set.count(gene) == 0)
-      continue;
-    kv.second.RescaleOverallMuteFreq(overall_mute_freq);
+  for(auto &region : gl_.regions_) {
+    for(auto &gene : only_genes[region]) {
+      // cout << "rescale from " << Get(gene, false)->original_overall_mute_freq() << " to " << overall_mute_freq << endl;
+      Get(gene, false)->RescaleOverallMuteFreq(overall_mute_freq);
+    }
   }
 }
 
@@ -170,7 +165,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
   if(overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
     // NOTE it's super important to *un*set them after you're done
-    hmms_.RescaleOverallMuteFreqs(overall_mute_freq, only_genes_);
+    hmms_.RescaleOverallMuteFreqs(only_genes_, overall_mute_freq);
   }
 
   Result result(kbounds);
@@ -245,7 +240,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
       cout << "      WARNING couldn't expand though!" << endl;
   }
 
-  if(overall_mute_freq != -INFINITY)  // if we rescale them above, re-rescale the overall mean mute freqs
+  if(overall_mute_freq != -INFINITY)  // if we rescaled them above, re-rescale the overall mean mute freqs
     hmms_.RescaleOverallMuteFreqs(only_genes_);
 
   return result;

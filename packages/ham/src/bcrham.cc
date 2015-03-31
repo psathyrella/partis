@@ -26,6 +26,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     Sequences seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
+    assert(args.str_lists_["names"][iqry].size() == args.float_lists_["mute_freqs"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
 
@@ -81,6 +82,8 @@ int main(int argc, const char * argv[]) {
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
     Sequences qry_seqs(qry_seq_list[iqry]);
+    vector<double> mute_freqs(args.float_lists_["mute_freqs"][iqry]);
+    double mean_mute_freq(avgVector(mute_freqs));
 
     JobHolder jh(gl, hmms, args.algorithm(), args.str_lists_["only_genes"][iqry]);
     jh.SetDebug(args.debug());
@@ -98,12 +101,12 @@ int main(int argc, const char * argv[]) {
       errors = "";
       // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
-      result = jh.Run(qry_seqs, kbounds);
+      result = jh.Run(qry_seqs, kbounds, mean_mute_freq);
       numerator = result.total_score();
       bayes_factor = numerator;
       if(args.algorithm() == "forward" && qry_seqs.n_seqs() > 1) {  // calculate factors for denominator
         for(size_t iseq = 0; iseq < qry_seqs.n_seqs(); ++iseq) {
-          denom_results[iseq] = jh.Run(qry_seqs[iseq], kbounds);  // result for a single sequence
+          denom_results[iseq] = jh.Run(qry_seqs[iseq], kbounds, mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
           single_scores[iseq] = denom_results[iseq].total_score();
           bayes_factor -= single_scores[iseq];
         }

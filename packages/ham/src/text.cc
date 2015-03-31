@@ -25,4 +25,12 @@ vector<string> SplitString(string argstr, string delimiter) {
   return arglist;
 }
 
+// ----------------------------------------------------------------------------------------
+vector<double> Floatify(vector<string> strlist) {
+  vector<double> floatlist;
+  for(auto &str : strlist)
+    floatlist.push_back(stof(str));
+  return floatlist;
+}
+
 }
