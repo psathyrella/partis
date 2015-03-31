@@ -19,6 +19,8 @@ void Model::Parse(string infname) {
     name_ = config["name"].as<string>();
     if(config["extras"] && config["extras"]["gene_prob"])
       overall_prob_ = config["extras"]["gene_prob"].as<double>();
+    if(config["extras"] && config["extras"]["overall_mean_mute_freq"])
+      overall_mean_mute_freq_ = config["extras"]["overall_mean_mute_freq"].as<double>();
   } catch(...) {
     cerr << "ERROR invalid model header info in " << infname << endl;
     throw;

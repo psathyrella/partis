@@ -31,6 +31,8 @@ public:
 private:
   string name_;
   double overall_prob_;  // overall (say, prior) probability of this hmm
+  double overall_mean_mute_freq_;  // mean mutation frequency, over v, d and j (not insertions), for the sequences in the data set
+                                  // from which this hmm was derived. Reiterating: mean over all genes and all regions, *not* just this gene
   Tracks tracks_;
   vector<State*> states_; //!  All the states contained in the model
   map<string, State*> states_by_name_; //Ptr to state stored by State name;
