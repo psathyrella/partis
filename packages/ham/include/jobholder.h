@@ -47,6 +47,9 @@ public:
   HMMHolder(string hmm_dir, GermLines &gl): hmm_dir_(hmm_dir), gl_(gl) {}
   ~HMMHolder();
   Model *Get(string gene, bool debug);
+  // Rescale, within each hmm, the emission probabilities to reflect <overall_mute_freq> instead of the mute freq which was recorded in the hmm file.
+  // If <overall_mute_freq> is -INFINITY, we re-rescale them to what they were originally
+  void RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq = -INFINITY);  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
   void CacheAll();  // read all available hmms into memory
 private:
   string hmm_dir_;
@@ -79,20 +82,21 @@ public:
   JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes = {});
   ~JobHolder();
   void Clear();
-  Result Run(Sequences seqs, KBounds kbounds);  // run all over the kspace specified by bounds in kmin and kmax
-  Result Run(Sequence seq, KBounds kbounds);
-  void RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
+  Result Run(Sequences seqs, KBounds kbounds, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(Sequence seq, KBounds kbounds, double overall_mute_freq = -INFINITY);
   void SetDebug(int debug) { debug_ = debug; };
   void SetChunkCache(bool val) { chunk_cache_ = val; }
   void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
+  void StreamOutput(double test);  // print csv event info to stderr
+  // void WriteBestGeneProbs(ofstream &ofs, string query_name);
+
+private:
+  void RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
   void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
-  void StreamOutput(double test);  // print csv event info to stderr
   vector<string> GetQueryStrs(Sequences &seqs, KSet kset, string region);
-  void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
-private:
   void PrintPath(vector<string> query_strs, string gene, double score, string extra_str = "");
   Sequences GetSubSeqs(Sequences &seqs, KSet kset, string region);
   map<string, Sequences> GetSubSeqs(Sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d

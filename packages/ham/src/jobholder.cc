@@ -64,6 +64,25 @@ Model *HMMHolder::Get(string gene, bool debug) {
 }
 
 // ----------------------------------------------------------------------------------------
+void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq) {
+  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
+  // Seriously! If you don't re-rescale 'em when you're done with the sequences to which <overall_mute_freq> correspond, the mute freqs in the hmms will be *wrong*
+
+  // rearrange only_genes
+  set<string> only_gene_set;
+  for(auto &region : gl_.regions_)
+    for(auto &gene : only_genes[region])
+      only_gene_set.insert(gene);
+
+  // then actually do the rescaling for each necessary gene
+  for(auto &kv : hmms_) {
+    if(only_gene_set.count(gene) == 0)
+      continue;
+    kv.second.RescaleOverallMuteFreq(overall_mute_freq);
+  }
+}
+
+// ----------------------------------------------------------------------------------------
 HMMHolder::~HMMHolder() {
   for(auto & entry : hmms_)
     delete entry.second;
@@ -134,14 +153,14 @@ map<string, Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(Sequence seq, KBounds kbounds) {
+Result JobHolder::Run(Sequence seq, KBounds kbounds, double overall_mute_freq) {
   Sequences seqs;
   seqs.AddSeq(seq);
-  return Run(seqs, kbounds);
+  return Run(seqs, kbounds, overall_mute_freq);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
+Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq) {
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   Clear();
@@ -149,6 +168,10 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
+  if(overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
+    // NOTE it's super important to *un*set them after you're done
+    hmms_.RescaleOverallMuteFreqs(overall_mute_freq, only_genes_);
+  }
 
   Result result(kbounds);
 
@@ -221,6 +244,9 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds) {
     if(result.could_not_expand())
       cout << "      WARNING couldn't expand though!" << endl;
   }
+
+  if(overall_mute_freq != -INFINITY)  // if we rescale them above, re-rescale the overall mean mute freqs
+    hmms_.RescaleOverallMuteFreqs(only_genes_);
 
   return result;
 }
@@ -579,11 +605,11 @@ size_t JobHolder::GetErosionLength(string side, vector<string> names, string gen
   return length;
 }
 
-// ----------------------------------------------------------------------------------------
-void JobHolder::WriteBestGeneProbs(ofstream &ofs, string query_name) {
-  ofs << query_name << ",";
-  stringstream ss;
-  for(auto & gene_map : best_per_gene_scores_)
-    ss << gene_map.first << ":" << gene_map.second << ";";
-  ofs << ss.str().substr(0, ss.str().size() - 1) << endl; // remove the last semicolon
-}
+// // ----------------------------------------------------------------------------------------
+// void JobHolder::WriteBestGeneProbs(ofstream &ofs, string query_name) {
+//   ofs << query_name << ",";
+//   stringstream ss;
+//   for(auto & gene_map : best_per_gene_scores_)
+//     ss << gene_map.first << ":" << gene_map.second << ";";
+//   ofs << ss.str().substr(0, ss.str().size() - 1) << endl; // remove the last semicolon
+// }
