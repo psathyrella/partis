@@ -27,6 +27,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
+  assert(0);  // add branch length stuff
   // first add the initial partition
   vector<string> initial_partition(GetClusterList(info_));
   list_of_partitions_.push_back(pair<double, vector<string> >(LogProbOfPartition(initial_partition), initial_partition));

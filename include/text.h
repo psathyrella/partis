@@ -9,5 +9,6 @@ using namespace std;
 namespace ham {
 void ClearWhitespace(string white, string *input);
 vector<string> SplitString(string argstr, string delimiter=":");
+vector<double> Floatify(vector<string> strlist);
 }
 #endif

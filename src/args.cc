@@ -5,23 +5,25 @@ namespace ham {
 // ----------------------------------------------------------------------------------------
 Args::Args(int argc, const char * argv[]):
   algo_strings_ {"viterbi", "forward"},
-              debug_ints_ {0, 1, 2},
-              algo_vals_(algo_strings_),
-              debug_vals_(debug_ints_),
-              hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
-              datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
-              infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
-              outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
-              cachefile_arg_("u", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
-              algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
-              hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", true, -1.0, "float"),
-              debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
-              n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-              chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-              partition_arg_("z", "partition", "", false),
-              str_headers_ {},
-              int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
-str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as colon-separated lists
+  debug_ints_ {0, 1, 2},
+  algo_vals_(algo_strings_),
+  debug_vals_(debug_ints_),
+  hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
+  datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
+  infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
+  outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
+  cachefile_arg_("u", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
+  algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
+  hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", true, -1.0, "float"),
+  debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
+  n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
+  chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
+  partition_arg_("z", "partition", "", false),
+  str_headers_ {},
+  int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
+  str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
+  float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats
+{
   try {
     CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
     cmd.add(hmmdir_arg_);
@@ -75,6 +77,9 @@ str_list_headers_ {"names", "seqs", "only_genes"} { // args that are passed as c
       } else if(str_list_headers_.find(head) != str_list_headers_.end()) {
         ss >> tmpstr;
         str_lists_[head].push_back(SplitString(tmpstr, ":"));
+      } else if(float_list_headers_.count(head)) {
+        ss >> tmpstr;
+	float_lists_[head].push_back(Floatify(SplitString(tmpstr, ":")));
       } else if(int_headers_.find(head) != int_headers_.end()) {
         ss >> tmpint;
         integers_[head].push_back(tmpint);

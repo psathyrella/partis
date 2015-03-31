@@ -21,6 +21,7 @@ class State {
 public:
   State();
   void Parse(YAML::Node node, vector<string> state_names, Tracks trks);
+  void RescaleOverallMuteFreq(double factor);  // Rescale emissions by the ratio <factor>
   ~State();
 
   inline string name() { return name_; }
@@ -44,11 +45,10 @@ public:
 
   void Print();
 private:
-  string name_;
+  string name_, germline_nuc_;
   vector<Transition*> *transitions_;
   Transition *trans_to_end_;
   Emission emission_;
-  Emission pair_emission_;
 
   // hmm model-level information (assigned in model::finalize)
   size_t index_;  // position of this state in the vector model::states_ (set in model::finalize)

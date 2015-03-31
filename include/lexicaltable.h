@@ -14,10 +14,13 @@ class LexicalTable {
 public:
   LexicalTable();
   void Init();
+  void ReplaceLogProbs(vector<vector<double> > &new_log_probs);  // replace values in <log_probs_> with thsoe in <new_log_probs>
+  void UnReplaceLogProbs();  // revert to the original log probs
   ~LexicalTable();
 
   void AddTrack(Track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
+  vector<vector<double> > log_probs() { return *log_probs_; }  // NOTE returns a *copy*
 
   inline double LogProb(size_t letter) { assert(letter < (*log_probs_)[0].size()); return (*log_probs_)[0][letter]; }
   inline double LogProb(Sequence *seq, size_t pos) {
@@ -26,13 +29,11 @@ public:
   inline Track* track(size_t iter) { return tracks.at(iter); }
   inline size_t n_tracks() { return tracks.size(); }
   inline uint8_t alphabet_size(size_t i) { return tracks[i]->alphabet_size(); }
+
 private:
   vector<Track*> tracks;  // tracks which are used by emissions in this table
-  // log_probs_ scheme:
-  //   first index: seq 1 emission
-  //   second index: seq 2 emission
-  //   NOTE the two sequences cannot (in current implementation) be distinguishable
   vector<vector<double> >* log_probs_;
+  vector<vector<double> > original_log_probs_;  // i.e. before we rescaled the mute freq
 };
 
 }
