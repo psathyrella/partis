@@ -241,7 +241,7 @@ class HmmWriter(object):
         self.hmm = HMM(self.saniname, {'nukes':list(utils.nukes)})  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
         mean_freq_hist = plotting.make_hist_from_bin_entry_file(self.indir + '/all-mean-mute-freqs.csv')
-        self.hmm.extras['overall_mean_mute_freq'] = mean_freq_hist.GetMean()
+        self.hmm.extras['overall_mute_freq'] = mean_freq_hist.GetMean()
         # for region in utils.regions:
         #     print plotting.make_hist_from_bin_entry_file(self.indir + '/' + region + '-mean-mute-freqs.csv').GetMean(), plotting.make_hist_from_bin_entry_file(self.indir + '/' + region + '-mean-mute-freqs.csv').GetMean() / plotting.make_hist_from_bin_entry_file(self.indir + '/all-mean-mute-freqs.csv').GetMean()
 

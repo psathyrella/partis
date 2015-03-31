@@ -230,7 +230,6 @@ class PartitionDriver(object):
             assert infname is None
             outlists = []
         queries_per_proc = float(len(info)) / n_procs
-        # if self.args.divvy:
         divvied_queries = self.divvy_up_queries(n_procs, info)
         for iproc in range(n_procs):
             if infname is None:
@@ -242,12 +241,12 @@ class PartitionDriver(object):
                 writer = csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=' ')
                 writer.writeheader()
             for iquery in range(len(info)):
-                # if self.args.divvy:
-                if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
-                    continue
-                # else:
-                # if iquery % n_procs != iproc:  # old way (keep around for a bit)
-                #     continue
+                if self.args.action == 'partition':
+                    if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
+                        continue
+                else:
+                    if iquery % n_procs != iproc:
+                        continue
                 if infname is None:
                     outlists[-1].append(info[iquery])
                 else:
@@ -440,9 +439,9 @@ class PartitionDriver(object):
                 chop = max(0, len(query_seq) - min_length)
                 query_seq = query_seq[ : min_length]
             combo['seqs'].append(query_seq)
-            for region in utils.regions:
-                print '  ', region, name, utils.get_mutation_rate(self.germline_seqs, self.sw_info[name], restrict_to_region=region)
-            combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, self.sw_info[name]))
+            # for region in utils.regions:
+            #     print '  ', region, name, utils.get_mutation_rate(self.germline_seqs, self.sw_info[name], restrict_to_region=region)
+            combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, self.sw_info[name]))  # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
 
             combo['k_v']['min'] = min(info['k_v']['min'] - chop, combo['k_v']['min'])
             combo['k_v']['max'] = max(info['k_v']['max'] - chop, combo['k_v']['max'])
@@ -492,7 +491,7 @@ class PartitionDriver(object):
                     writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
         csvfile = opener('w')(self.hmm_infname)
-        writer = csv.DictWriter(csvfile, ('names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs'), delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
+        writer = csv.DictWriter(csvfile, ('names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs'), delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         writer.writeheader()
         # start = time.time()
 
@@ -550,6 +549,7 @@ class PartitionDriver(object):
                 'k_d_max' : combined_query['k_d']['max'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
                 'seqs' : ':'.join(combined_query['seqs']),
+                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']])
             })
 
         if len(skipped_gene_matches) > 0:
