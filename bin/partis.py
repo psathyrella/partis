@@ -158,7 +158,7 @@ else:
     parter = PartitionDriver(args)
 
     if args.action == 'build-hmms':  # just build hmms without doing anything else -- you wouldn't normally do this
-        parter.write_hmms(args.parameter_dir, None)
+        parter.write_hmms(args.parameter_dir)
     elif args.action == 'cache-parameters':
         parter.cache_parameters()
     elif 'run-' in args.action:

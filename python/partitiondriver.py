@@ -37,6 +37,8 @@ class PartitionDriver(object):
 
         self.cached_results = None
 
+        self.sw_info = None
+
         utils.prep_dir(self.args.workdir)
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
@@ -366,13 +368,14 @@ class PartitionDriver(object):
         utils.prep_dir(hmm_dir, '*.yaml')
 
         gene_list = self.args.only_genes
-        if gene_list == None:  # if specific genes weren't specified, do the ones for which we have sw matches
+        if gene_list == None and self.sw_info is not None:  # if specific genes weren't specified, do the ones for which we have sw matches
             gene_list = []
             for region in utils.regions:
                 for gene in self.germline_seqs[region]:
                     if gene in self.sw_info['all_best_matches']:
                         gene_list.append(gene)
 
+        assert gene_list is not None
         for gene in gene_list:
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
@@ -422,7 +425,8 @@ class PartitionDriver(object):
             'k_v':{'min':99999, 'max':-1},
             'k_d':{'min':99999, 'max':-1},
             'only_genes':[],
-            'seqs':[]
+            'seqs':[],
+            'mute-freqs':[]
         }
         min_length = -1
         for name in query_names:  # first find the min length, so we know how much we'll have to chop off of each sequence
@@ -436,6 +440,9 @@ class PartitionDriver(object):
                 chop = max(0, len(query_seq) - min_length)
                 query_seq = query_seq[ : min_length]
             combo['seqs'].append(query_seq)
+            for region in utils.regions:
+                print '  ', region, name, utils.get_mutation_rate(self.germline_seqs, self.sw_info[name], restrict_to_region=region)
+            combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, self.sw_info[name]))
 
             combo['k_v']['min'] = min(info['k_v']['min'] - chop, combo['k_v']['min'])
             combo['k_v']['max'] = max(info['k_v']['max'] - chop, combo['k_v']['max'])
