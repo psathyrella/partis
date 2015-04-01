@@ -18,6 +18,7 @@ parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plot
 sys.argv.append('-b')
 parser.add_argument('--dir1', required=True)
 parser.add_argument('--dir2', required=True)
+parser.add_argument('--keep-going', action='store_true', help='Don\'t fail on differences, instead just keep on chugging')
 args = parser.parse_args()
 
 def reduce_float_precision(line):
@@ -62,7 +63,8 @@ def check_textfile(fname):
         print 'differing lines from', args.dir2 + fname
         for line in difflines2:
             print ' ', line.strip()
-        sys.exit(1)
+        if not args.keep_going:
+            sys.exit(1)
 
 # def diff_models(model1, model2):
 #     for state in model1.states:

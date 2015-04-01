@@ -282,6 +282,7 @@ class HmmWriter(object):
     def add_lefthand_insert_states(self, insertion):
         for nuke in utils.nukes:
             insert_state = State('insert_left_' + nuke)
+            insert_state.extras['germline'] = nuke
             self.add_region_entry_transitions(insert_state, insertion)
             self.add_emissions(insert_state, germline_nuke=nuke)
             self.hmm.add_state(insert_state)

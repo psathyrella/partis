@@ -81,6 +81,18 @@ class Hist(object):
         assert is_normed(check_sum, this_eps=1e-10)
 
     # ----------------------------------------------------------------------------------------
+    def divide_by(self, denom_hist, debug=False):
+        if self.n_bins != denom_hist.n_bins or self.xmin != denom_hist.xmin or self.xmax != denom_hist.xmax:
+            raise Exception('ERROR bad limits in Hist::divide_by')
+        for ib in range(0, self.n_bins + 2):
+            if debug:
+                print ib, self.bin_contents[ib], float(denom_hist.bin_contents[ib])
+            if denom_hist.bin_contents[ib] == 0.0:
+                self.bin_contents[ib] = 0.0
+            else:
+                self.bin_contents[ib] /= float(denom_hist.bin_contents[ib])
+
+    # ----------------------------------------------------------------------------------------
     def write(self, outfname):
         with opener('w')(outfname) as outfile:
             header = [ 'bin_low_edge', 'contents', 'binlabel' ]
