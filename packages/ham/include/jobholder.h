@@ -50,7 +50,8 @@ public:
   Model *Get(string gene, bool debug);
   // Rescale, within each hmm, the emission probabilities to reflect <overall_mute_freq> instead of the mute freq which was recorded in the hmm file.
   // If <overall_mute_freq> is -INFINITY, we re-rescale them to what they were originally
-  void RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq = -INFINITY);  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
+  void RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq);  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
+  void UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes);
   void CacheAll();  // read all available hmms into memory
 private:
   string hmm_dir_;
