@@ -27,7 +27,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
-  assert(0);  // add branch length stuff
   // first add the initial partition
   vector<string> initial_partition(GetClusterList(info_));
   list_of_partitions_.push_back(pair<double, vector<string> >(LogProbOfPartition(initial_partition), initial_partition));
@@ -98,6 +97,7 @@ void Glomerator::GetSoloLogProb(string key) {
   jh.SetDebug(args_->debug());
   jh.SetChunkCache(args_->chunk_cache());
   jh.SetNBestEvents(args_->n_best_events());
+  jh.rescale_emissions_ = args_->rescale_emissions();
   GetLogProb(jh, key, info_[key], kbinfo_[key]);
 }
 
@@ -206,6 +206,7 @@ void Glomerator::GetNaiveSeq(string key) {
   jh.SetDebug(args_->debug());
   jh.SetChunkCache(args_->chunk_cache());
   jh.SetNBestEvents(args_->n_best_events());
+  jh.rescale_emissions_ = args_->rescale_emissions();
   Result result(kbinfo_[key]);
   bool stop(false);
   do {
@@ -287,6 +288,7 @@ void Glomerator::Merge() {
       jh.SetDebug(args_->debug());
       jh.SetChunkCache(args_->chunk_cache());
       jh.SetNBestEvents(args_->n_best_events());
+      jh.rescale_emissions_ = args_->rescale_emissions();
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       GetLogProb(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first]);
