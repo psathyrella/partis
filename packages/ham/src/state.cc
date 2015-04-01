@@ -59,6 +59,8 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 void State::RescaleOverallMuteFreq(double factor) {
   // cout << "before" << endl;
   // Print();
+  if(factor < 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
+    throw runtime_error("ERROR State::RescaleOverallMuteFreq got a bad factor: " + to_string(factor) + "\n");
 
   vector<vector<double> > new_log_probs(emission_.log_probs());
   assert(new_log_probs.size() == 1);  // only support one column a.t.m.
@@ -67,9 +69,11 @@ void State::RescaleOverallMuteFreq(double factor) {
   for(size_t ip=0; ip<new_log_probs[icol].size(); ++ip) {
     // cout << emission_.track()->symbol(ip) << " " << exp(emission_.score(ip)) << endl;
     // TODO this is wasteful to go out of and back into log space
-    double prob(exp(new_log_probs[icol][ip]));
+    double prob = exp(new_log_probs[icol][ip]);
     if(emission_.track()->symbol(ip) == germline_nuc_) {  // germline
       double mute_freq = 1. - prob;
+      if(factor*mute_freq >= 1.0)
+	throw runtime_error("ERROR factor*mute_freq >=1 (" + to_string(factor*mute_freq) + ") in State::RescaleOverallMuteFreq \n");
       new_log_probs[icol][ip] = log(1.0 - factor*mute_freq);
     } else {  // mutated
       double mute_freq = 3. * prob;
@@ -78,6 +82,7 @@ void State::RescaleOverallMuteFreq(double factor) {
   }
 
   emission_.ReplaceLogProbs(new_log_probs);
+
   // cout << "after" << endl;
   // Print();
 }

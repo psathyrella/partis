@@ -22,6 +22,7 @@ public:
   State();
   void Parse(YAML::Node node, vector<string> state_names, Tracks trks);
   void RescaleOverallMuteFreq(double factor);  // Rescale emissions by the ratio <factor>
+  void UnRescaleOverallMuteFreq() { emission_.UnReplaceLogProbs(); }
   ~State();
 
   inline string name() { return name_; }
@@ -36,6 +37,7 @@ public:
   double emission_logprob(Sequences *seqs, size_t pos);
   inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->log_prob(); }
   double end_transition_logprob();
+  Emission *emission() { return &emission_; }  // TODO remove this function
 
   // property-setters for use in model::finalize()
   inline void AddToState(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>

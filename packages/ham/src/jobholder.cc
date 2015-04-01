@@ -85,13 +85,15 @@ HMMHolder::~HMMHolder() {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes):
+  rescale_emissions_(false),
   gl_(gl),
   hmms_(hmms),
   algorithm_(algorithm),
   debug_(0),
   chunk_cache_(false),
   // total_score_(-INFINITY),
-  n_best_events_(5) {
+  n_best_events_(5)
+{
   if(only_genes.size() > 0) {
     for(auto & region : gl_.regions_)  // initialize
       only_genes_[region] = set<string>();
@@ -163,7 +165,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
-  if(overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
+  if(rescale_emissions_ && overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
     // NOTE it's super important to *un*set them after you're done
     hmms_.RescaleOverallMuteFreqs(only_genes_, overall_mute_freq);
   }
@@ -240,7 +242,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
       cout << "      WARNING couldn't expand though!" << endl;
   }
 
-  if(overall_mute_freq != -INFINITY)  // if we rescaled them above, re-rescale the overall mean mute freqs
+  if(rescale_emissions_ && overall_mute_freq != -INFINITY)  // if we rescaled them above, re-rescale the overall mean mute freqs
     hmms_.RescaleOverallMuteFreqs(only_genes_);
 
   return result;
