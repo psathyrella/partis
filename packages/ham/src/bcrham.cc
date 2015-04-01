@@ -85,11 +85,7 @@ int main(int argc, const char * argv[]) {
     vector<double> mute_freqs(args.float_lists_["mute_freqs"][iqry]);
     double mean_mute_freq(avgVector(mute_freqs));
 
-    JobHolder jh(gl, hmms, args.algorithm(), args.str_lists_["only_genes"][iqry]);
-    jh.SetDebug(args.debug());
-    jh.SetChunkCache(args.chunk_cache());
-    jh.SetNBestEvents(args.n_best_events());
-    jh.rescale_emissions_ = args.rescale_emissions();
+    JobHolder jh(&args, gl, hmms, args.str_lists_["only_genes"][iqry]);
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.n_seqs(), result);  // only used for forward if n_seqs > 1
@@ -102,12 +98,12 @@ int main(int argc, const char * argv[]) {
       errors = "";
       // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
-      result = jh.Run(qry_seqs, kbounds, mean_mute_freq);
+      result = jh.Run(args.algorithm(), qry_seqs, kbounds, mean_mute_freq);
       numerator = result.total_score();
       bayes_factor = numerator;
       if(args.algorithm() == "forward" && qry_seqs.n_seqs() > 1) {  // calculate factors for denominator
         for(size_t iseq = 0; iseq < qry_seqs.n_seqs(); ++iseq) {
-          denom_results[iseq] = jh.Run(qry_seqs[iseq], kbounds, mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
+          denom_results[iseq] = jh.Run(args.algorithm(), qry_seqs[iseq], kbounds, mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
           single_scores[iseq] = denom_results[iseq].total_score();
           bayes_factor -= single_scores[iseq];
         }

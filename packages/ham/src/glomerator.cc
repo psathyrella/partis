@@ -93,11 +93,7 @@ vector<string> Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
 // ----------------------------------------------------------------------------------------
 void Glomerator::GetSoloLogProb(string key) {
   // NOTE the only reason to have this separate from GetLogProb is the only_genes stuff
-  JobHolder jh(gl_, hmms_, "forward", only_genes_[key]);
-  jh.SetDebug(args_->debug());
-  jh.SetChunkCache(args_->chunk_cache());
-  jh.SetNBestEvents(args_->n_best_events());
-  jh.rescale_emissions_ = args_->rescale_emissions();
+  JobHolder jh(args_, gl_, hmms_, only_genes_[key]);
   GetLogProb(jh, key, info_[key], kbinfo_[key]);
 }
 
@@ -202,15 +198,11 @@ void Glomerator::GetNaiveSeq(string key) {
   if(naive_seqs_.count(key))  // already did it
     return;
 
-  JobHolder jh(gl_, hmms_, "viterbi", only_genes_[key]);
-  jh.SetDebug(args_->debug());
-  jh.SetChunkCache(args_->chunk_cache());
-  jh.SetNBestEvents(args_->n_best_events());
-  jh.rescale_emissions_ = args_->rescale_emissions();
+  JobHolder jh(args_, gl_, hmms_, only_genes_[key]);
   Result result(kbinfo_[key]);
   bool stop(false);
   do {
-    result = jh.Run(info_[key], kbinfo_[key]);
+    result = jh.Run("viterbi", info_[key], kbinfo_[key]);
     kbinfo_[key] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -234,7 +226,7 @@ void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds
   Result result(kbounds);
   bool stop(false);
   do {
-    result = jh.Run(seqs, kbounds);
+    result = jh.Run("forward", seqs, kbounds);
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -284,11 +276,7 @@ void Glomerator::Merge() {
 	ab_only_genes.push_back(g);
       KBounds ab_kbounds = kbinfo_[kv_a.first].LogicalOr(kbinfo_[kv_b.first]);
 
-      JobHolder jh(gl_, hmms_, "forward", ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
-      jh.SetDebug(args_->debug());
-      jh.SetChunkCache(args_->chunk_cache());
-      jh.SetNBestEvents(args_->n_best_events());
-      jh.rescale_emissions_ = args_->rescale_emissions();
+      JobHolder jh(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       GetLogProb(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first]);

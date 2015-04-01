@@ -84,15 +84,10 @@ HMMHolder::~HMMHolder() {
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes):
-  rescale_emissions_(false),
+JobHolder::JobHolder(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> only_genes):
+  args_(args),
   gl_(gl),
-  hmms_(hmms),
-  algorithm_(algorithm),
-  debug_(0),
-  chunk_cache_(false),
-  // total_score_(-INFINITY),
-  n_best_events_(5)
+  hmms_(hmms)
 {
   if(only_genes.size() > 0) {
     for(auto & region : gl_.regions_)  // initialize
@@ -150,14 +145,14 @@ map<string, Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(Sequence seq, KBounds kbounds, double overall_mute_freq) {
+Result JobHolder::Run(string algorithm, Sequence seq, KBounds kbounds, double overall_mute_freq) {
   Sequences seqs;
   seqs.AddSeq(seq);
-  return Run(seqs, kbounds, overall_mute_freq);
+  return Run(algorithm, seqs, kbounds, overall_mute_freq);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq) {
+Result JobHolder::Run(string algorithm, Sequences seqs, KBounds kbounds, double overall_mute_freq) {
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   Clear();
@@ -165,7 +160,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
-  if(rescale_emissions_ && overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
+  if(args_->rescale_emissions() && overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
     // NOTE it's super important to *un*set them after you're done
     hmms_.RescaleOverallMuteFreqs(only_genes_, overall_mute_freq);
   }
@@ -184,18 +179,18 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
         continue;
       }
       KSet kset(k_v, k_d);
-      RunKSet(seqs, kset, &best_scores, &total_scores, &best_genes);
+      RunKSet(algorithm, seqs, kset, &best_scores, &total_scores, &best_genes);
       *total_score = AddInLogSpace(total_scores[kset], *total_score);  // sum up the probabilities for each kset, log P_tot = log \sum_i P_k_i
-      if(debug_ == 2 && algorithm_ == "forward") printf("            %9.2f (%.1e)  tot: %7.2f\n", total_scores[kset], exp(total_scores[kset]), *total_score);
+      if(args_->debug() == 2 && algorithm == "forward") printf("            %9.2f (%.1e)  tot: %7.2f\n", total_scores[kset], exp(total_scores[kset]), *total_score);
       if(best_scores[kset] > best_score) {
         best_score = best_scores[kset];
         best_kset = kset;
       }
-      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)
+      if(algorithm == "viterbi" && best_scores[kset] != -INFINITY)
         PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
     }
   }
-  if(debug_ && n_too_long > 0) cout << "      skipped " << n_too_long << " k sets 'cause they were longer than the sequence" << endl;
+  if(args_->debug() && n_too_long > 0) cout << "      skipped " << n_too_long << " k sets 'cause they were longer than the sequence" << endl;
 
   // return if no valid path
   if(best_kset.v == 0) {
@@ -205,12 +200,12 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
   }
 
   // sort vector of events by score, stream info to stderr, and print the top n_best_events_
-  if(algorithm_ == "viterbi") {
+  if(algorithm == "viterbi") {
     sort(result.events_.begin(), result.events_.end());
     reverse(result.events_.begin(), result.events_.end());
-    if(debug_ == 2) {
-      assert(n_best_events_ <= result.events_.size());
-      // for(size_t ievt = 0; ievt < n_best_events_; ++ievt) {
+    if(args_->debug() == 2) {
+      assert(args_->n_best_events() <= (int)result.events_.size());
+      // for(size_t ievt = 0; ievt < args_->n_best_events(); ++ievt) {
       //   result.events_[ievt].Print(gl_, 0, 0, false, false, "          ");  // man, I wish I had keyword args
       //   if(seqs.n_seqs() == 2)
       //     result.events_[ievt].Print(gl_, 0, 0, true, true, "          ");
@@ -220,8 +215,8 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
   // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
 
   // print debug info
-  if(debug_) {
-    if(algorithm_ == "viterbi") {
+  if(args_->debug()) {
+    if(algorithm == "viterbi") {
       cout << "       " << setw(48) << seqs.name_str();
       cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1; // exclusive...
       cout << "    best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score << endl;
@@ -233,7 +228,7 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
   }
 
   result.check_boundaries(best_kset, kbounds);
-  if(debug_ && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
+  if(args_->debug() && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
     cout << "      WARNING max at boundary for " << seqs.name_str()
          << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
          << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
@@ -242,14 +237,14 @@ Result JobHolder::Run(Sequences seqs, KBounds kbounds, double overall_mute_freq)
       cout << "      WARNING couldn't expand though!" << endl;
   }
 
-  if(rescale_emissions_ && overall_mute_freq != -INFINITY)  // if we rescaled them above, re-rescale the overall mean mute freqs
+  if(args_->rescale_emissions() && overall_mute_freq != -INFINITY)  // if we rescaled them above, re-rescale the overall mean mute freqs
     hmms_.RescaleOverallMuteFreqs(only_genes_);
 
   return result;
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
+void JobHolder::FillTrellis(string algorithm, Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
   *score = -INFINITY;
   // initialize trellis and path
   if(trellisi_.find(gene) == trellisi_.end()) {
@@ -257,7 +252,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
     paths_[gene] = map<vector<string>, TracebackPath*>();
   }
   origin = "scratch";
-  if(chunk_cache_) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
+  if(args_->chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto & query_str_map : trellisi_[gene]) {
       vector<string> tmp_query_strs(query_str_map.first);
       // assert(0);  // fix the below!
@@ -276,7 +271,7 @@ void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
       if(found_match) {
         for(size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq)
           assert(tmp_query_strs[iseq].find(query_strs[iseq]) == 0);
-        trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs, trellisi_[gene][tmp_query_strs]);
+        trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs, trellisi_[gene][tmp_query_strs]);
         origin = "chunk";
         break;
       }
@@ -284,24 +279,24 @@ void JobHolder::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
   }
 
   if(!trellisi_[gene][query_strs])   // if didn't find a suitable chunk cached trellis
-    trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, debug_), query_seqs);
+    trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs);
   trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
-  if(algorithm_ == "viterbi") {
+  if(algorithm == "viterbi") {
     trell->Viterbi();
     *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
     if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm
       paths_[gene][query_strs] = nullptr;
-      if(debug_ == 2) cout << "                    arg " << gene << " " << *score << " " << origin << endl;
+      if(args_->debug() == 2) cout << "                    arg " << gene << " " << *score << " " << origin << endl;
     } else {
-      paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene, debug_));
+      paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene, args_->debug()));
       trell->Traceback(*paths_[gene][query_strs]);
       assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // NOTE it would be better to just not store the darn score in both the places to start with, rather than worry here about them being the same
-      // if(debug_ == 2) PrintPath(query_strs, gene, *score, origin);
+      // if(args_->debug() == 2) PrintPath(query_strs, gene, *score, origin);
     }
     assert(fabs(*score) > 1e-200);
     assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);
-  } else if(algorithm_ == "forward") {
+  } else if(algorithm == "forward") {
     trell->Forward();
     paths_[gene][query_strs] = nullptr;  // avoids violating the assumption that paths_ and trellisi_ have the same entries
     *score = trell->ending_forward_log_prob();  // NOTE still need to add the gene choice prob to this score
@@ -318,7 +313,7 @@ void JobHolder::PrintPath(vector<string> query_strs, string gene, double score, 
   }
   vector<string> path_names = paths_[gene][query_strs]->name_vector();
   if(path_names.size() == 0) {
-    if(debug_) cout << "                     " << gene << " has no valid path" << endl;
+    if(args_->debug()) cout << "                     " << gene << " has no valid path" << endl;
     return;
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
@@ -367,7 +362,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     string gene(best_genes[region]);
     vector<string> path_names = paths_[gene][query_strs]->name_vector();
     if(path_names.size() == 0) {
-      if(debug_) cout << "                     " << gene << " has no valid path" << endl;
+      if(args_->debug()) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
       return event;
     }
@@ -404,21 +399,21 @@ vector<string> JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
+void JobHolder::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
   map<string, Sequences> subseqs(GetSubSeqs(seqs, kset));
   (*best_scores)[kset] = -INFINITY;
   (*total_scores)[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
   (*best_genes)[kset] = map<string, string>();
   map<string, double> regional_best_scores; // the best score for each region
   map<string, double> regional_total_scores; // the total score for each region, i.e. log P_v
-  if(debug_ == 2)
+  if(args_->debug() == 2)
     cout << "            " << kset.v << " " << kset.d << " -------------------" << endl;
   for(auto & region : gl_.regions_) {
     vector<string> query_strs(GetQueryStrs(seqs, kset, region));
 
     TermColors tc;
-    if(debug_ == 2) {
-      if(algorithm_ == "viterbi") {
+    if(args_->debug() == 2) {
+      if(algorithm == "viterbi") {
         cout << "              " << region << " query " << query_strs[0] << endl;
         for(size_t is = 1; is < query_strs.size(); ++is)
           cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[is], query_strs[0]) << endl;  // use the first query_str as reference sequence... could just as well use any other
@@ -436,7 +431,7 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
       igene++;
 
       if(region == "v" && query_strs[0].size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
-        if(debug_ == 2) cout << "                     " << gene << " too short" << endl;
+        if(args_->debug() == 2) cout << "                     " << gene << " too short" << endl;
         n_short_v++;
         continue;
       }
@@ -449,16 +444,16 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
       if(already_cached) {
         origin = "cached";
       } else {
-        FillTrellis(subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
-        double gene_choice_score = log(hmms_.Get(gene, debug_)->overall_prob());
+        FillTrellis(algorithm, subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
+        double gene_choice_score = log(hmms_.Get(gene, args_->debug())->overall_prob());
         *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
-      if(debug_ == 2 && algorithm_ == "viterbi")
+      if(args_->debug() == 2 && algorithm == "viterbi")
         PrintPath(query_strs, gene, *gene_score, origin);
 
       // set regional total scores
       regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
-      if(debug_ == 2 && algorithm_ == "forward")
+      if(args_->debug() == 2 && algorithm == "forward")
         printf("                %9.2f (%.1e)  tot: %7.2f  %s\n", *gene_score, exp(*gene_score), regional_total_scores[region], tc.ColorGene(gene).c_str());
 
       // set best regional scores
@@ -477,7 +472,7 @@ void JobHolder::RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scor
 
     // return if we didn't find a valid path for this region
     if((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
-      if(debug_ == 2) {
+      if(args_->debug() == 2) {
         cout << "                  found no gene for " << region << " so skip"
              << " (" << n_short_v << "/" << igene << " v germlines too short, " << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
       }

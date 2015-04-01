@@ -80,22 +80,17 @@ private:
 // ----------------------------------------------------------------------------------------
 class JobHolder {
 public:
-  JobHolder(GermLines &gl, HMMHolder &hmms, string algorithm, vector<string> only_genes = {});
+  JobHolder(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> only_genes = {});
   ~JobHolder();
   void Clear();
-  Result Run(Sequences seqs, KBounds kbounds, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
-  Result Run(Sequence seq, KBounds kbounds, double overall_mute_freq = -INFINITY);
-  void SetDebug(int debug) { debug_ = debug; };
-  void SetChunkCache(bool val) { chunk_cache_ = val; }
-  void SetNBestEvents(size_t n_best) { n_best_events_ = n_best; }
+  Result Run(string algorithm, Sequences seqs, KBounds kbounds, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(string algorithm, Sequence seq, KBounds kbounds, double overall_mute_freq = -INFINITY);
   void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
-  bool rescale_emissions_;
-
 private:
-  void RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
-  void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
+  void RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
+  void FillTrellis(string algorithm, Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
   void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   vector<string> GetQueryStrs(Sequences &seqs, KSet kset, string region);
@@ -108,13 +103,10 @@ private:
   size_t GetInsertLength(string side, vector<string> names);
   size_t GetErosionLength(string side, vector<string> names, string gene_name);
 
+  Args *args_;
   string hmm_dir_;  // location of .hmm files
   GermLines &gl_;
   HMMHolder &hmms_;
-  string algorithm_;
-  int debug_;
-  bool chunk_cache_;
-  size_t n_best_events_; // print and return this many events
   map<string, set<string> > only_genes_;
 
   map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
