@@ -57,8 +57,8 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 
 // ----------------------------------------------------------------------------------------
 void State::RescaleOverallMuteFreq(double factor) {
-  // cout << "before" << endl;
-  // Print();
+  cout << "before" << endl;
+  emission_.Print();
   if(factor < 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
     throw runtime_error("ERROR State::RescaleOverallMuteFreq got a bad factor: " + to_string(factor) + "\n");
 
@@ -69,22 +69,28 @@ void State::RescaleOverallMuteFreq(double factor) {
   for(size_t ip=0; ip<new_log_probs[icol].size(); ++ip) {
     // cout << emission_.track()->symbol(ip) << " " << exp(emission_.score(ip)) << endl;
     // TODO this is wasteful to go out of and back into log space
-    double prob = exp(new_log_probs[icol][ip]);
-    if(emission_.track()->symbol(ip) == germline_nuc_) {  // germline
-      double mute_freq = 1. - prob;
-      if(factor*mute_freq >= 1.0)
-	throw runtime_error("ERROR factor*mute_freq >=1 (" + to_string(factor*mute_freq) + ") in State::RescaleOverallMuteFreq \n");
-      new_log_probs[icol][ip] = log(1.0 - factor*mute_freq);
-    } else {  // mutated
-      double mute_freq = 3. * prob;
-      new_log_probs[icol][ip] = log(factor*mute_freq / 3.);
-    }
+    double old_emit_prob = exp(new_log_probs[icol][ip]);
+    double old_mute_freq;
+    if(emission_.track()->symbol_index(germline_nuc_) >= emission_.track()->alphabet_size())  // this'll throw an exception on the symbol_index call if the germline nuc is bad
+      cout << "HAHAHAHAHA!!" << endl;  // ...so this should never be reached
+    bool is_germline = emission_.track()->symbol(ip) == germline_nuc_;
+    if(is_germline)
+      old_mute_freq = 1. - old_emit_prob;
+    else
+      old_mute_freq = 3. * old_emit_prob;
+    double new_mute_freq = min(0.95, factor*old_mute_freq);  // .95 is kind of arbitrary, but from looking at lots of plots, the only cases where the extrapolation flies above 1.0 is where we have little information, so .95 is probably a good compromise
+    if(is_germline)
+      new_log_probs[icol][ip] = log(1.0 - new_mute_freq);
+    else
+      new_log_probs[icol][ip] = log(new_mute_freq / 3.);
   }
 
+      // if(factor*mute_freq >= 1.0)
+      // 	throw runtime_error("ERROR factor*mute_freq >=1 (" + to_string(factor*mute_freq) + ") in State::RescaleOverallMuteFreq \n");
   emission_.ReplaceLogProbs(new_log_probs);
 
-  // cout << "after" << endl;
-  // Print();
+  cout << "after" << endl;
+  emission_.Print();
 }
 // ----------------------------------------------------------------------------------------
 double State::emission_logprob(Sequences *seqs, size_t pos) {
