@@ -60,9 +60,9 @@ void Emission::Print() {
   for(size_t ir = 0; ir < (*tracks_)[0]->alphabet_size(); ++ir) {
     double prob = exp(scores_.LogProb(ir));
     if(prob < 0.01)
-      printf("%12.3e", exp(scores_.LogProb(ir)));
+      printf("%22.9e", prob);
     else
-      printf("%12.3f", exp(scores_.LogProb(ir)));
+      printf("%22.9f", prob);
   }
   cout << "\n";
 }

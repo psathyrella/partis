@@ -33,7 +33,7 @@ public:
 
 private:
   vector<Track*> tracks;  // tracks which are used by emissions in this table
-  vector<vector<double> >* log_probs_;
+  vector<vector<double> >* log_probs_;  // TODO make this not a pointer
   vector<vector<double> > original_log_probs_;  // i.e. before we rescaled the mute freq
 };
 

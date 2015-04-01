@@ -71,7 +71,7 @@ void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, d
   // then actually do the rescaling for each necessary gene
   for(auto &region : gl_.regions_) {
     for(auto &gene : only_genes[region]) {
-      // cout << "rescale from " << Get(gene, false)->original_overall_mute_freq() << " to " << overall_mute_freq << endl;
+      cout << "rescale " << gene << " from " << Get(gene, false)->original_overall_mute_freq() << " to " << overall_mute_freq << endl;
       Get(gene, false)->RescaleOverallMuteFreq(overall_mute_freq);
     }
   }
