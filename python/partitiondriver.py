@@ -129,6 +129,8 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
+        if self.args.rescale_emissions:
+            cmd_str += ' --rescale-emissions'
         if self.args.action == 'partition':
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
@@ -230,7 +232,8 @@ class PartitionDriver(object):
             assert infname is None
             outlists = []
         queries_per_proc = float(len(info)) / n_procs
-        divvied_queries = self.divvy_up_queries(n_procs, info)
+        if self.args.action == 'partition':
+            divvied_queries = self.divvy_up_queries(n_procs, info)
         for iproc in range(n_procs):
             if infname is None:
                 outlists.append([])

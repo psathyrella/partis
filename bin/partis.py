@@ -36,7 +36,7 @@ parser.add_argument('--mimic-data-read-length', action='store_true', help='Simul
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide randomization of sequence order.')
-# parser.add_argument('--divvy', action='store_true')
+parser.add_argument('--rescale-emissions', action='store_true')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
