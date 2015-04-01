@@ -93,20 +93,15 @@ void Model::AddState(State* state) {
 
 // ----------------------------------------------------------------------------------------
 void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
-  if(overall_mute_freq != -INFINITY) {  // we're resetting the mute freqs
-    rescale_ratio_ = overall_mute_freq / original_overall_mute_freq_;  // REMINDER still not in log space
-    for(auto &state : states_)
-      state->RescaleOverallMuteFreq(rescale_ratio_);
-  } else {  // otherwise we're *re*-resetting 'em
-    for(auto &state : states_)
-      state->UnRescaleOverallMuteFreq();
-      // state->RescaleOverallMuteFreq(1./rescale_ratio_);
-    rescale_ratio_ = -INFINITY;
-  }
-  for(auto &state : states_) {
-    if(state->name() == "IGHJ6_star_04_5")
-      state->emission()->Print();
-  }
+  assert(overall_mute_freq != -INFINITY);
+  for(auto &state : states_)
+    state->RescaleOverallMuteFreq(overall_mute_freq / original_overall_mute_freq_);  // REMINDER still not in log space
+}
+
+// ----------------------------------------------------------------------------------------
+void Model::UnRescaleOverallMuteFreq() {
+  for(auto &state : states_)
+    state->UnRescaleOverallMuteFreq();
 }
 
 // ----------------------------------------------------------------------------------------

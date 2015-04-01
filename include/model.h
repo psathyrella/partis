@@ -14,6 +14,7 @@ public:
   void Parse(string);
   void AddState(State*);
   void RescaleOverallMuteFreq(double overall_mute_freq);  // Rescale emissions to reflect <overall_mute_freq>, unless <overall_mute_freq> is -INFINITY, in which case we *re*-rescale them to what they were originally
+  void UnRescaleOverallMuteFreq();  // Undo the above
   void Finalize();
 
   inline string &name() { return name_; }

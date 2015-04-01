@@ -78,6 +78,15 @@ void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, d
 }
 
 // ----------------------------------------------------------------------------------------
+void HMMHolder::UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes) {
+  for(auto &region : gl_.regions_) {
+    for(auto &gene : only_genes[region]) {
+      cout << "un-rescale " << gene << endl;
+      Get(gene, false)->UnRescaleOverallMuteFreq();
+    }
+  }
+}
+// ----------------------------------------------------------------------------------------
 HMMHolder::~HMMHolder() {
   for(auto & entry : hmms_)
     delete entry.second;
@@ -160,7 +169,8 @@ Result JobHolder::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
-  if(args_->rescale_emissions() && overall_mute_freq != -INFINITY) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
+  if(args_->rescale_emissions()) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
+    assert(overall_mute_freq != -INFINITY);  // make sure the caller remembdered to set it
     // NOTE it's super important to *un*set them after you're done
     hmms_.RescaleOverallMuteFreqs(only_genes_, overall_mute_freq);
   }
@@ -237,8 +247,8 @@ Result JobHolder::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
       cout << "      WARNING couldn't expand though!" << endl;
   }
 
-  if(args_->rescale_emissions() && overall_mute_freq != -INFINITY)  // if we rescaled them above, re-rescale the overall mean mute freqs
-    hmms_.RescaleOverallMuteFreqs(only_genes_);
+  if(args_->rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
+    hmms_.UnRescaleOverallMuteFreqs();
 
   return result;
 }
