@@ -89,6 +89,7 @@ int main(int argc, const char * argv[]) {
     jh.SetDebug(args.debug());
     jh.SetChunkCache(args.chunk_cache());
     jh.SetNBestEvents(args.n_best_events());
+    jh.rescale_emissions_ = args.rescale_emissions();
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.n_seqs(), result);  // only used for forward if n_seqs > 1

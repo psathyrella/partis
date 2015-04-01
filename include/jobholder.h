@@ -90,6 +90,8 @@ public:
   void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
+  bool rescale_emissions_;
+
 private:
   void RunKSet(Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);

@@ -65,7 +65,6 @@ void Emission::Print() {
       printf("%12.3f", exp(scores_.LogProb(ir)));
   }
   cout << "\n";
-
 }
 
 }

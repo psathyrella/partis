@@ -99,8 +99,13 @@ void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
       state->RescaleOverallMuteFreq(rescale_ratio_);
   } else {  // otherwise we're *re*-resetting 'em
     for(auto &state : states_)
-      state->RescaleOverallMuteFreq(1./rescale_ratio_);
+      state->UnRescaleOverallMuteFreq();
+      // state->RescaleOverallMuteFreq(1./rescale_ratio_);
     rescale_ratio_ = -INFINITY;
+  }
+  for(auto &state : states_) {
+    if(state->name() == "IGHJ6_star_04_5")
+      state->emission()->Print();
   }
 }
 

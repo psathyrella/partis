@@ -19,6 +19,7 @@ Args::Args(int argc, const char * argv[]):
   n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
   chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
   partition_arg_("z", "partition", "", false),
+  rescale_emissions_arg_("q", "rescale-emissions", "", false),
   str_headers_ {},
   int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
@@ -37,6 +38,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(n_best_events_arg_);
     cmd.add(chunk_cache_arg_);
     cmd.add(partition_arg_);
+    cmd.add(rescale_emissions_arg_);
 
     cmd.parse(argc, argv);
 

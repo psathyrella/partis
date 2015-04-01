@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <math.h>
 #include <cassert>
 #include "track.h"
 #include "sequences.h"
@@ -14,7 +15,7 @@ class LexicalTable {
 public:
   LexicalTable();
   void Init();
-  void ReplaceLogProbs(vector<vector<double> > &new_log_probs);  // replace values in <log_probs_> with thsoe in <new_log_probs>
+  void ReplaceLogProbs(vector<vector<double> > new_log_probs);  // replace values in <log_probs_> with thsoe in <new_log_probs>
   void UnReplaceLogProbs();  // revert to the original log probs
   ~LexicalTable();
 
