@@ -248,7 +248,7 @@ Result JobHolder::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
   }
 
   if(args_->rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
-    hmms_.UnRescaleOverallMuteFreqs();
+    hmms_.UnRescaleOverallMuteFreqs(only_genes_);
 
   return result;
 }

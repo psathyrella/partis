@@ -21,11 +21,11 @@ public:
 
   void AddTrack(Track* trk, int order) { tracks.push_back(trk); }
   void AddColumn(vector<double> logprobs);
-  vector<vector<double> > log_probs() { return *log_probs_; }  // NOTE returns a *copy*
+  vector<vector<double> > log_probs() { return log_probs_; }  // NOTE returns a *copy*
 
-  inline double LogProb(size_t letter) { assert(letter < (*log_probs_)[0].size()); return (*log_probs_)[0][letter]; }
+  inline double LogProb(size_t letter) { assert(letter < log_probs_[0].size()); return log_probs_[0][letter]; }
   inline double LogProb(Sequence *seq, size_t pos) {
-    return (*log_probs_)[0][(*seq)[pos]];
+    return log_probs_[0][(*seq)[pos]];
   }
   inline Track* track(size_t iter) { return tracks.at(iter); }
   inline size_t n_tracks() { return tracks.size(); }
@@ -33,7 +33,7 @@ public:
 
 private:
   vector<Track*> tracks;  // tracks which are used by emissions in this table
-  vector<vector<double> >* log_probs_;  // TODO make this not a pointer
+  vector<vector<double> > log_probs_;
   vector<vector<double> > original_log_probs_;  // i.e. before we rescaled the mute freq
 };
 
