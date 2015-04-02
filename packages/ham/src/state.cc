@@ -57,8 +57,6 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 
 // ----------------------------------------------------------------------------------------
 void State::RescaleOverallMuteFreq(double factor) {
-  cout << "before" << endl;
-  emission_.Print();
   if(factor < 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
     throw runtime_error("ERROR State::RescaleOverallMuteFreq got a bad factor: " + to_string(factor) + "\n");
 
@@ -79,18 +77,15 @@ void State::RescaleOverallMuteFreq(double factor) {
     else
       old_mute_freq = 3. * old_emit_prob;
     double new_mute_freq = min(0.95, factor*old_mute_freq);  // .95 is kind of arbitrary, but from looking at lots of plots, the only cases where the extrapolation flies above 1.0 is where we have little information, so .95 is probably a good compromise
+    if(new_mute_freq <= 0.0 || new_mute_freq >= 1.0)
+      throw runtime_error("ERROR new_mute_freq >=1 (" + to_string(new_mute_freq) + ") in State::RescaleOverallMuteFreq \n");
     if(is_germline)
       new_log_probs[icol][ip] = log(1.0 - new_mute_freq);
     else
       new_log_probs[icol][ip] = log(new_mute_freq / 3.);
   }
 
-      // if(factor*mute_freq >= 1.0)
-      // 	throw runtime_error("ERROR factor*mute_freq >=1 (" + to_string(factor*mute_freq) + ") in State::RescaleOverallMuteFreq \n");
   emission_.ReplaceLogProbs(new_log_probs);
-
-  cout << "after" << endl;
-  emission_.Print();
 }
 // ----------------------------------------------------------------------------------------
 double State::emission_logprob(Sequences *seqs, size_t pos) {
