@@ -16,6 +16,7 @@ map<string, float> positions;
 class State
 {
 public:
+  State() {}
   State(vector<string> &uids) {  // initialize with the all-separate partition
     for(auto &uid : uids)
       partition_.push_back(vector<string>{uid});
@@ -27,7 +28,7 @@ public:
 double Prob(double x1, double x2) {
   double sigma = 1.0;  // width
   double factor = (x1-x2)/sigma;
-  return exp(-0.5*factor*factor)) / (sigma * sqrt(2*3.1415926));  // normal distribution
+  return exp(-0.5*factor*factor) / (sigma * sqrt(2*3.1415926));  // normal distribution
 }
 
 // return log prob of <cluster>
@@ -59,21 +60,21 @@ double PartitionLogProb(vector<vector<string> > partition)
 }
 
 // return a randomized particle, i.e. a <State> with associated logprob
-smc::particle<State> Init()
+smc::particle<State> Init(smc::rng *pRng)
 {
   State init_state(all_uids);
   return smc::particle<State>(init_state, PartitionLogProb(init_state.partition_));
 }
 
 // choose a pair of clusters to merge according to the log probs
-void Move(smc::particle<State> &partifrom, smc::rng *rgen)
+void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
 {
   State *state = partifrom.GetValuePointer();
 
   // first find the net probability of all potential merges
   map<pair<unsigned, unsigned>, double> potential_merges;
   double total(0.0);
-  for(unsigned ic1=0; ic1<state->partition_.size(), ++ic1) {
+  for(unsigned ic1=0; ic1<state->partition_.size(); ++ic1) {
     for(unsigned ic2=ic1+1; ic2<state->partition_.size(); ++ic2) {
       vector<string> cl1(state->partition_[ic1]), cl2(state->partition_[ic2]);
       vector<string> merged_cluster(cl1);
@@ -97,111 +98,52 @@ void Move(smc::particle<State> &partifrom, smc::rng *rgen)
   double drawpoint = rgen->Uniform(0., 1.);
   double sum(0.0);
   pair<unsigned, unsigned> icls(9999, 9999);
+  double chosennetprob(0.0);
   for(auto &kv : potential_merges) {
     double netprob(kv.second);
     sum += netprob;
     if(sum > drawpoint) {
       icls = kv.first;
+      chosennetprob = netprob;
       break;
     }
   }
   assert(icls.first != 9999);
+  assert(chosennetprob != 0.0);
 
-    cv_to->x_pos += cv_to->x_vel * Delta + pRng->Normal(0, sqrt(var_s));
-
-    pFrom.AddToLogWeight(logLikelihood(lTime, *cv_to));
+  // vector<string> cl1(state->partition_[icls.first]), cl2(state->partition_[icls.second]);
+  // vector<string> merged_cluster(cl1);
+  // merged_cluster.insert(merged_cluster.begin(), cl2.begin(), cl2.end());
+  state->partition_[icls.first].insert(state->partition_[icls.first].begin(),
+				       state->partition_[icls.second].begin(),
+				       state->partition_[icls.second].end());
+  state->partition_.erase(state->partition_.begin() + icls.second);
+  partifrom.AddToLogWeight(chosennetprob);
 }
 
-using namespace std;
-
-///The observations
-cv_obs * ydata;
-long load_data(char const * szName, cv_obs** y);
-
-double integrand_mean_x(const cv_state&, void*);
-double integrand_mean_y(const cv_state&, void*);
-double integrand_var_x(const cv_state&, void*);
-double integrand_var_y(const cv_state&, void*);
-
+// ----------------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-    long lNumber = 10;
-    long lIterates;
+  long n_particles(10);
+  long n_steps(10);
 
-    try {
-        //Load observations
-        lIterates = load_data("data.csv", &ydata);
+  try {
+    smc::sampler<State> smp(n_particles, SMC_HISTORY_NONE);
+    smc::moveset<State> mvs(Init, Move);
 
-        //Initialise and run the sampler
-        smc::sampler<cv_state> Sampler(lNumber, SMC_HISTORY_NONE);
-        smc::moveset<cv_state> Moveset(fInitialise, fMove);
+    smp.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
+    smp.SetMoveSet(mvs);
+    smp.Initialise();
 
-        Sampler.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
-        Sampler.SetMoveSet(Moveset);
-        Sampler.Initialise();
-
-        for(int n = 1 ; n < lIterates ; ++n) {
-            Sampler.Iterate();
-
-            double xm, xv, ym, yv;
-            xm = Sampler.Integrate(integrand_mean_x, NULL);
-            xv = Sampler.Integrate(integrand_var_x, (void*)&xm);
-            ym = Sampler.Integrate(integrand_mean_y, NULL);
-            yv = Sampler.Integrate(integrand_var_y, (void*)&ym);
-
-            cout << xm << "," << ym << "," << xv << "," << yv << endl;
-        }
+    for(int n = 1 ; n < n_steps ; ++n) {
+      smp.Iterate();
+      State state(smp.GetParticleValue(0));
+      cout << state.partition_.size() << endl;
     }
+  }
 
-    catch(smc::exception  e) {
-        cerr << e;
-        exit(e.lCode);
-    }
-}
-
-long load_data(char const * szName, cv_obs** yp)
-{
-    FILE * fObs = fopen(szName, "rt");
-    if(!fObs)
-        throw SMC_EXCEPTION(SMCX_FILE_NOT_FOUND, "Error: pf assumes that the current directory contains an appropriate data file called data.csv\nThe first line should contain a constant indicating the number of data lines it contains.\nThe remaining lines should contain comma-separated pairs of x,y observations.");
-    char* szBuffer = new char[1024];
-    fgets(szBuffer, 1024, fObs);
-    long lIterates = strtol(szBuffer, NULL, 10);
-
-    *yp = new cv_obs[lIterates];
-
-    for(long i = 0; i < lIterates; ++i) {
-        fgets(szBuffer, 1024, fObs);
-        (*yp)[i].x_pos = strtod(strtok(szBuffer, ",\r\n "), NULL);
-        (*yp)[i].y_pos = strtod(strtok(NULL, ",\r\n "), NULL);
-    }
-    fclose(fObs);
-
-    delete [] szBuffer;
-
-    return lIterates;
-}
-
-double integrand_mean_x(const cv_state& s, void *)
-{
-    return s.x_pos;
-}
-
-double integrand_var_x(const cv_state& s, void* vmx)
-{
-    double* dmx = (double*)vmx;
-    double d = (s.x_pos - (*dmx));
-    return d * d;
-}
-
-double integrand_mean_y(const cv_state& s, void *)
-{
-    return s.y_pos;
-}
-
-double integrand_var_y(const cv_state& s, void* vmy)
-{
-    double* dmy = (double*)vmy;
-    double d = (s.y_pos - (*dmy));
-    return d * d;
+  catch(smc::exception  e) {
+    cerr << e;
+    exit(e.lCode);
+  }
 }
