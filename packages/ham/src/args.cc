@@ -14,7 +14,7 @@ Args::Args(int argc, const char * argv[]):
   outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
   cachefile_arg_("u", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
   algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
-  hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", true, -1.0, "float"),
+  hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", false, -1.0, "float"),
   debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
   n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
   chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
