@@ -57,7 +57,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 
 // ----------------------------------------------------------------------------------------
 void State::RescaleOverallMuteFreq(double factor) {
-  if(factor < 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
+  if(factor <= 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
     throw runtime_error("ERROR State::RescaleOverallMuteFreq got a bad factor: " + to_string(factor) + "\n");
 
   vector<vector<double> > new_log_probs(emission_.log_probs());
@@ -78,7 +78,7 @@ void State::RescaleOverallMuteFreq(double factor) {
       old_mute_freq = 3. * old_emit_prob;
     double new_mute_freq = min(0.95, factor*old_mute_freq);  // .95 is kind of arbitrary, but from looking at lots of plots, the only cases where the extrapolation flies above 1.0 is where we have little information, so .95 is probably a good compromise
     if(new_mute_freq <= 0.0 || new_mute_freq >= 1.0)
-      throw runtime_error("ERROR new_mute_freq >=1 (" + to_string(new_mute_freq) + ") in State::RescaleOverallMuteFreq \n");
+      throw runtime_error("ERROR new_mute_freq not in (0,1) (" + to_string(new_mute_freq) + ") in State::RescaleOverallMuteFreq old: " + to_string(old_mute_freq) + " factor: " + to_string(factor) + " is_germline: " + to_string(is_germline));
     if(is_germline)
       new_log_probs[icol][ip] = log(1.0 - new_mute_freq);
     else
