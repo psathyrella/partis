@@ -1,5 +1,6 @@
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include <gsl/gsl_randist.h>
 #include <cstdio>
@@ -12,6 +13,7 @@ using namespace std;
 
 vector<string> all_uids;
 map<string, float> positions;
+bool debug;
 
 class State
 {
@@ -70,10 +72,19 @@ smc::particle<State> Init(smc::rng *pRng)
 void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
 {
   State *state = partifrom.GetValuePointer();
+  if(state->partition_.size() == 1) {
+    if(debug)
+      cout << "nothing to move (only one cluster)" << endl;
+    return;
+  }
 
   // first find the net probability of all potential merges
   map<pair<unsigned, unsigned>, double> potential_merges;
   double total(0.0);
+  if(debug) {
+    cout << "moving" << endl;
+    cout << "  potential" << endl;
+  }
   for(unsigned ic1=0; ic1<state->partition_.size(); ++ic1) {
     for(unsigned ic2=ic1+1; ic2<state->partition_.size(); ++ic2) {
       vector<string> cl1(state->partition_[ic1]), cl2(state->partition_[ic2]);
@@ -83,6 +94,8 @@ void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
       double net_logprob = ClusterLogProb(merged_cluster) - ClusterLogProb(cl1) - ClusterLogProb(cl2);
       potential_merges[pair<unsigned, unsigned>(ic1, ic2)] = exp(net_logprob);  // should probably really stay in log space here
       total += exp(net_logprob);
+      if(debug)
+	printf("    %3d%3d     %.9f\n", ic1, ic2, exp(net_logprob));
     }
   }
 
@@ -92,16 +105,20 @@ void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
     kv.second /= total;
     chktotal += kv.second;
   }
-  cout << "TOTAL " << chktotal << endl;
+  assert(fabs(chktotal - 1.) < 1e-7);
 
   // then choose one at random according to the probs
   double drawpoint = rgen->Uniform(0., 1.);
   double sum(0.0);
   pair<unsigned, unsigned> icls(9999, 9999);
   double chosennetprob(0.0);
+  if(debug)
+    cout << "  choosing with " << drawpoint << endl;
   for(auto &kv : potential_merges) {
     double netprob(kv.second);
     sum += netprob;
+    if(debug)
+      cout << "    " << kv.first.first << " " << kv.first.second << "    " << sum << endl;
     if(sum > drawpoint) {
       icls = kv.first;
       chosennetprob = netprob;
@@ -110,21 +127,52 @@ void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
   }
   assert(icls.first != 9999);
   assert(chosennetprob != 0.0);
+  if(debug) {
+    cout << "  chose " << icls.first << " " << icls.second << "    " << chosennetprob << endl;
+    cout << "  before" << endl;
+    for(auto &cluster : state->partition_) {
+      cout << "   ";
+      for(auto &uid : cluster)
+	cout << " " << uid;
+      cout << endl;
+    }
+  }
 
-  // vector<string> cl1(state->partition_[icls.first]), cl2(state->partition_[icls.second]);
-  // vector<string> merged_cluster(cl1);
-  // merged_cluster.insert(merged_cluster.begin(), cl2.begin(), cl2.end());
   state->partition_[icls.first].insert(state->partition_[icls.first].begin(),
 				       state->partition_[icls.second].begin(),
 				       state->partition_[icls.second].end());
   state->partition_.erase(state->partition_.begin() + icls.second);
   partifrom.AddToLogWeight(chosennetprob);
+
+  if(debug) {
+    cout << "  after" << endl;
+    for(auto &cluster : state->partition_) {
+      cout << "   ";
+      for(auto &uid : cluster)
+	cout << " " << uid;
+      cout << endl;
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-  long n_particles(10);
+  debug = false;
+  string infname("data.txt");
+  ifstream ifs(infname);
+  if(!ifs.is_open())
+    throw runtime_error("ERROR input file " + infname + " d.n.e.");
+  string line;
+  int iline(0);
+  while(getline(ifs, line)) {
+    positions[to_string(iline)] = atof(line.c_str());
+    ++iline;
+  }
+  for(auto &kv : positions)
+    all_uids.push_back(kv.first);
+  
+  long n_particles(1);
   long n_steps(10);
 
   try {
@@ -138,7 +186,7 @@ int main(int argc, char** argv)
     for(int n = 1 ; n < n_steps ; ++n) {
       smp.Iterate();
       State state(smp.GetParticleValue(0));
-      cout << state.partition_.size() << endl;
+      cout << "  clusters: " << state.partition_.size() << endl;
     }
   }
 
