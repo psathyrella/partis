@@ -61,6 +61,18 @@ double PartitionLogProb(vector<vector<string> > partition)
   return logprob;
 }
 
+// ----------------------------------------------------------------------------------------
+void PrintPartition(vector<vector<string> > partition) {
+  printf("   %7.2f:", PartitionLogProb(partition));
+  for(unsigned ic=0; ic<partition.size(); ++ic) {
+    if(ic>0)
+      cout << "           ";
+    for(auto &uid : partition[ic])
+      cout << " " << uid;
+    cout << endl;
+  }
+}
+
 // return a randomized particle, i.e. a <State> with associated logprob
 smc::particle<State> Init(smc::rng *pRng)
 {
@@ -130,12 +142,7 @@ void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
   if(debug) {
     cout << "  chose " << icls.first << " " << icls.second << "    " << chosennetprob << endl;
     cout << "  before" << endl;
-    for(auto &cluster : state->partition_) {
-      cout << "   ";
-      for(auto &uid : cluster)
-	cout << " " << uid;
-      cout << endl;
-    }
+    PrintPartition(state->partition_);
   }
 
   state->partition_[icls.first].insert(state->partition_[icls.first].begin(),
@@ -146,12 +153,7 @@ void Move(long time, smc::particle<State> &partifrom, smc::rng *rgen)
 
   if(debug) {
     cout << "  after" << endl;
-    for(auto &cluster : state->partition_) {
-      cout << "   ";
-      for(auto &uid : cluster)
-	cout << " " << uid;
-      cout << endl;
-    }
+    PrintPartition(state->partition_);
   }
 }
 
@@ -172,21 +174,44 @@ int main(int argc, char** argv)
   for(auto &kv : positions)
     all_uids.push_back(kv.first);
   
-  long n_particles(1);
-  long n_steps(10);
+  long n_particles(5);
+  long n_max_steps(100);
 
   try {
-    smc::sampler<State> smp(n_particles, SMC_HISTORY_NONE);
+    smc::sampler<State> smp(n_particles, SMC_HISTORY_RAM);
     smc::moveset<State> mvs(Init, Move);
 
     smp.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
     smp.SetMoveSet(mvs);
     smp.Initialise();
 
-    for(int n = 1 ; n < n_steps ; ++n) {
+    vector<vector<State> > history;
+    for(int ip=0; ip<n_particles; ++ip) {
+      history.push_back(vector<State>());
+    }
+
+    for(int istep=1 ; istep<n_max_steps ; ++istep) {
       smp.Iterate();
-      State state(smp.GetParticleValue(0));
-      cout << "  clusters: " << state.partition_.size() << endl;
+      for(int ip=0; ip<n_particles; ++ip) {
+	history[ip].push_back(smp.GetParticleValue(ip));
+      }
+
+      bool all_finished(true);
+      for(int ip=0; ip<n_particles; ++ip) {
+	bool this_finished = smp.GetParticleValue(ip).partition_.size() == 1;  // this one is finished if we've finished merging
+	all_finished &= this_finished;
+      }
+      if(all_finished)
+	break;
+    }
+    
+    for(int ip=0; ip<n_particles; ++ip) {
+      cout << " particle " << ip << endl;
+      for(int is=0; is<n_max_steps-1; ++is) {  // not sure why the *@*% it has to be minus one
+	if(history[ip][is].partition_.size() < 1)
+	  break;
+	PrintPartition(history[ip][is].partition_);
+      }
     }
   }
 
