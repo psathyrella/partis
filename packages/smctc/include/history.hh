@@ -97,7 +97,8 @@ public:
     /// \param ulCount The number of positions by which to shift.
     /// \return The element a number of positions before this one.
 
-    historyelement<Particle> operator<<(unsigned long ulCount) {
+    historyelement<Particle> operator<<(unsigned long ulCount)
+    {
         if(ulCount)
             return this->pLast << (--ulCount);
         else
@@ -108,7 +109,8 @@ public:
     ///
     /// \param ulCount The number of positions by which to shift.
     /// \return The right shift operator returns the element a number of positions after this one.
-    historyelement<Particle> operator>>(unsigned long ulCount) {
+    historyelement<Particle> operator>>(unsigned long ulCount)
+    {
         if(ulCount)
             return this->pNext << (--ulCount);
         else
