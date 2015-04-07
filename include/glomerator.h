@@ -32,6 +32,7 @@ private:
   int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
   void GetNaiveSeq(string key);
   void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds);
+  string JoinNames(string name1, string name2);
   void Merge();
 
   // input info

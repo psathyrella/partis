@@ -238,6 +238,13 @@ void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBound
 }
 
 // ----------------------------------------------------------------------------------------
+string Glomerator::JoinNames(string name1, string name2) {
+  vector<string> names{name1, name2};
+  sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids
+  return names[0] + ":" + names[1];
+}
+
+// ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
 void Glomerator::Merge() {
   double max_log_prob(-INFINITY);
@@ -251,9 +258,7 @@ void Glomerator::Merge() {
   for(auto &kv_a : info_) {  // note that c++ maps are ordered
     for(auto &kv_b : info_) {
       if(kv_a.first == kv_b.first) continue;
-      vector<string> names{kv_a.first, kv_b.first};
-      sort(names.begin(), names.end());
-      string bothnamestr(names[0] + ":" + names[1]);
+      string bothnamestr = JoinNames(kv_a.first, kv_b.first);
       if(already_done.count(bothnamestr))  // already did this pair
 	continue;
       else
@@ -309,7 +314,7 @@ void Glomerator::Merge() {
   vector<string> max_names{max_pair.first, max_pair.second};
   sort(max_names.begin(), max_names.end());
   Sequences max_seqs(info_[max_names[0]].Union(info_[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
-  string max_name_str(max_names[0] + ":" + max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
+  string max_name_str = JoinNames(max_names[0], max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
   info_[max_name_str] = max_seqs;
   kbinfo_[max_name_str] = max_kbounds;
   only_genes_[max_name_str] = max_only_genes;
