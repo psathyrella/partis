@@ -55,7 +55,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
-        assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd want to think through a few things first
+        # assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd want to think through a few things first
         assert self.args.plotdir is not None
 
         sw_parameter_dir = self.args.parameter_dir + '/sw'

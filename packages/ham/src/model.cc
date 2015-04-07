@@ -94,8 +94,13 @@ void Model::AddState(State* state) {
 // ----------------------------------------------------------------------------------------
 void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
   assert(overall_mute_freq != -INFINITY);
-  for(auto &state : states_)
-    state->RescaleOverallMuteFreq(overall_mute_freq / original_overall_mute_freq_);  // REMINDER still not in log space
+  for(auto &state : states_) {
+    // NOTE it is arguable that the denominator here should be the original mute freq only over the sequences that had
+    //  *this* germline gene (rather than over all sequence in the data set). However, it'd be a bunch more work to do
+    //  it that way, and even if it's more correcter, I don't think it'd make much difference
+    double factor = max(0.01, overall_mute_freq) / original_overall_mute_freq_;  // NOTE the 1% is kind of a hack (to protect against zero) -- but it's roughly equal to the uncertainty on our mute freq estimates, so it's reasonable
+    state->RescaleOverallMuteFreq(factor);  // REMINDER still not in log space
+  }
 }
 
 // ----------------------------------------------------------------------------------------

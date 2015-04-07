@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "smctc.hh"
 #include "args.h"
 #include "jobholder.h"
 #include "text.h"
