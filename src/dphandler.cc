@@ -1,97 +1,7 @@
-#include "jobholder.h"
-
-// ----------------------------------------------------------------------------------------
-KBounds KBounds::LogicalOr(KBounds rhs) {
-  KBounds kbr(rhs); // return value
-  if(vmin < kbr.vmin) kbr.vmin = vmin;
-  if(dmin < kbr.dmin) kbr.dmin = dmin;
-  if(vmax > kbr.vmax) kbr.vmax = vmax;
-  if(dmax > kbr.dmax) kbr.dmax = dmax;
-  return kbr;
-}
-
-// ----------------------------------------------------------------------------------------
-void Result::check_boundaries(KSet best, KBounds kbounds) {
-  // if(kbounds.vmax - kbounds.vmin <= 1 || kbounds.dmax - kbounds.dmin <= 2) return; // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
-
-  int delta(2);  // be VERY VERY CAREFUL about subtracting move than the value off of a size_t. Yes, I know I should follow the google standards and not use unsigned integers but it wasn't my choice at the start... I'll switch eventually
-
-  // see if we need to expand
-  if(best.v == kbounds.vmin) {
-    boundary_error_ = true;
-    better_kbounds_.vmin = max((int)1, (int)kbounds.vmin - delta);
-  }
-  if(best.v == kbounds.vmax - 1) {
-    boundary_error_ = true;
-    better_kbounds_.vmax = kbounds.vmax + delta;
-  }
-  if(best.d == kbounds.dmin) {
-    boundary_error_ = true;
-    better_kbounds_.dmin = max((int)1, (int)kbounds.dmin - delta);
-  }
-  if(best.d == kbounds.dmax - 1) {
-    boundary_error_ = true;
-    better_kbounds_.dmax = kbounds.dmax + delta;
-  }
-
-  if(boundary_error_ && better_kbounds_.equals(kbounds))
-    could_not_expand_ = true;
-}
-
-// ----------------------------------------------------------------------------------------
-void HMMHolder::CacheAll() {
-  for(auto & region : gl_.regions_) {
-    for(auto & gene : gl_.names_[region]) {
-      string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
-      if(ifstream(infname)) {
-        cout << "    read " << infname << endl;
-        hmms_[gene] = new Model;
-        hmms_[gene]->Parse(infname);
-      }
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------------------
-Model *HMMHolder::Get(string gene, bool debug) {
-  if(hmms_.find(gene) == hmms_.end()) {   // if we don't already have it, read it from disk
-    hmms_[gene] = new Model;
-    string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
-    // if (true) cout << "    read " << infname << endl;
-    hmms_[gene]->Parse(infname);
-  }
-  return hmms_[gene];
-}
-
-// ----------------------------------------------------------------------------------------
-void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq) {
-  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
-  // Seriously! If you don't re-rescale 'em when you're done with the sequences to which <overall_mute_freq> correspond, the mute freqs in the hmms will be *wrong*
-
-  // then actually do the rescaling for each necessary gene
-  for(auto &region : gl_.regions_) {
-    for(auto &gene : only_genes[region]) {
-      Get(gene, false)->RescaleOverallMuteFreq(overall_mute_freq);
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------------------
-void HMMHolder::UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes) {
-  for(auto &region : gl_.regions_) {
-    for(auto &gene : only_genes[region]) {
-      Get(gene, false)->UnRescaleOverallMuteFreq();
-    }
-  }
-}
-// ----------------------------------------------------------------------------------------
-HMMHolder::~HMMHolder() {
-  for(auto & entry : hmms_)
-    delete entry.second;
-}
-
+#include "dphandler.h"
+namespace ham {
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-JobHolder::JobHolder(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> only_genes):
+DPHandler::DPHandler(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> only_genes):
   args_(args),
   gl_(gl),
   hmms_(hmms)
@@ -103,17 +13,17 @@ JobHolder::JobHolder(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> 
       only_genes_[gl_.GetRegion(gene)].insert(gene);
     for(auto & region : gl_.regions_) // then make sure we have at least one gene for each region
       if(only_genes_[region].size() == 0)
-        throw runtime_error("ERROR jobholder didn't get any genes for " + region + " region");
+        throw runtime_error("ERROR dphandler didn't get any genes for " + region + " region");
   }
 }
 
 // ----------------------------------------------------------------------------------------
-JobHolder::~JobHolder() {
+DPHandler::~DPHandler() {
   Clear();
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::Clear() {
+void DPHandler::Clear() {
   for(auto & gene_map : trellisi_) {
     string gene(gene_map.first);
     for(auto & query_str_map : gene_map.second) {
@@ -129,7 +39,7 @@ void JobHolder::Clear() {
 }
 
 // ----------------------------------------------------------------------------------------
-Sequences JobHolder::GetSubSeqs(Sequences &seqs, KSet kset, string region) {
+Sequences DPHandler::GetSubSeqs(Sequences &seqs, KSet kset, string region) {
   // get subsequences for one region
   size_t k_v(kset.v), k_d(kset.d);
   if(region == "v")
@@ -143,7 +53,7 @@ Sequences JobHolder::GetSubSeqs(Sequences &seqs, KSet kset, string region) {
 }
 
 // ----------------------------------------------------------------------------------------
-map<string, Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
+map<string, Sequences> DPHandler::GetSubSeqs(Sequences &seqs, KSet kset) {
   // get subsequences for all regions
   map<string, Sequences> subseqs;
   for(auto & region : gl_.regions_)
@@ -152,14 +62,14 @@ map<string, Sequences> JobHolder::GetSubSeqs(Sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(string algorithm, Sequence seq, KBounds kbounds, double overall_mute_freq) {
+Result DPHandler::Run(string algorithm, Sequence seq, KBounds kbounds, double overall_mute_freq) {
   Sequences seqs;
   seqs.AddSeq(seq);
   return Run(algorithm, seqs, kbounds, overall_mute_freq);
 }
 
 // ----------------------------------------------------------------------------------------
-Result JobHolder::Run(string algorithm, Sequences seqs, KBounds kbounds, double overall_mute_freq) {
+Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double overall_mute_freq) {
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   Clear();
@@ -252,7 +162,7 @@ Result JobHolder::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::FillTrellis(string algorithm, Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
+void DPHandler::FillTrellis(string algorithm, Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
   *score = -INFINITY;
   // initialize trellis and path
   if(trellisi_.find(gene) == trellisi_.end()) {
@@ -314,7 +224,7 @@ void JobHolder::FillTrellis(string algorithm, Sequences query_seqs, vector<strin
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::PrintPath(vector<string> query_strs, string gene, double score, string extra_str) {  // NOTE query_str is seq1xseq2 for pair hmm
+void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, string extra_str) {  // NOTE query_str is seq1xseq2 for pair hmm
   if(score == -INFINITY) {
     // cout << "                    " << gene << " " << score << endl;
     return;
@@ -352,13 +262,13 @@ void JobHolder::PrintPath(vector<string> query_strs, string gene, double score, 
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events) {
+void DPHandler::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events) {
   RecoEvent event(FillRecoEvent(seqs, kset, best_genes, score));
   events->push_back(event);
 }
 
 // ----------------------------------------------------------------------------------------
-RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score) {
+RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score) {
   RecoEvent event;
   vector<string> seq_strs(seqs.n_seqs(), "");  // build up these strings summing over each regions
   for(auto & region : gl_.regions_) {
@@ -398,7 +308,7 @@ RecoEvent JobHolder::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
 }
 
 // ----------------------------------------------------------------------------------------
-vector<string> JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
+vector<string> DPHandler::GetQueryStrs(Sequences &seqs, KSet kset, string region) {
   Sequences query_seqs(GetSubSeqs(seqs, kset, region));
   vector<string> query_strs;
   for(size_t iseq = 0; iseq < seqs.n_seqs(); ++iseq)
@@ -407,7 +317,7 @@ vector<string> JobHolder::GetQueryStrs(Sequences &seqs, KSet kset, string region
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
+void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
   map<string, Sequences> subseqs(GetSubSeqs(seqs, kset));
   (*best_scores)[kset] = -INFINITY;
   (*total_scores)[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
@@ -493,7 +403,7 @@ void JobHolder::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, 
 }
 
 // ----------------------------------------------------------------------------------------
-void JobHolder::SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event) {
+void DPHandler::SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event) {
   Insertions ins;
   for(auto & insertion : ins[region]) {  // loop over the boundaries (vd and dj)
     string side(insertion == "jf" ? "right" : "left");
@@ -504,7 +414,7 @@ void JobHolder::SetInsertions(string region, string query_str, vector<string> pa
 }
 
 // ----------------------------------------------------------------------------------------
-size_t JobHolder::GetInsertStart(string side, size_t path_length, size_t insert_length) {
+size_t DPHandler::GetInsertStart(string side, size_t path_length, size_t insert_length) {
   if(side == "left") {
     return 0;
   } else if(side == "right") {
@@ -516,7 +426,7 @@ size_t JobHolder::GetInsertStart(string side, size_t path_length, size_t insert_
 }
 
 // ----------------------------------------------------------------------------------------
-size_t JobHolder::GetInsertLength(string side, vector<string> names) {
+size_t DPHandler::GetInsertLength(string side, vector<string> names) {
   size_t n_inserts(0);
   if(side == "left") {
     for(auto & name : names) {
@@ -539,7 +449,7 @@ size_t JobHolder::GetInsertLength(string side, vector<string> names) {
 }
 
 // ----------------------------------------------------------------------------------------
-size_t JobHolder::GetErosionLength(string side, vector<string> names, string gene_name) {
+size_t DPHandler::GetErosionLength(string side, vector<string> names, string gene_name) {
   string germline(gl_.seqs_[gene_name]);
 
   // first check if we eroded the entire sequence. If so we can't say how much was left and how much was right, so just (integer) divide by two (arbitrarily giving one side the odd base if necessary)
@@ -606,10 +516,12 @@ size_t JobHolder::GetErosionLength(string side, vector<string> names, string gen
 }
 
 // // ----------------------------------------------------------------------------------------
-// void JobHolder::WriteBestGeneProbs(ofstream &ofs, string query_name) {
+// void DPHandler::WriteBestGeneProbs(ofstream &ofs, string query_name) {
 //   ofs << query_name << ",";
 //   stringstream ss;
 //   for(auto & gene_map : best_per_gene_scores_)
 //     ss << gene_map.first << ":" << gene_map.second << ";";
 //   ofs << ss.str().substr(0, ss.str().size() - 1) << endl; // remove the last semicolon
 // }
+
+}

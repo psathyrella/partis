@@ -307,4 +307,95 @@ void RecoEvent::Print(GermLines &germlines, size_t cyst_position, size_t final_t
   cout << extra_indent << "    " << final_seq << "   " << score_ << endl;
 }
 
+
+// ----------------------------------------------------------------------------------------
+KBounds KBounds::LogicalOr(KBounds rhs) {
+  KBounds kbr(rhs); // return value
+  if(vmin < kbr.vmin) kbr.vmin = vmin;
+  if(dmin < kbr.dmin) kbr.dmin = dmin;
+  if(vmax > kbr.vmax) kbr.vmax = vmax;
+  if(dmax > kbr.dmax) kbr.dmax = dmax;
+  return kbr;
+}
+
+// ----------------------------------------------------------------------------------------
+void Result::check_boundaries(KSet best, KBounds kbounds) {
+  // if(kbounds.vmax - kbounds.vmin <= 1 || kbounds.dmax - kbounds.dmin <= 2) return; // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
+
+  int delta(2);  // be VERY VERY CAREFUL about subtracting move than the value off of a size_t. Yes, I know I should follow the google standards and not use unsigned integers but it wasn't my choice at the start... I'll switch eventually
+
+  // see if we need to expand
+  if(best.v == kbounds.vmin) {
+    boundary_error_ = true;
+    better_kbounds_.vmin = max((int)1, (int)kbounds.vmin - delta);
+  }
+  if(best.v == kbounds.vmax - 1) {
+    boundary_error_ = true;
+    better_kbounds_.vmax = kbounds.vmax + delta;
+  }
+  if(best.d == kbounds.dmin) {
+    boundary_error_ = true;
+    better_kbounds_.dmin = max((int)1, (int)kbounds.dmin - delta);
+  }
+  if(best.d == kbounds.dmax - 1) {
+    boundary_error_ = true;
+    better_kbounds_.dmax = kbounds.dmax + delta;
+  }
+
+  if(boundary_error_ && better_kbounds_.equals(kbounds))
+    could_not_expand_ = true;
+}
+
+// ----------------------------------------------------------------------------------------
+void HMMHolder::CacheAll() {
+  for(auto & region : gl_.regions_) {
+    for(auto & gene : gl_.names_[region]) {
+      string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
+      if(ifstream(infname)) {
+        cout << "    read " << infname << endl;
+        hmms_[gene] = new Model;
+        hmms_[gene]->Parse(infname);
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+Model *HMMHolder::Get(string gene, bool debug) {
+  if(hmms_.find(gene) == hmms_.end()) {   // if we don't already have it, read it from disk
+    hmms_[gene] = new Model;
+    string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
+    // if (true) cout << "    read " << infname << endl;
+    hmms_[gene]->Parse(infname);
+  }
+  return hmms_[gene];
+}
+
+// ----------------------------------------------------------------------------------------
+void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq) {
+  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
+  // Seriously! If you don't re-rescale 'em when you're done with the sequences to which <overall_mute_freq> correspond, the mute freqs in the hmms will be *wrong*
+
+  // then actually do the rescaling for each necessary gene
+  for(auto &region : gl_.regions_) {
+    for(auto &gene : only_genes[region]) {
+      Get(gene, false)->RescaleOverallMuteFreq(overall_mute_freq);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+void HMMHolder::UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes) {
+  for(auto &region : gl_.regions_) {
+    for(auto &gene : only_genes[region]) {
+      Get(gene, false)->UnRescaleOverallMuteFreq();
+    }
+  }
+}
+// ----------------------------------------------------------------------------------------
+HMMHolder::~HMMHolder() {
+  for(auto & entry : hmms_)
+    delete entry.second;
+}
+
 }

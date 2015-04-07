@@ -7,7 +7,7 @@
 
 #include "smctc.hh"
 #include "args.h"
-#include "jobholder.h"
+#include "dphandler.h"
 #include "text.h"
 
 using namespace std;
@@ -31,7 +31,7 @@ private:
   int HammingDistance(Sequence seq_a, Sequence seq_b);
   int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
   void GetNaiveSeq(string key);
-  void GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds);
+  void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds);
   void Merge();
 
   // input info

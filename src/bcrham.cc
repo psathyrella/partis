@@ -8,7 +8,7 @@
 // #include <ctime>
 #include <fstream>
 #include <cfenv>
-#include "jobholder.h"
+#include "dphandler.h"
 #include "bcrutils.h"
 #include "text.h"
 #include "args.h"
@@ -85,7 +85,7 @@ int main(int argc, const char * argv[]) {
     vector<double> mute_freqs(args.float_lists_["mute_freqs"][iqry]);
     double mean_mute_freq(avgVector(mute_freqs));
 
-    JobHolder jh(&args, gl, hmms, args.str_lists_["only_genes"][iqry]);
+    DPHandler dph(&args, gl, hmms, args.str_lists_["only_genes"][iqry]);
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.n_seqs(), result);  // only used for forward if n_seqs > 1
@@ -98,12 +98,12 @@ int main(int argc, const char * argv[]) {
       errors = "";
       // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
-      result = jh.Run(args.algorithm(), qry_seqs, kbounds, mean_mute_freq);
+      result = dph.Run(args.algorithm(), qry_seqs, kbounds, mean_mute_freq);
       numerator = result.total_score();
       bayes_factor = numerator;
       if(args.algorithm() == "forward" && qry_seqs.n_seqs() > 1) {  // calculate factors for denominator
         for(size_t iseq = 0; iseq < qry_seqs.n_seqs(); ++iseq) {
-          denom_results[iseq] = jh.Run(args.algorithm(), qry_seqs[iseq], kbounds, mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
+          denom_results[iseq] = dph.Run(args.algorithm(), qry_seqs[iseq], kbounds, mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
           single_scores[iseq] = denom_results[iseq].total_score();
           bayes_factor -= single_scores[iseq];
         }

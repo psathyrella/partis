@@ -23,17 +23,16 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   }
 
   ReadCachedLogProbs(track);
-}
 
-// ----------------------------------------------------------------------------------------
-void Glomerator::Cluster() {
-  // first add the initial partition
+  // add the initial partition
   vector<string> initial_partition(GetClusterList(info_));
   list_of_partitions_.push_back(pair<double, vector<string> >(LogProbOfPartition(initial_partition), initial_partition));
   if(args_->debug())
     PrintPartition(initial_partition, "initial");
+}
 
-  // then agglomerate
+// ----------------------------------------------------------------------------------------
+void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
   do {
     Merge();
@@ -93,8 +92,8 @@ vector<string> Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
 // ----------------------------------------------------------------------------------------
 void Glomerator::GetSoloLogProb(string key) {
   // NOTE the only reason to have this separate from GetLogProb is the only_genes stuff
-  JobHolder jh(args_, gl_, hmms_, only_genes_[key]);
-  GetLogProb(jh, key, info_[key], kbinfo_[key]);
+  DPHandler dph(args_, gl_, hmms_, only_genes_[key]);
+  GetLogProb(dph, key, info_[key], kbinfo_[key]);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -198,11 +197,11 @@ void Glomerator::GetNaiveSeq(string key) {
   if(naive_seqs_.count(key))  // already did it
     return;
 
-  JobHolder jh(args_, gl_, hmms_, only_genes_[key]);
+  DPHandler dph(args_, gl_, hmms_, only_genes_[key]);
   Result result(kbinfo_[key]);
   bool stop(false);
   do {
-    result = jh.Run("viterbi", info_[key], kbinfo_[key]);
+    result = dph.Run("viterbi", info_[key], kbinfo_[key]);
     kbinfo_[key] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -218,7 +217,7 @@ void Glomerator::GetNaiveSeq(string key) {
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds &kbounds) {
+void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds) {
   // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name))  // already did it
     return;
@@ -226,7 +225,7 @@ void Glomerator::GetLogProb(JobHolder &jh, string name, Sequences &seqs, KBounds
   Result result(kbounds);
   bool stop(false);
   do {
-    result = jh.Run("forward", seqs, kbounds);
+    result = dph.Run("forward", seqs, kbounds);
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -276,12 +275,12 @@ void Glomerator::Merge() {
 	ab_only_genes.push_back(g);
       KBounds ab_kbounds = kbinfo_[kv_a.first].LogicalOr(kbinfo_[kv_b.first]);
 
-      JobHolder jh(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
+      DPHandler dph(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetLogProb(jh, kv_a.first, a_seqs, kbinfo_[kv_a.first]);
-      GetLogProb(jh, kv_b.first, b_seqs, kbinfo_[kv_b.first]);
-      GetLogProb(jh, bothnamestr, ab_seqs, ab_kbounds);
+      GetLogProb(dph, kv_a.first, a_seqs, kbinfo_[kv_a.first]);
+      GetLogProb(dph, kv_b.first, b_seqs, kbinfo_[kv_b.first]);
+      GetLogProb(dph, bothnamestr, ab_seqs, ab_kbounds);
 
       double bayes_factor(log_probs_[bothnamestr] - log_probs_[kv_a.first] - log_probs_[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
