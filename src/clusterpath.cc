@@ -2,8 +2,8 @@
 namespace ham {
 // ----------------------------------------------------------------------------------------
 ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob):
-  max_log_prob_of_partition_(-INFINITY),
-  finished_(false)
+  finished_(false),
+  max_log_prob_of_partition_(-INFINITY)
 {
   partitions_.push_back(initial_partition);
   logprobs_.push_back(initial_logprob);
@@ -11,9 +11,6 @@ ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob):
 
 // ----------------------------------------------------------------------------------------
 void ClusterPath::AddPartition(Partition partition, double logprob) {
-  if(args_->debug())
-    PrintPartition(partition, "current");
-
   partitions_.push_back(partition);
   logprobs_.push_back(logprob);
 
