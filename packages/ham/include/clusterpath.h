@@ -15,6 +15,7 @@ typedef set<string> Partition;
 // ----------------------------------------------------------------------------------------
 class ClusterPath {  // sequence of gradually coalescing partitions, with associated info
 public:
+  ClusterPath() {}
   ClusterPath(Partition initial_partition, double initial_logprob);
   void AddPartition(Partition partition, double logprob);
   Partition &CurrentPartition() { return partitions_[partitions_.size()-1]; }  // return current (most recent) partition
@@ -27,6 +28,7 @@ private:
 
   double max_log_prob_of_partition_;
   Partition best_partition_;
+
 };
 }
 #endif
