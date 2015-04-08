@@ -6,15 +6,9 @@ namespace ham {
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track) :
   hmms_(hmms),
   gl_(gl),
-  args_(args)//,
-  // sampler_(args_->smc_particles(), SMC_HISTORY_NONE),
-  // moveset_(SMCInit, SMCMove)
+  args_(args)
 {
   ReadCachedLogProbs(track);
-
-  // sampler_.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
-  // sampler_.SetMoveSet(moveset_);
-  // sampler_.Initialise();
 
   // convert input vector to maps
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
@@ -32,50 +26,31 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   if(args_->debug())
     PrintPartition(initial_partition_, "initial");
 
-  if(args_->smc_particles() == 1)  // no smc, so push back one manually
-    clusterpaths_.push_back(ClusterPath(initial_partition_, initial_logprob_));
+}
+
+// ----------------------------------------------------------------------------------------
+Glomerator::~Glomerator() {
+  WriteCachedLogProbs();
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
 
-  if(args_->smc_particles() == 1) {  // don't do smc
-    assert(clusterpaths_.size() == 1);
-    do {
-      Merge(clusterpaths_[0]);
-    } while(!clusterpaths_[0].finished_);
-  } else {
-    do {
-      cout << "WOOOOOOOOOOOOOOOOOOOOOOO" << endl;
-      // sampler_.Iterate();
-    } while(!AllFinished());
-  }
+  ClusterPath cp(initial_partition_, initial_logprob_);
+  do {
+    Merge(&cp);
+  } while(!cp.finished_);
 
-  // if(args_->debug()) {
-  //   cout << "  -----------------" << endl;  
-  //   PrintPartition(best_partition_, "best");
-  // }
-
-  WritePartitions();
-  WriteCachedLogProbs();
+  vector<ClusterPath> paths{cp};
+  WritePartitions(paths);
 }
 
-// // ----------------------------------------------------------------------------------------
-// smc::particle<ClusterPath> Glomerator::SMCInit(smc::rng *rgen) {
-//   return smc::particle<ClusterPath>(ClusterPath(initial_partition_, initial_logprob_), initial_logprob_);
-// }
-
-// // ----------------------------------------------------------------------------------------
-// void Glomerator::SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
-  
-// }
-
 // ----------------------------------------------------------------------------------------
-bool Glomerator::AllFinished() {
+bool Glomerator::AllFinished(vector<ClusterPath> &paths) {
   bool all_finished(true);
-  for(unsigned ip = 0; ip < clusterpaths_.size(); ++ip)
-    all_finished &= clusterpaths_[ip].finished_;
+  for(unsigned ip = 0; ip < paths.size(); ++ip)
+    all_finished &= paths[ip].finished_;
   return all_finished;
 }
 
@@ -164,11 +139,11 @@ void Glomerator::WriteCachedLogProbs() {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WritePartitions() {
+void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
   ofs_ << "path_index,partition,score" << endl;
-  for(unsigned ipath=0; ipath<clusterpaths_.size(); ++ipath) {
-    ClusterPath cp(clusterpaths_[ipath]);
+  int ipath(0);
+  for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
       ofs_ << ipath << ",";
       int ic(0);
@@ -180,6 +155,7 @@ void Glomerator::WritePartitions() {
       }
       ofs_ << "," << cp.logprobs()[ipart] << endl;
     }
+    ++ipath;
   }
   ofs_.close();
 }
@@ -284,8 +260,8 @@ string Glomerator::JoinNames(string name1, string name2) {
 
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
-void Glomerator::Merge(ClusterPath &path) {
-  if(path.finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
+void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
+  if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
@@ -295,8 +271,8 @@ void Glomerator::Merge(ClusterPath &path) {
   int n_total_pairs(0), n_skipped_hamming(0);
 
   set<string> already_done;  // keeps track of which  a-b pairs we've already done
-  for(auto &key_a : path.CurrentPartition()) {  // note that c++ maps are ordered
-    for(auto &key_b : path.CurrentPartition()) {  // also, note that CurrentPartition() returns a reference
+  for(auto &key_a : path->CurrentPartition()) {  // note that c++ maps are ordered
+    for(auto &key_b : path->CurrentPartition()) {  // also, note that CurrentPartition() returns a reference
       if(key_a == key_b) continue;
       string bothnamestr = JoinNames(key_a, key_b);
       if(already_done.count(bothnamestr))  // already did this pair
@@ -347,7 +323,7 @@ void Glomerator::Merge(ClusterPath &path) {
 
   // if <info_> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
-    path.finished_ = true;
+    path->finished_ = true;
     return;
   }
 
@@ -362,12 +338,12 @@ void Glomerator::Merge(ClusterPath &path) {
 
   GetNaiveSeq(max_name_str);
 
-  Partition new_partition(path.CurrentPartition());  // note: CurrentPartition() returns a reference
+  Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(max_pair.first);
   new_partition.erase(max_pair.second);
   new_partition.insert(max_name_str);
 
-  path.AddPartition(new_partition, LogProbOfPartition(new_partition));
+  path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);

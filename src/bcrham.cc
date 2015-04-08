@@ -8,15 +8,30 @@
 // #include <ctime>
 #include <fstream>
 #include <cfenv>
+
 #include "dphandler.h"
 #include "bcrutils.h"
 #include "text.h"
 #include "args.h"
 #include "glomerator.h"
 #include "tclap/CmdLine.h"
+#include "smctc.hh"
+
 using namespace TCLAP;
 using namespace ham;
 using namespace std;
+
+Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
+
+// ----------------------------------------------------------------------------------------
+smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
+  return smc::particle<ClusterPath>(ClusterPath(stupid_global_glom->initial_partition(), stupid_global_glom->initial_logprob()), stupid_global_glom->initial_logprob());
+}
+
+// ----------------------------------------------------------------------------------------
+void SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
+  stupid_global_glom->Merge(ptl.GetValuePointer(), rgen);  // ...but I couldn't figure out a better way to do this without a global
+}
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
@@ -71,7 +86,27 @@ int main(int argc, const char * argv[]) {
 
   if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
     Glomerator glom(hmms, gl, qry_seq_list, &args, &trk);
-    glom.Cluster();
+    if(args.smc_particles() == 1) {
+      glom.Cluster();
+    } else {
+      if(args.debug()) cout << "   glomerating" << endl;
+      stupid_global_glom = &glom;
+      smc::sampler<ClusterPath> smp(args.smc_particles(), SMC_HISTORY_NONE);
+      smc::moveset<ClusterPath> mvs(SMCInit, SMCMove);
+      smp.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
+      smp.SetMoveSet(mvs);
+      smp.Initialise();
+
+      vector<ClusterPath> paths;
+      for(int ip=0; ip<args.smc_particles(); ++ip)
+	paths.push_back(smp.GetParticleValue(ip));
+
+      do {
+	smp.Iterate();
+      } while(!glom.AllFinished(paths));
+
+      glom.WritePartitions(paths);
+    }
     ofs.close();
     return 0;
   }

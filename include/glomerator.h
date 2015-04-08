@@ -18,18 +18,20 @@ namespace ham {
 class Glomerator {
 public:
   Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track);
+  ~Glomerator();
   void Cluster();
   double LogProbOfPartition(Partition &clusters);
-  // smc::particle<ClusterPath> SMCInit(smc::rng *rgen);
-  // void SMCMove(long time, smc::particle<ClusterPath> &particle, smc::rng *rgen);
+  void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
+  bool AllFinished(vector<ClusterPath> &paths);
+  Partition initial_partition() { return initial_partition_; }
+  double initial_logprob() { return initial_logprob_; }
+  void WritePartitions(vector<ClusterPath> &paths);
 private:
-  bool AllFinished();
   void ReadCachedLogProbs(Track *track);
   Partition GetClusterList(map<string, Sequences> &partinfo);
   void GetSoloLogProb(string key);
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCachedLogProbs();
-  void WritePartitions();
   int NaiveHammingDistance(string key_a, string key_b);
   int HammingDistance(string seq_a, string seq_b);  // dammit I don't like having two functions, but *@!(#ing Sequence class is not stl safe.
   int HammingDistance(Sequence seq_a, Sequence seq_b);
@@ -37,7 +39,6 @@ private:
   void GetNaiveSeq(string key);
   void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds);
   string JoinNames(string name1, string name2);
-  void Merge(ClusterPath &path);
 
   // input info
   HMMHolder hmms_;
@@ -55,10 +56,6 @@ private:
   map<string, double> log_probs_;  // includes cached info from previous runs
   map<string, string> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;
-  // smc::sampler<ClusterPath> sampler_;
-  // smc::moveset<ClusterPath> moveset_;
-  vector<ClusterPath> clusterpaths_;
-
 };
 
 }
