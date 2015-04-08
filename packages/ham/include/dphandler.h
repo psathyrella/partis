@@ -1,5 +1,5 @@
-#ifndef DPHANDLER_H
-#define DPHANDLER_H
+#ifndef HAM_DPHANDLER_H
+#define HAM_DPHANDLER_H
 
 #include <map>
 #include <string>

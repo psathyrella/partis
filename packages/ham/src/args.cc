@@ -8,18 +8,19 @@ Args::Args(int argc, const char * argv[]):
   debug_ints_ {0, 1, 2},
   algo_vals_(algo_strings_),
   debug_vals_(debug_ints_),
-  hmmdir_arg_("m", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
-  datadir_arg_("d", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
-  infile_arg_("i", "infile", "input (whitespace-separated) file", true, "", "string"),
-  outfile_arg_("o", "outfile", "output csv file", true, "", "string"),
-  cachefile_arg_("u", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
-  algorithm_arg_("a", "algorithm", "algorithm to run", true, "", &algo_vals_),
-  hamming_fraction_cutoff_arg_("f", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", false, -1.0, "float"),
-  debug_arg_("g", "debug", "debug level", false, 0, &debug_vals_),
-  n_best_events_arg_("n", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-  chunk_cache_arg_("c", "chunk-cache", "perform chunk caching?", false),
-  partition_arg_("z", "partition", "", false),
-  rescale_emissions_arg_("q", "rescale-emissions", "", false),
+  hmmdir_arg_("", "hmmdir", "directory in which to look for hmm model files", true, "", "string"),
+  datadir_arg_("", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
+  infile_arg_("", "infile", "input (whitespace-separated) file", true, "", "string"),
+  outfile_arg_("", "outfile", "output csv file", true, "", "string"),
+  cachefile_arg_("", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
+  algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
+  hamming_fraction_cutoff_arg_("", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", false, -1.0, "float"),
+  debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
+  n_best_events_arg_("", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
+  smc_particles_arg_("", "smc_particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
+  chunk_cache_arg_("", "chunk-cache", "perform chunk caching?", false),
+  partition_arg_("", "partition", "", false),
+  rescale_emissions_arg_("", "rescale-emissions", "", false),
   str_headers_ {},
   int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
@@ -36,6 +37,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(algorithm_arg_);
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
+    cmd.add(smc_particles_arg_);
     cmd.add(chunk_cache_arg_);
     cmd.add(partition_arg_);
     cmd.add(rescale_emissions_arg_);

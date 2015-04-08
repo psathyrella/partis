@@ -182,7 +182,7 @@ int main(int argc, char** argv)
     long n_max_steps(100);
 
     try {
-        smc::sampler<State> smp(n_particles, SMC_HISTORY_RAM);
+        smc::sampler<State> smp(n_particles, SMC_HISTORY_NONE);
         smc::moveset<State> mvs(Init, Move);
 
         smp.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);

@@ -2,49 +2,80 @@
 
 namespace ham {
 
+// ----------------------------------------------------------------------------------------
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track):  // reminder: <qry_seq_list> is a list of lists
   hmms_(hmms),
   gl_(gl),
   args_(args),
-  max_log_prob_of_partition_(-INFINITY),
-  finished_(false)
+  sampler_(args.smc_particles(), SMC_HISTORY_NONE),
+  moveset_(SMCInit, SMCMove)
 {
+  ReadCachedLogProbs(track);
+
+  sampler_.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
+  sampler_.SetMoveSet(moveset_);
+  sampler_.Initialise();
+
   // convert input vector to maps
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key(qry_seq_list[iqry].name_str(":"));
-
     KSet kmin(args->integers_["k_v_min"][iqry], args->integers_["k_d_min"][iqry]);
     KSet kmax(args->integers_["k_v_max"][iqry], args->integers_["k_d_max"][iqry]);
-
     KBounds kb(kmin, kmax);
     info_[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
     only_genes_[key] = args->str_lists_["only_genes"][iqry];
     kbinfo_[key] = kb;
   }
 
-  ReadCachedLogProbs(track);
-
-  // add the initial partition
-  vector<string> initial_partition(GetClusterList(info_));
-  list_of_partitions_.push_back(pair<double, vector<string> >(LogProbOfPartition(initial_partition), initial_partition));
+  initial_partition_ = GetClusterList(info_);
+  initial_logprob_ = LogProbOfPartition(initial_partition_);
   if(args_->debug())
     PrintPartition(initial_partition, "initial");
+
+  if(args.smc_particles() == 1)  // no smc, so push back one manually
+    clusterpaths_.push_back(ClusterPath(initial_partition_, initial_logprob_));
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
-  do {
-    Merge();
-  } while(!finished_);
 
-  if(args_->debug()) {
-    cout << "  -----------------" << endl;  
-    PrintPartition(best_partition_, "best");
+  if(args.smc_particles() == 1) {  // don't do smc
+    assert(clusterpaths_.size() == 1);
+    do {
+      Merge(clusterpaths_[0]);
+    } while(!clusterpaths_[0].finished_);
+  } else {
+    do {
+      sampler_.Iterate();
+    } while(!AllFinished());
   }
+
+  // if(args_->debug()) {
+  //   cout << "  -----------------" << endl;  
+  //   PrintPartition(best_partition_, "best");
+  // }
 
   WritePartitions();
   WriteCachedLogProbs();
+}
+
+// ----------------------------------------------------------------------------------------
+smc::particle<ClusterPath> Glomerator::SMCInit(smc::rng *rgen) {
+  return smc::particle<ClusterPath>(ClusterPath(initial_partition_, initial_logprob_), initial_logprob_);
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
+  
+}
+
+// ----------------------------------------------------------------------------------------
+bool Glomerator::AllFinished() {
+  bool all_finished(true);
+  for(int ip = 0; ip < clusterpaths_.size(); ++ip)
+    all_finished &= clusterpaths_[ip].finished_;
+  return all_finished;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -82,10 +113,10 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
 
 // ----------------------------------------------------------------------------------------
 // return a vector consisting of the keys in <partinfo>
-vector<string> Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
-  vector<string> clusters;
+Partitition Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
+  Partition clusters;
   for(auto &kv : partinfo)
-    clusters.push_back(kv.first);
+    clusters.insert(kv.first);
   return clusters;
 }
 
@@ -97,10 +128,10 @@ void Glomerator::GetSoloLogProb(string key) {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::LogProbOfPartition(vector<string> &clusters) {
+double Glomerator::LogProbOfPartition(Partition &partition) {
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
-  for(auto &key : clusters) {
+  for(auto &key : partition) {
     if(log_probs_.count(key) == 0)
       GetSoloLogProb(key);  // should only happen for the initial partition
       // throw runtime_error("ERROR couldn't find key " + key + " in cached log probs\n");
@@ -110,10 +141,10 @@ double Glomerator::LogProbOfPartition(vector<string> &clusters) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::PrintPartition(vector<string> &clusters, string extrastr) {
+void Glomerator::PrintPartition(Partition &partition, string extrastr) {
   const char *extra_cstr(extrastr.c_str());  // dammit I shouldn't need this line
-  printf("    %-8.2f %s partition\n", LogProbOfPartition(clusters), extra_cstr);
-  for(auto &key : clusters)
+  printf("    %-8.2f %s partition\n", LogProbOfPartition(partition), extra_cstr);
+  for(auto &key : partition)
     cout << "          " << key << endl;
 }
 
@@ -134,14 +165,18 @@ void Glomerator::WriteCachedLogProbs() {
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions() {
   ofs_.open(args_->outfile());
-  ofs_ << "partition,score" << endl;
-  for(auto &pr : list_of_partitions_) {
-    for(size_t ic=0; ic<pr.second.size(); ++ic) {
-      if(ic > 0)
-	ofs_ << ";";
-      ofs_ << pr.second[ic];
+  ofs_ << "path_index,partition,score" << endl;
+  for(unsigned ipath=0; ipath<clusterpaths_.size(); ++ipath) {
+    ClusterPath cp(clusterpaths_[ipath]);
+    ofs_ << ipath << ",";
+    for(unsigned ipart=0; ipart<cp.partitions_.size(); ++ipart) {
+      for(auto &cluster : cp.partitions_[ipart]) {
+	if(ic > 0)
+	  ofs_ << ";";
+	ofs_ << cluster;
+      }
+      ofs_ << "," << cp.log_probs_[ipart] << "\n";
     }
-    ofs_ << "," << pr.first << "\n";
   }
   ofs_.close();
 }
@@ -175,21 +210,21 @@ int Glomerator::NaiveHammingDistance(string key_a, string key_b) {
   GetNaiveSeq(key_b);
   return HammingDistance(naive_seqs_[key_a], naive_seqs_[key_b]);
 }
-// ----------------------------------------------------------------------------------------
-int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
-  // Minimal hamming distance between any sequence in <seqs_a> and any sequence in <seqs_b>
-  // NOTE for now, we require sequences are the same length (otherwise we have to deal with alignming them which is what we would call a CAN OF WORMS.
-  assert(seqs_a.n_seqs() > 0 && seqs_b.n_seqs() > 0);
-  int min_distance(seqs_a[0].size());
-  for(size_t is=0; is<seqs_a.n_seqs(); ++is) {
-    for(size_t js=0; js<seqs_b.n_seqs(); ++js) {
-      int distance = HammingDistance(seqs_a[is], seqs_b[js]);
-      if(distance < min_distance)
-	min_distance = distance;
-    }
-  }
-  return min_distance;
-}
+// // ----------------------------------------------------------------------------------------
+// int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
+//   // Minimal hamming distance between any sequence in <seqs_a> and any sequence in <seqs_b>
+//   // NOTE for now, we require sequences are the same length (otherwise we have to deal with alignming them which is what we would call a CAN OF WORMS.
+//   assert(seqs_a.n_seqs() > 0 && seqs_b.n_seqs() > 0);
+//   int min_distance(seqs_a[0].size());
+//   for(size_t is=0; is<seqs_a.n_seqs(); ++is) {
+//     for(size_t js=0; js<seqs_b.n_seqs(); ++js) {
+//       int distance = HammingDistance(seqs_a[is], seqs_b[js]);
+//       if(distance < min_distance)
+// 	min_distance = distance;
+//     }
+//   }
+//   return min_distance;
+// }
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <key>/<seqs> to <log_probs_> (if it isn't already there)
@@ -246,7 +281,9 @@ string Glomerator::JoinNames(string name1, string name2) {
 
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
-void Glomerator::Merge() {
+void Glomerator::Merge(ClusterPath &path) {
+  if(path.finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
+    return;
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   vector<string> max_only_genes;
@@ -255,19 +292,24 @@ void Glomerator::Merge() {
   int n_total_pairs(0), n_skipped_hamming(0);
 
   set<string> already_done;  // keeps track of which  a-b pairs we've already done
-  for(auto &kv_a : info_) {  // note that c++ maps are ordered
-    for(auto &kv_b : info_) {
-      if(kv_a.first == kv_b.first) continue;
-      string bothnamestr = JoinNames(kv_a.first, kv_b.first);
+  for(auto &key_a : path.CurrentPartition()) {  // note that c++ maps are ordered
+    for(auto &key_b : path.CurrentPartition()) {
+      if(key_a == key_b) continue;
+      string bothnamestr = JoinNames(key_a, key_b);
       if(already_done.count(bothnamestr))  // already did this pair
-	continue;
+  	continue;
       else
-	already_done.insert(bothnamestr);
+  	already_done.insert(bothnamestr);
+      Sequences a_seqs(info_[key_a]), b_seqs(info[key_b]);
+  // for(unsigned i_a=0; i_a<path.CurrentPartition().size(); ++i_a) {
+  //   for(unsigned i_b=i_a+1; i_b<path.CurrentPartition().size(); ++i_b) {
+  //     string key_a(path.CurrentPartition()[i_a]), key_b(path.CurrentPartition()[i_b]);
+  //     string bothnamestr = JoinNames(key_a, key_b);
 
       ++n_total_pairs;
-      Sequences a_seqs(kv_a.second), b_seqs(kv_b.second);  // NOTE it might help to also cache hamming fractions
 
-      double hamming_fraction = float(NaiveHammingDistance(kv_a.first, kv_b.first)) / a_seqs[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
+      // NOTE it might help to also cache hamming fractions
+      double hamming_fraction = float(NaiveHammingDistance(key_a, key_b)) / a_seqs[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
       if(hamming_fraction > args_->hamming_fraction_cutoff()) {
 	++n_skipped_hamming;
 	continue;
@@ -275,29 +317,29 @@ void Glomerator::Merge() {
 
       // NOTE it's a bit wasteful to do this if we already have all three of 'em cached
       Sequences ab_seqs(a_seqs.Union(b_seqs));
-      vector<string> ab_only_genes = only_genes_[kv_a.first];
-      for(auto &g : only_genes_[kv_b.first])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
+      vector<string> ab_only_genes = only_genes_[key_a];
+      for(auto &g : only_genes_[key_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
 	ab_only_genes.push_back(g);
-      KBounds ab_kbounds = kbinfo_[kv_a.first].LogicalOr(kbinfo_[kv_b.first]);
+      KBounds ab_kbounds = kbinfo_[key_a].LogicalOr(kbinfo_[key_b]);
 
       DPHandler dph(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetLogProb(dph, kv_a.first, a_seqs, kbinfo_[kv_a.first]);
-      GetLogProb(dph, kv_b.first, b_seqs, kbinfo_[kv_b.first]);
+      GetLogProb(dph, key_a, a_seqs, kbinfo_[key_a]);
+      GetLogProb(dph, key_b, b_seqs, kbinfo_[key_b]);
       GetLogProb(dph, bothnamestr, ab_seqs, ab_kbounds);
 
-      double bayes_factor(log_probs_[bothnamestr] - log_probs_[kv_a.first] - log_probs_[kv_b.first]);  // REMINDER a, b not necessarily same order as names[0], names[1]
+      double bayes_factor(log_probs_[bothnamestr] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
 	printf("       %8.3f = ", bayes_factor);
 	printf("%2s %8.2f", "", log_probs_[bothnamestr]);
-	printf(" - %8.2f - %8.2f", log_probs_[kv_a.first], log_probs_[kv_b.first]);
+	printf(" - %8.2f - %8.2f", log_probs_[key_a], log_probs_[key_b]);
 	printf("\n");
       }
 
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
-	max_pair = pair<string, string>(kv_a.first, kv_b.first);  // REMINDER not always same order as names[0], names[1]
+	max_pair = pair<string, string>(key_a, key_b);  // REMINDER not always same order as names[0], names[1]
 	max_only_genes = ab_only_genes;
 	max_kbounds = ab_kbounds;
       }
@@ -306,7 +348,7 @@ void Glomerator::Merge() {
 
   // if <info_> only has one cluster, if hamming is too large between all remaining clusters/remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
-    finished_ = true;
+    path.finished_ = true;
     return;
   }
 
@@ -321,33 +363,16 @@ void Glomerator::Merge() {
 
   GetNaiveSeq(max_name_str);
 
-  info_.erase(max_pair.first);
-  info_.erase(max_pair.second);
-  kbinfo_.erase(max_pair.first);
-  kbinfo_.erase(max_pair.second);
-  only_genes_.erase(max_pair.first);
-  only_genes_.erase(max_pair.second);
+  Partition new_partition(path.CurrentPartition());
+  new_partition.erase(max_pair.first);
+  new_partition.erase(max_pair.second);
+  new_partition.insert(max_name_str);
+
+  path.AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
-  }
-
-  vector<string> partition(GetClusterList(info_));
-  if(args_->debug())
-    PrintPartition(partition, "current");
-  double total_log_prob = LogProbOfPartition(partition);
-
-  list_of_partitions_.push_back(pair<double, vector<string> >(total_log_prob, partition));
-
-  if(total_log_prob > max_log_prob_of_partition_) {
-    best_partition_ = partition;
-    max_log_prob_of_partition_ = total_log_prob;
-  }
-
-  if(max_log_prob_of_partition_ - total_log_prob > 1000.0) {  // stop if we've moved too far past the maximum
-    cout << "    stopping after drop " << max_log_prob_of_partition_ << " --> " << total_log_prob << endl;
-    finished_ = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
   }
 }
 
