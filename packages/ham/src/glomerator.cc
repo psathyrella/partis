@@ -3,36 +3,36 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track):  // reminder: <qry_seq_list> is a list of lists
+Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track) :
   hmms_(hmms),
   gl_(gl),
-  args_(args),
-  sampler_(args.smc_particles(), SMC_HISTORY_NONE),
-  moveset_(SMCInit, SMCMove)
+  args_(args)//,
+  // sampler_(args_->smc_particles(), SMC_HISTORY_NONE),
+  // moveset_(SMCInit, SMCMove)
 {
   ReadCachedLogProbs(track);
 
-  sampler_.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
-  sampler_.SetMoveSet(moveset_);
-  sampler_.Initialise();
+  // sampler_.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
+  // sampler_.SetMoveSet(moveset_);
+  // sampler_.Initialise();
 
   // convert input vector to maps
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key(qry_seq_list[iqry].name_str(":"));
-    KSet kmin(args->integers_["k_v_min"][iqry], args->integers_["k_d_min"][iqry]);
-    KSet kmax(args->integers_["k_v_max"][iqry], args->integers_["k_d_max"][iqry]);
+    KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
+    KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
     KBounds kb(kmin, kmax);
     info_[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
-    only_genes_[key] = args->str_lists_["only_genes"][iqry];
+    only_genes_[key] = args_->str_lists_["only_genes"][iqry];
     kbinfo_[key] = kb;
   }
 
   initial_partition_ = GetClusterList(info_);
   initial_logprob_ = LogProbOfPartition(initial_partition_);
   if(args_->debug())
-    PrintPartition(initial_partition, "initial");
+    PrintPartition(initial_partition_, "initial");
 
-  if(args.smc_particles() == 1)  // no smc, so push back one manually
+  if(args_->smc_particles() == 1)  // no smc, so push back one manually
     clusterpaths_.push_back(ClusterPath(initial_partition_, initial_logprob_));
 }
 
@@ -40,14 +40,15 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
 void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
 
-  if(args.smc_particles() == 1) {  // don't do smc
+  if(args_->smc_particles() == 1) {  // don't do smc
     assert(clusterpaths_.size() == 1);
     do {
       Merge(clusterpaths_[0]);
     } while(!clusterpaths_[0].finished_);
   } else {
     do {
-      sampler_.Iterate();
+      cout << "WOOOOOOOOOOOOOOOOOOOOOOO" << endl;
+      // sampler_.Iterate();
     } while(!AllFinished());
   }
 
@@ -60,20 +61,20 @@ void Glomerator::Cluster() {
   WriteCachedLogProbs();
 }
 
-// ----------------------------------------------------------------------------------------
-smc::particle<ClusterPath> Glomerator::SMCInit(smc::rng *rgen) {
-  return smc::particle<ClusterPath>(ClusterPath(initial_partition_, initial_logprob_), initial_logprob_);
-}
+// // ----------------------------------------------------------------------------------------
+// smc::particle<ClusterPath> Glomerator::SMCInit(smc::rng *rgen) {
+//   return smc::particle<ClusterPath>(ClusterPath(initial_partition_, initial_logprob_), initial_logprob_);
+// }
 
-// ----------------------------------------------------------------------------------------
-void Glomerator::SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
+// // ----------------------------------------------------------------------------------------
+// void Glomerator::SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
   
-}
+// }
 
 // ----------------------------------------------------------------------------------------
 bool Glomerator::AllFinished() {
   bool all_finished(true);
-  for(int ip = 0; ip < clusterpaths_.size(); ++ip)
+  for(unsigned ip = 0; ip < clusterpaths_.size(); ++ip)
     all_finished &= clusterpaths_[ip].finished_;
   return all_finished;
 }
@@ -113,7 +114,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
 
 // ----------------------------------------------------------------------------------------
 // return a vector consisting of the keys in <partinfo>
-Partitition Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
+Partition Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
   Partition clusters;
   for(auto &kv : partinfo)
     clusters.insert(kv.first);
@@ -168,14 +169,16 @@ void Glomerator::WritePartitions() {
   ofs_ << "path_index,partition,score" << endl;
   for(unsigned ipath=0; ipath<clusterpaths_.size(); ++ipath) {
     ClusterPath cp(clusterpaths_[ipath]);
-    ofs_ << ipath << ",";
-    for(unsigned ipart=0; ipart<cp.partitions_.size(); ++ipart) {
-      for(auto &cluster : cp.partitions_[ipart]) {
+    for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
+      ofs_ << ipath << ",";
+      int ic(0);
+      for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
 	  ofs_ << ";";
 	ofs_ << cluster;
+	++ic;
       }
-      ofs_ << "," << cp.log_probs_[ipart] << "\n";
+      ofs_ << "," << cp.logprobs()[ipart] << endl;
     }
   }
   ofs_.close();
@@ -293,19 +296,15 @@ void Glomerator::Merge(ClusterPath &path) {
 
   set<string> already_done;  // keeps track of which  a-b pairs we've already done
   for(auto &key_a : path.CurrentPartition()) {  // note that c++ maps are ordered
-    for(auto &key_b : path.CurrentPartition()) {
+    for(auto &key_b : path.CurrentPartition()) {  // also, note that CurrentPartition() returns a reference
       if(key_a == key_b) continue;
       string bothnamestr = JoinNames(key_a, key_b);
       if(already_done.count(bothnamestr))  // already did this pair
   	continue;
       else
   	already_done.insert(bothnamestr);
-      Sequences a_seqs(info_[key_a]), b_seqs(info[key_b]);
-  // for(unsigned i_a=0; i_a<path.CurrentPartition().size(); ++i_a) {
-  //   for(unsigned i_b=i_a+1; i_b<path.CurrentPartition().size(); ++i_b) {
-  //     string key_a(path.CurrentPartition()[i_a]), key_b(path.CurrentPartition()[i_b]);
-  //     string bothnamestr = JoinNames(key_a, key_b);
 
+      Sequences a_seqs(info_[key_a]), b_seqs(info_[key_b]);
       ++n_total_pairs;
 
       // NOTE it might help to also cache hamming fractions
@@ -315,7 +314,7 @@ void Glomerator::Merge(ClusterPath &path) {
 	continue;
       }
 
-      // NOTE it's a bit wasteful to do this if we already have all three of 'em cached
+      // NOTE it's a bit wasteful to do all this initialization if we already have all three of 'em cached
       Sequences ab_seqs(a_seqs.Union(b_seqs));
       vector<string> ab_only_genes = only_genes_[key_a];
       for(auto &g : only_genes_[key_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
@@ -346,13 +345,13 @@ void Glomerator::Merge(ClusterPath &path) {
     }
   }
 
-  // if <info_> only has one cluster, if hamming is too large between all remaining clusters/remaining bayes factors are -INFINITY
+  // if <info_> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
     path.finished_ = true;
     return;
   }
 
-  // then merge the two best clusters
+  // merge the two best clusters
   vector<string> max_names{max_pair.first, max_pair.second};
   sort(max_names.begin(), max_names.end());
   Sequences max_seqs(info_[max_names[0]].Union(info_[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
@@ -363,7 +362,7 @@ void Glomerator::Merge(ClusterPath &path) {
 
   GetNaiveSeq(max_name_str);
 
-  Partition new_partition(path.CurrentPartition());
+  Partition new_partition(path.CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(max_pair.first);
   new_partition.erase(max_pair.second);
   new_partition.insert(max_name_str);
@@ -373,6 +372,7 @@ void Glomerator::Merge(ClusterPath &path) {
   if(args_->debug()) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+    PrintPartition(new_partition, "current");
   }
 }
 

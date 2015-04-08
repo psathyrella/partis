@@ -20,8 +20,8 @@ public:
   Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track);
   void Cluster();
   double LogProbOfPartition(Partition &clusters);
-  smc::particle<ClusterPath> SMCInit(smc::rng *rgen);
-  void SMCMove(long time, smc::particle<ClusterPath> &particle, smc::rng *rgen);
+  // smc::particle<ClusterPath> SMCInit(smc::rng *rgen);
+  // void SMCMove(long time, smc::particle<ClusterPath> &particle, smc::rng *rgen);
 private:
   bool AllFinished();
   void ReadCachedLogProbs(Track *track);
@@ -34,7 +34,7 @@ private:
   int HammingDistance(string seq_a, string seq_b);  // dammit I don't like having two functions, but *@!(#ing Sequence class is not stl safe.
   int HammingDistance(Sequence seq_a, Sequence seq_b);
   // int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
-  void GetNaiveSeq(string key, ClusterPath &path);
+  void GetNaiveSeq(string key);
   void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds);
   string JoinNames(string name1, string name2);
   void Merge(ClusterPath &path);
@@ -55,8 +55,8 @@ private:
   map<string, double> log_probs_;  // includes cached info from previous runs
   map<string, string> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;
-  smc::sampler<ClusterPath> sampler_;
-  smc::moveset<ClusterPath> moveset_;
+  // smc::sampler<ClusterPath> sampler_;
+  // smc::moveset<ClusterPath> moveset_;
   vector<ClusterPath> clusterpaths_;
 
 };
