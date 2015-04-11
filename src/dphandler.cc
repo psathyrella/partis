@@ -78,7 +78,7 @@ Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
   if(args_->rescale_emissions()) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
-    assert(overall_mute_freq != -INFINITY);  // make sure the caller remembdered to set it
+    assert(overall_mute_freq != -INFINITY);  // make sure the caller remembered to set it
     // NOTE it's super important to *un*set them after you're done
     hmms_.RescaleOverallMuteFreqs(only_genes_, overall_mute_freq);
   }
