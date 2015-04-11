@@ -22,7 +22,6 @@ public:
   void Cluster();
   double LogProbOfPartition(Partition &clusters);
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
-  bool AllFinished(vector<ClusterPath> &paths);
   Partition initial_partition() { return initial_partition_; }
   double initial_logprob() { return initial_logprob_; }
   void WritePartitions(vector<ClusterPath> &paths);

@@ -97,14 +97,19 @@ int main(int argc, const char * argv[]) {
       smp.SetMoveSet(mvs);
       smp.Initialise();
 
+      int zz(0);
+      bool finished(true);
+      do {
+	++zz;
+	if(zz > 10) break;
+	smp.Iterate();
+	for(int ip=0; ip<args.smc_particles(); ++ip)
+	  finished &= smp.GetParticleValue(ip).finished_;
+      } while(!finished);
+
       vector<ClusterPath> paths;
       for(int ip=0; ip<args.smc_particles(); ++ip)
 	paths.push_back(smp.GetParticleValue(ip));
-
-      do {
-	smp.Iterate();
-      } while(!glom.AllFinished(paths));
-
       glom.WritePartitions(paths);
     }
     ofs.close();

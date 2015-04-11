@@ -52,14 +52,6 @@ void Glomerator::Cluster() {
 }
 
 // ----------------------------------------------------------------------------------------
-bool Glomerator::AllFinished(vector<ClusterPath> &paths) {
-  bool all_finished(true);
-  for(unsigned ip = 0; ip < paths.size(); ++ip)
-    all_finished &= paths[ip].finished_;
-  return all_finished;
-}
-
-// ----------------------------------------------------------------------------------------
 void Glomerator::ReadCachedLogProbs(Track *track) {
   ifstream ifs(args_->cachefile());
   if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
@@ -81,7 +73,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> column_list = SplitString(line, ",");
-    assert(column_list.size() == 3);
+    assert(column_list.size() == 3 || column_list.size() == 4);  // if written by bcrham it'll have an error column, while if written by partitiondriver it won't (under normal circumstances we wouldn't see bcrham cachefiles right here, but it can be useful for testing)
     string unique_ids(column_list[0]);
     double logprob(stof(column_list[1]));
     string naive_seq(column_list[2]);
@@ -266,8 +258,9 @@ string Glomerator::JoinNames(string name1, string name2) {
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
 void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
-  if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
+  if(path->finished_) { // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
+  }
   double max_log_prob(-INFINITY);
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   vector<string> max_only_genes;
@@ -286,29 +279,29 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       else
   	already_done.insert(bothnamestr);
 
-      Sequences a_seqs(info_[key_a]), b_seqs(info_[key_b]);
+      Sequences *a_seqs(&info_[key_a]), *b_seqs(&info_[key_b]);
       ++n_total_pairs;
 
       // NOTE it might help to also cache hamming fractions
-      double hamming_fraction = float(NaiveHammingDistance(key_a, key_b)) / a_seqs[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
+      double hamming_fraction = float(NaiveHammingDistance(key_a, key_b)) / (*a_seqs)[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
       if(hamming_fraction > args_->hamming_fraction_cutoff()) {
 	++n_skipped_hamming;
 	continue;
       }
 
       // NOTE it's a bit wasteful to do all this initialization if we already have all three of 'em cached
-      Sequences ab_seqs(a_seqs.Union(b_seqs));
+      Sequences ab_seqs = a_seqs->Union(*b_seqs);
       vector<string> ab_only_genes = only_genes_[key_a];
       for(auto &g : only_genes_[key_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
 	ab_only_genes.push_back(g);
       KBounds ab_kbounds = kbinfo_[key_a].LogicalOr(kbinfo_[key_b]);
-      double ab_mean_mute_freq = (a_seqs.n_seqs()*mute_freqs_[key_a] + b_seqs.n_seqs()*mute_freqs_[key_b]) / float(ab_seqs.n_seqs());  // simple weighted average
+      double ab_mean_mute_freq = (a_seqs->n_seqs()*mute_freqs_[key_a] + b_seqs->n_seqs()*mute_freqs_[key_b]) / float(ab_seqs.n_seqs());  // simple weighted average
 
       DPHandler dph(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetLogProb(dph, key_a, a_seqs, kbinfo_[key_a], mute_freqs_[key_a]);
-      GetLogProb(dph, key_b, b_seqs, kbinfo_[key_b], mute_freqs_[key_b]);
+      GetLogProb(dph, key_a, *a_seqs, kbinfo_[key_a], mute_freqs_[key_a]);
+      GetLogProb(dph, key_b, *b_seqs, kbinfo_[key_b], mute_freqs_[key_b]);
       GetLogProb(dph, bothnamestr, ab_seqs, ab_kbounds, ab_mean_mute_freq);
 
       double bayes_factor(log_probs_[bothnamestr] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
@@ -334,18 +327,21 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     path->finished_ = true;
     return;
   }
-
+  
   // merge the two best clusters
-  vector<string> max_names{max_pair.first, max_pair.second};
-  sort(max_names.begin(), max_names.end());
-  Sequences max_seqs(info_[max_names[0]].Union(info_[max_names[1]]));  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
-  string max_name_str = JoinNames(max_names[0], max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
-  info_[max_name_str] = max_seqs;
-  kbinfo_[max_name_str] = max_kbounds;
-  mute_freqs_[max_name_str] = max_mute_freq;
-  only_genes_[max_name_str] = max_only_genes;
+  string max_name_str = JoinNames(max_pair.first, max_pair.second);
+  if(info_.count(max_name_str) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+    // if(info_.count(max_name_str) == 0) {  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
+    vector<string> max_names{max_pair.first, max_pair.second};
+    sort(max_names.begin(), max_names.end());
+    Sequences max_seqs = info_[max_names[0]].Union(info_[max_names[1]]);  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
+    info_[max_name_str] = max_seqs;
+    kbinfo_[max_name_str] = max_kbounds;
+    mute_freqs_[max_name_str] = max_mute_freq;
+    only_genes_[max_name_str] = max_only_genes;
 
-  GetNaiveSeq(max_name_str);
+    GetNaiveSeq(max_name_str);
+  }
 
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(max_pair.first);

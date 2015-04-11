@@ -67,6 +67,12 @@ void Sequence::Print(string separator) {
 }
 
 // ****************************************************************************************
+// // ----------------------------------------------------------------------------------------
+// Sequences::Sequences(const Sequences &rhs) {
+//   for(size_t is=0; is<rhs.n_seqs(); ++is)
+//     AddSeq(rhs.GetAtConst(is));
+// }
+
 // ----------------------------------------------------------------------------------------
 Sequences Sequences::Union(Sequences &otherseqs) {
   Sequences union_seqs;
