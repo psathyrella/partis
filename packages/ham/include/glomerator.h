@@ -15,6 +15,17 @@ using namespace std;
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
+class Query {
+public:
+  string name_;
+  Sequences seqs_;
+  KBounds kbounds_;
+  vector<string> only_genes_;
+  double mean_mute_freq_;
+  pair<string, string> parents_;  // queries that were joined to make this
+};
+
+// ----------------------------------------------------------------------------------------
 class Glomerator {
 public:
   Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track);
@@ -37,7 +48,9 @@ private:
   // int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
   void GetNaiveSeq(string key);
   void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds, double mean_mute_freq);
+  Query GetMergedQuery(string name_a, string name_b);
   string JoinNames(string name1, string name2);
+  Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   // input info
   HMMHolder hmms_;
