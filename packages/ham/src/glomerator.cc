@@ -13,12 +13,17 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   // convert input vector to maps
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key(qry_seq_list[iqry].name_str(":"));
+
+    info_[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
+    only_genes_[key] = args_->str_lists_["only_genes"][iqry];
+
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
     KBounds kb(kmin, kmax);
-    info_[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
-    only_genes_[key] = args_->str_lists_["only_genes"][iqry];
     kbinfo_[key] = kb;
+
+    vector<double> mute_freqs(args_->float_lists_["mute_freqs"][iqry]);
+    mute_freqs_[key] = avgVector(mute_freqs);
   }
 
   initial_partition_ = GetClusterList(info_);
@@ -100,7 +105,7 @@ Partition Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
 void Glomerator::GetSoloLogProb(string key) {
   // NOTE the only reason to have this separate from GetLogProb is the only_genes stuff
   DPHandler dph(args_, gl_, hmms_, only_genes_[key]);
-  GetLogProb(dph, key, info_[key], kbinfo_[key]);
+  GetLogProb(dph, key, info_[key], kbinfo_[key], mute_freqs_[key]);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -215,7 +220,7 @@ void Glomerator::GetNaiveSeq(string key) {
   Result result(kbinfo_[key]);
   bool stop(false);
   do {
-    result = dph.Run("viterbi", info_[key], kbinfo_[key]);
+    result = dph.Run("viterbi", info_[key], kbinfo_[key], mute_freqs_[key]);
     kbinfo_[key] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -223,7 +228,7 @@ void Glomerator::GetNaiveSeq(string key) {
   } while(!stop);
 
   if(result.events_.size() < 1)
-    throw runtime_error("ERROR no events for" + key + "\n");
+    throw runtime_error("ERROR no events for " + key + "\n");
   naive_seqs_[key] = result.events_[0].naive_seq_;  // NOTE it might be a bit wasteful to store these digitized? Or maybe it's better...
   if(result.boundary_error())
     errors_[key] = errors_[key] + ":boundary";
@@ -231,7 +236,7 @@ void Glomerator::GetNaiveSeq(string key) {
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds) {
+void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds, double mean_mute_freq) {
   // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name))  // already did it
     return;
@@ -239,7 +244,7 @@ void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBound
   Result result(kbounds);
   bool stop(false);
   do {
-    result = dph.Run("forward", seqs, kbounds);
+    result = dph.Run("forward", seqs, kbounds, mean_mute_freq);
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -267,6 +272,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   vector<string> max_only_genes;
   KBounds max_kbounds;
+  double max_mute_freq(-1.);
 
   int n_total_pairs(0), n_skipped_hamming(0);
 
@@ -296,13 +302,14 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       for(auto &g : only_genes_[key_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
 	ab_only_genes.push_back(g);
       KBounds ab_kbounds = kbinfo_[key_a].LogicalOr(kbinfo_[key_b]);
+      double ab_mean_mute_freq = (a_seqs.n_seqs()*mute_freqs_[key_a] + b_seqs.n_seqs()*mute_freqs_[key_b]) / float(ab_seqs.n_seqs());  // simple weighted average
 
       DPHandler dph(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetLogProb(dph, key_a, a_seqs, kbinfo_[key_a]);
-      GetLogProb(dph, key_b, b_seqs, kbinfo_[key_b]);
-      GetLogProb(dph, bothnamestr, ab_seqs, ab_kbounds);
+      GetLogProb(dph, key_a, a_seqs, kbinfo_[key_a], mute_freqs_[key_a]);
+      GetLogProb(dph, key_b, b_seqs, kbinfo_[key_b], mute_freqs_[key_b]);
+      GetLogProb(dph, bothnamestr, ab_seqs, ab_kbounds, ab_mean_mute_freq);
 
       double bayes_factor(log_probs_[bothnamestr] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
@@ -317,6 +324,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 	max_pair = pair<string, string>(key_a, key_b);  // REMINDER not always same order as names[0], names[1]
 	max_only_genes = ab_only_genes;
 	max_kbounds = ab_kbounds;
+	max_mute_freq = ab_mean_mute_freq;
       }
     }
   }
@@ -334,6 +342,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   string max_name_str = JoinNames(max_names[0], max_names[1]);  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
   info_[max_name_str] = max_seqs;
   kbinfo_[max_name_str] = max_kbounds;
+  mute_freqs_[max_name_str] = max_mute_freq;
   only_genes_[max_name_str] = max_only_genes;
 
   GetNaiveSeq(max_name_str);
