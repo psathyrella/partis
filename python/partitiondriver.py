@@ -129,12 +129,18 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
+        if self.args.smc_particles > 1:
+            os.environ['GSL_RNG_TYPE'] = 'ranlux'
+            os.environ['GSL_RNG_SEED'] = str(random.randint(0, 99999))
+            cmd_str += ' --smc-particles ' + str(self.args.smc_particles)
         if self.args.rescale_emissions:
             cmd_str += ' --rescale-emissions'
         if self.args.action == 'partition':
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
 
+        # print cmd_str
+        # sys.exit()
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
