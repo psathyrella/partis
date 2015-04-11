@@ -41,13 +41,15 @@ private:
 class Sequences {
 public:
   Sequences() : sequence_length_(0) {}
+  // Sequences(const Sequences &rhs);
   Sequences(Sequences &rhs, size_t pos, size_t len);  // copy <seqs> from <pos> to <pos> + <len>
   void AddSeq(Sequence sq);
 
   short value(size_t iseq, size_t ipos) { return seqs_.at(iseq).value(ipos); }  // return digitized value of <iseq>th sequence at position <ipos>
-  Sequence &operator[](size_t index) {return seqs_.at(index); }
+  Sequence &operator[](size_t index) { return seqs_.at(index); }
+  // Sequence GetAtConst(size_t index) { return seqs_.at(index); }  // 
   Sequence *get_ptr(size_t index) { return &seqs_.at(index); }
-  size_t n_seqs() { return seqs_.size(); }
+  size_t n_seqs() const { return seqs_.size(); }
   size_t GetSequenceLength() { return sequence_length_;}
   Sequences Union(Sequences &otherseqs);  // return union set of self and <otherseqs>
   // Sequences GetSubSequences(size_t pos, size_t len);

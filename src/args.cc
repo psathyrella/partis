@@ -17,7 +17,7 @@ Args::Args(int argc, const char * argv[]):
   hamming_fraction_cutoff_arg_("", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", false, -1.0, "float"),
   debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
   n_best_events_arg_("", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
-  smc_particles_arg_("", "smc_particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
+  smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
   chunk_cache_arg_("", "chunk-cache", "perform chunk caching?", false),
   partition_arg_("", "partition", "", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
