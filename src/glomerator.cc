@@ -249,6 +249,55 @@ void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBound
 }
 
 // ----------------------------------------------------------------------------------------
+Query Glomerator::GetMergedQuery(string name_a, string name_b) {
+  Query qmerged;
+  qmerged.name_ = JoinNames(name_a, name_b);
+  qmerged.seqs_ = info_[name_a].Union(info_[name_b]);
+  qmerged.kbounds_ = kbinfo_[name_a].LogicalOr(kbinfo_[name_b]);
+  qmerged.only_genes_ = only_genes_[name_a];
+  for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
+    qmerged.only_genes_.push_back(g);
+  qmerged.mean_mute_freq_ = (info_[name_a].n_seqs()*mute_freqs_[name_a] + info_[name_b].n_seqs()*mute_freqs_[name_b]) / float(qmerged.seqs_.n_seqs());  // simple weighted average
+  qmerged.parents_ = pair<string, string>(name_a, name_b);
+  return qmerged;
+}
+
+// ----------------------------------------------------------------------------------------
+Query *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen) {
+  // first leave log space and normalize. NOTE instead of normalizing, we could just use rng::Uniform(0., total)
+  vector<double> ratios;  // NOTE *not* a probability: it's the ratio of the probability together to the probability apart
+  double total(0.0);
+  // cout << "choosing" << endl;
+  for(auto &pr : potential_merges) {
+    double likelihood_ratio = exp(pr.first);
+    // cout << "  " << pr.second.name_ << " " << likelihood_ratio << endl;
+    total += likelihood_ratio;
+    ratios.push_back(likelihood_ratio);
+  }
+  // cout << "   normalizing" << endl;
+  for(auto &ratio : ratios)
+    ratio /= total;
+  // for(auto &ratio : ratios)
+    // cout << "  " << ratio << endl;
+
+  // then choose one at random according to the probs
+  double drawpoint = rgen->Uniform(0., 1.);
+  double sum(0.0);
+  // pair<unsigned, unsigned> icls(9999, 9999);
+  // double chosennetprob(0.0);
+  // cout << "  choosing with " << drawpoint << endl;
+  for(size_t im=0; im<ratios.size(); ++im) {
+    double ratio(ratios[im]);
+    sum += ratio;
+    if(sum > drawpoint) {
+      return &potential_merges[im].second;
+    }
+  }
+
+  throw runtime_error("ERROR fell through in Glomerator::ChooseRandomMerge");
+}
+
+// ----------------------------------------------------------------------------------------
 string Glomerator::JoinNames(string name1, string name2) {
   vector<string> names{name1, name2};
   sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids
@@ -262,10 +311,10 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     return;
   }
   double max_log_prob(-INFINITY);
-  pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
-  vector<string> max_only_genes;
-  KBounds max_kbounds;
-  double max_mute_freq(-1.);
+  // pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
+  int imax(-1);
+
+  vector<pair<double, Query> > potential_merges;
 
   int n_total_pairs(0), n_skipped_hamming(0);
 
@@ -273,11 +322,11 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   for(auto &key_a : path->CurrentPartition()) {  // note that c++ maps are ordered
     for(auto &key_b : path->CurrentPartition()) {  // also, note that CurrentPartition() returns a reference
       if(key_a == key_b) continue;
-      string bothnamestr = JoinNames(key_a, key_b);
-      if(already_done.count(bothnamestr))  // already did this pair
+      Query qmerged(GetMergedQuery(key_a, key_b));
+      if(already_done.count(qmerged.name_))  // already did this pair
   	continue;
       else
-  	already_done.insert(bothnamestr);
+  	already_done.insert(qmerged.name_);
 
       Sequences *a_seqs(&info_[key_a]), *b_seqs(&info_[key_b]);
       ++n_total_pairs;
@@ -289,35 +338,27 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 	continue;
       }
 
-      // NOTE it's a bit wasteful to do all this initialization if we already have all three of 'em cached
-      Sequences ab_seqs = a_seqs->Union(*b_seqs);
-      vector<string> ab_only_genes = only_genes_[key_a];
-      for(auto &g : only_genes_[key_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
-	ab_only_genes.push_back(g);
-      KBounds ab_kbounds = kbinfo_[key_a].LogicalOr(kbinfo_[key_b]);
-      double ab_mean_mute_freq = (a_seqs->n_seqs()*mute_freqs_[key_a] + b_seqs->n_seqs()*mute_freqs_[key_b]) / float(ab_seqs.n_seqs());  // simple weighted average
-
-      DPHandler dph(args_, gl_, hmms_, ab_only_genes);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
+      DPHandler dph(args_, gl_, hmms_, qmerged.only_genes_);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       GetLogProb(dph, key_a, *a_seqs, kbinfo_[key_a], mute_freqs_[key_a]);
       GetLogProb(dph, key_b, *b_seqs, kbinfo_[key_b], mute_freqs_[key_b]);
-      GetLogProb(dph, bothnamestr, ab_seqs, ab_kbounds, ab_mean_mute_freq);
+      GetLogProb(dph, qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.mean_mute_freq_);
 
-      double bayes_factor(log_probs_[bothnamestr] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
+      double bayes_factor(log_probs_[qmerged.name_] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
 	printf("       %8.3f = ", bayes_factor);
-	printf("%2s %8.2f", "", log_probs_[bothnamestr]);
+	printf("%2s %8.2f", "", log_probs_[qmerged.name_]);
 	printf(" - %8.2f - %8.2f", log_probs_[key_a], log_probs_[key_b]);
 	printf("\n");
       }
 
+      potential_merges.push_back(pair<double, Query>(bayes_factor, qmerged));
+
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
-	max_pair = pair<string, string>(key_a, key_b);  // REMINDER not always same order as names[0], names[1]
-	max_only_genes = ab_only_genes;
-	max_kbounds = ab_kbounds;
-	max_mute_freq = ab_mean_mute_freq;
+	// max_pair = pair<string, string>(key_a, key_b);  // REMINDER not always same order as names[0], names[1]
+	imax = potential_merges.size() - 1;
       }
     }
   }
@@ -327,32 +368,46 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     path->finished_ = true;
     return;
   }
+
+  Query *qmerged(nullptr);
+  double chosen_logprob;
+  if(args_->smc_particles() == 1) {
+    qmerged = &potential_merges[imax].second;
+    chosen_logprob = potential_merges[imax].first;
+  } else {
+    qmerged = ChooseRandomMerge(potential_merges, rgen);
+    chosen_logprob = max_log_prob;
+  }
+  // cout << "chose: " << qmerged->name_ << endl;
+  // Query qmerged(GetMergedQuery(max_pair.first, max_pair.second));  // NOTE I'm still kinda worried about ordering shenanigans here. I think the worst case is we calculate something twice that we don't need to, but I'm still nervous.
   
   // merge the two best clusters
-  string max_name_str = JoinNames(max_pair.first, max_pair.second);
-  if(info_.count(max_name_str) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
-    // if(info_.count(max_name_str) == 0) {  // NOTE the names[i] are not sorted *within* themselves, but <names> itself is sorted. This is ok, because we will never again encounter these sequences separately
-    vector<string> max_names{max_pair.first, max_pair.second};
-    sort(max_names.begin(), max_names.end());
-    Sequences max_seqs = info_[max_names[0]].Union(info_[max_names[1]]);  // NOTE this will give the ordering {<first seqs>, <second seqs>}, which should be the same as in <max_name_str>. But I don't think it'd hurt anything if the sequences and names were in a different order
-    info_[max_name_str] = max_seqs;
-    kbinfo_[max_name_str] = max_kbounds;
-    mute_freqs_[max_name_str] = max_mute_freq;
-    only_genes_[max_name_str] = max_only_genes;
+  // string max_name_str = JoinNames(max_pair.first, max_pair.second);
+  // if(info_.count(max_name_str) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+  if(info_.count(qmerged->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+    // Query qmerged(GetMergedQuery(max_pair.first, max_pair.second));  // NOTE I'm still kinda worried about ordering shenanigans here. I think the worst case is we calculate something twice that we don't need to, but I'm still nervous.
+    info_[qmerged->name_] = qmerged->seqs_;
+    kbinfo_[qmerged->name_] = qmerged->kbounds_;
+    mute_freqs_[qmerged->name_] = qmerged->mean_mute_freq_;
+    only_genes_[qmerged->name_] = qmerged->only_genes_;
 
-    GetNaiveSeq(max_name_str);
+    GetNaiveSeq(qmerged->name_);
   }
 
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
-  new_partition.erase(max_pair.first);
-  new_partition.erase(max_pair.second);
-  new_partition.insert(max_name_str);
+  // new_partition.erase(max_pair.first);
+  // new_partition.erase(max_pair.second);
+  // new_partition.insert(max_name_str);
+  new_partition.erase(qmerged->parents_.first);
+  new_partition.erase(qmerged->parents_.second);
+  new_partition.insert(qmerged->name_);
 
   path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
-    printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+    // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
+    printf("       merged %-8.2f %s and %s\n", chosen_logprob, qmerged->parents_.first.c_str(), qmerged->parents_.second.c_str());
     PrintPartition(new_partition, "current");
   }
 }
