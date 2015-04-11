@@ -25,5 +25,5 @@ for fname in glob.glob(os.getenv('PWD') + '/src/*.cc'):
 env.Library(target='ham', source=sources)
 
 for bname in binary_names:
-    env.Program(target='../' + bname, source=bname + '.cc', LIBS=['ham', 'yaml-cpp', 'smctc'], LIBPATH=['.', 'yaml-cpp', '../../smctc/lib'])
+    env.Program(target='../' + bname, source=bname + '.cc', LIBS=['ham', 'yaml-cpp', 'smctc', 'gsl', 'gslcblas'], LIBPATH=['.', 'yaml-cpp', '../../smctc/lib'])
     # env.Program(target='../' + bname, source=bname + '.cc', LIBS=['ham', 'yaml-cpp'], LIBPATH=['.', 'yaml-cpp'])
