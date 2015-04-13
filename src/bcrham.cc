@@ -72,7 +72,7 @@ int main(int argc, const char * argv[]) {
   if(!ofs.is_open())
     throw runtime_error("ERROR --outfile (" + args.outfile() + ") d.n.e.\n");
   if(args.algorithm() == "viterbi")
-    ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
+    ofs << "nth_best,unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,score,seqs,errors" << endl;
   else if(args.algorithm() == "forward")
     ofs << "unique_ids,score,errors" << endl;
 
@@ -97,12 +97,10 @@ int main(int argc, const char * argv[]) {
       smp.SetMoveSet(mvs);
       smp.Initialise();
 
-      int zz(0);
       bool finished(true);
       do {
-	++zz;
-	if(zz > 10) break;
 	smp.Iterate();
+	finished = true;
 	for(int ip=0; ip<args.smc_particles(); ++ip)
 	  finished &= smp.GetParticleValue(ip).finished_;
       } while(!finished);
@@ -195,25 +193,26 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
       RecoEvent *event = &events[ievt];
       string second_seq_name, second_seq;
       ofs  // be very, very careful to change this *and* the csv header above at the same time
-          << seqs.name_str(":")
-          << "," << event->genes_["v"]
-          << "," << event->genes_["d"]
-          << "," << event->genes_["j"]
-          << "," << event->insertions_["fv"]
-          << "," << event->insertions_["vd"]
-          << "," << event->insertions_["dj"]
-          << "," << event->insertions_["jf"]
-          << "," << event->deletions_["v_5p"]
-          << "," << event->deletions_["v_3p"]
-          << "," << event->deletions_["d_5p"]
-          << "," << event->deletions_["d_3p"]
-          << "," << event->deletions_["j_5p"]
-          << "," << event->deletions_["j_3p"]
-          << "," << event->score_
-          << "," << seqs.seq_str(":")
-          << "," << errors
-          << endl;
-    }
+	<< ievt
+	<< "," << seqs.name_str(":")
+	<< "," << event->genes_["v"]
+	<< "," << event->genes_["d"]
+	<< "," << event->genes_["j"]
+	<< "," << event->insertions_["fv"]
+	<< "," << event->insertions_["vd"]
+	<< "," << event->insertions_["dj"]
+	<< "," << event->insertions_["jf"]
+	<< "," << event->deletions_["v_5p"]
+	<< "," << event->deletions_["v_3p"]
+	<< "," << event->deletions_["d_5p"]
+	<< "," << event->deletions_["d_3p"]
+	<< "," << event->deletions_["j_5p"]
+	<< "," << event->deletions_["j_3p"]
+	<< "," << event->score_
+	<< "," << seqs.seq_str(":")
+	<< "," << errors
+	<< endl;
+}
   } else {
     ofs
         << seqs.name_str(":")
