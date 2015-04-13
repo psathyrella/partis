@@ -77,8 +77,6 @@ class Clusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_cached_agglomeration(self, log_probs=None, partitions=None, infname=None, debug=False, reco_info=None, outfile=None, plotdir='', workdir=None):
-        # if debug:
-        #     print 'glomerating in clusterer'
         self.max_log_prob, self.best_partition = None, None
         for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
             if self.max_log_prob is None or part['score'] > self.max_log_prob:

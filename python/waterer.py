@@ -348,9 +348,11 @@ class Waterer(object):
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:')
 
         if self.pcounter != None:
-            self.pcounter.increment(self.info[query_name])
+            self.pcounter.increment_reco_params(self.info[query_name])
+            self.pcounter.increment_mutation_params(self.info[query_name])
         if self.true_pcounter != None:
-            self.true_pcounter.increment(self.reco_info[query_name])
+            self.true_pcounter.increment_reco_params(self.reco_info[query_name])
+            self.true_pcounter.increment_mutation_params(self.reco_info[query_name])
         if perfplotter != None:
             perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
 

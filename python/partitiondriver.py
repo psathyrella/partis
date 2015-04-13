@@ -65,7 +65,7 @@ class PartitionDriver(object):
         self.write_hmms(sw_parameter_dir)
 
         parameter_out_dir = self.args.parameter_dir + '/hmm'
-        self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=1', count_parameters=True, plotdir=self.args.plotdir + '/hmm')
+        self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, hmm_type='k=nsets', count_parameters=True, plotdir=self.args.plotdir + '/hmm')
         self.write_hmms(parameter_out_dir)
 
     # ----------------------------------------------------------------------------------------
@@ -99,6 +99,7 @@ class PartitionDriver(object):
             partition = self.run_hmm('forward', self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
                                      n_procs=n_procs, shuffle_input_order=True)
             n_proc_list.append(n_procs)
+            # for partition in partitions:  # TODO clean this up
             glomclusters = Clusterer()
             glomclusters.read_cached_agglomeration(log_probs=self.cached_results, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir, debug=True)
             if n_procs == 1:
@@ -284,6 +285,12 @@ class PartitionDriver(object):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             glomerer = Clusterer()
             partition_info = self.read_partitions(workdir + '/' + os.path.basename(fname))
+            # print partition_info
+            # sys.exit()
+            # partition_info = partition_info[0]  # TODO clean this up
+            # print 'before'
+            # for part in partition_info:
+            #     print part
             glomerer.read_cached_agglomeration(partitions=partition_info, debug=False)
             if math.isnan(glomerer.max_minus_ten_log_prob):  # NOTE this should really have a way of handling -INFINITY
                 raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_prob))
@@ -508,8 +515,8 @@ class PartitionDriver(object):
         assert hmm_type != ''
         if hmm_type == 'k=1':  # single vanilla hmm
             nsets = [[qn] for qn in self.input_info.keys()]
-        elif hmm_type == 'k=2':  # pair hmm
-            nsets = self.get_pairs(preclusters)
+        # elif hmm_type == 'k=2':  # pair hmm
+        #     nsets = self.get_pairs(preclusters)
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
             assert preclusters is not None
             if self.args.action == 'partition':
@@ -575,12 +582,17 @@ class PartitionDriver(object):
         partition_info = []
         with opener('r')(fname) as csvfile:
             reader = csv.DictReader(csvfile)
+            path_index = None
             for line in reader:
+                # if path_index is None or path_index != int(line['path_index']):
+                #     partition_info.append([])
+                #     path_index = int(line['path_index'])
                 if line['partition'] == '':
                     raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more
                 uids = []
                 for cluster in line['partition'].split(';'):
                     uids.append([unique_id for unique_id in cluster.split(':')])
+                # partition_info[-1].append({'clusters':uids, 'score':float(line['score'])})  # TODO clean this up
                 partition_info.append({'clusters':uids, 'score':float(line['score'])})
         return partition_info
 
@@ -619,67 +631,52 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.germline_seqs) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir + '/hmm/performance', 'hmm') if self.args.plot_performance else None
 
-        n_processed = 0
-        hmminfo = OrderedDict()
+        n_seqs_processed, n_events_processed = 0, 0
+        # hmminfo = OrderedDict()  # no longer used, I *think*
         with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
-            last_key = None
             boundary_error_queries = []
             for line in reader:
                 utils.process_input_line(line,
                                          splitargs=('unique_ids', 'seqs'),
-                                         int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
+                                         int_columns=('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
                                          float_columns=('score'))
                 ids = line['unique_ids']
-                this_key = utils.get_key(ids)
                 same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
                 if same_event is None:
                     same_event = -1
                 id_str = ''.join(['%20s ' % i for i in ids])
 
                 # check for errors
-                if last_key != this_key:  # if this is the first line for this set of ids (i.e. the best viterbi path or only forward score)
-                    if line['errors'] != None and 'boundary' in line['errors'].split(':'):
+                if line['nth_best'] == 0:  # if this is the first line for this set of ids (i.e. the best viterbi path or only forward score)
+                    if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
                         boundary_error_queries.append(':'.join([uid for uid in ids]))
                     else:
                         assert len(line['errors']) == 0
 
-                if algorithm == 'viterbi':
-                    line['seq'] = line['seqs'][0]  # add info for the best match as 'seq'
-                    line['unique_id'] = ids[0]
-                    utils.add_match_info(self.germline_seqs, line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
-
-                    if last_key != this_key or self.args.plot_all_best_events:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
-                        n_processed += 1
-                        if self.args.debug:
-                            print '%s   %d' % (id_str, same_event)
-                        if line['cdr3_length'] != -1 or not self.args.skip_unproductive:  # if it's productive, or if we're not skipping unproductive rearrangements
-                            hmminfo[':'.join([uid for uid in line['unique_ids']])] = line
-                            if pcounter is not None:  # increment counters (but only for the best [first] match)
-                                pcounter.increment(line)
-                            if true_pcounter is not None:  # increment true counters
-                                true_pcounter.increment(self.reco_info[ids[0]])
-                            if perfplotter is not None:
-                                perfplotter.evaluate(self.reco_info[ids[0]], line)
-
-                    if self.args.debug:
-                        self.print_hmm_output(line, print_true=(last_key != this_key))  #, perfplotter=perfplotter)
-                    line['seq'] = None
-                    line['unique_id'] = None
-
-                else:  # for forward, write the pair scores to file to be read by the clusterer
-                    print '%3d %10.3f    %s' % (same_event, line['score'], id_str)
-                    if line['score'] == '-nan':
-                        print '    WARNING encountered -nan, setting to -999999.0'
-                        score = -999999.0
-                    else:
-                        score = line['score']
-                    if len(ids) == 2:
-                        raise Exception('DEPRECATED')
-                        # hmminfo.append({'id_a':line['unique_ids'][0], 'id_b':line['unique_ids'][1], 'score':score})
-                    n_processed += 1
-
-                last_key = utils.get_key(ids)
+                utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
+                if self.args.debug:
+                    if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
+                        print '%s   %d' % (id_str, same_event)
+                    self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
+                if line['nth_best'] == 0 and (line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+                    if pcounter is not None:
+                        pcounter.increment_reco_params(line)
+                    if true_pcounter is not None:
+                        true_pcounter.increment_reco_params(self.reco_info[ids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                    n_events_processed += 1
+                    for iseq in range(len(ids)):
+                        tmp_line = dict(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+                        tmp_line['seq'] = line['seqs'][iseq]
+                        tmp_line['unique_id'] = ids[iseq]
+                        utils.add_match_info(self.germline_seqs, tmp_line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+                        if pcounter is not None:
+                            pcounter.increment_mutation_params(tmp_line)
+                        if true_pcounter is not None:
+                            true_pcounter.increment_mutation_params(self.reco_info[ids[iseq]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                        if perfplotter is not None:
+                            perfplotter.evaluate(self.reco_info[ids[iseq]], tmp_line)
+                        n_seqs_processed += 1
 
         if pcounter is not None:
             pcounter.write(parameter_out_dir)
@@ -692,14 +689,14 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot()
 
-        print '  processed %d queries' % n_processed
+        print '  processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
         if len(boundary_error_queries) > 0:
             print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
 
         if not self.args.no_clean:
             os.remove(self.hmm_outfname)
 
-        return hmminfo
+        # return hmminfo
 
     # ----------------------------------------------------------------------------------------
     def get_true_clusters(self, ids):

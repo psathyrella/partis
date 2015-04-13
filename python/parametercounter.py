@@ -16,7 +16,8 @@ class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
     def __init__(self, germline_seqs):   #, base_outdir='', plotdir='', write_parameters=True, plot_parameters=True):
-        self.total = 0
+        self.reco_total = 0  # total number of recombination events
+        self.mute_total = 0  # total number of sequences
         self.counts = {}
         self.counts['all'] = {}
         for column in utils.column_dependencies:
@@ -50,8 +51,15 @@ class ParameterCounter(object):
         return tuple(index)
 
     # ----------------------------------------------------------------------------------------
-    def increment(self, info):
-        self.total += 1
+    def increment_mutation_params(self, info):
+        self.mute_total += 1
+        self.mutefreqer.increment(info)
+        for nuke in info['seq']:
+            self.counts['seq_content'][nuke] += 1
+
+    # ----------------------------------------------------------------------------------------
+    def increment_reco_params(self, info):
+        self.reco_total += 1
 
         all_index = self.get_index(info, utils.index_columns)
         if all_index not in self.counts['all']:
@@ -68,10 +76,6 @@ class ParameterCounter(object):
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
                 self.counts[bound + '_insertion_content'][nuke] += 1
-        for nuke in info['seq']:
-            self.counts['seq_content'][nuke] += 1
-
-        self.mutefreqer.increment(info)
 
     # ----------------------------------------------------------------------------------------
     def __str__(self):
@@ -87,7 +91,7 @@ class ParameterCounter(object):
             for index, count in self.counts[column].iteritems():
                 for val in index:
                     return_str.append('%20s' % str(val))
-                return_str.append('   %d / %d = %f\n' % (count, self.total, float(count) / self.total))
+                return_str.append('   %d / %d = %f\n' % (count, self.reco_total, float(count) / self.reco_total))
         return ''.join(return_str)
 
     # ----------------------------------------------------------------------------------------

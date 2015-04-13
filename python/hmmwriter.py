@@ -610,6 +610,10 @@ class HmmWriter(object):
             mute_freq = self.mute_freqs['overall_mean']
             if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
                 mute_freq = self.mute_freqs[inuke]
+            # if this is the leftmost base in d or j, or if it's rightmost in v or d, use the overall mean mute freq (because we don't really have a handle for inferring it)
+            # if self.args.use_mean_at_boundaries:
+            #     if (inuke == 0 and (self.region == 'd' or self.region == 'j')) or (inuke == len(self.germline_seq)-1 and (self.region == 'v' or self.region == 'd')):
+            #         mute_freq = self.mute_freqs['overall_mean']
 
             # then calculate the probability
             if nuke2 == '':  # single emission
@@ -619,32 +623,33 @@ class HmmWriter(object):
                 else:
                     prob = mute_freq / 3.0
             else:  # pair (well, k>1 now) hmm
-                if self.args.joint_emission:
-                    # POSTSCRIPT this performs worse than independent emission (i.e. just multiply by 1-f or f for each base without regard to what the other sequence is)
-                    #   - this is likely because the assumptions underlying these joint probabilities suck
-                    #   - in turn, this is likely because their only valid for certain tree sizes and topologies which aren't what I plugged into the simulator
-                    # NOTE this is derived semi-hackiheuristically from a couple assumptions:
-                    #   1) the ratio of two mutations occurring to one should be mute_freq
-                    #   2) the prob of no mutations in either seq should be (1 - mute_freq)^2
-                    #   3) matrix should be normalized
-                    #   4) some reasonable assumptions about when one or two mutations occurred which you should be able to infer for the if/else structure below
-                    #   NOTE that this is all roughly equivalent to doing things properly and then discarding terms in mute_freq of order greater than 1
-                    #   Thus also NOTE if mute_freq isn't small this is likely a crappy model
-                    cryptic_factor = (2 - mute_freq) / (6*mute_freq + 9)
-                    if nuke1 == germline_nuke and nuke2 == germline_nuke:  # no mutations at all
-                        prob = (1.0 - mute_freq)**2
-                    elif nuke1 == nuke2 and nuke1 != germline_nuke:  # mutated, but both seqs the same. We assume this requires *one* mutation event (i.e. ignore higher-order terms).
-                        prob = mute_freq * cryptic_factor
-                    elif nuke1 == germline_nuke or nuke2 == germline_nuke:  # one sequence germline, the other mutated (still one mutation event)
-                        prob = mute_freq * cryptic_factor
-                    else:  # both sequnces mutated separately (two mutation events)
-                        prob = mute_freq * mute_freq * cryptic_factor
-                else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
-                    for nuke in (nuke1, nuke2):
-                        if nuke == germline_nuke:
-                            prob *= 1.0 - mute_freq
-                        else:
-                            prob *= mute_freq / 3.0
+                assert False  # deprecated
+                # if self.args.joint_emission:
+                #     # POSTSCRIPT this performs worse than independent emission (i.e. just multiply by 1-f or f for each base without regard to what the other sequence is)
+                #     #   - this is likely because the assumptions underlying these joint probabilities suck
+                #     #   - in turn, this is likely because their only valid for certain tree sizes and topologies which aren't what I plugged into the simulator
+                #     # NOTE this is derived semi-hackiheuristically from a couple assumptions:
+                #     #   1) the ratio of two mutations occurring to one should be mute_freq
+                #     #   2) the prob of no mutations in either seq should be (1 - mute_freq)^2
+                #     #   3) matrix should be normalized
+                #     #   4) some reasonable assumptions about when one or two mutations occurred which you should be able to infer for the if/else structure below
+                #     #   NOTE that this is all roughly equivalent to doing things properly and then discarding terms in mute_freq of order greater than 1
+                #     #   Thus also NOTE if mute_freq isn't small this is likely a crappy model
+                #     cryptic_factor = (2 - mute_freq) / (6*mute_freq + 9)
+                #     if nuke1 == germline_nuke and nuke2 == germline_nuke:  # no mutations at all
+                #         prob = (1.0 - mute_freq)**2
+                #     elif nuke1 == nuke2 and nuke1 != germline_nuke:  # mutated, but both seqs the same. We assume this requires *one* mutation event (i.e. ignore higher-order terms).
+                #         prob = mute_freq * cryptic_factor
+                #     elif nuke1 == germline_nuke or nuke2 == germline_nuke:  # one sequence germline, the other mutated (still one mutation event)
+                #         prob = mute_freq * cryptic_factor
+                #     else:  # both sequnces mutated separately (two mutation events)
+                #         prob = mute_freq * mute_freq * cryptic_factor
+                # else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
+                #     for nuke in (nuke1, nuke2):
+                #         if nuke == germline_nuke:
+                #             prob *= 1.0 - mute_freq
+                #         else:
+                #             prob *= mute_freq / 3.0
 
         return prob
 
@@ -663,20 +668,21 @@ class HmmWriter(object):
             assert insertion != ''
 
         if self.args.joint_emission:  # add pair emission (NOTE see note below, but really means requiring k=2 but allowing joint emission)
-            pair_emission_probs = {}
-            total = 0.0
-            for nuke1 in utils.nukes:
-                pair_emission_probs[nuke1] = {}
-                for nuke2 in utils.nukes:
-                    pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
-                    total += pair_emission_probs[nuke1][nuke2]
-            if math.fabs(total - 1.0) >= self.eps:
-                print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
-                for nuke1 in utils.nukes:
-                    for nuke2 in utils.nukes:
-                        print nuke1, nuke2, pair_emission_probs[nuke1][nuke2]
-                assert False
-            state.add_pair_emission(self.track, pair_emission_probs)
+            assert False  # deprecated
+            # pair_emission_probs = {}
+            # total = 0.0
+            # for nuke1 in utils.nukes:
+            #     pair_emission_probs[nuke1] = {}
+            #     for nuke2 in utils.nukes:
+            #         pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
+            #         total += pair_emission_probs[nuke1][nuke2]
+            # if math.fabs(total - 1.0) >= self.eps:
+            #     print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
+            #     for nuke1 in utils.nukes:
+            #         for nuke2 in utils.nukes:
+            #             print nuke1, nuke2, pair_emission_probs[nuke1][nuke2]
+            #     assert False
+            # state.add_pair_emission(self.track, pair_emission_probs)
         else:  # or add single emission (NOTE ham usees this 'single' emission still for pair/k>1 emission, it just assumes non-joint emission, i.e. multiplies together for each sequence)
             emission_probs = {}
             total = 0.0

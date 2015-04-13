@@ -1,6 +1,7 @@
 import sys
 import utils
 import plotting
+import re
 from hist import Hist
 from subprocess import check_call
 
@@ -34,6 +35,9 @@ class PerformancePlotter(object):
         # n_bins, xmin, xmax = 100, 0.0, 1.0
         self.hists = {}
         self.hists['mute_freqs'] = Hist(30, -0.05, 0.05)
+        for region in utils.regions:
+            self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05)
+            
 
     # ----------------------------------------------------------------------------------------
     def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=False):
@@ -146,8 +150,12 @@ class PerformancePlotter(object):
                 self.values[column][diff] += 1
 
         for column in self.hists:
-            trueval = utils.get_mutation_rate(self.germlines, true_line)
-            guessval = utils.get_mutation_rate(self.germlines, inf_line)
+            if len(re.findall('[vdj]_', column)) == 1:
+                region = re.findall('[vdj]_', column)[0][0]
+            else:
+                region = ''
+            trueval = utils.get_mutation_rate(self.germlines, true_line, restrict_to_region=region)
+            guessval = utils.get_mutation_rate(self.germlines, inf_line, restrict_to_region=region)
             self.hists[column].fill(guessval - trueval)
 
     # ----------------------------------------------------------------------------------------
@@ -168,7 +176,7 @@ class PerformancePlotter(object):
                     hist.GetXaxis().SetTitle('inferred - true')
                 plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
         for column in self.hists:
-            hist = plotting.make_hist_from_my_hist_class(self.hists[column], 'mute_freqs')
+            hist = plotting.make_hist_from_my_hist_class(self.hists[column], column)
             plotting.draw(hist, 'float', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
         
         check_call(['./bin/makeHtml', self.plotdir, '3', 'null', 'svg'])

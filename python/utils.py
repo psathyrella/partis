@@ -364,11 +364,19 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, a
     return query_pos
 
 # ----------------------------------------------------------------------------------------
-def add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=False):
+def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     """
     Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.
     If info is already there, make sure it's the same as what we calculate here
     """
+    if 'cdr3_length' in line:  # already did it
+        return
+
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
     eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     # if debug:
@@ -458,7 +466,7 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    add_cdr3_info(cyst_positions, tryp_positions, line, eroded_seqs, debug=debug)  # add cyst and tryp positions, and cdr3 length
+    add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=debug)  # add cyst and tryp positions, and cdr3 length
 
     # add the <eroded_seqs> to <line> so we can find them later
     for region in regions:
