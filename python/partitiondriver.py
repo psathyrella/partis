@@ -720,13 +720,16 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in self.get_true_clusters(line['unique_ids']).values():
                 for iid in range(len(uids)):
-                    out_str_list.append(utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0)))
+                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0))
+                    out_str_list.append(true_event_str)
             ilabel = 'inferred:'
 
-        out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label=ilabel))
-        for iextra in range(1, len(line['unique_ids'])):
-            line['seq'] = line['seqs'][iextra]
-            out_str_list.append(utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, one_line=True))
+        for iseq in range(0, len(line['unique_ids'])):
+            tmpline = dict(line)
+            tmpline['seq'] = line['seqs'][iseq]
+            label = ilabel if iseq==0 else ''
+            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
+            out_str_list.append(event_str)
 
         # if not self.args.is_data:
         #     self.print_performance_info(line, perfplotter=perfplotter)

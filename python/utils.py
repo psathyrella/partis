@@ -369,8 +369,6 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.
     If info is already there, make sure it's the same as what we calculate here
     """
-    if 'cdr3_length' in line:  # already did it
-        return
 
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
