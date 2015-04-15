@@ -14,6 +14,7 @@ import utils
 from opener import opener
 from seqfileopener import get_seqfile_info
 from clusterer import Clusterer
+from glomerator import Glomerator
 from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
@@ -100,7 +101,7 @@ class PartitionDriver(object):
                                      n_procs=n_procs, shuffle_input_order=True)
             n_proc_list.append(n_procs)
             # for partition in partitions:  # TODO clean this up
-            glomclusters = Clusterer()
+            glomclusters = Glomerator()
             glomclusters.read_cached_agglomeration(log_probs=self.cached_results, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir, debug=True)
             if n_procs == 1:
                 break
@@ -215,7 +216,7 @@ class PartitionDriver(object):
                 print 'ack', query
                 sys.exit()
 
-        clust = Clusterer()
+        clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
         if len(divvied_queries) != n_procs:
             raise Exception('Wrong number of clusters')
@@ -275,7 +276,7 @@ class PartitionDriver(object):
     def merge_partition_files(self, fname, n_procs):
         """ 
         Merge the output partition files from several independent bcrham hierarchical agglomeration processes.
-        The method is to 'rewind' each individual partition back by 10 units of log probability, and rewind these partitions.
+        The method is to 'rewind' each individual partition back by 10 units of log probability, then merge these rewound partitions.
         This is conservative, and doesn't seem to kick up any problems, but in the end is of course dependent on how accurate our model is.
         """
 
@@ -283,7 +284,7 @@ class PartitionDriver(object):
         merged_partition = []
         for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
-            glomerer = Clusterer()
+            glomerer = Glomerator()
             partition_info = self.read_partitions(workdir + '/' + os.path.basename(fname))
             # print partition_info
             # sys.exit()
