@@ -1,8 +1,6 @@
 import sys
 import csv
 import math
-import itertools
-from operator import itemgetter
 from subprocess import check_call
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 
@@ -12,7 +10,7 @@ from opener import opener
 
 class Clusterer(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, threshold=0.0, greater_than=True, singletons=[]):  # put in same cluster if greater than threshold, or less than equal to?
+    def __init__(self, threshold=0.0, greater_than=True, singletons=None):  # put in same cluster if greater than threshold, or less than equal to?
         self.threshold = threshold
         self.debug = False
         self.greater_than = greater_than
@@ -20,11 +18,14 @@ class Clusterer(object):
         self.cluster_ids = []
         self.query_clusters = {}  # map from query name to cluster id
         self.id_clusters = {}  # map from cluster id to list of query names
-        for st in singletons:
-            self.add_new_cluster(st, dbg_str_list=[])
+        if singletons is None:
+            singletons = []
+        else:
+            for st in singletons:
+                self.add_new_cluster(st, dbg_str_list=[])
         self.singletons = singletons
         self.pairscores = {}  # used by external code to see if we saw a given pair
-        self.plotscores = { 'all':[], 'same':[], 'diff':[]}  # keep track of scores for plotting
+        self.plotscores = {'all':[], 'same':[], 'diff':[]}  # keep track of scores for plotting
 
         # self.nearest_true_mate = {}  #
 
@@ -97,11 +98,11 @@ class Clusterer(object):
             outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def vollmers_cluster(self, info, reco_info=None, workdir=None):
+    def vollmers_cluster(self, info, reco_info=None):
         # ./bin/partis.py --action run-viterbi --vollmers-clustering --seqfile test/regression/parameters/simu.csv --parameter-dir test/regression/parameters/simu/hmm --n-max-queries -1 --n-procs 10  --debug 0 --truncate-pairs
-        """ 
+        """
         Cluster together sequences with similar rearrangement parameters
-    
+
         From Vollmers paper:
             Lineage Clustering. IGH sequences were clustered into IGH lineages according
             to similarity in their junctional region. Lineages were created according to the
@@ -170,7 +171,7 @@ class Clusterer(object):
 
         def add_cluster(clid):
             print '  starting cluster %d' % clid
-            self.id_clusters[clid] = [ unclustered_seqs[0], ]
+            self.id_clusters[clid] = [unclustered_seqs[0],]
             unclustered_seqs.remove(unclustered_seqs[0])
             while True:
                 last_size = len(self.id_clusters[clid])
@@ -178,16 +179,16 @@ class Clusterer(object):
                 if last_size == len(self.id_clusters[clid]):  # stop when cluster stops growing
                     break
                 print '    running again (%d --> %d)' % (last_size, len(self.id_clusters[clid]))
-        
+
         unclustered_seqs = info.keys()
         last_cluster_id = 0
         while len(unclustered_seqs) > 0:
             add_cluster(last_cluster_id)
             last_cluster_id += 1
 
-        for v in self.id_clusters.values():
-            print ':'.join(v)
-    
+        for val in self.id_clusters.values():
+            print ':'.join(val)
+
         if reco_info is not None:
             true_cluster_list, inferred_cluster_list = [], []
             for clid, uids in self.id_clusters.items():
@@ -221,7 +222,7 @@ class Clusterer(object):
 
         if first_cluster_id == second_cluster_id:  # already in the same cluster
             return
-        for name,cluster_id in self.query_clusters.iteritems():
+        for name, cluster_id in self.query_clusters.iteritems():
             if cluster_id == second_cluster_id:
                 self.query_clusters[name] = first_cluster_id
 
@@ -230,7 +231,7 @@ class Clusterer(object):
         else:
             print 'oh, man, something\'s wrong'
             print 'uniqe_id,reco_id'
-            for name,cluster_id in self.query_clusters.iteritems():
+            for name, cluster_id in self.query_clusters.iteritems():
                 print '%s,%d' % (name, cluster_id)
             sys.exit()
 

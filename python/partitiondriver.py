@@ -102,7 +102,7 @@ class PartitionDriver(object):
             n_proc_list.append(n_procs)
             # for partition in partitions:  # TODO clean this up
             glomclusters = Glomerator()
-            glomclusters.read_cached_agglomeration(log_probs=self.cached_results, partitions=partition, reco_info=self.reco_info, workdir=self.args.workdir, debug=True)
+            glomclusters.read_cached_agglomeration(partitions=partition, reco_info=self.reco_info, debug=True)
             if n_procs == 1:
                 break
 
@@ -192,7 +192,7 @@ class PartitionDriver(object):
 
         if self.args.vollmers_clustering:
             vollmers_clusterer = Clusterer()
-            vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info, workdir=self.args.workdir)
+            vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info)
 
         return hmminfo
 
