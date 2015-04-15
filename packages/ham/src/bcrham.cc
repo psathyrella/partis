@@ -25,7 +25,9 @@ Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
 
 // ----------------------------------------------------------------------------------------
 smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
-  return smc::particle<ClusterPath>(ClusterPath(stupid_global_glom->initial_partition(), stupid_global_glom->initial_logprob()), stupid_global_glom->initial_logprob());
+  Partition initial_partition(stupid_global_glom->GetAnInitialPartition());  // get the next initial partition, and remove it from the list of initial partitions
+  double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
+  return smc::particle<ClusterPath>(ClusterPath(initial_partition, logprob), logprob);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -45,10 +47,10 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
 
-      if(args.partition() && all_names.count(sq.name()))  // Not reall sure if we need this check, but I don't feel like thinking about it right now. In any case, we want to be able to add the same sequqence twice for run_algorithm
-	throw runtime_error("ERROR tried to add sequence with name " + sq.name() + " twice in bcrham::GetSeqs");
-      else
-	all_names.insert(sq.name());
+      // if(args.partition() && all_names.count(sq.name()))  // Not reall sure if we need this check, but I don't feel like thinking about it right now. In any case, we want to be able to add the same sequqence twice for run_algorithm
+      // 	throw runtime_error("ERROR tried to add sequence with name " + sq.name() + " twice in bcrham::GetSeqs");
+      // else
+      all_names.insert(sq.name());
 
       seqs.AddSeq(sq);
     }

@@ -6,15 +6,31 @@ namespace ham {
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track) :
   hmms_(hmms),
   gl_(gl),
-  args_(args)
+  args_(args),
+  i_initial_partition_(0)
 {
   ReadCachedLogProbs(track);
 
-  // convert input vector to maps
+  Partition tmp_partition;
+  int last_ipath(0);
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key(qry_seq_list[iqry].name_str(":"));
 
-    info_[key] = qry_seq_list[iqry];  // NOTE this is probably kind of inefficient to remake the Sequences all the time
+    int ipath(args_->integers_["path_index"][iqry]);
+    // if((int)initial_partitions_.size() < ipath + 1) {  // if we need to push back a new initial partition (i.e. this is a new path/particle
+    if(last_ipath != ipath) {  // if we need to push back a new initial partition (i.e. this is a new path/particle) NOTE I'm assuming the the first one will have <path_index> zero
+      initial_partitions_.push_back(tmp_partition);
+      initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+      tmp_partition.clear();
+      last_ipath = ipath;
+    }
+      
+    tmp_partition.insert(key);
+
+    if(info_.count(key) > 0)  // already added this cluster to the maps (but it'll appear more than once if it's in multiple paths/particles), so we only need to add the cluster info to <initial_partitions_>
+      continue;
+
+    info_[key] = qry_seq_list[iqry];
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
@@ -25,12 +41,24 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
     vector<double> mute_freqs(args_->float_lists_["mute_freqs"][iqry]);
     mute_freqs_[key] = avgVector(mute_freqs);
   }
+  // add the last initial partition (i.e. for the last path/particle)
+  assert(tmp_partition.size() > 0);
+  initial_partitions_.push_back(tmp_partition);
+  initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
 
-  initial_partition_ = GetClusterList(info_);
-  initial_logprob_ = LogProbOfPartition(initial_partition_);
+  // the *first* time, we only get one path/partition from partis, so we push back a bunch of copies
+  if((int)initial_partitions_.size() == 1 && args_->smc_particles() > 1)  {
+    for(int ip=1; ip<args_->smc_particles(); ++ip) {
+      initial_partitions_.push_back(tmp_partition);
+      initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+    }
+  }
+
+  // initial_partition_ = GetPartitionFromMap(info_);
+  // initial_logprob_ = LogProbOfPartition(initial_partition_);
   if(args_->debug())
-    PrintPartition(initial_partition_, "initial");
-
+    for(auto &part : initial_partitions_)
+      PrintPartition(part, "initial");
 }
 
 // ----------------------------------------------------------------------------------------
@@ -42,13 +70,20 @@ Glomerator::~Glomerator() {
 void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
 
-  ClusterPath cp(initial_partition_, initial_logprob_);
+  assert((int)initial_partitions_.size() == 1);
+  ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]));
   do {
     Merge(&cp);
   } while(!cp.finished_);
 
   vector<ClusterPath> paths{cp};
   WritePartitions(paths);
+}
+
+// ----------------------------------------------------------------------------------------
+Partition Glomerator::GetAnInitialPartition() {
+  assert(i_initial_partition_ < (int)initial_partitions_.size());
+  return initial_partitions_.at(i_initial_partition_++);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -86,7 +121,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
 
 // ----------------------------------------------------------------------------------------
 // return a vector consisting of the keys in <partinfo>
-Partition Glomerator::GetClusterList(map<string, Sequences> &partinfo) {
+Partition Glomerator::GetPartitionFromMap(map<string, Sequences> &partinfo) {
   Partition clusters;
   for(auto &kv : partinfo)
     clusters.insert(kv.first);

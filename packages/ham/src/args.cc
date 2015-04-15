@@ -22,7 +22,7 @@ Args::Args(int argc, const char * argv[]):
   partition_arg_("", "partition", "", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
   str_headers_ {},
-  int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
+  int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
   float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats
 {
