@@ -33,12 +33,12 @@ public:
   void Cluster();
   double LogProbOfPartition(Partition &clusters);
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
-  Partition initial_partition() { return initial_partition_; }
-  double initial_logprob() { return initial_logprob_; }
+  Partition GetAnInitialPartition();  // get the next initial partition in the list of initial partitions, and remove it from the list
+  // double initial_logprob() { return initial_logprob_; }
   void WritePartitions(vector<ClusterPath> &paths);
 private:
   void ReadCachedLogProbs(Track *track);
-  Partition GetClusterList(map<string, Sequences> &partinfo);
+  Partition GetPartitionFromMap(map<string, Sequences> &partinfo);
   void GetSoloLogProb(string key);
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCachedLogProbs();
@@ -58,8 +58,10 @@ private:
   Args *args_;
   ofstream ofs_;
 
-  Partition initial_partition_;
-  double initial_logprob_;
+  vector<Partition> initial_partitions_;
+  vector<double> initial_logprobs_;
+
+  int i_initial_partition_;  // index of the next inital paritition to grab (for smc stuff)
 
   map<string, Sequences> info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
