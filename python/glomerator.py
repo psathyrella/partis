@@ -1,14 +1,17 @@
 import itertools
+import os
+import csv
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 import utils
+from opener import opener
 
 # ----------------------------------------------------------------------------------------
 class Glomerator(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self):
-        self.max_log_prob, self.best_partition = None, None
-        self.max_minus_ten_log_prob, self.best_minus_ten_partition = None, None
+        self.max_log_probs, self.best_partitions = [], []
+        self.max_minus_ten_log_probs, self.best_minus_ten_partitions = [], []
 
     # ----------------------------------------------------------------------------------------
     def naive_seq_glomerate(self, naive_seqs, n_clusters):
@@ -50,37 +53,63 @@ class Glomerator(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, partitions=None, debug=False, reco_info=None):
-        for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
-            if self.max_log_prob is None or part['score'] > self.max_log_prob:
-                self.max_log_prob = part['score']
-                self.best_partition = part['clusters']
+    def read_cached_agglomeration(self, infname=None, partitions=None, debug=False, reco_info=None, clean_up=True):
+        """ Read the partitions output by bcrham (can specify either <infname> to read from file, or <partitions> if you already did) """
+        if partitions is None:
+            if not os.path.exists(infname):
+                raise Exception('ERROR no <partitions> and ' + infname + ' d.n.e. in Glomerator::read_cached_agglomeration')
+            partitions = []
+            with opener('r')(infname) as csvfile:
+                reader = csv.DictReader(csvfile)
+                for line in reader:
+                    if line['partition'] == '':
+                        raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more FLW
+                    if len(partitions) < int(line['path_index']) + 1:
+                        partitions.append([])
+                    uids = []
+                    for cluster in line['partition'].split(';'):
+                        uids.append([unique_id for unique_id in cluster.split(':')])
+                    partitions[-1].append({'clusters':uids, 'score':float(line['score'])})
+            if clean_up:
+                os.remove(infname)
+        else:
+            assert infname is None  # don't specify both of 'em
 
-        if debug:
-            print '  best partition ', self.max_log_prob
-            print '   clonal?   ids'
-            for cluster in self.best_partition:
-                same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
-                if same_event is None:
-                    same_event = -1
-                print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+        for ipath in range(len(partitions)):
+            self.max_log_probs.append(None)
+            self.best_partitions.append(None)
+            for part in partitions[ipath]:  # NOTE these are sorted in order of agglomeration, with the initial partition first
+                if self.max_log_probs[ipath] is None or part['score'] > self.max_log_probs[ipath]:
+                    self.max_log_probs[ipath] = part['score']
+                    self.best_partitions[ipath] = part['clusters']
 
-        # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
-        for part in partitions:
-            if part['score'] > self.max_log_prob - 10.0:
-                self.max_minus_ten_log_prob = part['score']
-                self.best_minus_ten_partition = part['clusters']
-                break
+            if debug:
+                print '  best partition ', self.max_log_probs[ipath]
+                print '   clonal?   ids'
+                for cluster in self.best_partitions[ipath]:
+                    same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
+                    if same_event is None:
+                        same_event = -1
+                    print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
 
-        if debug and reco_info is not None:
-            true_cluster_list, inferred_cluster_list = [], []
-            for iclust in range(len(self.best_partition)):
-                for uid in self.best_partition[iclust]:
-                    if uid not in reco_info:
-                        raise Exception('ERROR %s' % str(uid))
-                    true_cluster_list.append(reco_info[uid]['reco_id'])
-                    inferred_cluster_list.append(iclust)
-            print '       true clusters %d' % len(set(true_cluster_list))
-            print '   inferred clusters %d' % len(set(inferred_cluster_list))
-            print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+            # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
+            self.max_minus_ten_log_probs.append(None)
+            self.best_minus_ten_partitions.append(None)
+            for part in partitions[ipath]:
+                if part['score'] > self.max_log_probs[ipath] - 10.0:
+                    self.max_minus_ten_log_probs[ipath] = part['score']
+                    self.best_minus_ten_partitions[ipath] = part['clusters']
+                    break
+
+            if debug and reco_info is not None:
+                true_cluster_list, inferred_cluster_list = [], []
+                for iclust in range(len(self.best_partitions[ipath])):
+                    for uid in self.best_partitions[ipath][iclust]:
+                        if uid not in reco_info:
+                            raise Exception('ERROR %s' % str(uid))
+                        true_cluster_list.append(reco_info[uid]['reco_id'])
+                        inferred_cluster_list.append(iclust)
+                print '       true clusters %d' % len(set(true_cluster_list))
+                print '   inferred clusters %d' % len(set(inferred_cluster_list))
+                print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
 

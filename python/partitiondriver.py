@@ -91,24 +91,22 @@ class PartitionDriver(object):
         waterer.run()
         self.sw_info = waterer.info
 
-        partition, glomclusters = None, None
+        glomclusters = None
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
         while n_procs > 0:
-            print '--> %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partition), n_procs)  # write_hmm_input uses the best-minus-ten partition
+            print '--> %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partitions[0]), n_procs)  # write_hmm_input uses the best-minus-ten partition
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
-            partition = self.run_hmm('forward', self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type,
-                                     n_procs=n_procs, shuffle_input_order=True)
+            glomclusters = self.run_hmm('forward', self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type, n_procs=n_procs, shuffle_input_order=True)
             n_proc_list.append(n_procs)
-            # for partition in partitions:  # TODO clean this up
-            glomclusters = Glomerator()
-            glomclusters.read_cached_agglomeration(partitions=partition, reco_info=self.reco_info, debug=True)
+            # glomclusters = Glomerator()
+            # glomclusters.read_cached_agglomeration(partitions=partition, reco_info=self.reco_info, debug=True)
             if n_procs == 1:
                 break
 
             # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process, then reduce <n_procs> for the next run
             if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
-               len(glomclusters.best_partition) / n_procs < self.args.max_clusters_per_proc:
+               len(glomclusters.best_partitions[0]) / n_procs < self.args.max_clusters_per_proc:  # just use the first path/particle, they should all be pretty similar
                 if n_procs > 20:
                     n_procs = n_procs / 2
                 elif n_procs > 6:
@@ -172,10 +170,11 @@ class PartitionDriver(object):
                 time.sleep(0.1)
             for proc in procs:
                 proc.wait()
-            if self.args.debug:
-                for iproc in range(len(procs)):
+            # if self.args.debug:
+            for iproc in range(len(procs)):
+                out, err = procs[iproc].communicate()
+                if out != '':
                     print '  proc %d' % iproc
-                    out, err = procs[iproc].communicate()
                     print out
             self.merge_hmm_outputs(n_procs)
 
@@ -183,7 +182,10 @@ class PartitionDriver(object):
         # print '      hmm run time: %.3f' % (time.time()-start)
 
         if self.args.action == 'partition':
-            hmminfo = self.read_partition_outfiles()
+            self.read_cachefile()
+            glom = Glomerator()
+            glom.read_cached_agglomeration(infname=self.hmm_outfname, reco_info=self.reco_info, clean_up=(not self.args.no_clean), debug=True)
+            hmminfo = glom
         else:
             hmminfo = self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
 
@@ -280,33 +282,28 @@ class PartitionDriver(object):
         This is conservative, and doesn't seem to kick up any problems, but in the end is of course dependent on how accurate our model is.
         """
 
-        merged_log_prob = 0
-        merged_partition = []
+        merged_log_probs = [0 for _ in range(self.args.smc_particles)]
+        merged_partitions = [[] for _ in range(self.args.smc_particles)]
         for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             glomerer = Glomerator()
-            partition_info = self.read_partitions(workdir + '/' + os.path.basename(fname))
-            # print partition_info
-            # sys.exit()
-            # partition_info = partition_info[0]  # TODO clean this up
-            # print 'before'
-            # for part in partition_info:
-            #     print part
-            glomerer.read_cached_agglomeration(partitions=partition_info, debug=False)
-            if math.isnan(glomerer.max_minus_ten_log_prob):  # NOTE this should really have a way of handling -INFINITY
-                raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_prob))
-            merged_log_prob += glomerer.max_minus_ten_log_prob
-            for cluster in glomerer.best_minus_ten_partition:
-                merged_partition.append(cluster)
-
-            if not self.args.no_clean:
-                os.remove(workdir + '/' + os.path.basename(fname))
+            glomerer.read_cached_agglomeration(infname=workdir + '/' + os.path.basename(fname), debug=False)
+            for ipath in range(self.args.smc_particles):
+                if math.isnan(glomerer.max_minus_ten_log_probs[ipath]):  # NOTE this should really have a way of handling -INFINITY
+                    raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_probs[ipath]))
+                merged_log_probs[ipath] += glomerer.max_minus_ten_log_probs[ipath]
+                for cluster in glomerer.best_minus_ten_partitions[ipath]:
+                    merged_partitions[ipath].append(cluster)
+            # if not self.args.no_clean:
+            #     os.remove(workdir + '/' + os.path.basename(fname))
 
         with opener('w')(fname) as partitionfile:
-            writer = csv.DictWriter(partitionfile, ('partition', 'score'))
+            writer = csv.DictWriter(partitionfile, ('path_index', 'partition', 'score'))
             writer.writeheader()
-            writer.writerow({'partition' : ';'.join([':'.join([uid for uid in uids]) for uids in merged_partition]),
-                             'score' : merged_log_prob})
+            for ipath in range(self.args.smc_particles):
+                writer.writerow({'path_index' : ipath,
+                                 'partition' : ';'.join([':'.join([uid for uid in uids]) for uids in merged_partitions[ipath]]),
+                                 'score' : merged_log_probs[ipath]})
 
     # ----------------------------------------------------------------------------------------
     def merge_csv_files(self, fname, n_procs):
@@ -508,25 +505,20 @@ class PartitionDriver(object):
                     writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
         csvfile = opener('w')(self.hmm_infname)
-        writer = csv.DictWriter(csvfile, ('names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs'), delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
+        header = ['path_index', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']
+        writer = csv.DictWriter(csvfile, header, delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         writer.writeheader()
         # start = time.time()
 
         skipped_gene_matches = set()
-        assert hmm_type != ''
+        list_of_nsets = []  # will be length one unless we're partitioning with smc
         if hmm_type == 'k=1':  # single vanilla hmm
-            nsets = [[qn] for qn in self.input_info.keys()]
-        # elif hmm_type == 'k=2':  # pair hmm
-        #     nsets = self.get_pairs(preclusters)
+            list_of_nsets.append([[qn] for qn in self.input_info.keys()])
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
-            assert preclusters is not None
-            if self.args.action == 'partition':
-                nsets = preclusters.best_minus_ten_partition
-            else:
-                nsets = [val for val in preclusters.id_clusters.values() if len(val) > 1]  # <nsets> is a list of sets (well, lists) of query names
+            list_of_nsets = preclusters.best_minus_ten_partitions
         elif hmm_type == 'k=nsets':
             if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
-                nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
+                list_of_nsets.append(itertools.combinations(self.input_info.keys(), self.args.n_sets))
             else:  # put the first n together, and the second group of n (note that self.input_info is an OrderedDict)
                 nsets = []
                 keylist = self.input_info.keys()
@@ -539,35 +531,41 @@ class PartitionDriver(object):
                     this_set.append(keylist[iquery])
                 if len(this_set) > 0:
                     nsets.append(this_set)
+                list_of_nsets.append(nsets)
         else:
             assert False
 
         # randomize the order of the query list in <nsets>. Note that the list gets split into chunks for parallelization later
         if shuffle_input_order:  # This can be *really* important if you're partitioning in parallel
-            random_nsets = []
-            while len(nsets) > 0:
-                irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
-                random_nsets.append(nsets[irand])
-                nsets.remove(nsets[irand])
-            nsets = random_nsets
+            for ins in range(len(list_of_nsets)):  # this will be the trivial loop unless we're partitioning with smc
+                random_nsets = []
+                while len(list_of_nsets[ins]) > 0:
+                    irand = random.randint(0, len(list_of_nsets[ins]) - 1)  # NOTE interval is inclusive
+                    random_nsets.append(list_of_nsets[ins][irand])
+                    list_of_nsets[ins].remove(list_of_nsets[ins][irand])
+                list_of_nsets[ins] = random_nsets
 
-        for query_names in nsets:
-            non_failed_names = self.remove_sw_failures(query_names)
-            if len(non_failed_names) == 0:
-                continue
-            combined_query = self.combine_queries(non_failed_names, parameter_dir, skipped_gene_matches=skipped_gene_matches)
-            if len(combined_query) == 0:  # didn't find all regions
-                continue
-            writer.writerow({
-                'names' : ':'.join([qn for qn in non_failed_names]),
-                'k_v_min' : combined_query['k_v']['min'],
-                'k_v_max' : combined_query['k_v']['max'],
-                'k_d_min' : combined_query['k_d']['min'],
-                'k_d_max' : combined_query['k_d']['max'],
-                'only_genes' : ':'.join(combined_query['only_genes']),
-                'seqs' : ':'.join(combined_query['seqs']),
-                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']])
-            })
+        ins = 0
+        for nsets in list_of_nsets:
+            for query_names in nsets:
+                non_failed_names = self.remove_sw_failures(query_names)
+                if len(non_failed_names) == 0:
+                    continue
+                combined_query = self.combine_queries(non_failed_names, parameter_dir, skipped_gene_matches=skipped_gene_matches)
+                if len(combined_query) == 0:  # didn't find all regions
+                    continue
+                writer.writerow({
+                    'path_index' : ins,
+                    'names' : ':'.join([qn for qn in non_failed_names]),
+                    'k_v_min' : combined_query['k_v']['min'],
+                    'k_v_max' : combined_query['k_v']['max'],
+                    'k_d_min' : combined_query['k_d']['min'],
+                    'k_d_max' : combined_query['k_d']['max'],
+                    'only_genes' : ':'.join(combined_query['only_genes']),
+                    'seqs' : ':'.join(combined_query['seqs']),
+                    'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']])
+                })
+            ins += 1
 
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
@@ -578,32 +576,11 @@ class PartitionDriver(object):
         # print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def read_partitions(self, fname):
-        """ Read partitions output by bcrham from <fname> """
-        partition_info = []
-        with opener('r')(fname) as csvfile:
-            reader = csv.DictReader(csvfile)
-            path_index = None
-            for line in reader:
-                # if path_index is None or path_index != int(line['path_index']):
-                #     partition_info.append([])
-                #     path_index = int(line['path_index'])
-                if line['partition'] == '':
-                    raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more
-                uids = []
-                for cluster in line['partition'].split(';'):
-                    uids.append([unique_id for unique_id in cluster.split(':')])
-                # partition_info[-1].append({'clusters':uids, 'score':float(line['score'])})  # TODO clean this up
-                partition_info.append({'clusters':uids, 'score':float(line['score'])})
-        return partition_info
-
-    # ----------------------------------------------------------------------------------------
-    def read_partition_outfiles(self):
-        """ Read bcrham output partitions and cached partition info """
-        partition_info = self.read_partitions(self.hmm_outfname)
-
+    def read_cachefile(self):
+        """ Read cached bcrham partition info """
         if self.cached_results is None:
             self.cached_results = {}
+
         with opener('r')(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
@@ -611,14 +588,11 @@ class PartitionDriver(object):
                     raise Exception('ERROR in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
                 if line['unique_ids'] not in self.cached_results:
                     self.cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
-                    if line['naive-seq'] == '':
+                    if line['naive-seq'] == '':  # I forget why this was happening, but it shouldn't any more (note that I don't actually *remove* the check, though...)
                         raise Exception('ERROR' + line['unique_ids'])
 
         if not self.args.no_clean:
-            os.remove(self.hmm_outfname)
             os.remove(self.hmm_cachefname)
-
-        return partition_info
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):
