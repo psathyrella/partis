@@ -12,6 +12,7 @@ class Glomerator(object):
     def __init__(self):
         self.max_log_probs, self.best_partitions = [], []
         self.max_minus_ten_log_probs, self.best_minus_ten_partitions = [], []
+        self.partitions = []
 
     # ----------------------------------------------------------------------------------------
     def naive_seq_glomerate(self, naive_seqs, n_clusters):
@@ -53,63 +54,110 @@ class Glomerator(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infname=None, partitions=None, debug=False, reco_info=None, clean_up=True):
-        """ Read the partitions output by bcrham (can specify either <infname> to read from file, or <partitions> if you already did) """
-        if partitions is None:
-            if not os.path.exists(infname):
-                raise Exception('ERROR no <partitions> and ' + infname + ' d.n.e. in Glomerator::read_cached_agglomeration')
-            partitions = []
-            with opener('r')(infname) as csvfile:
-                reader = csv.DictReader(csvfile)
-                for line in reader:
-                    if line['partition'] == '':
-                        raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more FLW
-                    if len(partitions) < int(line['path_index']) + 1:
-                        partitions.append([])
-                    uids = []
-                    for cluster in line['partition'].split(';'):
-                        uids.append([unique_id for unique_id in cluster.split(':')])
-                    partitions[-1].append({'clusters':uids, 'score':float(line['score'])})
-            if clean_up:
-                os.remove(infname)
-        else:
-            assert infname is None  # don't specify both of 'em
+    def mutual_information(self, partition, reco_info, debug=False):
+        if reco_info is None:
+            return -1.0
+        true_cluster_list, inferred_cluster_list = [], []
+        for iclust in range(len(partition)):
+            for uid in partition[iclust]:
+                if uid not in reco_info:
+                    raise Exception('ERROR %s' % str(uid))
+                true_cluster_list.append(reco_info[uid]['reco_id'])
+                inferred_cluster_list.append(iclust)
+        adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+        if debug:
+            print '       true clusters %d' % len(set(true_cluster_list))
+            print '   inferred clusters %d' % len(set(inferred_cluster_list))
+            print '         adjusted mi %.2f' % adj_mi
+        return adj_mi
+
+    # ----------------------------------------------------------------------------------------
+    def find_best_partition(self, partitions):
+        max_log_prob, best_partition = None, None
+        for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
+            # print '%d  %10.2f  %.2f' % (ipath, part['score'], part['adj_mi'])
+            if max_log_prob is None or part['score'] > max_log_prob:
+                max_log_prob = part['score']
+                best_partition = part['clusters']
+
+        if debug:
+            print '  best partition ', max_log_prob
+            print '   clonal?   ids'
+            for cluster in best_partition:
+                same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
+                if same_event is None:
+                    same_event = -1
+                print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+
+        self.max_log_probs.append(max_log_prob)
+        self.best_partitions.append(best_partition)
+
+    # ----------------------------------------------------------------------------------------
+    def find_best_minus_ten_partition(self, max_log_prob, partitions):
+        # find the best-minus-ten, i.e.: reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
+        max_minus_ten_log_probs, best_minus_ten_partitions = None, None
+        for part in partitions:
+            if part['score'] > max_log_prob - 10.0:
+                max_minus_ten_log_prob = part['score']
+                best_minus_ten_partition = part['clusters']
+                break
+        assert len(best_minus_ten_partition) > 0
+        self.max_minus_ten_log_probs.append(max_minus_ten_log_prob)
+        self.best_minus_ten_partitions.append(best_minus_ten_partition)
+
+    # ----------------------------------------------------------------------------------------
+    def read_file_info(self, infname, n_paths, clean_up):
+        partitions = [[] for _ in range(n_paths)]
+        with opener('r')(infname) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for line in reader:
+                if line['partition'] == '':
+                    raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more FLW
+                # if len(partitions) < int(line['path_index']) + 1:  # should only happen the first time through
+                #     partitions.append([])
+                #     if debug:
+                #         print 'ADD', len(all_partitions), int(line['path_index'])
+                uids = []
+                for cluster in line['partition'].split(';'):
+                    uids.append([unique_id for unique_id in cluster.split(':')])
+                partitions[int(line['path_index'])].append({'clusters' : uids,
+                                                            'score' : float(line['score']),
+                                                            'adj_mi' : self.mutual_information(uids, reco_info)})
+                # if int(line['path_index']) == 0 and debug:
+                #     print 'appended', float(line['score']), len(all_partitions), len(all_partitions[int(line['path_index'])])
+        if clean_up:
+            os.remove(infname)
+        return partitions
+
+    # ----------------------------------------------------------------------------------------
+    def merge_fileinfos(fileinfos):
+        partitions = []  # list over smc paths/particles
+        
+
+    # ----------------------------------------------------------------------------------------
+    def read_cached_agglomeration(self, infnames, smc_particles, FIXME, all_partitions=None, debug=False, reco_info=None, clean_up=True, outfname=None):
+        """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
+        fileinfos = []
+        for fname in infnames:
+            fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
+        partitions = self.merge_fileinfos(fileinfos)
 
         for ipath in range(len(partitions)):
-            self.max_log_probs.append(None)
-            self.best_partitions.append(None)
-            for part in partitions[ipath]:  # NOTE these are sorted in order of agglomeration, with the initial partition first
-                if self.max_log_probs[ipath] is None or part['score'] > self.max_log_probs[ipath]:
-                    self.max_log_probs[ipath] = part['score']
-                    self.best_partitions[ipath] = part['clusters']
+            self.find_best_partition(partitions[ipath])
+            self.find_best_minus_ten_partition(self.max_log_probs[ipath], partitions[ipath])
 
-            if debug:
-                print '  best partition ', self.max_log_probs[ipath]
-                print '   clonal?   ids'
-                for cluster in self.best_partitions[ipath]:
-                    same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
-                    if same_event is None:
-                        same_event = -1
-                    print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+        # write the output file
+        if outfname is not None:
+            with opener('w')(outfname) as outfile:
+                writer = csv.DictWriter(outfile, ('path_index', 'score', 'normalized_score', 'adj_mi'))
+                writer.writeheader()
+                for ipath in range(len(partitions)):
+                    for part in partitions[ipath]:
+                        writer.writerow({'path_index' : ipath,
+                                         'score' : part['score'],
+                                         'normalized_score' : part['score'] / self.max_log_probs[ipath],
+                                         'adj_mi' : part['adj_mi']})
 
-            # reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
-            self.max_minus_ten_log_probs.append(None)
-            self.best_minus_ten_partitions.append(None)
-            for part in partitions[ipath]:
-                if part['score'] > self.max_log_probs[ipath] - 10.0:
-                    self.max_minus_ten_log_probs[ipath] = part['score']
-                    self.best_minus_ten_partitions[ipath] = part['clusters']
-                    break
-
-            if debug and reco_info is not None:
-                true_cluster_list, inferred_cluster_list = [], []
-                for iclust in range(len(self.best_partitions[ipath])):
-                    for uid in self.best_partitions[ipath][iclust]:
-                        if uid not in reco_info:
-                            raise Exception('ERROR %s' % str(uid))
-                        true_cluster_list.append(reco_info[uid]['reco_id'])
-                        inferred_cluster_list.append(iclust)
-                print '       true clusters %d' % len(set(true_cluster_list))
-                print '   inferred clusters %d' % len(set(inferred_cluster_list))
-                print '         adjusted mi %.2f' % adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+            # if debug and reco_info is not None:
+            #     self.mutual_information(self.best_partitions[ipath], reco_info, debug=True)
 

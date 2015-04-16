@@ -94,13 +94,16 @@ class PartitionDriver(object):
         glomclusters = None
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
+        self.partitions = []
         while n_procs > 0:
             print '--> %d clusters with %d procs' % (len(self.input_info) if glomclusters is None else len(glomclusters.best_minus_ten_partitions[0]), n_procs)  # write_hmm_input uses the best-minus-ten partition
             hmm_type = 'k=1' if glomclusters is None else 'k=preclusters'
             glomclusters = self.run_hmm('forward', self.args.parameter_dir, preclusters=glomclusters, hmm_type=hmm_type, n_procs=n_procs, shuffle_input_order=True)
+            print '-------------'
+            for part in self.partitions[0]:
+                print '  ', part['score']
+            print '-------------'
             n_proc_list.append(n_procs)
-            # glomclusters = Glomerator()
-            # glomclusters.read_cached_agglomeration(partitions=partition, reco_info=self.reco_info, debug=True)
             if n_procs == 1:
                 break
 
@@ -184,7 +187,7 @@ class PartitionDriver(object):
         if self.args.action == 'partition':
             self.read_cachefile()
             glom = Glomerator()
-            glom.read_cached_agglomeration(infname=self.hmm_outfname, reco_info=self.reco_info, clean_up=(not self.args.no_clean), debug=True)
+            glom.read_cached_agglomeration(infname=self.hmm_outfname, partitions=self.partitions, reco_info=self.reco_info, clean_up=(not self.args.no_clean), debug=True, outfname=self.args.outfname)
             hmminfo = glom
         else:
             hmminfo = self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
@@ -287,7 +290,7 @@ class PartitionDriver(object):
         for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             glomerer = Glomerator()
-            glomerer.read_cached_agglomeration(infname=workdir + '/' + os.path.basename(fname), debug=False)
+            glomerer.read_cached_agglomeration(infname=workdir + '/' + os.path.basename(fname), partitions=self.partitions, debug=False, clean_up=(not self.args.no_clean))
             for ipath in range(self.args.smc_particles):
                 if math.isnan(glomerer.max_minus_ten_log_probs[ipath]):  # NOTE this should really have a way of handling -INFINITY
                     raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_probs[ipath]))
