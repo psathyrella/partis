@@ -1,5 +1,6 @@
 import itertools
 import os
+import sys
 import csv
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 
@@ -9,10 +10,11 @@ from opener import opener
 # ----------------------------------------------------------------------------------------
 class Glomerator(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(self, reco_info=None):
+        self.reco_info = reco_info
         self.max_log_probs, self.best_partitions = [], []
         self.max_minus_ten_log_probs, self.best_minus_ten_partitions = [], []
-        self.partitions = []
+        self.partitions = None
 
     # ----------------------------------------------------------------------------------------
     def naive_seq_glomerate(self, naive_seqs, n_clusters):
@@ -54,15 +56,25 @@ class Glomerator(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def mutual_information(self, partition, reco_info, debug=False):
-        if reco_info is None:
+    def print_partition(self, partition, logprob, extrastr=''):
+        print '  %s partition %.2f' % (extrastr, logprob)
+        print '   clonal?   ids'
+        for cluster in partition:
+            same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
+            if same_event is None:
+                same_event = -1
+            print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+
+    # ----------------------------------------------------------------------------------------
+    def mutual_information(self, partition, debug=False):
+        if self.reco_info is None:
             return -1.0
         true_cluster_list, inferred_cluster_list = [], []
         for iclust in range(len(partition)):
             for uid in partition[iclust]:
-                if uid not in reco_info:
+                if uid not in self.reco_info:
                     raise Exception('ERROR %s' % str(uid))
-                true_cluster_list.append(reco_info[uid]['reco_id'])
+                true_cluster_list.append(self.reco_info[uid]['reco_id'])
                 inferred_cluster_list.append(iclust)
         adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
         if debug:
@@ -72,7 +84,7 @@ class Glomerator(object):
         return adj_mi
 
     # ----------------------------------------------------------------------------------------
-    def find_best_partition(self, partitions):
+    def find_best_partition(self, partitions, debug=False):
         max_log_prob, best_partition = None, None
         for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
             # print '%d  %10.2f  %.2f' % (ipath, part['score'], part['adj_mi'])
@@ -81,16 +93,10 @@ class Glomerator(object):
                 best_partition = part['clusters']
 
         if debug:
-            print '  best partition ', max_log_prob
-            print '   clonal?   ids'
-            for cluster in best_partition:
-                same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
-                if same_event is None:
-                    same_event = -1
-                print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+            self.print_partition(best_partition, max_log_prob, 'best')
+            self.mutual_information(best_partition, debug=True)
 
-        self.max_log_probs.append(max_log_prob)
-        self.best_partitions.append(best_partition)
+        return max_log_prob, best_partition
 
     # ----------------------------------------------------------------------------------------
     def find_best_minus_ten_partition(self, max_log_prob, partitions):
@@ -102,8 +108,7 @@ class Glomerator(object):
                 best_minus_ten_partition = part['clusters']
                 break
         assert len(best_minus_ten_partition) > 0
-        self.max_minus_ten_log_probs.append(max_minus_ten_log_prob)
-        self.best_minus_ten_partitions.append(best_minus_ten_partition)
+        return max_minus_ten_log_prob, best_minus_ten_partition
 
     # ----------------------------------------------------------------------------------------
     def read_file_info(self, infname, n_paths, clean_up):
@@ -122,7 +127,7 @@ class Glomerator(object):
                     uids.append([unique_id for unique_id in cluster.split(':')])
                 partitions[int(line['path_index'])].append({'clusters' : uids,
                                                             'score' : float(line['score']),
-                                                            'adj_mi' : self.mutual_information(uids, reco_info)})
+                                                            'adj_mi' : self.mutual_information(uids, debug=False)})
                 # if int(line['path_index']) == 0 and debug:
                 #     print 'appended', float(line['score']), len(all_partitions), len(all_partitions[int(line['path_index'])])
         if clean_up:
@@ -130,34 +135,82 @@ class Glomerator(object):
         return partitions
 
     # ----------------------------------------------------------------------------------------
-    def merge_fileinfos(fileinfos):
-        partitions = []  # list over smc paths/particles
-        
+    def merge_fileinfos(self, fileinfos, smc_particles, debug=False):
+        self.partitions = [[] for _ in range(smc_particles)]
+        self.combined_conservative_max_minus_ten_logprobs = [0.0 for _ in range(smc_particles)]
+        self.combined_conservative_best_minus_ten_partitions = [[] for _ in range(smc_particles)]
+        for ipath in range(smc_particles):
+            # find the combination of the best-minus-ten for *each* file, which is more conservative
+            for ifile in range(len(fileinfos)):
+                max_logprob, best_partition = self.find_best_partition(fileinfos[ifile][ipath])
+                max_minus_ten_logprob, best_minus_ten_partition = self.find_best_minus_ten_partition(max_logprob, fileinfos[ifile][ipath])
+                for cluster in best_minus_ten_partition:
+                    self.combined_conservative_best_minus_ten_partitions[ipath].append(cluster)
+                self.combined_conservative_max_minus_ten_logprobs[ipath] += max_minus_ten_logprob
+            self.print_partition(self.combined_conservative_best_minus_ten_partitions[ipath], self.combined_conservative_max_minus_ten_logprobs[ipath], 'combined conservative')
+
+            if debug:
+                print 'IPATH', ipath
+            def last_one():
+                last = True
+                for ifile in range(len(fileinfos)):  # we're finished when all the files are out of glomeration steps (i.e. they all only have one [the last] line left)
+                    last &= len(fileinfos[ifile][ipath]) == 1
+                return last
+
+            def add_next_global_partition():
+                # NOTE this adds a merge for *each* *file*, i.e. each agglomerations step has n_files merges
+                if debug:
+                    print '  ADD'
+                global_partition = []
+                global_logprob = 0.0
+                for ifile in range(len(fileinfos)):  # combine the first line in each file to make a global partition
+                    if debug:
+                        print '    ifile', ifile
+                    for cluster in fileinfos[ifile][ipath][0]['clusters']:
+                        global_partition.append(cluster)
+                    global_logprob += fileinfos[ifile][ipath][0]['score']
+                    if len(fileinfos[ifile][ipath]) > 1:  # if this isn't the last line (i.e. if there's more glomeration steps in this file), move on to the next line
+                        fileinfos[ifile][ipath].pop(0)
+                self.partitions[ipath].append({'clusters' : global_partition,
+                                          'score' : global_logprob,
+                                          'adj_mi' : self.mutual_information(global_partition, debug=False)})
+
+                if debug:
+                    for ptn in self.partitions[ipath]:
+                        # pl = ':'.join(cl for cl in ptn['clusters'])
+                        pl = []
+                        for cl in ptn['clusters']:
+                            pl.append(':'.join(cl))
+                        print '    ', ptn['score'], '  '.join(pl)
+
+            while not last_one():
+                add_next_global_partition()
+            add_next_global_partition()
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, FIXME, all_partitions=None, debug=False, reco_info=None, clean_up=True, outfname=None):
+    def read_cached_agglomeration(self, infnames, smc_particles, debug=False, clean_up=True, outfname=None):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        partitions = self.merge_fileinfos(fileinfos)
+        self.merge_fileinfos(fileinfos, smc_particles, debug=True)
 
-        for ipath in range(len(partitions)):
-            self.find_best_partition(partitions[ipath])
-            self.find_best_minus_ten_partition(self.max_log_probs[ipath], partitions[ipath])
+        for ipath in range(len(self.partitions)):
+            logprob, ptn = self.find_best_partition(self.partitions[ipath], debug=True)
+            self.max_log_probs.append(logprob)
+            self.best_partitions.append(ptn)
+            logprob, ptn = self.find_best_minus_ten_partition(self.max_log_probs[ipath], self.partitions[ipath])
+            self.max_minus_ten_log_probs.append(logprob)
+            self.best_minus_ten_partitions.append(ptn)
 
         # write the output file
         if outfname is not None:
             with opener('w')(outfname) as outfile:
                 writer = csv.DictWriter(outfile, ('path_index', 'score', 'normalized_score', 'adj_mi'))
                 writer.writeheader()
-                for ipath in range(len(partitions)):
-                    for part in partitions[ipath]:
+                for ipath in range(len(self.partitions)):
+                    for part in self.partitions[ipath]:
                         writer.writerow({'path_index' : ipath,
                                          'score' : part['score'],
                                          'normalized_score' : part['score'] / self.max_log_probs[ipath],
                                          'adj_mi' : part['adj_mi']})
-
-            # if debug and reco_info is not None:
-            #     self.mutual_information(self.best_partitions[ipath], reco_info, debug=True)
-
