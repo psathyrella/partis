@@ -27,13 +27,13 @@ Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
 smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
   Partition initial_partition(stupid_global_glom->GetAnInitialPartition());  // get the next initial partition (and increment the counter)
   double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
-  return smc::particle<ClusterPath>(ClusterPath(initial_partition, logprob), exp(logprob));
+  return smc::particle<ClusterPath>(ClusterPath(initial_partition, logprob), logprob);
 }
 
 // ----------------------------------------------------------------------------------------
 void SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
-  stupid_global_glom->Merge(ptl.GetValuePointer(), rgen);  // ...but I couldn't figure out a better way to do this without a global
-  throw runtime_error("ooops I think I need to update the weight as well");
+  stupid_global_glom->Merge(ptl.GetValuePointer(), rgen);  // ...but I couldn't figure out a good way to do this without a global
+  ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogProb());
 }
 
 // ----------------------------------------------------------------------------------------
