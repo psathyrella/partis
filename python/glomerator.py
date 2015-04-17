@@ -17,7 +17,7 @@ class Glomerator(object):
         self.partitions = None
 
     # ----------------------------------------------------------------------------------------
-    def naive_seq_glomerate(self, naive_seqs, n_clusters):
+    def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=False):
         """ Perform hierarchical agglomeration (with naive hamming distance as the distance), stopping at <n_clusters> """
         clusters = [[names,] for names in naive_seqs.keys()]
         # for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
@@ -27,7 +27,7 @@ class Glomerator(object):
         #     print seq_a, seq_b, utils.hamming(seq_a, seq_b)
 
         distances = {}
-        def glomerate(debug=False):
+        def glomerate():
             smallest_min_distance = None
             clusters_to_merge = None
             for clust_a, clust_b in itertools.combinations(clusters, 2):
@@ -51,7 +51,39 @@ class Glomerator(object):
             clusters.remove(clusters_to_merge[1])
 
         while len(clusters) > n_clusters:
-            glomerate(debug=False)
+            glomerate()
+
+        # roughly equalize the cluster sizes
+        if len(clusters) > 1:
+            # mean_length = sum([len(cl) for cl in clusters]) / float(len(clusters))
+            clusters.sort(key=len)
+
+            def homogenize():
+                # print 'before'
+                # for cl in clusters:
+                #     print len(cl),
+                # print ''
+                if len(clusters) > 2:
+                    clusters[0] = clusters[0] + clusters[1]
+                    clusters[1] = clusters[-1][ : len(clusters[-1])/2]
+                    clusters[-1] = clusters[-1][len(clusters[-1])/2 : ]
+                else:  # only two clusters
+                    together = clusters[0] + clusters[1]
+                    clusters[0] = together[ : len(together)/2]
+                    clusters[1] = together[len(together)/2 : ]
+                # print 'after'
+                # for cl in clusters:
+                #     print len(cl),
+                # print ''
+                clusters.sort(key=len)
+
+            itries = 0
+            while len(clusters[0]) < len(clusters[-1]) / 3.:
+                print 'homogenizing', len(clusters[0]), len(clusters[-1]), len(clusters[-1]) / 3.
+                homogenize()
+                itries += 1
+                if itries > 10:
+                    break
 
         return clusters
 
@@ -188,29 +220,30 @@ class Glomerator(object):
             add_next_global_partition()
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, debug=False, clean_up=True, outfname=None):
+    def read_cached_agglomeration(self, infnames, smc_particles, debug=False, clean_up=True):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        self.merge_fileinfos(fileinfos, smc_particles, debug=True)
+        self.merge_fileinfos(fileinfos, smc_particles, debug=False)
 
         for ipath in range(len(self.partitions)):
             logprob, ptn = self.find_best_partition(self.partitions[ipath], debug=True)
             self.max_log_probs.append(logprob)
             self.best_partitions.append(ptn)
-            logprob, ptn = self.find_best_minus_ten_partition(self.max_log_probs[ipath], self.partitions[ipath])
-            self.max_minus_ten_log_probs.append(logprob)
-            self.best_minus_ten_partitions.append(ptn)
+            # NOTE you don't want to use this, it's safer to use the combined_conservative stuff
+            # logprob, ptn = self.find_best_minus_ten_partition(self.max_log_probs[ipath], self.partitions[ipath])
+            # self.max_minus_ten_log_probs.append(logprob)
+            # self.best_minus_ten_partitions.append(ptn)
 
-        # write the output file
-        if outfname is not None:
-            with opener('w')(outfname) as outfile:
-                writer = csv.DictWriter(outfile, ('path_index', 'score', 'normalized_score', 'adj_mi'))
-                writer.writeheader()
-                for ipath in range(len(self.partitions)):
-                    for part in self.partitions[ipath]:
-                        writer.writerow({'path_index' : ipath,
-                                         'score' : part['score'],
-                                         'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                         'adj_mi' : part['adj_mi']})
+    # ----------------------------------------------------------------------------------------
+    def write_partitions(self, outfname, mode):
+        with open(outfname, mode) as outfile:
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'normalized_score', 'adj_mi'))
+            writer.writeheader()
+            for ipath in range(len(self.partitions)):
+                for part in self.partitions[ipath]:
+                    writer.writerow({'path_index' : ipath,
+                                     'score' : part['score'],
+                                     'normalized_score' : part['score'] / self.max_log_probs[ipath],
+                                     'adj_mi' : part['adj_mi']})

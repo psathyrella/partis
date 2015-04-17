@@ -124,9 +124,27 @@ class PartitionDriver(object):
                 else:
                     n_procs -= 1
 
+        final_partitions = [[] for _ in range(self.args.smc_particles)]
+        for glom in self.glomclusters:
+            for ipath in range(self.args.smc_particles):
+                final_partitions[ipath] += glom.partitions[ipath]
+        self.write_partitions(final_partitions, self.args.outfname)
+
         final_glom = self.glomclusters[-1]
         for ipath in range(self.args.smc_particles):  # print the final partitions
             final_glom.print_partition(final_glom.best_partitions[ipath], final_glom.max_log_probs[ipath], 'final')
+
+    # ----------------------------------------------------------------------------------------
+    def write_partitions(self, partitions, outfname):
+        with opener('w')(outfname) as outfile:
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'adj_mi'))  #'normalized_score'
+            writer.writeheader()
+            for ipath in range(len(partitions)):
+                for part in partitions[ipath]:
+                    writer.writerow({'path_index' : ipath,
+                                     'score' : part['score'],
+                                     # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
+                                     'adj_mi' : part['adj_mi']})
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -174,6 +192,7 @@ class PartitionDriver(object):
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
         if n_procs == 1:
             check_call(cmd_str.split())
+            # TODO this is messy, you should combine this with the multicore stuff
             glomerer = Glomerator(self.reco_info)
             glomerer.read_cached_agglomeration([self.hmm_outfname,], self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
             self.glomclusters.append(glomerer)
@@ -239,6 +258,11 @@ class PartitionDriver(object):
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
+        print 'divvy lengths'
+        for dq in divvied_queries:
+            print len(dq),
+        print ''
+
         if len(divvied_queries) != n_procs:
             raise Exception('Wrong number of clusters')
 
