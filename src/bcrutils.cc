@@ -73,18 +73,18 @@ string TermColors::ColorMutants(string color, string seq, string ref_1, vector<s
 
 // ----------------------------------------------------------------------------------------
 string TermColors::ColorGene(string gene) {
-  string return_str = gene.substr(0, 3) + Color("purple", gene.substr(3, 1));
+  string return_str = Color("red", GetRegion(gene));  //gene.substr(0, 3) + Color("purple", gene.substr(3, 1));
   string n_version = gene.substr(4, gene.find("-") - 4);
   string n_subversion = gene.substr(gene.find("-") + 1, gene.find("*") - gene.find("-") - 1);
   if(GetRegion(gene) == "j") {
     n_version = gene.substr(4, gene.find("*") - 4);
     n_subversion = "";
-    return_str += Color("red", n_version);
+    return_str += "" + Color("purple", n_version);
   } else {
-    return_str += Color("red", n_version) + "-" + Color("red", n_subversion);
+    return_str += "" + Color("purple", n_version) + "-" + Color("purple", n_subversion);
   }
   string allele = gene.substr(gene.find("*") + 1, gene.find("_") - gene.find("*") - 1);
-  return_str += "*" + Color("yellow", allele);
+  return_str += "" + Color("yellow", allele);
   if(gene.find("_") != string::npos)   // _F or _P in j gene names
     return_str += gene.substr(gene.find("_"));
   return return_str;
@@ -392,10 +392,31 @@ void HMMHolder::UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes)
     }
   }
 }
+
 // ----------------------------------------------------------------------------------------
 HMMHolder::~HMMHolder() {
   for(auto & entry : hmms_)
     delete entry.second;
+}
+
+// ----------------------------------------------------------------------------------------
+string HMMHolder::NameString() {
+  TermColors tc;
+  string return_str;
+  for(auto &region : gl_.regions_) {
+    string region_str;
+    for(auto &kv : hmms_) {
+      if(tc.GetRegion(kv.first) != region)
+	continue;
+      if(region_str.size() > 0)
+	region_str += ":";
+      region_str +=  tc.ColorGene(kv.first);
+    }
+    return_str += region_str;
+    if(region == "v" || region == "d")
+      return_str += "  ";
+  }
+  return return_str;
 }
 
 }

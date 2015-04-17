@@ -270,6 +270,7 @@ void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBound
     
   Result result(kbounds);
   bool stop(false);
+  // dph.PrintHMMS();
   do {
     result = dph.Run("forward", seqs, kbounds, mean_mute_freq);
     kbounds = result.better_kbounds();
@@ -369,6 +370,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       // NOTE it might help to also cache hamming fractions
       double hamming_fraction = float(NaiveHammingDistance(key_a, key_b)) / (*a_seqs)[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
       if(hamming_fraction > args_->hamming_fraction_cutoff()) {
+	// if(args_->debug()) printf("         hamming %.2f > %.2f for %s %s\n", hamming_fraction, args_->hamming_fraction_cutoff(), key_a.c_str(), key_b.c_str());
 	++n_skipped_hamming;
 	continue;
       }
