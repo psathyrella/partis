@@ -18,7 +18,8 @@ public:
   ClusterPath() {}
   ClusterPath(Partition initial_partition, double initial_logprob);
   void AddPartition(Partition partition, double logprob);
-  Partition &CurrentPartition() { return partitions_[partitions_.size()-1]; }  // return current (most recent) partition
+  Partition &CurrentPartition() { return partitions_.back(); }  // return current (most recent) partition
+  double CurrentLogProb() { return logprobs_.back(); }  // return logprob of current (most recent partition)
   vector<Partition> &partitions() { return partitions_; }
   vector<double> &logprobs() { return logprobs_; }
   bool finished_;
