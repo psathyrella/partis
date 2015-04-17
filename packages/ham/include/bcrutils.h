@@ -123,6 +123,7 @@ public:
   void RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq);  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
   void UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes);
   void CacheAll();  // read all available hmms into memory
+  string NameString();
 private:
   string hmm_dir_;
   GermLines &gl_;
