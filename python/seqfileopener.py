@@ -46,8 +46,7 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
                 break
     else:
-        print 'ERROR unrecognized file format %s' % fname
-        assert False
+        raise Exception('unrecognized file format %s' % fname)
 
     input_info, reco_info = OrderedDict(), OrderedDict()
     n_queries = 0
@@ -71,7 +70,7 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
             break
 
     if len(input_info) == 0:
-        raise Exception('ERROR didn\'t end up pulling any input info out of %s while looking for %s\n' % (fname, ':'.join([str(qr) for qr in queries])))
+        raise Exception('didn\'t end up pulling any input info out of %s while looking for %s\n' % (fname, ':'.join([str(qr) for qr in queries])))
     
     # for k in reco_info.keys():
     #     print reco_info[k]['reco_id']

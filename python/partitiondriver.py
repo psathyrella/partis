@@ -51,7 +51,7 @@ class PartitionDriver(object):
             try:
                 os.rmdir(self.args.workdir)
             except OSError:
-                raise Exception('ERROR workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
+                raise Exception('workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -73,7 +73,7 @@ class PartitionDriver(object):
     def run_algorithm(self, algorithm):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         if not os.path.exists(self.args.parameter_dir):
-            raise Exception('ERROR parameter dir (' + self.args.parameter_dir + ') d.n.e')
+            raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
         self.sw_info = waterer.info
@@ -84,7 +84,7 @@ class PartitionDriver(object):
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         if not os.path.exists(self.args.parameter_dir):
-            raise Exception('ERROR parameter dir %s d.n.e.' % self.args.parameter_dir)
+            raise Exception('parameter dir %s d.n.e.' % self.args.parameter_dir)
 
         # run smith-waterman
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
@@ -128,11 +128,13 @@ class PartitionDriver(object):
         for glom in self.glomclusters:
             for ipath in range(self.args.smc_particles):
                 final_partitions[ipath] += glom.partitions[ipath]
-        self.write_partitions(final_partitions, self.args.outfname)
+        if self.args.outfname is not None:
+            self.write_partitions(final_partitions, self.args.outfname)
 
         final_glom = self.glomclusters[-1]
         for ipath in range(self.args.smc_particles):  # print the final partitions
             final_glom.print_partition(final_glom.best_partitions[ipath], final_glom.max_log_probs[ipath], 'final')
+        final_glom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, partitions, outfname):
@@ -171,8 +173,8 @@ class PartitionDriver(object):
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
 
-        # print cmd_str
-        # sys.exit()
+        print cmd_str
+        sys.exit()
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
@@ -192,11 +194,12 @@ class PartitionDriver(object):
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
         if n_procs == 1:
             check_call(cmd_str.split())
-            # TODO this is messy, you should combine this with the multicore stuff
-            glomerer = Glomerator(self.reco_info)
-            glomerer.read_cached_agglomeration([self.hmm_outfname,], self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
-            self.glomclusters.append(glomerer)
-            self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
+            if self.args.action == 'partition':
+                # TODO this is messy, you should combine this with the multicore stuff
+                glomerer = Glomerator(self.reco_info)
+                glomerer.read_cached_agglomeration([self.hmm_outfname,], self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+                self.glomclusters.append(glomerer)
+                self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
         else:
             self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm')
             procs = []
@@ -334,7 +337,7 @@ class PartitionDriver(object):
     #     #     # glomerer.read_cached_agglomeration(infname=workdir + '/' + os.path.basename(fname), partitions=self.partitions, debug=False, clean_up=(not self.args.no_clean))
     #     #     # for ipath in range(self.args.smc_particles):
     #     #     #     if math.isnan(glomerer.max_minus_ten_log_probs[ipath]):  # NOTE this should really have a way of handling -INFINITY
-    #     #     #         raise Exception('ERROR nan while merging outputs ' + str(glomerer.max_minus_ten_log_probs[ipath]))
+    #     #     #         raise Exception('nan while merging outputs ' + str(glomerer.max_minus_ten_log_probs[ipath]))
     #     #     #     merged_log_probs[ipath] += glomerer.max_minus_ten_log_probs[ipath]
     #     #     #     for cluster in glomerer.best_minus_ten_partitions[ipath]:
     #     #     #         merged_partitions[ipath].append(cluster)
@@ -456,7 +459,7 @@ class PartitionDriver(object):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
         # first get the list of genes for which we don't have hmm files
         if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
-            raise Exception('ERROR no yamels in %s' % parameter_dir)
+            raise Exception('no yamels in %s' % parameter_dir)
 
         genes_to_remove = []
         for gene in gene_list:
@@ -478,7 +481,7 @@ class PartitionDriver(object):
             if 'IGH' + region.upper() not in ':'.join(gene_list):
                 print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if (second_query_name == None) else second_query_name)
                 print '          skipped %s' % (':'.join(skipped_gene_matches))
-                print 'ERROR giving up on query'
+                print 'giving up on query'
                 return False
 
         return True
@@ -638,11 +641,11 @@ class PartitionDriver(object):
             reader = csv.DictReader(cachefile)
             for line in reader:
                 if line['errors'] != '':
-                    raise Exception('ERROR in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
+                    raise Exception('in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
                 if line['unique_ids'] not in self.cached_results:
                     self.cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
                     if line['naive-seq'] == '':  # I forget why this was happening, but it shouldn't any more (note that I don't actually *remove* the check, though...)
-                        raise Exception('ERROR' + line['unique_ids'])
+                        raise Exception(line['unique_ids'])
 
         if not self.args.no_clean:
             os.remove(self.hmm_cachefname)

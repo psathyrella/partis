@@ -98,6 +98,22 @@ class Glomerator(object):
             print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
 
     # ----------------------------------------------------------------------------------------
+    def print_true_partition(self):
+        print '  true partition'
+        print '   clonal?   ids'
+        true_partition = {}
+        for key in self.reco_info:
+            reco_id = self.reco_info[key]['reco_id']
+            if reco_id not in true_partition:
+                true_partition[reco_id] = []
+            true_partition[reco_id].append(self.reco_info[key]['unique_id'])
+        for cluster in true_partition.values():
+            same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
+            if same_event is None:
+                same_event = -1
+            print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+
+    # ----------------------------------------------------------------------------------------
     def mutual_information(self, partition, debug=False):
         if self.reco_info is None:
             return -1.0
