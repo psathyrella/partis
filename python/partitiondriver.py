@@ -517,10 +517,15 @@ class PartitionDriver(object):
             combo['k_d']['min'] = min(info['k_d']['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(info['k_d']['max'], combo['k_d']['max'])
 
-            only_genes = info['all'].split(':')
+            only_genes = info['all'].split(':')  # sw matches for this query
             self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)  #, name)
+            used_only_genes = []
+            for region in utils.regions:
+                reg_genes = [g for g in only_genes if utils.get_region(g) == region]
+                for ig in range(int(self.args.n_max_per_region[utils.regions.index(region)])):
+                    used_only_genes.append(reg_genes[ig])
 
-            combo['only_genes'] = list(set(only_genes) | set(combo['only_genes']))  # NOTE using both sets of genes (from both query seqs) like this *really* helps,
+            combo['only_genes'] = list(set(used_only_genes) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
         # self.check_hmm_existence(combo['only_genes'], skipped_gene_matches, parameter_dir, name)  # this should be superfluous now
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):

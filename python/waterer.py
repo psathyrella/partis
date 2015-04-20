@@ -381,10 +381,6 @@ class Waterer(object):
                 assert glbounds[0] >= 0
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
 
-                # only use the best few matches
-                if n_used[region] >= int(self.args.n_max_per_region[utils.regions.index(region)]):  # only take the top few from each region
-                    break
-
                 # only use a specified set of genes
                 if self.args.only_genes != None and gene not in self.args.only_genes:
                     n_skipped += 1
