@@ -173,8 +173,8 @@ class PartitionDriver(object):
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
 
-        print cmd_str
-        sys.exit()
+        # print cmd_str
+        # sys.exit()
         return cmd_str
 
     # ----------------------------------------------------------------------------------------

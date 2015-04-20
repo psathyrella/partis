@@ -32,7 +32,7 @@ parser.add_argument('--seed', type=int, default=int(time.time()), help='Random s
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 # parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
-parser.add_argument('--mimic-data-read-length', action='store_true', help='Simulate events with the same read length as ovserved in data? (Otherwise use the entire v and j genes)')
+parser.add_argument('--dont-mimic-data-read-length', action='store_true', help='Simulate events with the entire v, d, and j regions? (Otherwise we mimic the read length observed in data)')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide randomization of sequence order.')
@@ -60,7 +60,7 @@ parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
 # tree generation (see also branch-length-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
-parser.add_argument('--n-trees', type=int, default=100, help='Number of trees to generate')
+parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
 parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves based on <n-leaves> (a.t.m. from a hacktified exponential). Otherwise give all trees <n-leaves> leaves')
 
@@ -107,8 +107,6 @@ if args.plot_performance:
 # if args.plot_all_best_events:
 #     assert args.n_max_queries == 1  # at least for now
 
-print '\nsetting mimic to true\n'
-args.mimic_data_read_length = True
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
     print 'simulating'

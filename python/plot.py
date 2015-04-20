@@ -27,7 +27,7 @@ cmap = mpl.cm.jet
 
 logprobs, adj_mis = {}, {}
 max_length = -1
-with open('foo.csv') as infile:
+with open('tmp.csv') as infile:
     for line in csv.DictReader(infile):
         ipath = int(line['path_index'])
         if ipath not in logprobs:
@@ -59,7 +59,7 @@ fig = plt.figure(1)
 fig.clf()
 ax = fig.add_subplot(1, 1, 1)
 
-scatter = False
+scatter = True
 if scatter:
     linex = (0, max_length)
     liney = (1, 1)

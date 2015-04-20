@@ -195,7 +195,7 @@ class Recombinator(object):
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)
+                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug, dont_mimic_data_read_length=self.args.dont_mimic_data_read_length)
                 return
 
         assert False  # shouldn't fall through to here
@@ -253,7 +253,7 @@ class Recombinator(object):
             reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
         for erosion in utils.real_erosions:
             self.erode(erosion, reco_event)
-        if self.args.mimic_data_read_length:
+        if not self.args.dont_mimic_data_read_length:
             for erosion in utils.effective_erosions:
                 self.erode(erosion, reco_event)
         for boundary in utils.boundaries:
