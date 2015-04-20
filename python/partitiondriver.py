@@ -205,17 +205,17 @@ class PartitionDriver(object):
             procs = []
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
-                proc = Popen(cmd_str.replace(self.args.workdir, workdir).split(), stdout=PIPE)
+                # print cmd_str.replace(self.args.workdir, workdir)
+                # continue
+                proc = Popen(cmd_str.replace(self.args.workdir, workdir).split(), stdout=PIPE, stderr=PIPE)
                 procs.append(proc)
                 time.sleep(0.1)
-            for proc in procs:
-                proc.wait()
-            # if self.args.debug:
             for iproc in range(len(procs)):
                 out, err = procs[iproc].communicate()
-                if out != '':
+                if out != '' or err != '':
                     print '  proc %d' % iproc
                     print out
+                    print err
             self.merge_hmm_outputs(n_procs)
 
         sys.stdout.flush()
