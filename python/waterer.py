@@ -381,6 +381,8 @@ class Waterer(object):
                 assert glbounds[0] >= 0
                 glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
 
+                # TODO since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative
+
                 # only use a specified set of genes
                 if self.args.only_genes != None and gene not in self.args.only_genes:
                     n_skipped += 1

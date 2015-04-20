@@ -522,7 +522,8 @@ class PartitionDriver(object):
             used_only_genes = []
             for region in utils.regions:
                 reg_genes = [g for g in only_genes if utils.get_region(g) == region]
-                for ig in range(int(self.args.n_max_per_region[utils.regions.index(region)])):
+                n_genes = min(len(reg_genes), int(self.args.n_max_per_region[utils.regions.index(region)]))  # minimum of [the number of gene matches for this region] and [the number we want for this region]
+                for ig in range(n_genes):
                     used_only_genes.append(reg_genes[ig])
 
             combo['only_genes'] = list(set(used_only_genes) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
