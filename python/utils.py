@@ -143,8 +143,8 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
 
 # ----------------------------------------------------------------------------------------
 def color_gene(gene):
-    """ color gene name (and remove extra characters), eg IGHV3-h*01 --> v 3-h 1 """
-    return_str = gene[:3] + color('bold', color('red', gene[3])) + ' '  # add a space after
+    """ color gene name (and remove extra characters), eg IGHV3-h*01 --> v3-h1 """
+    return_str = gene[:3] + color('bold', color('red', gene[3]))
     n_version = gene[4 : gene.find('-')]
     n_subversion = gene[gene.find('-')+1 : gene.find('*')]
     if get_region(gene) == 'j':
@@ -164,8 +164,8 @@ def color_gene(gene):
             return_str += gene[gene.find('_') :]
 
     # now remove extra characters
-    return_str = return_str.replace('IGH','  ').lower()
-    return_str = return_str.replace('*',' ')
+    return_str = return_str.replace('IGH','').lower()
+    return_str = return_str.replace('*','')
     return return_str
 
 #----------------------------------------------------------------------------------------
@@ -614,7 +614,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         if label != '':
             out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
         out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
-        out_str_list.append('%s    %s   %s,%s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
+        out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
     # then query sequence
     final_seq = ' '*len(v_5p_del_str) + final_seq
