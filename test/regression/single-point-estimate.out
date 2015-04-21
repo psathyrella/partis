@@ -1,46 +1,43 @@
-
-setting mimic to true
-
 read gl from data/imgt
--5374774193687936374
-         k_v: 75 [70-80)
-         k_d: 25 [15-27)
-         used  v: 3/71  d: 5/44  j: 2/5 
-      true:                                                                                   GACCGGG                 GCCGCC                                                  inserts
-                                                                                                     GTATTACTATGGTTCGG..............                                            [1m[91md[0m[0m [95m3[0m-[95m10[0m [93m01[0m
-          ...221...TTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAAAGA                           ...TGCTTTTGATATCTGGGGCCAAGGG......................     [1m[91mv[0m[0m [95m3[0m-[95mnl1[0m [93m01[0m,  [1m[91mj[0m[0m [95m3[0m [93m02[0m
-                   TTC[91mG[0mAAGAACACG[91mT[0mT[91mC[0mTATCTGCAAATGAACAGCCTGA[91mA[0mAG[91mT[0mTGAGGACACGGCTGTGTATTAC[7mT[m[7mG[m[7mT[mGCGAAAGAGACCG[91mA[0mGGTATTAC[91mC[0mATGG[91mG[0m[91mG[0mCGGGCCGCCTGCTT[91mC[0mTGATATC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.08   cdr3: 57
-      inferred:                                                                               GACCGAG                  CCGCC                                                  inserts
-                                                                                                     GTATTACTATGGTTCGGG.............                                            [1m[91md[0m[0m [95m3[0m-[95m10[0m [93m01[0m
-          ...221...TTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAAAGA                           ...TGCTTTTGATATCTGGGGCCAAGGG......................     [1m[91mv[0m[0m [95m3[0m-[95mnl1[0m [93m01[0m,  [1m[91mj[0m[0m [95m3[0m [93m02[0m
-                   TTC[91mG[0mAAGAACACG[91mT[0mT[91mC[0mTATCTGCAAATGAACAGCCTGA[91mA[0mAG[91mT[0mTGAGGACACGGCTGTGTATTAC[7mT[m[7mG[m[7mT[mGCGAAAGAGACCGAGGTATTAC[91mC[0mATGG[91mG[0m[91mG[0mCGGGCCGCCTGCTT[91mC[0mTGATATC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.07   cdr3: 57
+-2600843091077202792
+         k_v: 57 [50-62)
+         k_d: 37 [34-39)
+         used  v: 8/8  d: 6/6  j: 12/12 
+      true:                                                                 GACCGGGGC                            CGCCGTCCA                                                    inserts
+                                                                                     GTATTACGATATTTTGACTGGTTATTAT...                                                          [1m[91md[0m[0m[95m3[0m-[95m9[0m[93m01[0m
+          ...239...CCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACA                                             .GATGCTTTTGATATCTGGGGCCAAGGG......................   [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m02[0m [1m[91mj[0m[0m[95m3[0m[93m02[0m
+                   CCTGCAG[91mC[0m[91mA[0mGAG[91mG[0mAGCCTGAAGGCCTCGGACACCG[91mG[0mC[91mC[0m[91mA[0mGTATTAC[7mT[m[7mG[m[7mT[mGCG[91mG[0mGACAGACCG[91mA[0mG[91mA[0mCGTATTAC[91mA[0mATAT[91mG[0m[91mC[0mTGACTGGTTATTATCGCCGTCCAGATGC[91mA[0mT[91mC[0m[91mC[0mGAT[91mG[0m[91mC[0mC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.13   cdr3: 75
+      inferred:                                                             GACCGAGAC                            CGCCGTCCA                                                    inserts
+                                                                                     GTATTACGATATTTTGACTGGTTATTAT...                                                          [1m[91md[0m[0m[95m3[0m-[95m9[0m[93m01[0m
+          ...239...CCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACA                                             .GATGCTTTTGATGTCTGGGGCCAAGGG......................   [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m02[0m [1m[91mj[0m[0m[95m3[0m[93m01[0m
+                   CCTGCAG[91mC[0m[91mA[0mGAG[91mG[0mAGCCTGAAGGCCTCGGACACCG[91mG[0mC[91mC[0m[91mA[0mGTATTAC[7mT[m[7mG[m[7mT[mGCG[91mG[0mGACAGACCGAGACGTATTAC[91mA[0mATAT[91mG[0m[91mC[0mTGACTGGTTATTATCGCCGTCCAGATGC[91mA[0mT[91mC[0m[91mC[0mGATG[91mC[0mC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.11   cdr3: 75
   processed 1 queries
 hmm
     writing input
     not found in test/regression/parameters/simu/hmm, i.e. were never the best sw match for any query, so removing from consideration for hmm:
-      v:   [1m[91mv[0m[0m [95m3[0m-[95m30[0m [93m18[0m   [1m[91mv[0m[0m [95m3[0m-[95m30-3[0m [93m02[0m
-      d: 
-      j: 
+      v: [1m[91mv[0m[0m[95m5[0m-[95m10-1[0m[93m01[0m [1m[91mv[0m[0m[95m5[0m-[95m10-1[0m[93m03[0m [1m[91mv[0m[0m[95m5[0m-[95m10-1[0m[93m04[0m [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m01[0m [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m03[0m [1m[91mv[0m[0m[95m5[0m-[95m78[0m[93m01[0m
+      d: [1m[91md[0m[0m[95m3/or15[0m-[95m3a[0m[93m01[0m
+      j: [1m[91mj[0m[0m[95m4[0m[93m03[0m [1m[91mj[0m[0m[95m6[0m[93m01[0m
     running
   ---------
        ----
-                                   -5374774193687936374   70-79   15-26    best kset:   75  19     -76.713
+           best kset:   57  37    -104.855   50-61   34-38   [91mv[0m[95m5[0m-[95m51[0m[93m02[0m:[91mv[0m[95m5[0m-[95m51[0m[93m04[0m  [91md[0m[95m3[0m-[95m22[0m[93m01[0m:[91md[0m[95m3[0m-[95m3[0m[93m01[0m:[91md[0m[95m3[0m-[95m3[0m[93m02[0m:[91md[0m[95m3[0m-[95m9[0m[93m01[0m:[91md[0m[95m3/OR15[0m-[95m3b[0m[93m01[0m  [91mj[0m[95m3[0m[93m01[0m:[91mj[0m[95m3[0m[93m02[0m                                 -2600843091077202792
     read output
--5374774193687936374    1
-    true:                                                                                   GACCGGG                 GCCGCC                                                  inserts
-                                                                                                   GTATTACTATGGTTCGG..............                                            [1m[91md[0m[0m [95m3[0m-[95m10[0m [93m01[0m
-        ...221...TTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAAAGA                           ...TGCTTTTGATATCTGGGGCCAAGGG......................     [1m[91mv[0m[0m [95m3[0m-[95mnl1[0m [93m01[0m,  [1m[91mj[0m[0m [95m3[0m [93m02[0m
-                 TTC[91mG[0mAAGAACACG[91mT[0mT[91mC[0mTATCTGCAAATGAACAGCCTGA[91mA[0mAG[91mT[0mTGAGGACACGGCTGTGTATTAC[7mT[m[7mG[m[7mT[mGCGAAAGAGACCG[91mA[0mGGTATTAC[91mC[0mATGG[91mG[0m[91mG[0mCGGGCCGCCTGCTT[91mC[0mTGATATC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.08   cdr3: 57
-    inferred:                                                                               GACCGAG            GGCGGGCCGCC                                                  inserts
-                                                                                                   GTATTACTATGG...................                                            [1m[91md[0m[0m [95m3[0m-[95m10[0m [93m01[0m
-        ...221...TTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAAAGA                           ...TGCTTTTGATATCTGGGGCCAAGGG......................     [1m[91mv[0m[0m [95m3[0m-[95mnl1[0m [93m01[0m,  [1m[91mj[0m[0m [95m3[0m [93m02[0m
-                 TTC[91mG[0mAAGAACACG[91mT[0mT[91mC[0mTATCTGCAAATGAACAGCCTGA[91mA[0mAG[91mT[0mTGAGGACACGGCTGTGTATTAC[7mT[m[7mG[m[7mT[mGCGAAAGAGACCGAGGTATTAC[91mC[0mATGGGGCGGGCCGCCTGCTT[91mC[0mTGATATC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.05  score: -76.713   cdr3: 57
-                                                                                            GACCGAG                  CCGCC                                                  inserts
-                                                                                                   GTATTACTATGGTTCGGG.............                                            [1m[91md[0m[0m [95m3[0m-[95m10[0m [93m01[0m
-        ...221...TTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAAAGA                           ...TGCTTTTGATATCTGGGGCCAAGGG......................     [1m[91mv[0m[0m [95m3[0m-[95mnl1[0m [93m01[0m,  [1m[91mj[0m[0m [95m3[0m [93m02[0m
-                 TTC[91mG[0mAAGAACACG[91mT[0mT[91mC[0mTATCTGCAAATGAACAGCCTGA[91mA[0mAG[91mT[0mTGAGGACACGGCTGTGTATTAC[7mT[m[7mG[m[7mT[mGCGAAAGAGACCGAGGTATTAC[91mC[0mATGG[91mG[0m[91mG[0mCGGGCCGCCTGCTT[91mC[0mTGATATC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.07  score: -77.481   cdr3: 57
-                                                                                            GACCGAG           GGGCGGGCCGCC                                                  inserts
-                                                                                                   GTATTACTATG....................                                            [1m[91md[0m[0m [95m3[0m-[95m10[0m [93m01[0m
-        ...221...TTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAAAGA                           ...TGCTTTTGATATCTGGGGCCAAGGG......................     [1m[91mv[0m[0m [95m3[0m-[95mnl1[0m [93m01[0m,  [1m[91mj[0m[0m [95m3[0m [93m02[0m
-                 TTC[91mG[0mAAGAACACG[91mT[0mT[91mC[0mTATCTGCAAATGAACAGCCTGA[91mA[0mAG[91mT[0mTGAGGACACGGCTGTGTATTAC[7mT[m[7mG[m[7mT[mGCGAAAGAGACCGAGGTATTAC[91mC[0mATGGGGCGGGCCGCCTGCTT[91mC[0mTGATATC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.05  score: -77.5472   cdr3: 57
+-2600843091077202792    1
+    true:                                                                 GACCGGGGC                            CGCCGTCCA                                                    inserts
+                                                                                   GTATTACGATATTTTGACTGGTTATTAT...                                                          [1m[91md[0m[0m[95m3[0m-[95m9[0m[93m01[0m
+        ...239...CCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACA                                             .GATGCTTTTGATATCTGGGGCCAAGGG......................   [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m02[0m [1m[91mj[0m[0m[95m3[0m[93m02[0m
+                 CCTGCAG[91mC[0m[91mA[0mGAG[91mG[0mAGCCTGAAGGCCTCGGACACCG[91mG[0mC[91mC[0m[91mA[0mGTATTAC[7mT[m[7mG[m[7mT[mGCG[91mG[0mGACAGACCG[91mA[0mG[91mA[0mCGTATTAC[91mA[0mATAT[91mG[0m[91mC[0mTGACTGGTTATTATCGCCGTCCAGATGC[91mA[0mT[91mC[0m[91mC[0mGAT[91mG[0m[91mC[0mC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.13   cdr3: 75
+    inferred:                                                             GACCGAGAC                            CGCCGTCCA                                                    inserts
+                                                                                   GTATTACGATATTTTGACTGGTTATTAT...                                                          [1m[91md[0m[0m[95m3[0m-[95m9[0m[93m01[0m
+        ...239...CCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACA                                             .GATGCTTTTGATGTCTGGGGCCAAGGG......................   [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m02[0m [1m[91mj[0m[0m[95m3[0m[93m01[0m
+                 CCTGCAG[91mC[0m[91mA[0mGAG[91mG[0mAGCCTGAAGGCCTCGGACACCG[91mG[0mC[91mC[0m[91mA[0mGTATTAC[7mT[m[7mG[m[7mT[mGCG[91mG[0mGACAGACCGAGACGTATTAC[91mA[0mATAT[91mG[0m[91mC[0mTGACTGGTTATTATCGCCGTCCAGATGC[91mA[0mT[91mC[0m[91mC[0mGATG[91mC[0mC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.11  score: -104.855   cdr3: 75
+                                                                          GACCGAGAC                             GCCGTCCA                                                    inserts
+                                                                                   GTATTACGATATTTTGACTGGTTATTATA..                                                          [1m[91md[0m[0m[95m3[0m-[95m9[0m[93m01[0m
+        ...239...CCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACA                                             .GATGCTTTTGATGTCTGGGGCCAAGGG......................   [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m02[0m [1m[91mj[0m[0m[95m3[0m[93m01[0m
+                 CCTGCAG[91mC[0m[91mA[0mGAG[91mG[0mAGCCTGAAGGCCTCGGACACCG[91mG[0mC[91mC[0m[91mA[0mGTATTAC[7mT[m[7mG[m[7mT[mGCG[91mG[0mGACAGACCGAGACGTATTAC[91mA[0mATAT[91mG[0m[91mC[0mTGACTGGTTATTAT[91mC[0mGCCGTCCAGATGC[91mA[0mT[91mC[0m[91mC[0mGATG[91mC[0mC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.12  score: -105.287   cdr3: 75
+                                                                          GACCGAGAC                           TCGCCGTCCA                                                    inserts
+                                                                                   GTATTACGATATTTTGACTGGTTATTA....                                                          [1m[91md[0m[0m[95m3[0m-[95m9[0m[93m01[0m
+        ...239...CCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACA                                             .GATGCTTTTGATGTCTGGGGCCAAGGG......................   [1m[91mv[0m[0m[95m5[0m-[95m51[0m[93m02[0m [1m[91mj[0m[0m[95m3[0m[93m01[0m
+                 CCTGCAG[91mC[0m[91mA[0mGAG[91mG[0mAGCCTGAAGGCCTCGGACACCG[91mG[0mC[91mC[0m[91mA[0mGTATTAC[7mT[m[7mG[m[7mT[mGCG[91mG[0mGACAGACCGAGACGTATTAC[91mA[0mATAT[91mG[0m[91mC[0mTGACTGGTTATTATCGCCGTCCAGATGC[91mA[0mT[91mC[0m[91mC[0mGATG[91mC[0mC[7mT[m[7mG[m[7mG[mGGCCAAGGG                         muted: 0.11  score: -107.517   cdr3: 75
   processed 1 sequences (1 events)
