@@ -212,10 +212,10 @@ class PartitionDriver(object):
                 time.sleep(0.1)
             for iproc in range(len(procs)):
                 out, err = procs[iproc].communicate()
-                if out != '' or err != '':
+                if out != '':  # or err != '':
                     print '  proc %d' % iproc
                     print out
-                    print err
+                    # print err
             self.merge_hmm_outputs(n_procs)
 
         sys.stdout.flush()

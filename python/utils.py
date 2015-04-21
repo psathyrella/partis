@@ -351,16 +351,16 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, a
         gl_pos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
     elif region == 'j':
         gl_pos = int(tryp_positions[gene])
-    else:
+    else:  # return -1 for d
         return -1
 
     if gl_pos == None:
-        print 'ERROR none gl_pos for %s ' % gene
-        sys.exit()
+        raise Exception('none type gl_pos for %s ' % gene)
 
     glbounds = all_glbounds[gene]
     qrbounds = all_qrbounds[gene]
-    query_pos = gl_pos - glbounds[0] + qrbounds[0]
+    assert glbounds[0] <= gl_pos  # make sure we didn't erode off the conserved codon
+    query_pos = gl_pos - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
     return query_pos
 
 # ----------------------------------------------------------------------------------------
@@ -387,10 +387,10 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     values['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
 
     for key, val in values.items():
-        if key in line:
+        if key in line:  # if <key> was previously added to <line> make sure we got the same value this time
             if int(line[key]) != int(val):
-                print 'ERROR', key, 'from line:', line[key], 'not equal to', val
-                assert False
+                # raise Exception('previously calculated value of ' + key + ' (' + str(line[key]) + ') not equal to new value (' + str(val) + ') for ' + str(line['unique_id']))
+                print 'ERROR previously calculated value of ' + key + ' (' + str(line[key]) + ') not equal to new value (' + str(val) + ') for ' + str(line['unique_id'])
         else:
             line[key] = val
     

@@ -316,8 +316,8 @@ class Waterer(object):
         self.info[query_name]['k_d'] = kvals['d']
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
-        assert codon_positions['v'] != -1
-        assert codon_positions['j'] != -1
+        # assert codon_positions['v'] != -1
+        # assert codon_positions['j'] != -1
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         self.info[query_name]['cyst_position'] = codon_positions['v']
         self.info[query_name]['tryp_position'] = codon_positions['j']
@@ -436,11 +436,10 @@ class Waterer(object):
             print '      ERROR %s apportionment failed' % query_name
             return
 
-        for region in utils.regions:
-            codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds, all_query_bounds)  # position in the query sequence, that is
-
         # check for unproductive rearrangements
         try:
+            for region in utils.regions:
+                codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds, all_query_bounds)  # position in the query sequence, that is
             # NOTE it's actually expected that this'll fail with a 'sequence too short' error, since the s-w doesn't know it's supposed to make sure the match contains the conserved codons
             utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.args.debug, extra_str='      ')
             cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
