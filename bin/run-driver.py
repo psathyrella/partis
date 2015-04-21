@@ -33,6 +33,7 @@ args.actions = utils.get_arg_list(args.actions)
 cmd = './bin/partis.py'
 common_args = ' --n-procs ' + str(args.n_procs)
 if args.extra_args != None:
+    assert 'n-procs' not in args.extra_args  # didn't used to have it as an option here
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace('.', ':')
 if args.simfname == None:
     args.simfname = '_output/' + args.label + '/simu.csv'

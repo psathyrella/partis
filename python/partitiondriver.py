@@ -2,6 +2,7 @@ import time
 import sys
 import json
 import itertools
+import shutil
 import math
 import os
 import glob
@@ -139,14 +140,20 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, partitions, outfname):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'adj_mi'))  #'normalized_score'
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'adj_mi', 'clusters'))  #'normalized_score'
             writer.writeheader()
             for ipath in range(len(partitions)):
                 for part in partitions[ipath]:
+                    cluster_str = ''
+                    for ic in range(len(part['clusters'])):
+                        if ic > 0:
+                            cluster_str += ';'
+                        cluster_str += ':'.join(part['clusters'][ic])
                     writer.writerow({'path_index' : ipath,
                                      'score' : part['score'],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : part['adj_mi']})
+                                     'adj_mi' : part['adj_mi'],
+                                     'clusters' : cluster_str})
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -729,6 +736,12 @@ class PartitionDriver(object):
         print '  processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
         if len(boundary_error_queries) > 0:
             print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
+
+        if self.args.outfname is not None:
+            outpath = self.args.outfname
+            if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
+                outpath = os.getcwd() + '/' + outpath
+            shutil.copyfile(self.hmm_outfname, outpath)
 
         if not self.args.no_clean:
             os.remove(self.hmm_outfname)
