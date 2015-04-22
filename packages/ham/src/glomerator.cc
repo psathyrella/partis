@@ -54,6 +54,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
     }
   }
 
+  if((int)initial_partitions_.size() != args_->smc_particles())
+    throw runtime_error("wrong number of initial partitions " + to_string(initial_partitions_.size()) + " (should be " + to_string(args_->smc_particles()) + ")");
+
   // initial_partition_ = GetPartitionFromMap(info_);
   // initial_logprob_ = LogProbOfPartition(initial_partition_);
   if(args_->debug())
@@ -116,7 +119,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
     if(naive_seq.size() > 0)
       naive_seqs_[unique_ids] = naive_seq;
   }
-  cout << "      read " << log_probs_.size() << " cached results" << endl;
+  // cout << "      read " << log_probs_.size() << " cached results" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
