@@ -134,7 +134,21 @@ class PartitionDriver(object):
 
         final_glom = self.glomclusters[-1]
         for ipath in range(self.args.smc_particles):  # print the final partitions
-            final_glom.print_partition(final_glom.best_partitions[ipath], final_glom.max_log_probs[ipath], 'final')
+            final_glom.print_partition(final_glom.best_partitions[ipath], final_glom.max_log_probs[ipath], str(ipath) + ' final')
+            final_glom.mutual_information(final_glom.best_partitions[ipath], debug=True)
+
+            print '  check queries'
+            for uid in self.input_info:
+                found = False
+                for cl in final_glom.best_partitions[ipath]:
+                    if uid in cl:
+                        found = True
+                        break
+                if found:
+                    print '      %s ok' % uid
+                else:
+                    print '    ERROR %s not found' % uid
+
         final_glom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
@@ -248,23 +262,17 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info):
-        # print 'divvy'
         naive_seqs = {}
         for line in info:
             query = line['names']
-            # print ' ', query,
             if self.cached_results is not None and query in self.cached_results:
-                # print '   cached'  #, self.cached_results[query]
                 naive_seqs[query] = self.cached_results[query]['naive-seq']
             elif query in self.sw_info:
-                # print '   sw'  #, self.sw_info[query]
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
             else:
-                print '   NOOOOOope', query
-                assert False
+                raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
-                print 'ack', query
-                sys.exit()
+                raise Exception('zero-length naive sequence found for ' + str(query))
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)

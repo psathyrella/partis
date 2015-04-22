@@ -78,7 +78,7 @@ class Glomerator(object):
                 clusters.sort(key=len)
 
             itries = 0
-            while len(clusters[0]) < len(clusters[-1]) / 3.:
+            while len(clusters[0]) < len(clusters[-1]) / 3.:  # TODO change this back to 1.75 or so
                 print 'homogenizing', len(clusters[0]), len(clusters[-1]), len(clusters[-1]) / 3.
                 homogenize()
                 itries += 1
@@ -140,9 +140,9 @@ class Glomerator(object):
                 max_log_prob = part['score']
                 best_partition = part['clusters']
 
-        if debug:
-            self.print_partition(best_partition, max_log_prob, 'best')
-            self.mutual_information(best_partition, debug=True)
+        # if debug:
+        #     self.print_partition(best_partition, max_log_prob, 'best')
+        #     self.mutual_information(best_partition, debug=True)
 
         return max_log_prob, best_partition
 
@@ -195,7 +195,7 @@ class Glomerator(object):
                 for cluster in best_minus_ten_partition:
                     self.combined_conservative_best_minus_ten_partitions[ipath].append(cluster)
                 self.combined_conservative_max_minus_ten_logprobs[ipath] += max_minus_ten_logprob
-            self.print_partition(self.combined_conservative_best_minus_ten_partitions[ipath], self.combined_conservative_max_minus_ten_logprobs[ipath], 'combined conservative')
+            # self.print_partition(self.combined_conservative_best_minus_ten_partitions[ipath], self.combined_conservative_max_minus_ten_logprobs[ipath], 'combined conservative')
 
             if debug:
                 print 'IPATH', ipath
