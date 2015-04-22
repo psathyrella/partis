@@ -276,9 +276,9 @@ class PartitionDriver(object):
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
-        print 'divvy lengths'
+        print '  divvy lengths'
         for dq in divvied_queries:
-            print len(dq),
+            print '  ', len(dq),
         print ''
 
         if len(divvied_queries) != n_procs:
@@ -287,53 +287,48 @@ class PartitionDriver(object):
         return divvied_queries
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname=None, info=None, prefix='sub'):
+    def split_input(self, n_procs, infname, prefix='sub'):
         """
-        If <infname> is specified split the csv info from it into <n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
-        If <info> is specified, instead split the list <info> into pieces and return a list of the resulting lists
+        Split the csv info from <infname> into <n_procs> input files in subdirectories labelled with '<prefix>-' within <self.args.workdir>
         """
-        if info is None:
-            assert infname is not None  # make sure only *one* of 'em is specified
-            info = []
-            with opener('r')(infname) as infile:
-                reader = csv.DictReader(infile, delimiter=' ')
-                for line in reader:
-                    info.append(line)
-        else:
-            assert infname is None
-            outlists = []
-        queries_per_proc = float(len(info)) / n_procs
-        if self.args.action == 'partition':
-            divvied_queries = self.divvy_up_queries(n_procs, info)
-        for iproc in range(n_procs):
-            if infname is None:
-                outlists.append([])
-            else:
-                subworkdir = self.args.workdir + '/' + prefix + '-' + str(iproc)
-                utils.prep_dir(subworkdir)
-                sub_outfile = opener('w')(subworkdir + '/' + os.path.basename(infname))
-                writer = csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=' ')
-                writer.writeheader()
-            for iquery in range(len(info)):
-                if self.args.action == 'partition':
-                    if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
-                        continue
-                else:
-                    if iquery % n_procs != iproc:
-                        continue
-                if infname is None:
-                    outlists[-1].append(info[iquery])
-                else:
-                    writer.writerow(info[iquery])
-            if infname is not None:
-                sub_outfile.close()
+        # read single input file
+        info = [[] for _ in range(self.args.smc_particles)]
+        with opener('r')(infname) as infile:
+            reader = csv.DictReader(infile, delimiter=' ')
+            for line in reader:
+                path_index = int(line['path_index'])
+                info[path_index].append(line)
 
+        # initialize
+        sub_outfiles, writers = [], []
+        for iproc in range(n_procs):
+            subworkdir = self.args.workdir + '/' + prefix + '-' + str(iproc)
+            utils.prep_dir(subworkdir)
+            # prep each subinput file
+            sub_outfiles.append(opener('w')(subworkdir + '/' + os.path.basename(infname)))
+            writers.append(csv.DictWriter(sub_outfiles[-1], reader.fieldnames, delimiter=' '))
+            writers[-1].writeheader()
+            # copy cachefile to this subdir
             if os.path.exists(self.hmm_cachefname):
                 check_call(['cp', self.hmm_cachefname, subworkdir + '/'])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
 
-        if infname is None:
-            return outlists
-        # sys.exit()
+        for ipath in range(self.args.smc_particles):
+            if len(info[ipath]) == 0:  # first time through we only have one particle listed
+                continue
+            if self.args.action == 'partition':
+                divvied_queries = self.divvy_up_queries(n_procs, info[ipath])
+            for iproc in range(n_procs):
+                for iquery in range(len(info[ipath])):
+                    if self.args.action == 'partition':
+                        if info[ipath][iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
+                            continue
+                    else:
+                        if iquery % n_procs != iproc:
+                            continue
+                    writers[iproc].writerow(info[ipath][iquery])
+
+        for iproc in range(n_procs):
+            sub_outfiles[iproc].close()
 
     # # ----------------------------------------------------------------------------------------
     # def merge_partition_files(self, fname, n_procs):
