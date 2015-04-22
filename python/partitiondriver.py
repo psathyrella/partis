@@ -100,15 +100,15 @@ class PartitionDriver(object):
         while n_procs > 0:
             if len(self.glomclusters) == 0:
                 list_of_preclusters = None
-                tmpnprocs = len(self.input_info)
+                tmpnclusters = len(self.input_info)
                 hmm_type = 'k=1'
             else:
                 # list_of_preclusters = self.glomclusters[-1].best_minus_ten_partitions
-                list_of_preclusters = self.list_of_preclusters[-1]
-                tmpnprocs = len(list_of_preclusters[0])
+                list_of_preclusters = self.list_of_preclusters[-1]  # when we merge bcrham outputs, the glomerer's combined_conservative_best_minus_ten_partitions gets appended to the back of this
+                tmpnclusters = len(list_of_preclusters[0])  # the number of clusters in for the first particle (the rest should be pretty similar)
                 hmm_type = 'k=preclusters'
             # print '--> %d clusters with %d procs' % (len(self.input_info) if len(self.glomclusters)==0 else len(self.glomclusters[-1].best_minus_ten_partitions[0]), n_procs)  # write_hmm_input uses the best-minus-ten partition
-            print '--> %d clusters with %d procs' % (tmpnprocs, n_procs)  # write_hmm_input uses the best-minus-ten partition
+            print '--> %d clusters with %d procs' % (tmpnclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             # hmm_type = 'k=1' if len(self.glomclusters)==0 else 'k=preclusters'
             self.run_hmm('forward', self.args.parameter_dir, preclusters=list_of_preclusters, hmm_type=hmm_type, n_procs=n_procs, shuffle_input_order=True)
             n_proc_list.append(n_procs)
@@ -144,10 +144,8 @@ class PartitionDriver(object):
                     if uid in cl:
                         found = True
                         break
-                if found:
-                    print '      %s ok' % uid
-                else:
-                    print '    ERROR %s not found' % uid
+                if not found:
+                    raise Exception('%s not found in final partition' % uid)
 
         final_glom.print_true_partition()
 

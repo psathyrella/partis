@@ -79,7 +79,7 @@ class Glomerator(object):
 
             itries = 0
             while len(clusters[0]) < len(clusters[-1]) / 3.:  # TODO change this back to 1.75 or so
-                print 'homogenizing', len(clusters[0]), len(clusters[-1]), len(clusters[-1]) / 3.
+                print '  homogenizing', len(clusters[0]), len(clusters[-1]), len(clusters[-1]) / 3.
                 homogenize()
                 itries += 1
                 if itries > 10:
