@@ -148,6 +148,7 @@ if args.action == 'simulate' or args.action == 'generate-trees':
     run_simulation(args)
 else:
     from partitiondriver import PartitionDriver
+    random.seed(args.seed)
 
     args.queries = utils.get_arg_list(args.queries, intify=False)
     args.reco_ids = utils.get_arg_list(args.reco_ids, intify=True)
