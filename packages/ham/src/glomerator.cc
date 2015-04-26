@@ -17,10 +17,10 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
     string key(qry_seq_list[iqry].name_str(":"));
 
     int ipath(args_->integers_["path_index"][iqry]);
-    // if((int)initial_partitions_.size() < ipath + 1) {  // if we need to push back a new initial partition (i.e. this is a new path/particle
     if(last_ipath != ipath) {  // if we need to push back a new initial partition (i.e. this is a new path/particle) NOTE I'm assuming the the first one will have <path_index> zero
       initial_partitions_.push_back(tmp_partition);
       initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+      initial_logweights_.push_back(args_->floats_["logweight"][iqry]);  // it's the same for each <iqry> with this <path_index>
       tmp_partition.clear();
       last_ipath = ipath;
     }
@@ -45,12 +45,14 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   assert(tmp_partition.size() > 0);
   initial_partitions_.push_back(tmp_partition);
   initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+  initial_logweights_.push_back(args_->floats_["logweight"].back());
 
   // the *first* time, we only get one path/partition from partis, so we push back a bunch of copies
   if((int)initial_partitions_.size() == 1 && args_->smc_particles() > 1)  {
     for(int ip=1; ip<args_->smc_particles(); ++ip) {
       initial_partitions_.push_back(tmp_partition);
       initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+      initial_logweights_.push_back(args_->floats_["logweight"].back());
     }
   }
 
@@ -74,7 +76,7 @@ void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
 
   assert((int)initial_partitions_.size() == 1);
-  ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]));
+  ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]), initial_logweights_[0]);
   do {
     Merge(&cp);
   } while(!cp.finished_);
@@ -84,8 +86,10 @@ void Glomerator::Cluster() {
 }
 
 // ----------------------------------------------------------------------------------------
-Partition Glomerator::GetAnInitialPartition() {
+Partition Glomerator::GetAnInitialPartition(int &tmpi, double &logweight) {
+  tmpi = i_initial_partition_;
   assert(i_initial_partition_ < (int)initial_partitions_.size());
+  logweight = initial_logweights_[i_initial_partition_];
   return initial_partitions_.at(i_initial_partition_++);
 }
 
@@ -119,7 +123,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
     if(naive_seq.size() > 0)
       naive_seqs_[unique_ids] = naive_seq;
   }
-  // cout << "      read " << log_probs_.size() << " cached results" << endl;
+  cout << "      read " << log_probs_.size() << " cached results" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -176,11 +180,11 @@ void Glomerator::WriteCachedLogProbs() {
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
-  ofs_ << "path_index,partition,score" << endl;
+  ofs_ << "path_index,initial_path_index,partition,score,logweight" << endl;
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
-      ofs_ << ipath << ",";
+      ofs_ << ipath << "," << cp.tmpi << ",";
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
@@ -188,7 +192,8 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 	ofs_ << cluster;
 	++ic;
       }
-      ofs_ << "," << cp.logprobs()[ipart] << endl;
+      ofs_ << "," << cp.logprobs()[ipart]
+	   << "," << cp.logweights()[ipart] << endl;
     }
     ++ipath;
   }
@@ -445,6 +450,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
+    // cout << "    path " << path->tmpi << endl;
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
     printf("       merged %-8.2f %s and %s\n", chosen_logprob, qmerged->parents_.first.c_str(), qmerged->parents_.second.c_str());

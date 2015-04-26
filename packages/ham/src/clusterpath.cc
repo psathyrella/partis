@@ -1,18 +1,25 @@
 #include "clusterpath.h"
 namespace ham {
 // ----------------------------------------------------------------------------------------
-ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob):
+ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob, double initial_logweight):
   finished_(false),
   max_log_prob_of_partition_(-INFINITY)
 {
   partitions_.push_back(initial_partition);
   logprobs_.push_back(initial_logprob);
+
+  if(initial_logweight == 0.)  // pass in 0. if this is the *initial* initial partition (i.e. all sequences separate)
+    if(PotentialNumberOfParents(initial_partition) != 0)
+      throw runtime_error("damn, shoulda been zero " + to_string(PotentialNumberOfParents(initial_partition, true)));
+  logweights_.push_back(initial_logweight);
 }
 
 // ----------------------------------------------------------------------------------------
 void ClusterPath::AddPartition(Partition partition, double logprob) {
   partitions_.push_back(partition);
   logprobs_.push_back(logprob);
+  logweights_.push_back(logweights_.back() + log(1. / PotentialNumberOfParents(partition)));
+
 
   if(logprob > max_log_prob_of_partition_) {
     max_log_prob_of_partition_ = logprob;
@@ -23,5 +30,22 @@ void ClusterPath::AddPartition(Partition partition, double logprob) {
     cout << "    stopping after drop " << max_log_prob_of_partition_ << " --> " << logprob << endl;
     finished_ = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
   }
+}
+
+// ----------------------------------------------------------------------------------------
+int ClusterPath::PotentialNumberOfParents(Partition &partition, bool debug) {
+  int combifactor(0);
+  for(auto &cluster : partition) {
+    int n_k(SplitString(cluster, ":").size());
+    combifactor += pow(2, n_k - 1) - 1;
+  }
+
+  if(debug) {
+    for(auto &key : partition)
+      cout << "          x " << key << endl;
+    cout << "    combi " << combifactor << endl;
+  }
+
+  return combifactor;
 }
 }

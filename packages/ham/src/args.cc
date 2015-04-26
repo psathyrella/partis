@@ -23,11 +23,12 @@ Args::Args(int argc, const char * argv[]):
   rescale_emissions_arg_("", "rescale-emissions", "", false),
   str_headers_ {},
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
+  float_headers_ {"logweight"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
   float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats
 {
   try {
-    CmdLine cmd("ham -- the fantastic HMM compiler", ' ', "");
+    CmdLine cmd("bcrham -- the fantabulous HMM compiler goes to B-Cellville", ' ', "");
     cmd.add(hmmdir_arg_);
     cmd.add(datadir_arg_);
     cmd.add(infile_arg_);
@@ -55,6 +56,8 @@ Args::Args(int argc, const char * argv[]):
     strings_[head] = vector<string>();
   for(auto & head : int_headers_)
     integers_[head] = vector<int>();
+  for(auto & head : float_headers_)
+    floats_[head] = vector<double>();
 
   ifstream ifs(infile());
   if(!ifs.is_open())
@@ -74,19 +77,23 @@ Args::Args(int argc, const char * argv[]):
     stringstream ss(line);
     string tmpstr;
     int tmpint;
+    double tmpfloat;
     for(auto & head : headers) {
-      if(str_headers_.find(head) != str_headers_.end()) {
+      if(str_headers_.count(head)) {
         ss >> tmpstr;
         strings_[head].push_back(tmpstr);
-      } else if(str_list_headers_.find(head) != str_list_headers_.end()) {
+      } else if(str_list_headers_.count(head)) {
         ss >> tmpstr;
         str_lists_[head].push_back(SplitString(tmpstr, ":"));
       } else if(float_list_headers_.count(head)) {
         ss >> tmpstr;
 	float_lists_[head].push_back(Floatify(SplitString(tmpstr, ":")));
-      } else if(int_headers_.find(head) != int_headers_.end()) {
+      } else if(int_headers_.count(head)) {
         ss >> tmpint;
         integers_[head].push_back(tmpint);
+      } else if(float_headers_.count(head)) {
+        ss >> tmpfloat;
+        floats_[head].push_back(tmpfloat);
       } else {
         throw runtime_error("ERROR header " + head + "' not found");
       }

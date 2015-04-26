@@ -45,10 +45,12 @@ class PartitionDriver(object):
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
+        self.errfile = opener('w')(self.args.workdir + '/err')
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
         if not self.args.no_clean:
+            os.remove(self.args.workdir + '/err')
             try:
                 os.rmdir(self.args.workdir)
             except OSError:
@@ -92,32 +94,35 @@ class PartitionDriver(object):
         waterer.run()
         self.sw_info = waterer.info
 
-        self.glomclusters = []
-        self.list_of_preclusters = []
+        # self.glomclusters = []
+        # self.list_of_preclusters = []
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
         # self.partitions = []
+        self.smc_info = [[]]
+        for _ in range(n_procs):
+            self.smc_info[-1].append([ClusterPath(None) for ip in range(self.args.smc_particles)])
+                         
         while n_procs > 0:
-            if len(self.glomclusters) == 0:
+            if len(self.smc_info) == 1:
                 list_of_preclusters = None
                 tmpnclusters = len(self.input_info)
                 hmm_type = 'k=1'
             else:
-                # list_of_preclusters = self.glomclusters[-1].best_minus_ten_partitions
-                list_of_preclusters = self.list_of_preclusters[-1]  # when we merge bcrham outputs, the glomerer's combined_conservative_best_minus_ten_partitions gets appended to the back of this
+                list_of_preclusters = self.smc_info[-1]
                 tmpnclusters = len(list_of_preclusters[0])  # the number of clusters in for the first particle (the rest should be pretty similar)
                 hmm_type = 'k=preclusters'
             # print '--> %d clusters with %d procs' % (len(self.input_info) if len(self.glomclusters)==0 else len(self.glomclusters[-1].best_minus_ten_partitions[0]), n_procs)  # write_hmm_input uses the best-minus-ten partition
             print '--> %d clusters with %d procs' % (tmpnclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             # hmm_type = 'k=1' if len(self.glomclusters)==0 else 'k=preclusters'
-            self.run_hmm('forward', self.args.parameter_dir, preclusters=list_of_preclusters, hmm_type=hmm_type, n_procs=n_procs, shuffle_input_order=True)
+            self.run_hmm('forward', self.args.parameter_dir, preclusters=list_of_preclusters, hmm_type=hmm_type, n_procs=n_procs, shuffle_input_order=(self.args.smc_particles == 1))  # don't shuffle sequences if we have multiple paths
             n_proc_list.append(n_procs)
+
             if n_procs == 1:
                 break
 
-            # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process, then reduce <n_procs> for the next run
-            if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or \
-               len(self.glomclusters[-1].best_partitions[0]) / n_procs < self.args.max_clusters_per_proc:  # just use the first path/particle, they should all be pretty similar
+            too_many_clusters_per_process = len(self.glomclusters[-1].best_partitions[0]) / n_procs < self.args.max_clusters_per_proc  # just use the first path/particle, they should all be pretty similar
+            if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or too_many_clusters_per_process:  # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process, then reduce <n_procs> for the next run
                 if n_procs > 20:
                     n_procs = n_procs / 2
                 elif n_procs > 6:
@@ -192,7 +197,7 @@ class PartitionDriver(object):
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
 
-        # print cmd_str
+        print cmd_str
         # sys.exit()
         return cmd_str
 
@@ -206,6 +211,7 @@ class PartitionDriver(object):
             n_procs = self.args.n_procs
 
         self.write_hmm_input(preclusters=preclusters, hmm_type=hmm_type, parameter_dir=parameter_in_dir, shuffle_input_order=shuffle_input_order)
+        # infname = self.hmm_infname
 
         print '    running'
         sys.stdout.flush()
@@ -220,7 +226,10 @@ class PartitionDriver(object):
                 self.glomclusters.append(glomerer)
                 self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
         else:
-            self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm')
+            if self.args.smc_particles == 1:
+                self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm')
+            else:
+                self.split_input_for_smc(n_procs, infname=self.hmm_infname, prefix='hmm')
             procs = []
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
@@ -231,11 +240,15 @@ class PartitionDriver(object):
                 time.sleep(0.1)
             for iproc in range(len(procs)):
                 out, err = procs[iproc].communicate()
-                if out != '':  # or err != '':
-                    print '  proc %d' % iproc
+                if out != '':
+                    print ' --> proc %d' % iproc
                     print out
-                    # print err
-            self.merge_hmm_outputs(n_procs)
+                if err != '':
+                    self.errfile.write(err)
+            if self.args.smc_particles == 1:
+                self.merge_hmm_outputs(n_procs)
+            else:
+                self.merge_pairs_of_procs(n_procs)
 
         sys.stdout.flush()
         # print '      hmm run time: %.3f' % (time.time()-start)
@@ -243,9 +256,6 @@ class PartitionDriver(object):
         if self.args.action == 'partition':
             self.read_cachefile()
             hmminfo = None
-            # glom = Glomerator(self.reco_info)
-            # glom.read_cached_agglomeration([self.hmm_outfname,], self.args.smc_particles, clean_up=(not self.args.no_clean), debug=True, outfname=self.args.outfname)
-            # hmminfo = glom
         else:
             hmminfo = self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
 
@@ -259,7 +269,7 @@ class PartitionDriver(object):
         return hmminfo
 
     # ----------------------------------------------------------------------------------------
-    def divvy_up_queries(self, n_procs, info):
+    def divvy_up_queries(self, n_procs, info, debug=False):
         naive_seqs = {}
         for line in info:
             query = line['names']
@@ -274,10 +284,11 @@ class PartitionDriver(object):
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
-        print '  divvy lengths'
-        for dq in divvied_queries:
-            print '  ', len(dq),
-        print ''
+        if debug:
+            print '  divvy lengths'
+            for dq in divvied_queries:
+                print '  ', len(dq),
+            print ''
 
         if len(divvied_queries) != n_procs:
             raise Exception('Wrong number of clusters')
@@ -314,7 +325,7 @@ class PartitionDriver(object):
             if len(info[ipath]) == 0:  # first time through we only have one particle listed
                 continue
             if self.args.action == 'partition':
-                divvied_queries = self.divvy_up_queries(n_procs, info[ipath])
+                divvied_queries = self.divvy_up_queries(n_procs, info[ipath], debug=(ipath==0))
             for iproc in range(n_procs):
                 for iquery in range(len(info[ipath])):
                     if self.args.action == 'partition':
@@ -327,41 +338,6 @@ class PartitionDriver(object):
 
         for iproc in range(n_procs):
             sub_outfiles[iproc].close()
-
-    # # ----------------------------------------------------------------------------------------
-    # def merge_partition_files(self, fname, n_procs):
-    #     """ 
-    #     Merge the output partition files from several independent bcrham hierarchical agglomeration processes.
-    #     The method is to 'rewind' each individual partition back by 10 units of log probability, then merge these rewound partitions.
-    #     This is conservative, and doesn't seem to kick up any problems, but in the end is of course dependent on how accurate our model is.
-    #     """
-
-    #     # merged_log_probs = [0.0 for _ in range(self.args.smc_particles)]
-    #     # merged_partitions = [[] for _ in range(self.args.smc_particles)]
-    #     # for iproc in range(n_procs):
-    #     #     workdir = self.args.workdir + '/hmm-' + str(iproc)
-    #     #     infnames.append(workdir + '/' + os.path.basename(fname))
-    #     #     # glomerer = Glomerator()
-    #     #     # glomerer.read_cached_agglomeration(infname=workdir + '/' + os.path.basename(fname), partitions=self.partitions, debug=False, clean_up=(not self.args.no_clean))
-    #     #     # for ipath in range(self.args.smc_particles):
-    #     #     #     if math.isnan(glomerer.max_minus_ten_log_probs[ipath]):  # NOTE this should really have a way of handling -INFINITY
-    #     #     #         raise Exception('nan while merging outputs ' + str(glomerer.max_minus_ten_log_probs[ipath]))
-    #     #     #     merged_log_probs[ipath] += glomerer.max_minus_ten_log_probs[ipath]
-    #     #     #     for cluster in glomerer.best_minus_ten_partitions[ipath]:
-    #     #     #         merged_partitions[ipath].append(cluster)
-    #     #     # # if not self.args.no_clean:
-    #     #     # #     os.remove(workdir + '/' + os.path.basename(fname))
-    #     infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(fname) for iproc in range(n_procs)]
-    #     glomerer = Glomerator(self.reco_info)
-    #     glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))
-
-    #     with opener('w')(fname) as partitionfile:
-    #         writer = csv.DictWriter(partitionfile, ('path_index', 'partition', 'score'))
-    #         writer.writeheader()
-    #         for ipath in range(self.args.smc_particles):
-    #             writer.writerow({'path_index' : ipath,
-    #                              'partition' : ';'.join([':'.join([uid for uid in uids]) for uids in merged_partitions[ipath]]),
-    #                              'score' : merged_log_probs[ipath]})
 
     # ----------------------------------------------------------------------------------------
     def merge_csv_files(self, fname, n_procs):
@@ -387,17 +363,43 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def merge_hmm_outputs(self, n_procs):
         """ Merge any/all output files from subsidiary bcrham processes """
+        assert self.args.smc_particles == 1
         if self.args.action == 'partition':  # merge partitions from several files
             infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
             glomerer = Glomerator(self.reco_info)
             glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
             self.glomclusters.append(glomerer)
             self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
-            # self.merge_partition_files(self.hmm_outfname, n_procs)
+
             self.merge_csv_files(self.hmm_cachefname, n_procs)
         else:
             self.merge_csv_files(self.hmm_outfname, n_procs)
 
+        if not self.args.no_clean:
+            for iproc in range(n_procs):
+                workdir = self.args.workdir + '/hmm-' + str(iproc)
+                os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
+                os.rmdir(workdir)
+
+    # ----------------------------------------------------------------------------------------
+    def merge_pairs_of_procs(self, n_procs):
+        assert self.args.action == 'partition'
+        assert self.args.smc_particles > 1
+        groups_to_merge = [[i, i+1] for i in range(0, n_procs-1, 2)]  # e.g. for n_procs = 5, we merge the groups [0, 1], [2, 3, 4]
+        if n_procs % 2 != 0:  # if it's odd, add the last proc to the last group
+            groups_to_merge[-1].append(n_procs-1)
+        self.smc_info.append([])
+        for group in groups_to_merge:
+            infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in group]
+            glomerer = Glomerator(self.reco_info)
+            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+            self.smc_info[-1].append(paths)
+
+            # ack? self.glomclusters.append(glomerer)
+            # boof? self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
+
+        self.merge_csv_files(self.hmm_cachefname, n_procs)
+            
         if not self.args.no_clean:
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
@@ -563,7 +565,44 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, parameter_dir, preclusters=None, hmm_type='', shuffle_input_order=False):
+    def write_single_input_file(self, fname, mode, nsets, path_index=0, logweight=0.):
+        csvfile = opener(mode)(fname)
+        header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']  # NOTE logweight is for the whole partition
+        writer = csv.DictWriter(csvfile, header, delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
+        if mode == 'w':
+            writer.writeheader()
+        # start = time.time()
+
+        for query_names in nsets:
+            non_failed_names = self.remove_sw_failures(query_names)
+            if len(non_failed_names) == 0:
+                continue
+            combined_query = self.combine_queries(non_failed_names, parameter_dir, skipped_gene_matches=skipped_gene_matches)
+            if len(combined_query) == 0:  # didn't find all regions
+                continue
+            writer.writerow({
+                'path_index' : path_index,
+                'logweight' : logweight,  # NOTE same for all lines with the same <path_index> (since they're all from the same partition)
+                'names' : ':'.join([qn for qn in non_failed_names]),
+                'k_v_min' : combined_query['k_v']['min'],
+                'k_v_max' : combined_query['k_v']['max'],
+                'k_d_min' : combined_query['k_d']['min'],
+                'k_d_max' : combined_query['k_d']['max'],
+                'only_genes' : ':'.join(combined_query['only_genes']),
+                'seqs' : ':'.join(combined_query['seqs']),
+                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']])
+            })
+
+        if len(skipped_gene_matches) > 0:
+            print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
+            for region in utils.regions:
+                print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
+
+        csvfile.close()
+        # print '        input write time: %.3f' % (time.time()-start)
+
+    # ----------------------------------------------------------------------------------------
+    def write_hmm_input(self, infname, parameter_dir, preclusters=None, hmm_type='', shuffle_input_order=False, n_procs=1):
         """ Write input file for bcrham """
         print '    writing input'
         if self.cached_results is not None:
@@ -573,18 +612,11 @@ class PartitionDriver(object):
                 for uids, cachefo in self.cached_results.items():
                     writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
-        csvfile = opener('w')(self.hmm_infname)
-        header = ['path_index', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']
-        writer = csv.DictWriter(csvfile, header, delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
-        writer.writeheader()
-        # start = time.time()
-
         skipped_gene_matches = set()
         list_of_nsets = []  # will be length one unless we're partitioning with smc
         if hmm_type == 'k=1':  # single vanilla hmm
             list_of_nsets.append([[qn] for qn in self.input_info.keys()])
         elif hmm_type == 'k=preclusters':  # run the k-hmm on each cluster in <preclusters>
-            # list_of_nsets = preclusters.best_minus_ten_partitions
             list_of_nsets = preclusters
         elif hmm_type == 'k=nsets':
             if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
@@ -607,6 +639,7 @@ class PartitionDriver(object):
 
         # randomize the order of the query list in <nsets>. Note that the list gets split into chunks for parallelization later
         if shuffle_input_order:  # This can be *really* important if you're partitioning in parallel
+            assert self.args.smc_particles == 1
             for ins in range(len(list_of_nsets)):  # this will be the trivial loop unless we're partitioning with smc
                 random_nsets = []
                 while len(list_of_nsets[ins]) > 0:
@@ -615,35 +648,12 @@ class PartitionDriver(object):
                     list_of_nsets[ins].remove(list_of_nsets[ins][irand])
                 list_of_nsets[ins] = random_nsets
 
-        ins = 0
-        for nsets in list_of_nsets:
-            for query_names in nsets:
-                non_failed_names = self.remove_sw_failures(query_names)
-                if len(non_failed_names) == 0:
-                    continue
-                combined_query = self.combine_queries(non_failed_names, parameter_dir, skipped_gene_matches=skipped_gene_matches)
-                if len(combined_query) == 0:  # didn't find all regions
-                    continue
-                writer.writerow({
-                    'path_index' : ins,
-                    'names' : ':'.join([qn for qn in non_failed_names]),
-                    'k_v_min' : combined_query['k_v']['min'],
-                    'k_v_max' : combined_query['k_v']['max'],
-                    'k_d_min' : combined_query['k_d']['min'],
-                    'k_d_max' : combined_query['k_d']['max'],
-                    'only_genes' : ':'.join(combined_query['only_genes']),
-                    'seqs' : ':'.join(combined_query['seqs']),
-                    'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']])
-                })
-            ins += 1
-
-        if len(skipped_gene_matches) > 0:
-            print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
-            for region in utils.regions:
-                print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
-
-        csvfile.close()
-        # print '        input write time: %.3f' % (time.time()-start)
+        assert self.args.action == 'partiion' and self.args.smc_particles > 1
+        for iproc in range(self.smc_info[-1]):
+            procinfo = self.smc_info[-1][iproc]  # list of ClusterPaths, one for each smc particle
+            for iptl in range(procinfo):
+                fname = self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_infname)
+                self.write_single_input_file(fname, 'w' if iptl==0 else 'a', procinfo[iptl].best_minus_ten_partition, path_index=iptl, logweight=procinfo[iptl].max_minus_ten_logweight)
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self):
