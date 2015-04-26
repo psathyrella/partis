@@ -97,7 +97,7 @@ int main(int argc, const char * argv[]) {
     if(args.smc_particles() == 1) {
       glom.Cluster();
     } else {
-      if(args.debug()) cout << "   glomerating" << endl;
+      if(args.debug()) cout << "   glomerating with smc" << endl;
       stupid_global_glom = &glom;
       smc::sampler<ClusterPath> smp(args.smc_particles(), SMC_HISTORY_NONE);
       smc::moveset<ClusterPath> mvs(SMCInit, SMCMove);

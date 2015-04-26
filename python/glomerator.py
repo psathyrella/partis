@@ -1,6 +1,7 @@
 import itertools
 import os
 import sys
+import math
 import csv
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 
@@ -13,15 +14,17 @@ class ClusterPath(object):
         self.partitions = []
         self.logprobs = []
         self.logweights = []
+        self.adj_mis = []
         self.initial_path_index = initial_path_index
-        self.max_logprob, self.max_minus_ten_logprob, self.max_minus_ten_logweight = None, None
+        self.max_logprob, self.max_minus_ten_logprob, self.max_minus_ten_logweight = None, None, None
+        self.best_adj_mi = None
         self.best_partition, self.best_minus_ten_partition = None, None
 
     def update_best_minus_ten_partition(self):
         for ip in range(len(self.partitions)):  # they should be in order of increasing logprob
-            if logprobs[ip] > max_log_prob - 10.:
-                self.max_minus_ten_logprob = logprobs[ip]
-                self.max_minus_ten_logweight = logweights[ip]
+            if self.logprobs[ip] > self.max_logprob - 10.:
+                self.max_minus_ten_logprob = self.logprobs[ip]
+                self.max_minus_ten_logweight = self.logweights[ip]
                 self.best_minus_ten_partition = self.partitions[ip]
                 break
 
@@ -35,6 +38,7 @@ class ClusterPath(object):
         if self.max_logprob is None or logprob > self.max_logprob:
             self.max_logprob = logprob
             self.best_partition = partition
+            self.best_adj_mi = adj_mi
             self.update_best_minus_ten_partition()
 
     def remove_first_partition(self):
@@ -125,8 +129,8 @@ class Glomerator(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, partition, logprob, extrastr=''):
-        print '  %s partition %.2f' % (extrastr, logprob)
+    def print_partition(self, partition, logprob, adj_mi=-1., extrastr=''):
+        print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi)
         print '   clonal?   ids'
         for cluster in partition:
             same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
@@ -227,7 +231,7 @@ class Glomerator(object):
                 if paths[path_index] is None:
                     paths[path_index] = ClusterPath(int(line['initial_path_index']))
                 else:
-                    assert paths[path_index] == int(line['initial_path_index'])
+                    assert paths[path_index].initial_path_index == int(line['initial_path_index'])
                 paths[path_index].add_partition(uids, float(line['score']), float(line['logweight']), self.mutual_information(uids, debug=False))
 
         for cp in paths:
@@ -240,26 +244,37 @@ class Glomerator(object):
 
         return paths
 
+    # # ----------------------------------------------------------------------------------------
+    # def combine_log_weights(self, logw1, logw2):
+    #     n_ways1 = 1. / math.exp(logw1) if logw1 is not None else 0
+    #     n_ways2 = 1. / math.exp(logw2)
+    #     return math.log(1. / (n_ways1 + n_ways2))
+
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, debug=False):
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
         for ipath in range(smc_particles):
 
             combined_conservative_max_minus_ten_logprob = 0.
-            combined_conservative_max_minus_ten_logweight = 0.
+            # combined_conservative_max_minus_ten_logweight = None
             combined_conservative_best_minus_ten_partition = []
+            total_n_ways = 0
             # find the combination of the best-minus-ten for *each* file, which is more conservative than combining the files and *then* rewinding by 10.
             for ifile in range(len(fileinfos)):
                 for cluster in fileinfos[ifile][ipath].best_minus_ten_partition:
                     # first make sure we didn't already add any of the uids in <cluster>
                     for uid in cluster:
-                        for existing_cluster in combined_conservative_best_minus_ten_partitions:
+                        for existing_cluster in combined_conservative_best_minus_ten_partition:
                             if uid in existing_cluster:
                                 raise Exception('%s already in cluster %s' % (uid, ':'.join([qn for qn in cluster])))
                     # then append
                     combined_conservative_best_minus_ten_partition.append(cluster)
                 combined_conservative_max_minus_ten_logprob += fileinfos[ifile][ipath].max_minus_ten_logprob
-                combined_conservative_max_minus_ten_logweight += fileinfos[ifile][ipath].max_minus_ten_logweight
+                # print 'combine %f %f --> %f %f' % (combined_conservative_max_minus_ten_logweight, fileinfos[ifile][ipath].max_minus_ten_logweight,
+                #                                    1./math.exp(combined_conservative_max_minus_ten_logweight), 1./math.exp(fileinfos[ifile][ipath].max_minus_ten_logweight))
+                total_n_ways += 1. / math.exp(fileinfos[ifile][ipath].max_minus_ten_logweight)
+                # combined_conservative_max_minus_ten_logweight = self.combine_log_weights(combined_conservative_max_minus_ten_logweight, fileinfos[ifile][ipath].max_minus_ten_logweight)
+            combined_conservative_max_minus_ten_logweight = math.log(1. / total_n_ways)
 
             # then merge all the steps in each path
             if debug:
@@ -275,7 +290,7 @@ class Glomerator(object):
                 if debug:
                     print '  ADD'
                 global_partition = []
-                global_logprob, global_weight = 0., 0.
+                global_logprob, global_logweight = 0., 0.
                 for ifile in range(len(fileinfos)):  # combine the first line in each file to make a global partition
                     if debug:
                         print '    ifile', ifile
