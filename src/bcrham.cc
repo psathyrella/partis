@@ -25,15 +25,20 @@ Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
 
 // ----------------------------------------------------------------------------------------
 smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
-  Partition initial_partition(stupid_global_glom->GetAnInitialPartition());  // get the next initial partition (and increment the counter)
+  int tmpi(-1);
+  double logweight;
+  Partition initial_partition(stupid_global_glom->GetAnInitialPartition(tmpi, logweight));  // get the next initial partition (and increment the counter)
   double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
-  return smc::particle<ClusterPath>(ClusterPath(initial_partition, logprob), logprob);
+  ClusterPath thecp(initial_partition, logprob, logweight);
+  thecp.tmpi = tmpi;
+  return smc::particle<ClusterPath>(thecp, thecp.CurrentLogWeight());  //logprob);
 }
 
 // ----------------------------------------------------------------------------------------
 void SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
   stupid_global_glom->Merge(ptl.GetValuePointer(), rgen);  // ...but I couldn't figure out a good way to do this without a global
-  ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogProb());
+  // ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogProb());
+  ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogWeight());
 }
 
 // ----------------------------------------------------------------------------------------
@@ -109,8 +114,10 @@ int main(int argc, const char * argv[]) {
       } while(!finished);
 
       vector<ClusterPath> paths;
-      for(int ip=0; ip<args.smc_particles(); ++ip)
+      for(int ip=0; ip<args.smc_particles(); ++ip) {
+	// cout << "ack " << smp.GetParticleValue(ip).tmpi << endl;
 	paths.push_back(smp.GetParticleValue(ip));
+      }
       glom.WritePartitions(paths);
     }
     ofs.close();
