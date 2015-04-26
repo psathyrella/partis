@@ -180,6 +180,7 @@ void Glomerator::WriteCachedLogProbs() {
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
+  ofs_ << setprecision(20);
   ofs_ << "path_index,initial_path_index,partition,score,logweight" << endl;
   int ipath(0);
   for(auto &cp : paths) {

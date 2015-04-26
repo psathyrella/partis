@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iomanip>
 
 #include "smctc.hh"
 #include "args.h"
