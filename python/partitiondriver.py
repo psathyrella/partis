@@ -145,11 +145,6 @@ class PartitionDriver(object):
         # self.smc_info.append([finalglom.paths, ])
         self.merge_agglomeration_steps()
 
-        # if self.args.outfname is not None:
-        #     assert False  # still need to code up merging of each step
-        #     finalglom.write_partitions(self.args.outfname, 'w')
-        #     # self.write_partitions(final_partitions, self.args.outfname)
-
         final_paths = self.smc_info[-1][0]
         tmpglom = Glomerator(self.reco_info)
         for ipath in range(self.args.smc_particles):  # print the final partitions
@@ -166,6 +161,10 @@ class PartitionDriver(object):
                     raise Exception('%s not found in final partition' % uid)
 
         tmpglom.print_true_partition()
+
+        if self.args.outfname is not None:
+            # tmpglom.write_partitions(self.args.outfname, 'w', final_paths)
+            self.write_partitions(self.args.outfname, final_paths)
 
     # ----------------------------------------------------------------------------------------
     def merge_agglomeration_steps(self):
@@ -197,21 +196,22 @@ class PartitionDriver(object):
                         # tmpglom.print_partition(path.partitions[iptn], path.logprobs[iptn], path.adj_mis[iptn])
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, partitions, outfname):
+    def write_partitions(self, outfname, paths):
         with opener('w')(outfname) as outfile:
             writer = csv.DictWriter(outfile, ('path_index', 'score', 'adj_mi', 'clusters'))  #'normalized_score'
             writer.writeheader()
-            for ipath in range(len(partitions)):
-                for part in partitions[ipath]:
+            for ipath in range(len(paths)):
+                for ipart in range(len(paths[ipath].partitions)):
+                    part = paths[ipath].partitions[ipart]
                     cluster_str = ''
-                    for ic in range(len(part['clusters'])):
+                    for ic in range(len(part)):
                         if ic > 0:
                             cluster_str += ';'
-                        cluster_str += ':'.join(part['clusters'][ic])
+                        cluster_str += ':'.join(part[ic])
                     writer.writerow({'path_index' : ipath,
-                                     'score' : part['score'],
+                                     'score' : paths[ipath].logprobs[ipart],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : part['adj_mi'],
+                                     'adj_mi' : paths[ipath].adj_mis[ipart],
                                      'clusters' : cluster_str})
 
     # ----------------------------------------------------------------------------------------

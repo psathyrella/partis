@@ -32,7 +32,10 @@ class ClusterPath(object):
         self.partitions.append(partition)
         self.logprobs.append(logprob)
         if len(self.logprobs) > 1:
-            assert self.logprobs[-1] >= self.logprobs[-2]
+            # assert self.logprobs[-1] >= self.logprobs[-2]  # oh, wait, no, that's not true, we go past the maximum
+            # assert len(self.partitions[-1]) < len(self.partitions[-2])  # make sure we merged a cluster (at least one -- if these are merged from several processes they will have merged more than one at each step)
+            if len(self.partitions[-1]) >= len(self.partitions[-2]):
+                print 'WARNING lengths all off', len(self.partitions[-1]), len(self.partitions[-2])
         self.logweights.append(logweight)
         self.adj_mis.append(adj_mi)
         if self.max_logprob is None or logprob > self.max_logprob:
@@ -266,11 +269,13 @@ class Glomerator(object):
             assert len(previous_info) == len(fileinfos)
             # extended_paths = [ClusterPath(None) for _ in range(len(fileinfos))]
             for ifile in range(len(fileinfos)):
-                print 'ifile', ifile
+                if debug:
+                    print 'ifile', ifile
                 for ipath in range(smc_particles):
-                    print '  ipath', ipath
-                    for ptn in fileinfos[ifile][ipath].partitions:
-                        print '        b ', ptn
+                    if debug:
+                        print '  ipath', ipath
+                        for ptn in fileinfos[ifile][ipath].partitions:
+                            print '        b ', ptn
                     initial_path_index = fileinfos[ifile][ipath].initial_path_index
                     previous_path = previous_info[ifile][initial_path_index]
                     current_path = fileinfos[ifile][ipath]
@@ -283,8 +288,9 @@ class Glomerator(object):
                     for ip in range(len(current_path.partitions)):
                         extended_path.add_partition(current_path.partitions[ip], current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
                     fileinfos[ifile][ipath] = extended_path
-                    for ptn in fileinfos[ifile][ipath].partitions:
-                        print '        a ', ptn
+                    if debug:
+                        for ptn in fileinfos[ifile][ipath].partitions:
+                            print '        a ', ptn
 
         for ipath in range(smc_particles):
 
@@ -366,14 +372,14 @@ class Glomerator(object):
         #     self.best_partitions.append(ptn)
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, outfname, mode):
+    def write_partitions(self, outfname, mode, paths):
         with open(outfname, mode) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'normalized_score', 'adj_mi'))
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi'))
             writer.writeheader()
-            for ipath in range(len(self.paths)):
-                for ipart in range(len(self.paths[ipath].partitions)):
+            for ipath in range(len(paths)):
+                for ipart in range(len(paths[ipath].partitions)):
                     writer.writerow({'path_index' : ipath,
-                                     'score' : self.paths[ipath].logprobs[ipart],
-                                     'logweight' : self.paths[ipath].logweights[ipart],
+                                     'score' : paths[ipath].logprobs[ipart],
+                                     'logweight' : paths[ipath].logweights[ipart],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : self.paths[ipath].adj_mis[ipart]})
+                                     'adj_mi' : paths[ipath].adj_mis[ipart]})
