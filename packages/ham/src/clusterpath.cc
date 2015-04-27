@@ -8,10 +8,11 @@ ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob, do
   partitions_.push_back(initial_partition);
   logprobs_.push_back(initial_logprob);
 
-  if(initial_logweight == 0.)  // pass in 0. if this is the *initial* initial partition (i.e. all sequences separate)
-    if(PotentialNumberOfParents(initial_partition) != 0)
-      throw runtime_error("damn, shoulda been zero " + to_string(PotentialNumberOfParents(initial_partition, true)));
-  logweights_.push_back(initial_logweight);
+  // if(initial_logweight == 0.)  // pass in 0. if this is the *initial* initial partition (i.e. all sequences separate)
+  //   if(PotentialNumberOfParents(initial_partition) != 0)
+  //     throw runtime_error("damn, shoulda been zero " + to_string(PotentialNumberOfParents(initial_partition, true)));
+  // logweights_.push_back(initial_logweight);
+  logweights_.push_back(log(1. / PotentialNumberOfParents(initial_partition)));  // TODO double check that this is actually correct (i.e. we can ignore path segments from previous steps)
 }
 
 // ----------------------------------------------------------------------------------------
@@ -39,6 +40,9 @@ int ClusterPath::PotentialNumberOfParents(Partition &partition, bool debug) {
     int n_k(SplitString(cluster, ":").size());
     combifactor += pow(2, n_k - 1) - 1;
   }
+
+  if(combifactor == 0)  // if all partitions consist of one sequence, the above formula gives zero, but we want one
+    combifactor = 1;
 
   if(debug) {
     for(auto &key : partition)

@@ -50,6 +50,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
+
+        if self.args.initial_cachefname is not None:
+            check_call(['cp', '-v', self.hmm_cachefname, self.args.initial_cachefname])
+        if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
+            os.remove(self.hmm_cachefname)
+
         if not self.args.no_clean:
             os.remove(self.args.workdir + '/err')
             try:
@@ -143,7 +149,8 @@ class PartitionDriver(object):
         # finalglom = Glomerator(self.reco_info)
         # finalglom.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
         # self.smc_info.append([finalglom.paths, ])
-        self.merge_agglomeration_steps()
+
+        # self.merge_agglomeration_steps()
 
         final_paths = self.smc_info[-1][0]
         tmpglom = Glomerator(self.reco_info)
@@ -208,7 +215,7 @@ class PartitionDriver(object):
                         if ic > 0:
                             cluster_str += ';'
                         cluster_str += ':'.join(part[ic])
-                    writer.writerow({'path_index' : ipath,
+                    writer.writerow({'path_index' : os.getpid() + ipath,
                                      'score' : paths[ipath].logprobs[ipart],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
                                      'adj_mi' : paths[ipath].adj_mis[ipart],
@@ -649,7 +656,10 @@ class PartitionDriver(object):
     def write_hmm_input(self, parameter_dir, preclusters=None, hmm_type='', shuffle_input_order=False, n_procs=1, list_of_preclusters=None):
         """ Write input file for bcrham """
         print '    writing input'
-        if self.cached_results is not None:
+        if self.cached_results is None:
+            if self.args.initial_cachefname is not None:
+                check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/'])
+        else:
             with opener('w')(self.hmm_cachefname) as cachefile:
                 writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq'))
                 writer.writeheader()
@@ -725,9 +735,6 @@ class PartitionDriver(object):
                     self.cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
                     if line['naive-seq'] == '':  # I forget why this was happening, but it shouldn't any more (note that I don't actually *remove* the check, though...)
                         raise Exception(line['unique_ids'])
-
-        if not self.args.no_clean:
-            os.remove(self.hmm_cachefname)
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):

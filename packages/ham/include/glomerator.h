@@ -72,6 +72,8 @@ private:
   map<string, double> log_probs_;  // includes cached info from previous runs
   map<string, string> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;
+
+  int n_cached_, n_calculated_;
 };
 
 }
