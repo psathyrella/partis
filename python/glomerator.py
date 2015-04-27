@@ -129,14 +129,22 @@ class Glomerator(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, partition, logprob, adj_mi=-1., extrastr=''):
-        print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi)
-        print '   clonal?   ids'
+    def print_partition(self, partition, logprob, adj_mi=-1., extrastr='', one_line=False):
+        print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi),
+        if not one_line:
+            print ''
+            print '   clonal?   ids'
         for cluster in partition:
             same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
             if same_event is None:
                 same_event = -1
-            print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+            cluster_str = ':'.join([str(uid) for uid in cluster])
+            if one_line:
+                print '   %s' % cluster_str,
+            else:
+                print '     %d    %s' % (int(same_event), cluster_str)
+        if one_line:
+            print ''
 
     # ----------------------------------------------------------------------------------------
     def print_true_partition(self):
@@ -251,8 +259,33 @@ class Glomerator(object):
     #     return math.log(1. / (n_ways1 + n_ways2))
 
     # ----------------------------------------------------------------------------------------
-    def merge_fileinfos(self, fileinfos, smc_particles, debug=False):
+    def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
+
+        if previous_info is not None:  # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
+            assert len(previous_info) == len(fileinfos)
+            # extended_paths = [ClusterPath(None) for _ in range(len(fileinfos))]
+            for ifile in range(len(fileinfos)):
+                print 'ifile', ifile
+                for ipath in range(smc_particles):
+                    print '  ipath', ipath
+                    for ptn in fileinfos[ifile][ipath].partitions:
+                        print '        b ', ptn
+                    initial_path_index = fileinfos[ifile][ipath].initial_path_index
+                    previous_path = previous_info[ifile][initial_path_index]
+                    current_path = fileinfos[ifile][ipath]
+                    first_new_logprob = current_path.logprobs[0]
+                    extended_path = ClusterPath(None)
+                    for ip in range(len(previous_path.partitions)):
+                        if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
+                            continue
+                        extended_path.add_partition(previous_path.partitions[ip], previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip])
+                    for ip in range(len(current_path.partitions)):
+                        extended_path.add_partition(current_path.partitions[ip], current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
+                    fileinfos[ifile][ipath] = extended_path
+                    for ptn in fileinfos[ifile][ipath].partitions:
+                        print '        a ', ptn
+
         for ipath in range(smc_particles):
 
             combined_conservative_max_minus_ten_logprob = 0.
@@ -318,12 +351,12 @@ class Glomerator(object):
             self.paths[ipath].max_minus_ten_logweight = combined_conservative_max_minus_ten_logweight
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, debug=False, clean_up=True):
+    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False, clean_up=True):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        self.merge_fileinfos(fileinfos, smc_particles, debug=False)
+        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=False)
 
         return self.paths
 

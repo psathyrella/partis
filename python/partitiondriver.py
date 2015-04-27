@@ -138,30 +138,63 @@ class PartitionDriver(object):
                 n_procs = len(self.smc_info[-1])
 
         
-        infnames = [self.args.workdir + '/hmm-' + str(0) + '/' + os.path.basename(self.hmm_outfname), ]
-        finalglom = Glomerator(self.reco_info)
-        finalglom.read_cached_agglomeration(infnames, self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
-        self.smc_info.append([finalglom.paths, ])
-        if self.args.outfname is not None:
-            assert False  # still need to code up merging of each step
-            finalglom.write_partitions(self.args.outfname, 'w')
-            # self.write_partitions(final_partitions, self.args.outfname)
+        self.merge_pairs_of_procs(1)
+        # infnames = [self.args.workdir + '/hmm-' + str(0) + '/' + os.path.basename(self.hmm_outfname), ]
+        # finalglom = Glomerator(self.reco_info)
+        # finalglom.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+        # self.smc_info.append([finalglom.paths, ])
+        self.merge_agglomeration_steps()
 
+        # if self.args.outfname is not None:
+        #     assert False  # still need to code up merging of each step
+        #     finalglom.write_partitions(self.args.outfname, 'w')
+        #     # self.write_partitions(final_partitions, self.args.outfname)
+
+        final_paths = self.smc_info[-1][0]
+        tmpglom = Glomerator(self.reco_info)
         for ipath in range(self.args.smc_particles):  # print the final partitions
-            finalglom.print_partition(finalglom.paths[ipath].best_partition, finalglom.paths[ipath].max_logprob, finalglom.paths[ipath].best_adj_mi, str(ipath) + ' final')
-            # final_glom.mutual_information(final_glom.best_partitions[ipath], debug=True)
+            tmpglom.print_partition(final_paths[ipath].best_partition, final_paths[ipath].max_logprob, final_paths[ipath].best_adj_mi, str(ipath) + ' final')
 
             # print '  check queries'
             for uid in self.input_info:
                 found = False
-                for cl in finalglom.paths[ipath].best_partition:
+                for cl in final_paths[ipath].best_partition:
                     if uid in cl:
                         found = True
                         break
                 if not found:
                     raise Exception('%s not found in final partition' % uid)
 
-        finalglom.print_true_partition()
+        tmpglom.print_true_partition()
+
+    # ----------------------------------------------------------------------------------------
+    def merge_agglomeration_steps(self):
+        tmpglom = Glomerator(self.reco_info)
+    #     assert len(self.smc_info[-1]) == 1  # last step should have one process
+
+    #     # first trace back the provenance for each path
+    #     lineages = []  #[[] for _ in range(self.args.smc_particles)]
+    #     for ipath in range(len(self.smc_info[-1][0])):  # <ipath> is the *final* path_index, which does not correspond to any path indices before the end of the last step
+    #         lineage = []
+    #         for istep in range(len(self.smc_info)-1, 0, -1):
+    #             print istep, len(self.smc_info[istep])
+    #             # path = 
+
+    #     # for path in self.smc_info[-1][0]:
+    #     #     global_path = ClusterPath(None)
+            
+        for istep in range(len(self.smc_info)):
+            print '  step', istep
+            stepinfo = self.smc_info[istep]
+            for iproc in range(len(stepinfo)):
+                print '    proc', iproc
+                procinfo = stepinfo[iproc]
+                for ipath in range(len(procinfo)):
+                    path = procinfo[ipath]
+                    print '      ipath', ipath, '  initial_path', path.initial_path_index
+                    for iptn in range(len(path.partitions)):
+                        tmpglom.print_partition(path.partitions[iptn], path.logprobs[iptn], path.adj_mis[iptn], one_line=True)
+                        # tmpglom.print_partition(path.partitions[iptn], path.logprobs[iptn], path.adj_mis[iptn])
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, partitions, outfname):
@@ -206,7 +239,7 @@ class PartitionDriver(object):
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
 
-        print cmd_str
+        # print cmd_str
         # sys.exit()
         return cmd_str
 
@@ -393,20 +426,28 @@ class PartitionDriver(object):
     def merge_pairs_of_procs(self, n_procs):
         assert self.args.action == 'partition'
         assert self.args.smc_particles > 1
-        groups_to_merge = [[i, i+1] for i in range(0, n_procs-1, 2)]  # e.g. for n_procs = 5, we merge the groups [0, 1], [2, 3, 4]
+        if n_procs > 1:
+            groups_to_merge = [[i, i+1] for i in range(0, n_procs-1, 2)]  # e.g. for n_procs = 5, we merge the groups [0, 1], [2, 3, 4]
+        else:
+            groups_to_merge = [[], ]
         if n_procs % 2 != 0:  # if it's odd, add the last proc to the last group
             groups_to_merge[-1].append(n_procs-1)
         self.smc_info.append([])
         for group in groups_to_merge:
             infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in group]
+            assert len(self.smc_info[-2]) == n_procs
+            previous_info = None
+            if len(self.smc_info) > 2:
+                previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
-            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
             self.smc_info[-1].append(paths)
 
             # ack? self.glomclusters.append(glomerer)
             # boof? self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
 
-        self.merge_csv_files(self.hmm_cachefname, n_procs)
+        if n_procs > 1:
+            self.merge_csv_files(self.hmm_cachefname, n_procs)
             
         if not self.args.no_clean:
             for iproc in range(n_procs):
