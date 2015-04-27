@@ -31,11 +31,11 @@ class ClusterPath(object):
     def add_partition(self, partition, logprob, logweight, adj_mi):
         self.partitions.append(partition)
         self.logprobs.append(logprob)
-        if len(self.logprobs) > 1:
-            # assert self.logprobs[-1] >= self.logprobs[-2]  # oh, wait, no, that's not true, we go past the maximum
-            # assert len(self.partitions[-1]) < len(self.partitions[-2])  # make sure we merged a cluster (at least one -- if these are merged from several processes they will have merged more than one at each step)
-            if len(self.partitions[-1]) >= len(self.partitions[-2]):
-                print 'WARNING lengths all off', len(self.partitions[-1]), len(self.partitions[-2])
+        # if len(self.logprobs) > 1:
+        #     # assert self.logprobs[-1] >= self.logprobs[-2]  # oh, wait, no, that's not true, we go past the maximum
+        #     # assert len(self.partitions[-1]) < len(self.partitions[-2])  # make sure we merged a cluster (at least one -- if these are merged from several processes they will have merged more than one at each step)
+        #     if len(self.partitions[-1]) >= len(self.partitions[-2]):
+        #         print 'WARNING lengths all off', len(self.partitions[-1]), len(self.partitions[-2])
         self.logweights.append(logweight)
         self.adj_mis.append(adj_mi)
         if self.max_logprob is None or logprob > self.max_logprob:
@@ -133,9 +133,10 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, partition, logprob, adj_mi=-1., extrastr='', one_line=False):
-        print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi),
-        if not one_line:
-            print ''
+        if one_line:
+            print '    %-15.2f   %-8.3f   %3d clusters:' % (logprob, adj_mi, len(partition)),
+        else:
+            print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi)
             print '   clonal?   ids'
         for cluster in partition:
             same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
@@ -183,49 +184,9 @@ class Glomerator(object):
             print '         adjusted mi %.2f' % adj_mi
         return adj_mi
 
-    # # ----------------------------------------------------------------------------------------
-    # def find_best_partition(self, partitions, debug=False):
-    #     if len(partitions) == 0:
-    #         raise Exception('zero length partition')  # not sure *why*...
-
-    #     max_log_prob, best_partition = None, None
-    #     for part in partitions:  # NOTE these are sorted in order of agglomeration, with the initial partition first
-    #         # print '%d  %10.2f  %.2f' % (ipath, part['score'], part['adj_mi'])
-    #         if max_log_prob is None or part['score'] > max_log_prob:
-    #             max_log_prob = part['score']
-    #             best_partition = part['clusters']
-
-    #     # if debug:
-    #     #     self.print_partition(best_partition, max_log_prob, 'best')
-    #     #     self.mutual_information(best_partition, debug=True)
-    #     if max_log_prob is None:
-    #         print partitions
-    #         raise Exception('couldn\'t find max log prob')
-
-    #     return max_log_prob, best_partition
-
-    # # ----------------------------------------------------------------------------------------
-    # def find_best_minus_ten_partition(self, path):
-    #     # find the best-minus-ten, i.e.: reel back glomeration by ten units of log prob to be conservative before we pass to the multiple-process merge
-    #     max_minus_ten_log_prob, best_minus_ten_partition = None, None
-    #     for part in partitions:  # they're 
-    #         if part['score'] > max_log_prob - 10.0:
-    #             max_minus_ten_log_prob = part['score']
-    #             best_minus_ten_partition = part['clusters']
-    #             break
-
-    #     if best_minus_ten_partition is None or len(best_minus_ten_partition) == 0:
-    #         print max_log_prob
-    #         print partitions
-    #         raise Exception('couldn\'t find max minus ten log prob')
-
-    #     return max_minus_ten_log_prob, best_minus_ten_partition
-
     # ----------------------------------------------------------------------------------------
     def read_file_info(self, infname, n_paths, clean_up):
         paths = [None for _ in range(n_paths)]
-        # partitions = [[] for _ in range(n_paths)]
-        # initial_path_indices = {}
         with opener('r')(infname) as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
@@ -235,10 +196,6 @@ class Glomerator(object):
                 for cluster in line['partition'].split(';'):
                     uids.append([unique_id for unique_id in cluster.split(':')])
                 path_index = int(line['path_index'])
-                # partitions[path_index].append({'clusters' : uids,
-                #                                'score' : float(line['score']),
-                #                                'logweight' : float(line['logweight']),
-                #                                'adj_mi' : self.mutual_information(uids, debug=False)})
                 if paths[path_index] is None:
                     paths[path_index] = ClusterPath(int(line['initial_path_index']))
                 else:
@@ -255,19 +212,12 @@ class Glomerator(object):
 
         return paths
 
-    # # ----------------------------------------------------------------------------------------
-    # def combine_log_weights(self, logw1, logw2):
-    #     n_ways1 = 1. / math.exp(logw1) if logw1 is not None else 0
-    #     n_ways2 = 1. / math.exp(logw2)
-    #     return math.log(1. / (n_ways1 + n_ways2))
-
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
         if previous_info is not None:  # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
-            assert len(previous_info) == len(fileinfos)
-            # extended_paths = [ClusterPath(None) for _ in range(len(fileinfos))]
+            assert len(previous_info) == len(fileinfos)  # both are the number of processes we're merging into one
             for ifile in range(len(fileinfos)):
                 if debug:
                     print 'ifile', ifile
@@ -275,22 +225,22 @@ class Glomerator(object):
                     if debug:
                         print '  ipath', ipath
                         for ptn in fileinfos[ifile][ipath].partitions:
-                            print '        b ', ptn
-                    initial_path_index = fileinfos[ifile][ipath].initial_path_index
+                            print '        bef ', ptn
+                    initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
                     previous_path = previous_info[ifile][initial_path_index]
                     current_path = fileinfos[ifile][ipath]
                     first_new_logprob = current_path.logprobs[0]
                     extended_path = ClusterPath(None)
                     for ip in range(len(previous_path.partitions)):
-                        if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
-                            continue
+                        # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
+                        #     continue
                         extended_path.add_partition(previous_path.partitions[ip], previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip])
                     for ip in range(len(current_path.partitions)):
                         extended_path.add_partition(current_path.partitions[ip], current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
                     fileinfos[ifile][ipath] = extended_path
                     if debug:
                         for ptn in fileinfos[ifile][ipath].partitions:
-                            print '        a ', ptn
+                            print '        aft ', ptn
 
         for ipath in range(smc_particles):
 
@@ -309,10 +259,7 @@ class Glomerator(object):
                     # then append
                     combined_conservative_best_minus_ten_partition.append(cluster)
                 combined_conservative_max_minus_ten_logprob += fileinfos[ifile][ipath].max_minus_ten_logprob
-                # print 'combine %f %f --> %f %f' % (combined_conservative_max_minus_ten_logweight, fileinfos[ifile][ipath].max_minus_ten_logweight,
-                #                                    1./math.exp(combined_conservative_max_minus_ten_logweight), 1./math.exp(fileinfos[ifile][ipath].max_minus_ten_logweight))
                 total_n_ways += 1. / math.exp(fileinfos[ifile][ipath].max_minus_ten_logweight)
-                # combined_conservative_max_minus_ten_logweight = self.combine_log_weights(combined_conservative_max_minus_ten_logweight, fileinfos[ifile][ipath].max_minus_ten_logweight)
             combined_conservative_max_minus_ten_logweight = math.log(1. / total_n_ways)
 
             # then merge all the steps in each path
@@ -343,11 +290,12 @@ class Glomerator(object):
                                                 self.mutual_information(global_partition, debug=False))
 
                 if debug:
-                    for ptn in self.paths[ipath].partitions:
+                    for ip in range(len(self.paths[ipath].partitions)):
+                        ptn = self.paths[ipath].partitions[ip]
                         pl = []
                         for cl in ptn:
                             pl.append(':'.join(cl))
-                        print '    ', ptn['score'], '  '.join(pl)
+                        print '    ', self.paths[ipath].logprobs[ip], '  '.join(pl)
 
             while not last_one():
                 add_next_global_partition()
@@ -362,14 +310,9 @@ class Glomerator(object):
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=False)
+        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=True)
 
         return self.paths
-
-        # for ipath in range(len(self.partitions)):
-        #     logprob, ptn = self.find_best_partition(self.partitions[ipath], debug=True)
-        #     self.max_log_probs.append(logprob)
-        #     self.best_partitions.append(ptn)
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, mode, paths):
