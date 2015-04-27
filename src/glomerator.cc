@@ -7,7 +7,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   hmms_(hmms),
   gl_(gl),
   args_(args),
-  i_initial_partition_(0)
+  i_initial_partition_(0),
+  n_cached_(0),
+  n_calculated_(0)
 {
   ReadCachedLogProbs(track);
 
@@ -68,6 +70,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
+  cout << " cached " << n_cached_ << " calculated " << n_calculated_ << endl;
   WriteCachedLogProbs();
 }
 
@@ -274,8 +277,11 @@ void Glomerator::GetNaiveSeq(string key) {
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
 void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds, double mean_mute_freq) {
   // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
-  if(log_probs_.count(name))  // already did it
+  if(log_probs_.count(name)) {  // already did it
+    ++n_cached_;
     return;
+  }
+  ++n_calculated_;
     
   Result result(kbounds);
   bool stop(false);
