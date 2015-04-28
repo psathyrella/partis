@@ -461,7 +461,8 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
     printf("       merged %-8.2f %s and %s\n", chosen_logprob, qmerged->parents_.first.c_str(), qmerged->parents_.second.c_str());
-    PrintPartition(new_partition, "current");
+    string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
+    PrintPartition(new_partition, extrastr);
   }
 }
 

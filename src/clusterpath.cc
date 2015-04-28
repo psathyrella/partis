@@ -8,18 +8,25 @@ ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob, do
   partitions_.push_back(initial_partition);
   logprobs_.push_back(initial_logprob);
 
-  // if(initial_logweight == 0.)  // pass in 0. if this is the *initial* initial partition (i.e. all sequences separate)
-  //   if(PotentialNumberOfParents(initial_partition) != 0)
-  //     throw runtime_error("damn, shoulda been zero " + to_string(PotentialNumberOfParents(initial_partition, true)));
-  // logweights_.push_back(initial_logweight);
-  logweights_.push_back(log(1. / PotentialNumberOfParents(initial_partition)));  // TODO double check that this is actually correct (i.e. we can ignore path segments from previous steps)
+  cout << "INIT path with " << initial_partition.size() << " " << initial_logprob << " " << initial_logweight << " (" << 1./exp(initial_logweight) << ")" << endl;
+  if(initial_logweight == 0.)  // pass in 0. if this is the *initial* initial partition (i.e. all sequences separate)
+    if(PotentialNumberOfParents(initial_partition) != 0)
+      throw runtime_error("damn, shoulda been zero " + to_string(PotentialNumberOfParents(initial_partition, true)));
+  logweights_.push_back(initial_logweight);
+  // logweights_.push_back(log(1. / PotentialNumberOfParents(initial_partition)));  // TODO double check that this is actually correct (i.e. we can ignore path segments from previous steps)
 }
 
 // ----------------------------------------------------------------------------------------
 void ClusterPath::AddPartition(Partition partition, double logprob) {
   partitions_.push_back(partition);
   logprobs_.push_back(logprob);
-  logweights_.push_back(logweights_.back() + log(1. / PotentialNumberOfParents(partition)));
+
+  int pot_parents = PotentialNumberOfParents(partition);
+  double combifactor(1.);
+  if(pot_parents > 0)  // if all partitions consist of one sequence, the above formula gives zero, but we want one
+    combifactor = double(1.) / pot_parents;
+
+  logweights_.push_back(logweights_.back() + log(combifactor));
 
 
   if(logprob > max_log_prob_of_partition_) {
@@ -41,14 +48,11 @@ int ClusterPath::PotentialNumberOfParents(Partition &partition, bool debug) {
     combifactor += pow(2, n_k - 1) - 1;
   }
 
-  if(combifactor == 0)  // if all partitions consist of one sequence, the above formula gives zero, but we want one
-    combifactor = 1;
-
-  if(debug) {
-    for(auto &key : partition)
-      cout << "          x " << key << endl;
-    cout << "    combi " << combifactor << endl;
-  }
+  // if(debug) {
+  //   for(auto &key : partition)
+  //     cout << "          x " << key << endl;
+  //   cout << "    combi " << combifactor << endl;
+  // }
 
   return combifactor;
 }
