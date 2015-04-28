@@ -88,29 +88,29 @@ class Glomerator(object):
 
         return clusters
 
-    # ----------------------------------------------------------------------------------------
-    def print_partitions(self, path, extrastr='', one_line=False):
-        for ip in range(len(path.partitions)):
-            self.print_partition(path.partitions[ip], path.logprobs[ip], path.adj_mis[ip], extrastr=extrastr, one_line=one_line)
+    # # ----------------------------------------------------------------------------------------
+    # def print_partitions(self, path, extrastr='', one_line=False):
+    #     for ip in range(len(path.partitions)):
+    #         self.print_partition(path.partitions[ip], path.logprobs[ip], path.adj_mis[ip], extrastr=extrastr, one_line=one_line)
 
-    # ----------------------------------------------------------------------------------------
-    def print_partition(self, partition, logprob, adj_mi=-1., extrastr='', one_line=False):
-        if one_line:
-            print '    %s %-15.2f   %-8.3f   %3d clusters (%d ways):' % (extrastr, logprob, adj_mi, len(partition), -1),  #1./math.exp(self.logweights[ip])),
-        else:
-            print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi)
-            print '   clonal?   ids'
-        for cluster in partition:
-            same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
-            if same_event is None:
-                same_event = -1
-            cluster_str = ':'.join([str(uid) for uid in cluster])
-            if one_line:
-                print '   %s' % cluster_str,
-            else:
-                print '     %d    %s' % (int(same_event), cluster_str)
-        if one_line:
-            print ''
+    # # ----------------------------------------------------------------------------------------
+    # def print_partition(self, partition, logprob, adj_mi=-1., extrastr='', one_line=False):
+    #     if one_line:
+    #         print '    %s %-15.2f   %-8.3f   %3d clusters (%d ways):' % (extrastr, logprob, adj_mi, len(partition), -1),  #1./math.exp(self.logweights[ip])),
+    #     else:
+    #         print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi)
+    #         print '   clonal?   ids'
+    #     for cluster in partition:
+    #         same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
+    #         if same_event is None:
+    #             same_event = -1
+    #         cluster_str = ':'.join([str(uid) for uid in cluster])
+    #         if one_line:
+    #             print '   %s' % cluster_str,
+    #         else:
+    #             print '     %d    %s' % (int(same_event), cluster_str)
+    #     if one_line:
+    #         print ''
 
     # ----------------------------------------------------------------------------------------
     def print_true_partition(self):
@@ -184,6 +184,9 @@ class Glomerator(object):
 
         if previous_info is not None:  # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
             assert len(previous_info) == len(fileinfos)  # both are the number of processes we're merging into one
+            # TODO prevent this from adding duplicate adjacent partitions
+            if debug:
+                print 'prepend previous history'
             for ifile in range(len(fileinfos)):
                 if debug:
                     print 'ifile', ifile
@@ -191,7 +194,7 @@ class Glomerator(object):
                     if debug:
                         print '  ipath', ipath
                         print '    before'
-                        self.print_partitions(fileinfos[ifile][ipath], one_line=True)
+                        fileinfos[ifile][ipath].print_partitions(self.reco_info, one_line=True)
                     initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
                     previous_path = previous_info[ifile][initial_path_index]
                     current_path = fileinfos[ifile][ipath]
@@ -204,38 +207,36 @@ class Glomerator(object):
                     for ip in range(len(current_path.partitions)):
                         extended_path.add_partition(current_path.partitions[ip], current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
                     fileinfos[ifile][ipath] = extended_path
+                    fileinfos[ifile][ipath].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                     if debug:
                         print '    after'
-                        self.print_partitions(fileinfos[ifile][ipath], one_line=True)
+                        fileinfos[ifile][ipath].print_partitions(self.reco_info, one_line=True)
 
-        if debug:
-            print '   find combined conservative'
         for ipath in range(smc_particles):
-            combined_conservative_max_minus_ten_logprob = 0.
-            combined_conservative_best_minus_ten_partition = []
-            total_n_ways = 0
-            # find the combination of the best-minus-ten for *each* file, which is more conservative than combining the files and *then* rewinding by 10.
-            for ifile in range(len(fileinfos)):
-                path = fileinfos[ifile][ipath]
-                if debug:
-                    # self.print_partitions(path, extrastr=('%d' % (ifile)), one_line=True)
-                    path.print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
-                for cluster in path.partitions[path.i_best_minus_ten]:
-                    # first make sure we didn't already add any of the uids in <cluster>
-                    for uid in cluster:
-                        for existing_cluster in combined_conservative_best_minus_ten_partition:
-                            if uid in existing_cluster:
-                                raise Exception('%s already in cluster %s' % (uid, ':'.join([qn for qn in cluster])))
-                    # then append
-                    combined_conservative_best_minus_ten_partition.append(cluster)
-                combined_conservative_max_minus_ten_logprob += path.logprobs[path.i_best_minus_ten]
-                # total_n_ways += 1. / math.exp(path.max_minus_ten_logweight)
 
-            # combined_conservative_max_minus_ten_logweight = math.log(1. / total_n_ways)
-
-            # then merge all the steps in each path
             if debug:
-                print 'merge path %d with %d processes' % (ipath, len(fileinfos))
+                print 'merge path %d from %d processes:' % (ipath, len(fileinfos))
+                for ifile in range(len(fileinfos)):
+                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
+                    print ''
+
+            # # with new merging scheme we shouldn't need to calculate the combined conservative one separately
+            # # find the combination of the best-minus-ten for *each* file, which is more conservative than combining the files and *then* rewinding by 10.
+            # combined_conservative_max_minus_ten_logprob = 0.
+            # combined_conservative_best_minus_ten_partition = []
+            # for ifile in range(len(fileinfos)):
+            #     path = fileinfos[ifile][ipath]
+            #     for cluster in path.partitions[path.i_best_minus_ten]:
+            #         # first make sure we didn't already add any of the uids in <cluster>
+            #         for uid in cluster:
+            #             for existing_cluster in combined_conservative_best_minus_ten_partition:
+            #                 if uid in existing_cluster:
+            #                     raise Exception('%s already in cluster %s' % (uid, ':'.join([qn for qn in cluster])))
+            #         # then append
+            #         combined_conservative_best_minus_ten_partition.append(cluster)
+            #     combined_conservative_max_minus_ten_logprob += path.logprobs[path.i_best_minus_ten]
+
+            # merge all the steps in each path
             def last_one():
                 last = True
                 for ifile in range(len(fileinfos)):  # we're finished when all the files are out of glomeration steps (i.e. they all only have one [the last] line left)
@@ -251,23 +252,18 @@ class Glomerator(object):
                     if maxdelta is None or thisdelta > maxdelta:
                         maxdelta = thisdelta
                         ibestfile = ifile
+                # print '    ibest %d with %f - %f = %f' % (ibestfile, fileinfos[ibestfile][ipath].logprobs[1], fileinfos[ibestfile][ipath].logprobs[0], fileinfos[ibestfile][ipath].logprobs[1] - fileinfos[ibestfile][ipath].logprobs[0])
                 fileinfos[ibestfile][ipath].remove_first_partition()
 
             def add_next_global_partition():
                 global_partition = []
                 global_logprob = 0.
-                # total_n_ways = 0
                 for ifile in range(len(fileinfos)):  # combine the first line in each file to make a global partition
                     for cluster in fileinfos[ifile][ipath].partitions[0]:
                         global_partition.append(cluster)
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
-                    # total_n_ways += 1. / math.exp(fileinfos[ifile][ipath].logweights[0])
-                # global_logweight = math.log(1. / total_n_ways)
                 global_adj_mi = self.mutual_information(global_partition, debug=False)
                 self.paths[ipath].add_partition(global_partition, global_logprob, 0., global_adj_mi)  # don't know the logweight yet (or maybe at all!)
-
-                # if debug:
-                #     self.print_partition(global_partition, global_logprob, global_adj_mi, one_line=True)
 
             while not last_one():
                 add_next_global_partition()
@@ -276,16 +272,19 @@ class Glomerator(object):
 
             self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
+                print '  merged path:'
                 self.paths[ipath].print_partitions(self.reco_info, one_line=True)
 
-            # replace the default one with the more conservative one
-            # NOTE the combined conservative partition doesn't necessarily occur in the merged string
-            self.paths[ipath].conservative_best_minus_ten_partition = combined_conservative_best_minus_ten_partition
-            self.paths[ipath].conservative_max_minus_ten_logprob = combined_conservative_max_minus_ten_logprob
-            # self.paths[ipath].max_minus_ten_logweight = combined_conservative_max_minus_ten_logweight
-            if debug:
-                print '  combined conservative'
-                self.print_partition(self.paths[ipath].conservative_best_minus_ten_partition, self.paths[ipath].conservative_max_minus_ten_logprob, one_line=True)
+            # # see note above
+            # # replace the default one with the more conservative one
+            # self.paths[ipath].conservative_best_minus_ten_partition = combined_conservative_best_minus_ten_partition
+            # self.paths[ipath].conservative_max_minus_ten_logprob = combined_conservative_max_minus_ten_logprob
+            # # self.paths[ipath].max_minus_ten_logweight = combined_conservative_max_minus_ten_logweight
+
+            # if debug:
+            #     print '  combined conservative'
+            #     print '    XXXX'
+            #     self.print_partition(self.paths[ipath].conservative_best_minus_ten_partition, self.paths[ipath].conservative_max_minus_ten_logprob, one_line=True)
 
     # ----------------------------------------------------------------------------------------
     def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False, clean_up=True):
