@@ -14,8 +14,6 @@ class Glomerator(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, reco_info=None):
         self.reco_info = reco_info
-        # self.max_log_probs, self.best_partitions = [], []
-        # self.max_minus_ten_log_probs, self.best_minus_ten_partitions = [], []
         self.paths = None
 
     # ----------------------------------------------------------------------------------------
@@ -218,10 +216,11 @@ class Glomerator(object):
             total_n_ways = 0
             # find the combination of the best-minus-ten for *each* file, which is more conservative than combining the files and *then* rewinding by 10.
             for ifile in range(len(fileinfos)):
+                path = fileinfos[ifile][ipath]
                 if debug:
-                    # self.print_partitions(fileinfos[ifile][ipath], extrastr=('%d' % (ifile)), one_line=True)
-                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
-                for cluster in fileinfos[ifile][ipath].best_minus_ten_partition:
+                    # self.print_partitions(path, extrastr=('%d' % (ifile)), one_line=True)
+                    path.print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
+                for cluster in path.partitions[path.i_best_minus_ten]:
                     # first make sure we didn't already add any of the uids in <cluster>
                     for uid in cluster:
                         for existing_cluster in combined_conservative_best_minus_ten_partition:
@@ -229,8 +228,8 @@ class Glomerator(object):
                                 raise Exception('%s already in cluster %s' % (uid, ':'.join([qn for qn in cluster])))
                     # then append
                     combined_conservative_best_minus_ten_partition.append(cluster)
-                combined_conservative_max_minus_ten_logprob += fileinfos[ifile][ipath].max_minus_ten_logprob
-                # total_n_ways += 1. / math.exp(fileinfos[ifile][ipath].max_minus_ten_logweight)
+                combined_conservative_max_minus_ten_logprob += path.logprobs[path.i_best_minus_ten]
+                # total_n_ways += 1. / math.exp(path.max_minus_ten_logweight)
 
             # combined_conservative_max_minus_ten_logweight = math.log(1. / total_n_ways)
 
@@ -281,12 +280,12 @@ class Glomerator(object):
 
             # replace the default one with the more conservative one
             # NOTE the combined conservative partition doesn't necessarily occur in the merged string
-            self.paths[ipath].best_minus_ten_partition = combined_conservative_best_minus_ten_partition
-            self.paths[ipath].max_minus_ten_logprob = combined_conservative_max_minus_ten_logprob
+            self.paths[ipath].conservative_best_minus_ten_partition = combined_conservative_best_minus_ten_partition
+            self.paths[ipath].conservative_max_minus_ten_logprob = combined_conservative_max_minus_ten_logprob
             # self.paths[ipath].max_minus_ten_logweight = combined_conservative_max_minus_ten_logweight
             if debug:
                 print '  combined conservative'
-                self.print_partition(self.paths[ipath].best_minus_ten_partition, self.paths[ipath].max_minus_ten_logprob, one_line=True)
+                self.print_partition(self.paths[ipath].conservative_best_minus_ten_partition, self.paths[ipath].conservative_max_minus_ten_logprob, one_line=True)
 
     # ----------------------------------------------------------------------------------------
     def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False, clean_up=True):

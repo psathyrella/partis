@@ -113,14 +113,18 @@ class PartitionDriver(object):
             self.smc_info[-1].append([])
             for iptl in range(self.args.smc_particles):
                 cp = ClusterPath(-1)
-                cp.best_minus_ten_partition = [[cl, ] for cl in clusters]
-                cp.max_minus_ten_logweight = 0.
+                print 'TODO replace this with add_partition() calls'
+                cp.conservative_best_minus_ten_partition = [[cl, ] for cl in clusters]
+                cp.conservative_max_minus_ten_logweight = 0.
+                cp.i_best_minus_ten = 0
+                cp.logweights.append(0.)
+                print 'TODO fix me too'
                 self.smc_info[-1][-1].append(cp)
 
         # ----------------------------------------------------------------------------------------
         # run that shiznit
         while n_procs > 0:
-            tmpnclusters = sum([len(self.smc_info[-1][iproc][0].best_minus_ten_partition) for iproc in range(n_procs)])  # uses the first smc particle, but the others will be similar
+            tmpnclusters = sum([len(self.smc_info[-1][iproc][0].conservative_best_minus_ten_partition) for iproc in range(n_procs)])  # uses the first smc particle, but the others will be similar
             if len(self.smc_info) == 1 and tmpnclusters != len(self.input_info):
                 raise Exception('not same length ' + str(tmpnclusters) + ' ' + str(len(self.input_info)))
             print '--> %d clusters with %d procs' % (tmpnclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
@@ -155,12 +159,13 @@ class PartitionDriver(object):
         final_paths = self.smc_info[-1][0]
         tmpglom = Glomerator(self.reco_info)
         for ipath in range(self.args.smc_particles):  # print the final partitions
-            tmpglom.print_partition(final_paths[ipath].best_partition, final_paths[ipath].max_logprob, final_paths[ipath].best_adj_mi, str(ipath) + ' final')
+            path = final_paths[ipath]
+            tmpglom.print_partition(path.partitions[path.i_best], path.logprobs[path.i_best], path.adj_mis[path.i_best], str(ipath) + ' final')
 
             # print '  check queries'
             for uid in self.input_info:
                 found = False
-                for cl in final_paths[ipath].best_partition:
+                for cl in path.partitions[path.i_best]:
                     if uid in cl:
                         found = True
                         break
@@ -715,7 +720,8 @@ class PartitionDriver(object):
                 check_call(['cp', self.hmm_cachefname, subworkdir + '/'])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
 
             for iptl in range(len(procinfo)):
-                self.write_single_input_file(fname, 'w' if iptl==0 else 'a', procinfo[iptl].best_minus_ten_partition, parameter_dir, skipped_gene_matches, path_index=iptl, logweight=procinfo[iptl].max_minus_ten_logweight)
+                path = procinfo[iptl]
+                self.write_single_input_file(fname, 'w' if iptl==0 else 'a', path.conservative_best_minus_ten_partition, parameter_dir, skipped_gene_matches, path_index=iptl, logweight=path.logweights[path.i_best_minus_ten])
 
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
