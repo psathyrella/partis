@@ -208,7 +208,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'clusters'))  #'normalized_score'
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi'))  #'normalized_score'
             writer.writeheader()
             for ipath in range(len(paths)):
                 for ipart in range(len(paths[ipath].partitions)):
@@ -719,7 +719,13 @@ class PartitionDriver(object):
 
             for iptl in range(len(procinfo)):
                 path = procinfo[iptl]
-                self.write_single_input_file(fname, 'w' if iptl==0 else 'a', path.partitions[path.i_best_minus_x], parameter_dir, skipped_gene_matches, path_index=iptl, logweight=path.logweights[path.i_best_minus_x])
+                self.write_single_input_file(fname,
+                                             'w' if iptl==0 else 'a',
+                                             path.partitions[path.i_best_minus_x],
+                                             parameter_dir,
+                                             skipped_gene_matches,
+                                             path_index=iptl,
+                                             logweight=path.logweights[path.i_best_minus_x])
 
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
