@@ -16,7 +16,7 @@ from opener import opener
 from seqfileopener import get_seqfile_info
 from clusterer import Clusterer
 from glomerator import Glomerator
-from glomerator import ClusterPath
+from clusterpath import ClusterPath
 from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
