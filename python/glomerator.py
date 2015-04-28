@@ -292,7 +292,7 @@ class Glomerator(object):
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=True)
+        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=False)
 
         return self.paths
 
