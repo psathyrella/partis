@@ -205,7 +205,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'adj_mi', 'clusters'))  #'normalized_score'
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'clusters'))  #'normalized_score'
             writer.writeheader()
             for ipath in range(len(paths)):
                 for ipart in range(len(paths[ipath].partitions)):
@@ -217,9 +217,11 @@ class PartitionDriver(object):
                         cluster_str += ':'.join(part[ic])
                     writer.writerow({'path_index' : os.getpid() + ipath,
                                      'score' : paths[ipath].logprobs[ipart],
+                                     'logweight' : paths[ipath].logweights[ipart],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : paths[ipath].adj_mis[ipart],
-                                     'clusters' : cluster_str})
+                                     'adj_mi' : paths[ipath].adj_mis[ipart]  #,
+                                     # 'clusters' : cluster_str
+                                 })
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):

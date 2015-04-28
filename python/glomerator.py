@@ -18,6 +18,7 @@ class ClusterPath(object):
         self.adj_mis = []
         self.initial_path_index = initial_path_index
         self.max_logprob, self.max_minus_ten_logprob, self.max_minus_ten_logweight = None, None, None
+        self.i_best, self.i_best_minus_ten = None, None  # TODO use these instead of the above
         self.best_adj_mi = None
         self.best_partition, self.best_minus_ten_partition = None, None
 
@@ -27,6 +28,7 @@ class ClusterPath(object):
                 self.max_minus_ten_logprob = self.logprobs[ip]
                 self.max_minus_ten_logweight = self.logweights[ip]
                 self.best_minus_ten_partition = self.partitions[ip]
+                self.i_best_minus_ten = ip
                 break
 
     def add_partition(self, partition, logprob, logweight, adj_mi):
@@ -43,18 +45,22 @@ class ClusterPath(object):
             self.max_logprob = logprob
             self.best_partition = partition
             self.best_adj_mi = adj_mi
+            self.i_best = len(self.partitions) - 1
             self.update_best_minus_ten_partition()
 
     def remove_first_partition(self):
+        # NOTE after you do this, none of the 'best' shit is any good any more
         self.partitions.pop(0)
         self.logprobs.pop(0)
         self.logweights.pop(0)
         self.adj_mis.pop(0)
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info, extrastr='', one_line=False):
+    def print_partition(self, ip, reco_info, extrastr='', one_line=False, abbreviate=True):
         if one_line:
-            print '    %s %-15.2f   %-8.3f   %3d clusters (%d ways):' % (extrastr, self.logprobs[ip], self.adj_mis[ip], len(self.partitions[ip]), 1./math.exp(self.logweights[ip])),
+            expon = math.exp(self.logweights[ip])
+            n_ways = 0 if expon == 0. else 1. / expon
+            print '    %s %-15.2f   %-8.3f   %3d clusters (%.1f ways %f):' % (extrastr, self.logprobs[ip], self.adj_mis[ip], len(self.partitions[ip]), n_ways, self.logweights[ip]),
         else:
             print '  %s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
             print '   clonal?   ids'
@@ -62,35 +68,49 @@ class ClusterPath(object):
             same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
             if same_event is None:
                 same_event = -1
-            cluster_str = ':'.join([str(uid) for uid in cluster])
+            if abbreviate:
+                cluster_str = ':'.join([str(uid)[-1] for uid in cluster])
+            else:
+                cluster_str = ':'.join([str(uid) for uid in cluster])
             if one_line:
-                print '   %s' % cluster_str,
+                if abbreviate:
+                    print ' %s' % cluster_str,
+                else:
+                    print '   %s' % cluster_str,
             else:
                 print '     %d    %s' % (int(same_event), cluster_str)
         if one_line:
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info, extrastr='', one_line=False):
+    def print_partitions(self, reco_info, extrastr='', one_line=False, abbreviate=False):
         for ip in range(len(self.partitions)):
-            self.print_partition(ip, reco_info, extrastr=extrastr, one_line=one_line)
+            self.print_partition(ip, reco_info, extrastr=extrastr, one_line=one_line, abbreviate=abbreviate)
 
     # ----------------------------------------------------------------------------------------
-    def recalculate_logweights(self):
-
+    def set_synthetic_logweight_history(self, reco_info):
+        # TODO switch clusterpath.cc back to using these
         def potential_n_parents(partition):
             combifactor = 0
+            # print 'LEN', len(partition)
             for cluster in partition:
                 n_k = len(cluster)
+                # print '  +=', pow(2, n_k - 1) - 1, '   nk', n_k
                 combifactor += pow(2, n_k - 1) - 1
+            if combifactor == 0:
+                combifactor = 1
+            # print '  combi', combifactor
             return combifactor
 
         for ip in range(len(self.partitions)):
             if ip == 0:
                 last_logweight = 0.
             else:
-                last_logweight = self.logprobs[ip-1]
-            self.logweights[ip] = last_logweight + math.log(1. / potential_n_parents(self.partitions[ip]))
+                last_logweight = self.logweights[ip-1]
+            this_logweight = last_logweight + math.log(1. / potential_n_parents(self.partitions[ip]))
+            # print potential_n_parents(self.partitions[ip]), math.log(1. / potential_n_parents(self.partitions[ip])), last_logweight, last_logweight + math.log(1. / potential_n_parents(self.partitions[ip]))
+            self.logweights[ip] = this_logweight
+            # self.print_partition(ip, reco_info, extrastr='setting', one_line=True, abbreviate=True)
 
 # ----------------------------------------------------------------------------------------
 class Glomerator(object):
@@ -302,7 +322,8 @@ class Glomerator(object):
             # find the combination of the best-minus-ten for *each* file, which is more conservative than combining the files and *then* rewinding by 10.
             for ifile in range(len(fileinfos)):
                 if debug:
-                    self.print_partitions(fileinfos[ifile][ipath], extrastr=('%d %d' % (ipath, ifile)), one_line=True)
+                    # self.print_partitions(fileinfos[ifile][ipath], extrastr=('%d' % (ifile)), one_line=True)
+                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
                 for cluster in fileinfos[ifile][ipath].best_minus_ten_partition:
                     # first make sure we didn't already add any of the uids in <cluster>
                     for uid in cluster:
@@ -356,6 +377,8 @@ class Glomerator(object):
                 add_next_global_partition()
                 remove_one_of_the_first_partitions()
             add_next_global_partition()
+
+            self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
                 self.paths[ipath].print_partitions(self.reco_info, one_line=True)
 
@@ -374,7 +397,7 @@ class Glomerator(object):
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=False)
+        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=True)
 
         return self.paths
 

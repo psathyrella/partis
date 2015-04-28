@@ -19,17 +19,19 @@ parser.add_argument('--scatter', action='store_true')
 parser.add_argument('--zoom', action='store_true')
 args = parser.parse_args()
 
-fsize = 20
+fsize = 26
 mpl.rcParams.update({
+    'font.size': 26,
+    'axes.labelsize': 26,
+    'xtick.labelsize':20,
+    'ytick.labelsize':20,
+    'font.family': 'Lato',
+    'font.weight': 600,
+    'axes.labelweight': 600,
     # 'font.size': fsize,
-    'font.family': 'serif',
-    'font.weight': 'bold',
     'legend.fontsize': fsize,
-    'axes.titlesize': fsize,
+    'axes.titlesize': fsize
     # 'axes.labelsize': fsize,
-    'xtick.labelsize': fsize,
-    'ytick.labelsize': fsize,
-    'axes.labelsize': fsize
 })
 
 cmap = 'BuGn'  #mpl.cm.jet
@@ -84,7 +86,8 @@ if args.scatter:
     # linex = (0, max_length)
     # liney = (1, 1)
     # ax.plot(linex, liney)
-    ax2 = ax.twinx()
+
+    # ax2 = ax.twinx()
     nxbins = 8
     nybins = 5
 
@@ -92,23 +95,25 @@ if args.scatter:
     if args.zoom:
         xmin = 350
         ymin = 0.7
-        markersize = 15
+        markersize = 25
     else:
         xmin = 0
         ymin = 0.
         markersize = 4
     ax.set_xlim(xmin, max_length)
-    ax.set_ylim(ymin, yextrafactor * 1.)
-    ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
+    # ax.set_ylim(ymin, yextrafactor * 1.)
+    # ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
+    ax.set_ylim(min_logprob, yextrafactor * max_logprob)
     ax.set_xlabel('agglomeration step', fontweight='bold')
-    ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
-    ax2.set_ylabel('log prob', color=logprob_color, fontweight='bold')
+    # ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
+    # ax2.set_ylabel('log prob', color=logprob_color, fontweight='bold')
+    ax.set_ylabel('log prob', color=logprob_color, fontweight='bold')
     fig.tight_layout()
-    plt.gcf().subplots_adjust(bottom=0.15, left=0.14, right=0.78, top=0.95)
+    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
 
     ax.locator_params(nbins=nxbins, axis='x')
     ax.locator_params(nbins=nybins, axis='y')
-    ax2.locator_params(nbins=nybins, axis='y')
+    # ax2.locator_params(nbins=nybins, axis='y')
 
     one_trace = False
     if one_trace:
@@ -127,8 +132,8 @@ if args.scatter:
         for ipath in logprobs.keys():
             steps = [i for i in range(len(logprobs[ipath]))]
             sizes = [markersize for i in range(len(logprobs[ipath]))]
-            fig_logprob = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
-            fig_adj_mi = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+            # fig_adj_mi = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+            fig_logprob = ax.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
         
 else:
     # iplot = 0
