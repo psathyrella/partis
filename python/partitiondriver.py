@@ -101,14 +101,12 @@ class PartitionDriver(object):
         n_proc_list = []  # list of the number of procs we used for each run
 
         # add initial lists of paths
-        initial_divvied_queries = self.divvy_up_queries(n_procs, self.input_info)
         if self.args.smc_particles == 1:
-            self.smc_info = []
-            for clusters in initial_divvied_queries:  # one set of <clusters> for each process
-                cp = ClusterPath(-1)
-                cp.add_partition([[cl, ] for cl in clusters], 0., 0., -1.)
-                self.smc_info[-1].append(cp)
+            cp = ClusterPath(-1)
+            cp.add_partition([[cl, ] for cl in self.input_info.keys()], 0., 0., -1.)
+            self.paths = [cp, ]
         else:
+            initial_divvied_queries = self.divvy_up_queries(n_procs, self.input_info)
             self.smc_info = [[], ]
             for clusters in initial_divvied_queries:  # one set of <clusters> for each process
                 self.smc_info[-1].append([])
@@ -119,6 +117,9 @@ class PartitionDriver(object):
 
         # get number of clusters based on sum of last paths in <self.smc_info>
         def get_n_clusters():
+            if self.args.smc_particles == 1:
+                return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+
             nclusters = 0
             for iproc in range(len(self.smc_info[-1])):  # number of processes
                 path = self.smc_info[-1][iproc][0]  # uses the first smc particle, but the others will be similar
@@ -128,8 +129,6 @@ class PartitionDriver(object):
         # run that shiznit
         while n_procs > 0:
             nclusters = get_n_clusters()
-            if len(self.smc_info) == 1 and nclusters != len(self.input_info):
-                raise Exception('not same length ' + str(nclusters) + ' ' + str(len(self.input_info)))
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, shuffle_input_order=(self.args.smc_particles == 1))  # don't shuffle sequences if we have multiple paths, 'cause, you know, if you do ALL HELL BREAKS LOOSE
             n_proc_list.append(n_procs)
@@ -148,32 +147,46 @@ class PartitionDriver(object):
                         n_procs -= 1
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
-        
-        self.merge_pairs_of_procs(1)
 
-        # self.merge_agglomeration_steps()
+        if self.args.smc_particles == 1:
+            for ipath in range(len(self.paths)):
+                self.paths[ipath].print_partitions(self.reco_info, one_line=True, header=(ipath==0))
+                print ''
+        else:
+            self.merge_pairs_of_procs(1)
+            # self.merge_agglomeration_steps()
+            assert len(self.smc_info[-1]) == 1  # should only be one process at the last step
+            final_paths = self.smc_info[-1][0]
+            for ipath in range(self.args.smc_particles):  # print the final partitions
+                path = final_paths[ipath]
+                path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
 
-        final_paths = self.smc_info[-1][0]
         tmpglom = Glomerator(self.reco_info)
-        for ipath in range(self.args.smc_particles):  # print the final partitions
-            path = final_paths[ipath]
-            path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
+        tmpglom.print_true_partition()
 
-            # print '  check queries'
+        sys.exit()
+        if self.args.outfname is not None:
+            # tmpglom.write_partitions(self.args.outfname, 'w', final_paths)
+            self.write_partitions(self.args.outfname, final_paths)
+
+    # ----------------------------------------------------------------------------------------
+    def check_path(self, path):
+        def check_partition(partition):
             for uid in self.input_info:
                 found = False
-                for cl in path.partitions[path.i_best]:
-                    if uid in cl:
+                for cluster in partition:
+                    if uid in cluster:
                         found = True
                         break
                 if not found:
                     raise Exception('%s not found in final partition' % uid)
+            for cluster in partition:
+                for uid in cluster:
+                    if uid not in self.input_info:
+                        raise Exception('%s not found in final partition' % uid)
 
-        tmpglom.print_true_partition()
-
-        if self.args.outfname is not None:
-            # tmpglom.write_partitions(self.args.outfname, 'w', final_paths)
-            self.write_partitions(self.args.outfname, final_paths)
+        for partition in path.partitions:
+            check_partition(partition)
 
     # ----------------------------------------------------------------------------------------
     def merge_agglomeration_steps(self):
@@ -405,20 +418,25 @@ class PartitionDriver(object):
         """ Merge any/all output files from subsidiary bcrham processes """
         assert self.args.smc_particles == 1  # have to do things more complicatedly for smc
         if self.args.action == 'partition':  # merge partitions from several files
-            self.smc_info.append([])
-            infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
+            if n_procs == 1:
+                infnames = [self.hmm_outfname, ]
+            else:
+                infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
             previous_info = None
-            # if len(self.smc_info) > 2:
-            #     previous_info = self.smc_info[-2]
+            # if len(self.paths) > 2:
+            #     previous_info = self.paths[-2]
             glomerer = Glomerator(self.reco_info)
             glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
-            self.smc_info.append(glomerer.paths)
+            assert len(glomerer.paths) == 1
+            self.check_path(glomerer.paths[0])
+            self.paths.append(glomerer.paths[0])
 
-            self.merge_csv_files(self.hmm_cachefname, n_procs)
+            if n_procs > 1:
+                self.merge_csv_files(self.hmm_cachefname, n_procs)
         else:
             self.merge_csv_files(self.hmm_outfname, n_procs)
 
-        if not self.args.no_clean:
+        if not self.args.no_clean and n_procs > 1:
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
                 os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
@@ -443,6 +461,8 @@ class PartitionDriver(object):
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
             paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+            for path in paths:
+                self.check_path(path)
             self.smc_info[-1].append(paths)
 
             # ack? self.glomclusters.append(glomerer)
@@ -699,8 +719,7 @@ class PartitionDriver(object):
     
         else:
             if self.args.action == 'partition':
-                assert len(self.smc_info[-1]) == 1  # number of particles
-                nsets = self.smc_info[-1][0]
+                nsets = self.paths[-1].partitions[self.paths[-1].i_best_minus_x]
             if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                 nsets = [[qn] for qn in self.input_info.keys()]
             else:
@@ -732,8 +751,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, plotdir):
         if self.args.smc_particles == 1:
-            if n_procs > 1:
-                self.merge_all_hmm_outputs(n_procs)
+            # if n_procs > 1:
+            self.merge_all_hmm_outputs(n_procs)
         else:
             self.merge_pairs_of_procs(n_procs)
 

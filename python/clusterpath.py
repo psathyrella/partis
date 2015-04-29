@@ -54,8 +54,8 @@ class ClusterPath(object):
         if one_line:
             expon = math.exp(self.logweights[ip])
             n_ways = 0 if expon == 0. else 1. / expon
-            way_str = ('%8.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
-            print '    %5s %-15.2f   %-8.3f   %3d clusters (ways %s   logweight %7.3f):' % (extrastr, self.logprobs[ip], self.adj_mis[ip], len(self.partitions[ip]), way_str, self.logweights[ip]),
+            way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
+            print '      %5s  %-10.2f   %-8.3f   %5d   %10s    %7.3f   ' % (extrastr, self.logprobs[ip], self.adj_mis[ip], len(self.partitions[ip]), way_str, self.logweights[ip]),
         else:
             print '  %5s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
             print '   clonal?   ids'
@@ -78,7 +78,9 @@ class ClusterPath(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info, extrastr='', one_line=False, abbreviate=True):
+    def print_partitions(self, reco_info, extrastr='', one_line=False, abbreviate=True, header=True):
+        if header:
+            print '    %5s %10s   %8s   %5s   %10s   %7s' % ('', 'logprob', 'adj mi', 'clusters', 'pot.parents', 'logweight')
         for ip in range(len(self.partitions)):
             mark = ''
             if ip == self.i_best:
