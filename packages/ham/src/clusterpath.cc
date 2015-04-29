@@ -9,9 +9,6 @@ ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob, do
   logprobs_.push_back(initial_logprob);
 
   // cout << "INIT path with " << initial_partition.size() << " " << initial_logprob << " " << initial_logweight << " (" << 1./exp(initial_logweight) << ")" << endl;
-  if(initial_logweight == 0.)  // pass in 0. if this is the *initial* initial partition (i.e. all sequences separate)
-    if(PotentialNumberOfParents(initial_partition) != 0)
-      throw runtime_error("damn, shoulda been zero " + to_string(PotentialNumberOfParents(initial_partition, true)));
   logweights_.push_back(initial_logweight);
   // logweights_.push_back(log(1. / PotentialNumberOfParents(initial_partition)));  // TODO double check that this is actually correct (i.e. we can ignore path segments from previous steps)
 }
