@@ -169,3 +169,5 @@ else:
         parter.partition()
     else:
         raise Exception('ERROR bad action ' + args.action)
+
+    parter.clean()
