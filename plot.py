@@ -37,7 +37,7 @@ mpl.rcParams.update({
 cmap = 'BuGn'  #mpl.cm.jet
 
 logprobs, adj_mis = {}, {}
-fnames = glob.glob('[0-9]*.csv')
+fnames = glob.glob('24[0-9]*.csv')
 for fname in fnames:
     with open(fname) as infile:
         for line in csv.DictReader(infile):
@@ -87,7 +87,7 @@ if args.scatter:
     # liney = (1, 1)
     # ax.plot(linex, liney)
 
-    # ax2 = ax.twinx()
+    ax2 = ax.twinx()
     nxbins = 8
     nybins = 5
 
@@ -101,13 +101,13 @@ if args.scatter:
         ymin = 0.
         markersize = 4
     ax.set_xlim(xmin, max_length)
-    # ax.set_ylim(ymin, yextrafactor * 1.)
-    # ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
-    ax.set_ylim(min_logprob, yextrafactor * max_logprob)
+    ax.set_ylim(ymin, yextrafactor * 1.)
+    ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
+    # ax.set_ylim(min_logprob, yextrafactor * max_logprob)
     ax.set_xlabel('agglomeration step', fontweight='bold')
-    # ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
-    # ax2.set_ylabel('log prob', color=logprob_color, fontweight='bold')
-    ax.set_ylabel('log prob', color=logprob_color, fontweight='bold')
+    ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
+    ax2.set_ylabel('log prob', color=logprob_color, fontweight='bold')
+    # ax.set_ylabel('log prob', color=logprob_color, fontweight='bold')
     fig.tight_layout()
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
 
@@ -132,8 +132,8 @@ if args.scatter:
         for ipath in logprobs.keys():
             steps = [i for i in range(len(logprobs[ipath]))]
             sizes = [markersize for i in range(len(logprobs[ipath]))]
-            # fig_adj_mi = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
-            fig_logprob = ax.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
+            fig_adj_mi = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+            fig_logprob = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
         
 else:
     # iplot = 0

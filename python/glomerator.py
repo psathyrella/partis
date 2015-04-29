@@ -165,6 +165,8 @@ class Glomerator(object):
                 paths[path_index].add_partition(uids, float(line['score']), float(line['logweight']), self.mutual_information(uids, debug=False))
 
         for cp in paths:
+            if cp is None:
+                raise Exception('None type path read from %s' % infname)
             for ptn in cp.partitions:
                 if len(ptn) == 0:
                     raise Exception('zero length partition read from %s' % infname)
@@ -180,6 +182,7 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
+        print 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit'
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
         if previous_info is not None:  # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board

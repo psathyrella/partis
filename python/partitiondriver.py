@@ -46,7 +46,6 @@ class PartitionDriver(object):
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
-        self.errfile = opener('w')(self.args.workdir + '/err')
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -57,7 +56,6 @@ class PartitionDriver(object):
             os.remove(self.hmm_cachefname)
 
         if not self.args.no_clean:
-            os.remove(self.args.workdir + '/err')
             try:
                 os.rmdir(self.args.workdir)
             except OSError:
@@ -256,6 +254,24 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
+    def process_out_err(self, iproc, out, err):
+        print_str = ''
+        for line in err.split('\n'):
+            if 'srun: job' in line and 'queued and waiting for resources' in line:
+                continue
+            if 'srun: job' in line and 'has been allocated resources' in line:
+                continue
+            if 'GSL_RNG_TYPE=' in line or 'GSL_RNG_SEED=' in line:
+                continue
+            print_str += line + '\n'
+
+        print_str += out
+
+        if print_str != '':
+            print ' --> proc %d' % iproc
+            print print_str
+
+    # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', preclusters=None, hmm_type='', prefix='', \
                 count_parameters=False, plotdir=None, n_procs=None,  # NOTE the local <n_procs>, which overrides the one inside <self.args>
                 shuffle_input_order=False):  # @parameterfetishist
@@ -292,11 +308,7 @@ class PartitionDriver(object):
                 time.sleep(0.1)
             for iproc in range(len(procs)):
                 out, err = procs[iproc].communicate()
-                if out != '':
-                    print ' --> proc %d' % iproc
-                    print out
-                if err != '':
-                    self.errfile.write(err)
+                self.process_out_err(iproc, out, err)
             if self.args.smc_particles == 1:
                 self.merge_hmm_outputs(n_procs)
             else:
