@@ -149,25 +149,24 @@ class PartitionDriver(object):
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
         if self.args.smc_particles == 1:
+            print 'final'
             for ipath in range(len(self.paths)):
                 self.paths[ipath].print_partitions(self.reco_info, one_line=True, header=(ipath==0))
                 print ''
+            if self.args.outfname is not None:
+                self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
         else:
-            self.merge_pairs_of_procs(1)
-            # self.merge_agglomeration_steps()
-            assert len(self.smc_info[-1]) == 1  # should only be one process at the last step
-            final_paths = self.smc_info[-1][0]
+            # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
+            final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
             for ipath in range(self.args.smc_particles):  # print the final partitions
                 path = final_paths[ipath]
                 path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
+            if self.args.outfname is not None:
+                self.write_partitions(self.args.outfname, final_paths)
 
         tmpglom = Glomerator(self.reco_info)
         tmpglom.print_true_partition()
 
-        sys.exit()
-        if self.args.outfname is not None:
-            # tmpglom.write_partitions(self.args.outfname, 'w', final_paths)
-            self.write_partitions(self.args.outfname, final_paths)
 
     # ----------------------------------------------------------------------------------------
     def check_path(self, path):
@@ -187,35 +186,6 @@ class PartitionDriver(object):
 
         for partition in path.partitions:
             check_partition(partition)
-
-    # ----------------------------------------------------------------------------------------
-    def merge_agglomeration_steps(self):
-        tmpglom = Glomerator(self.reco_info)
-    #     assert len(self.smc_info[-1]) == 1  # last step should have one process
-
-    #     # first trace back the provenance for each path
-    #     lineages = []  #[[] for _ in range(self.args.smc_particles)]
-    #     for ipath in range(len(self.smc_info[-1][0])):  # <ipath> is the *final* path_index, which does not correspond to any path indices before the end of the last step
-    #         lineage = []
-    #         for istep in range(len(self.smc_info)-1, 0, -1):
-    #             print istep, len(self.smc_info[istep])
-    #             # path = 
-
-    #     # for path in self.smc_info[-1][0]:
-    #     #     global_path = ClusterPath(None)
-            
-        for istep in range(len(self.smc_info)):
-            print '  step', istep
-            stepinfo = self.smc_info[istep]
-            for iproc in range(len(stepinfo)):
-                print '    proc', iproc
-                procinfo = stepinfo[iproc]
-                for ipath in range(len(procinfo)):
-                    path = procinfo[ipath]
-                    print '      ipath', ipath, '  initial_path', path.initial_path_index
-                    for iptn in range(len(path.partitions)):
-                        tmpglom.print_partition(path.partitions[iptn], path.logprobs[iptn], path.adj_mis[iptn], one_line=True)
-                        # tmpglom.print_partition(path.partitions[iptn], path.logprobs[iptn], path.adj_mis[iptn])
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths):
@@ -304,7 +274,7 @@ class PartitionDriver(object):
         if n_procs == 1:
             check_call(cmd_str.split())
         else:
-            if self.args.smc_particles == 1:  # if we're doing smc, we have to split things up more complicatedly elsewhere
+            if self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
                 self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm')
 
             procs = []
@@ -426,7 +396,7 @@ class PartitionDriver(object):
             # if len(self.paths) > 2:
             #     previous_info = self.paths[-2]
             glomerer = Glomerator(self.reco_info)
-            glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+            glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=False)  #, outfname=self.hmm_outfname)
             assert len(glomerer.paths) == 1
             self.check_path(glomerer.paths[0])
             self.paths.append(glomerer.paths[0])
@@ -436,11 +406,15 @@ class PartitionDriver(object):
         else:
             self.merge_csv_files(self.hmm_outfname, n_procs)
 
-        if not self.args.no_clean and n_procs > 1:
-            for iproc in range(n_procs):
-                workdir = self.args.workdir + '/hmm-' + str(iproc)
-                os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
-                os.rmdir(workdir)
+        if not self.args.no_clean:
+            if n_procs == 1:
+                os.remove(self.hmm_outfname)
+            else:
+                for iproc in range(n_procs):
+                    workdir = self.args.workdir + '/hmm-' + str(iproc)
+                    os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
+                    os.remove(workdir + '/' + os.path.basename(self.hmm_outfname))
+                    os.rmdir(workdir)
 
     # ----------------------------------------------------------------------------------------
     def merge_pairs_of_procs(self, n_procs):
@@ -454,13 +428,16 @@ class PartitionDriver(object):
             groups_to_merge[-1].append(n_procs-1)
         self.smc_info.append([])
         for group in groups_to_merge:
-            infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in group]
+            if n_procs == 1:
+                infnames = [self.hmm_outfname, ]
+            else:
+                infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in group]
             assert len(self.smc_info[-2]) == n_procs
             previous_info = None
             if len(self.smc_info) > 2:
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
-            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False, clean_up=(not self.args.no_clean))  #, outfname=self.hmm_outfname)
+            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False)  #, outfname=self.hmm_outfname)
             for path in paths:
                 self.check_path(path)
             self.smc_info[-1].append(paths)
@@ -472,10 +449,14 @@ class PartitionDriver(object):
             self.merge_csv_files(self.hmm_cachefname, n_procs)
             
         if not self.args.no_clean:
-            for iproc in range(n_procs):
-                workdir = self.args.workdir + '/hmm-' + str(iproc)
-                os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
-                os.rmdir(workdir)
+            if n_procs == 1:
+                os.remove(self.hmm_outfname)
+            else:
+                for iproc in range(n_procs):
+                    subworkdir = self.args.workdir + '/hmm-' + str(iproc)
+                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
+                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
+                    os.rmdir(subworkdir)
 
     # ----------------------------------------------------------------------------------------
     def get_pairs(self, preclusters=None):

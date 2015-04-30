@@ -26,12 +26,16 @@ class Glomerator(object):
         #         continue
         #     print seq_a, seq_b, utils.hamming(seq_a, seq_b)
 
-        distances = {}
+        seqs_per_cluster = float(len(clusters)) / n_clusters
+        min_per_cluster, max_per_cluster = math.floor(seqs_per_cluster), math.ceil(seqs_per_cluster)
+        print seqs_per_cluster, min_per_cluster, max_per_cluster
+
+        distances = {}  # cache the calculated hamming distances (probably doesn't really make much of a difference)
         def glomerate():
             smallest_min_distance = None
             clusters_to_merge = None
             for clust_a, clust_b in itertools.combinations(clusters, 2):
-                min_distance = None  # find the minimal hamming distance between any two sequences in the two clusters
+                min_distance = None  # find the smallest hamming distance between any two sequences in the two clusters
                 for query_a in clust_a:
                     for query_b in clust_b:
                         joint_key = ';'.join(sorted([query_a, query_b]))
@@ -147,7 +151,7 @@ class Glomerator(object):
         return adj_mi
 
     # ----------------------------------------------------------------------------------------
-    def read_file_info(self, infname, n_paths, clean_up):
+    def read_file_info(self, infname, n_paths):
         paths = [None for _ in range(n_paths)]
         with opener('r')(infname) as csvfile:
             reader = csv.DictReader(csvfile)
@@ -171,9 +175,6 @@ class Glomerator(object):
                 if len(ptn) == 0:
                     raise Exception('zero length partition read from %s' % infname)
 
-        if clean_up:
-            os.remove(infname)
-
         return paths
 
     # ----------------------------------------------------------------------------------------
@@ -182,7 +183,7 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
-        print 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit'
+        print 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit EDIT nevermind, that seems to be a result of smc (presumably it was choosing very unlikely merges)'
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
         if previous_info is not None:  # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
@@ -290,12 +291,12 @@ class Glomerator(object):
             #     self.print_partition(self.paths[ipath].conservative_best_minus_ten_partition, self.paths[ipath].conservative_max_minus_ten_logprob, one_line=True)
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False, clean_up=True):
+    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         fileinfos = []
         for fname in infnames:
-            fileinfos.append(self.read_file_info(fname, smc_particles, clean_up))
-        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=False)
+            fileinfos.append(self.read_file_info(fname, smc_particles))
+        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=True)
 
         return self.paths
 

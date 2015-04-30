@@ -52,10 +52,14 @@ class ClusterPath(object):
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info, extrastr='', one_line=False, abbreviate=True):
         if one_line:
+            if ip > 0:
+                delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
+            else:
+                delta_str = ''
             expon = math.exp(self.logweights[ip])
             n_ways = 0 if expon == 0. else 1. / expon
             way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
-            print '      %5s  %-10.2f   %-8.3f   %5d   %10s    %7.3f   ' % (extrastr, self.logprobs[ip], self.adj_mis[ip], len(self.partitions[ip]), way_str, self.logweights[ip]),
+            print '      %5s  %-10.2f%-7s   %-8.3f   %5d   %10s    %8.3f   ' % (extrastr, self.logprobs[ip], delta_str, self.adj_mis[ip], len(self.partitions[ip]), way_str, self.logweights[ip]),
         else:
             print '  %5s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
             print '   clonal?   ids'
@@ -63,10 +67,14 @@ class ClusterPath(object):
             same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
             if same_event is None:
                 same_event = -1
+
             if abbreviate:
                 cluster_str = ':'.join(['o' for uid in cluster])
             else:
                 cluster_str = ':'.join([str(uid) for uid in cluster])
+            if not same_event:
+                cluster_str = utils.color('red', cluster_str)
+            
             if one_line:
                 if abbreviate:
                     print ' %s' % cluster_str,
@@ -80,7 +88,7 @@ class ClusterPath(object):
     # ----------------------------------------------------------------------------------------
     def print_partitions(self, reco_info, extrastr='', one_line=False, abbreviate=True, header=True):
         if header:
-            print '    %5s %10s   %8s   %5s   %10s   %7s' % ('', 'logprob', 'adj mi', 'clusters', 'pot.parents', 'logweight')
+            print '    %7s  %7s   %-7s %8s     %5s   %10s  %7s' % ('', 'logprob', 'delta', 'adj mi', 'clusters', 'pot.parents', 'logweight')
         for ip in range(len(self.partitions)):
             mark = ''
             if ip == self.i_best:
