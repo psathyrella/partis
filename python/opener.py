@@ -15,8 +15,7 @@ def opener(mode):
             '.gz': gzip.open}
     def open_file(path):
         if not path or ('w' not in mode and not os.path.exists(path)):
-            print 'file',path,'not found'
-            assert False
+            raise Exception('file %s not found' % path)
         if path == '-':
             if mode.startswith('r'):
                 return sys.stdin

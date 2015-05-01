@@ -727,8 +727,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, plotdir):
         if self.args.smc_particles == 1:
-            # if n_procs > 1:
-            self.merge_all_hmm_outputs(n_procs)
+            if self.args.action == 'partition' or n_procs > 1:
+                self.merge_all_hmm_outputs(n_procs)
         else:
             self.merge_pairs_of_procs(n_procs)
 
