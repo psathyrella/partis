@@ -311,7 +311,6 @@ class PartitionDriver(object):
                 raise Exception('zero-length naive sequence found for ' + str(query))
 
         clust = Glomerator()
-        print 'divy with', len(naive_seqs)
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
         if debug:
             print '  divvy lengths'
@@ -691,11 +690,11 @@ class PartitionDriver(object):
                 procinfo = self.smc_info[-1][iproc]  # list of ClusterPaths, one for each smc particle
                 for iptl in range(len(procinfo)):
                     path = procinfo[iptl]
-                    self.write_to_single_input_file(fname, 'w' if iptl==0 else 'a', path.partitions[path.i_best_minus_x], parameter_dir,
+                    self.write_to_single_input_file(fname, 'w' if iptl==0 else 'a', list(path.partitions[path.i_best_minus_x]), parameter_dir,  #  list() is important since we may modify <nsets>
                                                     skipped_gene_matches, path_index=iptl, logweight=path.logweights[path.i_best_minus_x])
         else:
             if self.args.action == 'partition':
-                nsets = self.paths[-1].partitions[self.paths[-1].i_best_minus_x]
+                nsets = list(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])  #  list() is important since we modify <nsets>
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.input_info.keys()]

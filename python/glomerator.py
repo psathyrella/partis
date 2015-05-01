@@ -17,7 +17,7 @@ class Glomerator(object):
         self.paths = None
 
     # ----------------------------------------------------------------------------------------
-    def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=True):
+    def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=False):
         """ Perform hierarchical agglomeration (with naive hamming distance as the distance), stopping at <n_clusters> """
         clusters = [[names,] for names in naive_seqs.keys()]
         # for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
@@ -28,7 +28,6 @@ class Glomerator(object):
 
         seqs_per_cluster = float(len(clusters)) / n_clusters
         min_per_cluster, max_per_cluster = int(math.floor(seqs_per_cluster)), int(math.ceil(seqs_per_cluster))
-        print seqs_per_cluster, min_per_cluster, max_per_cluster
 
         distances = {}  # cache the calculated hamming distances (probably doesn't really make much of a difference)
         # completed_clusters = []  # clusters that are already big enough, i.e. we don't want to add anything else to 'em
@@ -36,15 +35,17 @@ class Glomerator(object):
         def glomerate():
             smallest_min_distance = None
             clusters_to_merge = None
-            print '  current',
-            for clust in clusters:
-                print ' %d' % len(clust),
-            print ''
+            if debug:
+                print '  current',
+                for clust in clusters:
+                    print ' %d' % len(clust),
+                print ''
             for clust_a, clust_b in itertools.combinations(clusters, 2):
                 # if clust_a in completed_clusters or clust_b in completed_clusters:
                 #     continue
                 if len(clust_a) + len(clust_b) > max_per_cluster and not glomerate.merge_whatever_you_got:  # merged cluster would be too big, so look for smaller (albeit further-apart) things to merge
-                    print '  skip', len(clust_a), len(clust_b)
+                    if debug:
+                        print '  skip', len(clust_a), len(clust_b)
                     continue
                 min_distance = None  # find the smallest hamming distance between any two sequences in the two clusters
                 for query_a in clust_a:
@@ -234,9 +235,9 @@ class Glomerator(object):
                     for ip in range(len(previous_path.partitions)):
                         # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                         #     continue
-                        extended_path.add_partition(previous_path.partitions[ip], previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip])
+                        extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip])
                     for ip in range(len(current_path.partitions)):
-                        extended_path.add_partition(current_path.partitions[ip], current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
+                        extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
                     fileinfos[ifile][ipath] = extended_path
                     fileinfos[ifile][ipath].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                     if debug:
@@ -291,7 +292,7 @@ class Glomerator(object):
                 global_logprob = 0.
                 for ifile in range(len(fileinfos)):  # combine the first line in each file to make a global partition
                     for cluster in fileinfos[ifile][ipath].partitions[0]:
-                        global_partition.append(cluster)
+                        global_partition.append(list(cluster))
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
                 global_adj_mi = self.mutual_information(global_partition, debug=False)
                 self.paths[ipath].add_partition(global_partition, global_logprob, 0., global_adj_mi)  # don't know the logweight yet (or maybe at all!)
