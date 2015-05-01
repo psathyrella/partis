@@ -158,6 +158,8 @@ class PartitionDriver(object):
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
+            for path in final_paths:
+                self.check_path(path)
             for ipath in range(self.args.smc_particles):  # print the final partitions
                 path = final_paths[ipath]
                 path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
@@ -178,11 +180,11 @@ class PartitionDriver(object):
                         found = True
                         break
                 if not found:
-                    raise Exception('%s not found in final partition' % uid)
+                    raise Exception('%s not found in merged partition' % uid)
             for cluster in partition:
                 for uid in cluster:
                     if uid not in self.input_info:
-                        raise Exception('%s not found in final partition' % uid)
+                        raise Exception('%s not found in merged partition' % uid)
 
         for partition in path.partitions:
             check_partition(partition)
@@ -438,8 +440,6 @@ class PartitionDriver(object):
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
             paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False)  #, outfname=self.hmm_outfname)
-            for path in paths:
-                self.check_path(path)
             self.smc_info[-1].append(paths)
 
             # ack? self.glomclusters.append(glomerer)
