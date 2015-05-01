@@ -126,7 +126,7 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
     if(naive_seq.size() > 0)
       naive_seqs_[unique_ids] = naive_seq;
   }
-  cout << "      read " << log_probs_.size() << " cached results" << endl;
+  // cout << "      read " << log_probs_.size() << " cached results" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
