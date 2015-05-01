@@ -413,10 +413,11 @@ class PartitionDriver(object):
                 os.remove(self.hmm_outfname)
             else:
                 for iproc in range(n_procs):
-                    workdir = self.args.workdir + '/hmm-' + str(iproc)
-                    os.remove(workdir + '/' + os.path.basename(self.hmm_infname))
-                    os.remove(workdir + '/' + os.path.basename(self.hmm_outfname))
-                    os.rmdir(workdir)
+                    subworkdir = self.args.workdir + '/hmm-' + str(iproc)
+                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
+                    if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
+                        os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
+                    os.rmdir(subworkdir)
 
     # ----------------------------------------------------------------------------------------
     def merge_pairs_of_procs(self, n_procs):
