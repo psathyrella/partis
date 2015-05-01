@@ -17,7 +17,7 @@ class Glomerator(object):
         self.paths = None
 
     # ----------------------------------------------------------------------------------------
-    def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=False):
+    def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=True):
         """ Perform hierarchical agglomeration (with naive hamming distance as the distance), stopping at <n_clusters> """
         clusters = [[names,] for names in naive_seqs.keys()]
         # for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
@@ -27,32 +27,57 @@ class Glomerator(object):
         #     print seq_a, seq_b, utils.hamming(seq_a, seq_b)
 
         seqs_per_cluster = float(len(clusters)) / n_clusters
-        min_per_cluster, max_per_cluster = math.floor(seqs_per_cluster), math.ceil(seqs_per_cluster)
+        min_per_cluster, max_per_cluster = int(math.floor(seqs_per_cluster)), int(math.ceil(seqs_per_cluster))
         print seqs_per_cluster, min_per_cluster, max_per_cluster
 
         distances = {}  # cache the calculated hamming distances (probably doesn't really make much of a difference)
+        # completed_clusters = []  # clusters that are already big enough, i.e. we don't want to add anything else to 'em
+
         def glomerate():
             smallest_min_distance = None
             clusters_to_merge = None
+            print '  current',
+            for clust in clusters:
+                print ' %d' % len(clust),
+            print ''
             for clust_a, clust_b in itertools.combinations(clusters, 2):
+                # if clust_a in completed_clusters or clust_b in completed_clusters:
+                #     continue
+                if len(clust_a) + len(clust_b) > max_per_cluster and not glomerate.merge_whatever_you_got:  # merged cluster would be too big, so look for smaller (albeit further-apart) things to merge
+                    print '  skip', len(clust_a), len(clust_b)
+                    continue
                 min_distance = None  # find the smallest hamming distance between any two sequences in the two clusters
                 for query_a in clust_a:
                     for query_b in clust_b:
                         joint_key = ';'.join(sorted([query_a, query_b]))
                         if joint_key not in distances:
                             distances[joint_key] = utils.hamming(naive_seqs[query_a], naive_seqs[query_b])
-                        if debug:
-                            print '    %25s %25s   %4d   (%s)' % (query_a, query_b, distances[joint_key], joint_key)
+                        # if debug:
+                        #     print '    %25s %25s   %4d   (%s)' % (query_a, query_b, distances[joint_key], joint_key)
                         if min_distance is None or distances[joint_key] < min_distance:
                             min_distance = distances[joint_key]
                 if smallest_min_distance is None or min_distance < smallest_min_distance:
                     smallest_min_distance = min_distance
                     clusters_to_merge = (clust_a, clust_b)
-            if debug:
-                print 'merging', clusters_to_merge
-            clusters.append(clusters_to_merge[0] + clusters_to_merge[1])
-            clusters.remove(clusters_to_merge[0])
-            clusters.remove(clusters_to_merge[1])
+
+            if clusters_to_merge is None:  # if we didn't find a suitable pair
+                if debug:
+                    print '    didn\'t find shiznitz'
+                glomerate.merge_whatever_you_got = True  # next time through, merge whatever's best regardless of size
+            else:
+                if debug:
+                    print '    merging', len(clusters_to_merge[0]), len(clusters_to_merge[1])
+                clusters.append(clusters_to_merge[0] + clusters_to_merge[1])
+                clusters.remove(clusters_to_merge[0])
+                clusters.remove(clusters_to_merge[1])
+
+
+            # if len(clusters[-1]) > max_per_cluster:
+            #     if debug:
+            #         print '  completed %s ' % clusters[-1]
+            #     completed_clusters.append(clusters[-1])
+
+        glomerate.merge_whatever_you_got = False  # merge the best pair, even if together they'll be to big
 
         while len(clusters) > n_clusters:
             glomerate()
@@ -63,10 +88,11 @@ class Glomerator(object):
             clusters.sort(key=len)
 
             def homogenize():
-                # print 'before'
-                # for cl in clusters:
-                #     print len(cl),
-                # print ''
+                if debug:
+                    print 'before',
+                    for cl in clusters:
+                        print len(cl),
+                    print ''
                 if len(clusters) > 2:
                     clusters[0] = clusters[0] + clusters[1]
                     clusters[1] = clusters[-1][ : len(clusters[-1])/2]
@@ -75,14 +101,15 @@ class Glomerator(object):
                     together = clusters[0] + clusters[1]
                     clusters[0] = together[ : len(together)/2]
                     clusters[1] = together[len(together)/2 : ]
-                # print 'after'
-                # for cl in clusters:
-                #     print len(cl),
-                # print ''
+                if debug:
+                    print 'after',
+                    for cl in clusters:
+                        print len(cl),
+                    print ''
                 clusters.sort(key=len)
 
             itries = 0
-            while len(clusters[0]) < len(clusters[-1]) / 1.75:
+            while len(clusters[0]) < len(clusters[-1]) / 1.5:
                 if debug:
                     print '  homogenizing', len(clusters[0]), len(clusters[-1])  #, len(clusters[-1]) / 3.
                 homogenize()

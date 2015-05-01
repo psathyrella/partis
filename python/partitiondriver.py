@@ -311,6 +311,7 @@ class PartitionDriver(object):
                 raise Exception('zero-length naive sequence found for ' + str(query))
 
         clust = Glomerator()
+        print 'divy with', len(naive_seqs)
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
         if debug:
             print '  divvy lengths'
@@ -690,36 +691,31 @@ class PartitionDriver(object):
                 procinfo = self.smc_info[-1][iproc]  # list of ClusterPaths, one for each smc particle
                 for iptl in range(len(procinfo)):
                     path = procinfo[iptl]
-                    self.write_to_single_input_file(fname,
-                                                    'w' if iptl==0 else 'a',
-                                                    path.partitions[path.i_best_minus_x],
-                                                    parameter_dir,
-                                                    skipped_gene_matches,
-                                                    path_index=iptl,
-                                                    logweight=path.logweights[path.i_best_minus_x])
-    
+                    self.write_to_single_input_file(fname, 'w' if iptl==0 else 'a', path.partitions[path.i_best_minus_x], parameter_dir,
+                                                    skipped_gene_matches, path_index=iptl, logweight=path.logweights[path.i_best_minus_x])
         else:
             if self.args.action == 'partition':
                 nsets = self.paths[-1].partitions[self.paths[-1].i_best_minus_x]
-            if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
-                nsets = [[qn] for qn in self.input_info.keys()]
             else:
-                if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
-                    nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
-                else:  # put the first n together, and the second group of n (note that self.input_info is an OrderedDict)
-                    nsets = []
-                    keylist = self.input_info.keys()
-                    this_set = []
-                    for iquery in range(len(keylist)):
-                        if iquery % self.args.n_sets == 0:  # every nth query, start a new group
-                            if len(this_set) > 0:
-                                nsets.append(this_set)
-                            this_set = []
-                        this_set.append(keylist[iquery])
-                    if len(this_set) > 0:
-                        nsets.append(this_set)
+                if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
+                    nsets = [[qn] for qn in self.input_info.keys()]
+                else:
+                    if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
+                        nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
+                    else:  # put the first n together, and the second group of n (note that self.input_info is an OrderedDict)
+                        nsets = []
+                        keylist = self.input_info.keys()
+                        this_set = []
+                        for iquery in range(len(keylist)):
+                            if iquery % self.args.n_sets == 0:  # every nth query, start a new group
+                                if len(this_set) > 0:
+                                    nsets.append(this_set)
+                                this_set = []
+                            this_set.append(keylist[iquery])
+                        if len(this_set) > 0:
+                            nsets.append(this_set)
 
-            if shuffle_input_order:
+            if shuffle_input_order:  # TODO make sure this is ok, and doesn't overwrite anything untoward (<self.paths>)
                 nsets = shuffle_nset_order(nsets)
 
             self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
