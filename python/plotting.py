@@ -477,7 +477,18 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                 draw_str = 'lpz'
             if hists[ih].Integral() != 0.0:
                 gr.Draw(draw_str + ' same')
-                leg.AddEntry(gr, hists[ih].GetTitle() , 'pl')
+
+                statstr = ''
+                if stats is not None:
+                    if 'rms' in stats:
+                        statstr += ' (%.2f)' % gr.GetRMS()
+                    if 'mean' in stats:
+                        statstr += ' (%.2f)' % gr.GetMean()  # AAGGGGGHHHH doesn't work
+                    if '0-bin' in stats:
+                        statstr += ' (%.2f)' % gr.GetBinContent(1)
+
+                leg.AddEntry(gr, hists[ih].GetTitle() + ' ' + statstr, 'pl')
+
             graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
     else:
         if draw_str is None:

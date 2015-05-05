@@ -973,6 +973,8 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
     # print 'restrict %s' % restrict_to_region
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     n_mutes = hamming(naive_seq, muted_seq)
+    if len(naive_seq) == 0:
+        return 0.
     return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length
 
 # ----------------------------------------------------------------------------------------

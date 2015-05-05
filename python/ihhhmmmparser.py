@@ -275,10 +275,10 @@ if __name__ == "__main__":
     parser.add_argument('--plotdir', required=True)
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
+    parser.add_argument('--indir')  # data/performance/ihhhmmm
+    parser.add_argument('--simfname')
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)
     
-    args.indir = 'data/performance/ihhhmmm'
-    args.simfname = 'data/performance/simu.csv'
-    check_call(['tar', 'xzf', args.indir + '.tgz', '-C', 'data/performance/'])  # untar the ihmmune-align output
+    # check_call(['tar', 'xzf', args.indir + '.tgz', '-C', 'data/performance/'])  # untar the ihmmune-align output
     ihhhmmmparser = IhhhmmmParser(args)

@@ -263,7 +263,9 @@ class IgblastParser(object):
                     if self.args.debug:
                         print '        %s match: %s' % (region, clean_alignment_crap(qr_seq, gl_seq))
                     qr_info[region + '_gl_seq'] = qr_info[region + '_gl_seq'] + clean_alignment_crap(qr_seq, gl_seq)
-                    assert gl_end <= len(self.germline_seqs[region][gene])
+                    if gl_end > len(self.germline_seqs[region][gene]):  # not really sure what's wrong... but it seems to be rare
+                        qr_info['fail'] = True
+                        return
                     qr_info[region + '_3p_del'] = len(self.germline_seqs[region][gene]) - gl_end
                     qr_info[region + '_qr_bounds'] = (qr_info[region + '_qr_bounds'][0], find_qr_bounds(qr_start, qr_end, gl_seq)[1])
                 else:
@@ -289,14 +291,14 @@ if __name__ == "__main__":
     parser.add_argument('--plotdir', required=True)
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
-    parser.add_argument('--infname', default='data/performance/igblast/igblast.html')
+    parser.add_argument('--infname', required=True)  #, default='data/performance/igblast/igblast.html')
+    parser.add_argument('--simfname', required=True)
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries, intify=True)
     
-    args.simfname = 'data/performance/simu.csv'
-    if os.path.isdir('data/performance/igblast'):
-        print 'skipping tar xzf \'cause output\'s already there'
-    else:
-        print 'untgzing...'
-        check_call(['tar', 'xzf', 'data/performance/igblast.tgz', '-C', 'data/performance/'])  # untar the igblast output
+    # if os.path.isdir('data/performance/igblast'):
+    #     print 'skipping tar xzf \'cause output\'s already there'
+    # else:
+    #     print 'untgzing...'
+    #     check_call(['tar', 'xzf', 'data/performance/igblast.tgz', '-C', 'data/performance/'])  # untar the igblast output
     igblastparser = IgblastParser(args)

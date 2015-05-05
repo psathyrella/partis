@@ -3,7 +3,7 @@ from scipy.stats import beta
 
 # ----------------------------------------------------------------------------------------
 def err(obs, total, use_beta=True, use_cache=True):
-    """ Return [some hack-job approximation of] uncertainty on the ratio n / total """
+    """ Return uncertainty on the ratio n / total """
     assert obs <= total
     if total == 0.0:
         return (0.0, 0.0, False)

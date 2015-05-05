@@ -95,6 +95,9 @@ class IMGTParser(object):
                 if self.args.debug:
                     print ''
             line = self.parse_query_text(unique_id, imgtinfo)
+            # if 'failed' in line:
+            #     print line
+            #     sys.exit()
             try:
                 assert 'failed' not in line
                 joinparser.add_insertions(line, debug=self.args.debug)
@@ -167,8 +170,8 @@ class IMGTParser(object):
 
             gl_seq = info[imatch].split()[4].upper()
             if qr_seq.replace('.', '') not in self.seqinfo[unique_id]['seq']:
-                if self.args.debug:
-                    print '    qr_seq not foundin seqinfo'
+                # if self.args.debug:
+                print '    qr_seq not found in seqinfo'
                 line['failed'] = True
                 return line
 
@@ -227,7 +230,8 @@ class IMGTParser(object):
                     print 'whooooaa'
                     print self.germline_seqs[region][match_name]
                     print gl_seq
-                    sys.exit()
+                    line['failed'] = True
+                    return line
                 del_5p += self.germline_seqs[region][match_name].find(gl_seq)
 
             try:
@@ -270,14 +274,14 @@ if __name__ == "__main__":
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
     parser.add_argument('--infname')  # input html file, if you chose the 'html' option on the imgt website
+    parser.add_argument('--simfname')  # simulation csv file corresponding to the queries in <infname> or <indir>
+    parser.add_argument('--indir')  # folder with imgt result files  data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)
     
-    args.simfname = 'data/performance/simu.csv'
-    if os.path.isdir('data/performance/imgt'):
-        print 'skipping tar xzf \'cause output\'s already there'
-    else:
-        print 'untgzing...'
-        check_call(['tar', 'xzf', 'data/performance/imgt.tgz', '-C', 'data/performance/'])  # untar the imgt output
-    args.indir = 'data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'  # folder with imgt result files
+    # if os.path.isdir('data/performance/imgt'):
+    #     print 'skipping tar xzf \'cause output\'s already there'
+    # else:
+    #     print 'untgzing...'
+    #     check_call(['tar', 'xzf', 'data/performance/imgt.tgz', '-C', 'data/performance/'])  # untar the imgt output
     imgtparser = IMGTParser(args)

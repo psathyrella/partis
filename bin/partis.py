@@ -102,6 +102,9 @@ args.n_procs = args.n_procs[0]
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
+print '\nsetting rescale emissions to true\n'
+args.rescale_emissions = True
+
 if args.plot_performance:
     assert not args.is_data
     # assert args.algorithm == 'viterbi'

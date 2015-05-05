@@ -21,6 +21,7 @@ parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to mult
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
 parser.add_argument('--simfname')
+parser.add_argument('--stashdir', default='/fh/fast/matsen_e/dralph/work/partis-dev/_output')
 parser.add_argument('--plotdir', required=True)
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
@@ -36,8 +37,8 @@ if args.extra_args != None:
     assert 'n-procs' not in args.extra_args  # didn't used to have it as an option here
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace('.', ':')
 if args.simfname == None:
-    args.simfname = '_output/' + args.label + '/simu.csv'
-param_dir = '_output/' + args.label
+    args.simfname = args.stashdir + '/' + args.label + '/simu.csv'
+param_dir = args.stashdir + '/' + args.label
 
 if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):

@@ -4,6 +4,7 @@ import plotting
 import re
 from hist import Hist
 from subprocess import check_call
+import fraction_uncertainty
 
 assert plotting.check_root()
 
@@ -164,7 +165,8 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
-                print '  %s\n    correct up to allele: %4d / %-4d = %4.2f' % (column, right, right+wrong, float(right) / (right + wrong))
+                errs = fraction_uncertainty.err(right, right+wrong)
+                print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), errs[0], errs[1])
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw(hist, 'bool', plotname=column, plotdir=self.plotdir, write_csv=True)
             else:
