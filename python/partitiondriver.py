@@ -83,6 +83,7 @@ class PartitionDriver(object):
             raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
+        sys.exit()
         self.sw_info = waterer.info
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir, count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
 
@@ -600,12 +601,13 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def remove_sw_failures(self, query_names):
         """ If any of the queries in <query_names> was unproductive, return an empty list (which will be skipped entirely), otherwise return the original name list """
-        unproductive = False
+        unproductive, indel = False, False
         for qrn in query_names:
             if qrn in self.sw_info['skipped_unproductive_queries']:
-                # print '    skipping unproductive %s along with %s' % (query_names[0], ' '.join(query_names[1:]))
                 unproductive = True
-        if unproductive:
+            if qrn in self.sw_info['skipped_indel_queries']:
+                indel = True
+        if unproductive or indel:
             return []
 
         # otherwise they should be in self.sw_info, but doesn't hurt to check

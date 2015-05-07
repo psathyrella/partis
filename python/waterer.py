@@ -2,6 +2,7 @@ import time
 import sys
 import json
 import math
+import re
 import csv
 import os
 import itertools
@@ -32,6 +33,7 @@ class Waterer(object):
         self.info = {}
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
+        self.info['skipped_indel_queries'] = []  # list of queries that had indels
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from', parameter_dir
@@ -142,7 +144,7 @@ class Waterer(object):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'
         cmd_str += ' --match 5 --mismatch 3'
-        cmd_str += ' --gap-open 1000'
+        cmd_str += ' --gap-open 50'  #1000'
         cmd_str += ' --vdj-dir ' + self.args.datadir
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
 
@@ -190,6 +192,46 @@ class Waterer(object):
         return choice_prob
 
     # ----------------------------------------------------------------------------------------
+    def print_indel_info(self, query_name, cigarstr, qrseq, glseq, gene):
+        cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
+        cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
+
+        codestr = ''
+        for code, length in cigars:
+            codestr += length * code
+
+        qrprintstr, glprintstr = '', ''
+        iqr, igl = 0, 0
+        for icode in range(len(codestr)):
+            code = codestr[icode]
+            if code == 'M':
+                qrprintstr += qrseq[iqr]
+                glprintstr += glseq[igl]
+            elif code == 'S':
+                continue
+            elif code == 'I':
+                qrprintstr += utils.color('red', qrseq[iqr])
+                glprintstr += utils.color('red', '*')
+                igl -= 1
+            elif code == 'D':
+                qrprintstr += utils.color('red', '*')
+                glprintstr += utils.color('red', glseq[igl])
+                iqr -= 1
+            else:
+                raise Exception('unhandled code %s' % code)
+
+            iqr += 1
+            igl += 1
+
+        print '\nWARNING in the reasoned opinion of Mssrs. Smith, Waterman (Esq.) the query %s appears to harbor a within-gene indel:' % query_name
+        print '    %12s %s' % (gene, glprintstr)
+        print '    %12s %s' % ('query', qrprintstr)
+        print '     cigar:', cigarstr
+        print 'Since the HMM does not currently support indels we\'re gonna tell it to *skip* this sequence.'
+        print 'However, if you\'re pretty sure this really is an indel, you can simply add/remove the bases in question by hand and rerun.'
+        print 'Note that we could do that automatically here... but that\'s really neither very transparent nor principled, so we\'re making you do it by hand for now.'
+
+    # ----------------------------------------------------------------------------------------
     def process_query(self, bam, reads, perfplotter=None):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
@@ -217,7 +259,14 @@ class Waterer(object):
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
 
-            assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
+            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indells
+                self.print_indel_info(query_name, read.cigarstring, read.seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
+                self.info['skipped_indel_queries'].append(query_name)
+                self.info[query_name] = {'indels'}
+                return
+
+            if qrbounds[1]-qrbounds[0] != glbounds[1]-glbounds[0]:
+                raise Exception('germline match (%d %d) not same length as query match (%d %d)' % (qrbounds[0], qrbounds[1], glbounds[0], glbounds[1]))
 
             assert qrbounds[1] <= len(query_seq)
             if glbounds[1] > len(self.germline_seqs[region][gene]):
@@ -248,7 +297,7 @@ class Waterer(object):
         else:
             out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
         out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]))
-        out_str_list.append('%50s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
+        out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
         out_str_list.append('   %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
         if region != 'd':
             out_str_list.append('(%s %d)' % (utils.conserved_codon_names[region], codon_pos))
