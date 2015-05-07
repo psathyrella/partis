@@ -6,6 +6,7 @@ cd /partis/packages/samtools/ && make
 export PATH=$PWD:$PATH
 cd /partis/packages/ighutil/ && make -C clj
 pip install --user ./python
+cd /partis/packages/smctc/ && make
 cd /partis/packages/ham/ && scons bcrham
 cd /partis/
 scons test
