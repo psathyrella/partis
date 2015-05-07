@@ -59,7 +59,7 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
-## tree generation (see also branch-length-fname)
+# tree generation (see also branch-length-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')

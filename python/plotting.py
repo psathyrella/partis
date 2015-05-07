@@ -145,24 +145,22 @@ def make_hist_from_observation_file(fname, column, hist_label='', n_bins=30, log
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
-    hist = TH1D(hist_label, '', 2, -0.5, 1.5)
-    hist.Sumw2()
+    hist = Hist(2, -0.5, 1.5)
 
-    true_frac = float(n_true) / (n_true + n_false)
-    hist.SetBinContent(1, true_frac)
-    true_bounds = fraction_uncertainty.err(n_true, n_true + n_false, use_beta=True)
-    hist.SetBinError(1, max(abs(true_frac - true_bounds[0]), abs(true_bounds[1] - true_bounds[1])))
-    false_frac = float(n_false) / (n_true + n_false)
-    hist.SetBinContent(2, false_frac)
-    false_bounds = fraction_uncertainty.err(n_false, n_true + n_false, use_beta=True)
-    hist.SetBinError(2, max(abs(false_frac - false_bounds[0]), abs(false_bounds[1] - false_bounds[1])))
+    def set_bin(numer, denom, ibin, label):
+        frac = float(numer) / denom
+        bounds = fraction_uncertainty.err(numer, denom, use_beta=True)
+        err = max(abs(frac - bounds[0]), abs(frac - bounds[1]))
+        hist.set_ibin(ibin, frac, error=err, label=label)
 
-    hist.GetXaxis().SetNdivisions(0)
-    hist.GetXaxis().SetBinLabel(1, 'right')
-    hist.GetXaxis().SetBinLabel(2, 'wrong')
-    hist.GetXaxis().SetLabelSize(0.1)
+    set_bin(n_true, n_true + n_false, 1, 'right')
+    set_bin(n_false, n_true + n_false, 2, 'wrong')
 
-    return hist
+    roothist = make_hist_from_my_hist_class(hist, hist_label)
+    roothist.GetXaxis().SetNdivisions(0)
+    roothist.GetXaxis().SetLabelSize(0.1)
+
+    return roothist
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_list(values, hist_label, n_bins=30):
@@ -239,6 +237,8 @@ def make_hist_from_my_hist_class(myhist, name):
     roothist = TH1D(name, '', myhist.n_bins, myhist.xmin, myhist.xmax)
     for ibin in range(myhist.n_bins + 2):
         roothist.SetBinContent(ibin, myhist.bin_contents[ibin])
+        if myhist.bin_labels[ibin] != '':
+            roothist.GetXaxis().SetBinLabel(ibin, myhist.bin_labels[ibin])
         if myhist.sum_weights_squared is not None:
             if myhist.sum_weights_squared[ibin] is not None:
                 roothist.SetBinError(ibin, math.sqrt(myhist.sum_weights_squared[ibin]))
