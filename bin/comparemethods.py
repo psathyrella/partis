@@ -9,10 +9,9 @@ sys.path.insert(1, './python')
 import utils
 
 all_codes = ['partis', 'multi-partis', 'ihhhmmm', 'imgt', 'igblast']
-print 'add failure fraction'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--run-codes', default='all', help='Which codes to check? (if none, we just plot preexisting results)')
+parser.add_argument('--run-codes', help='Which codes to check? (if none, we just plot preexisting results)')
 parser.add_argument('--n-queries', type=int)
 args = parser.parse_args()
 if args.run_codes == 'all':
@@ -62,4 +61,4 @@ names = 'partis@(k=5):partis@(k=1):ighutil:iHMMunealign:igblast:imgt'
 
 plot_cmd = './python/compare.py --plot-performance --no-errors --normalize --markersizes 0 --linestyles 2:1:1:1:1:1 --outdir ' + base_plotdir + '/all-vs-all' \
            + ' --graphify --plotdirs ' + ':'.join(plotdirs) + ' --names ' + names + ' --colors 810:634:596:418:798:869'
-# check_call(plot_cmd.split())
+check_call(plot_cmd.split())

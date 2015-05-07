@@ -83,7 +83,7 @@ class PartitionDriver(object):
             raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
-        sys.exit()
+
         self.sw_info = waterer.info
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir, count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
 
@@ -173,7 +173,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_path(self, path):
-        def check_partition(partition):
+        def check_partition(partition, ipart):
             for uid in self.input_info:
                 found = False
                 for cluster in partition:
@@ -181,14 +181,15 @@ class PartitionDriver(object):
                         found = True
                         break
                 if not found:
+                    path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
                     raise Exception('%s not found in merged partition' % uid)
             for cluster in partition:
                 for uid in cluster:
                     if uid not in self.input_info:
                         raise Exception('%s not found in merged partition' % uid)
 
-        for partition in path.partitions:
-            check_partition(partition)
+        for ipart in range(len(path.partitions)):
+            check_partition(path.partitions[ipart], ipart)
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths):

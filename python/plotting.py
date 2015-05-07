@@ -449,6 +449,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     if graphify:
         graphs = []
         for ih in range(len(hists)):
+            htmp = hists[ih]
             n_bins = hists[ih].GetNbinsX()
             xvals, yvals, xerrs, yerrs = array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)])
             for ib in range(1, n_bins+1):  # NOTE ignoring overflows
@@ -481,11 +482,11 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
                 statstr = ''
                 if stats is not None:
                     if 'rms' in stats:
-                        statstr += ' (%.2f)' % gr.GetRMS()
+                        statstr += ' (%.2f)' % htmp.GetRMS()
                     if 'mean' in stats:
-                        statstr += ' (%.2f)' % gr.GetMean()  # AAGGGGGHHHH doesn't work
+                        statstr += ' (%.2f)' % htmp.GetMean()
                     if '0-bin' in stats:
-                        statstr += ' (%.2f)' % gr.GetBinContent(1)
+                        statstr += ' (%.2f)' % htmp.GetBinContent(1)
 
                 leg.AddEntry(gr, hists[ih].GetTitle() + ' ' + statstr, 'pl')
 

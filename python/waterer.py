@@ -95,6 +95,8 @@ class Waterer(object):
         # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
+        if len(self.info['skipped_indel_queries']) > 0:
+            print '    indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write(self.parameter_dir)
             # if self.true_pcounter != None:
@@ -144,7 +146,7 @@ class Waterer(object):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'
         cmd_str += ' --match 5 --mismatch 3'
-        cmd_str += ' --gap-open 50'  #1000'
+        cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + self.args.datadir
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
 
@@ -205,7 +207,10 @@ class Waterer(object):
         for icode in range(len(codestr)):
             code = codestr[icode]
             if code == 'M':
-                qrprintstr += qrseq[iqr]
+                qrbase = qrseq[iqr]
+                if qrbase != glseq[igl]:
+                    qrbase = utils.color('red', qrbase)
+                qrprintstr += qrbase
                 glprintstr += glseq[igl]
             elif code == 'S':
                 continue
@@ -260,10 +265,14 @@ class Waterer(object):
             glbounds = (read.pos, read.aend)
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indells
-                self.print_indel_info(query_name, read.cigarstring, read.seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
-                self.info['skipped_indel_queries'].append(query_name)
-                self.info[query_name] = {'indels'}
-                return
+                if len(all_match_names[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
+                    print '  LEN', len(all_match_names[region])
+                    self.print_indel_info(query_name, read.cigarstring, read.seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
+                    self.info['skipped_indel_queries'].append(query_name)
+                    self.info[query_name] = {'indels'}
+                    return
+                else:
+                    continue
 
             if qrbounds[1]-qrbounds[0] != glbounds[1]-glbounds[0]:
                 raise Exception('germline match (%d %d) not same length as query match (%d %d)' % (qrbounds[0], qrbounds[1], glbounds[0], glbounds[1]))
