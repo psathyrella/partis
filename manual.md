@@ -39,6 +39,9 @@ Then, you can run the full analysis chain with
 To find out what the "full analysis chain" is, look elsewhere in this manual.
 In short, though, it infers a set of parameters from a test data set, then makes a simulated data set based on these parameters, and finally annotates these simulated sequences.
 
+Docker tip: if you do some of the above, and exit, then do `docker run` again, it'll start a new container.
+If, instead, you want to attach to the previous one, that's different: look up the difference between `attach`, `enter`, and `run` in the Docker documentation.
+
 ### Installation
 
 As noted above, for most use cases you'll likely be happier using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
@@ -160,4 +163,3 @@ The command
 ```./bin/run-driver.py --label example --datafname test/A-every-100-subset-0.tsv.bz2 --plotdir _plots/example```
 
 will cache data parameters, run simulation, cache simulation parameters, and then run annotation a final time in order to plot performance.
-x
