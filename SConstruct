@@ -50,7 +50,7 @@ for name, test_cmd in tests.items():
     if name in actions:
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name, out,
-                    './bin/diff-parameters.py --dir1 test/regression/parameters/' + actions[name] + ' --dir2 ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
+                    './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name] + ' --arg2 ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
     else:
         env.Command(out, cmd, test_cmd + ' >$TARGET')
         # touch a sentinel `passed` file if we get what we expect

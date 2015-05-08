@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """ 
-Replacement for diff -qr  -x\'*.svg\' -x params -x plots.html <dir1> <dir2>, but with more intelligent
+Replacement for diff -qr  -x\'*.svg\' -x params -x plots.html <arg1> <arg2>, but with more intelligent
 control of yamls (e.g. floating point precision) and csvs (e.g. line order)
 """
 
@@ -16,10 +16,23 @@ from subprocess import check_output
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plotting')
 sys.argv.append('-b')
-parser.add_argument('--dir1', required=True)
-parser.add_argument('--dir2', required=True)
+parser.add_argument('--arg1', required=True)
+parser.add_argument('--arg2', required=True)
 parser.add_argument('--keep-going', action='store_true', help='Don\'t fail on differences, instead just keep on chugging')
 args = parser.parse_args()
+
+if os.path.isdir(args.arg1):  # can either pass arg[12] as directories in which to look
+    args.dir1 = args.arg1
+    assert os.path.isdir(args.arg2)
+    args.dir2 = args.arg2
+    args.fname = None
+else:  # ...or as single files
+    args.dir1 = os.path.dirname(args.arg1)
+    assert os.path.exists(args.dir1)
+    args.dir2 = os.path.dirname(args.arg2)
+    assert os.path.exists(args.dir2)
+    args.fname = os.path.basename(args.arg1)
+    assert args.fname == os.path.basename(args.arg2)
 
 def reduce_float_precision(line):
     n_digits_to_keep = 10
@@ -100,7 +113,11 @@ def get_file_list(extension=''):
 # for fname in get_file_list('yaml'):
 #     check_textfile(fname)
 
-for fname in get_file_list():
+if args.fname is None:
+    filelist = get_file_list()
+else:
+    filelist = ['/' + args.fname, ]
+for fname in filelist:
     if '.csv' in fname or '.yaml' in fname:
         check_textfile(fname)
     elif '.svg' in fname or '.html' in fname:
