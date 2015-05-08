@@ -26,8 +26,12 @@ def reduce_float_precision(line):
     regex = '([0-9]\.' + n_digits_to_keep*'[0-9]' + ')([0-9][0-9]*)'
     match = re.search(regex, line)
     while match is not None:
-        start, end = match.groups()
-        line = line.replace(start + end, start)
+        left, right = match.groups()  # left-hand (more significant) and right-hand parts of number
+        assert '.' in left
+        clipped_left = left  # clip trailing zeros in decimal numbers
+        while clipped_left[-1] == '0':
+            clipped_left = clipped_left[:-1]
+        line = line.replace(left + right, clipped_left)
         match = re.search(regex, line)
     return line
 

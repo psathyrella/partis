@@ -7,9 +7,10 @@ from utils import is_normed
 class Hist(object):
     """ a simple histogram """
     def __init__(self, n_bins, xmin, xmax, sumw2=False, xbins=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
-        self.n_bins = n_bins
+        self.n_bins = int(n_bins)
         self.xmin = float(xmin)
         self.xmax = float(xmax)
+        self.xtitle, self.ytitle = '', ''
         self.bin_labels = []
         self.low_edges = []  # lower edge of each bin
         # self.centers = []  # center of each bin
@@ -33,9 +34,9 @@ class Hist(object):
                     self.low_edges.append(xbins[ib-1])
             self.bin_contents.append(0.0)
             if sumw2:
-                self.sum_weights_squared.append(0.0)
+                self.sum_weights_squared.append(0.)
             else:
-                self.errors.append(None)  # don't set the error values until we <write> (that is unless you explicitly set them with <set_ibin()>
+                self.errors.append(0.)  # don't set the error values until we <write> (that is unless you explicitly set them with <set_ibin()>
 
     # ----------------------------------------------------------------------------------------
     def set_ibin(self, ibin, value, error=None, label=''):
@@ -52,6 +53,10 @@ class Hist(object):
         self.bin_contents[ibin] += weight
         if self.sum_weights_squared is not None:
             self.sum_weights_squared[ibin] += weight*weight
+        if self.errors is not None:
+            if weight != 1.0:
+                print 'WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()'
+            self.errors[ibin] = math.sqrt(self.bin_contents[ibin])
 
     # ----------------------------------------------------------------------------------------
     def find_bin(self, value):
@@ -74,7 +79,7 @@ class Hist(object):
     def normalize(self):
         """ NOTE does not multiply/divide by bin widths """
         sum_value = 0.0
-        for ib in range(1, self.n_bins + 1):  # don't include under/overflows in sum_value
+        for ib in range(1, self.n_bins + 1):  # don't include under/overflows
             sum_value += self.bin_contents[ib]
         if sum_value == 0.0:
             print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
@@ -86,6 +91,8 @@ class Hist(object):
             self.bin_contents[ib] /= sum_value
             if self.sum_weights_squared is not None:
                 self.sum_weights_squared[ib] /= sum_value*sum_value
+            if self.errors is not None:
+                self.errors[ib] /= sum_value
         check_sum = 0.0
         for ib in range(1, self.n_bins + 1):  # check it
             check_sum += self.bin_contents[ib]
@@ -117,7 +124,7 @@ class Hist(object):
             for ib in range(self.n_bins + 2):
                 row = {'bin_low_edge':self.low_edges[ib], 'contents':self.bin_contents[ib], 'binlabel':self.bin_labels[ib] }
                 if self.errors is not None:
-                    row['error'] = self.errors[ib] if self.errors[ib] is not None else 0.0
+                    row['error'] = self.errors[ib]
                 else:
                     row['sum-weights-squared'] = self.sum_weights_squared[ib]
                 writer.writerow(row)

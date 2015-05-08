@@ -181,8 +181,6 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
 
-    if not has_root:
-        return
     if len(values) == 0:
         print 'WARNING no values for %s in make_hist' % hist_label
         return TH1D(hist_label, '', 1, 0, 1)
@@ -197,40 +195,48 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
         n_bins = bin_labels[-1] - bin_labels[0] + 1
 
     hist = None
-    xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
+    xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work out what they should be
         if var_type == 'string':
             set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
-            hist = TH1D(hist_label, '', n_bins, xbins)
+            hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
+            # hist = TH1D(hist_label, '', n_bins, xbins)
         else:
-            hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
+            hist = Hist(n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
+            # hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
     else:
-      hist = TH1D(hist_label, '', n_bins, xmin_force, xmax_force)
-    hist.Sumw2()
+      # hist = TH1D(hist_label, '', n_bins, xmin_force, xmax_force)
+      hist = Hist(n_bins, xmin_force, xmax_force)
+    # hist.Sumw2()
 
     for ival in range(len(values)):
         if var_type == 'string':
             label = bin_labels[ival]
             ibin = ival + 1
-            hist.GetXaxis().SetBinLabel(ibin, label)
+            # hist.GetXaxis().SetBinLabel(ibin, label)
         else:
-            ibin = hist.FindBin(bin_labels[ival])
-        hist.SetBinContent(ibin, values[bin_labels[ival]])
-        hist.SetBinError(ibin, math.sqrt(values[bin_labels[ival]]))
+            label = ''
+            # ibin = hist.FindBin(bin_labels[ival])
+            ibin = hist.find_bin(bin_labels[ival])
+        # hist.SetBinContent(ibin, values[bin_labels[ival]])
+        # hist.SetBinError(ibin, math.sqrt(values[bin_labels[ival]]))
+        hist.set_ibin(ibin, values[bin_labels[ival]], error=math.sqrt(values[bin_labels[ival]]), label=label)
   
     # make sure there's no overflows
-    if hist.GetBinContent(0) != 0.0 or hist.GetBinContent(hist.GetNbinsX()+1) != 0.0:
-        print 'overflows in ',hist.GetName(),'exiting'
-        for ibin in range(0, hist.GetNbinsX()+2):
-            print '%d %f %f %f' % (ibin, hist.GetXaxis().GetBinLowEdge(ibin), hist.GetXaxis().GetBinUpEdge(ibin), hist.GetBinContent(ibin))
-        sys.exit()
+    # if hist.GetBinContent(0) != 0.0 or hist.GetBinContent(hist.GetNbinsX()+1) != 0.0:
+    if hist.bin_contents[0] != 0.0 or hist.bin_contents[-1] != 0.0:
+        for ibin in range(hist.n_bins + 2):
+            print '%d %f %f' % (ibin, hist.low_edges[ibin], hist.bin_contents[ibin])
+        raise Exception('overflows in ' + hist_label)
 
-    hist.GetYaxis().SetTitle('counts')
     if normalize:
-        hist.Scale(1./hist.Integral())
-        hist.GetYaxis().SetTitle('freq')
+        hist.normalize()
+        hist.ytitle = 'freq'
+    else:
+        hist.ytitle = 'counts'
     
-    return hist
+    roothist = make_hist_from_my_hist_class(hist, hist_label)
+    return roothist
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_my_hist_class(myhist, name):

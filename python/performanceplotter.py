@@ -170,6 +170,7 @@ class PerformancePlotter(object):
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw(hist, 'bool', plotname=column, plotdir=self.plotdir, write_csv=True)
             else:
+                # TODO this is dumb... I should make the integer-valued ones histograms as well
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=True)
                 log = ''
                 if column.find('hamming_to_true_naive') >= 0:
