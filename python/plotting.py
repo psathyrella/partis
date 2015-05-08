@@ -200,30 +200,21 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
         if var_type == 'string':
             set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
             hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
-            # hist = TH1D(hist_label, '', n_bins, xbins)
         else:
             hist = Hist(n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
-            # hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
     else:
-      # hist = TH1D(hist_label, '', n_bins, xmin_force, xmax_force)
       hist = Hist(n_bins, xmin_force, xmax_force)
-    # hist.Sumw2()
 
     for ival in range(len(values)):
         if var_type == 'string':
             label = bin_labels[ival]
             ibin = ival + 1
-            # hist.GetXaxis().SetBinLabel(ibin, label)
         else:
             label = ''
-            # ibin = hist.FindBin(bin_labels[ival])
             ibin = hist.find_bin(bin_labels[ival])
-        # hist.SetBinContent(ibin, values[bin_labels[ival]])
-        # hist.SetBinError(ibin, math.sqrt(values[bin_labels[ival]]))
         hist.set_ibin(ibin, values[bin_labels[ival]], error=math.sqrt(values[bin_labels[ival]]), label=label)
   
     # make sure there's no overflows
-    # if hist.GetBinContent(0) != 0.0 or hist.GetBinContent(hist.GetNbinsX()+1) != 0.0:
     if hist.bin_contents[0] != 0.0 or hist.bin_contents[-1] != 0.0:
         for ibin in range(hist.n_bins + 2):
             print '%d %f %f' % (ibin, hist.low_edges[ibin], hist.bin_contents[ibin])
