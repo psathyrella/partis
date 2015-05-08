@@ -6,28 +6,33 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins, xmin, xmax, sumw2=False, xbins=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
-        self.n_bins = int(n_bins)
-        self.xmin = float(xmin)
-        self.xmax = float(xmax)
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+        self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle = '', ''
-        self.bin_labels = []
-        self.low_edges = []  # lower edge of each bin
-        # self.centers = []  # center of each bin
-        self.bin_contents = []
+
+        if fname is None:
+            self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
+        else:
+            self.file_init(fname)
+
+    # ----------------------------------------------------------------------------------------
+    def scratch_init(self, n_bins, xmin, xmax, sumw2=None, xbins=None):
+        self.n_bins = int(n_bins)
+        self.xmin, self.xmax = float(xmin), float(xmax)
         self.errors = None if sumw2 else []
         self.sum_weights_squared = [] if sumw2 else None
-        dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
-        if xbins is not None:
+
+        if xbins is not None:  # check validity of handmade bins
             assert len(xbins) == self.n_bins + 1
             assert self.xmin == xbins[0]
             assert self.xmax == xbins[-1]
+
+        dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
         for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
             self.bin_labels.append('')
             if xbins is None:  # uniform binning
                 self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
-                # self.centers.append(self.low_edges[-1] + 0.5*dx)  # hm, I think I'm not using these any more?
-            else:  # user-specified bins
+            else:  # handmade bins
                 if ib == 0:
                     self.low_edges.append(xbins[0] - dx)  # low edge of underflow needs to be less than xmin, but is otherwise arbitrary, so just choose something that kinda makes sense
                 else:
@@ -37,6 +42,40 @@ class Hist(object):
                 self.sum_weights_squared.append(0.)
             else:
                 self.errors.append(0.)  # don't set the error values until we <write> (that is unless you explicitly set them with <set_ibin()>
+
+    # ----------------------------------------------------------------------------------------
+    def file_init(self, fname):
+        self.errors, self.sum_weights_squared = [], []  # kill the unused one after reading file
+        with opener('r')(fname) as infile:
+            reader = csv.DictReader(infile)
+            for line in reader:
+                self.low_edges.append(float(line['bin_low_edge']))
+                self.bin_contents.append(float(line['contents']))
+                if 'sum-weights-squared' in line:
+                    self.sum_weights_squared.append(float(line['sum-weights-squared']))
+                if 'error' in line or 'binerror' in line:  # in theory I should go find all the code that writes these files and make 'em use the same header for this
+                    assert 'sum-weights-squared' not in line
+                    tmp_error = float(line['error']) if 'error' in line else float(line['binerror'])
+                    self.errors.append(tmp_error)
+                if 'binlabel' in line:
+                    self.bin_labels.append(line['binlabel'])
+                else:
+                    self.bin_labels.append('')
+                if 'xtitle' in line:  # should be the same for every line in the file... but this avoids complicating the file format
+                    self.xtitle = line['xtitle']
+
+        self.n_bins = len(self.low_edges) - 2  # file should have a line for the under- and overflow bins
+        self.xmin, self.xmax = self.low_edges[0], self.low_edges[-1]
+
+        assert sorted(self.low_edges) == self.low_edges
+        assert len(self.bin_contents) == len(self.low_edges)
+        assert len(self.low_edges) == len(self.bin_labels)
+        if len(self.errors) == 0:  # (re)set to None if the file didn't have errors listed
+            self.errors = None
+            assert len(self.sum_weights_squared) == len(self.low_edges)
+        if len(self.sum_weights_squared) == 0:
+            self.sum_weights_squared = None
+            assert len(self.errors) == len(self.low_edges)
 
     # ----------------------------------------------------------------------------------------
     def set_ibin(self, ibin, value, error=None, label=''):
@@ -128,53 +167,3 @@ class Hist(object):
                 else:
                     row['sum-weights-squared'] = self.sum_weights_squared[ib]
                 writer.writerow(row)
-
-    # # ----------------------------------------------------------------------------------------
-    # def read(fname, hist_label='', log='', normalize=False):
-    #     """ 
-    #     Return root histogram with each bin low edge and bin content read from <fname> 
-    #     E.g. from the results of hist.Hist.write()
-    #     """
-    #     low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
-    #     xtitle = ''
-    #     # print '---- %s' % fname
-    #     with opener('r')(fname) as infile:
-    #         reader = csv.DictReader(infile)
-    #         for line in reader:
-    #             low_edges.append(float(line['bin_low_edge']))
-    #             contents.append(float(line['contents']))
-    #             if 'sum-weights-squared' in line:
-    #                 # print '  ', line['contents'], line['sum-weights-squared']
-    #                 sum_weights_squared.append(float(line['sum-weights-squared']))
-    #             if 'binerror' in line:
-    #                 # print '  ', line['contents'], line['binerror']
-    #                 bin_errors.append(float(line['binerror']))
-    #             if 'binlabel' in line:
-    #                 bin_labels.append(line['binlabel'])
-    #             else:
-    #                 bin_labels.append('')
-    #             if 'xtitle' in line:
-    #                 xtitle = line['xtitle']
-    
-    #     n_bins = len(low_edges) - 2  # file should have a line for the under- and overflow bins
-    #     xbins = array('f', [0.0 for i in range(n_bins+1)])  # NOTE has to be n bins *plus* 1
-    #     low_edges = sorted(low_edges)
-    #     for ib in range(n_bins+1):
-    #         xbins[ib] = low_edges[ib+1]  # low_edges[1] is the lower edge of the first bin, i.e. the first bin after the underflow bin, and this will set the last entry in xbins to lower[n_bins+1], i.e. the lower edge of the overflow bin. Which, I bloody well think, is correct
-    #     hist = TH1D(hist_label, '', n_bins, xbins)  # this will barf if the csv file wasn't sorted by bin low edge
-    #     hist.GetXaxis().SetTitle(xtitle)
-    #     for ib in range(n_bins+2):
-    #         hist.SetBinContent(ib, contents[ib])
-    #         if len(sum_weights_squared) > 0:
-    #             hist.SetBinError(ib, math.sqrt(sum_weights_squared[ib]))
-    #         elif len(bin_errors) > 0:
-    #             hist.SetBinError(ib, bin_errors[ib])
-    #         else:
-    #             hist.SetBinError(ib, math.sqrt(contents[ib]))
-    #         if bin_labels[ib] != '':
-    #             hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
-    
-    #     if normalize and hist.Integral() > 0.0:
-    #         hist.Scale(1./hist.Integral())
-    #         hist.GetYaxis().SetTitle('freq')
-    

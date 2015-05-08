@@ -77,50 +77,55 @@ def write_hist_to_file(fname, hist):
             })
 
 # ----------------------------------------------------------------------------------------
-def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
-    """ 
-    Return root histogram with each bin low edge and bin content read from <fname> 
-    E.g. from the results of hist.Hist.write()
-    """
-    low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
-    xtitle = ''
-    with opener('r')(fname) as infile:
-        reader = csv.DictReader(infile)
-        for line in reader:
-            low_edges.append(float(line['bin_low_edge']))
-            contents.append(float(line['contents']))
-            if 'sum-weights-squared' in line:
-                sum_weights_squared.append(float(line['sum-weights-squared']))
-            if 'error' in line or 'binerror' in line:
-                assert 'sum-weights-squared' not in line
-                tmp_error = float(line['error']) if 'error' in line else float(line['binerror'])
-                bin_errors.append(tmp_error)
-            if 'binlabel' in line:
-                bin_labels.append(line['binlabel'])
+def make_hist_from_bin_entry_file(fname, hist_label='', log='', rootway=True):
+    if rootway:
+        """ 
+        Return root histogram with each bin low edge and bin content read from <fname> 
+        E.g. from the results of hist.Hist.write()
+        """
+        low_edges, contents, bin_labels, bin_errors, sum_weights_squared = [], [], [], [], []
+        xtitle = ''
+        with opener('r')(fname) as infile:
+            reader = csv.DictReader(infile)
+            for line in reader:
+                low_edges.append(float(line['bin_low_edge']))
+                contents.append(float(line['contents']))
+                if 'sum-weights-squared' in line:
+                    sum_weights_squared.append(float(line['sum-weights-squared']))
+                if 'error' in line or 'binerror' in line:
+                    assert 'sum-weights-squared' not in line
+                    tmp_error = float(line['error']) if 'error' in line else float(line['binerror'])
+                    bin_errors.append(tmp_error)
+                if 'binlabel' in line:
+                    bin_labels.append(line['binlabel'])
+                else:
+                    bin_labels.append('')
+                if 'xtitle' in line:
+                    xtitle = line['xtitle']
+    
+        n_bins = len(low_edges) - 2  # file should have a line for the under- and overflow bins
+        xbins = array('f', [0.0 for i in range(n_bins+1)])  # NOTE has to be n bins *plus* 1
+        low_edges = sorted(low_edges)
+        for ib in range(n_bins+1):
+            xbins[ib] = low_edges[ib+1]  # low_edges[1] is the lower edge of the first bin, i.e. the first bin after the underflow bin, and this will set the last entry in xbins to lower[n_bins+1], i.e. the lower edge of the overflow bin. Which, I bloody well think, is correct
+        hist = TH1D(hist_label, '', n_bins, xbins)  # this will barf if the csv file wasn't sorted by bin low edge
+        hist.GetXaxis().SetTitle(xtitle)
+        for ib in range(n_bins+2):
+            hist.SetBinContent(ib, contents[ib])
+            if len(sum_weights_squared) > 0:
+                hist.SetBinError(ib, math.sqrt(sum_weights_squared[ib]))
+            elif len(bin_errors) > 0:
+                hist.SetBinError(ib, bin_errors[ib])
             else:
-                bin_labels.append('')
-            if 'xtitle' in line:
-                xtitle = line['xtitle']
-
-    n_bins = len(low_edges) - 2  # file should have a line for the under- and overflow bins
-    xbins = array('f', [0.0 for i in range(n_bins+1)])  # NOTE has to be n bins *plus* 1
-    low_edges = sorted(low_edges)
-    for ib in range(n_bins+1):
-        xbins[ib] = low_edges[ib+1]  # low_edges[1] is the lower edge of the first bin, i.e. the first bin after the underflow bin, and this will set the last entry in xbins to lower[n_bins+1], i.e. the lower edge of the overflow bin. Which, I bloody well think, is correct
-    hist = TH1D(hist_label, '', n_bins, xbins)  # this will barf if the csv file wasn't sorted by bin low edge
-    hist.GetXaxis().SetTitle(xtitle)
-    for ib in range(n_bins+2):
-        hist.SetBinContent(ib, contents[ib])
-        if len(sum_weights_squared) > 0:
-            hist.SetBinError(ib, math.sqrt(sum_weights_squared[ib]))
-        elif len(bin_errors) > 0:
-            hist.SetBinError(ib, bin_errors[ib])
-        else:
-            hist.SetBinError(ib, math.sqrt(contents[ib]))
-        if bin_labels[ib] != '':
-            hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
-
-    return hist
+                hist.SetBinError(ib, math.sqrt(contents[ib]))
+            if bin_labels[ib] != '':
+                hist.GetXaxis().SetBinLabel(ib, bin_labels[ib])
+    
+        return hist
+    else:    
+        hist = Hist(fname=fname)
+        roothist = make_hist_from_my_hist_class(hist, hist_label)
+        return roothist
     
 # ----------------------------------------------------------------------------------------
 def make_hist_from_observation_file(fname, column, hist_label='', n_bins=30, log=''):
