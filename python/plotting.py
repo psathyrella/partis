@@ -203,7 +203,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
             set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
             hist = TH1D(hist_label, '', n_bins, xbins)
         else:
-            hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the lat bin label (they're sorted)
+            hist = TH1D(hist_label, '', n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
     else:
       hist = TH1D(hist_label, '', n_bins, xmin_force, xmax_force)
     hist.Sumw2()

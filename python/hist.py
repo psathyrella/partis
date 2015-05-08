@@ -6,21 +6,31 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins, xmin, xmax, sumw2=False):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins, xmin, xmax, sumw2=False, xbins=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.n_bins = n_bins
         self.xmin = float(xmin)
         self.xmax = float(xmax)
         self.bin_labels = []
         self.low_edges = []  # lower edge of each bin
-        self.centers = []  # center of each bin
+        # self.centers = []  # center of each bin
         self.bin_contents = []
         self.errors = None if sumw2 else []
         self.sum_weights_squared = [] if sumw2 else None
         dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
+        if xbins is not None:
+            assert len(xbins) == self.n_bins + 1
+            assert self.xmin == xbins[0]
+            assert self.xmax == xbins[-1]
         for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
             self.bin_labels.append('')
-            self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
-            self.centers.append(self.low_edges[-1] + 0.5*dx)
+            if xbins is None:  # uniform binning
+                self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
+                # self.centers.append(self.low_edges[-1] + 0.5*dx)  # hm, I think I'm not using these any more?
+            else:  # user-specified bins
+                if ib == 0:
+                    self.low_edges.append(xbins[0] - dx)  # low edge of underflow needs to be less than xmin, but is otherwise arbitrary, so just choose something that kinda makes sense
+                else:
+                    self.low_edges.append(xbins[ib-1])
             self.bin_contents.append(0.0)
             if sumw2:
                 self.sum_weights_squared.append(0.0)
@@ -45,14 +55,14 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def find_bin(self, value):
-        """ find <ibin> corresponding to <value> """
-        if value < self.low_edges[0]:  # underflow
+        """ find <ibin> corresponding to <value>. NOTE boundary is owned by the upper bin. """
+        if value < self.low_edges[0]:  # is it below the low edge of the underflow?
             return 0
-        elif value >= self.low_edges[self.n_bins + 1]:  # overflow
+        elif value >= self.low_edges[self.n_bins + 1]:  # or above the low edge of the overflow?
             return self.n_bins + 1
         else:
-            for ib in range(self.n_bins + 2):  # loop over the rest of the bins
-                if value >= self.low_edges[ib] and value < self.low_edges[ib+1]:
+            for ib in range(self.n_bins + 2):  # loop over all the bins (including under/overflow)
+                if value >= self.low_edges[ib] and value < self.low_edges[ib+1]:  # NOTE <ib> never gets to <n_bins> + 1 because we already get all the overflows above (which is good 'cause this'd fail with an IndexError)
                     return ib
 
     # ----------------------------------------------------------------------------------------
@@ -62,15 +72,16 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def normalize(self):
+        """ NOTE does not multiply/divide by bin widths """
         sum_value = 0.0
         for ib in range(1, self.n_bins + 1):  # don't include under/overflows in sum_value
             sum_value += self.bin_contents[ib]
         if sum_value == 0.0:
-            print 'WARNING sum zero in Hist::normalize, returning without doing anything'
+            print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
             return
         # make sure there's not too much stuff in the under/overflows
         if self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10:
-            print 'WARNING under/overflows'
+            print 'WARNING under/overflows in Hist::normalize()'
         for ib in range(1, self.n_bins + 1):
             self.bin_contents[ib] /= sum_value
             if self.sum_weights_squared is not None:
@@ -82,6 +93,7 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def divide_by(self, denom_hist, debug=False):
+        """ NOTE doesn't check bin edges are the same, only that they've got the same number of bins """
         if self.n_bins != denom_hist.n_bins or self.xmin != denom_hist.xmin or self.xmax != denom_hist.xmax:
             raise Exception('ERROR bad limits in Hist::divide_by')
         for ib in range(0, self.n_bins + 2):
