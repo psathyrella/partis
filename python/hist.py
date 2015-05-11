@@ -31,7 +31,7 @@ class Hist(object):
         for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
             self.bin_labels.append('')
             if xbins is None:  # uniform binning
-                self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin
+                self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin. NOTE this also means that <low_edges[-1]> is the lower edge of the overflow
             else:  # handmade bins
                 if ib == 0:
                     self.low_edges.append(xbins[0] - dx)  # low edge of underflow needs to be less than xmin, but is otherwise arbitrary, so just choose something that kinda makes sense
@@ -65,7 +65,7 @@ class Hist(object):
                     self.xtitle = line['xtitle']
 
         self.n_bins = len(self.low_edges) - 2  # file should have a line for the under- and overflow bins
-        self.xmin, self.xmax = self.low_edges[0], self.low_edges[-1]
+        self.xmin, self.xmax = self.low_edges[1], self.low_edges[-1]  # *upper* bound of underflow, *lower* bound of overflow
 
         assert sorted(self.low_edges) == self.low_edges
         assert len(self.bin_contents) == len(self.low_edges)
