@@ -74,8 +74,22 @@ class Clusterer(object):
             utils.prep_dir(plotdir + '/plots', '*.svg')
             hists = {}
             for htype in ['all', 'same', 'diff']:
-                hists[htype] = plotting.make_hist_from_list(self.plotscores[htype], htype + '_pairscores')
-                hists[htype].SetTitle(htype)
+                raise Exception('deprecated')
+                # # ----------------------------------------------------------------------------------------
+                # def make_hist_from_list(values, hist_label, n_bins=30):
+                #     """ Fill a histogram with float values in a list """
+                #     if len(values) == 0:
+                #         print 'WARNING no values for %s in make_hist' % hist_label
+                #         return TH1D(hist_label, '', 1, 0, 1)
+                #     xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
+                #     set_bins(values, n_bins, is_log_x=False, xbins=xbins, var_type='float')
+                #     hist = TH1D(hist_label, '', n_bins, xbins)
+                #     for val in values:
+                #         hist.Fill(val)
+                #     return hist
+                # ----------------------------------------------------------------------------------------
+                # hists[htype] = plotting.make_hist_from_list(self.plotscores[htype], htype + '_pairscores')
+                # hists[htype].SetTitle(htype)
             plotting.draw(hists['all'], 'float', plotdir=plotdir, plotname='pairscores', more_hists=[hists['same'], hists['diff']])
             check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
             check_call(['./bin/permissify-www', plotdir])

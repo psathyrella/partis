@@ -62,7 +62,6 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 
 # ----------------------------------------------------------------------------------------
 def write_hist_to_file(fname, hist):
-    # assert False  # I *think* (well, hope) I'm not using this any more
     """ see the make_hist_from* functions to reverse this operation """
     with opener('w')(fname) as histfile:
         writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'binerror', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
@@ -83,26 +82,6 @@ def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
     return roothist
     
 # ----------------------------------------------------------------------------------------
-def make_hist_from_observation_file(fname, column, hist_label='', n_bins=30, log=''):
-    """ return root histogram filled with each value from <column> in csv file <fname> """
-    if not has_root:
-        return None
-    values = []
-    with opener('r')(fname) as infile:
-        reader = csv.DictReader(infile)
-        for line in reader:
-            values.append(float(line[column]))
-
-    values = sorted(values)
-    xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
-    set_bins(values, n_bins, 'x' in log, xbins, var_type='float')
-    hist = TH1D(hist_label, '', n_bins, xbins)
-    for value in values:
-        hist.Fill(value)
-
-    return hist
-
-# ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
     hist = Hist(2, -0.5, 1.5)
@@ -121,19 +100,6 @@ def make_bool_hist(n_true, n_false, hist_label):
     roothist.GetXaxis().SetLabelSize(0.1)
 
     return roothist
-
-# ----------------------------------------------------------------------------------------
-def make_hist_from_list(values, hist_label, n_bins=30):
-    """ Fill a histogram with float values in a list """
-    if len(values) == 0:
-        print 'WARNING no values for %s in make_hist' % hist_label
-        return TH1D(hist_label, '', 1, 0, 1)
-    xbins = array('f', [0 for i in range(n_bins+1)])  # NOTE has to be n_bins *plus* 1
-    set_bins(values, n_bins, is_log_x=False, xbins=xbins, var_type='float')
-    hist = TH1D(hist_label, '', n_bins, xbins)
-    for val in values:
-        hist.Fill(val)
-    return hist
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
@@ -524,8 +490,7 @@ def get_hists_from_dir(dirname, histname, string_to_ignore=None):
         except KeyError:  # probably not a histogram csv
             pass
     if len(hists) == 0:
-        print 'ERROR no csvs in',dirname
-        sys.exit()
+        raise Exception('ERROR no csvs in %s' % dirname)
     return hists
 
 # ----------------------------------------------------------------------------------------

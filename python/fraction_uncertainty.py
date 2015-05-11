@@ -29,4 +29,4 @@ def err(obs, total, use_beta=True, use_cache=True):
 
     assert lo < frac or frac == 0.0
     assert frac < hi or frac == 1.0
-    return (lo,hi) + (False, )
+    return (lo, hi) + (False, )
