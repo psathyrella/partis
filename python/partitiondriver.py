@@ -149,11 +149,15 @@ class PartitionDriver(object):
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
+        # deal with final partition
         if self.args.smc_particles == 1:
-            print 'final'
-            for ipath in range(len(self.paths)):
-                self.paths[ipath].print_partitions(self.reco_info, one_line=True, header=(ipath==0))
-                print ''
+            for path in self.paths:
+                self.check_path(path)
+            if self.args.debug:
+                print 'final'
+                for ipath in range(len(self.paths)):  # one path for each glomeration step
+                    self.paths[ipath].print_partitions(self.reco_info, one_line=True, header=(ipath==0))
+                    print ''
             if self.args.outfname is not None:
                 self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
         else:
@@ -161,15 +165,16 @@ class PartitionDriver(object):
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
             for path in final_paths:
                 self.check_path(path)
-            for ipath in range(self.args.smc_particles):  # print the final partitions
-                path = final_paths[ipath]
-                path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
+            if self.args.debug:
+                for ipath in range(self.args.smc_particles):
+                    path = final_paths[ipath]
+                    path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
             if self.args.outfname is not None:
                 self.write_partitions(self.args.outfname, final_paths)
 
-        tmpglom = Glomerator(self.reco_info)
-        tmpglom.print_true_partition()
-
+        if self.args.debug:
+            tmpglom = Glomerator(self.reco_info)
+            tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
     def check_path(self, path):
@@ -400,7 +405,7 @@ class PartitionDriver(object):
             # if len(self.paths) > 2:
             #     previous_info = self.paths[-2]
             glomerer = Glomerator(self.reco_info)
-            glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=False)  #, outfname=self.hmm_outfname)
+            glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
             assert len(glomerer.paths) == 1
             self.check_path(glomerer.paths[0])
             self.paths.append(glomerer.paths[0])

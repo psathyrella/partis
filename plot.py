@@ -37,8 +37,10 @@ mpl.rcParams.update({
 cmap = 'BuGn'  #mpl.cm.jet
 
 logprobs, adj_mis = {}, {}
-fnames = glob.glob('24[0-9]*.csv')
+# fnames = ['f.csv', ]
+fnames = glob.glob('[23][0-9]*.csv')
 for fname in fnames:
+    print fname
     with open(fname) as infile:
         for line in csv.DictReader(infile):
             ipath = int(line['path_index'])
@@ -93,9 +95,9 @@ if args.scatter:
 
     yextrafactor = 1.
     if args.zoom:
-        xmin = 350
+        xmin = 340
         ymin = 0.7
-        markersize = 25
+        markersize = 32
     else:
         xmin = 0
         ymin = 0.
@@ -132,8 +134,10 @@ if args.scatter:
         for ipath in logprobs.keys():
             steps = [i for i in range(len(logprobs[ipath]))]
             sizes = [markersize for i in range(len(logprobs[ipath]))]
-            fig_adj_mi = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
-            fig_logprob = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
+            # fig_adj_mi = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=[1.2*s for s in sizes])
+            # fig_logprob = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
+            fig_adj_mi = ax.plot(steps, adj_mis[ipath], color=adj_mi_color, alpha=1)
+            fig_logprob = ax2.plot(steps, logprobs[ipath], color=logprob_color, alpha=1)
         
 else:
     # iplot = 0
