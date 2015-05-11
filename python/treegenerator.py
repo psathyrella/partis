@@ -62,7 +62,7 @@ class TreeGenerator(object):
             infname = mute_freq_dir + '/' + mtype + '-mean-mute-freqs.csv'
             self.branch_lengths[mtype] = {}
             self.branch_lengths[mtype]['lengths'], self.branch_lengths[mtype]['probs'] = [], []
-            mutehist = plotting.make_hist_from_bin_entry_file(infname, mtype+'-mute-freqs', rootway=False)
+            mutehist = plotting.make_hist_from_bin_entry_file(infname, mtype+'-mute-freqs')
             self.branch_lengths[mtype]['mean'] = mutehist.GetMean()
 
             if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
