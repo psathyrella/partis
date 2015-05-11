@@ -19,6 +19,7 @@ sys.argv.append('-b')
 parser.add_argument('--arg1', required=True)
 parser.add_argument('--arg2', required=True)
 parser.add_argument('--keep-going', action='store_true', help='Don\'t fail on differences, instead just keep on chugging')
+parser.add_argument('--precision', type=int, default=9, help='number of digits after the decimal place to keep when comparing floating point numbers')
 args = parser.parse_args()
 
 if os.path.isdir(args.arg1):  # can either pass arg[12] as directories in which to look
@@ -35,8 +36,7 @@ else:  # ...or as single files
     assert args.fname == os.path.basename(args.arg2)
 
 def reduce_float_precision(line):
-    n_digits_to_keep = 10
-    regex = '([0-9]\.' + n_digits_to_keep*'[0-9]' + ')([0-9][0-9]*)'
+    regex = '([0-9]\.' + args.precision*'[0-9]' + ')([0-9][0-9]*)'
     match = re.search(regex, line)
     while match is not None:
         left, right = match.groups()  # left-hand (more significant) and right-hand parts of number
