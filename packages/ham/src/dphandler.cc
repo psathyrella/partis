@@ -440,7 +440,7 @@ size_t DPHandler::GetInsertLength(string side, vector<string> names) {
         break;
     }
   } else if(side == "right") {
-    for(size_t ip = names.size() - 1; ip >= 0; --ip)
+    for(size_t ip = names.size() - 1; ip >= 0; --ip)  // NOTE unsigned comparison is always true, so could really replace with while(true)
       if(names[ip].find("insert") == 0)
         ++n_inserts;
       else
@@ -486,7 +486,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
       }
     }
   } else if(side == "right") { // and for the righthand one we need the last non-insert state
-    for(size_t il = names.size() - 1; il >= 0; --il) {
+    for(size_t il = names.size() - 1; il >= 0; --il) {  // NOTE unsigned comparison is always true, so could really replace with while(true)
       if(names[il].find("insert") == 0) {   // skip any insert states on the left
         continue;
       } else {  // found the leftmost non-insert state -- that's the one we want
