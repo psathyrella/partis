@@ -252,22 +252,6 @@ class Glomerator(object):
                     fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
                     print ''
 
-            # # with new merging scheme we shouldn't need to calculate the combined conservative one separately
-            # # find the combination of the best-minus-ten for *each* file, which is more conservative than combining the files and *then* rewinding by 10.
-            # combined_conservative_max_minus_ten_logprob = 0.
-            # combined_conservative_best_minus_ten_partition = []
-            # for ifile in range(len(fileinfos)):
-            #     path = fileinfos[ifile][ipath]
-            #     for cluster in path.partitions[path.i_best_minus_ten]:
-            #         # first make sure we didn't already add any of the uids in <cluster>
-            #         for uid in cluster:
-            #             for existing_cluster in combined_conservative_best_minus_ten_partition:
-            #                 if uid in existing_cluster:
-            #                     raise Exception('%s already in cluster %s' % (uid, ':'.join([qn for qn in cluster])))
-            #         # then append
-            #         combined_conservative_best_minus_ten_partition.append(cluster)
-            #     combined_conservative_max_minus_ten_logprob += path.logprobs[path.i_best_minus_ten]
-
             # merge all the steps in each path
             def last_one():
                 last = True
@@ -306,17 +290,6 @@ class Glomerator(object):
             if debug:
                 print '  merged path:'
                 self.paths[ipath].print_partitions(self.reco_info, one_line=True)
-
-            # # see note above
-            # # replace the default one with the more conservative one
-            # self.paths[ipath].conservative_best_minus_ten_partition = combined_conservative_best_minus_ten_partition
-            # self.paths[ipath].conservative_max_minus_ten_logprob = combined_conservative_max_minus_ten_logprob
-            # # self.paths[ipath].max_minus_ten_logweight = combined_conservative_max_minus_ten_logweight
-
-            # if debug:
-            #     print '  combined conservative'
-            #     print '    XXXX'
-            #     self.print_partition(self.paths[ipath].conservative_best_minus_ten_partition, self.paths[ipath].conservative_max_minus_ten_logprob, one_line=True)
 
     # ----------------------------------------------------------------------------------------
     def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
