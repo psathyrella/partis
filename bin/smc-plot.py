@@ -31,6 +31,7 @@ mpl.rcParams.update({
 cmap = 'BuGn'  #mpl.cm.jet
 
 logprobs, adj_mis = {}, {}
+final_logweights = []
 # fnames = ['f.csv', ]
 fnames = glob.glob('[23][0-9]*.csv')
 for fname in fnames:
@@ -43,7 +44,12 @@ for fname in fnames:
                 adj_mis[ipath] = []
             logprobs[ipath].append(float(line['score']))
             adj_mis[ipath].append(float(line['adj_mi']))
+            if float(line['adj_mi']) == 1.:
+                final_logweights.append(float(line['logweight']))
 
+# for lw in final_logweights:
+#     print lw
+# sys.exit()
 max_length = -1
 for ipath in logprobs.keys():
     if len(logprobs[ipath]) > max_length:
@@ -74,7 +80,8 @@ nybins = 5
 yextrafactor = 1.
 if args.zoom:
     xmin = 340
-    ymin = 0.7
+    ymin = 0.92
+    min_logprob = -14400
     markersize = 32
 else:
     xmin = 0
@@ -96,8 +103,11 @@ ax.locator_params(nbins=nybins, axis='y')
 for ipath in logprobs.keys():
     steps = [i for i in range(len(logprobs[ipath]))]
     sizes = [markersize for i in range(len(logprobs[ipath]))]
-    fig_logprob = ax2.plot(steps, logprobs[ipath], color=logprob_color, alpha=1)
-    fig_adj_mi = ax.plot(steps, adj_mis[ipath], color=adj_mi_color, alpha=1)
+    fig_logprob = ax2.plot(steps, logprobs[ipath], color=logprob_color, alpha=1, linewidth=1)
+    fig_adj_mi = ax.plot(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, linewidth=1)
+    if args.zoom:
+        fig_logprob_sc = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=1, s=sizes)
+        fig_adj_mi_sc = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
 
 plotdir = os.getenv('www') + '/tmp'
 if args.zoom:
