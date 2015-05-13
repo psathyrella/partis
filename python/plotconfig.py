@@ -56,6 +56,9 @@ plot_titles = {
     'v-mean-freq' : 'V mutation freq',
     'd-mean-freq' : 'D mutation freq',
     'j-mean-freq' : 'J mutation freq',
+    'v_gene_fraction_vs_mute_freq' : 'V gene correct',
+    'd_gene_fraction_vs_mute_freq' : 'D gene correct',
+    'j_gene_fraction_vs_mute_freq' : 'J gene correct'
 }
 
 true_vs_inferred_hard_bounds = {
@@ -72,7 +75,11 @@ true_vs_inferred_hard_bounds = {
     'j_5p_del' : (-10.5, 15.5),
     'mute_freqs' : (-.05, .05),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-3.5, 3.5),
-    'vd_insertion' : (-8.5, 8.5)}
+    'vd_insertion' : (-8.5, 8.5),
+    'v_gene_fraction_vs_mute_freq' : (0, 1./3),
+    'd_gene_fraction_vs_mute_freq' : (0, 1./3),
+    'j_gene_fraction_vs_mute_freq' : (0, 1./3)
+}
 
 default_hard_bounds = {
     # 'hamming_to_true_naive' : (-0.5, 19.5),

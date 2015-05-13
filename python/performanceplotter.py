@@ -38,7 +38,9 @@ class PerformancePlotter(object):
         self.hists['mute_freqs'] = Hist(30, -0.05, 0.05)
         for region in utils.regions:
             self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05)
-            
+        for region in utils.regions:  # plots of correct gene calls vs mute freq
+            self.hists[region + '_gene_right_vs_mute_freq'] = Hist(50, 0., 0.4)
+            self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(50, 0., 0.4)
 
     # ----------------------------------------------------------------------------------------
     def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=False):
@@ -105,28 +107,33 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_partial_fail(self, true_line, line):
+
+        overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
+
         for column in self.values:
             if column in bool_columns:
                 if column in line and utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this below as well!
                     self.values[column]['right'] += 1
-                    # if column == 'v_gene':
-                    #     print '  partial right ', true_line[column], line[column]
+                    self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
                 else:
                     self.values[column]['wrong'] += 1
-                    # if column == 'v_gene':
-                    #     print '  partial wrong ', true_line[column], line[column] if column in line else 'FOO'
+                    self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
             else:
                 pass
 
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line):
+
+        overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
+
         for column in self.values:
             if column in bool_columns:
                 if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE you have to change this above as well!
-                # if true_line[column] == inf_line[column]:
                     self.values[column]['right'] += 1
+                    self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
                 else:
                     self.values[column]['wrong'] += 1
+                    self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
             else:
                 trueval, guessval = 0, 0
                 if column[2:] == '_insertion':  # insertion length
@@ -151,6 +158,8 @@ class PerformancePlotter(object):
                 self.values[column][diff] += 1
 
         for column in self.hists:
+            if '_vs_mute_freq' in column:  # fill these above
+                continue
             if len(re.findall('[vdj]_', column)) == 1:
                 region = re.findall('[vdj]_', column)[0][0]
             else:

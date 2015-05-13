@@ -151,6 +151,16 @@ class Hist(object):
                 self.bin_contents[ib] /= float(denom_hist.bin_contents[ib])
 
     # ----------------------------------------------------------------------------------------
+    def add(self, h2, debug=False):
+        """ NOTE doesn't check bin edges are the same, only that they've got the same number of bins """
+        if self.n_bins != h2.n_bins or self.xmin != h2.xmin or self.xmax != h2.xmax:
+            raise Exception('ERROR bad limits in Hist::add')
+        for ib in range(0, self.n_bins + 2):
+            if debug:
+                print ib, self.bin_contents[ib], float(h2.bin_contents[ib])
+            self.bin_contents[ib] += h2.bin_contents[ib]
+
+    # ----------------------------------------------------------------------------------------
     def write(self, outfname):
         with opener('w')(outfname) as outfile:
             header = [ 'bin_low_edge', 'contents', 'binlabel' ]

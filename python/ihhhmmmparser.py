@@ -94,6 +94,8 @@ class IhhhmmmParser(object):
                     break
 
         fostream_names = glob.glob(self.args.indir + '/*.fostream')
+        if len(fostream_names) == 0:
+            raise Exception('no fostreams found in %s' % args.indir)
         fostream_names.sort()  # maybe already sorted?
         for infname in fostream_names:
             if len(self.sim_need) == 0:
@@ -275,7 +277,7 @@ if __name__ == "__main__":
     parser.add_argument('--plotdir', required=True)
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
     parser.add_argument('--datadir', default='data/imgt')
-    parser.add_argument('--indir')  # data/performance/ihhhmmm
+    parser.add_argument('--indir', required=True)  # data/performance/ihhhmmm
     parser.add_argument('--simfname')
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)

@@ -2,6 +2,7 @@ import math
 import os
 import glob
 import sys
+import copy
 import csv
 import numpy
 from scipy import stats
@@ -571,6 +572,25 @@ def get_mean_info(hists):
     return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':unihist }
 
 # ----------------------------------------------------------------------------------------
+def add_gene_calls_vs_mute_freq_plots(args, hists, rebin=1.):
+    for idir in range(len(args.names)):
+        name = args.names[idir]
+        for region in utils.regions:
+            hright = hists[idir][region + '_gene_right_vs_mute_freq']
+            hwrong = hists[idir][region + '_gene_wrong_vs_mute_freq']
+            hdenom = TH1D(hright)
+            hdenom.Add(hwrong)
+            hfrac = TH1D(hright)
+            hfrac.Divide(hdenom)
+            hfrac.Scale(1. / rebin)
+            # print name, region
+            for ib in range(hfrac.GetNbinsX()+2):
+                lo, hi, cached = fraction_uncertainty.err(hright.GetBinContent(ib), hdenom.GetBinContent(ib), for_paper=True)
+                hfrac.SetBinError(ib, (hi - lo) / 2.)
+                # print '%5d %5d   %.2f   %.3f' % (hright.GetBinContent(ib), hdenom.GetBinContent(ib), hfrac.GetBinContent(ib), (hi - lo) / 2.)
+            hists[idir][region + '_gene_fraction_vs_mute_freq'] = hfrac
+
+# ----------------------------------------------------------------------------------------
 def compare_directories(args, xtitle='', use_hard_bounds=''):
     """ 
     Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
@@ -588,7 +608,12 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
     # then loop over all the <varname>s we found
     all_names, all_means, all_sems, all_normalized_means = [], [], [], []
-    for varname, hist in hists[0].iteritems():
+    # ----------------------------------------------------------------------------------------
+    vs_rebin = 2
+    if 'v_gene_right_vs_mute_freq' in hists[0].keys():
+        add_gene_calls_vs_mute_freq_plots(args, hists, rebin=vs_rebin)
+    # ----------------------------------------------------------------------------------------
+    for varname, hist in hists[0].items():
         # add the hists
         all_hists = [hist,]
         missing_hist = False
@@ -599,7 +624,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 print args.names[idir], varname
                 all_hists.append(TH1D())
 
-        if '_gene' in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
+        if '_gene' in varname and '_vs_' not in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
             all_hists = add_bin_labels_not_in_all_hists(all_hists)
 
         if not args.dont_calculate_mean_info:
@@ -626,7 +651,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             ytitle = 'mutation freq'
             args.graphify = True
 
-        if '_gene' in varname:
+        if '_gene' in varname and '_vs_' not in varname:
             xtitle = 'allele'
             gStyle.SetNdivisions(0,"x")
             # gStyle.SetLabelSize(0.00010, 'X')
@@ -640,11 +665,20 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             xtitle = 'bases'
 
         line_width_override = None
+        rebin = args.rebin
+        errors = not args.no_errors
         if args.plot_performance:
             if 'hamming_to_true_naive' in varname:
                 xtitle = 'hamming distance'
                 if '_normed' in varname:
                     xtitle = 'fractional ' + xtitle
+            elif '_vs_mute_freq' in varname:
+                xtitle = 'mutation freq'
+                ytitle = 'fraction correct'
+                if varname[0] == 'v' or varname[0] == 'j':
+                    translegend = (-0.4, -0.4)
+                # errors = True
+                rebin = vs_rebin
             else:
                 xtitle = 'inferred - true'
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
@@ -652,7 +686,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
             if bounds is None and 'insertion' in varname:
                 bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
-            if '_gene' in varname:
+            if '_gene' in varname and '_vs_' not in varname:
                 no_labels = True
                 if 'j_' not in varname:
                     cwidth, cheight = 1000, 500
@@ -689,8 +723,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         assert args.leaves_per_tree is None
         # scale_errors = math.sqrt(args.leaves_per_tree[idir]) if args.leaves_per_tree is not None else args.scale_errors
         draw(all_hists[0], var_type, plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
-             shift_overflows=False, errors=(not args.no_errors), scale_errors=args.scale_errors, rebin=args.rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
-             xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=args.normalize, normalization_bounds=normalization_bounds,
+             shift_overflows=False, errors=errors, scale_errors=args.scale_errors, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
+             xtitle=xtitle, ytitle=ytitle, xline=xline, draw_str=draw_str, normalize=(args.normalize and '_vs_mute_freq' not in varname), normalization_bounds=normalization_bounds,
              linewidths=linewidths, markersizes=args.markersizes, cwidth=cwidth, cheight=cheight, no_labels=no_labels, graphify=args.graphify, log=log, translegend=translegend)
 
     if not args.dont_calculate_mean_info:

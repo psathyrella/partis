@@ -34,6 +34,8 @@ for code in args.run_codes:
             cmd = './bin/run-driver.py --label comparisons-' + code + ' --action ' + action + ' --plotdir ' + base_plotdir + '/' + code + ' --simfname ' + simfname + ' --n-procs 50:10'  # + str(n_procs)
             if 'multi-' in code:
                 cmd += ' --extra-args __n-sets:5:--slurm:--workdir:_tmp/foop'
+            else:
+                cmd += ' --extra-args __slurm:--workdir:_tmp/foop'
             print cmd
             check_call(cmd.split())
     else:
@@ -46,6 +48,8 @@ for code in args.run_codes:
         elif code == 'igblast':
             cmd += ' --datadir ' + 'data/old-imgt'  # igblast doesn't let you change it either
             cmd += ' --infname ' + os.path.dirname(simfname) + '/igblast/simu.html'
+        elif code == 'ihhhmmm':
+            cmd += ' --indir ' + os.path.dirname(simfname) + '/ihhhmmm'
         print cmd
         check_call(cmd.split())
 
@@ -61,4 +65,5 @@ names = 'partis@(k=5):partis@(k=1):ighutil:iHMMunealign:igblast:imgt'
 
 plot_cmd = './python/compare.py --plot-performance --no-errors --normalize --markersizes 0 --linestyles 2:1:1:1:1:1 --outdir ' + base_plotdir + '/all-vs-all' \
            + ' --graphify --plotdirs ' + ':'.join(plotdirs) + ' --names ' + names + ' --colors 810:634:596:418:798:869'
+print plot_cmd
 check_call(plot_cmd.split())
