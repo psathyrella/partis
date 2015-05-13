@@ -211,10 +211,11 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
-        print 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit EDIT nevermind, that seems to be a result of smc (presumably it was choosing very unlikely merges)'
+         # 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit EDIT nevermind, that seems to be a result of smc (presumably it was choosing very unlikely merges)'
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
-        if previous_info is not None:  # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
+        # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
+        if previous_info is not None and smc_particles > 1:  # if we're doing smc, this has to happen *beforehand*, since the previous paths are separate for each process
             assert len(previous_info) == len(fileinfos)  # both are the number of processes we're merging into one
             # TODO prevent this from adding duplicate adjacent partitions
             if debug:
@@ -230,7 +231,7 @@ class Glomerator(object):
                     initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
                     previous_path = previous_info[ifile][initial_path_index]
                     current_path = fileinfos[ifile][ipath]
-                    first_new_logprob = current_path.logprobs[0]
+                    # first_new_logprob = current_path.logprobs[0]
                     extended_path = ClusterPath(None)
                     for ip in range(len(previous_path.partitions)):
                         # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
@@ -244,6 +245,7 @@ class Glomerator(object):
                         print '    after'
                         fileinfos[ifile][ipath].print_partitions(self.reco_info, one_line=True)
 
+        # do the actual process merging
         for ipath in range(smc_particles):
 
             if debug:
@@ -286,10 +288,42 @@ class Glomerator(object):
                 remove_one_of_the_first_partitions()
             add_next_global_partition()
 
+
             self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
                 print '  merged path:'
                 self.paths[ipath].print_partitions(self.reco_info, one_line=True)
+            else:
+                print '  merged path %d with %d glomeration steps and %d final clusters' % (ipath, len(self.paths[ipath].partitions), len(self.paths[ipath].partitions[-1]))
+
+        if smc_particles == 1:  # ...whereas if we're *not* doing smc, we have to add the previous histories *afterward*, since the previous histories are all in one piece
+            if previous_info is None:
+                if debug:
+                    print '  no previous history'
+            else:
+                # TODO prevent this from adding duplicate adjacent partitions
+                if debug:
+                    print 'prepend previous history'
+                if debug:
+                    print '    before'
+                    assert len(self.paths) == 1  # in case gremlins sneak in and add some between lines of code
+                    self.paths[0].print_partitions(self.reco_info, one_line=True)
+                # initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
+                previous_path = previous_info
+                current_path = self.paths[0]
+                # first_new_logprob = UPDATEME current_path.logprobs[0]
+                extended_path = ClusterPath(None)
+                for ip in range(len(previous_path.partitions)):
+                    # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
+                    #     continue
+                    extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip])
+                for ip in range(len(current_path.partitions)):
+                    extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip])
+                self.paths[0] = extended_path
+                self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
+                if debug:
+                    print '    after'
+                    self.paths[0].print_partitions(self.reco_info, one_line=True)
 
     # ----------------------------------------------------------------------------------------
     def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):

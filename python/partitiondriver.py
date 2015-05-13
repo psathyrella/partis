@@ -394,7 +394,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs):
-        """ Merge any/all output files from subsidiary bcrham processes """
+        """ Merge any/all output files from subsidiary bcrham processes (used when *not* doing smc) """
         assert self.args.smc_particles == 1  # have to do things more complicatedly for smc
         if self.args.action == 'partition':  # merge partitions from several files
             if n_procs == 1:
@@ -402,8 +402,8 @@ class PartitionDriver(object):
             else:
                 infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
             previous_info = None
-            # if len(self.paths) > 2:
-            #     previous_info = self.paths[-2]
+            if len(self.paths) > 1:
+                previous_info = self.paths[-1]
             glomerer = Glomerator(self.reco_info)
             glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
             assert len(glomerer.paths) == 1
@@ -428,6 +428,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_pairs_of_procs(self, n_procs):
+        """ Merge the output from pairs of processes (used when doing smc)"""
         assert self.args.action == 'partition'
         assert self.args.smc_particles > 1
         if n_procs > 1:
@@ -447,7 +448,7 @@ class PartitionDriver(object):
             if len(self.smc_info) > 2:
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
-            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=False)  #, outfname=self.hmm_outfname)
+            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
             self.smc_info[-1].append(paths)
 
             # ack? self.glomclusters.append(glomerer)
