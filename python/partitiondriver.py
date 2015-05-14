@@ -199,21 +199,28 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi'))  #'normalized_score'
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'bad_clusters'))  #'normalized_score'
             writer.writeheader()
             for ipath in range(len(paths)):
                 for ipart in range(len(paths[ipath].partitions)):
                     part = paths[ipath].partitions[ipart]
                     cluster_str = ''
+                    bad_clusters = []
                     for ic in range(len(part)):
                         if ic > 0:
                             cluster_str += ';'
                         cluster_str += ':'.join(part[ic])
+
+                        same_event = utils.from_same_event(self.args.is_data, self.reco_info, part[ic])
+                        if not same_event:
+                            bad_clusters.append(':'.join(part[ic]))
+
                     writer.writerow({'path_index' : os.getpid() + ipath,
                                      'score' : paths[ipath].logprobs[ipart],
                                      'logweight' : paths[ipath].logweights[ipart],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : paths[ipath].adj_mis[ipart]  #,
+                                     'adj_mi' : paths[ipath].adj_mis[ipart],
+                                     'bad_clusters' : ';'.join(bad_clusters)
                                      # 'clusters' : cluster_str
                                  })
 

@@ -25,13 +25,15 @@ def is_normed(probs, this_eps=eps):
         return math.fabs(probs - 1.0) < this_eps
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, floatify=False):  # make lists from args that are passed as strings of colon-separated values
     if arg == None:
         return arg
     else:
         arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
         if intify:
             return [int(x) for x in arglist]
+        elif floatify:
+            return [float(x) for x in arglist]
         else:
             return arglist
 

@@ -120,30 +120,6 @@ class Glomerator(object):
 
         return clusters
 
-    # # ----------------------------------------------------------------------------------------
-    # def print_partitions(self, path, extrastr='', one_line=False):
-    #     for ip in range(len(path.partitions)):
-    #         self.print_partition(path.partitions[ip], path.logprobs[ip], path.adj_mis[ip], extrastr=extrastr, one_line=one_line)
-
-    # # ----------------------------------------------------------------------------------------
-    # def print_partition(self, partition, logprob, adj_mi=-1., extrastr='', one_line=False):
-    #     if one_line:
-    #         print '    %s %-15.2f   %-8.3f   %3d clusters (%d ways):' % (extrastr, logprob, adj_mi, len(partition), -1),  #1./math.exp(self.logweights[ip])),
-    #     else:
-    #         print '  %s partition   %-15.2f    %-8.2f' % (extrastr, logprob, adj_mi)
-    #         print '   clonal?   ids'
-    #     for cluster in partition:
-    #         same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
-    #         if same_event is None:
-    #             same_event = -1
-    #         cluster_str = ':'.join([str(uid) for uid in cluster])
-    #         if one_line:
-    #             print '   %s' % cluster_str,
-    #         else:
-    #             print '     %d    %s' % (int(same_event), cluster_str)
-    #     if one_line:
-    #         print ''
-
     # ----------------------------------------------------------------------------------------
     def print_true_partition(self):
         print '  true partition'
