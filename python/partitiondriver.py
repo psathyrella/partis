@@ -138,14 +138,7 @@ class PartitionDriver(object):
                 break
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
-                too_many_clusters_per_process = get_n_clusters() / n_procs < self.args.max_clusters_per_proc  # just use the first path/particle, they should all be pretty similar
-                if len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2] or too_many_clusters_per_process:  # if we already ran with this number of procs, or if we wouldn't be running with too many clusters per process, then reduce <n_procs> for the next run
-                    if n_procs > 20:
-                        n_procs = n_procs / 2
-                    elif n_procs > 6:
-                        n_procs = int(n_procs / 1.5)
-                    else:
-                        n_procs -= 1
+                n_procs = n_procs / 2
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
@@ -767,8 +760,9 @@ class PartitionDriver(object):
         with opener('r')(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                if line['errors'] != '':
-                    raise Exception('in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
+                if line['errors'] != '':  # not sure why this needed to be an exception
+                    # raise Exception('in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
+                    print 'error in bcrham output for %s: %s ' % (line['unique_ids'], line['errors'])
                 if line['unique_ids'] not in self.cached_results:
                     self.cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
                     if line['naive-seq'] == '':  # I forget why this was happening, but it shouldn't any more (note that I don't actually *remove* the check, though...)
