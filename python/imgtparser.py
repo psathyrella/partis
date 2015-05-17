@@ -17,6 +17,83 @@ from performanceplotter import PerformancePlotter
 # - convert recombinator csv to fasta: /home/dralph/Dropbox/bin/csv2fasta
 
 # ----------------------------------------------------------------------------------------
+equivalent_genes = [set(['IGHV3-23*01', 'IGHV3-23D*01']),
+                    set(['IGHV1-69*01', 'IGHV1-69D*01']),
+                    set(['IGHD5-5*01', 'IGHD5-18*01'])
+]
+
+just_always_friggin_skip = set(['IGHV4-4*03', 'IGHV4-55*07'])  # I just don't have these
+
+# ----------------------------------------------------------------------------------------
+genes_to_skip = set()  # since we don't know what genes imgt uses and can't seem to figure it out, we instead only consider sequences with true and inferred alleles that are in our true set and were called at least once by imgt
+genes_to_use = set()
+def get_genes_to_skip(fname, germlines, debug=False):
+    with opener('r')(fname) as infile:
+        reader = csv.DictReader(infile, delimiter='\t')
+        imgt_genes = set()  # genes that imgt spit out at least once
+        iline = 0
+        no_matches = {region:0 for region in utils.regions}
+        for line in reader:
+            iline += 1
+            for region in utils.regions:
+                matchstr = line[region.upper() + '-GENE and allele']
+                if len(matchstr) == 0:
+                    no_matches[region] += 1
+                    # print '    no %s match' % region
+                    continue
+                try:
+                    gene = matchstr.split()[1]
+                except IndexError:
+                    raise Exception('match problem in %s: %s' % (region, matchstr))
+
+                # print '%12s %s' % (gene in germlines[region], utils.color_gene(gene))
+                imgt_genes.add(gene)
+
+            # if len(imgt_genes) > 10:
+            #     # for g in imgt_genes:
+            #     #     print utils.color_gene(g),
+            #     break
+
+        print 'read %d lines, no match (v/d/j): %d/%d/%d' % tuple([iline, ] + [no_matches[region] for region in utils.regions])
+        print 'imgt genes: ',
+        if debug:
+            print ''
+            for g in sorted(imgt_genes):
+                print '  ', utils.color_gene(g)
+        else:
+            print len(imgt_genes)
+
+        print '\nin imgt output, not in simulation: ',
+        for gene in sorted(imgt_genes):
+            if gene not in germlines[utils.get_region(gene)]:
+                if debug:
+                    print '  ', utils.color_gene(gene)
+                genes_to_skip.add(gene)
+        if not debug:
+            print len(genes_to_skip)
+
+        print '\nin simulation, not in imgt output: ',
+        for region in utils.regions:
+            for gene in sorted(germlines[region]):
+                if gene not in imgt_genes:
+                    if debug:
+                        print '  ', utils.color_gene(gene)
+                    genes_to_skip.add(gene)
+        if not debug:
+            print len(genes_to_skip)
+        simulation_genes = set(germlines['v']) | set(germlines['d']) | set(germlines['j'])
+        genes_to_use = imgt_genes & simulation_genes
+        # print '\ngenes to use: %s' % len(genes_to_use)
+        # if debug:
+        #     for g in sorted(genes_to_use):
+        #         print '  ', utils.color_gene(g)
+
+        if len(genes_to_use & genes_to_skip) > 0:
+            raise Exception('non zero intersection: %d' % len(genes_to_use & genes_to_skip))
+        # sys.exit()
+
+# ----------------------------------------------------------------------------------------
+genes_actually_skipped = {}
 class IMGTParser(object):
     def __init__(self, args):
         self.args = args
@@ -47,7 +124,13 @@ class IMGTParser(object):
                 soup = BeautifulSoup(infile)
                 paragraphs = soup.find_all('pre')
 
-        n_failed, n_total, n_not_found, n_found = 0, 0, 0, 0
+        summarydir = self.args.indir[ : self.args.indir.rfind('/')]  # one directoy up from <indir>, which has the detailed per-sequence files
+        summary_fname = glob.glob(summarydir + '/1_Summary_*.txt')
+        assert len(summary_fname) == 1
+        summary_fname = summary_fname[0]
+        get_genes_to_skip(summary_fname, self.germline_seqs)
+
+        n_failed, n_skipped, n_total, n_not_found, n_found = 0, 0, 0, 0, 0
         for unique_id in self.seqinfo:
             if self.args.debug:
                 print unique_id,
@@ -73,7 +156,7 @@ class IMGTParser(object):
                     full_text = infile.read()
                     if len(re.findall('[123]. Alignment for [VDJ]-GENE', full_text)) < 3:
                         failregions = re.findall('No [VDJ]-GENE has been identified', full_text)
-                        if len(failregions) > 0:
+                        if self.args.debug and len(failregions) > 0:
                             print '    ', failregions
                         n_failed += 1
                         continue
@@ -95,18 +178,19 @@ class IMGTParser(object):
                 if self.args.debug:
                     print ''
             line = self.parse_query_text(unique_id, imgtinfo)
-            # if 'failed' in line:
-            #     print line
-            #     sys.exit()
+            if 'skip_gene' in line:
+                # assert self.args.skip_missing_genes
+                n_skipped += 1
+                continue
             try:
                 assert 'failed' not in line
                 joinparser.add_insertions(line, debug=self.args.debug)
-                joinparser.resolve_overlapping_matches(line, debug=self.args.debug, germlines=self.germline_seqs)
+                joinparser.resolve_overlapping_matches(line, debug=False, germlines=self.germline_seqs)
             except (AssertionError, KeyError):
                 print '    giving up'
                 n_failed += 1
                 perfplotter.add_partial_fail(self.seqinfo[unique_id], line)
-                print '    perfplotter: not sure what to do with a fail'
+                # print '    perfplotter: not sure what to do with a fail'
                 continue
             perfplotter.evaluate(self.seqinfo[unique_id], line)
             if self.args.debug:
@@ -115,6 +199,11 @@ class IMGTParser(object):
 
         perfplotter.plot()
         print 'failed: %d / %d = %f' % (n_failed, n_total, float(n_failed) / n_total)
+        print 'skipped: %d / %d = %f' % (n_skipped, n_total, float(n_skipped) / n_total)
+        print '    ',
+        for g, n in genes_actually_skipped.items():
+            print '  %d %s' % (n, utils.color_gene(g))
+        print ''
         if n_not_found > 0:
             print '  not found: %d / %d = %f' % (n_not_found, n_not_found + n_found, n_not_found / float(n_not_found + n_found))
 
@@ -158,15 +247,48 @@ class IMGTParser(object):
             assert len(info[0].split()) == 2
             qr_seq = info[0].split()[1].upper()  # this line should be '<unique_id> .............<query_seq>'
 
+            true_gene = self.seqinfo[unique_id][region + '_gene']
             imatch = 1  # which match to take
             match_name = str(info[imatch].split()[2])
-            # if 'IGHV3-69' in match_name:  # it's not right anyway
-            #     line['failed'] = True
-            #     return line
-            # while unacceptable_match(match_name, self.germline_seqs):
-            #         imatch += 1
-            #         match_name = str(info[imatch].split()[2])
-            #         print '    new match name: %s' % match_name
+            infer_gene = match_name
+            for gset in equivalent_genes:
+                if match_name in gset and true_gene in gset and match_name != true_gene:  # if the true gene and the inferred gene are in the same equivalence set, treat it as correct, i.e. just pretend it inferred the right name
+                    if self.args.debug:
+                        print '   %s: replacing name %s with true name %s' % (unique_id, match_name, true_gene)
+                    infer_gene = true_gene
+
+            # ----------------------------------------------------------------------------------------
+            # skipping bullshit
+            def skip_gene(gene):
+                print '    %s in list of genes to skip' % utils.color_gene(gene)
+                if gene not in genes_actually_skipped:
+                    genes_actually_skipped[gene] = 0
+                genes_actually_skipped[gene] += 1
+                line['skip_gene'] = True
+
+            if infer_gene not in self.germline_seqs[region]:
+                print '    ERROR couldn\'t find %s in germlines' % infer_gene
+                skip_gene(infer_gene)
+                return line
+
+            if infer_gene in just_always_friggin_skip:
+                skip_gene(infer_gene)
+                return line
+            if true_gene in just_always_friggin_skip:
+                skip_gene(true)
+                return line
+
+            if not self.args.dont_skip_or15_genes and '/or15' in true_gene:
+                skip_gene(infer_gene)
+                return line
+
+            if self.args.skip_missing_genes:
+                if infer_gene in genes_to_skip:
+                    skip_gene(infer_gene)
+                    return line
+                if true_gene in genes_to_skip:
+                    skip_gene(true_gene)
+                    return line
 
             gl_seq = info[imatch].split()[4].upper()
             if qr_seq.replace('.', '') not in self.seqinfo[unique_id]['seq']:
@@ -176,7 +298,13 @@ class IMGTParser(object):
                 return line
 
             if self.args.debug:
-                print '  ', region, match_name
+                if utils.are_alleles(infer_gene, true_gene):
+                    regionstr = utils.color('bold', utils.color('blue', region))
+                    truestr = '(originally %s)' % match_name
+                else:
+                    regionstr = utils.color('bold', utils.color('red', region))
+                    truestr = '(true: %s)' % utils.color_gene(true_gene).replace(region, '')
+                print '  %s %s %s' % (regionstr, utils.color_gene(infer_gene).replace(region, ''), truestr)
                 print '    gl', gl_seq
                 print '      ', qr_seq
 
@@ -220,27 +348,22 @@ class IMGTParser(object):
                     new_gl_seq.append(gl_seq[inuke])
             gl_seq = ''.join(new_gl_seq)
 
-            if match_name not in self.germline_seqs[region]:
-                print '    ERROR couldn\'t find %s in germlines' % match_name
-                line['failed'] = True
-                return line
-
-            if self.germline_seqs[region][match_name].find(gl_seq) != del_5p:  # why the *@*!! can't they make this consistent?
-                if self.germline_seqs[region][match_name].find(gl_seq) < 0:
+            if self.germline_seqs[region][infer_gene].find(gl_seq) != del_5p:  # why the *@*!! can't they make this consistent?
+                if self.germline_seqs[region][infer_gene].find(gl_seq) < 0:
                     print 'whooooaa'
-                    print self.germline_seqs[region][match_name]
+                    print self.germline_seqs[region][infer_gene]
                     print gl_seq
                     line['failed'] = True
                     return line
-                del_5p += self.germline_seqs[region][match_name].find(gl_seq)
+                del_5p += self.germline_seqs[region][infer_gene].find(gl_seq)
 
             try:
-                assert del_5p + len(gl_seq) + del_3p + len(jf_insertion) == len(self.germline_seqs[region][match_name])
+                assert del_5p + len(gl_seq) + del_3p + len(jf_insertion) == len(self.germline_seqs[region][infer_gene])
             except:
                 print '    ERROR lengths failed for %s' % unique_id
-                # print del_5p, len(gl_seq), del_3p, del_5p + len(gl_seq) + del_3p , len(self.germline_seqs[region][match_name])
+                # print del_5p, len(gl_seq), del_3p, del_5p + len(gl_seq) + del_3p , len(self.germline_seqs[region][infer_gene])
                 # print gl_seq
-                # print self.germline_seqs[region][match_name]
+                # print self.germline_seqs[region][infer_gene]
                 line['failed'] = True
                 return line
                 # assert False
@@ -249,12 +372,12 @@ class IMGTParser(object):
                 utils.color_mutants(gl_seq, qr_seq, ref_label='gl ', extra_str='    ', print_result=True, post_str='    del: %d %d' % (del_5p, del_3p))
 
             # try:
-            #     match_name = joinparser.figure_out_which_damn_gene(self.germline_seqs, match_name, gl_seq, debug=self.args.debug)
+            #     infer_gene = joinparser.figure_out_which_damn_gene(self.germline_seqs, infer_gene, gl_seq, debug=self.args.debug)
             # except:
-            #     print 'ERROR couldn\'t figure out the gene for %s' % match_name
+            #     print 'ERROR couldn\'t figure out the gene for %s' % infer_gene
             #     return {}
 
-            line[region + '_gene'] = match_name
+            line[region + '_gene'] = infer_gene
             line[region + '_qr_seq'] = qr_seq
             line[region + '_gl_seq'] = gl_seq
             line[region + '_5p_del'] = del_5p
@@ -276,6 +399,8 @@ if __name__ == "__main__":
     parser.add_argument('--infname')  # input html file, if you chose the 'html' option on the imgt website
     parser.add_argument('--simfname')  # simulation csv file corresponding to the queries in <infname> or <indir>
     parser.add_argument('--indir')  # folder with imgt result files  data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'
+    parser.add_argument('-skip-missing-genes', action='store_true')
+    parser.add_argument('-dont-skip-or15-genes', action='store_true', help='by default skip all the genes with the /or15 bullshit, since they don\'t seem to be in imgt\'s output')
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)
     

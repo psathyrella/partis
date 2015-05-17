@@ -65,9 +65,11 @@ def resolve_overlapping_matches(line, debug=False, germlines=None):
                     if overlap > lpos + len(l_qr_seq) - rpos:
                         overlap = lpos + len(l_qr_seq) - rpos
             if len(all_l_matches) > 1:
-                print '    WARNING %d occurences of %s in %s' % (len(all_l_matches), l_qr_seq, line['seq'])
+                if debug:
+                    print '    WARNING %d occurences of %s in %s' % (len(all_l_matches), l_qr_seq, line['seq'])
             if len(all_r_matches) > 1:
-                print '    WARNING %d occurences of %s in %s' % (len(all_r_matches), r_qr_seq, line['seq'])
+                if debug:
+                    print '    WARNING %d occurences of %s in %s' % (len(all_r_matches), r_qr_seq, line['seq'])
         else:
             try:
                 assert len(all_l_matches) == 1 and len(all_r_matches) == 1
