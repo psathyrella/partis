@@ -187,6 +187,17 @@ class IhhhmmmParser(object):
 
         if self.args.debug:
             print unique_id
+            for region in utils.regions:
+                infer_gene = info[region + '_gene']
+                true_gene = self.siminfo[unique_id][region + '_gene']
+                if utils.are_alleles(infer_gene, true_gene):
+                    regionstr = utils.color('bold', utils.color('blue', region))
+                    truestr = ''  #'(originally %s)' % match_name
+                else:
+                    regionstr = utils.color('bold', utils.color('red', region))
+                    truestr = '(true: %s)' % utils.color_gene(true_gene).replace(region, '')
+                print '  %s %s %s' % (regionstr, utils.color_gene(infer_gene).replace(region, ''), truestr)
+
             utils.print_reco_event(self.germline_seqs, self.siminfo[unique_id], label='true:', extra_str='    ')
             utils.print_reco_event(self.germline_seqs, info, label='inferred:', extra_str='    ')
 
