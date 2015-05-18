@@ -90,7 +90,7 @@ class IhhhmmmParser(object):
                 self.siminfo[line['unique_id']] = line
                 self.sim_need.append(line['unique_id'])
                 iline += 1
-                if args.n_max_queries > 0 and iline >= args.n_max_queries:
+                if args.n_queries > 0 and iline >= args.n_queries:
                     break
 
         fostream_names = glob.glob(self.args.indir + '/*.fostream')
@@ -272,7 +272,7 @@ class IhhhmmmParser(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-    parser.add_argument('--n-max-queries', type=int, default=-1)
+    parser.add_argument('--n-queries', type=int, default=-1)
     parser.add_argument('--queries')
     parser.add_argument('--plotdir', required=True)
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])

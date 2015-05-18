@@ -79,16 +79,16 @@ def write_hist_to_file(fname, hist):
 # ----------------------------------------------------------------------------------------
 def make_hist_from_bin_entry_file(fname, hist_label='', log=''):
     hist = Hist(fname=fname)
-    # if '_gene' in fname:
-    #     import re
-    #     tot = 30000
-    #     correct = int(tot * hist.bin_contents[1])
-    #     incorrect = int(tot * hist.bin_contents[2])
-    #     frac = float(correct) / (correct + incorrect)
-    #     # print correct, incorrect, tot
-    #     bounds = fraction_uncertainty.err(correct, correct + incorrect, for_paper=False)
-    #     print '  ', re.findall('[vdj]_gene', fname)[0], frac, 0.5*(bounds[1] - bounds[0])
-    #     # sys.exit()
+    if '_gene' in fname and '_vs_' not in fname:
+        import re
+        tot = 30000
+        correct = int(tot * hist.bin_contents[1])
+        incorrect = int(tot * hist.bin_contents[2])
+        frac = float(correct) / (correct + incorrect)
+        # print correct, incorrect, tot
+        bounds = fraction_uncertainty.err(correct, correct + incorrect, for_paper=True)
+        print '  ', re.findall('[vdj]_gene', fname)[0], frac, 0.5*(bounds[1] - bounds[0])
+        # sys.exit()
     roothist = make_hist_from_my_hist_class(hist, hist_label)
     return roothist
     

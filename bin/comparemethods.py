@@ -41,12 +41,10 @@ for code in args.run_codes:
     else:
         cmd = './python/' + code + 'parser.py --plotdir ' + base_plotdir + '/' + code + ' --simfname ' + simfname
         if args.n_queries is not None:
-            cmd += ' --n-max-queries ' + str(args.n_queries)
+            cmd += ' --n-queries ' + str(args.n_queries)
         if code == 'imgt':
-            cmd += ' --datadir ' + 'data/old-imgt'  # imgt doesn't let you choose the germline set, so to keep it from blowing the *@*! up we use the set without the three alleles that the reviewer wanted removed
             cmd += ' --indir ' + os.path.dirname(simfname) + '/imgt/smaller_repertoire_higher_mutation/IMGT_HighV-QUEST_individual_files_folder'
         elif code == 'igblast':
-            cmd += ' --datadir ' + 'data/old-imgt'  # igblast doesn't let you change it either
             cmd += ' --infname ' + os.path.dirname(simfname) + '/igblast/simu.html'
         elif code == 'ihhhmmm':
             cmd += ' --indir ' + os.path.dirname(simfname) + '/ihhhmmm'

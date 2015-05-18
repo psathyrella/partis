@@ -22,40 +22,49 @@ equivalent_genes = [set(['IGHV3-23*01', 'IGHV3-23D*01']),
                     set(['IGHD5-5*01', 'IGHD5-18*01'])
 ]
 
-just_always_friggin_skip = set(['IGHV4-4*03', 'IGHV4-55*07'])  # I just don't have these
+just_always_friggin_skip = set(['IGHV4-4*03', 'IGHV4-55*07',  # I just don't have these
+                                'IGHD1-14*01', 'IGHJ6*01', 'IGHJ3*01'])  # a reviewer told us to take these out
 
 # ----------------------------------------------------------------------------------------
 genes_to_skip = set()  # since we don't know what genes imgt uses and can't seem to figure it out, we instead only consider sequences with true and inferred alleles that are in our true set and were called at least once by imgt
 genes_to_use = set()
-def get_genes_to_skip(fname, germlines, debug=False):
+def get_genes_to_skip(fname, germlines, method='imgt', debug=False):
     with opener('r')(fname) as infile:
-        reader = csv.DictReader(infile, delimiter='\t')
-        imgt_genes = set()  # genes that imgt spit out at least once
-        iline = 0
-        no_matches = {region:0 for region in utils.regions}
-        for line in reader:
-            iline += 1
-            for region in utils.regions:
-                matchstr = line[region.upper() + '-GENE and allele']
-                if len(matchstr) == 0:
-                    no_matches[region] += 1
-                    # print '    no %s match' % region
-                    continue
-                try:
-                    gene = matchstr.split()[1]
-                except IndexError:
-                    raise Exception('match problem in %s: %s' % (region, matchstr))
+        if method == 'imgt':
+            reader = csv.DictReader(infile, delimiter='\t')
+            imgt_genes = set()  # genes that imgt spit out at least once
+            iline = 0
+            no_matches = {region:0 for region in utils.regions}
+            for line in reader:
+                iline += 1
+                for region in utils.regions:
+                    matchstr = line[region.upper() + '-GENE and allele']
+                    if len(matchstr) == 0:
+                        no_matches[region] += 1
+                        # print '    no %s match' % region
+                        continue
+                    try:
+                        gene = matchstr.split()[1]
+                    except IndexError:
+                        raise Exception('match problem in %s: %s' % (region, matchstr))
+    
+                    # print '%12s %s' % (gene in germlines[region], utils.color_gene(gene))
+                    imgt_genes.add(gene)
+    
+                # if len(imgt_genes) > 10:
+                #     # for g in imgt_genes:
+                #     #     print utils.color_gene(g),
+                #     break
 
-                # print '%12s %s' % (gene in germlines[region], utils.color_gene(gene))
-                imgt_genes.add(gene)
+            print 'read %d lines, no match (v/d/j): %d/%d/%d' % tuple([iline, ] + [no_matches[region] for region in utils.regions])
 
-            # if len(imgt_genes) > 10:
-            #     # for g in imgt_genes:
-            #     #     print utils.color_gene(g),
-            #     break
+        elif method == 'igblast':
+            filestr = infile.read()
+            imgt_genes = set(re.findall('IGH[VDJ][^*]*\*[0-9][0-9]', filestr))  # ok, igblast genes, but it's not so bad to leave the variable name like that...
+        else:
+            raise Exception('bad method %s' % method)
 
-        print 'read %d lines, no match (v/d/j): %d/%d/%d' % tuple([iline, ] + [no_matches[region] for region in utils.regions])
-        print 'imgt genes: ',
+        print '%s genes: ' % method,
         if debug:
             print ''
             for g in sorted(imgt_genes):
@@ -63,7 +72,7 @@ def get_genes_to_skip(fname, germlines, debug=False):
         else:
             print len(imgt_genes)
 
-        print '\nin imgt output, not in simulation: ',
+        print '\nin %s output, not in simulation: ' % method
         for gene in sorted(imgt_genes):
             if gene not in germlines[utils.get_region(gene)]:
                 if debug:
@@ -72,7 +81,7 @@ def get_genes_to_skip(fname, germlines, debug=False):
         if not debug:
             print len(genes_to_skip)
 
-        print '\nin simulation, not in imgt output: ',
+        print '\nin simulation, not in %s output: ' % method
         for region in utils.regions:
             for gene in sorted(germlines[region]):
                 if gene not in imgt_genes:
@@ -114,7 +123,7 @@ class IMGTParser(object):
                     line['j_gene'] = line['j_gene'].replace(re.findall('_[FP]', line['j_gene'])[0], '')
                 self.seqinfo[line['unique_id']] = line
                 iline += 1
-                if self.args.n_max_queries > 0 and iline >= self.args.n_max_queries:
+                if self.args.n_queries > 0 and iline >= self.args.n_queries:
                     break
 
         paragraphs, csv_info = None, None
@@ -250,6 +259,13 @@ class IMGTParser(object):
             true_gene = self.seqinfo[unique_id][region + '_gene']
             imatch = 1  # which match to take
             match_name = str(info[imatch].split()[2])
+            while match_name in just_always_friggin_skip and len(info) > imatch+1 and len(info[imatch+1].split()) > 2:
+                imatch += 1
+                old_one = match_name
+                match_name = str(info[imatch].split()[2])
+                if self.args.debug:
+                    print '    %s: taking next match: %s --> %s)' % (unique_id, utils.color_gene(old_one), utils.color_gene(match_name))
+
             infer_gene = match_name
             for gset in equivalent_genes:
                 if match_name in gset and true_gene in gset and match_name != true_gene:  # if the true gene and the inferred gene are in the same equivalence set, treat it as correct, i.e. just pretend it inferred the right name
@@ -267,7 +283,7 @@ class IMGTParser(object):
                 line['skip_gene'] = True
 
             if infer_gene not in self.germline_seqs[region]:
-                print '    ERROR couldn\'t find %s in germlines' % infer_gene
+                print '    couldn\'t find %s in germlines (skipping)' % infer_gene
                 skip_gene(infer_gene)
                 return line
 
@@ -278,8 +294,8 @@ class IMGTParser(object):
                 skip_gene(true)
                 return line
 
-            if not self.args.dont_skip_or15_genes and '/or15' in true_gene:
-                skip_gene(infer_gene)
+            if not self.args.dont_skip_or15_genes and '/OR1' in true_gene:
+                skip_gene(true_gene)
                 return line
 
             if self.args.skip_missing_genes:
@@ -391,7 +407,7 @@ class IMGTParser(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
-    parser.add_argument('--n-max-queries', type=int, default=-1)
+    parser.add_argument('--n-queries', type=int, default=-1)
     parser.add_argument('--queries')
     parser.add_argument('--plotdir', required=True)
     parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
@@ -400,7 +416,7 @@ if __name__ == "__main__":
     parser.add_argument('--simfname')  # simulation csv file corresponding to the queries in <infname> or <indir>
     parser.add_argument('--indir')  # folder with imgt result files  data/performance/imgt/IMGT_HighV-QUEST_individual_files_folder'
     parser.add_argument('-skip-missing-genes', action='store_true')
-    parser.add_argument('-dont-skip-or15-genes', action='store_true', help='by default skip all the genes with the /or15 bullshit, since they don\'t seem to be in imgt\'s output')
+    parser.add_argument('-dont-skip-or15-genes', action='store_true', help='by default skip all the genes with the /OR1[56] bullshit, since they don\'t seem to be in imgt\'s output')
     args = parser.parse_args()
     args.queries = utils.get_arg_list(args.queries)
     
