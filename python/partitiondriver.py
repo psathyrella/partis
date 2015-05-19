@@ -48,9 +48,16 @@ class PartitionDriver(object):
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
 
     # ----------------------------------------------------------------------------------------
+    def merge_cachefiles(self, infnames, outfname):
+        for fname in infnames:
+            self.read_cachefile(fname)
+        self.write_cachefile(outfname)
+
+    # ----------------------------------------------------------------------------------------
     def clean(self):
         if self.args.initial_cachefname is not None:
-            check_call(['cp', '-v', self.hmm_cachefname, self.args.initial_cachefname])
+            self.merge_cachefiles(infnames=[self.hmm_cachefname, self.args.initial_cachefname], outfname=self.args.initial_cachefname)
+            # check_call(['cp', '-v', self.hmm_cachefname, self.args.initial_cachefname])
         if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
             os.remove(self.hmm_cachefname)
 
@@ -197,12 +204,12 @@ class PartitionDriver(object):
             true_partition = tmpglom.get_true_partition()
             for ipath in range(len(paths)):
                 for ipart in range(len(paths[ipath].partitions)):
-                    print 'ipart', ipart
+                    # print 'ipart', ipart
                     part = paths[ipath].partitions[ipart]
                     cluster_str = ''
                     bad_clusters = []  # inferred clusters that aren't really all from the same event
                     for ic in range(len(part)):
-                        print '  %d:  %s' % (ic, ':'.join(part[ic]))
+                        # print '  %d:  %s' % (ic, ':'.join(part[ic]))
                         if ic > 0:
                             cluster_str += ';'
                         cluster_str += ':'.join(part[ic])
@@ -212,10 +219,10 @@ class PartitionDriver(object):
                         if same_event:
                             reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
                             true_cluster = true_partition[reco_id]
-                            print '    true %s:  %s' % (reco_id, ':'.join(true_cluster))
+                            # print '    true %s:  %s' % (reco_id, ':'.join(true_cluster))
                             for uid in true_cluster:
                                 if uid not in part[ic]:
-                                    print '        missing %s (and maybe others)' % uid
+                                    # print '        missing %s (and maybe others)' % uid
                                     entire_cluster = False
                                     break
                         else:
@@ -223,6 +230,8 @@ class PartitionDriver(object):
                         if not same_event or not entire_cluster:
                             bad_clusters.append(':'.join(part[ic]))
 
+                    if len(bad_clusters) > 25:
+                        bad_clusters = ['too', 'long']
                     writer.writerow({'path_index' : os.getpid() + ipath,
                                      'score' : paths[ipath].logprobs[ipart],
                                      'logweight' : paths[ipath].logweights[ipart],
@@ -681,12 +690,7 @@ class PartitionDriver(object):
             if self.args.initial_cachefname is not None:
                 check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/'])
         else:
-            # write everything we've cached so far to file for bcrham to read
-            with opener('w')(self.hmm_cachefname) as cachefile:
-                writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq'))
-                writer.writeheader()
-                for uids, cachefo in self.cached_results.items():
-                    writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
+            self.write_cachefile(self.hmm_cachefname)
 
         def shuffle_nset_order(tmp_nsets):
             # randomize the order of the query list in <tmp_nsets>. Note that the list gets split into chunks for parallelization later
@@ -758,7 +762,7 @@ class PartitionDriver(object):
             self.merge_pairs_of_procs(n_procs)
 
         if os.path.exists(self.hmm_cachefname):
-            self.read_cachefile()
+            self.read_cachefile(self.hmm_cachefname)
 
         if self.args.action != 'partition':
             self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
@@ -767,21 +771,44 @@ class PartitionDriver(object):
             os.remove(self.hmm_infname)
 
     # ----------------------------------------------------------------------------------------
-    def read_cachefile(self):
+    def read_cachefile(self, fname):
         """ Read cached bcrham partition info """
         if self.cached_results is None:
             self.cached_results = {}
 
-        with opener('r')(self.hmm_cachefname) as cachefile:
+        with opener('r')(fname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                if line['errors'] != '':  # not sure why this needed to be an exception
+                if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
                     # raise Exception('in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
                     print 'error in bcrham output for %s: %s ' % (line['unique_ids'], line['errors'])
                 if line['unique_ids'] not in self.cached_results:
-                    self.cached_results[line['unique_ids']] = {'logprob':float(line['score']), 'naive-seq':line['naive-seq']}
+                    try:
+                        score = float(line['score'])
+                    except TypeError:
+                        print 'ERROR weird score: %s' % line['score']
+                        score = line['score']
+                    self.cached_results[line['unique_ids']] = {'logprob':score, 'naive-seq':line['naive-seq']}
                     if line['naive-seq'] == '':  # I forget why this was happening, but it shouldn't any more (note that I don't actually *remove* the check, though...)
                         raise Exception(line['unique_ids'])
+
+    # ----------------------------------------------------------------------------------------
+    def write_cachefile(self, fname):
+        # write everything we've cached so far to file for bcrham (or a future process) to read
+        lockfname = fname + '.lock'
+        while os.path.exists(lockfname):
+            print '  waiting for lock to clear'
+            time.sleep(0.5)
+        lockfile = open(lockfname, 'w')
+        with opener('w')(fname) as cachefile:
+            writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq'))
+            writer.writeheader()
+            for uids, cachefo in self.cached_results.items():
+                writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
+
+        time.sleep(20)
+        lockfile.close()
+        os.remove(lockfname)
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):
