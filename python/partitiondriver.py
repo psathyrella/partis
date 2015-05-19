@@ -143,6 +143,7 @@ class PartitionDriver(object):
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
         # deal with final partition
+        tmpglom = Glomerator(self.reco_info)
         if self.args.smc_particles == 1:
             for path in self.paths:
                 self.check_path(path)
@@ -152,7 +153,7 @@ class PartitionDriver(object):
                     self.paths[ipath].print_partitions(self.reco_info, one_line=True, header=(ipath==0))
                     print ''
             if self.args.outfname is not None:
-                self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
+                self.write_partitions(self.args.outfname, [self.paths[-1], ], tmpglom)  # [last agglomeration step]
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
@@ -163,10 +164,9 @@ class PartitionDriver(object):
                     path = final_paths[ipath]
                     path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
             if self.args.outfname is not None:
-                self.write_partitions(self.args.outfname, final_paths)
+                self.write_partitions(self.args.outfname, final_paths, tmpglom)
 
         if self.args.debug:
-            tmpglom = Glomerator(self.reco_info)
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
@@ -190,22 +190,37 @@ class PartitionDriver(object):
             check_partition(path.partitions[ipart], ipart)
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, outfname, paths):
+    def write_partitions(self, outfname, paths, tmpglom):
         with opener('w')(outfname) as outfile:
             writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'bad_clusters'))  #'normalized_score'
             writer.writeheader()
+            true_partition = tmpglom.get_true_partition()
             for ipath in range(len(paths)):
                 for ipart in range(len(paths[ipath].partitions)):
+                    print 'ipart', ipart
                     part = paths[ipath].partitions[ipart]
                     cluster_str = ''
-                    bad_clusters = []
+                    bad_clusters = []  # inferred clusters that aren't really all from the same event
                     for ic in range(len(part)):
+                        print '  %d:  %s' % (ic, ':'.join(part[ic]))
                         if ic > 0:
                             cluster_str += ';'
                         cluster_str += ':'.join(part[ic])
 
-                        same_event = utils.from_same_event(self.args.is_data, self.reco_info, part[ic])
-                        if not same_event:
+                        same_event = utils.from_same_event(self.args.is_data, self.reco_info, part[ic])  # are all the sequences from the same event?
+                        entire_cluster = True  # ... and if so, are they the entire true cluster?
+                        if same_event:
+                            reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
+                            true_cluster = true_partition[reco_id]
+                            print '    true %s:  %s' % (reco_id, ':'.join(true_cluster))
+                            for uid in true_cluster:
+                                if uid not in part[ic]:
+                                    print '        missing %s (and maybe others)' % uid
+                                    entire_cluster = False
+                                    break
+                        else:
+                            entire_cluster = False
+                        if not same_event or not entire_cluster:
                             bad_clusters.append(':'.join(part[ic]))
 
                     writer.writerow({'path_index' : os.getpid() + ipath,
