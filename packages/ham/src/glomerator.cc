@@ -4,9 +4,8 @@ namespace ham {
 
 // ----------------------------------------------------------------------------------------
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track) :
-  hmms_(hmms),
-  gl_(gl),
   args_(args),
+  dph_(args_, gl, hmms),
   i_initial_partition_(0),
   n_cached_(0),
   n_calculated_(0)
@@ -144,8 +143,7 @@ double Glomerator::LogProbOfPartition(Partition &partition) {
   double total_log_prob(0.0);
   for(auto &key : partition) {
     if(log_probs_.count(key) == 0) {  // should only happen for the initial partition
-      DPHandler dph(args_, gl_, hmms_);  // TODO can just make one of these a member variable now
-      GetLogProb(dph, key, info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
+      GetLogProb(key, info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
     }
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs_[key]);
   }
@@ -249,11 +247,10 @@ void Glomerator::GetNaiveSeq(string key) {
   if(naive_seqs_.count(key))  // already did it
     return;
 
-  DPHandler dph(args_, gl_, hmms_);
   Result result(kbinfo_[key]);
   bool stop(false);
   do {
-    result = dph.Run("viterbi", info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
+    result = dph_.Run("viterbi", info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
     kbinfo_[key] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -269,7 +266,7 @@ void Glomerator::GetNaiveSeq(string key) {
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
+void Glomerator::GetLogProb(string name, Sequences &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
   // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name)) {  // already did it
     ++n_cached_;
@@ -279,9 +276,8 @@ void Glomerator::GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBound
     
   Result result(kbounds);
   bool stop(false);
-  // dph.PrintHMMS();
   do {
-    result = dph.Run("forward", seqs, kbounds, only_genes, mean_mute_freq);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
+    result = dph_.Run("forward", seqs, kbounds, only_genes, mean_mute_freq);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -384,12 +380,12 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 	continue;
       }
 
-      DPHandler dph(args_, gl_, hmms_);  // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
+      // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      GetLogProb(dph, key_a, *a_seqs, kbinfo_[key_a], qmerged.only_genes_, mute_freqs_[key_a]);
-      GetLogProb(dph, key_b, *b_seqs, kbinfo_[key_b], qmerged.only_genes_, mute_freqs_[key_b]);
-      GetLogProb(dph, qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
+      GetLogProb(key_a, *a_seqs, kbinfo_[key_a], qmerged.only_genes_, mute_freqs_[key_a]);
+      GetLogProb(key_b, *b_seqs, kbinfo_[key_b], qmerged.only_genes_, mute_freqs_[key_b]);
+      GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
 
       double bayes_factor(log_probs_[qmerged.name_] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
