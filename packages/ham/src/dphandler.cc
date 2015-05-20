@@ -214,7 +214,6 @@ void DPHandler::FillTrellis(string algorithm, Sequences query_seqs, vector<strin
       paths_[gene][query_strs] = new TracebackPath(hmms_.Get(gene, args_->debug()));
       trell->Traceback(*paths_[gene][query_strs]);
       assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs]->score());  // NOTE it would be better to just not store the darn score in both the places to start with, rather than worry here about them being the same
-      // if(args_->debug() == 2) PrintPath(query_strs, gene, *score, origin);
     }
     assert(fabs(*score) > 1e-200);
     assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);
@@ -240,40 +239,30 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
   assert(path_names.size() == query_strs[0].size());
-  // cout << gene << " " << score << " " << extra_str << endl;
-  string insert_state_str;
-  for(auto &name : path_names)
-    // if(name.find("insert") == 0)
-    insert_state_str += name[name.size()-1];
-  size_t left_insert_length = GetInsertLength("left", path_names);
-  size_t right_insert_length = GetInsertLength("right", path_names);
+  string left_insert = GetInsertion("left", path_names);
+  string right_insert = GetInsertion("right", path_names);
   size_t left_erosion_length = GetErosionLength("left", path_names, gene);
   size_t right_erosion_length = GetErosionLength("right", path_names, gene);
 
-  string germline(gl_.seqs_[gene]);
-  string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);
-  for(size_t i = 0; i < left_insert_length; ++i)
-    modified_seq = "i" + modified_seq;
-  for(size_t i = 0; i < right_insert_length; ++i)
-    modified_seq = modified_seq + "i";
-  assert(modified_seq.size() == query_strs[0].size());
-  assert(germline.size() + left_insert_length - left_erosion_length - right_erosion_length + right_insert_length == query_strs[0].size());
   TermColors tc;
-  cout
-      << "                    "
-      << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", modified_seq, "", query_strs) << (right_erosion_length > 0 ? ".." : "  ")
-      << "  " << extra_str
-      // NOTE this doesn't include the overall gene prob!
-      // << setw(12) << paths_[gene][query_strs]->score()
-      << setw(12) << score
-      << setw(25) << gene
-      << endl;
-  // if(insert_state_str.find("i") != string::npos) {
-    cout
-      << "                    "
-      << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", insert_state_str, "", query_strs) << (right_erosion_length > 0 ? ".." : "  ")
-      << endl;
-  // }
+
+  // make a string for the germline match
+  string germline(gl_.seqs_[gene]);
+  string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);  // remove deletions
+  modified_seq = left_insert + modified_seq + right_insert;  // add insertions to either end
+  assert(modified_seq.size() == query_strs[0].size());
+  assert(germline.size() + left_insert.size() - left_erosion_length - right_erosion_length + right_insert.size() == query_strs[0].size());
+  string match_str = tc.ColorMutants("red", modified_seq, "", query_strs);  // color it relative to the query strings
+  match_str = (left_erosion_length > 0 ? ".." : "  ") + match_str + (right_erosion_length > 0 ? ".." : "  ");  // add some faff to show if there was some deletion
+
+  // if there were insertions, we indicate this on a separate line below
+  string insert_str(germline.size() - right_erosion_length - left_erosion_length, ' ');
+  insert_str = string(left_insert.size(), 'i') + insert_str + string(right_insert.size(), ' ');
+
+  // NOTE this doesn't include the overall gene prob!
+  cout << "                    " << match_str << "  " << extra_str << setw(12) << score << setw(25) << gene << endl;
+  if(left_insert.size() + right_insert.size() > 0)
+    cout << "                    " << "  " << tc.Color("yellow", insert_str) << "  " << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -308,7 +297,7 @@ RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     // and left-hand deletions
     event.SetDeletion(region + "_5p", GetErosionLength("left", path_names, gene));
 
-    SetInsertions(region, query_strs[0], path_names, &event);  // NOTE this sets the insertion *only* according to the *first* sequence. Which makes sense at the moment, since the RecoEvent class is only designed to represent a single sequence
+    SetInsertions(region, path_names, &event);  // NOTE this sets the insertion *only* according to the *first* sequence. Which makes sense at the moment, since the RecoEvent class is only designed to represent a single sequence
 
     for(size_t iseq = 0; iseq < seq_strs.size(); ++iseq)
       seq_strs[iseq] += query_strs[iseq];
@@ -418,16 +407,11 @@ void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, 
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event) {
+void DPHandler::SetInsertions(string region, vector<string> path_names, RecoEvent *event) {
   Insertions ins;
   for(auto & insertion : ins[region]) {  // loop over the boundaries (vd and dj)
     string side(insertion == "jf" ? "right" : "left");
-    string inserted_bases;
-    for(auto &name : path_names) {
-      if(name.find("insert") == 0) {
-	inserted_bases += name[name.size()-1];
-      }
-    }
+    string inserted_bases = GetInsertion(side, path_names);
     event->SetInsertion(insertion, inserted_bases);
   }
 }
@@ -445,26 +429,30 @@ size_t DPHandler::GetInsertStart(string side, size_t path_length, size_t insert_
 }
 
 // ----------------------------------------------------------------------------------------
-size_t DPHandler::GetInsertLength(string side, vector<string> names) {
-  size_t n_inserts(0);
+string DPHandler::GetInsertion(string side, vector<string> names) {
+  string inserted_bases;
   if(side == "left") {
     for(auto & name : names) {
       if(name.find("insert") == 0)
-        ++n_inserts;
+        inserted_bases = inserted_bases + name.back();  // last character is "germline-like" base, e.g. insert_left_C
       else
         break;
     }
   } else if(side == "right") {
     for(size_t ip = names.size() - 1; ip >= 0; --ip)  // NOTE unsigned comparison is always true, so could really replace with while(true)
       if(names[ip].find("insert") == 0)
-        ++n_inserts;
+        inserted_bases = names[ip].back() + inserted_bases;  // last character is "germline-like" base, e.g. insert_left_C
       else
         break;
   } else {
     throw runtime_error("ERROR side must be left or right, not \"" + side + "\"");
   }
 
-  return n_inserts;
+  for(auto &base : inserted_bases)
+    if(base != 'A' && base != 'C' && base != 'G' && base != 'T')  // TODO this won't work if you change the alphabet
+      throw runtime_error("bad insertion state name in DPHandler::GetInsertion(): " + base);
+
+  return inserted_bases;
 }
 
 // ----------------------------------------------------------------------------------------

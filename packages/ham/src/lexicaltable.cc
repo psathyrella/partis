@@ -21,7 +21,7 @@ void LexicalTable::ReplaceLogProbs(vector<vector<double> > new_log_probs) {
     total += prob;
   }
   if(fabs(total - 1.0) >= EPS)  // make sure transition probs sum to 1.0
-    throw runtime_error("ERROR bad normalization after replacement " + to_string(total) + "\n");
+    throw runtime_error("ERROR bad normalization after replacement " + to_string(total) + " in LexicalTable::ReplaceLogProbs()\n");
 }
 
 // ----------------------------------------------------------------------------------------
