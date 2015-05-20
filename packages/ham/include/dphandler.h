@@ -21,7 +21,6 @@ class DPHandler {
 public:
   DPHandler(Args *args, GermLines &gl, HMMHolder &hmms);
   ~DPHandler();
-  // void PrintHMMS() { hmms_.Print(); }
   void Clear();
   Result Run(string algorithm, Sequences seqs, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
   Result Run(string algorithm, Sequence seq, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);
