@@ -199,7 +199,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths, tmpglom):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'bad_clusters'))  #'normalized_score'
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'n_clusters', 'bad_clusters'))  #'normalized_score'
             writer.writeheader()
             true_partition = tmpglom.get_true_partition()
             for ipath in range(len(paths)):
@@ -237,6 +237,7 @@ class PartitionDriver(object):
                                      'logweight' : paths[ipath].logweights[ipart],
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
                                      'adj_mi' : paths[ipath].adj_mis[ipart],
+                                     'n_clusters' : len(part),
                                      'bad_clusters' : ';'.join(bad_clusters)
                                      # 'clusters' : cluster_str
                                  })
@@ -806,7 +807,6 @@ class PartitionDriver(object):
             for uids, cachefo in self.cached_results.items():
                 writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
 
-        time.sleep(20)
         lockfile.close()
         os.remove(lockfname)
 
@@ -924,6 +924,11 @@ class PartitionDriver(object):
             label = ilabel if iseq==0 else ''
             event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
             out_str_list.append(event_str)
+
+            # if iseq == 0:
+            #     true_naive = utils.get_full_naive_seq(self.germline_seqs, self.reco_info[tmpline['unique_ids'][iseq]])
+            #     inf_naive = utils.get_full_naive_seq(self.germline_seqs, tmpline)
+            #     utils.color_mutants(true_naive, inf_naive, print_result=True, extra_str='    ')
 
         # if not self.args.is_data:
         #     self.print_performance_info(line, perfplotter=perfplotter)
