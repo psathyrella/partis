@@ -400,7 +400,8 @@ HMMHolder::~HMMHolder() {
 }
 
 // ----------------------------------------------------------------------------------------
-string HMMHolder::NameString(int max_to_print) {
+string HMMHolder::NameString(map<string, set<string> > *only_genes, int max_to_print) {
+  // NOTE this doesn't check that we actually have xeverybody in <only_genes>
   TermColors tc;
   map<string, string> region_strs;
   map<string, int> n_genes;
@@ -409,12 +410,15 @@ string HMMHolder::NameString(int max_to_print) {
     region_strs[region] = "";
     n_genes[region] = 0;
     for(auto &kv : hmms_) {
-      if(tc.GetRegion(kv.first) != region)
+      string gene(kv.first);
+      if(tc.GetRegion(gene) != region)  // skip genes from other regions
+	continue;
+      if(only_genes && (*only_genes)[region].count(gene) == 0)  // skip genes not in <only_genes>
 	continue;
       n_genes[region] += 1;
       if(region_strs[region].size() > 0)
 	region_strs[region] += ":";
-      region_strs[region] +=  tc.ColorGene(kv.first);
+      region_strs[region] +=  tc.ColorGene(gene);
     }
     n_total_genes += n_genes[region];
   }

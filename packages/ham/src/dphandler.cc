@@ -137,13 +137,13 @@ Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
     if(algorithm == "viterbi") {
       cout << "           best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score
 	   << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1
-	   << "   " << hmms_.NameString(30)
+	   << "   " << hmms_.NameString(&only_genes_, 30)
 	   << "     " << setw(48) << seqs.name_str()
 	   << endl;
     } else {
       printf("            %9.3f", *total_score);
       cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1 // exclusive...
-	   << "   " << hmms_.NameString(30)
+	   << "   " << hmms_.NameString(&only_genes_, 30)
 	   << "    " << seqs.name_str()
 	   << endl;
     }
