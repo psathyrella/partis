@@ -240,6 +240,11 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
   assert(path_names.size() == query_strs[0].size());
+  // cout << gene << " " << score << " " << extra_str << endl;
+  string insert_state_str;
+  for(auto &name : path_names)
+    // if(name.find("insert") == 0)
+    insert_state_str += name[name.size()-1];
   size_t left_insert_length = GetInsertLength("left", path_names);
   size_t right_insert_length = GetInsertLength("right", path_names);
   size_t left_erosion_length = GetErosionLength("left", path_names, gene);
@@ -263,6 +268,12 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
       << setw(12) << score
       << setw(25) << gene
       << endl;
+  // if(insert_state_str.find("i") != string::npos) {
+    cout
+      << "                    "
+      << (left_erosion_length > 0 ? ".." : "  ") << tc.ColorMutants("red", insert_state_str, "", query_strs) << (right_erosion_length > 0 ? ".." : "  ")
+      << endl;
+  // }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -411,8 +422,12 @@ void DPHandler::SetInsertions(string region, string query_str, vector<string> pa
   Insertions ins;
   for(auto & insertion : ins[region]) {  // loop over the boundaries (vd and dj)
     string side(insertion == "jf" ? "right" : "left");
-    size_t length(GetInsertLength(side, path_names));
-    string inserted_bases = query_str.substr(GetInsertStart(side, path_names.size(), length), length);
+    string inserted_bases;
+    for(auto &name : path_names) {
+      if(name.find("insert") == 0) {
+	inserted_bases += name[name.size()-1];
+      }
+    }
     event->SetInsertion(insertion, inserted_bases);
   }
 }
