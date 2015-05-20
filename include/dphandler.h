@@ -38,9 +38,9 @@ private:
   void PrintPath(vector<string> query_strs, string gene, double score, string extra_str = "");
   Sequences GetSubSeqs(Sequences &seqs, KSet kset, string region);
   map<string, Sequences> GetSubSeqs(Sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
-  void SetInsertions(string region, string query_str, vector<string> path_names, RecoEvent *event);
+  void SetInsertions(string region, vector<string> path_names, RecoEvent *event);
   size_t GetInsertStart(string side, size_t path_length, size_t insert_length);
-  size_t GetInsertLength(string side, vector<string> names);
+  string GetInsertion(string side, vector<string> names);
   size_t GetErosionLength(string side, vector<string> names, string gene_name);
 
   Args *args_;
