@@ -47,7 +47,7 @@ private:
   int HammingDistance(Sequence seq_a, Sequence seq_b);
   // int MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b);
   void GetNaiveSeq(string key);
-  void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds, double mean_mute_freq);
+  void GetLogProb(DPHandler &dph, string name, Sequences &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
   Query GetMergedQuery(string name_a, string name_b);
   string JoinNames(string name1, string name2);
   Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
