@@ -400,22 +400,35 @@ HMMHolder::~HMMHolder() {
 }
 
 // ----------------------------------------------------------------------------------------
-string HMMHolder::NameString() {
+string HMMHolder::NameString(int max_to_print) {
   TermColors tc;
-  string return_str;
+  map<string, string> region_strs;
+  map<string, int> n_genes;
+  int n_total_genes(0);
   for(auto &region : gl_.regions_) {
-    string region_str;
+    region_strs[region] = "";
+    n_genes[region] = 0;
     for(auto &kv : hmms_) {
       if(tc.GetRegion(kv.first) != region)
 	continue;
-      if(region_str.size() > 0)
-	region_str += ":";
-      region_str +=  tc.ColorGene(kv.first);
+      n_genes[region] += 1;
+      if(region_strs[region].size() > 0)
+	region_strs[region] += ":";
+      region_strs[region] +=  tc.ColorGene(kv.first);
     }
-    return_str += region_str;
+    n_total_genes += n_genes[region];
+  }
+
+  string return_str;
+  for(auto &region : gl_.regions_) {
+    if(max_to_print < 0 || n_total_genes <= max_to_print)
+      return_str += region_strs[region];
+    else
+      return_str += to_string(n_genes[region]) + region;
     if(region == "v" || region == "d")
       return_str += "  ";
   }
+
   return return_str;
 }
 
