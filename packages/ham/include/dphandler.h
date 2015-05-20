@@ -19,17 +19,17 @@ namespace ham {
 // ----------------------------------------------------------------------------------------
 class DPHandler {
 public:
-  DPHandler(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> only_genes = {});
+  DPHandler(Args *args, GermLines &gl, HMMHolder &hmms);
   ~DPHandler();
   // void PrintHMMS() { hmms_.Print(); }
   void Clear();
-  Result Run(string algorithm, Sequences seqs, KBounds kbounds, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
-  Result Run(string algorithm, Sequence seq, KBounds kbounds, double overall_mute_freq = -INFINITY);
+  Result Run(string algorithm, Sequences seqs, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(string algorithm, Sequence seq, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);
   void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);
 
 private:
-  void RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
+  void RunKSet(string algorithm, Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void FillTrellis(string algorithm, Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
   void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
@@ -44,10 +44,8 @@ private:
   size_t GetErosionLength(string side, vector<string> names, string gene_name);
 
   Args *args_;
-  string hmm_dir_;  // location of .hmm files
   GermLines &gl_;
   HMMHolder &hmms_;
-  map<string, set<string> > only_genes_;
 
   map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<vector<string>, TracebackPath*> > paths_; // collection of the paths.

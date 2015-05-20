@@ -1,20 +1,11 @@
 #include "dphandler.h"
 namespace ham {
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-DPHandler::DPHandler(Args *args, GermLines &gl, HMMHolder &hmms, vector<string> only_genes):
+DPHandler::DPHandler(Args *args, GermLines &gl, HMMHolder &hmms):
   args_(args),
   gl_(gl),
   hmms_(hmms)
 {
-  if(only_genes.size() > 0) {
-    for(auto & region : gl_.regions_)  // initialize
-      only_genes_[region] = set<string>();
-    for(auto & gene : only_genes)  // insert each gene in the proper region
-      only_genes_[gl_.GetRegion(gene)].insert(gene);
-    for(auto & region : gl_.regions_) // then make sure we have at least one gene for each region
-      if(only_genes_[region].size() == 0)
-        throw runtime_error("ERROR dphandler didn't get any genes for " + region + " region");
-  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -62,14 +53,26 @@ map<string, Sequences> DPHandler::GetSubSeqs(Sequences &seqs, KSet kset) {
 }
 
 // ----------------------------------------------------------------------------------------
-Result DPHandler::Run(string algorithm, Sequence seq, KBounds kbounds, double overall_mute_freq) {
+Result DPHandler::Run(string algorithm, Sequence seq, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
   Sequences seqs;
   seqs.AddSeq(seq);
-  return Run(algorithm, seqs, kbounds, overall_mute_freq);
+  return Run(algorithm, seqs, kbounds, only_gene_list, overall_mute_freq);
 }
 
 // ----------------------------------------------------------------------------------------
-Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double overall_mute_freq) {
+Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+  // convert <only_gene_list> to a set for each region
+  map<string, set<string> > only_genes;
+  if(only_gene_list.size() > 0) {
+    for(auto & region : gl_.regions_)  // initialize
+      only_genes[region] = set<string>();
+    for(auto & gene : only_gene_list)  // insert each gene in the proper region
+      only_genes[gl_.GetRegion(gene)].insert(gene);
+    for(auto & region : gl_.regions_) // then make sure we have at least one gene for each region
+      if(only_genes[region].size() == 0)
+        throw runtime_error("ERROR dphandler didn't get any genes for " + region + " region");
+  }
+
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
   Clear();
@@ -80,7 +83,7 @@ Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
   if(args_->rescale_emissions()) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
     assert(overall_mute_freq != -INFINITY);  // make sure the caller remembered to set it
     // NOTE it's super important to *un*set them after you're done
-    hmms_.RescaleOverallMuteFreqs(only_genes_, overall_mute_freq);
+    hmms_.RescaleOverallMuteFreqs(only_genes, overall_mute_freq);
   }
 
   Result result(kbounds);
@@ -97,7 +100,7 @@ Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
         continue;
       }
       KSet kset(k_v, k_d);
-      RunKSet(algorithm, seqs, kset, &best_scores, &total_scores, &best_genes);
+      RunKSet(algorithm, seqs, kset, only_genes, &best_scores, &total_scores, &best_genes);
       *total_score = AddInLogSpace(total_scores[kset], *total_score);  // sum up the probabilities for each kset, log P_tot = log \sum_i P_k_i
       if(args_->debug() == 2 && algorithm == "forward") printf("            %9.2f (%.1e)  tot: %7.2f\n", total_scores[kset], exp(total_scores[kset]), *total_score);
       if(best_scores[kset] > best_score) {
@@ -137,13 +140,13 @@ Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
     if(algorithm == "viterbi") {
       cout << "           best kset: " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score
 	   << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1
-	   << "   " << hmms_.NameString(&only_genes_, 30)
+	   << "   " << hmms_.NameString(&only_genes, 30)
 	   << "     " << setw(48) << seqs.name_str()
 	   << endl;
     } else {
       printf("            %9.3f", *total_score);
       cout << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1 // exclusive...
-	   << "   " << hmms_.NameString(&only_genes_, 30)
+	   << "   " << hmms_.NameString(&only_genes, 30)
 	   << "    " << seqs.name_str()
 	   << endl;
     }
@@ -160,7 +163,7 @@ Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, double 
   }
 
   if(args_->rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
-    hmms_.UnRescaleOverallMuteFreqs(only_genes_);
+    hmms_.UnRescaleOverallMuteFreqs(only_genes);
 
   return result;
 }
@@ -321,7 +324,7 @@ vector<string> DPHandler::GetQueryStrs(Sequences &seqs, KSet kset, string region
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
+void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
   map<string, Sequences> subseqs(GetSubSeqs(seqs, kset));
   (*best_scores)[kset] = -INFINITY;
   (*total_scores)[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
@@ -347,9 +350,7 @@ void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<KSet, 
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
     size_t igene(0), n_short_v(0), n_long_erosions(0);
-    for(auto & gene : gl_.names_[region]) {
-      if(only_genes_[region].size() > 0 and only_genes_[region].find(gene) == only_genes_[region].end())
-        continue;
+    for(auto & gene : only_genes[region]) {
       igene++;
 
       if(region == "v" && query_strs[0].size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
