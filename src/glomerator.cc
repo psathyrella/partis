@@ -60,8 +60,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   if((int)initial_partitions_.size() != args_->smc_particles())
     throw runtime_error("wrong number of initial partitions " + to_string(initial_partitions_.size()) + " (should be " + to_string(args_->smc_particles()) + ")");
 
-  // initial_partition_ = GetPartitionFromMap(info_);
-  // initial_logprob_ = LogProbOfPartition(initial_partition_);
   if(args_->debug())
     for(auto &part : initial_partitions_)
       PrintPartition(part, "initial");
@@ -308,25 +306,17 @@ Query *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_mer
   // first leave log space and normalize. NOTE instead of normalizing, we could just use rng::Uniform(0., total)
   vector<double> ratios;  // NOTE *not* a probability: it's the ratio of the probability together to the probability apart
   double total(0.0);
-  // cout << "choosing" << endl;
   for(auto &pr : potential_merges) {
     double likelihood_ratio = exp(pr.first);
-    // cout << "  " << pr.second.name_ << " " << likelihood_ratio << endl;
     total += likelihood_ratio;
     ratios.push_back(likelihood_ratio);
   }
-  // cout << "   normalizing" << endl;
   for(auto &ratio : ratios)
     ratio /= total;
-  // for(auto &ratio : ratios)
-    // cout << "  " << ratio << endl;
 
   // then choose one at random according to the probs
   double drawpoint = rgen->Uniform(0., 1.);
   double sum(0.0);
-  // pair<unsigned, unsigned> icls(9999, 9999);
-  // double chosennetprob(0.0);
-  // cout << "  choosing with " << drawpoint << endl;
   for(size_t im=0; im<ratios.size(); ++im) {
     double ratio(ratios[im]);
     sum += ratio;
@@ -352,7 +342,6 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     return;
   }
   double max_log_prob(-INFINITY);
-  // pair<string, string> max_pair; // pair of clusters with largest log prob (i.e. the ratio of their prob together to their prob apart is largest)
   int imax(-1);
 
   vector<pair<double, Query> > potential_merges;
@@ -399,7 +388,6 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
-	// max_pair = pair<string, string>(key_a, key_b);  // REMINDER not always same order as names[0], names[1]
 	imax = potential_merges.size() - 1;
       }
     }
@@ -420,12 +408,8 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     qmerged = ChooseRandomMerge(potential_merges, rgen);
     chosen_logprob = max_log_prob;
   }
-  // cout << "chose: " << qmerged->name_ << endl;
-  // Query qmerged(GetMergedQuery(max_pair.first, max_pair.second));  // NOTE I'm still kinda worried about ordering shenanigans here. I think the worst case is we calculate something twice that we don't need to, but I'm still nervous.
   
   // merge the two best clusters
-  // string max_name_str = JoinNames(max_pair.first, max_pair.second);
-  // if(info_.count(max_name_str) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
   if(info_.count(qmerged->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
     // Query qmerged(GetMergedQuery(max_pair.first, max_pair.second));  // NOTE I'm still kinda worried about ordering shenanigans here. I think the worst case is we calculate something twice that we don't need to, but I'm still nervous.
     info_[qmerged->name_] = qmerged->seqs_;
@@ -437,9 +421,6 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   }
 
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
-  // new_partition.erase(max_pair.first);
-  // new_partition.erase(max_pair.second);
-  // new_partition.insert(max_name_str);
   new_partition.erase(qmerged->parents_.first);
   new_partition.erase(qmerged->parents_.second);
   new_partition.insert(qmerged->name_);
