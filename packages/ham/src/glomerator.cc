@@ -369,9 +369,8 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 	continue;
       }
 
-      // NOTE it's an ok approximation to compare log probs for sequence sets that were run with different kbounds, but (I'm pretty sure) we do need to run them with the same set of genes. EDIT hm, well, maybe not. Anywa, it's ok for now
-
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
+      // NOTE also that the _a and _b results will likely be cached, but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
       GetLogProb(key_a, *a_seqs, kbinfo_[key_a], qmerged.only_genes_, mute_freqs_[key_a]);
       GetLogProb(key_b, *b_seqs, kbinfo_[key_b], qmerged.only_genes_, mute_freqs_[key_b]);
       GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
