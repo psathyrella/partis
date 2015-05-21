@@ -156,7 +156,7 @@ else:
     random.seed(args.seed)
 
     args.queries = utils.get_arg_list(args.queries, intify=False)
-    args.reco_ids = utils.get_arg_list(args.reco_ids, intify=True)
+    args.reco_ids = utils.get_arg_list(args.reco_ids, intify=False)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
     if len(args.n_max_per_region) != 3:
         raise Exception('ERROR n-max-per-region should be of the form \'x:y:z\', but I got' + str(args.n_max_per_region))
