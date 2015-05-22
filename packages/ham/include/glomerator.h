@@ -34,7 +34,11 @@ public:
   void Cluster();
   double LogProbOfPartition(Partition &clusters);
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
-  Partition GetAnInitialPartition(int &tmpi, double &logweight);  // get the next initial partition in the list of initial partitions, and remove it from the list
+
+  // Return the next (i.e. the <i_initial_partition_>th) initial partition in the list of initial partitions, and increment <i_initial_partition_>.
+  // Also sets arguments <initial_path_index> and <logweight> to correspond to the returned partition.
+  Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
+
   void WritePartitions(vector<ClusterPath> &paths);
 private:
   void ReadCachedLogProbs(Track *track);
