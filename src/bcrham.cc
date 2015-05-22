@@ -25,12 +25,12 @@ Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
 
 // ----------------------------------------------------------------------------------------
 smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
-  int tmpi(-1);
+  int initial_path_index(-1);
   double logweight;
-  Partition initial_partition(stupid_global_glom->GetAnInitialPartition(tmpi, logweight));  // get the next initial partition (and increment the counter)
+  Partition initial_partition(stupid_global_glom->GetAnInitialPartition(initial_path_index, logweight));  // get the next initial partition (and increment the counter)
   double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
   ClusterPath thecp(initial_partition, logprob, logweight);
-  thecp.tmpi = tmpi;
+  thecp.initial_path_index_ = initial_path_index;
   return smc::particle<ClusterPath>(thecp, thecp.CurrentLogWeight());  //logprob);
 }
 
@@ -115,7 +115,6 @@ int main(int argc, const char * argv[]) {
 
       vector<ClusterPath> paths;
       for(int ip=0; ip<args.smc_particles(); ++ip) {
-	// cout << "ack " << smp.GetParticleValue(ip).tmpi << endl;
 	paths.push_back(smp.GetParticleValue(ip));
       }
       glom.WritePartitions(paths);

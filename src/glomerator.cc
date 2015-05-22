@@ -86,8 +86,8 @@ void Glomerator::Cluster() {
 }
 
 // ----------------------------------------------------------------------------------------
-Partition Glomerator::GetAnInitialPartition(int &tmpi, double &logweight) {
-  tmpi = i_initial_partition_;
+Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &logweight) {
+  initial_path_index = i_initial_partition_;
   assert(i_initial_partition_ < (int)initial_partitions_.size());
   logweight = initial_logweights_[i_initial_partition_];
   return initial_partitions_.at(i_initial_partition_++);
@@ -178,7 +178,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
-      ofs_ << ipath << "," << cp.tmpi << ",";
+      ofs_ << ipath << "," << cp.initial_path_index_ << ",";
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
@@ -427,7 +427,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
-    // cout << "    path " << path->tmpi << endl;
+    // cout << "    path " << path->initial_path_index_ << endl;
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
     printf("       merged %-8.2f %s and %s\n", chosen_logprob, qmerged->parents_.first.c_str(), qmerged->parents_.second.c_str());

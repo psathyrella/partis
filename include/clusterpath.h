@@ -29,7 +29,7 @@ public:
   vector<double> &logweights() { return logweights_; }
   double CurrentLogWeight() { return logweights_.back(); }
   bool finished_;
-  int tmpi;
+  int initial_path_index_;  // index (in the batch of last glomeration steps) of the path which gave rise to this path [if you have to ask, you really don't want to know]
 private:
   vector<Partition> partitions_;
   vector<double> logprobs_;
