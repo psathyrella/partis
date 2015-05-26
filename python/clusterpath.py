@@ -59,7 +59,11 @@ class ClusterPath(object):
             expon = math.exp(self.logweights[ip])
             n_ways = 0 if expon == 0. else 1. / expon
             way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
-            print '      %5s  %-10.2f%-7s   %-8.3f   %5d   %10s    %8.3f   ' % (extrastr, self.logprobs[ip], delta_str, self.adj_mis[ip], len(self.partitions[ip]), way_str, self.logweights[ip]),
+            if self.adj_mis[ip] > 1e-3:
+                adj_mi_str = '%-8.3f' % self.adj_mis[ip]
+            else:
+                adj_mi_str = '%-8.0e' % self.adj_mis[ip]
+            print '      %5s  %-10.2f%-7s   %8s   %5d   %10s    %8.3f   ' % (extrastr, self.logprobs[ip], delta_str, adj_mi_str, len(self.partitions[ip]), way_str, self.logweights[ip]),
         else:
             print '  %5s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
             print '   clonal?   ids'

@@ -56,9 +56,9 @@ plot_titles = {
     'v-mean-freq' : 'V mutation freq',
     'd-mean-freq' : 'D mutation freq',
     'j-mean-freq' : 'J mutation freq',
-    'v_gene_fraction_vs_mute_freq' : 'V gene correct',
-    'd_gene_fraction_vs_mute_freq' : 'D gene correct',
-    'j_gene_fraction_vs_mute_freq' : 'J gene correct'
+    'v_gene_fraction_vs_mute_freq' : 'V gene',
+    'd_gene_fraction_vs_mute_freq' : 'D gene',
+    'j_gene_fraction_vs_mute_freq' : 'J gene'
 }
 
 true_vs_inferred_hard_bounds = {

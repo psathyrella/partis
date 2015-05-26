@@ -47,6 +47,9 @@ class PartitionDriver(object):
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
 
+        if self.args.outfname is not None and not os.path.exists(os.path.dirname(self.args.outfname)):
+            os.makedirs(os.path.dirname(self.args.outfname))
+
     # ----------------------------------------------------------------------------------------
     def merge_cachefiles(self, infnames, outfname):
         for fname in infnames:
@@ -532,7 +535,7 @@ class PartitionDriver(object):
         utils.prep_dir(hmm_dir, '*.yaml')
 
         gene_list = self.args.only_genes
-        if gene_list == None and self.sw_info is not None:  # if specific genes weren't specified, do the ones for which we have sw matches
+        if gene_list is None and self.sw_info is not None:  # if specific genes weren't specified, do the ones for which we have sw matches
             gene_list = []
             for region in utils.regions:
                 for gene in self.germline_seqs[region]:
@@ -925,10 +928,10 @@ class PartitionDriver(object):
             event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
             out_str_list.append(event_str)
 
-            # if iseq == 0:
-            #     true_naive = utils.get_full_naive_seq(self.germline_seqs, self.reco_info[tmpline['unique_ids'][iseq]])
-            #     inf_naive = utils.get_full_naive_seq(self.germline_seqs, tmpline)
-            #     utils.color_mutants(true_naive, inf_naive, print_result=True, extra_str='    ')
+            if iseq == 0:
+                true_naive = utils.get_full_naive_seq(self.germline_seqs, self.reco_info[tmpline['unique_ids'][iseq]])
+                inf_naive = utils.get_full_naive_seq(self.germline_seqs, tmpline)
+                utils.color_mutants(true_naive, inf_naive, print_result=True, extra_str='                 ')
 
         # if not self.args.is_data:
         #     self.print_performance_info(line, perfplotter=perfplotter)
