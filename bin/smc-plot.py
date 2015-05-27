@@ -87,7 +87,7 @@ def process_paths(logprobs, adj_mis, logweights):
     print 'change: %.1f steps' % mean_delta_imax[0]
     logprob_at_adj_mi = max_adj_mi_means['logprobs'][0]
     logprob_at_logprob = max_logprob_means['logprobs'][0]
-    print '     logprob: %.1f (delta %.3f)' % (logprob_at_adj_mi - logprob_at_logprob, (logprob_at_adj_mi - logprob_at_logprob) / (0.5*(logprob_at_adj_mi + logprob_at_logprob)))
+    print '     logprob: %.1f (delta %.3f)' % (logprob_at_adj_mi - logprob_at_logprob, (logprob_at_adj_mi - logprob_at_logprob) / logprob_at_logprob)
     print '      adj_mi: %.4f' % (max_adj_mi_means['adj_mis'][0] - max_logprob_means['adj_mis'][0])
 
 if args.infnames is None:
