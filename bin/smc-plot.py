@@ -3,6 +3,8 @@ import matplotlib as mpl
 mpl.use('Agg')
 import argparse
 import sys
+import math
+import numpy
 import os
 import glob
 import csv
@@ -15,7 +17,7 @@ sys.path.insert(1, './python')
 from utils import get_arg_list
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--infnames', required=True)
+parser.add_argument('--infnames')
 parser.add_argument('--zoom', action='store_true')
 parser.add_argument('--normalize-axes', action='store_true')
 parser.add_argument('--xbounds')
@@ -45,30 +47,70 @@ mpl.rcParams.update({
 
 cmap = 'BuGn'  #mpl.cm.jet
 
-logprobs, adj_mis = {}, {}
-final_logweights = []
-# fnames = ['/fh/fast/matsen_e/dralph/work/partis-dev/_output/sample-sizes/' + str(n) + '-queries.csv' for n in (10, 20, 50, 100)]
-samples = (4000, )
-fnames = ['/fh/fast/matsen_e/dralph/work/partis-dev/_output/sample-sizes/' + str(n) + '-*-queries.csv' for n in samples]
-for ifn in range(len(fnames)):
-    fnames[ifn] = glob.glob(fnames[ifn])[0]
+def process_paths(logprobs, adj_mis, logweights):
+    max_logprob = {'logprobs' : [], 'adj_mis' : [], 'imaxes' : [], 'weights' : []}  # values at the point of maximum logprob
+    max_adj_mi = {'logprobs' : [], 'adj_mis' : [], 'imaxes' : [], 'weights' : []}  # values at the point of maximum adj_mi
+    for ipath in logprobs.keys():
+        imax_logprob = logprobs[ipath].index(max(logprobs[ipath]))
+        max_logprob['logprobs'].append(logprobs[ipath][imax_logprob])
+        max_logprob['adj_mis'].append(adj_mis[ipath][imax_logprob])
+        max_logprob['imaxes'].append(imax_logprob)
+        max_logprob['weights'].append(logweights[ipath][imax_logprob])
 
-for fname in fnames:
+        imax_adj_mi = adj_mis[ipath].index(max(adj_mis[ipath]))
+        max_adj_mi['logprobs'].append(logprobs[ipath][imax_adj_mi])
+        max_adj_mi['adj_mis'].append(adj_mis[ipath][imax_adj_mi])
+        max_adj_mi['imaxes'].append(imax_adj_mi)
+        max_adj_mi['weights'].append(logweights[ipath][imax_adj_mi])
+
+    def weighted_mean_rootvariance(vals, wgts):
+        mean = numpy.average(vals, weights=wgts)
+        variance = numpy.average((vals - mean)**2, weights=wgts)
+        return (mean, math.sqrt(variance))
+
+    mean_imax_logprob = weighted_mean_rootvariance(max_logprob['imaxes'], max_logprob['weights'])
+    mean_imax_adj_mi = weighted_mean_rootvariance(max_adj_mi['imaxes'], max_adj_mi['weights'])
+    delta_imaxes = [i_adj_mi - i_logprob for i_adj_mi, i_logprob in zip(max_adj_mi['imaxes'], max_logprob['imaxes'])]
+    delta_wgts = [0.5*(adj_mi_wgt + logprob_wgt) for adj_mi_wgt, logprob_wgt in zip(max_adj_mi['weights'], max_logprob['weights'])]
+    mean_delta_imax = weighted_mean_rootvariance(delta_imaxes, delta_wgts)
+
+    max_logprob_means = {'logprobs' : weighted_mean_rootvariance(max_logprob['logprobs'], max_logprob['weights']),
+                         'adj_mis' : weighted_mean_rootvariance(max_logprob['adj_mis'], max_logprob['weights'])}
+    max_adj_mi_means = {'logprobs' : weighted_mean_rootvariance(max_adj_mi['logprobs'], max_adj_mi['weights']),
+                        'adj_mis' : weighted_mean_rootvariance(max_adj_mi['adj_mis'], max_adj_mi['weights'])}
+    print 'max logprob step %.1f:' % mean_imax_logprob[0]
+    print '     logprob: %.1f +/- %.1e' % max_logprob_means['logprobs']
+    print '      adj_mi: %.4f +/- %.1e' % max_logprob_means['adj_mis']
+    print 'max adj_mi step %.1f:' % mean_imax_adj_mi[0]
+    print '     logprob: %.1f +/- %.1e' % max_adj_mi_means['logprobs']
+    print '      adj_mi: %.4f +/- %.1e' % max_adj_mi_means['adj_mis']
+    print 'change: %.1f steps' % mean_delta_imax[0]
+    logprob_at_adj_mi = max_adj_mi_means['logprobs'][0]
+    logprob_at_logprob = max_logprob_means['logprobs'][0]
+    print '     logprob: %.1f (delta %.3f)' % (logprob_at_adj_mi - logprob_at_logprob, (logprob_at_adj_mi - logprob_at_logprob) / (0.5*(logprob_at_adj_mi + logprob_at_logprob)))
+    print '      adj_mi: %.4f' % (max_adj_mi_means['adj_mis'][0] - max_logprob_means['adj_mis'][0])
+
+if args.infnames is None:
+    samples = (4000, )
+    args.infnames = ['/fh/fast/matsen_e/dralph/work/partis-dev/_output/sample-sizes/' + str(n) + '-*-queries.csv' for n in samples]
+    for ifn in range(len(args.infnames)):
+        args.infnames[ifn] = glob.glob(args.infnames[ifn])[0]
+
+logprobs, adj_mis, logweights = {}, {}, {}
+final_logweights = []
+for fname in args.infnames:
     print fname
     with open(fname) as infile:
         for line in csv.DictReader(infile):
             ipath = int(line['path_index'])
             if ipath not in logprobs:
-                logprobs[ipath] = []
-                adj_mis[ipath] = []
+                logprobs[ipath], adj_mis[ipath], logweights[ipath] = [], [], []
             logprobs[ipath].append(float(line['score']))
             adj_mis[ipath].append(float(line['adj_mi']))
-            if float(line['adj_mi']) == 1.:
-                final_logweights.append(float(line['logweight']))
+            logweights[ipath].append(float(line['logweight']))
 
-# for lw in final_logweights:
-#     print lw
-# sys.exit()
+process_paths(logprobs, adj_mis, logweights)
+
 max_length = -1
 for ipath in logprobs.keys():
     if len(logprobs[ipath]) > max_length:

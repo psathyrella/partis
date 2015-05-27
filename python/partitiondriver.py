@@ -47,8 +47,10 @@ class PartitionDriver(object):
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
 
-        if self.args.outfname is not None and not os.path.exists(os.path.dirname(self.args.outfname)):
-            os.makedirs(os.path.dirname(self.args.outfname))
+        if self.args.outfname is not None:
+            outdir = os.path.dirname(self.args.outfname)
+            if outdir != '' and not os.path.exists(outdir):
+                os.makedirs(outdir)
 
     # ----------------------------------------------------------------------------------------
     def merge_cachefiles(self, infnames, outfname):
