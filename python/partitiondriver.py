@@ -930,10 +930,10 @@ class PartitionDriver(object):
             event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
             out_str_list.append(event_str)
 
-            if iseq == 0:
-                true_naive = utils.get_full_naive_seq(self.germline_seqs, self.reco_info[tmpline['unique_ids'][iseq]])
-                inf_naive = utils.get_full_naive_seq(self.germline_seqs, tmpline)
-                utils.color_mutants(true_naive, inf_naive, print_result=True, extra_str='                 ')
+            # if iseq == 0:
+            #     true_naive = utils.get_full_naive_seq(self.germline_seqs, self.reco_info[tmpline['unique_ids'][iseq]])
+            #     inf_naive = utils.get_full_naive_seq(self.germline_seqs, tmpline)
+            #     utils.color_mutants(true_naive, inf_naive, print_result=True, extra_str='       mistaken: ')
 
         # if not self.args.is_data:
         #     self.print_performance_info(line, perfplotter=perfplotter)
