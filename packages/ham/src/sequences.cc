@@ -80,7 +80,7 @@ Sequences Sequences::Union(Sequences &otherseqs) {
 
   for(size_t is=0; is<seqs_.size(); ++is) {
     if(already_added.count(seqs_[is].name()))
-      throw runtime_error("ERROR tried to add sequence with name " + seqs_[is].name() + " twice in Sequences::Union");
+      throw runtime_error("tried to add sequence with name " + seqs_[is].name() + " twice in Sequences::Union");
     else
       already_added.insert(seqs_[is].name());
     union_seqs.AddSeq(seqs_[is]);
@@ -88,7 +88,7 @@ Sequences Sequences::Union(Sequences &otherseqs) {
 
   for(size_t is=0; is<otherseqs.n_seqs(); ++is) {
     if(already_added.count(otherseqs[is].name()))
-      throw runtime_error("ERROR tried to add sequence with name " + otherseqs[is].name() + " twice in Sequences::Union");
+      throw runtime_error("tried to add sequence with name " + otherseqs[is].name() + " twice in Sequences::Union");
     else
       already_added.insert(otherseqs[is].name());
     union_seqs.AddSeq(otherseqs[is]);
@@ -117,7 +117,7 @@ void Sequences::AddSeq(Sequence sq) {
     sequence_length_ = sq.size();
   } else {
     if(sq.size() != sequence_length_)  // all sequences must have the same length
-      throw runtime_error("ERROR sequences must all have the same length, but got " + to_string(sq.size()) + " and " + to_string(sequence_length_));
+      throw runtime_error("Sequences::AddSeq() sequences must all have the same length, but got " + to_string(sq.size()) + " and " + to_string(sequence_length_));
   }
   seqs_.push_back(sq);  // NOTE we now own this sequence, i.e. we will delete it when we die
 }
