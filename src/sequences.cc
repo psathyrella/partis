@@ -2,10 +2,10 @@
 
 namespace ham {
 
-// // ----------------------------------------------------------------------------------------
-// Sequence::Sequence() {
-//   seq_ = new vector<uint8_t>();
-// }
+// ----------------------------------------------------------------------------------------
+Sequence::Sequence() : track_(nullptr) {
+  seq_ = new vector<uint8_t>();
+}
 
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Track* trk, string name, string &undigitized):
@@ -101,6 +101,12 @@ Sequences::Sequences(Sequences &seqs, size_t pos, size_t len) : sequence_length_
   for(auto & seq : seqs.seqs_)
     AddSeq(Sequence(seq, pos, len));
 }
+
+// // ----------------------------------------------------------------------------------------
+// Sequences::Sequences(vector<Sequence> &seqs) {
+//   for(auto & seq : seqs)
+//     AddSeq(seq);
+// }
 
 // ----------------------------------------------------------------------------------------
 void Sequences::Print() {

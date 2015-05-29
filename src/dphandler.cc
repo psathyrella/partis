@@ -54,13 +54,19 @@ map<string, Sequences> DPHandler::GetSubSeqs(Sequences &seqs, KSet kset) {
 
 // ----------------------------------------------------------------------------------------
 Result DPHandler::Run(string algorithm, Sequence seq, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
-  Sequences seqs;
-  seqs.AddSeq(seq);
-  return Run(algorithm, seqs, kbounds, only_gene_list, overall_mute_freq);
+  vector<Sequence> seqvector{seq};
+  return Run(algorithm, seqvector, kbounds, only_gene_list, overall_mute_freq);
 }
 
 // ----------------------------------------------------------------------------------------
-Result DPHandler::Run(string algorithm, Sequences seqs, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+  // truncate sequences to the same length
+  Sequences seqs;
+    for(auto &seq : seqvector)
+      seqs.AddSeq(seq);
+  if(args_->truncate_seqs()) {
+  }
+
   // convert <only_gene_list> to a set for each region
   map<string, set<string> > only_genes;
   if(only_gene_list.size() > 0) {

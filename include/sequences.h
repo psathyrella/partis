@@ -10,7 +10,7 @@ namespace ham {
 class Sequence {
   friend class Sequences;
 public:
-  // Sequence();  // NOTE don't use this! It's only so I can use stl maps without crashing
+  Sequence();  // NOTE don't use this! It's only so I can use stl maps without crashing
   Sequence(Track* trk, string name, string &undigitized);
   Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len);  // create the subsequence from <pos> of length <len>
   Sequence(Sequence &rhs, size_t pos, size_t len);
@@ -43,6 +43,7 @@ public:
   Sequences() : sequence_length_(0) {}
   // Sequences(const Sequences &rhs);
   Sequences(Sequences &rhs, size_t pos, size_t len);  // copy <seqs> from <pos> to <pos> + <len>
+  // Sequences(vector<Sequence> &seqs);
   void AddSeq(Sequence sq);
 
   short value(size_t iseq, size_t ipos) { return seqs_.at(iseq).value(ipos); }  // return digitized value of <iseq>th sequence at position <ipos>

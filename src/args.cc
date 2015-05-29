@@ -20,11 +20,13 @@ Args::Args(int argc, const char * argv[]):
   smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
   chunk_cache_arg_("", "chunk-cache", "perform chunk caching?", false),
   partition_arg_("", "partition", "", false),
+  truncate_seqs_arg_("", "truncate-seqs", "", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
   str_headers_ {},
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   float_headers_ {"logweight"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
+  int_list_headers_ {"cyst_positions"},  // passed as colon-separated lists of ints
   float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats
 {
   try {
@@ -41,6 +43,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(smc_particles_arg_);
     cmd.add(chunk_cache_arg_);
     cmd.add(partition_arg_);
+    cmd.add(truncate_seqs_arg_);
     cmd.add(rescale_emissions_arg_);
 
     cmd.parse(argc, argv);
@@ -85,6 +88,9 @@ Args::Args(int argc, const char * argv[]):
       } else if(str_list_headers_.count(head)) {
         ss >> tmpstr;
         str_lists_[head].push_back(SplitString(tmpstr, ":"));
+      } else if(int_list_headers_.count(head)) {
+        ss >> tmpstr;
+        int_lists_[head].push_back(Intify(SplitString(tmpstr, ":")));
       } else if(float_list_headers_.count(head)) {
         ss >> tmpstr;
 	float_lists_[head].push_back(Floatify(SplitString(tmpstr, ":")));
@@ -99,6 +105,7 @@ Args::Args(int argc, const char * argv[]):
       }
     }
   }
+
 }
 
 }

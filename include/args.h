@@ -30,6 +30,7 @@ public:
   int smc_particles() { return smc_particles_arg_.getValue(); }
   bool chunk_cache() { return chunk_cache_arg_.getValue(); }
   bool partition() { return partition_arg_.getValue(); }
+  bool truncate_seqs() { return truncate_seqs_arg_.getValue(); }
   bool rescale_emissions() { return rescale_emissions_arg_.getValue(); }
 
   // command line arguments
@@ -40,15 +41,16 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, cachefile_arg_, algorithm_arg_;
   ValueArg<float> hamming_fraction_cutoff_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_, smc_particles_arg_;
-  SwitchArg chunk_cache_arg_, partition_arg_, rescale_emissions_arg_;
+  SwitchArg chunk_cache_arg_, partition_arg_, truncate_seqs_arg_, rescale_emissions_arg_;
 
   // arguments read from csv input file
   map<string, vector<string> > strings_;
   map<string, vector<int> > integers_;
   map<string, vector<double> > floats_;
   map<string, vector<vector<string> > > str_lists_;
+  map<string, vector<vector<int> > > int_lists_;
   map<string, vector<vector<double> > > float_lists_;
-  set<string> str_headers_, int_headers_, float_headers_, str_list_headers_, float_list_headers_;
+  set<string> str_headers_, int_headers_, float_headers_, str_list_headers_, int_list_headers_, float_list_headers_;
 
   // // extra values to cache command line args (TCLAP calls to ValuesConstraint::check() seem to be really slow
   // UPDATE hmm, didn't seem to help. leave it for the moment
