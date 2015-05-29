@@ -22,7 +22,7 @@ public:
   DPHandler(Args *args, GermLines &gl, HMMHolder &hmms);
   ~DPHandler();
   void Clear();
-  Result Run(string algorithm, Sequences seqs, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(string algorithm, vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);  // run all over the kspace specified by bounds in kmin and kmax
   Result Run(string algorithm, Sequence seq, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY);
   void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);

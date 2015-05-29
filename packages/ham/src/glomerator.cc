@@ -2,8 +2,29 @@
 
 namespace ham {
 
+
 // ----------------------------------------------------------------------------------------
-Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_seq_list, Args *args, Track *track) :
+string SeqStr(vector<Sequence> &seqs, string delimiter) {
+  string seq_str;
+  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
+    if(iseq > 0) seq_str += delimiter;
+    seq_str += seqs[iseq].undigitized();
+  }
+  return seq_str;
+}
+
+// ----------------------------------------------------------------------------------------
+string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
+  string name_str;
+  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
+    if(iseq > 0) name_str += delimiter;
+    name_str += seqs[iseq].name();
+  }
+  return name_str;
+}
+
+// ----------------------------------------------------------------------------------------
+Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args *args, Track *track) :
   args_(args),
   dph_(args_, gl, hmms),
   i_initial_partition_(0),
@@ -15,7 +36,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
   Partition tmp_partition;
   int last_ipath(0);
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
-    string key(qry_seq_list[iqry].name_str(":"));
+    string key = SeqNameStr(qry_seq_list[iqry], ":");
 
     int ipath(args_->integers_["path_index"][iqry]);
     if(last_ipath != ipath) {  // if we need to push back a new initial partition (i.e. this is a new path/particle) NOTE I'm assuming the the first one will have <path_index> zero
@@ -28,10 +49,10 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<Sequences> &qry_se
       
     tmp_partition.insert(key);
 
-    if(info_.count(key) > 0)  // already added this cluster to the maps (but it'll appear more than once if it's in multiple paths/particles), so we only need to add the cluster info to <initial_partitions_>
+    if(seq_info_.count(key) > 0)  // already added this cluster to the maps (but it'll appear more than once if it's in multiple paths/particles), so we only need to add the cluster info to <initial_partitions_>
       continue;
 
-    info_[key] = qry_seq_list[iqry];
+    seq_info_[key] = qry_seq_list[iqry];
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
@@ -127,21 +148,12 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
 }
 
 // ----------------------------------------------------------------------------------------
-// return a vector consisting of the keys in <partinfo>
-Partition Glomerator::GetPartitionFromMap(map<string, Sequences> &partinfo) {
-  Partition clusters;
-  for(auto &kv : partinfo)
-    clusters.insert(kv.first);
-  return clusters;
-}
-
-// ----------------------------------------------------------------------------------------
 double Glomerator::LogProbOfPartition(Partition &partition) {
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
   for(auto &key : partition) {
     if(log_probs_.count(key) == 0) {  // should only happen for the initial partition
-      GetLogProb(key, info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
+      GetLogProb(key, seq_info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
     }
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs_[key]);
   }
@@ -223,21 +235,6 @@ int Glomerator::NaiveHammingDistance(string key_a, string key_b) {
   GetNaiveSeq(key_b);
   return HammingDistance(naive_seqs_[key_a], naive_seqs_[key_b]);
 }
-// // ----------------------------------------------------------------------------------------
-// int Glomerator::MinimalHammingDistance(Sequences &seqs_a, Sequences &seqs_b) {
-//   // Minimal hamming distance between any sequence in <seqs_a> and any sequence in <seqs_b>
-//   // NOTE for now, we require sequences are the same length (otherwise we have to deal with alignming them which is what we would call a CAN OF WORMS.
-//   assert(seqs_a.n_seqs() > 0 && seqs_b.n_seqs() > 0);
-//   int min_distance(seqs_a[0].size());
-//   for(size_t is=0; is<seqs_a.n_seqs(); ++is) {
-//     for(size_t js=0; js<seqs_b.n_seqs(); ++js) {
-//       int distance = HammingDistance(seqs_a[is], seqs_b[js]);
-//       if(distance < min_distance)
-// 	min_distance = distance;
-//     }
-//   }
-//   return min_distance;
-// }
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <key>/<seqs> to <log_probs_> (if it isn't already there)
@@ -248,7 +245,7 @@ void Glomerator::GetNaiveSeq(string key) {
   Result result(kbinfo_[key]);
   bool stop(false);
   do {
-    result = dph_.Run("viterbi", info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
+    result = dph_.Run("viterbi", seq_info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);
     kbinfo_[key] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -264,7 +261,7 @@ void Glomerator::GetNaiveSeq(string key) {
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetLogProb(string name, Sequences &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
+  void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
   // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name)) {  // already did it
     ++n_cached_;
@@ -288,15 +285,37 @@ void Glomerator::GetLogProb(string name, Sequences &seqs, KBounds &kbounds, vect
 }
 
 // ----------------------------------------------------------------------------------------
+vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
+  // first merge the two vectors
+  vector<Sequence> merged_seqs;  // NOTE doesn't work if you preallocate and use std::vector::insert(). No, I have no *@#*($!#ing idea why
+  for(size_t is=0; is<seq_info_[name_a].size(); ++is)
+    merged_seqs.push_back(seq_info_[name_a][is]);
+  for(size_t is=0; is<seq_info_[name_b].size(); ++is)
+    merged_seqs.push_back(seq_info_[name_b][is]);
+
+  // then make sure we don't have the same sequence twice
+  set<string> all_names;
+  for(size_t is=0; is<merged_seqs.size(); ++is) {
+    string name(merged_seqs[is].name());
+    if(all_names.count(name))
+      throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()");
+    else
+      all_names.insert(name);
+  }
+
+  return merged_seqs;
+}
+
+// ----------------------------------------------------------------------------------------
 Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   Query qmerged;
   qmerged.name_ = JoinNames(name_a, name_b);
-  qmerged.seqs_ = info_[name_a].Union(info_[name_b]);
+  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);
   qmerged.kbounds_ = kbinfo_[name_a].LogicalOr(kbinfo_[name_b]);
   qmerged.only_genes_ = only_genes_[name_a];
   for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
     qmerged.only_genes_.push_back(g);
-  qmerged.mean_mute_freq_ = (info_[name_a].n_seqs()*mute_freqs_[name_a] + info_[name_b].n_seqs()*mute_freqs_[name_b]) / float(qmerged.seqs_.n_seqs());  // simple weighted average
+  qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / float(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
   qmerged.parents_ = pair<string, string>(name_a, name_b);
   return qmerged;
 }
@@ -358,7 +377,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       else
   	already_done.insert(qmerged.name_);
 
-      Sequences *a_seqs(&info_[key_a]), *b_seqs(&info_[key_b]);
+      vector<Sequence> *a_seqs(&seq_info_[key_a]), *b_seqs(&seq_info_[key_b]);
       ++n_total_pairs;
 
       // NOTE it might help to also cache hamming fractions
@@ -392,7 +411,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     }
   }
 
-  // if <info_> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
+  // if <seq_info_> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
     path->finished_ = true;
     return;
@@ -409,9 +428,9 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   }
   
   // merge the two best clusters
-  if(info_.count(qmerged->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+  if(seq_info_.count(qmerged->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
     // Query qmerged(GetMergedQuery(max_pair.first, max_pair.second));  // NOTE I'm still kinda worried about ordering shenanigans here. I think the worst case is we calculate something twice that we don't need to, but I'm still nervous.
-    info_[qmerged->name_] = qmerged->seqs_;
+    seq_info_[qmerged->name_] = qmerged->seqs_;
     kbinfo_[qmerged->name_] = qmerged->kbounds_;
     mute_freqs_[qmerged->name_] = qmerged->mean_mute_freq_;
     only_genes_[qmerged->name_] = qmerged->only_genes_;

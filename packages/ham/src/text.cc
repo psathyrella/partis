@@ -26,6 +26,14 @@ vector<string> SplitString(string argstr, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+vector<int> Intify(vector<string> strlist) {
+  vector<int> intlist;
+  for(auto &str : strlist)
+    intlist.push_back(stoi(str));
+  return intlist;
+}
+
+// ----------------------------------------------------------------------------------------
 vector<double> Floatify(vector<string> strlist) {
   vector<double> floatlist;
   for(auto &str : strlist)

@@ -43,22 +43,15 @@ void SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
 
 // ----------------------------------------------------------------------------------------
 // read input sequences from file and return as vector of sequences
-vector<Sequences> GetSeqs(Args &args, Track *trk) {
-  vector<Sequences> all_seqs;
-  set<string> all_names;  // keeps track which sequences we've added to make sure we weren't passed duplicates
+vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
+  vector<vector<Sequence> > all_seqs;
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
-    Sequences seqs;
-    assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
-    assert(args.str_lists_["names"][iqry].size() == args.float_lists_["mute_freqs"][iqry].size());
+    vector<Sequence> seqs;
+    if(args.str_lists_["names"][iqry].size() != args.str_lists_["seqs"][iqry].size() || args.str_lists_["names"][iqry].size() != args.float_lists_["mute_freqs"][iqry].size())
+      throw runtime_error("string lists \"names\", \"seqs\", and \"mute_freqs\" not all the same length in bcrham input file");
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
-
-      // if(args.partition() && all_names.count(sq.name()))  // Not reall sure if we need this check, but I don't feel like thinking about it right now. In any case, we want to be able to add the same sequqence twice for run_algorithm
-      // 	throw runtime_error("ERROR tried to add sequence with name " + sq.name() + " twice in bcrham::GetSeqs");
-      // else
-      all_names.insert(sq.name());
-
-      seqs.AddSeq(sq);
+      seqs.push_back(sq);
     }
     all_seqs.push_back(seqs);
   }
@@ -67,7 +60,7 @@ vector<Sequences> GetSeqs(Args &args, Track *trk) {
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors);
+void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
 
 // ----------------------------------------------------------------------------------------
@@ -87,7 +80,7 @@ int main(int argc, const char * argv[]) {
   // init some infrastructure
   vector<string> characters {"A", "C", "G", "T"};
   Track trk("NUKES", characters);
-  vector<Sequences> qry_seq_list(GetSeqs(args, &trk));
+  vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &trk));
   GermLines gl(args.datadir());
   HMMHolder hmms(args.hmmdir(), gl);
   // hmms.CacheAll();
@@ -128,17 +121,17 @@ int main(int argc, const char * argv[]) {
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
-    Sequences qry_seqs(qry_seq_list[iqry]);
+    vector<Sequence> qry_seqs(qry_seq_list[iqry]);
     vector<double> mute_freqs(args.float_lists_["mute_freqs"][iqry]);
     double mean_mute_freq(avgVector(mute_freqs));
 
     DPHandler dph(&args, gl, hmms);
 
     Result result(kbounds);
-    vector<Result> denom_results(qry_seqs.n_seqs(), result);  // only used for forward if n_seqs > 1
+    vector<Result> denom_results(qry_seqs.size(), result);  // only used for forward if n_seqs > 1
     double numerator(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
     double bayes_factor(-INFINITY); // final result
-    vector<double> single_scores(qry_seqs.n_seqs(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
+    vector<double> single_scores(qry_seqs.size(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
     bool stop(false);
     string errors;
     do {
@@ -148,8 +141,8 @@ int main(int argc, const char * argv[]) {
       result = dph.Run(args.algorithm(), qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
       numerator = result.total_score();
       bayes_factor = numerator;
-      if(args.algorithm() == "forward" && qry_seqs.n_seqs() > 1) {  // calculate factors for denominator
-        for(size_t iseq = 0; iseq < qry_seqs.n_seqs(); ++iseq) {
+      if(args.algorithm() == "forward" && qry_seqs.size() > 1) {  // calculate factors for denominator
+        for(size_t iseq = 0; iseq < qry_seqs.size(); ++iseq) {
           denom_results[iseq] = dph.Run(args.algorithm(), qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
           single_scores[iseq] = denom_results[iseq].total_score();
           bayes_factor -= single_scores[iseq];
@@ -173,12 +166,7 @@ int main(int argc, const char * argv[]) {
           errors = "boundary";
     } while(!stop);
 
-    // if(result.could_not_expand())
-    //   cout << "WARNING " << qry_seqs.name_str() << " couldn't expand k bounds for " << kbounds.stringify() << endl;
-    // if(single_result.boundary_error())
-    //   cout << "WARNING boundary errors for " << qry_seqs[iseq].name() << " when together with " << qry_seqs.name_str() << endl;
-
-    if(args.debug() && args.algorithm() == "forward" && qry_seqs.n_seqs() > 1)
+    if(args.debug() && args.algorithm() == "forward" && qry_seqs.size() > 1)
       print_forward_scores(numerator, single_scores, bayes_factor);
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
@@ -195,7 +183,7 @@ int main(int argc, const char * argv[]) {
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequences &seqs, double total_score, string errors) {
+void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors) {
   if(args.algorithm() == "viterbi") {
     size_t n_max = min(size_t(args.n_best_events()), events.size());
     for(size_t ievt = 0; ievt < n_max; ++ievt) {
@@ -203,7 +191,7 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
       string second_seq_name, second_seq;
       ofs  // be very, very careful to change this *and* the csv header above at the same time
 	<< ievt
-	<< "," << seqs.name_str(":")
+	<< "," << SeqNameStr(seqs, ":")
 	<< "," << event->genes_["v"]
 	<< "," << event->genes_["d"]
 	<< "," << event->genes_["j"]
@@ -218,13 +206,13 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, Sequence
 	<< "," << event->deletions_["j_5p"]
 	<< "," << event->deletions_["j_3p"]
 	<< "," << event->score_
-	<< "," << seqs.seq_str(":")
+	<< "," << SeqStr(seqs, ":")
 	<< "," << errors
 	<< endl;
 }
   } else {
     ofs
-        << seqs.name_str(":")
+        << SeqNameStr(seqs, ":")
         << "," << total_score
         << "," << errors
         << endl;
