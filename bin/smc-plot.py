@@ -18,8 +18,8 @@ from utils import get_arg_list
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--infnames')
-parser.add_argument('--zoom', action='store_true')
-parser.add_argument('--normalize-axes', action='store_true')
+parser.add_argument('--normalize-axes')
+parser.add_argument('--only-last-step', action='store_true', default=True)
 parser.add_argument('--xbounds')
 parser.add_argument('--logprob-bounds')
 parser.add_argument('--adjmi-bounds')
@@ -31,6 +31,8 @@ if args.logprob_bounds is not None:
     args.logprob_bounds = get_arg_list(args.logprob_bounds, floatify=True)
 if args.adjmi_bounds is not None:
     args.adjmi_bounds = get_arg_list(args.adjmi_bounds, floatify=True)
+if args.normalize_axes is not None:
+    args.normalize_axes = get_arg_list(args.normalize_axes)
 
 fsize = 26
 mpl.rcParams.update({
@@ -46,10 +48,11 @@ mpl.rcParams.update({
 })
 
 cmap = 'BuGn'  #mpl.cm.jet
-
+print 'need to add stuff to only use maximum when n_procs = 1'
+max_logprob = {'logprobs' : [], 'adj_mis' : [], 'imaxes' : [], 'weights' : []}  # values at the point of maximum logprob
+max_adj_mi = {'logprobs' : [], 'adj_mis' : [], 'imaxes' : [], 'weights' : []}  # values at the point of maximum adj_mi
+imaxes = {'logprob' : None, 'adj_mi' : None}
 def process_paths(logprobs, adj_mis, logweights):
-    max_logprob = {'logprobs' : [], 'adj_mis' : [], 'imaxes' : [], 'weights' : []}  # values at the point of maximum logprob
-    max_adj_mi = {'logprobs' : [], 'adj_mis' : [], 'imaxes' : [], 'weights' : []}  # values at the point of maximum adj_mi
     for ipath in logprobs.keys():
         imax_logprob = logprobs[ipath].index(max(logprobs[ipath]))
         max_logprob['logprobs'].append(logprobs[ipath][imax_logprob])
@@ -68,8 +71,8 @@ def process_paths(logprobs, adj_mis, logweights):
         variance = numpy.average((vals - mean)**2, weights=wgts)
         return (mean, math.sqrt(variance))
 
-    mean_imax_logprob = weighted_mean_rootvariance(max_logprob['imaxes'], max_logprob['weights'])
-    mean_imax_adj_mi = weighted_mean_rootvariance(max_adj_mi['imaxes'], max_adj_mi['weights'])
+    imaxes['logprob'] = weighted_mean_rootvariance(max_logprob['imaxes'], max_logprob['weights'])
+    imaxes['adj_mi'] = weighted_mean_rootvariance(max_adj_mi['imaxes'], max_adj_mi['weights'])
     delta_imaxes = [i_adj_mi - i_logprob for i_adj_mi, i_logprob in zip(max_adj_mi['imaxes'], max_logprob['imaxes'])]
     delta_wgts = [0.5*(adj_mi_wgt + logprob_wgt) for adj_mi_wgt, logprob_wgt in zip(max_adj_mi['weights'], max_logprob['weights'])]
     mean_delta_imax = weighted_mean_rootvariance(delta_imaxes, delta_wgts)
@@ -78,10 +81,10 @@ def process_paths(logprobs, adj_mis, logweights):
                          'adj_mis' : weighted_mean_rootvariance(max_logprob['adj_mis'], max_logprob['weights'])}
     max_adj_mi_means = {'logprobs' : weighted_mean_rootvariance(max_adj_mi['logprobs'], max_adj_mi['weights']),
                         'adj_mis' : weighted_mean_rootvariance(max_adj_mi['adj_mis'], max_adj_mi['weights'])}
-    print 'max logprob step %.1f:' % mean_imax_logprob[0]
+    print 'max logprob step %.1f:' % imaxes['logprob'][0]
     print '     logprob: %.1f +/- %.1e' % max_logprob_means['logprobs']
     print '      adj_mi: %.4f +/- %.1e' % max_logprob_means['adj_mis']
-    print 'max adj_mi step %.1f:' % mean_imax_adj_mi[0]
+    print 'max adj_mi step %.1f:' % imaxes['adj_mi'][0]
     print '     logprob: %.1f +/- %.1e' % max_adj_mi_means['logprobs']
     print '      adj_mi: %.4f +/- %.1e' % max_adj_mi_means['adj_mis']
     print 'change: %.1f steps' % mean_delta_imax[0]
@@ -102,6 +105,8 @@ for fname in args.infnames:
     print fname
     with open(fname) as infile:
         for line in csv.DictReader(infile):
+            if args.only_last_step and int(line['n_procs']) != 1:  # skip any preliminary steps with more than one process
+                continue
             ipath = int(line['path_index'])
             if ipath not in logprobs:
                 logprobs[ipath], adj_mis[ipath], logweights[ipath] = [], [], []
@@ -136,9 +141,9 @@ for ipath in logprobs.keys():
         if max_logprob is None or logprobs[ipath][il] > max_logprob:
             max_logprob = logprobs[ipath][il]
 
-if args.normalize_axes:
+if args.normalize_axes is not None and 'logprob' in args.normalize_axes:
     for ipath in logprobs.keys():
-        print ipath, min_logprobs[ipath], max_logprobs[ipath]
+        # print ipath, min_logprobs[ipath], max_logprobs[ipath]
         for il in range(len(logprobs[ipath])):
             if logprobs[ipath][il] is not None:
                 logprobs[ipath][il] = max_logprobs[ipath] / logprobs[ipath][il]
@@ -159,28 +164,22 @@ nxbins = 8
 nybins = 5
 
 yextrafactor = 1.
-if args.zoom:
-    xmin = 340
-    min_adjmi = 0.92
-    min_logprob = -14400
-    markersize = 32
-else:
-    xmin = 0
-    min_adjmi = 0.
-    markersize = 10
+xmin = 0
+min_adj_mi = 0.
+markersize = 30
 
-max_adjmi = 1.
+max_adj_mi = 1.
 if args.xbounds is None:
-    args.xbounds = (0, 1 if args.normalize_axes else max_length)
+    args.xbounds = (0, 1 if 'step' in args.normalize_axes else max_length)
 if args.adjmi_bounds is not None:
-    min_adjmi = args.adjmi_bounds[0]
-    max_adjmi = args.adjmi_bounds[1]
+    min_adj_mi = args.adjmi_bounds[0]
+    max_adj_mi = args.adjmi_bounds[1]
 if args.logprob_bounds is not None:
     min_logprob = args.logprob_bounds[0]
     max_logprob = args.logprob_bounds[1]
 
 ax.set_xlim(args.xbounds[0], args.xbounds[1])
-ax.set_ylim(min_adjmi, yextrafactor * max_adjmi)
+ax.set_ylim(min_adj_mi, yextrafactor * max_adj_mi)
 ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
 ax.set_xlabel('agglomeration step', fontweight='bold')
 ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
@@ -192,21 +191,27 @@ ax.locator_params(nbins=nxbins, axis='x')
 ax.locator_params(nbins=nybins, axis='y')
 
 for ipath in logprobs.keys():
-    if args.normalize_axes:
+    if 'step' in args.normalize_axes:
         steps = [float(i) / len(logprobs[ipath]) for i in range(len(logprobs[ipath]))]
     else:
         steps = [i for i in range(len(logprobs[ipath]))]
     sizes = [markersize for i in range(len(logprobs[ipath]))]
     fig_logprob = ax2.plot(steps, logprobs[ipath], color=logprob_color, alpha=.5, linewidth=1)
     fig_adj_mi = ax.plot(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, linewidth=1)
-    if True:  # args.zoom:
-        fig_logprob_sc = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=.5, s=sizes)
-        fig_adj_mi_sc = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+
+    fig_logprob_sc = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=.5, s=sizes)
+    fig_adj_mi_sc = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+
+
+xlinepos_logprob = [imaxes['logprob'][0] for _ in range(2)]
+xlinepos_adj_mi = [imaxes['adj_mi'][0] for _ in range(2)]
+if 'step' in args.normalize_axes:
+    assert False
+    # xlinepos_logprob = [ float(x) / len(logprobs xlinepos_logprob
+plt.plot(xlinepos_logprob, [min_logprob, max_logprob], color=logprob_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
+plt.plot(xlinepos_adj_mi, [min_adj_mi, max_adj_mi], color=adj_mi_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
 
 plotdir = os.getenv('www') + '/tmp'
-if args.zoom:
-    plotname = 'foo-zoom'
-else:
-    plotname = 'foo'
+plotname = 'foo'
 plt.savefig(plotdir + '/' + plotname + '.png')
 check_call(['permissify-www', plotdir])
