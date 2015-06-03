@@ -26,6 +26,7 @@ public:
   KBounds kbounds_;
   vector<string> only_genes_;
   double mean_mute_freq_;
+  vector<int> cyst_positions_;
   pair<string, string> parents_;  // queries that were joined to make this
 };
 
@@ -48,17 +49,20 @@ private:
   void GetSoloLogProb(string key);
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCachedLogProbs();
-  int NaiveHammingDistance(string key_a, string key_b);
+  double NaiveHammingFraction(string key_a, string key_b);
+  void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector);
   int HammingDistance(string seq_a, string seq_b);  // dammit I don't like having two functions, but *@!(#ing Sequence class is not stl safe.
   int HammingDistance(Sequence seq_a, Sequence seq_b);
   void GetNaiveSeq(string key);
   void GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
+  bool SameLength(vector<Sequence> &seqs);
   Query GetMergedQuery(string name_a, string name_b);
   string JoinNames(string name1, string name2);
   Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   // input info
+  Track *track_;
   Args *args_;
   DPHandler dph_;
   ofstream ofs_;
@@ -75,7 +79,7 @@ private:
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
   map<string, double> log_probs_;  // includes cached info from previous runs
-  map<string, string> naive_seqs_;  // includes cached info from previous runs
+  map<string, Sequence> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;
 
   int n_cached_, n_calculated_;

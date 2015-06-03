@@ -50,7 +50,7 @@ vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
     if(args.str_lists_["names"][iqry].size() != args.str_lists_["seqs"][iqry].size() || args.str_lists_["names"][iqry].size() != args.float_lists_["mute_freqs"][iqry].size())
       throw runtime_error("string lists \"names\", \"seqs\", and \"mute_freqs\" not all the same length in bcrham input file");
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
-      Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
+      Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq], args.int_lists_["cyst_positions"][iqry][iseq]);
       seqs.push_back(sq);
     }
     all_seqs.push_back(seqs);

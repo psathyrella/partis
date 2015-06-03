@@ -20,7 +20,7 @@ Args::Args(int argc, const char * argv[]):
   smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
   chunk_cache_arg_("", "chunk-cache", "perform chunk caching?", false),
   partition_arg_("", "partition", "", false),
-  truncate_seqs_arg_("", "truncate-seqs", "", false),
+  truncate_seqs_arg_("", "truncate-seqs", "truncate sequences to the same length on either side of the conserved cysteine. NOTE this disables caching, so do *not* turn it on unless you really have different-length sequences", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
   str_headers_ {},
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
