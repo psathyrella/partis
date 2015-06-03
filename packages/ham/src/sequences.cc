@@ -8,8 +8,9 @@ Sequence::Sequence() : track_(nullptr) {
 }
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(Track* trk, string name, string &undigitized):
+Sequence::Sequence(Track* trk, string name, string &undigitized, int cyst_position):
   name_(name),
+  cyst_position_(cyst_position),
   track_(trk) {
   undigitized_ = undigitized;
   ClearWhitespace("\n", &undigitized_);
@@ -17,10 +18,12 @@ Sequence::Sequence(Track* trk, string name, string &undigitized):
 }
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len):
+Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len, int untruncated_cyst_position):
+  // NOTE <untruncated_cyst_position> argument refers to the position in <undigitized>, i.e. *before* truncation at <pos>
   name_(name),
   track_(trk) {
   undigitized_ = undigitized.substr(pos, len);  // <len> better be greater than zero
+  cyst_position_ = untruncated_cyst_position - pos;
   ClearWhitespace("\n", &undigitized_);
   Digitize();
 }
@@ -28,6 +31,7 @@ Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, siz
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Sequence &rhs, size_t pos, size_t len) {
   name_ = rhs.name_;
+  cyst_position_ = rhs.cyst_position_ - pos;
   header_  = rhs.header_;
   track_  = rhs.track_;
   undigitized_ = rhs.undigitized().substr(pos, len);  // <len> better be greater than zero

@@ -115,6 +115,46 @@ GermLines::GermLines(string input_dir):
     }
     ifs.close();
   }
+
+  // get cyst and tryp info
+  ifstream ifs;
+  string line;
+  vector<string> header;
+
+  // get cyst info
+  ifs.open(input_dir + "/v-meta.csv");
+  assert(ifs.is_open());
+  // check header
+  getline(ifs, line);
+  line.erase(remove(line.begin(), line.end(), '\r'), line.end());
+  header = (SplitString(line, ","));
+  assert(header[0] == "gene");
+  assert(header[1] == "cyst_start");
+  // get info
+  while(getline(ifs, line)) {
+    line.erase(remove(line.begin(), line.end(), '\r'), line.end());
+    vector<string> info(SplitString(line, ","));
+    assert(info[0].find("IGH") == 0);
+    cyst_positions_[info[0]] = atoi(info[1].c_str());
+  }
+
+  // get tryp info
+  ifs.open(input_dir + "/j_tryp.csv");
+  assert(ifs.is_open());
+  // check header
+  getline(ifs, line);
+  line.erase(remove(line.begin(), line.end(), '\r'), line.end());
+  header = (SplitString(line, ","));
+  assert(header[0] == "gene");
+  assert(header[1] == "tryp_start");
+  // get info
+  while(getline(ifs, line)) {
+    line.erase(remove(line.begin(), line.end(), '\r'), line.end());
+    vector<string> info(SplitString(line, ","));
+    assert(info[0].find("IGH") == 0);
+    tryp_positions_[info[0]] = atoi(info[1].c_str());
+  }
+  
 }
 
 // ----------------------------------------------------------------------------------------
@@ -159,6 +199,13 @@ void RecoEvent::SetNaiveSeq(GermLines &gl) {
     eroded_seqs[region] = original_seqs[region].substr(del_5p, lengths[region]);
   }
   naive_seq_ = insertions_["fv"] + eroded_seqs["v"] + insertions_["vd"] + eroded_seqs["d"] + insertions_["dj"] + eroded_seqs["j"] + insertions_["jf"];
+
+  int eroded_gl_cpos = gl.cyst_positions_[genes_["v"]] - deletions_["v_5p"] + insertions_["fv"].size();
+  int eroded_gl_tpos = gl.tryp_positions_[genes_["j"]] - deletions_["j_5p"];
+  int tpos_in_joined_seq = eroded_gl_tpos + insertions_["fv"].size() + eroded_seqs["v"].size() + insertions_["vd"].size() + eroded_seqs["d"].size() + insertions_["dj"].size();
+  cyst_position_ = eroded_gl_cpos;
+  tryp_position_ = tpos_in_joined_seq;
+  cdr3_length_ = tpos_in_joined_seq - eroded_gl_cpos + 3;
 }
 
 // ----------------------------------------------------------------------------------------

@@ -12,6 +12,7 @@
 #include <cmath>
 
 #include "model.h"
+#include "text.h"
 
 using namespace std;
 namespace ham {
@@ -58,6 +59,7 @@ public:
   vector<string> regions_;
   map<string, vector<string> > names_;
   map<string, string> seqs_;
+  map<string, int> cyst_positions_, tryp_positions_;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -73,6 +75,7 @@ public:
   vector<string> auxiliary_seq_names_;
   vector<string> auxiliary_seqs_;
   float score_;
+  int cyst_position_, tryp_position_, cdr3_length_;
 
   bool operator < (const RecoEvent& rhs) const { return (score_ < rhs.score_); }  // return true if this event is more likely than the rhs event
   void SetGenes(string vgene, string dgene, string jgene) { genes_["v"] = vgene; genes_["d"] = dgene; genes_["j"] = jgene; }

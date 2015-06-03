@@ -54,14 +54,14 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
     seq_info_[key] = qry_seq_list[iqry];
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
+    track_ = qry_seq_list[iqry][0].track();  // this is kind of silly since it rewrites <track_> a ton of times, but they should all have the same track anyway...
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
     KBounds kb(kmin, kmax);
     kbinfo_[key] = kb;
 
-    vector<double> mute_freqs(args_->float_lists_["mute_freqs"][iqry]);
-    mute_freqs_[key] = avgVector(mute_freqs);
+    mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
   }
   // add the last initial partition (i.e. for the last path/particle)
   assert(tmp_partition.size() > 0);
@@ -132,17 +132,21 @@ void Glomerator::ReadCachedLogProbs(Track *track) {
   assert(headstrs[0].find("unique_ids") == 0);
   assert(headstrs[1].find("score") == 0);
   assert(headstrs[2].find("naive-seq") == 0);
+  assert(headstrs[3].find("cyst_position") == 0);
 
+  cout << "check whether -inf checker here works, and whether we get naive seqs with no logprobs and vice versa" << endl;
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> column_list = SplitString(line, ",");
     assert(column_list.size() == 3 || column_list.size() == 4);  // if written by bcrham it'll have an error column, while if written by partitiondriver it won't (under normal circumstances we wouldn't see bcrham cachefiles right here, but it can be useful for testing)
     string unique_ids(column_list[0]);
-    double logprob(stof(column_list[1]));
+    string logprob_str(column_list[1]);
+    if(logprob_str.size() > 0)
+      log_probs_[unique_ids] = stof(logprob_str);
     string naive_seq(column_list[2]);
-    log_probs_[unique_ids] = logprob;
+    int cyst_position(atoi(column_list[3].c_str()));
     if(naive_seq.size() > 0)
-      naive_seqs_[unique_ids] = naive_seq;
+      naive_seqs_[unique_ids] = Sequence(track_, unique_ids, naive_seq, cyst_position);
   }
   // cout << "      read " << log_probs_.size() << " cached results" << endl;
 }
@@ -173,12 +177,27 @@ void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->cachefile());
   if(!log_prob_ofs.is_open())
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "unique_ids,score,naive-seq,errors" << endl;
+  log_prob_ofs << "unique_ids,score,naive-seq,cyst_position,errors" << endl;
+
+  // first write everything for which we have log probs
+  cout << "caching from log prob keys" << endl;
   for(auto &kv : log_probs_) {
-    if(naive_seqs_.count(kv.first) == 0)  // we end up having the log prob for a key, but not the naive sequence, if we calculated the merged prob for two clusters but didn't end up merging them
-      continue;
-    log_prob_ofs << kv.first << "," << kv.second << "," << naive_seqs_[kv.first] << "," << errors_[kv.first] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
+    string naive_seq, cyst_position_str;  // if we don't have the naive sequence, write empty strings for both
+    if(naive_seqs_.count(kv.first)) {  // if we calculate the merged prob for two clusters, but don't end up merging them, then we will have the logprob but not the naive seq
+      naive_seq = naive_seqs_[kv.first].undigitized();
+      cyst_position_str = to_string(naive_seqs_[kv.first].cyst_position());
+    }
+    log_prob_ofs << kv.first << "," << kv.second << "," << naive_seq << "," << cyst_position_str << "," << errors_[kv.first] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
   }
+
+  // then write the queries for which we have naive seqs but not logprobs (if they were hamming-skipped )
+  cout << "caching from naive seq keys" << endl;
+  for(auto &kv : naive_seqs_) {
+    if(log_probs_.count(kv.first))  // if it's in log_probs, we've already done it
+      continue;
+    log_prob_ofs << kv.first << ",," << kv.second.undigitized() << "," << kv.second.cyst_position() << "," << errors_[kv.first] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
+  }
+
   log_prob_ofs.close();
 }
 
@@ -230,16 +249,76 @@ int Glomerator::HammingDistance(Sequence seq_a, Sequence seq_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-int Glomerator::NaiveHammingDistance(string key_a, string key_b) {
+double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
   GetNaiveSeq(key_a);
   GetNaiveSeq(key_b);
-  return HammingDistance(naive_seqs_[key_a], naive_seqs_[key_b]);
+  vector<Sequence> nseqs{naive_seqs_[key_a], naive_seqs_[key_b]};
+  if(args_->truncate_seqs()) {
+    vector<KBounds> kbvector{kbinfo_[key_a], kbinfo_[key_b]};  // don't need kbounds here, but we need to pass in something
+    TruncateSeqs(nseqs, kbvector);
+    printf("  truncating in NaiveHammingDistance: %d, %d --> %d, %d\n", int(naive_seqs_[key_a].size()), int(naive_seqs_[key_b].size()), int(nseqs[0].size()), int(nseqs[1].size()));
+  }
+  return HammingDistance(nseqs[0], nseqs[1]) / double(nseqs[0].size());  // hamming distance fcn will fail if the seqs aren't the same length
+}
+
+// ----------------------------------------------------------------------------------------
+// truncate sequences in <seqs> to the same length (on both ends of the conserved cysteine), and correspondingly modify <kbvector>
+void Glomerator::TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector) {
+  assert(seqs.size() == kbvector.size());  // one kbound for each sequence
+
+  // first find min length to left and right of the cysteine position
+  int min_left(-1), min_right(-1);
+  for(size_t is=0; is<seqs.size(); ++is) {
+    Sequence *seq(&seqs[is]);
+    int cpos(seq->cyst_position());
+    if(cpos < 0 || cpos >= (int)seq->size())
+      throw runtime_error("cpos " + to_string(cpos) + " invalid for " + seq->name() + " (" + seq->undigitized() + ")");
+    int dleft = cpos;  // NOTE <dright> includes <cpos>, i.e. dleft + dright = len(seq)
+    int dright = seq->size() - cpos;
+    if(min_left == -1 || dleft < min_left) {
+      min_left = dleft;
+      printf("  min left %d in %s", min_left, seq->name().c_str());
+    }
+    if(min_right == -1 || dright < min_right) {
+      min_right = dright;
+      printf("  min right %d in %s", min_right, seq->name().c_str());
+    }
+  }
+  assert(min_left >= 0 && min_right >= 0);
+
+  // then truncate all the sequences to these lengths
+  for(size_t is=0; is<seqs.size(); ++is) {
+    Sequence *seq(&seqs[is]);
+    int cpos(seq->cyst_position());
+    int istart(cpos - min_left);
+    int istop(cpos + min_right);
+    int chopleft(istart);
+    // int chopright(seq->size() - istop);
+
+    // string truncated_str(seq->undigitized().substr(istart, istop - istart));
+    // Sequence trunc_seq(seq->track(), seq->name(), truncated_str, cpos - istart);
+    // seqs[is] = trunc_seq;  // replace the old sequence with the truncated one
+    seqs[is] = Sequence(*seq, istart, istop - istart);  // replace the old sequence with the truncated one (this sets cpos in the new sequence to cpos in the old sequence minus istart)
+    assert(chopleft < (int)kbvector[is].vmin);  // kinda nonsensical if we start chopping off the entire v
+    kbvector[is].vmin -= chopleft;
+    kbvector[is].vmax -= chopleft;
+    
+    // printf("%s", seq->name());
+    // printf("  chop %d %d", chopleft, chopright);
+    // printf("  before", self.sw_info[name]['k_v']['min'], self.sw_info[name]['k_v']['max'], self.sw_info[name]['v_5p_del'], self.sw_info[name]['j_3p_del'], self.sw_info[name]['seq']
+    // self.sw_info[name]['seq'] = seq[istart : istop]
+    // self.sw_info[name]['k_v']['min'] -= chopleft
+    // self.sw_info[name]['k_v']['max'] -= chopleft
+    // self.sw_info[name]['v_5p_del'] += chopleft
+    // self.sw_info[name]['j_3p_del'] += chopright
+    // print '   after', self.sw_info[name]['k_v']['min'], self.sw_info[name]['k_v']['max'], self.sw_info[name]['v_5p_del'], self.sw_info[name]['j_3p_del'], self.sw_info[name]['seq']
+  }
 }
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <key>/<seqs> to <log_probs_> (if it isn't already there)
 void Glomerator::GetNaiveSeq(string key) {
-  if(naive_seqs_.count(key))  // already did it
+  if(naive_seqs_.count(key) && !args_->truncate_seqs())  // already did it (*no* caching if we're truncating sequences, since I don't want to make sequence truncation parameters part of <key> here)
     return;
 
   Result result(kbinfo_[key]);
@@ -254,16 +333,17 @@ void Glomerator::GetNaiveSeq(string key) {
 
   if(result.events_.size() < 1)
     throw runtime_error("ERROR no events for " + key + "\n");
-  naive_seqs_[key] = result.events_[0].naive_seq_;  // NOTE it might be a bit wasteful to store these digitized? Or maybe it's better...
+  // naive_seqs_[key] = result.events_[0].naive_seq_;
+  naive_seqs_[key] = Sequence(track_, key, result.events_[0].naive_seq_, result.events_[0].cyst_position_);
   if(result.boundary_error())
     errors_[key] = errors_[key] + ":boundary";
 }
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-  void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
+void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
   // NOTE that when this imporves the kbounds, that info doesn't get propagated to <kbinfo_>
-  if(log_probs_.count(name)) {  // already did it
+  if(log_probs_.count(name) && !args_->truncate_seqs()) {  // already did it (*no* caching if we're truncating sequences, since I don't want to make sequence truncation parameters part of <key> here)
     ++n_cached_;
     return;
   }
@@ -286,6 +366,8 @@ void Glomerator::GetNaiveSeq(string key) {
 
 // ----------------------------------------------------------------------------------------
 vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
+  // NOTE does *not* truncate anything
+
   // first merge the two vectors
   vector<Sequence> merged_seqs;  // NOTE doesn't work if you preallocate and use std::vector::insert(). No, I have no *@#*($!#ing idea why
   for(size_t is=0; is<seq_info_[name_a].size(); ++is)
@@ -307,14 +389,53 @@ vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
 }
 
 // ----------------------------------------------------------------------------------------
+bool Glomerator::SameLength(vector<Sequence> &seqs) {
+  // are all the seqs in <seqs> the same length?
+  int len(-1);
+  for(auto &seq : seqs) {
+    if(len < 0)
+      len = (int)seq.size();
+    if(len != (int)seq.size())
+      return false;
+  }
+  return true;
+}  
+
+// ----------------------------------------------------------------------------------------
 Query Glomerator::GetMergedQuery(string name_a, string name_b) {
+  // NOTE truncates sequences!
+
   Query qmerged;
   qmerged.name_ = JoinNames(name_a, name_b);
-  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);
-  qmerged.kbounds_ = kbinfo_[name_a].LogicalOr(kbinfo_[name_b]);
+  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);  // doesn't truncate anything
+
+  // truncation
+  assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
+  assert(SameLength(seq_info_[name_b]));  // ...same for name_b
+  vector<KBounds> kbvector;  // make vector of kbounds, with first chunk corresponding to <name_a>, and the second to <name_b>. This shenaniganery is necessary so we can take the OR of the two kbounds *after* truncation
+  for(size_t is=0; is<qmerged.seqs_.size(); ++is) {
+    if(is < seq_info_[name_a].size())  // the first part of the vector is for sequences from name_a
+      kbvector.push_back(kbinfo_[name_a]);
+    else
+      kbvector.push_back(kbinfo_[name_b]);  // ... and second part is for those from name_b
+  }
+
+  if(args_->truncate_seqs()) {
+    TruncateSeqs(qmerged.seqs_, kbvector);
+    printf("  truncating in GetMergedQuery for %s %s: %d, %d --> %d, %d (%d-%d, %d-%d --> %d-%d, %d-%d)\n",
+	   name_a.c_str(), name_b.c_str(),
+	   int(seq_info_[name_a][0].size()), int(seq_info_[name_b][0].size()), int(qmerged.seqs_[0].size()), int(qmerged.seqs_.back().size()),
+	   int(kbinfo_[name_a].vmin), int(kbinfo_[name_a].vmax),
+	   int(kbinfo_[name_b].vmin), int(kbinfo_[name_b].vmax),
+	   int(kbvector[0].vmin), int(kbvector[0].vmax),
+	   int(kbvector.back().vmin), int(kbvector.back().vmax));
+  }
+  qmerged.kbounds_ = kbvector[0].LogicalOr(kbvector.back());  // OR of the kbounds for name_a and name_b, after they've been properly truncated
+
   qmerged.only_genes_ = only_genes_[name_a];
   for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
     qmerged.only_genes_.push_back(g);
+  // TODO mute freqs aren't really right any more if we truncated things above
   qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / float(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
   qmerged.parents_ = pair<string, string>(name_a, name_b);
   return qmerged;
@@ -337,14 +458,13 @@ Query *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_mer
   double drawpoint = rgen->Uniform(0., 1.);
   double sum(0.0);
   for(size_t im=0; im<ratios.size(); ++im) {
-    double ratio(ratios[im]);
-    sum += ratio;
+    sum += ratios[im];
     if(sum > drawpoint) {
       return &potential_merges[im].second;
     }
   }
 
-  throw runtime_error("ERROR fell through in Glomerator::ChooseRandomMerge");
+  throw runtime_error("fell through in Glomerator::ChooseRandomMerge");
 }
 
 // ----------------------------------------------------------------------------------------
@@ -357,9 +477,10 @@ string Glomerator::JoinNames(string name1, string name2) {
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em
 void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
-  if(path->finished_) { // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
+  cout << "  are we sure we've disabled caching when we're truncating?" << endl;
+  if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
-  }
+
   double max_log_prob(-INFINITY);
   int imax(-1);
 
@@ -371,29 +492,38 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   for(auto &key_a : path->CurrentPartition()) {  // note that c++ maps are ordered
     for(auto &key_b : path->CurrentPartition()) {  // also, note that CurrentPartition() returns a reference
       if(key_a == key_b) continue;
-      Query qmerged(GetMergedQuery(key_a, key_b));
-      if(already_done.count(qmerged.name_))  // already did this pair
+      if(already_done.count(JoinNames(key_a, key_b)))  // already did this pair (this is kind of a weird way of looping only over unique pairs... oh, well. Wish I had python itertools here)
   	continue;
       else
-  	already_done.insert(qmerged.name_);
+  	already_done.insert(JoinNames(key_a, key_b));
 
-      vector<Sequence> *a_seqs(&seq_info_[key_a]), *b_seqs(&seq_info_[key_b]);
       ++n_total_pairs;
 
       // NOTE it might help to also cache hamming fractions
-      double hamming_fraction = float(NaiveHammingDistance(key_a, key_b)) / (*a_seqs)[0].size();  // hamming distance fcn will fail if the seqs aren't the same length
-      if(hamming_fraction > args_->hamming_fraction_cutoff()) {
-	// if(args_->debug()) printf("         hamming %.2f > %.2f for %s %s\n", hamming_fraction, args_->hamming_fraction_cutoff(), key_a.c_str(), key_b.c_str());
+      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_cutoff()) {  // truncates naive sequences before passing to actual hamming distance function
 	++n_skipped_hamming;
 	continue;
       }
 
+      Query qmerged(GetMergedQuery(key_a, key_b));  // truncates <key_a> and <key_b> sequences to the same length
+
+      // NOTE need to get the a_seqs and b_seqs from <qmerged> (instead of <seq_info_>) so they're properly truncated
+      vector<Sequence> a_seqs, b_seqs;
+      for(size_t is=0; is<qmerged.seqs_.size(); ++is) {
+	if(is < seq_info_[key_a].size())  // the first part of the vector is for sequences from key_a
+	  a_seqs.push_back(qmerged.seqs_[is]);
+	else
+	  b_seqs.push_back(qmerged.seqs_[is]);  // ... and second part is for those from key_b
+      }
+	
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      // NOTE also that the _a and _b results will likely be cached, but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
-      GetLogProb(key_a, *a_seqs, kbinfo_[key_a], qmerged.only_genes_, mute_freqs_[key_a]);
-      GetLogProb(key_b, *b_seqs, kbinfo_[key_b], qmerged.only_genes_, mute_freqs_[key_b]);
+      // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
+
+      GetLogProb(key_a, a_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);  // it is ABSOLUTELY CRUCIAL that caching is turned off here if we're truncating, since a_seqs is different for each choice of b_seqs
+      GetLogProb(key_b, b_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
       GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
 
+      // it's a likelihood ratio, not a bayes factor
       double bayes_factor(log_probs_[qmerged.name_] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
 	printf("       %8.3f = ", bayes_factor);
@@ -424,25 +554,23 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     chosen_logprob = potential_merges[imax].first;
   } else {
     qmerged = ChooseRandomMerge(potential_merges, rgen);
-    chosen_logprob = max_log_prob;
+    chosen_logprob = log_probs_[qmerged->name_];
   }
   
-  // merge the two best clusters
+  // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
   if(seq_info_.count(qmerged->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
-    // Query qmerged(GetMergedQuery(max_pair.first, max_pair.second));  // NOTE I'm still kinda worried about ordering shenanigans here. I think the worst case is we calculate something twice that we don't need to, but I'm still nervous.
     seq_info_[qmerged->name_] = qmerged->seqs_;
     kbinfo_[qmerged->name_] = qmerged->kbounds_;
     mute_freqs_[qmerged->name_] = qmerged->mean_mute_freq_;
     only_genes_[qmerged->name_] = qmerged->only_genes_;
 
-    GetNaiveSeq(qmerged->name_);
+    GetNaiveSeq(qmerged->name_);  // TODO hm, wait, actually maybe I can leave naive seq caching on even if we're truncating sequences?
   }
 
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(qmerged->parents_.first);
   new_partition.erase(qmerged->parents_.second);
   new_partition.insert(qmerged->name_);
-
   path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
