@@ -54,7 +54,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
     seq_info_[key] = qry_seq_list[iqry];
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
-    track_ = qry_seq_list[iqry][0].track();  // this is kind of silly since it rewrites <track_> a ton of times, but they should all have the same track anyway...
+    if(iqry == 0)
+      track_ = qry_seq_list[iqry][iqry].track();  // this is kind of silly, but they should all have the same track anyway...
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
@@ -333,7 +334,7 @@ void Glomerator::GetNaiveSeq(string key) {
 
   if(result.events_.size() < 1)
     throw runtime_error("ERROR no events for " + key + "\n");
-  // naive_seqs_[key] = result.events_[0].naive_seq_;
+
   naive_seqs_[key] = Sequence(track_, key, result.events_[0].naive_seq_, result.events_[0].cyst_position_);
   if(result.boundary_error())
     errors_[key] = errors_[key] + ":boundary";

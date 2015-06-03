@@ -18,25 +18,26 @@ public:
   ~Sequence();
 
   inline string name() const { return name_; }
-  inline uint8_t operator[](size_t index) { return seq_->at(index); }  // digitized value at position <index>
-  inline uint8_t value(size_t pos) const { return (*seq_)[pos]; }  // get digitized value at <pos>
-  inline string symbol(size_t pos) const { return track_->symbol((*seq_)[pos]); }  // get undigitized value at <pos>
-  inline size_t size() const { return seq_->size(); }  // length of sequence
+  inline uint8_t operator[](size_t index) { return seqq_.at(index); }  // digitized value at position <index>
+  inline uint8_t value(size_t pos) const { return seqq_[pos]; }  // get digitized value at <pos>
+  inline string symbol(size_t pos) const { return track_->symbol(seqq_[pos]); }  // get undigitized value at <pos>
+  inline size_t size() const { return seqq_.size(); }
   inline Track* track() const { return track_; }
-  inline vector<uint8_t> *seq() { return seq_; }
+  inline vector<uint8_t> *seqq() { return &seqq_; }
   inline string undigitized() const { return undigitized_; }
   inline int cyst_position() const { return cyst_position_; }
   Sequence GetSubSequence(size_t pos, size_t len);
 
   void Print(string separator = " "); // if separator is specified, print it between each element in the sequence
 private:
-  void Digitize();  // convert the string in <undigitized_> to a vector<uint8_t> in <seq_>
+  void Digitize();  // convert the string in <undigitized_> to a vector<uint8_t> in <seqq_>
+  void CheckPosLen(string name, string undigitized, size_t pos, size_t len);
   string name_;
   string header_;
   int cyst_position_;
   string undigitized_;  // undigitized sequence
   Track* track_; // track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
-  vector<uint8_t>* seq_; // digitized Sequence
+  vector<uint8_t> seqq_; // digitized Sequence
 };
 
 // ----------------------------------------------------------------------------------------

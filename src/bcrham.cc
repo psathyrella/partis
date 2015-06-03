@@ -115,7 +115,8 @@ int main(int argc, const char * argv[]) {
     ofs.close();
     return 0;
   }
-  
+  if(args.truncate_seqs())
+    throw runtime_error("only implemented sequence truncation in glomeration");
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
