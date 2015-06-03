@@ -27,8 +27,7 @@ class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
         self.germline_seqs = utils.read_germlines(self.args.datadir)
-        with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
-            self.cyst_positions = json.load(json_file)
+        self.cyst_positions = utils.read_cyst_positions(self.args.datadir)
         with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
@@ -119,7 +118,7 @@ class PartitionDriver(object):
             cp.add_partition([[cl, ] for cl in self.input_info.keys()], 0., 0., -1.)
             self.paths = [cp, ]
         else:
-            initial_divvied_queries = self.divvy_up_queries(n_procs, self.input_info)
+            initial_divvied_queries = self.divvy_up_queries(n_procs, self.sw_info)
             self.smc_info = [[], ]
             for clusters in initial_divvied_queries:  # one set of <clusters> for each process
                 self.smc_info[-1].append([])
@@ -204,7 +203,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths, tmpglom):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'n_clusters', 'bad_clusters'))  #'normalized_score'
+            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'n_clusters', 'n_procs', 'bad_clusters'))  #'normalized_score'
             writer.writeheader()
             true_partition = tmpglom.get_true_partition()
             for ipath in range(len(paths)):
@@ -243,6 +242,7 @@ class PartitionDriver(object):
                                      # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
                                      'adj_mi' : paths[ipath].adj_mis[ipart],
                                      'n_clusters' : len(part),
+                                     'n_procs' : paths[ipath].n_procs[ipart],
                                      'bad_clusters' : ';'.join(bad_clusters)
                                      # 'clusters' : cluster_str
                                  })
@@ -271,6 +271,8 @@ class PartitionDriver(object):
         if self.args.action == 'partition':
             cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
+        if self.args.truncate_n_sets:
+            cmd_str += ' --truncate-seqs'
 
         # print cmd_str
         # sys.exit()
@@ -337,17 +339,23 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, debug=True):
-        naive_seqs = {}
+        naive_seqs, cyst_positions = {}, {}
         for line in info:
-            query = line['names'] if 'names' in line else line  # the first time through, we just pass in <self.input_info>, so there's no 'names'
-            if self.cached_results is not None and query in self.cached_results:
+            query = line['names'] if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
+            # NOTE cached naive seq will be truncated by bcrham
+            if self.cached_results is not None and query in self.cached_results:  # first try to used cached hmm results
                 naive_seqs[query] = self.cached_results[query]['naive-seq']
-            elif query in self.sw_info:
+                cyst_positions[query] = self.cached_results[query]['cyst_position']
+            elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
+                cyst_position[query] = self.sw_info[query]['cyst_position']
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
                 raise Exception('zero-length naive sequence found for ' + str(query))
+
+        if self.args.truncate_n_sets:
+            self.truncate_seqs(naive_seqs, kvinfo=None, cyst_positions=cyst_positions)
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
@@ -358,7 +366,7 @@ class PartitionDriver(object):
             print ''
 
         if len(divvied_queries) != n_procs:
-            raise Exception('Wrong number of clusters')
+            raise Exception('Wrong number of clusters %d for %d procs' % (len(divvied_queries), n_procs))
 
         return divvied_queries
 
@@ -588,37 +596,88 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
+    def truncate_seqs(self, seqinfo, kvinfo, cyst_positions):
+        """ 
+        Truncate <seqinfo> to have the same length to the left and right of the conserved cysteine.
+        """
+
+        # first find min length to left and right of the cysteine position
+        min_left, min_right = None, None
+        for query, seq in seqinfo.items():
+            cpos = cyst_positions[query]
+            if cpos < 0 or cpos >= len(seq):
+                raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
+            dleft = cpos  # NOTE <dright> includes <cpos>, i.e. dleft + dright = len(seq)
+            dright = len(seq) - cpos
+            if min_left is None or dleft < min_left:
+                min_left = dleft
+                print '  min left %d in %s' % (min_left, name)
+            if min_right is None or dright < min_right:
+                min_right = dright
+                print '  min right %d in %s' % (min_right, name)
+
+        # then truncate all the sequences to these lengths
+        for query, seq in seqinfo.items():
+            cpos = cyst_positions[query]
+            istart = cpos - min_left
+            istop = cpos + min_right
+            chopleft = istart
+            chopright = len(seq) - istop
+            print name
+            print '  chop %d %d' % (chopleft, chopright)
+            print '  before', len(seq), seq
+            seqinfo[query] = seq[istart : istop]
+            if kvinfo is not None:
+                kvinfo[query]['min'] -= chopleft
+                kvinfo[query]['max'] -= chopleft
+            # self.sw_info[name]['v_5p_del'] += chopleft
+            # self.sw_info[name]['j_3p_del'] += chopright
+            print '   after', len(seqinfo[query]), seqinfo[query]
+
+    # ----------------------------------------------------------------------------------------
     def combine_queries(self, query_names, parameter_dir, skipped_gene_matches=None):
-        """ Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets """
+        """ 
+        Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
+        Also truncates sequences.
+        """
+
         combo = {
             'k_v':{'min':99999, 'max':-1},
             'k_d':{'min':99999, 'max':-1},
             'only_genes':[],
             'seqs':[],
-            'mute-freqs':[]
+            'mute-freqs':[],
+            'cyst_positions':[]
         }
-        min_length = -1
-        for name in query_names:  # first find the min length, so we know how much we'll have to chop off of each sequence
-            if min_length == -1 or len(self.sw_info[name]['seq']) < min_length:
-                min_length = len(self.sw_info[name]['seq'])
+
+        # TODO this whole thing needs to use cache hmm info if it's available
+        seqinfo = {name : self.input_info[name]['seq'] for name in query_names}
+        kvinfo = {name : self.sw_info[name]['k_v'] for name in query_names}  # NOTE don't need to fix k_d for truncation
+        cyst_positions = {name : self.sw_info[name]['cyst_position'] for name in query_names}
+        if self.args.truncate_n_sets:
+            self.truncate_seqs(seqinfo, kvinfo, cyst_positions)
+
         for name in query_names:
-            info = self.sw_info[name]
-            query_seq = self.input_info[name]['seq']
-            chop = 0
-            if self.args.truncate_pairs:  # chop off the left side of the sequence if it's longer than min_length
-                chop = max(0, len(query_seq) - min_length)
-                query_seq = query_seq[ : min_length]
-            combo['seqs'].append(query_seq)
+            swfo = self.sw_info[name]
+            # query_seq = self.sw_info[name]['seq']
+            # k_v = swfo['k_v']
+
+            combo['seqs'].append(seqinfo[name])
             # for region in utils.regions:
             #     print '  ', region, name, utils.get_mutation_rate(self.germline_seqs, self.sw_info[name], restrict_to_region=region)
-            combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, self.sw_info[name]))  # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
+            # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
+            # TODO/NOTE this is the mutation rate *before* truncation
+            combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, swfo))
+            combo['cyst_positions'].append(cyst_positions[name])  # TODO use cached hmm values instead of SW
 
-            combo['k_v']['min'] = min(info['k_v']['min'] - chop, combo['k_v']['min'])
-            combo['k_v']['max'] = max(info['k_v']['max'] - chop, combo['k_v']['max'])
-            combo['k_d']['min'] = min(info['k_d']['min'], combo['k_d']['min'])
-            combo['k_d']['max'] = max(info['k_d']['max'], combo['k_d']['max'])
+            # combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
+            # combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
+            combo['k_v']['min'] = min(kvinfo[name]['min'], combo['k_v']['min'])
+            combo['k_v']['max'] = max(kvinfo[name]['max'], combo['k_v']['max'])
+            combo['k_d']['min'] = min(swfo['k_d']['min'], combo['k_d']['min'])
+            combo['k_d']['max'] = max(swfo['k_d']['max'], combo['k_d']['max'])
 
-            only_genes = info['all'].split(':')  # sw matches for this query
+            only_genes = swfo['all'].split(':')  # sw matches for this query
             self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)  #, name)
             used_only_genes = []
             for region in utils.regions:
@@ -659,7 +718,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
         csvfile = opener(mode)(fname)
-        header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']  # NOTE logweight is for the whole partition
+        header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs', 'cyst_positions']  # NOTE logweight is for the whole partition
         writer = csv.DictWriter(csvfile, header, delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         if mode == 'w':
             writer.writeheader()
@@ -681,8 +740,10 @@ class PartitionDriver(object):
                 'k_d_min' : combined_query['k_d']['min'],
                 'k_d_max' : combined_query['k_d']['max'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
-                'seqs' : ':'.join(combined_query['seqs']),
-                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']])
+                'seqs' : ':'.join(combined_query['seqs']),  # may be truncated, and thus not the same as those in <input_info> or <sw_info>
+                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']]),  # a.t.m., not corrected for truncation
+                'cyst_positions' : ':'.join([str(cpos) for cpos in combined_query['cyst_positions']]),  # TODO should really use the hmm cpos if it's available
+                # 'cyst_positions' : ':'.join([str(self.sw_info[qn]['cyst_position']) for qn in non_failed_names])  # TODO should really use the hmm cpos if it's available
             })
 
         csvfile.close()
@@ -785,18 +846,26 @@ class PartitionDriver(object):
         with opener('r')(fname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
+                query = line['unique_ids']
                 if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-                    # raise Exception('in bcrham output for %s: %s ' % (line['unique_ids'], line['errors']))
-                    print 'error in bcrham output for %s: %s ' % (line['unique_ids'], line['errors'])
-                if line['unique_ids'] not in self.cached_results:
-                    try:
-                        score = float(line['score'])
-                    except TypeError:
-                        print 'ERROR weird score: %s' % line['score']
-                        score = line['score']
-                    self.cached_results[line['unique_ids']] = {'logprob':score, 'naive-seq':line['naive-seq']}
-                    if line['naive-seq'] == '':  # I forget why this was happening, but it shouldn't any more (note that I don't actually *remove* the check, though...)
-                        raise Exception(line['unique_ids'])
+                    print 'error in bcrham output for %s: %s ' % (query, line['errors'])
+
+                score, naive_seq, cpos = None, None, None
+                if line['score'] != '':
+                    score = float(line['score'])
+                if line['naive-seq'] != '':
+                    naive_seq = line['naive-seq']
+                    cpos = int(line['cyst_position'])
+
+                if query in self.cached_results:  # make sure we don't get contradicting info
+                    if score != self.cached_results[query]['logprob']:
+                        raise Exception('unequal logprobs for %s: %f %f' % (query, score, self.cached_results[query]['logprob']))
+                    if naive_seq != self.cached_results[query]['naive-seq']:
+                        raise Exception('different naive seqs for %s: %s %s' % (query, naive_seq, self.cached_results[query]['naive-seq']))
+                    if cpos != self.cached_results[query]['cyst_position']:
+                        raise Exception('unequal cyst positions for %s: %d %d' % (query, cpos, self.cached_results[query]['cyst_position']))
+                else:
+                    self.cached_results[query] = {'logprob' : score, 'naive-seq' : naive_seq, 'cyst_position' : cpos}
 
     # ----------------------------------------------------------------------------------------
     def write_cachefile(self, fname):
@@ -807,10 +876,10 @@ class PartitionDriver(object):
             time.sleep(0.5)
         lockfile = open(lockfname, 'w')
         with opener('w')(fname) as cachefile:
-            writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq'))
+            writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq', 'cyst_position'))
             writer.writeheader()
             for uids, cachefo in self.cached_results.items():
-                writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq']})
+                writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq'], 'cyst_position':cachefo['cyst_position']})
 
         lockfile.close()
         os.remove(lockfname)

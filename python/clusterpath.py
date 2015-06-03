@@ -11,11 +11,12 @@ class ClusterPath(object):
         self.initial_path_index = initial_path_index
 
         # NOTE make *damn* sure if you add another list here that you also take care of it in remove_first_partition()
-        self.n_lists = 4  # just to make sure you don't forget
+        self.n_lists = 5  # just to make sure you don't forget
         self.partitions = []
         self.logprobs = []
         self.logweights = []
         self.adj_mis = []
+        self.n_procs = []
 
         self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes
         self.i_best, self.i_best_minus_x = None, None
@@ -29,7 +30,7 @@ class ClusterPath(object):
                 # self.conservative_max_minus_ten_logprob = self.logprobs[self.i_best_minus_ten]
                 break
 
-    def add_partition(self, partition, logprob, logweight, adj_mi):
+    def add_partition(self, partition, logprob, logweight, adj_mi, n_procs=-1):
         # don't add it if it's the same as the last partition
         if len(self.partitions) > 0 and len(partition) == len(self.partitions[-1]) and logprob == self.logprobs[-1]:
             return
@@ -37,17 +38,19 @@ class ClusterPath(object):
         self.logprobs.append(logprob)
         self.logweights.append(logweight)
         self.adj_mis.append(adj_mi)
+        self.n_procs.append(n_procs)
         if self.i_best is None or logprob > self.logprobs[self.i_best]:
             self.i_best = len(self.partitions) - 1
         self.update_best_minus_x_partition()
 
     def remove_first_partition(self):
         # NOTE after you do this, none of the 'best' shit is any good any more
-        assert self.n_lists == 4  # make sure we didn't add another list and forget to put it in here
+        assert self.n_lists == 5  # make sure we didn't add another list and forget to put it in here
         self.partitions.pop(0)
         self.logprobs.pop(0)
         self.logweights.pop(0)
         self.adj_mis.pop(0)
+        self.n_procs.pop(0)
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info, extrastr='', one_line=False, abbreviate=True):

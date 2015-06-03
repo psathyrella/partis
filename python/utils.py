@@ -101,6 +101,24 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
+def read_cyst_positions(datadir):
+    import json
+    jsonfname = datadir + '/v-meta.json'
+    csvfname = datadir + '/v-meta.csv'
+    with opener('r')(jsonfname) as json_file:
+        cyst_positions = json.load(json_file)
+    if not os.path.exists(csvfname) or os.path.getmtime(csvfname) < os.path.getmtime(jsonfname):  # if csv hasn't been made, or if it's older than the json file
+        print 'rewriting v-meta csv'
+        # remake csv file
+        with opener('w')(csvfname) as csv_file:
+            writer = csv.DictWriter(csv_file, ('gene', 'cyst_start'))
+            writer.writeheader()
+            for gene in cyst_positions:
+                writer.writerow({'gene' : gene, 'cyst_start' : cyst_positions[gene]['cysteine-position']})
+
+    return cyst_positions
+
+# ----------------------------------------------------------------------------------------
 def from_same_event(is_data, reco_info, query_names):
     if is_data:
         return None
