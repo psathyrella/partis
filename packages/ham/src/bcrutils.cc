@@ -137,6 +137,7 @@ GermLines::GermLines(string input_dir):
     assert(info[0].find("IGH") == 0);
     cyst_positions_[info[0]] = atoi(info[1].c_str());
   }
+  ifs.close();
 
   // get tryp info
   ifs.open(input_dir + "/j_tryp.csv");
@@ -144,7 +145,7 @@ GermLines::GermLines(string input_dir):
   // check header
   getline(ifs, line);
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
-  header = (SplitString(line, ","));
+  header = SplitString(line, ",");
   assert(header[0] == "gene");
   assert(header[1] == "tryp_start");
   // get info

@@ -3,16 +3,18 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence() : track_(nullptr) {
-  seq_ = new vector<uint8_t>();
+Sequence::Sequence() : track_(nullptr)
+{
 }
 
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Track* trk, string name, string &undigitized, int cyst_position):
   name_(name),
   cyst_position_(cyst_position),
-  track_(trk) {
-  undigitized_ = undigitized;
+  track_(trk),
+  seqq_(undigitized.size())
+{
+  undigitized_ = string(undigitized);
   ClearWhitespace("\n", &undigitized_);
   Digitize();
 }
@@ -21,9 +23,14 @@ Sequence::Sequence(Track* trk, string name, string &undigitized, int cyst_positi
 Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len, int untruncated_cyst_position):
   // NOTE <untruncated_cyst_position> argument refers to the position in <undigitized>, i.e. *before* truncation at <pos>
   name_(name),
-  track_(trk) {
+  track_(trk),
+  seqq_(undigitized.size())
+{
+  CheckPosLen(name, undigitized, pos, len);
   undigitized_ = undigitized.substr(pos, len);  // <len> better be greater than zero
-  cyst_position_ = untruncated_cyst_position - pos;
+  // if(int(pos) > untruncated_cyst_position)
+  //   throw runtime_error("truncating at pos " + to_string(pos) + " beyond cyst_position " + to_string(untruncated_cyst_position));
+  cyst_position_ = untruncated_cyst_position - pos;  // NOTE <cyst_position_> is negative e.g. if the sequence doesn't include the V region
   ClearWhitespace("\n", &undigitized_);
   Digitize();
 }
@@ -31,34 +38,45 @@ Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, siz
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(Sequence &rhs, size_t pos, size_t len) {
   name_ = rhs.name_;
-  cyst_position_ = rhs.cyst_position_ - pos;
+  CheckPosLen(name_, rhs.undigitized(), pos, len);
+  // if(int(pos) > rhs.cyst_position_)
+  //   throw runtime_error("truncating at pos " + to_string(pos) + " beyond cyst_position " + to_string(rhs.cyst_position_));
+  cyst_position_ = rhs.cyst_position_ - pos;  // NOTE <cyst_position_> is negative e.g. if the sequence doesn't include the V region
   header_  = rhs.header_;
   track_  = rhs.track_;
   undigitized_ = rhs.undigitized().substr(pos, len);  // <len> better be greater than zero
-  seq_ = new vector<uint8_t>(rhs.seq_->begin() + pos, rhs.seq_->begin() + pos + len);
+  seqq_ = vector<uint8_t>(rhs.seqq_.begin() + pos, rhs.seqq_.begin() + pos + len);
 }
 
 // ----------------------------------------------------------------------------------------
 Sequence::Sequence(const Sequence &rhs) {
   name_ = rhs.name_;
   header_  = rhs.header_;
+  cyst_position_ = rhs.cyst_position_;
+  undigitized_ = rhs.undigitized_;
   track_  = rhs.track_;
-  undigitized_ = rhs.undigitized();
-  seq_ = new vector<uint8_t>(*rhs.seq_);
+  seqq_ = rhs.seqq_;
+}
+
+// ----------------------------------------------------------------------------------------
+void Sequence::CheckPosLen(string name, string undigitized, size_t pos, size_t len) {
+  if(pos < 0 || len < 0)  // can't actually be less than zero, but I have great hopes of eventually making them signed
+    throw runtime_error("invalid pos " + to_string(pos) + " len " + to_string(len) + " for " + name);
+  if(pos >= undigitized.size() || pos + len > undigitized.size())
+    throw runtime_error("len " + to_string(len) + " too large for " + undigitized + " in " + name);
 }
 
 // ----------------------------------------------------------------------------------------
 void Sequence::Digitize() {
-  seq_ = new vector<uint8_t>(undigitized_.size());
+  assert(seqq_.size() == undigitized_.size());
   for(size_t i = 0; i < undigitized_.size(); ++i) {
     string symbol = undigitized_.substr(i, 1);
-    (*seq_)[i] = track_->symbol_index(symbol);
+    seqq_[i] = track_->symbol_index(symbol);
   }
 }
 
 // ----------------------------------------------------------------------------------------
 Sequence::~Sequence() {
-  delete seq_;
 }
 
 // ----------------------------------------------------------------------------------------
