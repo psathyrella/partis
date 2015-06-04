@@ -348,13 +348,14 @@ class PartitionDriver(object):
                 cyst_positions[query] = self.cached_results[query]['cyst_position']
             elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
-                cyst_position[query] = self.sw_info[query]['cyst_position']
+                cyst_positions[query] = self.sw_info[query]['cyst_position']
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
                 raise Exception('zero-length naive sequence found for ' + str(query))
 
         if self.args.truncate_n_sets:
+            print '  truncate in divvy'
             self.truncate_seqs(naive_seqs, kvinfo=None, cyst_positions=cyst_positions)
 
         clust = Glomerator()
@@ -609,12 +610,11 @@ class PartitionDriver(object):
                 raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
             dleft = cpos  # NOTE <dright> includes <cpos>, i.e. dleft + dright = len(seq)
             dright = len(seq) - cpos
+            print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
             if min_left is None or dleft < min_left:
                 min_left = dleft
-                print '  min left %d in %s' % (min_left, name)
             if min_right is None or dright < min_right:
                 min_right = dright
-                print '  min right %d in %s' % (min_right, name)
 
         # then truncate all the sequences to these lengths
         for query, seq in seqinfo.items():
@@ -623,16 +623,15 @@ class PartitionDriver(object):
             istop = cpos + min_right
             chopleft = istart
             chopright = len(seq) - istop
-            print name
-            print '  chop %d %d' % (chopleft, chopright)
-            print '  before', len(seq), seq
+            print '      chop %d %d   %s' % (chopleft, chopright, query)
+            print '     %d --> %d (%d-%d --> %d-%d)      %s' % (len(seq), len(seq[istart : istop]),
+                                                                kvinfo[query]['min'], kvinfo[query]['max'],
+                                                                kvinfo[query]['min'] - chopleft, kvinfo[query]['max'] - chopleft,
+                                                                query)
             seqinfo[query] = seq[istart : istop]
             if kvinfo is not None:
                 kvinfo[query]['min'] -= chopleft
                 kvinfo[query]['max'] -= chopleft
-            # self.sw_info[name]['v_5p_del'] += chopleft
-            # self.sw_info[name]['j_3p_del'] += chopright
-            print '   after', len(seqinfo[query]), seqinfo[query]
 
     # ----------------------------------------------------------------------------------------
     def combine_queries(self, query_names, parameter_dir, skipped_gene_matches=None):
@@ -655,6 +654,7 @@ class PartitionDriver(object):
         kvinfo = {name : self.sw_info[name]['k_v'] for name in query_names}  # NOTE don't need to fix k_d for truncation
         cyst_positions = {name : self.sw_info[name]['cyst_position'] for name in query_names}
         if self.args.truncate_n_sets:
+            print '  truncate in combine_queries'
             self.truncate_seqs(seqinfo, kvinfo, cyst_positions)
 
         for name in query_names:

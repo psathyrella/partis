@@ -30,8 +30,8 @@ tests = OrderedDict()
 existing_parameter_dir = 'test/regression/parameters/simu/hmm'
 # first add the simple, few-sequence tests (using partis.py)
 tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 1 --debug 1'
-tests['partition-a-few'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 --truncate-n-sets'
-tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --debug 1 --truncate-n-sets --n-max-queries 3'
+tests['partition-a-few'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1'  # --truncate-n-sets'
+tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --debug 1 --n-max-queries 3' # --truncate-n-sets
 # then add the tests that run over the framework (using run-driver.py)
 for action in actions:
     tests[action] = base_cmd + ' --action ' + action
