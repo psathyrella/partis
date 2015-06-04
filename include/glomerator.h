@@ -45,7 +45,7 @@ public:
 
   void WritePartitions(vector<ClusterPath> &paths);
 private:
-  void ReadCachedLogProbs(Track *track);
+  void ReadCachedLogProbs();
   void GetSoloLogProb(string key);
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCachedLogProbs();
@@ -82,7 +82,7 @@ private:
   map<string, Sequence> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;
 
-  int n_cached_, n_calculated_;
+  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_;
 };
 
 }
