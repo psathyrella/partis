@@ -50,7 +50,6 @@ private:
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCachedLogProbs();
   double NaiveHammingFraction(string key_a, string key_b);
-  void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector);
   int HammingDistance(string seq_a, string seq_b);  // dammit I don't like having two functions, but *@!(#ing Sequence class is not stl safe.
   int HammingDistance(Sequence seq_a, Sequence seq_b);
   void GetNaiveSeq(string key);
@@ -59,12 +58,14 @@ private:
   bool SameLength(vector<Sequence> &seqs);
   Query GetMergedQuery(string name_a, string name_b);
   string JoinNames(string name1, string name2);
+  // string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
+  string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
   Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   // input info
   Track *track_;
   Args *args_;
-  DPHandler dph_;
+  DPHandler vtb_dph_, fwd_dph_;
   ofstream ofs_;
 
   vector<Partition> initial_partitions_;
@@ -78,6 +79,8 @@ private:
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
+  // NOTE they keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
+  // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice
   map<string, double> log_probs_;  // includes cached info from previous runs
   map<string, Sequence> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;

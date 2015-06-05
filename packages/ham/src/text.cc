@@ -26,6 +26,17 @@ vector<string> SplitString(string argstr, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+string JoinStrings(vector<string> &strlist, string delimiter) {
+  string return_str;
+  for(size_t is=0; is<strlist.size(); ++is) {
+    if(is > 0)
+      return_str += delimiter;
+    return_str += strlist[is];
+  }
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
 vector<int> Intify(vector<string> strlist) {
   vector<int> intlist;
   for(auto &str : strlist)

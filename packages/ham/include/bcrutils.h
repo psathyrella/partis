@@ -152,6 +152,8 @@ private:
   bool could_not_expand_;
 };
 
+void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector, bool debug = false);
+
 }
 
 #endif

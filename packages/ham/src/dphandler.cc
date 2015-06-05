@@ -1,7 +1,8 @@
 #include "dphandler.h"
 namespace ham {
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-DPHandler::DPHandler(Args *args, GermLines &gl, HMMHolder &hmms):
+DPHandler::DPHandler(string algorithm, Args *args, GermLines &gl, HMMHolder &hmms):
+  algorithm_(algorithm),
   args_(args),
   gl_(gl),
   hmms_(hmms)
@@ -15,18 +16,18 @@ DPHandler::~DPHandler() {
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::Clear() {
-  for(auto & gene_map : trellisi_) {
+  for(auto & gene_map : trellisi_) {  // loop over genes
     string gene(gene_map.first);
-    for(auto & query_str_map : gene_map.second) {
-      delete query_str_map.second;
+    for(auto & query_str_map : gene_map.second) {  // loop query strings for each gene
+      delete query_str_map.second;  // delete the actual trellis
       if(paths_[gene][query_str_map.first])   // set to nullptr if no valid path
-        delete paths_[gene][query_str_map.first];
+        delete paths_[gene][query_str_map.first];  // delete the path corresponding to that trellis
     }
   }
   trellisi_.clear();
   paths_.clear();
   all_scores_.clear();
-  best_per_gene_scores_.clear();
+  // best_per_gene_scores_.clear();  huh, am I not using this for anything?
 }
 
 // ----------------------------------------------------------------------------------------
@@ -54,13 +55,13 @@ map<string, Sequences> DPHandler::GetSubSeqs(Sequences &seqs, KSet kset) {
 
 
 // ----------------------------------------------------------------------------------------
-Result DPHandler::Run(string algorithm, Sequence seq, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+Result DPHandler::Run(Sequence seq, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq, bool clear_cache) {
   vector<Sequence> seqvector{seq};
-  return Run(algorithm, seqvector, kbounds, only_gene_list, overall_mute_freq);
+  return Run(seqvector, kbounds, only_gene_list, overall_mute_freq, clear_cache);
 }
 
 // ----------------------------------------------------------------------------------------
-Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq, bool clear_cache) {
   Sequences seqs;
   for(auto &seq : seqvector)
     seqs.AddSeq(seq);
@@ -79,8 +80,8 @@ Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbou
 
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
-  Clear();
-  assert(trellisi_.size() == 0 && paths_.size() == 0 && all_scores_.size() == 0);
+  if(clear_cache)  // default is true, and you pobably want to leave it that way
+    Clear();  // delete all existing trellisi, paths, and logprobs NOTE in principal it kinda ought to be faster to keep everything cached between calls to Run()... but in practice there's a fair bit of overhead to keeping all that stuff hanging around, and it's much more efficient to do the caching in Glomerator (which we already do). So, in sum, it's generally faster to Clear() right here. One exception is if you, say, run viterbi on the same sequence fifty times in a row... then you want to keep the cache around. But why would you do that? In practice the only time you're running on the same sequence many times is in Glomerator, and there we're already doing caching more efficiently at a higher level.
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
@@ -97,21 +98,21 @@ Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbou
   KSet best_kset(0, 0);
   double *total_score = &result.total_score_;  // total score for all ksets
   int n_too_long(0);
-  for(size_t k_v = kbounds.vmax - 1; k_v >= kbounds.vmin; --k_v) {
+  for(size_t k_v = kbounds.vmax - 1; k_v >= kbounds.vmin; --k_v) {  // loop in reverse order to facilitate chunk caching: in principle we calculate V once the first time through, and after that can just copy over pieces of the first dp table (roughly the same for D and J)
     for(size_t k_d = kbounds.dmax - 1; k_d >= kbounds.dmin; --k_d) {
       if(k_v + k_d >= seqs.GetSequenceLength()) {
         ++n_too_long;
         continue;
       }
       KSet kset(k_v, k_d);
-      RunKSet(algorithm, seqs, kset, only_genes, &best_scores, &total_scores, &best_genes);
+      RunKSet(seqs, kset, only_genes, &best_scores, &total_scores, &best_genes);
       *total_score = AddInLogSpace(total_scores[kset], *total_score);  // sum up the probabilities for each kset, log P_tot = log \sum_i P_k_i
-      if(args_->debug() == 2 && algorithm == "forward") printf("            %9.2f (%.1e)  tot: %7.2f\n", total_scores[kset], exp(total_scores[kset]), *total_score);
+      if(args_->debug() == 2 && algorithm_ == "forward") printf("            %9.2f (%.1e)  tot: %7.2f\n", total_scores[kset], exp(total_scores[kset]), *total_score);
       if(best_scores[kset] > best_score) {
         best_score = best_scores[kset];
         best_kset = kset;
       }
-      if(algorithm == "viterbi" && best_scores[kset] != -INFINITY)
+      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)
         PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
     }
   }
@@ -125,7 +126,7 @@ Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbou
   }
 
   // sort vector of events by score, stream info to stderr, and print the top n_best_events_
-  if(algorithm == "viterbi") {
+  if(algorithm_ == "viterbi") {
     sort(result.events_.begin(), result.events_.end());
     reverse(result.events_.begin(), result.events_.end());
     if(args_->debug() == 2) {
@@ -141,7 +142,7 @@ Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbou
 
   // print debug info
   if(args_->debug()) {
-    if(algorithm == "viterbi") {
+    if(algorithm_ == "viterbi") {
       cout << "           vtb " << setw(4) << best_kset.v << setw(4) << best_kset.d << setw(12) << best_score
 	   << "   " << kbounds.vmin << "-" << kbounds.vmax - 1 << "   " << kbounds.dmin << "-" << kbounds.dmax - 1
 	   << "   " << hmms_.NameString(&only_genes, 30)
@@ -173,7 +174,7 @@ Result DPHandler::Run(string algorithm, vector<Sequence> seqvector, KBounds kbou
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::FillTrellis(string algorithm, Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
+void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
   *score = -INFINITY;
   // initialize trellis and path
   if(trellisi_.find(gene) == trellisi_.end()) {
@@ -182,25 +183,25 @@ void DPHandler::FillTrellis(string algorithm, Sequences query_seqs, vector<strin
   }
   origin = "scratch";
   if(args_->chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
-    for(auto & query_str_map : trellisi_[gene]) {
-      vector<string> tmp_query_strs(query_str_map.first);
-      // assert(0);  // fix the below!
+    for(auto &kv : trellisi_[gene]) {
+      vector<string> cached_query_strs(kv.first);
+      if(cached_query_strs.size() != query_strs.size())
+	continue;
 
       // loop over all the query strings for this trellis to see if they all match
       bool found_match(true);
-      for(size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq) {  // NOTE this starts to seem like it might be bottlenecking me when I'm applying it for short d sequences
-        if(tmp_query_strs[iseq].find(query_strs[iseq]) != 0) {
+      for(size_t iseq = 0; iseq < cached_query_strs.size(); ++iseq) {  // NOTE this starts to seem like it might be bottlenecking me when I'm applying it for short d sequences
+        if(cached_query_strs[iseq].find(query_strs[iseq]) != 0) {  // if <query_strs[iseq]> (the current query) doesn't appear starting at position zero in <cached_query_strs[iseq]> (a previously cached query), we'll need to recalculate
           found_match = false;
           break;
         }
       }
 
-
       // if they all match, then use it
       if(found_match) {
-        for(size_t iseq = 0; iseq < tmp_query_strs.size(); ++iseq)
-          assert(tmp_query_strs[iseq].find(query_strs[iseq]) == 0);
-        trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs, trellisi_[gene][tmp_query_strs]);
+        for(size_t iseq = 0; iseq < cached_query_strs.size(); ++iseq)  // neurotic double check
+          assert(cached_query_strs[iseq].find(query_strs[iseq]) == 0);
+        trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs, trellisi_[gene][cached_query_strs]);  // copy over the required chunk of the old trellis into a new trellis for the current query
         origin = "chunk";
         break;
       }
@@ -211,7 +212,8 @@ void DPHandler::FillTrellis(string algorithm, Sequences query_seqs, vector<strin
     trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs);
   trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
 
-  if(algorithm == "viterbi") {
+  // run the actual dp algorithms
+  if(algorithm_ == "viterbi") {
     trell->Viterbi();
     *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
     if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm
@@ -224,7 +226,7 @@ void DPHandler::FillTrellis(string algorithm, Sequences query_seqs, vector<strin
     }
     assert(fabs(*score) > 1e-200);
     assert(*score == -INFINITY || paths_[gene][query_strs]->size() > 0);
-  } else if(algorithm == "forward") {
+  } else if(algorithm_ == "forward") {
     trell->Forward();
     paths_[gene][query_strs] = nullptr;  // avoids violating the assumption that paths_ and trellisi_ have the same entries
     *score = trell->ending_forward_log_prob();  // NOTE still need to add the gene choice prob to this score
@@ -328,7 +330,7 @@ vector<string> DPHandler::GetQueryStrs(Sequences &seqs, KSet kset, string region
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
+void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes) {
   map<string, Sequences> subseqs(GetSubSeqs(seqs, kset));
   (*best_scores)[kset] = -INFINITY;
   (*total_scores)[kset] = -INFINITY;  // total log prob of this kset, i.e. log(P_v * P_d * P_j), where e.g. P_v = \sum_i P(v_i k_v)
@@ -336,13 +338,13 @@ void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<string
   map<string, double> regional_best_scores; // the best score for each region
   map<string, double> regional_total_scores; // the total score for each region, i.e. log P_v
   if(args_->debug() == 2)
-    cout << "            " << kset.v << " " << kset.d << " -------------------" << endl;
+    printf("         %3d%3d %6s %9s  %7s  %7s  %s\n", (int)kset.v, (int)kset.d, "prob", "logprob", "total", "origin", "---------------");
   for(auto & region : gl_.regions_) {
     vector<string> query_strs(GetQueryStrs(seqs, kset, region));
 
     TermColors tc;
     if(args_->debug() == 2) {
-      if(algorithm == "viterbi") {
+      if(algorithm_ == "viterbi") {
         cout << "              " << region << " query " << query_strs[0] << endl;
         for(size_t is = 1; is < query_strs.size(); ++is)
           cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[is], query_strs[0]) << endl;  // use the first query_str as reference sequence... could just as well use any other
@@ -371,17 +373,17 @@ void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<string
       if(already_cached) {
         origin = "cached";
       } else {
-        FillTrellis(algorithm, subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
+        FillTrellis(subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
         double gene_choice_score = log(hmms_.Get(gene, args_->debug())->overall_prob());
         *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
       }
-      if(args_->debug() == 2 && algorithm == "viterbi")
+      if(args_->debug() == 2 && algorithm_ == "viterbi")
         PrintPath(query_strs, gene, *gene_score, origin);
 
       // set regional total scores
       regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
-      if(args_->debug() == 2 && algorithm == "forward")
-        printf("                %9.2f (%.1e)  tot: %7.2f  %s\n", *gene_score, exp(*gene_score), regional_total_scores[region], tc.ColorGene(gene).c_str());
+      if(args_->debug() == 2 && algorithm_ == "forward")
+        printf("                %6.0e %9.2f  %7.2f  %s  %s\n", exp(*gene_score), *gene_score, regional_total_scores[region], origin.c_str(), tc.ColorGene(gene).c_str());
 
       // set best regional scores
       if(*gene_score > regional_best_scores[region]) {
@@ -389,11 +391,11 @@ void DPHandler::RunKSet(string algorithm, Sequences &seqs, KSet kset, map<string
         (*best_genes)[kset][region] = gene;
       }
 
-      // set best per-gene scores
-      if(best_per_gene_scores_.find(gene) == best_per_gene_scores_.end())
-        best_per_gene_scores_[gene] = -INFINITY;
-      if(*gene_score > best_per_gene_scores_[gene])
-        best_per_gene_scores_[gene] = *gene_score;
+      // // set best per-gene scores
+      // if(best_per_gene_scores_.find(gene) == best_per_gene_scores_.end())  huh, am I not using this for anything?
+      //   best_per_gene_scores_[gene] = -INFINITY;
+      // if(*gene_score > best_per_gene_scores_[gene])
+      //   best_per_gene_scores_[gene] = *gene_score;
 
     }
 
@@ -531,7 +533,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
 // void DPHandler::WriteBestGeneProbs(ofstream &ofs, string query_name) {
 //   ofs << query_name << ",";
 //   stringstream ss;
-//   for(auto & gene_map : best_per_gene_scores_)
+//   for(auto & gene_map : best_per_gene_scores_)  huh, am I not using this for anything?
 //     ss << gene_map.first << ":" << gene_map.second << ";";
 //   ofs << ss.str().substr(0, ss.str().size() - 1) << endl; // remove the last semicolon
 // }
