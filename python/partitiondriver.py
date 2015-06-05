@@ -890,7 +890,8 @@ class PartitionDriver(object):
         os.remove(lockfname)
 
     # ----------------------------------------------------------------------------------------
-    def correct_for_bcrham_truncation(self, line):
+    def get_bcrham_truncations(self, line):
+        chops = []
         for iq in range(len(line['unique_ids'])):
             # print line['unique_ids'][iq]
             original_seq = self.input_info[line['unique_ids'][iq]]['seq']
@@ -900,30 +901,36 @@ class PartitionDriver(object):
             chopright = len(original_seq) - len(bcrham_seq) - chopleft
             assert chopright >= 0 and chopright <= len(original_seq)
 
+            chops.append({'left' : chopleft, 'right' : chopright})
+
             # print '    ', line['v_5p_del'], line['j_3p_del']
             # TODO this isn't right yet
 
             truncated_seq = original_seq
             if chopleft > 0:
                 truncated_seq = truncated_seq[chopleft : ]
-                if line['v_5p_del'] < chopleft:
-                    print 'ERROR v_5p_del %d smaller than chopleft %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['v_5p_del'], chopleft)
-                else:
-                    line['v_5p_del'] -= chopleft
-                line['seqs'][iq] = original_seq
+                # line['chopleft'] = chopleft
+                # if line['v_5p_del'] < chopleft:
+                #     print 'ERROR v_5p_del %d smaller than chopleft %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['v_5p_del'], chopleft)
+                # else:
+                #     line['v_5p_del'] -= chopleft
+                # line['seqs'][iq] = original_seq
             if chopright > 0:
                 truncated_seq = truncated_seq[ : -chopright]
-                if line['j_3p_del'] < chopright:
-                    print 'ERROR j_3p_del %d smaller than chopright %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['j_3p_del'], chopright)
-                else:
-                    line['j_3p_del'] -= chopright
-                line['seqs'][iq] = original_seq
+                # line['chopright'] = chopright
+                # if line['j_3p_del'] < chopright:
+                #     print 'ERROR j_3p_del %d smaller than chopright %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['j_3p_del'], chopright)
+                # else:
+                #     line['j_3p_del'] -= chopright
+                # line['seqs'][iq] = original_seq
             # print '    ', line['v_5p_del'], line['j_3p_del']
 
             # print '    ', original_seq
             # print '    ', bcrham_seq
             # print '    ', truncated_seq
             assert bcrham_seq == truncated_seq
+
+        return chops
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):
@@ -959,7 +966,6 @@ class PartitionDriver(object):
                     else:
                         assert len(line['errors']) == 0
 
-                self.correct_for_bcrham_truncation(line)
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
@@ -1034,9 +1040,11 @@ class PartitionDriver(object):
                     out_str_list.append(true_event_str)
             ilabel = 'inferred:'
 
+        chops = self.get_bcrham_truncations(line)
         for iseq in range(0, len(line['unique_ids'])):
             tmpline = dict(line)
             tmpline['seq'] = line['seqs'][iseq]
+            tmpline['chops'] = chops[iseq]
             label = ilabel if iseq==0 else ''
             event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
             out_str_list.append(event_str)

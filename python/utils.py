@@ -637,8 +637,17 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
     # then query sequence
-    final_seq = ' '*len(v_5p_del_str) + final_seq
-    out_str_list.append('%s    %s%s' % (extra_str, final_seq, ' ' * j_3p_del))
+    v_5p_del_space_str = ' '*len(v_5p_del_str)
+    j_3p_del_space_str = ' ' * j_3p_del
+    if 'chops' in line:
+        if line['chops']['left'] > 0:
+            v_5p_del_space_str = v_5p_del_space_str[ : -line['chops']['left']]
+        if line['chops']['right'] > 0:
+            j_3p_del_space_str = j_3p_del_space_str[line['chops']['right'] : ]
+        final_seq = color('green', '.'*line['chops']['left']) + final_seq + color('green', '.'*line['chops']['right'])
+    final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
+
+    out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info
     out_str_list.append('   muted: %4.2f' % (float(n_muted) / n_total))
     if 'score' in line:
