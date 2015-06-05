@@ -35,7 +35,7 @@ class PartitionDriver(object):
         randomize_order = self.args.action == 'partition' and not self.args.force_dont_randomize_input_order
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=randomize_order)  # if we're partitioning, we need to randomize input order (at least for simulation)
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=randomize_order, replace_N_with=args.replace_N_with)  # if we're partitioning, we need to randomize input order (at least for simulation)
 
         self.cached_results = None
 
@@ -177,7 +177,7 @@ class PartitionDriver(object):
             if self.args.outfname is not None:
                 self.write_partitions(self.args.outfname, final_paths, tmpglom)
 
-        if self.args.debug:
+        if self.args.debug and not self.args.is_data:
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
@@ -341,11 +341,12 @@ class PartitionDriver(object):
     def divvy_up_queries(self, n_procs, info, debug=True):
         naive_seqs, cyst_positions = {}, {}
         for line in info:
-            query = line['names'] if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
+            query = line['names']  # if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
+            seqstr = line['seqs']
             # NOTE cached naive seq will be truncated by bcrham
-            if self.cached_results is not None and query in self.cached_results:  # first try to used cached hmm results
-                naive_seqs[query] = self.cached_results[query]['naive-seq']
-                cyst_positions[query] = self.cached_results[query]['cyst_position']
+            if self.cached_results is not None and seqstr in self.cached_results:  # first try to used cached hmm results
+                naive_seqs[query] = self.cached_results[seqstr]['naive_seq']
+                cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
             elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
                 cyst_positions[query] = self.sw_info[query]['cyst_position']
@@ -597,7 +598,7 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def truncate_seqs(self, seqinfo, kvinfo, cyst_positions):
+    def truncate_seqs(self, seqinfo, kvinfo, cyst_positions, debug=False):
         """ 
         Truncate <seqinfo> to have the same length to the left and right of the conserved cysteine.
         """
@@ -610,7 +611,8 @@ class PartitionDriver(object):
                 raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
             dleft = cpos  # NOTE <dright> includes <cpos>, i.e. dleft + dright = len(seq)
             dright = len(seq) - cpos
-            print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
+            if debug:
+                print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
             if min_left is None or dleft < min_left:
                 min_left = dleft
             if min_right is None or dright < min_right:
@@ -623,11 +625,12 @@ class PartitionDriver(object):
             istop = cpos + min_right
             chopleft = istart
             chopright = len(seq) - istop
-            print '      chop %d %d   %s' % (chopleft, chopright, query)
-            print '     %d --> %d (%d-%d --> %d-%d)      %s' % (len(seq), len(seq[istart : istop]),
-                                                                kvinfo[query]['min'], kvinfo[query]['max'],
-                                                                kvinfo[query]['min'] - chopleft, kvinfo[query]['max'] - chopleft,
-                                                                query)
+            if debug:
+                print '      chop %d %d   %s' % (chopleft, chopright, query)
+                print '     %d --> %d (%d-%d --> %d-%d)      %s' % (len(seq), len(seq[istart : istop]),
+                                                                    -1 if kvinfo is None else kvinfo[query]['min'], -1 if kvinfo is None else kvinfo[query]['max'],
+                                                                    -1 if kvinfo is None else (kvinfo[query]['min'] - chopleft), -1 if kvinfo is None else (kvinfo[query]['max'] - chopleft),
+                                                                    query)
             seqinfo[query] = seq[istart : istop]
             if kvinfo is not None:
                 kvinfo[query]['min'] -= chopleft
@@ -653,9 +656,10 @@ class PartitionDriver(object):
         seqinfo = {name : self.input_info[name]['seq'] for name in query_names}
         kvinfo = {name : self.sw_info[name]['k_v'] for name in query_names}  # NOTE don't need to fix k_d for truncation
         cyst_positions = {name : self.sw_info[name]['cyst_position'] for name in query_names}
-        if self.args.truncate_n_sets:
-            print '  truncate in combine_queries'
-            self.truncate_seqs(seqinfo, kvinfo, cyst_positions)
+        # TODO not really sure why I thought I needed to truncate here. Was there a reason?
+        # if self.args.truncate_n_sets:
+        #     print '  truncate in combine_queries'
+        #     self.truncate_seqs(seqinfo, kvinfo, cyst_positions)
 
         for name in query_names:
             swfo = self.sw_info[name]
@@ -846,26 +850,27 @@ class PartitionDriver(object):
         with opener('r')(fname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                query = line['unique_ids']
+                # query = line['unique_ids']
+                seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
                 if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-                    print 'error in bcrham output for %s: %s ' % (query, line['errors'])
+                    print 'error in bcrham output for %s: %s ' % (seqstr, line['errors'])
 
                 score, naive_seq, cpos = None, None, None
                 if line['score'] != '':
                     score = float(line['score'])
-                if line['naive-seq'] != '':
-                    naive_seq = line['naive-seq']
+                if line['naive_seq'] != '':
+                    naive_seq = line['naive_seq']
                     cpos = int(line['cyst_position'])
 
-                if query in self.cached_results:  # make sure we don't get contradicting info
-                    if score != self.cached_results[query]['logprob']:
-                        raise Exception('unequal logprobs for %s: %f %f' % (query, score, self.cached_results[query]['logprob']))
-                    if naive_seq != self.cached_results[query]['naive-seq']:
-                        raise Exception('different naive seqs for %s: %s %s' % (query, naive_seq, self.cached_results[query]['naive-seq']))
-                    if cpos != self.cached_results[query]['cyst_position']:
-                        raise Exception('unequal cyst positions for %s: %d %d' % (query, cpos, self.cached_results[query]['cyst_position']))
+                if seqstr in self.cached_results:  # make sure we don't get contradicting info
+                    if abs(score - self.cached_results[seqstr]['logprob']) > 1e-4:
+                        print 'WARNING unequal logprobs for %s: %f %f' % (seqstr, score, self.cached_results[seqstr]['logprob'])
+                    if naive_seq != self.cached_results[seqstr]['naive_seq']:
+                        raise Exception('different naive seqs for %s: %s %s' % (seqstr, naive_seq, self.cached_results[seqstr]['naive_seq']))
+                    if cpos != self.cached_results[seqstr]['cyst_position']:
+                        raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))
                 else:
-                    self.cached_results[query] = {'logprob' : score, 'naive-seq' : naive_seq, 'cyst_position' : cpos}
+                    self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos}
 
     # ----------------------------------------------------------------------------------------
     def write_cachefile(self, fname):
@@ -876,13 +881,49 @@ class PartitionDriver(object):
             time.sleep(0.5)
         lockfile = open(lockfname, 'w')
         with opener('w')(fname) as cachefile:
-            writer = csv.DictWriter(cachefile, ('unique_ids', 'score', 'naive-seq', 'cyst_position'))
+            writer = csv.DictWriter(cachefile, ('query_seqs', 'score', 'naive_seq', 'cyst_position'))
             writer.writeheader()
-            for uids, cachefo in self.cached_results.items():
-                writer.writerow({'unique_ids':uids, 'score':cachefo['logprob'], 'naive-seq':cachefo['naive-seq'], 'cyst_position':cachefo['cyst_position']})
+            for seqstr, cachefo in self.cached_results.items():
+                writer.writerow({'query_seqs':seqstr, 'score':cachefo['logprob'], 'naive_seq':cachefo['naive_seq'], 'cyst_position':cachefo['cyst_position']})
 
         lockfile.close()
         os.remove(lockfname)
+
+    # ----------------------------------------------------------------------------------------
+    def correct_for_bcrham_truncation(self, line):
+        for iq in range(len(line['unique_ids'])):
+            # print line['unique_ids'][iq]
+            original_seq = self.input_info[line['unique_ids'][iq]]['seq']
+            bcrham_seq = line['seqs'][iq]
+            chopleft = original_seq.find(bcrham_seq)
+            assert chopleft >= 0 and chopleft <= len(original_seq)
+            chopright = len(original_seq) - len(bcrham_seq) - chopleft
+            assert chopright >= 0 and chopright <= len(original_seq)
+
+            # print '    ', line['v_5p_del'], line['j_3p_del']
+            # TODO this isn't right yet
+
+            truncated_seq = original_seq
+            if chopleft > 0:
+                truncated_seq = truncated_seq[chopleft : ]
+                if line['v_5p_del'] < chopleft:
+                    print 'ERROR v_5p_del %d smaller than chopleft %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['v_5p_del'], chopleft)
+                else:
+                    line['v_5p_del'] -= chopleft
+                line['seqs'][iq] = original_seq
+            if chopright > 0:
+                truncated_seq = truncated_seq[ : -chopright]
+                if line['j_3p_del'] < chopright:
+                    print 'ERROR j_3p_del %d smaller than chopright %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['j_3p_del'], chopright)
+                else:
+                    line['j_3p_del'] -= chopright
+                line['seqs'][iq] = original_seq
+            # print '    ', line['v_5p_del'], line['j_3p_del']
+
+            # print '    ', original_seq
+            # print '    ', bcrham_seq
+            # print '    ', truncated_seq
+            assert bcrham_seq == truncated_seq
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):
@@ -918,6 +959,7 @@ class PartitionDriver(object):
                     else:
                         assert len(line['errors']) == 0
 
+                self.correct_for_bcrham_truncation(line)
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event

@@ -11,8 +11,10 @@ import utils
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tryp_positions=None, n_max_queries=-1, queries=None, reco_ids=None, randomize_order=False):
+def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tryp_positions=None, n_max_queries=-1, queries=None, reco_ids=None, randomize_order=False, replace_N_with=None):
     """ return list of sequence info from files of several types """
+    if replace_N_with is not None:
+        print 'WARNING replacing N with %s' % replace_N_with
     if is_data:
         assert not randomize_order  # only really makes sense to randomize simulation
     else:
@@ -48,7 +50,10 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
     else:
         raise Exception('unrecognized file format %s' % fname)
 
-    input_info, reco_info = OrderedDict(), OrderedDict()
+    input_info = OrderedDict()
+    reco_info = None
+    if not is_data:
+        reco_info = OrderedDict()
     n_queries = 0
     namelist = []  # only used for randomization
     for line in reader:
@@ -58,6 +63,9 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
             continue
         if reco_ids is not None and line['reco_id'] not in reco_ids:
             continue
+
+        if replace_N_with is not None:
+            line[seq_column] = line[seq_column].replace('N', replace_N_with)
 
         input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}
         if not is_data:
