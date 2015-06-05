@@ -115,8 +115,10 @@ int main(int argc, const char * argv[]) {
     ofs.close();
     return 0;
   }
-  if(args.truncate_seqs())
-    throw runtime_error("only implemented sequence truncation in glomeration");
+
+  DPHandler dph(args.algorithm(), &args, gl, hmms);
+
+  // not partitioning
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
@@ -126,7 +128,9 @@ int main(int argc, const char * argv[]) {
     vector<double> mute_freqs(args.float_lists_["mute_freqs"][iqry]);
     double mean_mute_freq(avgVector(mute_freqs));
 
-    DPHandler dph(&args, gl, hmms);
+    vector<KBounds> kbvector(qry_seqs.size(), kbounds);
+    if(args.truncate_seqs())
+      TruncateSeqs(qry_seqs, kbvector);
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.size(), result);  // only used for forward if n_seqs > 1
@@ -139,14 +143,14 @@ int main(int argc, const char * argv[]) {
       errors = "";
       // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
-      result = dph.Run(args.algorithm(), qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
+      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
       numerator = result.total_score();
       bayes_factor = numerator;
       if(args.algorithm() == "forward" && qry_seqs.size() > 1) {  // calculate factors for denominator
         for(size_t iseq = 0; iseq < qry_seqs.size(); ++iseq) {
-          denom_results[iseq] = dph.Run(args.algorithm(), qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
+          denom_results[iseq] = dph.Run(qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
           single_scores[iseq] = denom_results[iseq].total_score();
-          bayes_factor -= single_scores[iseq];
+          bayes_factor -= single_scores[iseq];  // not actually a bayes factor
         }
       }
 
