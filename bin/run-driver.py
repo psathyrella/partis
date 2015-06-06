@@ -23,6 +23,8 @@ parser.add_argument('--datafname')
 parser.add_argument('--simfname')
 parser.add_argument('--stashdir', default='/fh/fast/matsen_e/dralph/work/partis-dev/_output')
 parser.add_argument('--plotdir', required=True)
+parser.add_argument('--noskip-unproductive', action='store_true')
+# parser.add_argument('--XXX', action='store_true')
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 parser.add_argument('--n-procs', default=str(max(1, multiprocessing.cpu_count() / 2)))
@@ -44,7 +46,9 @@ if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):
         raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))
     # cache parameters from data
-    cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + ' --is-data --skip-unproductive' + common_args
+    cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + ' --is-data' + common_args
+    if not args.noskip_unproductive:
+         cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
     cmd_str += ' --n-max-queries ' + args.n_queries

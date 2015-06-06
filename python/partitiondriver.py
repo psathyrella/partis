@@ -189,7 +189,7 @@ class PartitionDriver(object):
                     if uid in cluster:
                         found = True
                         break
-                if not found:
+                if not found and uid not in self.sw_info['skipped_unproductive_queries']:
                     path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
                     raise Exception('%s not found in merged partition' % uid)
             for cluster in partition:
@@ -344,12 +344,17 @@ class PartitionDriver(object):
             query = line['names']  # if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
             seqstr = line['seqs']
             # NOTE cached naive seq will be truncated by bcrham
+            # bad ones: H3-A101151:H3-G054877
             if self.cached_results is not None and seqstr in self.cached_results:  # first try to used cached hmm results
                 naive_seqs[query] = self.cached_results[seqstr]['naive_seq']
                 cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
             elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
                 cyst_positions[query] = self.sw_info[query]['cyst_position']
+            elif len(query.split(':')) > 1:  # hmm... multiple queries without cached hmm naive sequences... that shouldn't happen
+                print 'ERROR no naive sequence for %s' % query
+                for qry in query.split(':'):
+                    print '    %s %s' % (qry, utils.get_full_naive_seq(self.germline_seqs, self.sw_info[qry]))
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
