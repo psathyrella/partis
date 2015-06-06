@@ -469,7 +469,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 
   vector<pair<double, Query> > potential_merges;
 
-  int n_total_pairs(0), n_skipped_hamming(0);
+  int n_total_pairs(0), n_skipped_hamming(0), n_inf_factors(0);
 
   set<string> already_done;  // keeps track of which  a-b pairs we've already done
   for(auto &key_a : path->CurrentPartition()) {  // note that c++ maps are ordered
@@ -517,6 +517,9 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 
       potential_merges.push_back(pair<double, Query>(bayes_factor, qmerged));
 
+      if(bayes_factor == -INFINITY)
+	++n_inf_factors;
+
       if(bayes_factor > max_log_prob) {
 	max_log_prob = bayes_factor;
 	imax = potential_merges.size() - 1;
@@ -524,8 +527,19 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     }
   }
 
-  // if <seq_info_> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
+  // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
   if(max_log_prob == -INFINITY) {
+    if(args_->debug()) {
+      if(path->CurrentPartition().size() == 1)
+	cout << "     stop with partition of size one" << endl;
+      else if(n_skipped_hamming == n_total_pairs)
+	cout << "     stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_cutoff() << endl;
+      else if(n_inf_factors == n_total_pairs)
+	cout << "     stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
+      else
+	cout << "     stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
+    }
+
     path->finished_ = true;
     return;
   }
