@@ -159,12 +159,13 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 
   result.check_boundaries(best_kset, kbounds);
   if(args_->debug() && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "      WARNING max at boundary for " << seqs.name_str()
-         << "  k_v: " << best_kset.v << "(" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
-         << "  k_d: " << best_kset.d << "(" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
-         << "    better: " << result.better_kbounds().stringify() << endl;
+    cout << "             max at boundary:"
+         << " " << best_kset.v << " (" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
+         << ", " << best_kset.d << " (" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
+         << "    better: " << result.better_kbounds().stringify();
     if(result.could_not_expand())
-      cout << "      WARNING couldn't expand though!" << endl;
+      cout << " (could not expand)     ";
+    cout << "    " << seqs.name_str()  << endl;
   }
 
   if(args_->rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs

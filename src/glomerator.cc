@@ -64,6 +64,10 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     KBounds kb(kmin, kmax);
     kbinfo_[key] = kb;
 
+    vector<KBounds> kbvector(seq_info_[key].size(), kbinfo_[key]);
+    TruncateSeqs(seq_info_[key], kbvector);
+    // assert(SameLength(seq_info_[key]));
+
     mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
   }
   // add the last initial partition (i.e. for the last path/particle)
@@ -156,13 +160,20 @@ void Glomerator::ReadCachedLogProbs() {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::LogProbOfPartition(Partition &partition) {
+double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
+  if(debug)
+    cout << "LogProbOfPartition: " << endl;
   for(auto &key : partition) {
+    // assert(SameLength(seq_info_[key], true));
     GetLogProb(key, seq_info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
+    if(debug)
+      cout << "  " << log_probs_[JoinSeqStrings(seq_info_[key])] << "  " << key << endl;
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs_[JoinSeqStrings(seq_info_[key])]);
   }
+  if(debug)
+    cout << "  total: " << total_log_prob << endl;
   return total_log_prob;
 }
 
@@ -284,11 +295,12 @@ void Glomerator::GetNaiveSeq(string queries) {
   Result result(kbinfo_[queries]);
   bool stop(false);
   do {
+    // assert(SameLength(seq_info_[queries], true));
     result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
     kbinfo_[queries] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
-      cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+      cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
   if(result.events_.size() < 1)
@@ -313,15 +325,16 @@ void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbound
   Result result(kbounds);
   bool stop(false);
   do {
+    // assert(SameLength(seqs, true));
     result = fwd_dph_.Run(seqs, kbounds, only_genes, mean_mute_freq);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
-      cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+      cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
   log_probs_[seqstr] = result.total_score();
-  if(result.boundary_error())
+  if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[seqstr] = errors_[seqstr] + ":boundary";
 }
 
@@ -350,16 +363,26 @@ vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-bool Glomerator::SameLength(vector<Sequence> &seqs) {
+bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
   // are all the seqs in <seqs> the same length?
+  bool same(true);
   int len(-1);
   for(auto &seq : seqs) {
     if(len < 0)
       len = (int)seq.size();
-    if(len != (int)seq.size())
-      return false;
+    if(len != (int)seq.size()) {
+      same = false;
+      break;
+    }
   }
-  return true;
+  if(debug) {
+    if(same)
+      cout << "same length: " << JoinNameStrings(seqs) << endl;
+    else
+      cout << "not same length! " << JoinNameStrings(seqs) << "\n" << JoinSeqStrings(seqs, "\n") << endl;
+  }
+
+  return same;
 }  
 
 // ----------------------------------------------------------------------------------------
@@ -436,16 +459,16 @@ string Glomerator::JoinNames(string name1, string name2) {
   return names[0] + ":" + names[1];
 }
 
-// // ----------------------------------------------------------------------------------------
-// string Glomerator::JoinNameStrings(vector<Sequence> &strlist, string delimiter) {
-//   string return_str;
-//   for(size_t is=0; is<strlist.size(); ++is) {
-//     if(is > 0)
-//       return_str += delimiter;
-//     return_str += strlist[is].name();
-//   }
-//   return return_str;
-// }
+// ----------------------------------------------------------------------------------------
+string Glomerator::JoinNameStrings(vector<Sequence> &strlist, string delimiter) {
+  string return_str;
+  for(size_t is=0; is<strlist.size(); ++is) {
+    if(is > 0)
+      return_str += delimiter;
+    return_str += strlist[is].name();
+  }
+  return return_str;
+}
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
@@ -502,32 +525,32 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
 
+      // TODO if kbounds gets expanded in one of these three calls, we don't redo the otherds. Which is really ok, but could be checked again?
       GetLogProb(key_a, a_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);  // it is ABSOLUTELY CRUCIAL that caching is turned off here if we're truncating, since a_seqs is different for each choice of b_seqs
       GetLogProb(key_b, b_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
       GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
 
-      // it's a likelihood ratio, not a bayes factor
-      double bayes_factor(log_probs_[JoinSeqStrings(qmerged.seqs_)] - log_probs_[JoinSeqStrings(a_seqs)] - log_probs_[JoinSeqStrings(b_seqs)]);  // REMINDER a, b not necessarily same order as names[0], names[1]
+      double lratio(log_probs_[JoinSeqStrings(qmerged.seqs_)] - log_probs_[JoinSeqStrings(a_seqs)] - log_probs_[JoinSeqStrings(b_seqs)]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
-	printf("       %8.3f = ", bayes_factor);
+	printf("       %8.3f = ", lratio);  // NOTE this is *not* necessarily the delta that will show up in the path of partitions, since in the path of partitions <a_seqs> and <b_seqs> are not necessarily truncated to the same length as each other
 	printf("%2s %8.2f", "", log_probs_[JoinSeqStrings(qmerged.seqs_)]);
 	printf(" - %8.2f - %8.2f", log_probs_[JoinSeqStrings(a_seqs)], log_probs_[JoinSeqStrings(b_seqs)]);
 	printf("\n");
       }
 
-      potential_merges.push_back(pair<double, Query>(bayes_factor, qmerged));
+      potential_merges.push_back(pair<double, Query>(lratio, qmerged));
 
-      if(bayes_factor == -INFINITY)
+      if(lratio == -INFINITY)
 	++n_inf_factors;
 
-      if(bayes_factor > max_log_prob) {
-	max_log_prob = bayes_factor;
+      if(lratio > max_log_prob) {
+	max_log_prob = lratio;
 	imax = potential_merges.size() - 1;
       }
     }
   }
 
-  // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining bayes factors are -INFINITY
+  // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
   if(max_log_prob == -INFINITY) {
     if(args_->debug()) {
       if(path->CurrentPartition().size() == 1)
@@ -544,37 +567,44 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     return;
   }
 
-  Query *qmerged(nullptr);
-  double chosen_logprob;
+  Query *chosen_qmerge(nullptr);
+  double chosen_lratio;
   if(args_->smc_particles() == 1) {
-    qmerged = &potential_merges[imax].second;
-    chosen_logprob = potential_merges[imax].first;
+    chosen_qmerge = &potential_merges[imax].second;
+    chosen_lratio = potential_merges[imax].first;
   } else {
-    qmerged = ChooseRandomMerge(potential_merges, rgen);
-    chosen_logprob = log_probs_[JoinSeqStrings(qmerged->seqs_)];
+    chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
+    chosen_lratio = log_probs_[JoinSeqStrings(chosen_qmerge->seqs_)];
   }
   
   // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
-  if(seq_info_.count(qmerged->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
-    seq_info_[qmerged->name_] = qmerged->seqs_;
-    kbinfo_[qmerged->name_] = qmerged->kbounds_;
-    mute_freqs_[qmerged->name_] = qmerged->mean_mute_freq_;
-    only_genes_[qmerged->name_] = qmerged->only_genes_;
+  if(seq_info_.count(chosen_qmerge->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+    seq_info_[chosen_qmerge->name_] = chosen_qmerge->seqs_;
+    kbinfo_[chosen_qmerge->name_] = chosen_qmerge->kbounds_;
+    mute_freqs_[chosen_qmerge->name_] = chosen_qmerge->mean_mute_freq_;
+    only_genes_[chosen_qmerge->name_] = chosen_qmerge->only_genes_;
 
-    GetNaiveSeq(qmerged->name_);
+    GetNaiveSeq(chosen_qmerge->name_);
   }
 
+  double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
-  new_partition.erase(qmerged->parents_.first);
-  new_partition.erase(qmerged->parents_.second);
-  new_partition.insert(qmerged->name_);
+  new_partition.erase(chosen_qmerge->parents_.first);
+  new_partition.erase(chosen_qmerge->parents_.second);
+  new_partition.insert(chosen_qmerge->name_);
   path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
     // cout << "    path " << path->initial_path_index_ << endl;
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
-    printf("       merged %-8.2f %s and %s\n", chosen_logprob, qmerged->parents_.first.c_str(), qmerged->parents_.second.c_str());
+    // assert(SameLength(chosen_qmerge->seqs_, true));
+    printf("       merged %-8.2f\n", chosen_lratio);
+    if(LogProbOfPartition(new_partition) - last_partition_logprob != chosen_lratio) {
+      LogProbOfPartition(new_partition, true);
+      printf(" (!= %-8.2f)", LogProbOfPartition(new_partition) - last_partition_logprob);
+    }
+    printf("   %s and %s\n", chosen_qmerge->parents_.first.c_str(), chosen_qmerge->parents_.second.c_str());
     string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
     PrintPartition(new_partition, extrastr);
   }
