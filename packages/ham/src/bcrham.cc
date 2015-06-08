@@ -61,7 +61,7 @@ vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
 
 // ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors);
-void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor);
+void print_forward_scores(double numerator, vector<double> single_scores, double lratio);
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
@@ -135,7 +135,7 @@ int main(int argc, const char * argv[]) {
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.size(), result);  // only used for forward if n_seqs > 1
     double numerator(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
-    double bayes_factor(-INFINITY); // final result
+    double lratio(-INFINITY); // final result
     vector<double> single_scores(qry_seqs.size(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
     bool stop(false);
     string errors;
@@ -145,12 +145,12 @@ int main(int argc, const char * argv[]) {
       if(args.debug()) cout << "       ----" << endl;
       result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
       numerator = result.total_score();
-      bayes_factor = numerator;
+      lratio = numerator;
       if(args.algorithm() == "forward" && qry_seqs.size() > 1) {  // calculate factors for denominator
         for(size_t iseq = 0; iseq < qry_seqs.size(); ++iseq) {
           denom_results[iseq] = dph.Run(qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
           single_scores[iseq] = denom_results[iseq].total_score();
-          bayes_factor -= single_scores[iseq];  // not actually a bayes factor
+          lratio -= single_scores[iseq];
         }
       }
 
@@ -162,7 +162,7 @@ int main(int argc, const char * argv[]) {
       for(auto & res : denom_results)
         stop &= !res.boundary_error() || res.could_not_expand();
       if(args.debug() && !stop)
-        cout << "      expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+        cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
       // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
       if(result.boundary_error())
         errors = "boundary";
@@ -172,7 +172,7 @@ int main(int argc, const char * argv[]) {
     } while(!stop);
 
     if(args.debug() && args.algorithm() == "forward" && qry_seqs.size() > 1)
-      print_forward_scores(numerator, single_scores, bayes_factor);
+      print_forward_scores(numerator, single_scores, lratio);
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
       if(result.events_.size() > 0)
@@ -180,7 +180,7 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, qry_seqs, bayes_factor, errors);
+    StreamOutput(ofs, args, result.events_, qry_seqs, lratio, errors);
   }
 
   ofs.close();
@@ -224,8 +224,8 @@ void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, vector<S
   }
 }
 // ----------------------------------------------------------------------------------------
-void print_forward_scores(double numerator, vector<double> single_scores, double bayes_factor) {
-  printf("   %8.3f = ", bayes_factor);
+void print_forward_scores(double numerator, vector<double> single_scores, double lratio) {
+  printf("   %8.3f = ", lratio);
   printf("%2s %8.2f", "", numerator);
   for(auto & score : single_scores)
     printf(" - %8.2f", score);

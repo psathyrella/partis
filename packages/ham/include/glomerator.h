@@ -36,7 +36,7 @@ public:
   Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args *args, Track *track);
   ~Glomerator();
   void Cluster();
-  double LogProbOfPartition(Partition &clusters);
+  double LogProbOfPartition(Partition &clusters, bool debug=false);
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
 
   // Return the next (i.e. the <i_initial_partition_>th) initial partition in the list of initial partitions, and increment <i_initial_partition_>.
@@ -55,10 +55,10 @@ private:
   void GetNaiveSeq(string key);
   void GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
-  bool SameLength(vector<Sequence> &seqs);
+  bool SameLength(vector<Sequence> &seqs, bool debug=false);
   Query GetMergedQuery(string name_a, string name_b);
   string JoinNames(string name1, string name2);
-  // string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
+  string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
   Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
