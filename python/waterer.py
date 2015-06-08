@@ -31,6 +31,7 @@ class Waterer(object):
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.germline_seqs)
         self.info = {}
+        self.info['queries'] = []
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
         self.info['skipped_indel_queries'] = []  # list of queries that had indels
@@ -368,6 +369,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions, perfplotter=None):
         assert query_name not in self.info
+        self.info['queries'].append(query_name)
         self.info[query_name] = {}
         self.info[query_name]['unique_id'] = query_name  # redundant, but used somewhere down the line
         self.info[query_name]['k_v'] = kvals['v']

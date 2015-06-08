@@ -27,6 +27,7 @@ parser.add_argument('--is-data', action='store_true', help='True if not simulati
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-n-sets', action='store_true', help='If running on <n-sets> sequences, truncate such that they all have the same length to the left and right of the conserved cysteine')
+parser.add_argument('--pad-sequences', action='store_true', help='Pad (with Ns) all input sequences out to, at minimum, the same length on either side of the conserved cysteine. Also pad out far enough so as to eliminate all v_5p and j_3p deletions.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
@@ -37,7 +38,7 @@ parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plo
 parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide randomization of sequence order.')
 parser.add_argument('--rescale-emissions', action='store_true')
-parser.add_argument('--replace-N-with')
+parser.add_argument('--ambig-base', default='N', help='Ambiguous base')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
 
 # input and output locations
@@ -106,6 +107,7 @@ if args.slurm and '/tmp' in args.workdir:
 print '\nsetting rescale emissions to true\n'
 args.rescale_emissions = True
 
+assert not args.truncate_n_sets  # disabled and deprecated (I'm breaking it to make N padding easier to implement)
 if args.plot_performance:
     assert not args.is_data
     # assert args.algorithm == 'viterbi'

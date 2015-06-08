@@ -35,7 +35,7 @@ class PartitionDriver(object):
         randomize_order = self.args.action == 'partition' and not self.args.force_dont_randomize_input_order
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=randomize_order, replace_N_with=args.replace_N_with)  # if we're partitioning, we need to randomize input order (at least for simulation)
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=randomize_order, replace_N_with=None)  # if we're partitioning, we need to randomize input order (at least for simulation)
 
         self.cached_results = None
 
@@ -108,6 +108,9 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
         self.sw_info = waterer.info
+        if self.args.pad_sequences:  # have to do this before we divvy... sigh TODO clean this up and only call it in one place
+            # TODO oh, duh, just do it in waterer
+            self.pad_seqs_to_same_length()  # adds padded info to sw_info
 
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
@@ -339,18 +342,21 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, debug=True):
-        naive_seqs, cyst_positions = {}, {}
+        naive_seqs = {}
+        # , cyst_positions = {}, {}
         for line in info:
-            query = line['names']  # if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
-            seqstr = line['seqs']
-            # NOTE cached naive seq will be truncated by bcrham
-            # bad ones: H3-A101151:H3-G054877
+            query = line['names'] if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
+            seqstr = line['padded']['seqs'] if 'padded' in line else line['seqs']
+            # NOTE cached naive seqs should all be the same length
             if self.cached_results is not None and seqstr in self.cached_results:  # first try to used cached hmm results
                 naive_seqs[query] = self.cached_results[seqstr]['naive_seq']
-                cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
+                # cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
             elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
-                cyst_positions[query] = self.sw_info[query]['cyst_position']
+                padleft = self.sw_info[query]['padded']['padleft']  # we're padding the *naive* seq corresponding to query now, but it'll be the same length as the query seq
+                padright = self.sw_info[query]['padded']['padright']
+                naive_seqs[query] = padleft * self.args.ambig_base + naive_seqs[query] + padright * self.args.ambig_base
+                # cyst_positions[query] = self.sw_info[query]['cyst_position']
             elif len(query.split(':')) > 1:  # hmm... multiple queries without cached hmm naive sequences... that shouldn't happen
                 print 'ERROR no naive sequence for %s' % query
                 for qry in query.split(':'):
@@ -361,8 +367,14 @@ class PartitionDriver(object):
                 raise Exception('zero-length naive sequence found for ' + str(query))
 
         if self.args.truncate_n_sets:
-            print '  truncate in divvy'
-            self.truncate_seqs(naive_seqs, kvinfo=None, cyst_positions=cyst_positions)
+            assert False  # deprecated and broken
+            # print '  truncate in divvy'
+            # self.truncate_seqs(naive_seqs, kvinfo=None, cyst_positions=cyst_positions)
+
+        # print 'naive'
+        # for qr, s in naive_seqs.items():
+        #     print qr, s
+        # sys.exit()
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
@@ -603,31 +615,113 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
+    def get_truncation_parameters(self, seqinfo, cyst_positions, extra_info=None, debug=False):
+        # kinda obscurely written 'cause I generalized it to work with padding, then switched over to another function
+        # find min length [over sequences in <seqinfo>] to left and right of the cysteine positions
+        typelist = ['left', 'right']
+        if extra_info is not None:
+            typelist += ['v_5p_del', 'j_3p_del']
+        lengths = {'min' : {t : None for t in typelist},
+                   'max' : {t : None for t in typelist}}
+        for query, seq in seqinfo.items():
+            cpos = cyst_positions[query]
+            if cpos < 0 or cpos >= len(seq):
+                raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
+            thislen = {'left' : cpos, 'right' : len(seq) - cpos}  # NOTE right-hand one includes <cpos>, i.e. dleft + dright = len(seq)
+            if extra_info is not None:
+                thislen['v_5p_del'] = extra_info[query]['v_5p_del']
+                thislen['j_3p_del'] = extra_info[query]['j_3p_del']
+            for tp in typelist:
+                if lengths['min'][tp] is None or delta[tp] < lengths['min'][tp]:
+                    lengths['min'][tp] = delta[tp]
+                if lengths['max'][tp] is None or delta[tp] > lengths['max'][tp]:
+                    lengths['max'][tp] = delta[tp]
+            if debug:
+                print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
+
+        return lengths
+
+    # ----------------------------------------------------------------------------------------
+    def get_padding_parameters(self, debug=False):
+
+        all_v_matches, all_j_matches = set(), set()
+        for query in self.sw_info['queries']:
+            swfo = self.sw_info[query]
+            for match in swfo['all'].split(':'):
+                if utils.get_region(match) == 'v':
+                    all_v_matches.add(match)
+                elif utils.get_region(match) == 'j':
+                    all_j_matches.add(match)
+
+        maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}
+        for query in self.sw_info['queries']:
+            swfo = self.sw_info[query]
+            seq = swfo['seq']
+            cpos = swfo['cyst_position']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
+            if cpos < 0 or cpos >= len(seq):
+                raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
+            for v_match in all_v_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
+                gl_cpos = self.cyst_positions[v_match]['cysteine-position']
+                if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
+                    maxima['gl_cpos'] = gl_cpos
+            for j_match in all_j_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
+                gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + 10  # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment [so I'm just adding 10 a.t.m., for testing]
+                if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
+                    maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
+            # if debug:
+            #     print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
+
+        return maxima
+
+    # ----------------------------------------------------------------------------------------
+    def pad_seqs_to_same_length(self, debug=True):
+        """
+        Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
+        Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
+        """
+
+        maxima = self.get_padding_parameters(debug)
+
+        for query in self.sw_info['queries']:
+            swfo = self.sw_info[query]
+            if 'padded' in swfo:  # already added padded information (we're probably partitioning, and this is not the first step)
+                return
+            seq = swfo['seq']
+            cpos = swfo['cyst_position']
+            k_v = swfo['k_v']
+
+            padleft = maxima['gl_cpos'] - cpos
+            padright = maxima['gl_cpos_to_j_end'] - (len(seq) - cpos)
+
+            swfo['padded'] = {}
+            padfo = swfo['padded']  # shorthand
+            padfo['seq'] = padleft * self.args.ambig_base + seq + padright * self.args.ambig_base
+            padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
+            padfo['cyst_position'] = swfo['cyst_position'] + padleft
+            padfo['padleft'] = padleft
+            padfo['padright'] = padright
+            if debug:
+                print '      pad %d %d   %s' % (padleft, padright, query)
+                print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']),
+                                                            k_v['min'], k_v['max'],
+                                                            padfo['k_v']['min'], padfo['k_v']['max'])
+
+        for query in self.sw_info['queries']:
+            print '%s %s' % (query, self.sw_info[query]['padded']['seq'])
+
+    # ----------------------------------------------------------------------------------------
     def truncate_seqs(self, seqinfo, kvinfo, cyst_positions, debug=False):
         """ 
         Truncate <seqinfo> to have the same length to the left and right of the conserved cysteine.
         """
 
-        # first find min length to left and right of the cysteine position
-        min_left, min_right = None, None
-        for query, seq in seqinfo.items():
-            cpos = cyst_positions[query]
-            if cpos < 0 or cpos >= len(seq):
-                raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
-            dleft = cpos  # NOTE <dright> includes <cpos>, i.e. dleft + dright = len(seq)
-            dright = len(seq) - cpos
-            if debug:
-                print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
-            if min_left is None or dleft < min_left:
-                min_left = dleft
-            if min_right is None or dright < min_right:
-                min_right = dright
+        lengths = self.get_truncation_parameters(seqinfo, cyst_positions, debug)
 
-        # then truncate all the sequences to these lengths
+        # truncate all the sequences to these lengths
         for query, seq in seqinfo.items():
             cpos = cyst_positions[query]
-            istart = cpos - min_left
-            istop = cpos + min_right
+            istart = cpos - lengths['min']['left']
+            istop = cpos + lengths['min']['right']
             chopleft = istart
             chopright = len(seq) - istop
             if debug:
@@ -657,37 +751,25 @@ class PartitionDriver(object):
             'cyst_positions':[]
         }
 
-        # TODO this whole thing needs to use cache hmm info if it's available
-        seqinfo = {name : self.input_info[name]['seq'] for name in query_names}
-        kvinfo = {name : self.sw_info[name]['k_v'] for name in query_names}  # NOTE don't need to fix k_d for truncation
-        cyst_positions = {name : self.sw_info[name]['cyst_position'] for name in query_names}
-        # TODO not really sure why I thought I needed to truncate here. Was there a reason?
-        # if self.args.truncate_n_sets:
-        #     print '  truncate in combine_queries'
-        #     self.truncate_seqs(seqinfo, kvinfo, cyst_positions)
+        # TODO this whole thing probably ought to use cached hmm info if it's available
+        # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
+        # TODO/NOTE this is the mutation rate *before* truncation
 
         for name in query_names:
             swfo = self.sw_info[name]
-            # query_seq = self.sw_info[name]['seq']
-            # k_v = swfo['k_v']
+            k_v = swfo['padded']['k_v']
+            k_d = swfo['k_d']  # don't need to adjust k_d for padding
 
-            combo['seqs'].append(seqinfo[name])
-            # for region in utils.regions:
-            #     print '  ', region, name, utils.get_mutation_rate(self.germline_seqs, self.sw_info[name], restrict_to_region=region)
-            # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
-            # TODO/NOTE this is the mutation rate *before* truncation
+            combo['seqs'].append(swfo['padded']['seq'])
             combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, swfo))
-            combo['cyst_positions'].append(cyst_positions[name])  # TODO use cached hmm values instead of SW
-
-            # combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
-            # combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
-            combo['k_v']['min'] = min(kvinfo[name]['min'], combo['k_v']['min'])
-            combo['k_v']['max'] = max(kvinfo[name]['max'], combo['k_v']['max'])
-            combo['k_d']['min'] = min(swfo['k_d']['min'], combo['k_d']['min'])
-            combo['k_d']['max'] = max(swfo['k_d']['max'], combo['k_d']['max'])
+            combo['cyst_positions'].append(swfo['padded']['cyst_position'])  # TODO use cached hmm values instead of SW
+            combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
+            combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
+            combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
+            combo['k_d']['max'] = max(k_d['max'], combo['k_d']['max'])
 
             only_genes = swfo['all'].split(':')  # sw matches for this query
-            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)  #, name)
+            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)
             used_only_genes = []
             for region in utils.regions:
                 reg_genes = [g for g in only_genes if utils.get_region(g) == region]
@@ -767,6 +849,9 @@ class PartitionDriver(object):
                 check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/'])
         else:
             self.write_cachefile(self.hmm_cachefname)
+
+        if self.args.pad_sequences:
+            self.pad_seqs_to_same_length()  # adds padded info to sw_info
 
         def shuffle_nset_order(tmp_nsets):
             # randomize the order of the query list in <tmp_nsets>. Note that the list gets split into chunks for parallelization later
@@ -858,7 +943,8 @@ class PartitionDriver(object):
                 # query = line['unique_ids']
                 seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
                 if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-                    print 'error in bcrham output for %s: %s ' % (seqstr, line['errors'])
+                    print 'error in bcrham output %s for sequences:' % (line['errors'])
+                    print '        %s' % seqstr.replace(':', '\n')
 
                 score, naive_seq, cpos = None, None, None
                 if line['score'] != '':
