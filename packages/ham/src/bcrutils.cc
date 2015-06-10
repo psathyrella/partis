@@ -39,7 +39,7 @@ string TermColors::GetRegion(string gene) {
 }
 
 // ----------------------------------------------------------------------------------------
-string TermColors::ColorMutants(string color, string seq, string ref_1, vector<string> other_refs) {
+string TermColors::ColorMutants(string color, string seq, string ref_1, vector<string> other_refs, string ambiguous_char) {
   // Return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal.
   // If <refs> are specified, use bold text and reverse video to show if <seq> is muted w/respect to more than one ref
   if(ref_1 != "")
@@ -57,6 +57,8 @@ string TermColors::ColorMutants(string color, string seq, string ref_1, vector<s
     } else {
       int ndiff(0);  // number of reference sequences that differ at base inuc
       for(auto & ref : other_refs) {
+	if(ambiguous_char != "" and ref[inuc] == ambiguous_char[0])  // don't count ambiguous characters as mutated
+	  continue;
         if(seq[inuc] != ref[inuc])
           ndiff += 1;
       }

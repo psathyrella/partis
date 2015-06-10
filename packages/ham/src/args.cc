@@ -22,6 +22,7 @@ Args::Args(int argc, const char * argv[]):
   partition_arg_("", "partition", "", false),
   truncate_seqs_arg_("", "truncate-seqs", "truncate sequences to the same length on either side of the conserved cysteine. NOTE this disables caching, so do *not* turn it on unless you really have different-length sequences", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
+  unphysical_insertions_arg_("", "unphysical-insertions", "", false),
   str_headers_ {},
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   float_headers_ {"logweight"},
@@ -45,6 +46,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(partition_arg_);
     cmd.add(truncate_seqs_arg_);
     cmd.add(rescale_emissions_arg_);
+    cmd.add(unphysical_insertions_arg_);
 
     cmd.parse(argc, argv);
 

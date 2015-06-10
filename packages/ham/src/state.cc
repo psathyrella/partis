@@ -3,7 +3,7 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-State::State() : name_(""), germline_nuc_(""), trans_to_end_(nullptr), index_(SIZE_MAX) {
+State::State() : name_(""), germline_nuc_(""), ambiguous_emission_logprob_(-INFINITY), ambiguous_char_(""), trans_to_end_(nullptr), index_(SIZE_MAX) {
   transitions_ = new vector<Transition*>;
 }
 
@@ -19,6 +19,10 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
   assert(name_.size() > 0);
   if(node["extras"]["germline"])
     germline_nuc_ = node["extras"]["germline"].as<string>();
+  if(node["extras"]["ambiguous_emission_prob"])
+    ambiguous_emission_logprob_ = log(node["extras"]["ambiguous_emission_prob"].as<double>());
+  if(node["extras"]["ambiguous_char"])
+    ambiguous_char_ = node["extras"]["ambiguous_char"].as<string>();
 
   double total(0.0); // make sure things add to 1.0
   for(YAML::const_iterator it = node["transitions"].begin(); it != node["transitions"].end(); ++it) {
@@ -57,6 +61,9 @@ void State::Parse(YAML::Node node, vector<string> state_names, Tracks trks) {
 
 // ----------------------------------------------------------------------------------------
 void State::RescaleOverallMuteFreq(double factor) {
+  if(germline_nuc_ == ambiguous_char_ || germline_nuc_ == "")  // if the germline state is N, or if this state has no germline (most likely fv or jf insertion)
+    return;
+
   if(factor <= 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
     throw runtime_error("ERROR State::RescaleOverallMuteFreq got a bad factor: " + to_string(factor) + "\n");
 
@@ -69,9 +76,14 @@ void State::RescaleOverallMuteFreq(double factor) {
     // TODO this is wasteful to go out of and back into log space
     double old_emit_prob = exp(new_log_probs[icol][ip]);
     double old_mute_freq;
-    if(emission_.track()->symbol_index(germline_nuc_) >= emission_.track()->alphabet_size())  // this'll throw an exception on the symbol_index call if the germline nuc is bad
-      cout << "HAHAHAHAHA!!" << endl;  // ...so this should never be reached
-    bool is_germline = emission_.track()->symbol(ip) == germline_nuc_;
+    bool is_germline;
+    // if(germline_nuc_ == ambiguous_char_ || germline_nuc_ == "") {
+    //   is_germline = true;  // just arbitrarily say everything is germline if the germline is ambiguous
+    // } else {
+      if(emission_.track()->symbol_index(germline_nuc_) >= emission_.track()->alphabet_size())  // this'll throw an exception on the symbol_index call if the germline nuc is bad
+	throw runtime_error("bad symbol");  // ...so this should never be reached
+      is_germline = emission_.track()->symbol(ip) == germline_nuc_;
+    // }
     if(is_germline)
       old_mute_freq = 1. - old_emit_prob;
     else
@@ -89,15 +101,32 @@ void State::RescaleOverallMuteFreq(double factor) {
 }
 // ----------------------------------------------------------------------------------------
 double State::emission_logprob(Sequences *seqs, size_t pos) {
-  if(seqs->n_seqs() == 1) {
-    // NOTE they're log probs, not scores, but I haven't yet managed to eliminate all the old 'score' names
-    return emission_.score(seqs->get_ptr(0), pos);  // get_ptr shenaniganery is to avoid performance hit from pass-by-value. Yes, I will at some point make it more elegant!
+  if(seqs->n_seqs() == 1) {  // NOTE they're log probs, not scores, but I haven't yet managed to eliminate all the old 'score' names
+    if(ambiguous_char_ != "" && (*seqs)[0][pos] == emission_.track()->ambiguous_index())
+      return ambiguous_emission_logprob_;
+    else
+      return emission_.score(seqs->get_ptr(0), pos);  // get_ptr shenaniganery is to avoid performance hit from pass-by-value. Yes, I will at some point make it more elegant!
   } else {
     assert(seqs->n_seqs() > 1);
-    double log_prob = emission_.score(seqs->get_ptr(0), pos);  // initialize <log_prob> for the emission from the first sequence
-    for(size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq)   // then loop over the rest of the sequences
+
+    // initialize <log_prob> for the emission from the first sequence
+    double log_prob(-INFINITY);
+    if(ambiguous_char_ != "" && (*seqs)[0][pos] == emission_.track()->ambiguous_index())
+      log_prob = ambiguous_emission_logprob_;
+    else
+      log_prob = emission_.score(seqs->get_ptr(0), pos);
+
+    // then loop over the rest of the sequences
+    for(size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq) {
       // add to <log_prob> the emission log prob for the <iseq>th sequence, i.e. prob1 *and* prob2
-      log_prob = AddWithMinusInfinities(log_prob, emission_.score(seqs->get_ptr(iseq), pos));
+      double this_log_prob(-INFINITY);
+      if(ambiguous_char_ != "" && (*seqs)[iseq][pos] == emission_.track()->ambiguous_index())
+	this_log_prob = ambiguous_emission_logprob_;
+      else
+	this_log_prob = emission_.score(seqs->get_ptr(iseq), pos);
+      log_prob = AddWithMinusInfinities(log_prob, this_log_prob);
+    }
+
     return log_prob;
   }
 }

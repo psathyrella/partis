@@ -38,6 +38,7 @@ private:
                                        // from which this hmm was derived. Reiterating: mean over all genes and all regions, *not* just this gene.
                                        // Note, this is the *original* one, i.e. we don't reset it when we reset the mute freqs
   double rescale_ratio_;  // ratio by which we have rescaled the emission probabilities (-INFINITY if we haven't rescaled them, i.e. if they correspond to <original_overall_mute_freq_>)
+  string ambiguous_char_;
   Tracks tracks_;
   vector<State*> states_; //!  All the states contained in the model
   map<string, State*> states_by_name_; //Ptr to state stored by State name;

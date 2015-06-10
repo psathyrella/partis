@@ -262,7 +262,7 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
   modified_seq = left_insert + modified_seq + right_insert;  // add insertions to either end
   assert(modified_seq.size() == query_strs[0].size());
   assert(germline.size() + left_insert.size() - left_erosion_length - right_erosion_length + right_insert.size() == query_strs[0].size());
-  string match_str = tc.ColorMutants("red", modified_seq, "", query_strs);  // color it relative to the query strings
+  string match_str = tc.ColorMutants("red", modified_seq, "", query_strs, hmms_.track()->ambiguous_char());  // color it relative to the query strings
   match_str = (left_erosion_length > 0 ? ".." : "  ") + match_str + (right_erosion_length > 0 ? ".." : "  ");  // add some faff to show if there was some deletion
 
   // if there were insertions, we indicate this on a separate line below
@@ -348,7 +348,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
       if(algorithm_ == "viterbi") {
         cout << "              " << region << " query " << query_strs[0] << endl;
         for(size_t is = 1; is < query_strs.size(); ++is)
-          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[is], query_strs[0]) << endl;  // use the first query_str as reference sequence... could just as well use any other
+          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[is], query_strs[0], {}, hmms_.track()->ambiguous_char()) << endl;  // use the first query_str as reference sequence... could just as well use any other
       } else {
         cout << "              " << region << endl;
       }
@@ -360,10 +360,12 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
     for(auto & gene : only_genes[region]) {
       igene++;
 
-      if(region == "v" && query_strs[0].size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
-        if(args_->debug() == 2) cout << "                     " << gene << " too short" << endl;
-        n_short_v++;
-        continue;
+      if(!args_->unphysical_insertions()) {  // only applies if v has no insertions
+	if(region == "v" && query_strs[0].size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
+	  if(args_->debug() == 2) cout << "                     " << gene << " too short" << endl;
+	  n_short_v++;
+	  continue;
+	}
       }
       if(query_strs[0].size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
         n_long_erosions++;
@@ -416,10 +418,13 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::SetInsertions(string region, vector<string> path_names, RecoEvent *event) {
+  // cout << "0---" << endl;
   Insertions ins;
   for(auto & insertion : ins[region]) {  // loop over the boundaries (vd and dj)
+    // cout << "1---" << endl;
     string side(insertion == "jf" ? "right" : "left");
     string inserted_bases = GetInsertion(side, path_names);
+    // cout << "2---" << endl;
     event->SetInsertion(insertion, inserted_bases);
   }
 }
@@ -512,7 +517,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
   assert(istate >= 0 && istate < names.size());
   if(names[istate].find("IGH") != 0)  // start of state name should be IGH[VDJ]
-    throw runtime_error("ERROR state not of the form IGH<gene>_<position>: " + names[istate]);
+    throw runtime_error("state not of the form IGH<gene>_<position>: " + names[istate]);
   assert(names[istate].find("IGH") == 0);  // start of state name should be IGH[VDJ]
   string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);
   size_t state_index = atoi(state_index_str.c_str());
