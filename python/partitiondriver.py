@@ -82,7 +82,7 @@ class PartitionDriver(object):
         waterer.run()
         self.sw_info = waterer.info
         self.write_hmms(sw_parameter_dir)
-
+        raise Exception('done!')
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True, plotdir=self.args.plotdir + '/hmm')
         self.write_hmms(parameter_out_dir)
@@ -276,9 +276,11 @@ class PartitionDriver(object):
             cmd_str += ' --cachefile ' + self.hmm_cachefname
         if self.args.truncate_n_sets:
             cmd_str += ' --truncate-seqs'
+        if self.args.allow_unphysical_insertions:
+            cmd_str += ' --unphysical-insertions
 
-        # print cmd_str
-        # sys.exit()
+        print cmd_str
+        sys.exit()
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
@@ -353,9 +355,10 @@ class PartitionDriver(object):
                 # cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
             elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
-                padleft = self.sw_info[query]['padded']['padleft']  # we're padding the *naive* seq corresponding to query now, but it'll be the same length as the query seq
-                padright = self.sw_info[query]['padded']['padright']
-                naive_seqs[query] = padleft * self.args.ambig_base + naive_seqs[query] + padright * self.args.ambig_base
+                if self.args.pad_sequences:
+                    padleft = self.sw_info[query]['padded']['padleft']  # we're padding the *naive* seq corresponding to query now, but it'll be the same length as the query seq
+                    padright = self.sw_info[query]['padded']['padright']
+                    naive_seqs[query] = padleft * self.args.ambig_base + naive_seqs[query] + padright * self.args.ambig_base
                 # cyst_positions[query] = self.sw_info[query]['cyst_position']
             elif len(query.split(':')) > 1:  # hmm... multiple queries without cached hmm naive sequences... that shouldn't happen
                 print 'ERROR no naive sequence for %s' % query
@@ -571,7 +574,10 @@ class PartitionDriver(object):
                     if gene in self.sw_info['all_best_matches']:
                         gene_list.append(gene)
 
-        assert gene_list is not None
+        if gene_list is None:  # ack, just do 'em all
+            gene_list = []
+            for region in utils.regions:
+                gene_list += list(self.germline_seqs[region].keys())
         for gene in gene_list:
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
@@ -757,12 +763,18 @@ class PartitionDriver(object):
 
         for name in query_names:
             swfo = self.sw_info[name]
-            k_v = swfo['padded']['k_v']
+            if self.args.pad_sequences:
+                k_v = swfo['padded']['k_v']
+                seq = swfo['padded']['seq']
+                cpos = swfo['padded']['cyst_position']
+            else:
+                k_v = swfo['k_v']
+                seq = swfo['seq']
+                cpos = swfo['cyst_position']
             k_d = swfo['k_d']  # don't need to adjust k_d for padding
-
-            combo['seqs'].append(swfo['padded']['seq'])
+            combo['seqs'].append(seq)
             combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, swfo))
-            combo['cyst_positions'].append(swfo['padded']['cyst_position'])  # TODO use cached hmm values instead of SW
+            combo['cyst_positions'].append(cpos)  # TODO use cached hmm values instead of SW
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])

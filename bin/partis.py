@@ -86,7 +86,7 @@ parser.add_argument('--branch-length-fname', default='data/recombinator/branch-l
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
-parser.add_argument('--allow_unphysical_insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
+parser.add_argument('--allow-unphysical-insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 # parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simulated sequences')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')

@@ -18,10 +18,11 @@ def simplify_state_name(state_name):
         return state_name
 
 # ----------------------------------------------------------------------------------------
-def read_mute_info(indir, this_gene, approved_genes=None):
+def read_mute_info(indir, this_gene, approved_genes=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
     if approved_genes == None:
         approved_genes = [this_gene,]
-    observed_freqs = {}
+    observed_freqs, observed_counts = {}, {}
+    total_counts = 0
     # add an observation for each position, for each gene where we observed that position
     for gene in approved_genes:
         mutefname = indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
@@ -39,7 +40,11 @@ def read_mute_info(indir, this_gene, approved_genes=None):
                     freq = 0.5 * (lo_err + hi_err)
                 if pos not in observed_freqs:
                     observed_freqs[pos] = []
+                    observed_counts[pos] = {n : 0 for n in utils.nukes}
                 observed_freqs[pos].append({'freq':freq, 'err':max(abs(freq-lo_err), abs(freq-hi_err))})
+                for nuke in utils.nukes:
+                    observed_counts[pos][nuke] += int(line[nuke + '_obs'])
+                total_counts += int(line[nuke + '_obs'])
 
     # set final mute_freqs[pos] to the (inverse error-weighted) average over all the observations for each position
     mute_freqs = {}
@@ -58,7 +63,8 @@ def read_mute_info(indir, this_gene, approved_genes=None):
         overall_sum_of_weights += sum_of_weights
 
     mute_freqs['overall_mean'] = overall_total / overall_sum_of_weights
-    return mute_freqs
+    observed_counts['total_counts'] = total_counts
+    return mute_freqs, observed_counts
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions):

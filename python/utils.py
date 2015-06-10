@@ -43,9 +43,9 @@ def get_arg_list(arg, intify=False, floatify=False):  # make lists from args tha
 regions = ['v', 'd', 'j']
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 effective_erosions = ['v_5p', 'j_3p']
-boundaries = ('vd', 'dj')
-humans = ('A', 'B', 'C')
-nukes = ('A', 'C', 'G', 'T')
+boundaries = ['vd', 'dj']
+humans = ['A', 'B', 'C']
+nukes = ['A', 'C', 'G', 'T']
 naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
@@ -642,9 +642,10 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     if 'chops' in line:
         if line['chops']['left'] > 0:
             v_5p_del_space_str = v_5p_del_space_str[ : -line['chops']['left']]
+            final_seq = color('green', '.'*line['chops']['left']) + final_seq
         if line['chops']['right'] > 0:
             j_3p_del_space_str = j_3p_del_space_str[line['chops']['right'] : ]
-        final_seq = color('green', '.'*line['chops']['left']) + final_seq + color('green', '.'*line['chops']['right'])
+            final_seq = final_seq + color('green', '.'*line['chops']['right'])
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
 
     out_str_list.append('%s    %s' % (extra_str, final_seq))
@@ -681,7 +682,7 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir, remove_N_nukes=False):  #, remove_fp=False, add_fp=False, remove_N_nukes=False):
+def read_germlines(data_dir):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
     print 'read gl from', data_dir
     germlines = {}
@@ -697,9 +698,6 @@ def read_germlines(data_dir, remove_N_nukes=False):  #, remove_fp=False, add_fp=
             #     else:
             #         gene_name = gene_name + '_F'
             seq_str = str(seq_record.seq)
-            if remove_N_nukes and 'N' in seq_str:
-                print 'WARNING replacing N with A in germlines'
-                seq_str = seq_str.replace('N', 'A')
             germlines[region][gene_name] = seq_str
     return germlines
 
@@ -885,10 +883,16 @@ def get_hamming_distances(pairs):
     return return_info
 
 # ----------------------------------------------------------------------------------------
-def hamming(seq1, seq2):
+def hamming(seq1, seq2, alphabet=None, ambig_chars=None):
     assert len(seq1) == len(seq2)
     total = 0
     for ch1, ch2 in zip(seq1, seq2):
+        if alphabet is not None:  # check that both characters are in the expected alphabet
+            if ch1 not in alphabet or ch2 not in alphabet:
+                raise Exception('unexpected character (%s or %s) not among %s in hamming()' % (ch1, ch2, alphabet))
+        if ambig_chars is not None:  # skip ambiguous chars
+            if ch1 in ambig_chars or ch2 in ambig_chars:
+                continue
         if ch1 != ch2:
             total += 1
     return total

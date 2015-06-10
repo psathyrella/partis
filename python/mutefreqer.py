@@ -141,6 +141,7 @@ class MuteFreqer(object):
                 nuke_header = []
                 for nuke in utils.nukes:
                     nuke_header.append(nuke)
+                    nuke_header.append(nuke + '_obs')
                     nuke_header.append(nuke + '_lo_err')
                     nuke_header.append(nuke + '_hi_err')
                 writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
@@ -152,6 +153,7 @@ class MuteFreqer(object):
                            'hi_err':counts[position]['freq_hi_err']}
                     for nuke in utils.nukes:
                         row[nuke] = freqs[position][nuke]
+                        row[nuke + '_obs'] = counts[position][nuke]
                         row[nuke + '_lo_err'] = freqs[position][nuke + '_lo_err']
                         row[nuke + '_hi_err'] = freqs[position][nuke + '_hi_err']
                     writer.writerow(row)

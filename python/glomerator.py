@@ -17,9 +17,13 @@ class Glomerator(object):
         self.paths = None
 
     # ----------------------------------------------------------------------------------------
-    def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=False):
+    def naive_seq_glomerate(self, naive_seqs, n_clusters, ambig_base=None, debug=False):
         """ Perform hierarchical agglomeration (with naive hamming distance as the distance), stopping at <n_clusters> """
         clusters = [[names,] for names in naive_seqs.keys()]
+        alphabet = list(utils.nukes)  # make a copy so we can modify it
+        if ambig_base is not None:
+            alphabet += ambig_base
+
         # for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
         #     if len(seq_a) != len(seq_b):
         #         print '  different lengths'
@@ -52,7 +56,8 @@ class Glomerator(object):
                     for query_b in clust_b:
                         joint_key = ';'.join(sorted([query_a, query_b]))
                         if joint_key not in distances:
-                            distances[joint_key] = utils.hamming(naive_seqs[query_a], naive_seqs[query_b])
+                            raise Exception('test ambiguous hamming function')
+                            distances[joint_key] = utils.hamming(naive_seqs[query_a], naive_seqs[query_b], alphabet=alphabet, ambig_chars=[ambig_base, ])
                         # if debug:
                         #     print '    %25s %25s   %4d   (%s)' % (query_a, query_b, distances[joint_key], joint_key)
                         if min_distance is None or distances[joint_key] < min_distance:

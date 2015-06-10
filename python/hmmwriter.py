@@ -108,20 +108,25 @@ def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False, max_bin
 
 # ----------------------------------------------------------------------------------------
 class Track(object):
-    def __init__(self, name, letters):
+    def __init__(self, name, letters):  #, ambig_base = None):
         self.name = name
-        self.letters = letters  # should be a list
+        self.letters = list(letters)  # should be a list (make a copy of it so we can modify it)
+        # self.ambig_base = ambig_base
+    def getdict(self):
+        # if self.ambig_base is None:
+        return {self.name : self.letters}
+        # else:
+        #     return {self.name : self.letters + [self.ambig_base, ]}
 
 # ----------------------------------------------------------------------------------------
 class State(object):
-    def __init__(self, name, joint_pair_emission=False):
+    def __init__(self, name):
         self.name = name
         self.transitions = {}
         self.emissions = None
-        self.pair_emissions = None
         self.extras = {}  # any extra info you want to add
 
-    def add_emission(self, track, emission_probs):  # NOTE we only allow one single (i.e. non-pair) emission a.t.m
+    def add_emission(self, track, emission_probs):
         if self.emissions == None:
             self.emissions = {}
         for letter in track.letters:
@@ -130,18 +135,6 @@ class State(object):
         assert 'probs' not in self.emissions
         self.emissions['track'] = track.name
         self.emissions['probs'] = emission_probs
-
-    def add_pair_emission(self, track, pair_emission_probs):  # NOTE we only allow one pair emission a.t.m
-        if self.pair_emissions == None:
-            self.pair_emissions = {}
-        for letter1 in track.letters:
-            assert letter1 in pair_emission_probs
-            for letter2 in track.letters:
-                assert letter2 in pair_emission_probs[letter1]
-        assert 'tracks' not in self.pair_emissions
-        assert 'probs' not in self.pair_emissions
-        self.pair_emissions['tracks'] = [track.name, track.name]
-        self.pair_emissions['probs'] = pair_emission_probs
 
     def add_transition(self, to_name, prob):
         assert to_name not in self.transitions
@@ -152,7 +145,8 @@ class State(object):
         for _, prob in self.transitions.iteritems():
             assert prob >= 0.0
             total += prob
-        assert utils.is_normed(total)
+        if not utils.is_normed(total):
+            raise Exception('transition probs not normed in %s: %s' % (self.name, self.transitions))
 
         if self.name == 'init':  # no emissions for 'init' state
             return
@@ -162,14 +156,6 @@ class State(object):
             for _, prob in self.emissions['probs'].iteritems():
                 assert prob >= 0.0
                 total += prob
-            assert utils.is_normed(total)
-
-        if self.pair_emissions is not None:
-            total = 0.0
-            for letter1 in self.pair_emissions['probs']:
-                for _, prob in self.pair_emissions['probs'][letter1].iteritems():
-                    assert prob >= 0.0
-                    total += prob
             assert utils.is_normed(total)
 
 # ----------------------------------------------------------------------------------------
@@ -221,6 +207,7 @@ class HmmWriter(object):
 
         self.erosion_probs = {}
         self.insertion_probs = {}
+        self.insertion_content_probs = {}
 
         self.n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
         replacement_genes = None
@@ -234,11 +221,13 @@ class HmmWriter(object):
         self.read_insertion_info(gene_name, replacement_genes)
 
         if self.naivety == 'M':  # mutate if not naive
-            self.mute_freqs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
+            self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
 
-        self.track = Track('nukes', list(utils.nukes))
+        self.track = Track('nukes', utils.nukes)  #, ambig_base=self.args.ambig_base)
+        # if self.args.ambig_base is not None:
+        #     self.track.letters.append(self.args.ambig_base)
         self.saniname = utils.sanitize_name(gene_name)
-        self.hmm = HMM(self.saniname, {'nukes':list(utils.nukes)})  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
+        self.hmm = HMM(self.saniname, self.track.getdict())  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
         mean_freq_hist = plotting.make_hist_from_bin_entry_file(self.indir + '/all-mean-mute-freqs.csv')
         self.hmm.extras['overall_mute_freq'] = mean_freq_hist.GetMean()
@@ -266,7 +255,7 @@ class HmmWriter(object):
             self.add_internal_state(inuke)
         # and finally right side insertions
         if self.region == 'j' and self.allow_unphysical_insertions:
-            self.add_righthand_insert_state()
+            self.add_righthand_insert_state(insertion='jf')
 
     # ----------------------------------------------------------------------------------------
     def add_init_state(self):
@@ -280,7 +269,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_lefthand_insert_states(self, insertion):
-        for nuke in utils.nukes:
+        for nuke in utils.nukes:  # these states emit Ns, so we don't need a separate N insert state
             insert_state = State('insert_left_' + nuke)
             insert_state.extras['germline'] = nuke
             self.add_region_entry_transitions(insert_state, insertion)
@@ -289,11 +278,10 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, inuke):
-        # arbitrarily replace ambiguous nucleotides with 'A'
         germline_nuke = self.germline_seq[inuke]
-        if germline_nuke == 'N' or germline_nuke == 'Y':
-            print '\n    WARNING replacing %s with A' % germline_nuke
-            germline_nuke = 'A'
+        # if germline_nuke == 'N' or germline_nuke == 'Y':
+        #     print '\n    WARNING replacing %s with A' % germline_nuke
+        #     germline_nuke = 'A'
 
         # initialize
         state = State('%s_%d' % (self.saniname, inuke))
@@ -313,13 +301,20 @@ class HmmWriter(object):
         self.hmm.add_state(state)
 
     # ----------------------------------------------------------------------------------------
-    def add_righthand_insert_state(self):
-        insert_state = State('insert_right')
-        self_transition_prob = self.get_insert_self_transition_prob('jf')
-        insert_state.add_transition('insert_right', self_transition_prob)
-        insert_state.add_transition('end', 1.0 - self_transition_prob)
-        self.add_emissions(insert_state)
-        self.hmm.add_state(insert_state)
+    def add_righthand_insert_state(self, insertion):
+        for nuke in utils.nukes:  # these states emit Ns, so we don't need a separate N insert state
+            insert_state = State('insert_right_' + nuke)
+            insert_state.extras['germline'] = nuke
+            self.add_region_exit_transitions(insert_state, exit_probability=1.0)
+
+            self.add_emissions(insert_state, germline_nuke=nuke)
+            self.hmm.add_state(insert_state)
+        # insert_state = State('insert_right')
+        # self_transition_prob = self.get_insert_self_transition_prob('jf')
+        # insert_state.add_transition('insert_right', self_transition_prob)
+        # insert_state.add_transition('end', 1.0 - self_transition_prob)
+        # self.add_emissions(insert_state)
+        # self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, this_gene, approved_genes=None):
@@ -431,7 +426,7 @@ class HmmWriter(object):
                 print 'ERROR cannot have all or none of the probability mass in the zero bin:', self.insertion_probs[insertion]
                 assert False
 
-            self.insertion_content_probs = {}
+            # self.insertion_content_probs = {}
             self.read_insertion_content(insertion)  # also read the base content of the insertions
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
@@ -441,7 +436,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, insertion):
         self.insertion_content_probs[insertion] = {}
-        if self.args.insertion_base_content:
+        if self.args.insertion_base_content and insertion in utils.boundaries:  # just return uniform probs for fv and jf insertions
             with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
@@ -537,28 +532,37 @@ class HmmWriter(object):
                 state.add_transition('insert_left_' + nuke, (1.0 - region_entry_prob) * self.insertion_content_probs[insertion][nuke])
 
         # then add transitions to the region's internal states
-        erosion = self.region + '_5p'
         total = 0.0
-        for inuke in range(len(self.germline_seq)):
-            erosion_length = inuke
-            if erosion_length in self.erosion_probs[erosion]:
-                prob = self.erosion_probs[erosion][erosion_length]
-                total += prob * region_entry_prob
-                if region_entry_prob != 0.0:  # only add the line if there's a chance of entering the region from this state
-                    state.add_transition('%s_%d' % (self.saniname, inuke), prob * region_entry_prob)
-                    if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:
-                        self.smallest_entry_index = inuke
-                else:
-                    assert state.name == 'init'  # if there's *no* chance of entering the region, this better *not* be the 'insert_left' state
+        if self.args.pad_sequences and self.region == 'v':  # only add a transition to the zeroth internal state (no v_5p deletions)
+            state.add_transition('%s_%d' % (self.saniname, 0), region_entry_prob)
+            total += region_entry_prob
+            self.smallest_entry_index = 0
+        else:
+            erosion = self.region + '_5p'
+            for inuke in range(len(self.germline_seq)):
+                erosion_length = inuke
+                if erosion_length in self.erosion_probs[erosion]:
+                    prob = self.erosion_probs[erosion][erosion_length]
+                    total += prob * region_entry_prob
+                    if region_entry_prob != 0.0:  # only add the line if there's a chance of entering the region from this state
+                        state.add_transition('%s_%d' % (self.saniname, inuke), prob * region_entry_prob)
+                        if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # tells us where we need to start adding internal states (the smallest internal state index we add is the first one that has nonzero transition probability here)
+                            self.smallest_entry_index = inuke
+                    else:
+                        assert state.name == 'init'  # if there's *no* chance of entering the region, this better *not* be the 'insert_left' state
 
-        assert region_entry_prob == 0.0 or utils.is_normed(total / region_entry_prob)
+        if region_entry_prob != 0.0 and not utils.is_normed(total / region_entry_prob):
+            raise Exception('normalization problem in add_region_entry_transitions():\n  region_entry_prob: %f   total / region_entry_prob: %f' % (region_entry_prob, total / region_entry_prob))
 
     # ----------------------------------------------------------------------------------------
     def add_region_exit_transitions(self, state, exit_probability):
         non_zero_insertion_prob = 0.0
         if self.region == 'j' and self.allow_unphysical_insertions:  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
-            non_zero_insertion_prob = 1.0 - self.insertion_probs['jf'][0]
-            state.add_transition('insert_right', non_zero_insertion_prob * exit_probability)
+            insertion = 'jf'
+            non_zero_insertion_prob = 1.0 - self.insertion_probs[insertion][0]
+            # state.add_transition('insert_right', non_zero_insertion_prob * exit_probability)
+            for nuke in utils.nukes:
+                state.add_transition('insert_right_' + nuke, non_zero_insertion_prob * exit_probability * self.insertion_content_probs[insertion][nuke])
 
         state.add_transition('end', (1.0 - non_zero_insertion_prob) * exit_probability)  # and add a transition to 'end' with the complement, to allow zero-length insertions
 
@@ -571,6 +575,10 @@ class HmmWriter(object):
         distance_to_end = len(self.germline_seq) - inuke - 1
         if distance_to_end == 0:  # last state has to exit region
             return 1.0
+
+        if self.region == 'j' and self.args.pad_sequences:  # no j_3p deletions if we're padding with Ns
+            return 0.0
+
         erosion = self.region + '_3p'
         erosion_length = distance_to_end
         if erosion_length in self.erosion_probs[erosion]:
@@ -583,73 +591,56 @@ class HmmWriter(object):
             return 0.0
 
     # ----------------------------------------------------------------------------------------
-    def get_emission_prob(self, nuke1, nuke2='', is_insert=True, inuke=-1, germline_nuke='', insertion=''):
-        assert nuke1 in utils.nukes
-        assert nuke2 == '' or nuke2 in utils.nukes
+    def get_emission_prob(self, nuke1, is_insert=True, inuke=-1, germline_nuke='', insertion=''):
+        if nuke1 not in utils.nukes and nuke1 != utils.ambig_base:
+            raise Exception('bad nuke (%s)' % nuke1)
         prob = 1.0
         if is_insert:
-            assert insertion != ''
-            mute_freq = self.mute_freqs['overall_mean']  # for now, just use the mean mute freq over the whole sequence for the insertion mute freq
-            assert germline_nuke in utils.nukes  # make sure I'm passing it through properly (can remove this as soon as things work)
-            if nuke2 == '':  # single (non-pair) emission
+            if germline_nuke == '':
+                assert insertion == 'fv' or insertion == 'jf'
+                prob = 1. / len(utils.nukes)
+            else:
+                assert germline_nuke in utils.nukes
+                mute_freq = self.mute_freqs['overall_mean']  # for now, just use the mean mute freq over the whole sequence for the insertion mute freq
                 if nuke1 == germline_nuke:
                     prob = 1.0 - mute_freq  # I can think of some other ways to arrange this, but this seems ok
                 else:
                     prob = mute_freq / 3.0
-            else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
-                for nuke in nuke1, nuke2:
-                    if nuke == germline_nuke:  # don't forget here that the 'germline' nuke isn't necessarily the germline once we're passing sequence pairs through (unlike when we're actually within the v, d, or j regions)
-                        prob *= 1.0 - mute_freq
-                    else:
-                        prob *= mute_freq / 3.0
         else:
             assert inuke >= 0
             assert germline_nuke != ''
 
-            # first figure out the mutation frequency we're going to use
-            mute_freq = self.mute_freqs['overall_mean']
-            if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
-                mute_freq = self.mute_freqs[inuke]
             # if this is the leftmost base in d or j, or if it's rightmost in v or d, use the overall mean mute freq (because we don't really have a handle for inferring it)
             # if self.args.use_mean_at_boundaries:
             #     if (inuke == 0 and (self.region == 'd' or self.region == 'j')) or (inuke == len(self.germline_seq)-1 and (self.region == 'v' or self.region == 'd')):
             #         mute_freq = self.mute_freqs['overall_mean']
 
+            mute_freq = self.mute_freqs['overall_mean']
+
             # then calculate the probability
-            if nuke2 == '':  # single emission
-                assert mute_freq != 1.0 and mute_freq != 0.0
+            assert mute_freq != 1.0 and mute_freq != 0.0
+            if germline_nuke == 'N':  # ambiguous
+                prob = 1. / len(utils.nukes)
+            else:
+                # first figure out the mutation frequency we're going to use
+                if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
+                    mute_freq = self.mute_freqs[inuke]
                 if nuke1 == germline_nuke:  # NOTE that if mute_freq is 1.0 this gives zero
                     prob = 1.0 - mute_freq
                 else:
                     prob = mute_freq / 3.0
-            else:  # pair (well, k>1 now) hmm
-                assert False  # deprecated
-                # if self.args.joint_emission:
-                #     # POSTSCRIPT this performs worse than independent emission (i.e. just multiply by 1-f or f for each base without regard to what the other sequence is)
-                #     #   - this is likely because the assumptions underlying these joint probabilities suck
-                #     #   - in turn, this is likely because their only valid for certain tree sizes and topologies which aren't what I plugged into the simulator
-                #     # NOTE this is derived semi-hackiheuristically from a couple assumptions:
-                #     #   1) the ratio of two mutations occurring to one should be mute_freq
-                #     #   2) the prob of no mutations in either seq should be (1 - mute_freq)^2
-                #     #   3) matrix should be normalized
-                #     #   4) some reasonable assumptions about when one or two mutations occurred which you should be able to infer for the if/else structure below
-                #     #   NOTE that this is all roughly equivalent to doing things properly and then discarding terms in mute_freq of order greater than 1
-                #     #   Thus also NOTE if mute_freq isn't small this is likely a crappy model
-                #     cryptic_factor = (2 - mute_freq) / (6*mute_freq + 9)
-                #     if nuke1 == germline_nuke and nuke2 == germline_nuke:  # no mutations at all
-                #         prob = (1.0 - mute_freq)**2
-                #     elif nuke1 == nuke2 and nuke1 != germline_nuke:  # mutated, but both seqs the same. We assume this requires *one* mutation event (i.e. ignore higher-order terms).
-                #         prob = mute_freq * cryptic_factor
-                #     elif nuke1 == germline_nuke or nuke2 == germline_nuke:  # one sequence germline, the other mutated (still one mutation event)
-                #         prob = mute_freq * cryptic_factor
-                #     else:  # both sequnces mutated separately (two mutation events)
-                #         prob = mute_freq * mute_freq * cryptic_factor
-                # else:  # NOTE that now we're doing k-HMMs I'm not really using this. To be fixed! there's an issue
-                #     for nuke in (nuke1, nuke2):
-                #         if nuke == germline_nuke:
-                #             prob *= 1.0 - mute_freq
-                #         else:
-                #             prob *= mute_freq / 3.0
+
+        return prob
+
+    # ----------------------------------------------------------------------------------------
+    def get_ambiguos_emission_prob(self, inuke):
+        # total_counts = mute_obs['total_counts']
+        if inuke in self.mute_obs:
+            obs = [c for c in self.mute_obs[inuke].values()]  # list of length four with the number of times we observed A, C, G, and T at this position
+            sqobs = [o*o for o in obs]
+            prob = float(sum(sqobs)) / (sum(obs))**2  # mean prob per base without Ns (i.e., the use of this value for N emission should ensure that sequences with lots of Ns on average have the same total probability as those without any Ns)
+        else:
+            prob = 1. / len(utils.nukes)  # NOTE it's debatable whether this is the best value. This will mostly (only?) get used for parts of the germline that we never saw in data (e.g. way on the left side of V when we have short reads). For these parts we use the mean mutation rate, which gives something like [0.94, 0.02, 0.02, 0.02]... but these are in practice nearly always going to be observed as ambiguous, so screw it
 
         return prob
 
@@ -667,30 +658,15 @@ class HmmWriter(object):
                 insertion = self.insertions[1]
             assert insertion != ''
 
-        if self.args.joint_emission:  # add pair emission (NOTE see note below, but really means requiring k=2 but allowing joint emission)
-            assert False  # deprecated
-            # pair_emission_probs = {}
-            # total = 0.0
-            # for nuke1 in utils.nukes:
-            #     pair_emission_probs[nuke1] = {}
-            #     for nuke2 in utils.nukes:
-            #         pair_emission_probs[nuke1][nuke2] = self.get_emission_prob(nuke1, nuke2, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
-            #         total += pair_emission_probs[nuke1][nuke2]
-            # if math.fabs(total - 1.0) >= self.eps:
-            #     print 'ERROR pair emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
-            #     for nuke1 in utils.nukes:
-            #         for nuke2 in utils.nukes:
-            #             print nuke1, nuke2, pair_emission_probs[nuke1][nuke2]
-            #     assert False
-            # state.add_pair_emission(self.track, pair_emission_probs)
-        else:  # or add single emission (NOTE ham usees this 'single' emission still for pair/k>1 emission, it just assumes non-joint emission, i.e. multiplies together for each sequence)
-            emission_probs = {}
-            total = 0.0
-            for nuke in utils.nukes:
-                emission_probs[nuke] = self.get_emission_prob(nuke, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
-                total += emission_probs[nuke]
-            if math.fabs(total - 1.0) >= self.eps:
-                print 'ERROR emission not normalized in state %s in %s (%f)' % (state.name, 'X', total)  #utils.color_gene(gene_name), total)
-                assert False
-            state.add_emission(self.track, emission_probs)
-    
+        emission_probs = {}
+        total = 0.0
+        for base in utils.nukes:
+            emission_probs[base] = self.get_emission_prob(base, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
+            total += emission_probs[base]
+        if math.fabs(total - 1.0) >= self.eps:
+            raise Exception('emission not normalized in state %s (total %f)   %s' % (state.name, total, emission_probs))
+        state.add_emission(self.track, emission_probs)
+        if self.args.ambig_base is not None:
+            state.extras['ambiguous_emission_prob'] = self.get_ambiguos_emission_prob(inuke)
+            state.extras['ambiguous_char'] = 'N'
+            # print '%30s, %4d %f' % (state.name, inuke, self.get_ambiguos_emission_prob(inuke))
