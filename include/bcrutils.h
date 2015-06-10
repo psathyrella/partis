@@ -43,7 +43,7 @@ public:
   string Color(string col, string seq);  // a verb! it's a verb!
   string RedifyIfMuted(char germline_nuc, char nuc);
   string GetRegion(string gene);
-  string ColorMutants(string color, string seq, string ref_1 = "", vector<string> other_refs = {});
+  string ColorMutants(string color, string seq, string ref_1 = "", vector<string> other_refs = {}, string ambiguous_char = "");
   string ColorGene(string gene);
 
   map<string, string> codes_;
@@ -118,9 +118,10 @@ public:
 // ----------------------------------------------------------------------------------------
 class HMMHolder {
 public:
-  HMMHolder(string hmm_dir, GermLines &gl): hmm_dir_(hmm_dir), gl_(gl) {}
+  HMMHolder(string hmm_dir, GermLines &gl, Track *track): hmm_dir_(hmm_dir), gl_(gl), track_(track) {}
   ~HMMHolder();
   Model *Get(string gene, bool debug);
+  Track *track() { return track_; }
   // Rescale, within each hmm, the emission probabilities to reflect <overall_mute_freq> instead of the mute freq which was recorded in the hmm file.
   // If <overall_mute_freq> is -INFINITY, we re-rescale them to what they were originally
   void RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, double overall_mute_freq);  // WOE BETIDE THEE WHO FORGETETH TO RE-RESET THESE
@@ -131,6 +132,7 @@ private:
   string hmm_dir_;
   GermLines &gl_;
   map<string, Model*> hmms_; // map of gene name to hmm pointer
+  Track *track_;  // each of the models has a track... but they should all be the same, so just toss one here for easy access
 };
 
 // ----------------------------------------------------------------------------------------

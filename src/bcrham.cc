@@ -79,14 +79,15 @@ int main(int argc, const char * argv[]) {
 
   // init some infrastructure
   vector<string> characters {"A", "C", "G", "T"};
-  Track trk("NUKES", characters);
-  vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &trk));
+  Track track("NUKES", characters, "N");
   GermLines gl(args.datadir());
-  HMMHolder hmms(args.hmmdir(), gl);
+  HMMHolder hmms(args.hmmdir(), gl, &track);
+  // Track *track(hmms.track());
+  vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &track));
   // hmms.CacheAll();
 
   if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
-    Glomerator glom(hmms, gl, qry_seq_list, &args, &trk);
+    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
     if(args.smc_particles() == 1) {
       glom.Cluster();
     } else {

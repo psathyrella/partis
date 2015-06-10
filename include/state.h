@@ -48,6 +48,8 @@ public:
   void Print();
 private:
   string name_, germline_nuc_;
+  double ambiguous_emission_logprob_;
+  string ambiguous_char_;
   vector<Transition*> *transitions_;
   Transition *trans_to_end_;
   Emission emission_;

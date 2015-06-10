@@ -2,7 +2,7 @@
 
 namespace ham {
 // ----------------------------------------------------------------------------------------
-Model::Model() : overall_prob_(0.0), original_overall_mute_freq_(0.0), rescale_ratio_(-INFINITY), initial_(NULL), finalized_(false) {
+Model::Model() : overall_prob_(0.0), original_overall_mute_freq_(0.0), rescale_ratio_(-INFINITY), ambiguous_char_(""), initial_(NULL), finalized_(false) {
   ending_ = new State;
 }
 
@@ -21,6 +21,8 @@ void Model::Parse(string infname) {
       overall_prob_ = config["extras"]["gene_prob"].as<double>();
     if(config["extras"] && config["extras"]["overall_mute_freq"])
       original_overall_mute_freq_ = config["extras"]["overall_mute_freq"].as<double>();
+    if(config["extras"]["ambiguous_char"])
+      ambiguous_char_ = config["extras"]["ambiguous_char"].as<string>();
   } catch(...) {
     cerr << "ERROR invalid model header info in " << infname << endl;
     throw;
@@ -32,6 +34,8 @@ void Model::Parse(string infname) {
     for(YAML::const_iterator it = tracks.begin(); it != tracks.end(); ++it) {
       Track *trk = new Track;
       trk->set_name(it->first.as<string>());
+      if(ambiguous_char_ != "")
+	trk->SetAmbiguous(ambiguous_char_);
       for(size_t ic = 0; ic < it->second.size(); ++ic)
         trk->AddSymbol(it->second[ic].as<string>());
       tracks_.push_back(trk);
