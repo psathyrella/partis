@@ -43,6 +43,7 @@ public:
   string Color(string col, string seq);  // a verb! it's a verb!
   string RedifyIfMuted(char germline_nuc, char nuc);
   string GetRegion(string gene);
+  string ColorChars(char ch_to_color, string color, string seq);
   string ColorMutants(string color, string seq, string ref_1 = "", vector<string> other_refs = {}, string ambiguous_char = "");
   string ColorGene(string gene);
 

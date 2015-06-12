@@ -22,7 +22,7 @@ public:
   State();
   void Parse(YAML::Node node, vector<string> state_names, Tracks trks);
   void RescaleOverallMuteFreq(double factor);  // Rescale emissions by the ratio <factor>
-  void UnRescaleOverallMuteFreq() { emission_.UnReplaceLogProbs(); }  // undo the above
+  void UnRescaleOverallMuteFreq();  // undo the above
   ~State();
 
   inline string name() { return name_; }

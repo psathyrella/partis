@@ -99,13 +99,27 @@ void State::RescaleOverallMuteFreq(double factor) {
 
   emission_.ReplaceLogProbs(new_log_probs);
 }
+
 // ----------------------------------------------------------------------------------------
-double State::emission_logprob(Sequences *seqs, size_t pos) {
+void State::UnRescaleOverallMuteFreq() {
+  if(germline_nuc_ == ambiguous_char_ || germline_nuc_ == "")  // if the germline state is N, or if this state has no germline (most likely fv or jf insertion)
+    return;
+  emission_.UnReplaceLogProbs();
+}
+
+// ----------------------------------------------------------------------------------------
+double State::emission_logprob(Sequences *seqs, size_t pos) {  // TODO clean this up omg it is ugly
+  if(emission_.lps() != 1) {
+    cout << name_ << endl;
+  }
   if(seqs->n_seqs() == 1) {  // NOTE they're log probs, not scores, but I haven't yet managed to eliminate all the old 'score' names
-    if(ambiguous_char_ != "" && (*seqs)[0][pos] == emission_.track()->ambiguous_index())
+    if(ambiguous_char_ != "" && (*seqs)[0][pos] == emission_.track()->ambiguous_index()) {
       return ambiguous_emission_logprob_;
-    else
+    } else {
+      // if((*seqs)[0][pos] >= emission_.track()->alphabet_size())
+      // 	throw runtime_error("position " + to_string(pos) + " has unhandled character in " + (*seqs)[0].undigitized());
       return emission_.score(seqs->get_ptr(0), pos);  // get_ptr shenaniganery is to avoid performance hit from pass-by-value. Yes, I will at some point make it more elegant!
+    }
   } else {
     assert(seqs->n_seqs() > 1);
 

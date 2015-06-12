@@ -6,7 +6,7 @@ LexicalTable::LexicalTable() {
 }
 
 // ----------------------------------------------------------------------------------------
-void LexicalTable::Init() {
+void LexicalTable::Init() {  // TODO doesn't do anything
 }
 
 // ----------------------------------------------------------------------------------------
@@ -26,7 +26,19 @@ void LexicalTable::ReplaceLogProbs(vector<vector<double> > new_log_probs) {
 
 // ----------------------------------------------------------------------------------------
 void LexicalTable::UnReplaceLogProbs() {
+  assert(original_log_probs_.size() == log_probs_.size());
   log_probs_ = original_log_probs_;
+}
+
+// ----------------------------------------------------------------------------------------
+double LexicalTable::LogProb(Sequence *seq, size_t pos) {
+  assert(pos < (*seq).size());
+  if(log_probs_.size() != 1) {
+    cout << "lp s " << log_probs_.size() << endl;
+    assert(0);
+  }
+  assert((*seq)[pos] < log_probs_[0].size());
+  return log_probs_[0][(*seq)[pos]];
 }
 
 // ----------------------------------------------------------------------------------------
@@ -37,6 +49,7 @@ LexicalTable::~LexicalTable() {
 void LexicalTable::AddColumn(vector<double> logprobs) {
   assert(log_probs_.size() == 0);  // a.t.m. we only want to support one column, i.e. no joint emission
   log_probs_.push_back(logprobs);
+  assert(log_probs_.size() == 1); // TODO remove this
 }
 
 }
