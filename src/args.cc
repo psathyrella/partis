@@ -79,6 +79,8 @@ Args::Args(int argc, const char * argv[]):
       headers.push_back(head);
   }
   while(getline(ifs, line)) {
+    if(line.size() < 10)  // 10 is kinda arbitrary, but we just want to skip blank lines
+      continue;
     stringstream ss(line);
     string tmpstr;
     int tmpint;

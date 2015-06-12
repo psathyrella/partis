@@ -8,6 +8,7 @@ TermColors::TermColors() {
   codes_["reverse"] = "\033[7m";
   codes_["purple"] = "\033[95m";
   codes_["blue"] = "\033[94m";
+  codes_["light_blue"] = "\033[1;34m";
   codes_["green"] = "\033[92m";
   codes_["yellow"] = "\033[93m";
   codes_["red"] = "\033[91m";
@@ -39,6 +40,18 @@ string TermColors::GetRegion(string gene) {
 }
 
 // ----------------------------------------------------------------------------------------
+string TermColors::ColorChars(char ch_to_color, string color, string seq) {
+  string return_str;
+  for(size_t ic=0; ic<seq.size(); ++ic) {
+    if(seq[ic] == ch_to_color)
+      return_str += Color(color, seq.substr(ic, 1));
+    else
+      return_str += seq[ic];
+  }
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
 string TermColors::ColorMutants(string color, string seq, string ref_1, vector<string> other_refs, string ambiguous_char) {
   // Return <seq> with mutant bases w.r.t. <ref_1> escaped to appear red (and 'i', inserts, yellow) in bash terminal.
   // If <refs> are specified, use bold text and reverse video to show if <seq> is muted w/respect to more than one ref
@@ -57,7 +70,7 @@ string TermColors::ColorMutants(string color, string seq, string ref_1, vector<s
     } else {
       int ndiff(0);  // number of reference sequences that differ at base inuc
       for(auto & ref : other_refs) {
-	if(ambiguous_char != "" and ref[inuc] == ambiguous_char[0])  // don't count ambiguous characters as mutated
+	if(ambiguous_char != "" && (ref[inuc] == ambiguous_char[0] || seq[inuc] == ambiguous_char[0]))  // don't count ambiguous characters as mutated
 	  continue;
         if(seq[inuc] != ref[inuc])
           ndiff += 1;

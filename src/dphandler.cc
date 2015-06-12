@@ -249,6 +249,9 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
   }
   assert(path_names.size() > 0);  // this will happen if the ending viterbi prob is 0, i.e. if there's no valid path through the hmm (probably the sequence or hmm lengths are screwed up)
   assert(path_names.size() == query_strs[0].size());
+  // for(auto &p : path_names)
+  //   cout << p;
+  // cout << endl;
   string left_insert = GetInsertion("left", path_names);
   string right_insert = GetInsertion("right", path_names);
   size_t left_erosion_length = GetErosionLength("left", path_names, gene);
@@ -258,21 +261,30 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
 
   // make a string for the germline match
   string germline(gl_.seqs_[gene]);
-  string modified_seq = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);  // remove deletions
-  modified_seq = left_insert + modified_seq + right_insert;  // add insertions to either end
-  assert(modified_seq.size() == query_strs[0].size());
+  string modified_germline = germline.substr(left_erosion_length, germline.size() - right_erosion_length - left_erosion_length);  // remove deletions
+  modified_germline = left_insert + modified_germline + right_insert;  // add insertions to either end
+  assert(modified_germline.size() == query_strs[0].size());
   assert(germline.size() + left_insert.size() - left_erosion_length - right_erosion_length + right_insert.size() == query_strs[0].size());
-  string match_str = tc.ColorMutants("red", modified_seq, "", query_strs, hmms_.track()->ambiguous_char());  // color it relative to the query strings
-  match_str = (left_erosion_length > 0 ? ".." : "  ") + match_str + (right_erosion_length > 0 ? ".." : "  ");  // add some faff to show if there was some deletion
+  string match_str = tc.ColorMutants("red", modified_germline, "", query_strs, hmms_.track()->ambiguous_char());  // color it relative to the query strings
+  match_str = tc.ColorChars(hmms_.track()->ambiguous_char()[0], "light_blue", match_str);
+  string l_e_str(to_string(left_erosion_length)), r_e_str(to_string(right_erosion_length));
+  if(left_erosion_length > 0)
+    match_str = string(max(0, 2 - (int)l_e_str.size()), ' ') + "." + l_e_str + "." + match_str;
+  else
+    match_str = "    " + match_str;
+  if(right_erosion_length > 0)
+    match_str += string(max(0, 2 - (int)r_e_str.size()), ' ') + "." + r_e_str + ".";
+  else
+    match_str += "    ";
 
   // if there were insertions, we indicate this on a separate line below
   string insert_str(germline.size() - right_erosion_length - left_erosion_length, ' ');
-  insert_str = string(left_insert.size(), 'i') + insert_str + string(right_insert.size(), ' ');
+  insert_str = string(left_insert.size(), 'i') + insert_str + string(right_insert.size(), 'i');
 
   // NOTE this doesn't include the overall gene prob!
   cout << "                    " << match_str << "  " << extra_str << setw(12) << score << setw(25) << gene << endl;
   if(left_insert.size() + right_insert.size() > 0)
-    cout << "                    " << "  " << tc.Color("yellow", insert_str) << "  " << endl;
+    cout << "                      " << "  " << tc.Color("yellow", insert_str) << "  " << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -338,17 +350,21 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
   (*best_genes)[kset] = map<string, string>();
   map<string, double> regional_best_scores; // the best score for each region
   map<string, double> regional_total_scores; // the total score for each region, i.e. log P_v
-  if(args_->debug() == 2)
-    printf("         %3d%3d %6s %9s  %7s  %7s  %s\n", (int)kset.v, (int)kset.d, "prob", "logprob", "total", "origin", "---------------");
+  if(args_->debug() == 2) {
+    printf("         %3d%3d", (int)kset.v, (int)kset.d);
+    if(algorithm_ == "forward")
+      printf(" %6s %9s  %7s  %7s", "prob", "logprob", "total", "origin");
+    printf(" %s\n", "---------------");
+  }
   for(auto & region : gl_.regions_) {
     vector<string> query_strs(GetQueryStrs(seqs, kset, region));
 
     TermColors tc;
     if(args_->debug() == 2) {
       if(algorithm_ == "viterbi") {
-        cout << "              " << region << " query " << query_strs[0] << endl;
+        cout << "                " << region << " query " << tc.ColorChars(hmms_.track()->ambiguous_char()[0], "light_blue", query_strs[0]) << endl;
         for(size_t is = 1; is < query_strs.size(); ++is)
-          cout << "              " << region << " query " << tc.ColorMutants("purple", query_strs[is], query_strs[0], {}, hmms_.track()->ambiguous_char()) << endl;  // use the first query_str as reference sequence... could just as well use any other
+          cout << "              " << region << " query " << tc.ColorChars(hmms_.track()->ambiguous_char()[0], "light_blue", tc.ColorMutants("purple", query_strs[is], "", query_strs, hmms_.track()->ambiguous_char())) << endl;  // use the first query_str as reference sequence... could just as well use any other
       } else {
         cout << "              " << region << endl;
       }
@@ -418,13 +434,10 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::SetInsertions(string region, vector<string> path_names, RecoEvent *event) {
-  // cout << "0---" << endl;
   Insertions ins;
   for(auto & insertion : ins[region]) {  // loop over the boundaries (vd and dj)
-    // cout << "1---" << endl;
     string side(insertion == "jf" ? "right" : "left");
     string inserted_bases = GetInsertion(side, path_names);
-    // cout << "2---" << endl;
     event->SetInsertion(insertion, inserted_bases);
   }
 }
@@ -461,10 +474,9 @@ string DPHandler::GetInsertion(string side, vector<string> names) {
     throw runtime_error("ERROR side must be left or right, not \"" + side + "\"");
   }
 
-  for(auto &base : inserted_bases)
-    if(base != 'A' && base != 'C' && base != 'G' && base != 'T')  // TODO this won't work if you change the alphabet
-      throw runtime_error("bad insertion state name in DPHandler::GetInsertion(): " + base);
-
+  for(size_t ib=0; ib<inserted_bases.size(); ++ib)
+    hmms_.track()->symbol_index(inserted_bases.substr(ib, 1));  // throws exception if we've got a character that isn't handled by the track
+    
   return inserted_bases;
 }
 

@@ -23,13 +23,11 @@ public:
   void AddColumn(vector<double> logprobs);
   vector<vector<double> > log_probs() { return log_probs_; }  // NOTE returns a *copy*
 
-  inline double LogProb(size_t letter) { assert(letter < log_probs_[0].size()); return log_probs_[0][letter]; }
-  inline double LogProb(Sequence *seq, size_t pos) {
-    return log_probs_[0][(*seq)[pos]];
-  }
-  inline Track* track(size_t iter) { return tracks.at(iter); }
-  inline size_t n_tracks() { return tracks.size(); }
-  inline uint8_t alphabet_size(size_t i) { return tracks[i]->alphabet_size(); }
+  double LogProb(size_t letter) { assert(letter < log_probs_[0].size()); return log_probs_[0][letter]; }
+  double LogProb(Sequence *seq, size_t pos);
+  Track* track(size_t iter) { return tracks.at(iter); }
+  size_t n_tracks() { return tracks.size(); }
+  uint8_t alphabet_size(size_t i) { return tracks[i]->alphabet_size(); }
 
 private:
   vector<Track*> tracks;  // tracks which are used by emissions in this table
