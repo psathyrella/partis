@@ -39,6 +39,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
   Partition tmp_partition;
   int last_ipath(0);
+  assert(args_->integers_["path_index"].size() == qry_seq_list.size());
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
 
@@ -525,7 +526,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
 
-      // TODO if kbounds gets expanded in one of these three calls, we don't redo the otherds. Which is really ok, but could be checked again?
+      // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
       GetLogProb(key_a, a_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);  // it is ABSOLUTELY CRUCIAL that caching is turned off here if we're truncating, since a_seqs is different for each choice of b_seqs
       GetLogProb(key_b, b_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
       GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);

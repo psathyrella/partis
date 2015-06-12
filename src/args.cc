@@ -50,8 +50,6 @@ Args::Args(int argc, const char * argv[]):
 
     cmd.parse(argc, argv);
 
-    // algorithm_ = algorithm_arg_.getValue();
-    // debug_ = debug_arg_.getValue();
   } catch(ArgException &e) {
     cerr << "ERROR: " << e.error() << " for argument " << e.argId() << endl;
     throw;
@@ -110,6 +108,29 @@ Args::Args(int argc, const char * argv[]):
     }
   }
 
+  // Check();
 }
 
+// // ----------------------------------------------------------------------------------------
+//   // oh, wait, this isn't right
+//   // need to rearrange a couple things
+// void Args::Check() {
+//   assert(strings_.size() == integers_.size());
+//   assert(strings_.size() == floats_.size());
+//   assert(strings_.size() == str_lists_.size());
+//   assert(strings_.size() == int_lists_.size());
+//   assert(strings_.size() == float_lists_.size());
+//   for(auto &kv : str_lists_) {  // loop over column headers
+//     string column(kv.first);
+//     vector<vector<string> > &sub_str_lists(kv.second);
+//     for(size_t il=0; il<sub_str_lists.size(); ++il) {  // loop over queries
+//       vector<string> &str_list(sub_str_lists[il]);
+//       vector<int> &int_list(int_lists_[column][il]);
+//       vector<double> &float_list(float_lists_[column][il]);
+//       // make sure each list for this query has the same length
+//       assert(str_list.size() == int_list.size());
+//       assert(str_list.size() == float_list.size());
+//     }
+//   }
+// }
 }

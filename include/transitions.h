@@ -16,12 +16,10 @@ class Transition {
 public:
   Transition(string to_state, double prob);
 
-  inline void set_name(string& txt) { to_state_name_ = txt; }
-  inline void set_to_state(State* st) { to_state_ = st; }
-  inline string &to_state_name() {return to_state_name_;};
-  inline State *to_state() {return to_state_;};
-
-  inline double log_prob() { return log_prob_; }
+  void set_to_state(State* st) { to_state_ = st; }
+  string &to_state_name() { return to_state_name_; }
+  State *to_state() { return to_state_; }
+  double log_prob() { return log_prob_; }
 
   void Print();
 private:

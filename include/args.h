@@ -16,6 +16,8 @@ namespace ham {
 class Args {
 public:
   Args(int argc, const char * argv[]);
+  // void Check();  // make sure everything's the same length (i.e. the input file had all the expected columns)
+
   string hmmdir() { return hmmdir_arg_.getValue(); }
   string datadir() { return datadir_arg_.getValue(); }
   string infile() { return infile_arg_.getValue(); }

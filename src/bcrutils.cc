@@ -111,8 +111,10 @@ GermLines::GermLines(string input_dir):
 {
   for(auto & region : regions_) {
     names_[region] = vector<string>();
-    ifstream ifs(input_dir + "/igh" + region + ".fasta");
-    assert(ifs.is_open());
+    string infname(input_dir + "/igh" + region + ".fasta");
+    ifstream ifs(infname);
+    if(!ifs.is_open())
+      throw runtime_error("input file " + infname + " d.n.e.");
     string line, name, seq;
     while(getline(ifs, line)) {
       if(line[0] == '>') {   // read header lines
@@ -137,8 +139,10 @@ GermLines::GermLines(string input_dir):
   vector<string> header;
 
   // get cyst info
-  ifs.open(input_dir + "/v-meta.csv");
-  assert(ifs.is_open());
+  string infname(input_dir + "/v-meta.csv");
+  ifs.open(infname);
+  if(!ifs.is_open())
+    throw runtime_error("input file " + infname + " d.n.e.");
   // check header
   getline(ifs, line);
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
@@ -155,8 +159,10 @@ GermLines::GermLines(string input_dir):
   ifs.close();
 
   // get tryp info
-  ifs.open(input_dir + "/j_tryp.csv");
-  assert(ifs.is_open());
+  infname = input_dir + "/j_tryp.csv";
+  ifs.open(infname);
+  if(!ifs.is_open())
+    throw runtime_error("input file " + infname + " d.n.e.");
   // check header
   getline(ifs, line);
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());

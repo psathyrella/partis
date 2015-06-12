@@ -42,12 +42,4 @@ string Track::Stringify() {
   return return_str;
 }
 
-//****************************************************************************************
-// ----------------------------------------------------------------------------------------
-void Tracks::push_back(Track* tk) {
-  assert(indices_.count(tk->name()) == 0);  // cannot add two tracks with the same name
-  indices_[tk->name()] = tracks_.size();
-  tracks_.push_back(tk);
-}
-
 }

@@ -20,7 +20,7 @@ class Transition;
 class State {
 public:
   State();
-  void Parse(YAML::Node node, vector<string> state_names, Tracks trks);
+  void Parse(YAML::Node node, vector<string> state_names, Track *track);
   void RescaleOverallMuteFreq(double factor);  // Rescale emissions by the ratio <factor>
   void UnRescaleOverallMuteFreq();  // undo the above
   ~State();
@@ -34,10 +34,10 @@ public:
   inline Transition *transition(size_t iter) { return (*transitions_)[iter]; }
   inline Transition *trans_to_end() { return trans_to_end_; }
 
-  double emission_logprob(Sequences *seqs, size_t pos);
+  double EmissionLogprob(Sequence *seq, size_t pos);
+  double EmissionLogprob(Sequences *seqs, size_t pos);
   inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->log_prob(); }
   double end_transition_logprob();
-  Emission *emission() { return &emission_; }  // TODO remove this function
 
   // property-setters for use in model::finalize()
   inline void AddToState(State *st) { to_states_[st->index()] = 1; }  // set bit in <to_states_> corresponding to <st>

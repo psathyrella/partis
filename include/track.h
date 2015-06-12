@@ -11,10 +11,8 @@
 using namespace std;
 namespace ham {
 
-class Tracks;
 // ----------------------------------------------------------------------------------------
 class Track {
-  friend class Tracks;
 public:
   Track() {}
   Track(string name, vector<string> symbols, string ambiguous_char = "");
@@ -37,24 +35,6 @@ private:
   string ambiguous_char_;
   const static uint8_t max_alphabet_size_ = 255;
   const static uint8_t ambiguous_index_ = max_alphabet_size_ - 1;
-};
-
-// ----------------------------------------------------------------------------------------
-class Tracks {
-public:
-  void push_back(Track*);
-  size_t size() { return tracks_.size(); }
-  Track *track(const string &name) {
-    if(!indices_.count(name)) {
-      cerr << "ERROR: track '" << name << "' not found!" << endl;
-      throw runtime_error("configuration");
-    }
-    return tracks_[indices_[name]];
-  }
-  Track *operator[](size_t i) { return tracks_.at(i); }
-private:
-  vector<Track*> tracks_;
-  map<string, size_t> indices_;
 };
 
 }
