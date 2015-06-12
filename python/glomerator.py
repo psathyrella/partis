@@ -33,7 +33,7 @@ class Glomerator(object):
         seqs_per_cluster = float(len(clusters)) / n_clusters
         min_per_cluster, max_per_cluster = int(math.floor(seqs_per_cluster)), int(math.ceil(seqs_per_cluster))
 
-        distances = {}  # cache the calculated hamming distances (probably doesn't really make much of a difference)
+        distances = {}  # cache the calculated fractional hamming distances (probably doesn't really make much of a difference)
         # completed_clusters = []  # clusters that are already big enough, i.e. we don't want to add anything else to 'em
 
         def glomerate():
@@ -56,8 +56,9 @@ class Glomerator(object):
                     for query_b in clust_b:
                         joint_key = ';'.join(sorted([query_a, query_b]))
                         if joint_key not in distances:
-                            raise Exception('test ambiguous hamming function')
-                            distances[joint_key] = utils.hamming(naive_seqs[query_a], naive_seqs[query_b], alphabet=alphabet, ambig_chars=[ambig_base, ])
+                            # print joint_key, utils.hamming(naive_seqs[query_a], naive_seqs[query_b], alphabet=alphabet, ambig_chars=[ambig_base, ])
+                            # utils.color_mutants(naive_seqs[query_a], naive_seqs[query_b], print_result=True, extra_str='   ')
+                            distances[joint_key] = utils.hamming_fraction(naive_seqs[query_a], naive_seqs[query_b], alphabet=alphabet, ambig_chars=[ambig_base, ])
                         # if debug:
                         #     print '    %25s %25s   %4d   (%s)' % (query_a, query_b, distances[joint_key], joint_key)
                         if min_distance is None or distances[joint_key] < min_distance:

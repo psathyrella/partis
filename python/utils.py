@@ -896,15 +896,18 @@ def get_hamming_distances(pairs):
             seq_a = seq_a[-min_length : ]
             seq_b = seq_b[-min_length : ]
             chopped_off_left_sides = True
-        mutation_frac = hamming(seq_a, seq_b) / float(len(seq_a))
+        mutation_frac = hamming_fraction(seq_a, seq_b)
         return_info.append({'id_a':info['id_a'], 'id_b':info['id_b'], 'score':mutation_frac})
 
     return return_info
 
 # ----------------------------------------------------------------------------------------
-def hamming(seq1, seq2, alphabet=None, ambig_chars=None):
+def hamming_fraction(seq1, seq2, alphabet=None, ambig_chars=None):
     assert len(seq1) == len(seq2)
-    total = 0
+    if len(seq1) == 0:
+        return 0.
+
+    distance, len_excluding_ambig = 0, 0
     for ch1, ch2 in zip(seq1, seq2):
         if alphabet is not None:  # check that both characters are in the expected alphabet
             if ch1 not in alphabet or ch2 not in alphabet:
@@ -912,9 +915,12 @@ def hamming(seq1, seq2, alphabet=None, ambig_chars=None):
         if ambig_chars is not None:  # skip ambiguous chars
             if ch1 in ambig_chars or ch2 in ambig_chars:
                 continue
+
+        len_excluding_ambig += 1
         if ch1 != ch2:
-            total += 1
-    return total
+            distance += 1
+
+    return distance / float(len_excluding_ambig)
 
 # ----------------------------------------------------------------------------------------
 def get_key(names):
@@ -1024,10 +1030,7 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
 
     # print 'restrict %s' % restrict_to_region
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
-    n_mutes = hamming(naive_seq, muted_seq)
-    if len(naive_seq) == 0:
-        return 0.
-    return float(n_mutes) / len(naive_seq)  # hamming() asserts they're the same length
+    return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
 def print_linsim_output(outstr):

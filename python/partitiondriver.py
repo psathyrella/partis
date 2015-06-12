@@ -278,6 +278,8 @@ class PartitionDriver(object):
             cmd_str += ' --truncate-seqs'
         if self.args.allow_unphysical_insertions:
             cmd_str += ' --unphysical-insertions'
+        if self.args.ambig_base is not None:
+            cmd_str += ' --ambig-base ' + self.args.ambig_base
 
         # print cmd_str
         # sys.exit()
@@ -380,7 +382,8 @@ class PartitionDriver(object):
         # sys.exit()
 
         clust = Glomerator()
-        divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
+        divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs, ambig_base=self.args.ambig_base)
+        sys.exit()
         if debug:
             print '  divvy lengths'
             for dq in divvied_queries:
