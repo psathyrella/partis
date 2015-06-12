@@ -109,15 +109,11 @@ def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False, max_bin
 
 # ----------------------------------------------------------------------------------------
 class Track(object):
-    def __init__(self, name, letters):  #, ambig_base = None):
+    def __init__(self, name, letters):
         self.name = name
         self.letters = list(letters)  # should be a list (make a copy of it so we can modify it)
-        # self.ambig_base = ambig_base
     def getdict(self):
-        # if self.ambig_base is None:
         return {self.name : self.letters}
-        # else:
-        #     return {self.name : self.letters + [self.ambig_base, ]}
 
 # ----------------------------------------------------------------------------------------
 class State(object):
@@ -228,9 +224,7 @@ class HmmWriter(object):
         if self.naivety == 'M':  # mutate if not naive
             self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
 
-        self.track = Track('nukes', utils.nukes)  #, ambig_base=self.args.ambig_base)
-        # if self.args.ambig_base is not None:
-        #     self.track.letters.append(self.args.ambig_base)
+        self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)
         self.hmm = HMM(self.saniname, self.track.getdict())  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
@@ -680,7 +674,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_emission_prob(self, nuke1, is_insert=True, inuke=-1, germline_nuke='', insertion=''):
-        if nuke1 not in utils.nukes and nuke1 != utils.ambig_base:
+        if nuke1 not in utils.nukes + utils.ambiguous_bases:
             raise Exception('bad nuke (%s)' % nuke1)
         prob = 1.0
         if is_insert:
@@ -707,7 +701,7 @@ class HmmWriter(object):
 
             # then calculate the probability
             assert mute_freq != 1.0 and mute_freq != 0.0
-            if germline_nuke == 'N':  # ambiguous
+            if germline_nuke in utils.ambiguous_bases:
                 prob = 1. / len(utils.nukes)
             else:
                 # first figure out the mutation frequency we're going to use
@@ -755,7 +749,8 @@ class HmmWriter(object):
         if math.fabs(total - 1.0) >= self.eps:
             raise Exception('emission not normalized in state %s (total %f)   %s' % (state.name, total, emission_probs))
         state.add_emission(self.track, emission_probs)
-        if self.args.ambig_base is not None:  # and 'insert' not in state.name:
+        if len(utils.ambiguous_bases) > 0:  # and 'insert' not in state.name:
             state.extras['ambiguous_emission_prob'] = self.get_ambiguos_emission_prob(inuke)
-            state.extras['ambiguous_char'] = 'N'
+            assert len(utils.ambiguous_bases) == 1
+            state.extras['ambiguous_char'] = utils.ambiguous_bases[0]
             # print '%30s, %4d %f' % (state.name, inuke, self.get_ambiguos_emission_prob(inuke))

@@ -162,7 +162,7 @@ class Clusterer(object):
                 u_seq = get_d_plus_insertions(uid)
                 if len(cl_seq) != len(u_seq):
                     continue
-                hamming_frac = float(utils.hamming(cl_seq, u_seq)) / len(cl_seq)
+                hamming_frac = utils.hamming_fraction(cl_seq, u_seq)
                 if hamming_frac > 0.1:  # if cdr3 is more than 10 percent different we got no match
                     # print '      hamming too large', hamming_frac
                     continue

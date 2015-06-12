@@ -82,7 +82,6 @@ class PartitionDriver(object):
         waterer.run()
         self.sw_info = waterer.info
         self.write_hmms(sw_parameter_dir)
-        raise Exception('done!')
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True, plotdir=self.args.plotdir + '/hmm')
         self.write_hmms(parameter_out_dir)
@@ -278,8 +277,8 @@ class PartitionDriver(object):
             cmd_str += ' --truncate-seqs'
         if self.args.allow_unphysical_insertions:
             cmd_str += ' --unphysical-insertions'
-        if self.args.ambig_base is not None:
-            cmd_str += ' --ambig-base ' + self.args.ambig_base
+        assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+        cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
 
         # print cmd_str
         # sys.exit()
@@ -360,7 +359,8 @@ class PartitionDriver(object):
                 if self.args.pad_sequences:
                     padleft = self.sw_info[query]['padded']['padleft']  # we're padding the *naive* seq corresponding to query now, but it'll be the same length as the query seq
                     padright = self.sw_info[query]['padded']['padright']
-                    naive_seqs[query] = padleft * self.args.ambig_base + naive_seqs[query] + padright * self.args.ambig_base
+                    assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+                    naive_seqs[query] = padleft * utils.ambiguous_bases[0] + naive_seqs[query] + padright * utils.ambiguous_bases[0]
                 # cyst_positions[query] = self.sw_info[query]['cyst_position']
             elif len(query.split(':')) > 1:  # hmm... multiple queries without cached hmm naive sequences... that shouldn't happen
                 print 'ERROR no naive sequence for %s' % query
@@ -382,8 +382,7 @@ class PartitionDriver(object):
         # sys.exit()
 
         clust = Glomerator()
-        divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs, ambig_base=self.args.ambig_base)
-        sys.exit()
+        divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
         if debug:
             print '  divvy lengths'
             for dq in divvied_queries:
@@ -704,7 +703,8 @@ class PartitionDriver(object):
 
             swfo['padded'] = {}
             padfo = swfo['padded']  # shorthand
-            padfo['seq'] = padleft * self.args.ambig_base + seq + padright * self.args.ambig_base
+            assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+            padfo['seq'] = padleft * utils.ambiguous_bases[0]+ seq + padright * utils.ambiguous_bases[0]
             padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
             padfo['cyst_position'] = swfo['cyst_position'] + padleft
             padfo['padleft'] = padleft
@@ -1142,7 +1142,7 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in self.get_true_clusters(line['unique_ids']).values():
                 for iid in range(len(uids)):
-                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0), ambiguous_base=self.args.ambig_base)
+                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0))
                     out_str_list.append(true_event_str)
             ilabel = 'inferred:'
 
@@ -1154,7 +1154,7 @@ class PartitionDriver(object):
             if self.args.truncate_n_sets:
                 tmpline['chops'] = chops[iseq]
             label = ilabel if iseq==0 else ''
-            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0), ambiguous_base=self.args.ambig_base)
+            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
             out_str_list.append(event_str)
 
             # if iseq == 0:

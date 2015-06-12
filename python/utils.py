@@ -46,6 +46,7 @@ effective_erosions = ['v_5p', 'j_3p']
 boundaries = ['vd', 'dj']
 humans = ['A', 'B', 'C']
 nukes = ['A', 'C', 'G', 'T']
+ambiguous_bases = ['N', ]
 naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
@@ -149,10 +150,10 @@ def color(col, seq):
     return Colors[col] + seq + Colors['end']
 
 # ----------------------------------------------------------------------------------------
-def color_chars(char, col, seq):
+def color_chars(chars, col, seq):
     return_str = ''
     for ch in seq:
-        if ch == char:
+        if ch in chars:
             return_str += color(col, ch)
         else:
             return_str += ch
@@ -340,10 +341,13 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
-def is_mutated(original, final, n_muted=-1, n_total=-1, ambiguous_base=''):
+def is_mutated(original, final, n_muted=-1, n_total=-1):
     n_total += 1
     return_str = final
-    if original != final and ambiguous_base != original and ambiguous_base != final:
+    alphabet = nukes + ambiguous_bases
+    if original not in alphabet or final not in alphabet:
+        raise Exception('bad base (%s or %s) in utils.is_mutated()' % (original, final))
+    if original != final and original not in ambiguous_bases and final not in ambiguous_bases:
         return_str = color('red', final)
         n_muted += 1
     return return_str, n_muted, n_total
@@ -513,7 +517,7 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     #     print '      ERROR %s failed to add match info' % ' '.join([str(i) for i in ids])
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', ambiguous_base=''):
+def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -549,23 +553,23 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         else:
             ilocal -= len(line['fv_insertion'])
             if ilocal < lengths['v']:
-                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
+                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
             else:
                 ilocal -= lengths['v']
                 if ilocal < len(line['vd_insertion']):
-                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
+                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                 else:
                     ilocal -= len(line['vd_insertion'])
                     if ilocal < lengths['d']:
-                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
+                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
                     else:
                         ilocal -= lengths['d']
                         if ilocal < len(line['dj_insertion']):
-                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
+                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                         else:
                             ilocal -= len(line['dj_insertion'])
                             if ilocal < lengths['j']:
-                                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
+                                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
                             else:
                                 new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total+1
                                 j_right_extra += ' '
@@ -614,8 +618,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     insert_line += j_right_extra
     insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
-    if ambiguous_base != '':
-        insert_line = color_chars(ambiguous_base, 'light_blue', insert_line)
+    insert_line = color_chars(ambiguous_bases, 'light_blue', insert_line)
 
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
@@ -624,8 +627,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
     # d_line += ' '*len(line['jf_insertion'])
-    if ambiguous_base != '':
-        d_line = color_chars(ambiguous_base, 'light_blue', d_line)
+    d_line = color_chars(ambiguous_bases, 'light_blue', d_line)
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
@@ -634,8 +636,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
     # vj_line += ' '*len(line['jf_insertion'])
-    if ambiguous_base != '':
-        vj_line = color_chars(ambiguous_base, 'light_blue', vj_line)
+    vj_line = color_chars(ambiguous_bases, 'light_blue', vj_line)
 
     if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
         # print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
@@ -664,8 +665,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             j_3p_del_space_str = j_3p_del_space_str[line['chops']['right'] : ]
             final_seq = final_seq + color('green', '.'*line['chops']['right'])
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
-    if ambiguous_base != '':
-        final_seq = color_chars(ambiguous_base, 'light_blue', final_seq)
+    final_seq = color_chars(ambiguous_bases, 'light_blue', final_seq)
 
     out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info
@@ -902,25 +902,29 @@ def get_hamming_distances(pairs):
     return return_info
 
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, alphabet=None, ambig_chars=None):
+def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False):
     assert len(seq1) == len(seq2)
     if len(seq1) == 0:
         return 0.
 
+    alphabet = nukes + ambiguous_bases
     distance, len_excluding_ambig = 0, 0
     for ch1, ch2 in zip(seq1, seq2):
         if alphabet is not None:  # check that both characters are in the expected alphabet
             if ch1 not in alphabet or ch2 not in alphabet:
-                raise Exception('unexpected character (%s or %s) not among %s in hamming()' % (ch1, ch2, alphabet))
-        if ambig_chars is not None:  # skip ambiguous chars
-            if ch1 in ambig_chars or ch2 in ambig_chars:
-                continue
+                raise Exception('unexpected character (%s or %s) not among %s in hamming_fraction()' % (ch1, ch2, alphabet))
+        if ch1 in ambiguous_bases or ch2 in ambiguous_bases:
+            continue
 
         len_excluding_ambig += 1
         if ch1 != ch2:
             distance += 1
 
-    return distance / float(len_excluding_ambig)
+    fraction = distance / float(len_excluding_ambig)
+    if return_len_excluding_ambig:
+        return fraction, len_excluding_ambig
+    else:
+        return  fraction
 
 # ----------------------------------------------------------------------------------------
 def get_key(names):

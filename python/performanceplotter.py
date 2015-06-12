@@ -88,7 +88,8 @@ class PerformancePlotter(object):
             print '  true ', true_naive_seq
             print '  infer', inferred_naive_seq
             sys.exit()
-        total_distance = utils.hamming(true_naive_seq, inferred_naive_seq)
+        fraction, len_excluding_ambig = utils.hamming_fraction(true_naive_seq, inferred_naive_seq, return_len_excluding_ambig=True)
+        total_distance = int(fraction * len_excluding_ambig)
         if len(true_naive_seq) == 0:
             print 'WARNING zero length sequence in hamming_distance_to_true_naive'
             return 0

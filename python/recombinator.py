@@ -271,7 +271,7 @@ class Recombinator(object):
                 # print '    only saw %s %d times, use info from other genes' % (utils.color_gene(gene_name), n_occurences)
                 replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
 
-        mute_freqs = paramutils.read_mute_info(self.args.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
+        mute_freqs, mute_counts = paramutils.read_mute_info(self.args.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
         rates = []  # list with a relative mutation rate for each position in <seq>
         total = 0.0
         # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
