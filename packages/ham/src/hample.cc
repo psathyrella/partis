@@ -39,7 +39,7 @@ int main(int argc, const char *argv[]) {
   // create sequences from command line
   Sequences seqs;
   for(auto & seqstr : seqstrs)
-    seqs.AddSeq(Sequence(hmm.track(0), "seq", seqstr));
+    seqs.AddSeq(Sequence(hmm.track(), "seq", seqstr));
 
   // make the trellis, a wrapper for holding the DP tables and running the algorithms
   trellis trell(&hmm, seqs);

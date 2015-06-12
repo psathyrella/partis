@@ -14,25 +14,22 @@ namespace ham {
 class LexicalTable {
 public:
   LexicalTable();
-  void Init();
-  void ReplaceLogProbs(vector<vector<double> > new_log_probs);  // replace values in <log_probs_> with thsoe in <new_log_probs>
+  void Init(Track *track);
+  void ReplaceLogProbs(vector<double> new_log_probs);  // replace values in <log_probs_> with thsoe in <new_log_probs>
   void UnReplaceLogProbs();  // revert to the original log probs
   ~LexicalTable();
 
-  void AddTrack(Track* trk, int order) { tracks.push_back(trk); }
-  void AddColumn(vector<double> logprobs);
-  vector<vector<double> > log_probs() { return log_probs_; }  // NOTE returns a *copy*
+  void SetLogProbs(vector<double> logprobs) { log_probs_ = logprobs; }
+  vector<double> log_probs() { return log_probs_; }  // NOTE returns a *copy*
 
-  double LogProb(size_t letter) { assert(letter < log_probs_[0].size()); return log_probs_[0][letter]; }
+  double LogProb(size_t index) { assert(index < log_probs_.size()); return log_probs_[index]; }
   double LogProb(Sequence *seq, size_t pos);
-  Track* track(size_t iter) { return tracks.at(iter); }
-  size_t n_tracks() { return tracks.size(); }
-  uint8_t alphabet_size(size_t i) { return tracks[i]->alphabet_size(); }
+  Track *track() { return track_; }
 
 private:
-  vector<Track*> tracks;  // tracks which are used by emissions in this table
-  vector<vector<double> > log_probs_;
-  vector<vector<double> > original_log_probs_;  // i.e. before we rescaled the mute freq
+  Track *track_;
+  vector<double> log_probs_;
+  vector<double> original_log_probs_;  // i.e. before we rescaled the mute freq
 };
 
 }

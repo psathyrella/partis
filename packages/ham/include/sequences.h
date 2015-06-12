@@ -11,8 +11,8 @@ class Sequence {
   friend class Sequences;
 public:
   Sequence();  // NOTE don't use this! It's only so I can use stl maps without crashing
-  Sequence(Track* trk, string name, string &undigitized, int cyst_position);
-  Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len, int untruncated_cyst_position);  // create the subsequence from <pos> of length <len>. NOTE <untruncated_cyst_position> argument refers to the position in <undigitized>, i.e. *before* truncation at <pos>
+  Sequence(Track* trk, string name, string &undigitized, int cyst_position = -1);
+  Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len, int untruncated_cyst_position = -1);  // create the subsequence from <pos> of length <len>. NOTE <untruncated_cyst_position> argument refers to the position in <undigitized>, i.e. *before* truncation at <pos>
   Sequence(Sequence &rhs, size_t pos, size_t len);
   Sequence(const Sequence &rhs);
   ~Sequence();

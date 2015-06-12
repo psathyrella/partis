@@ -100,7 +100,7 @@ void trellis::Viterbi() {
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if(!(*initial_to_states)[st])  // skip <st> if there's no transition to it from <init>
       continue;
-    double emission_val = hmm_->state(st)->emission_logprob(&seqs_, 0);
+    double emission_val = hmm_->state(st)->EmissionLogprob(&seqs_, 0);
     double dp_val = emission_val + init->transition_logprob(st);
     if(dp_val == -INFINITY)
       continue;
@@ -130,7 +130,7 @@ void trellis::Viterbi() {
       if(!current_states[st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
         continue;
 
-      double emission_val = hmm_->state(st_current)->emission_logprob(&seqs_, position);
+      double emission_val = hmm_->state(st_current)->EmissionLogprob(&seqs_, position);
       if(emission_val == -INFINITY)
         continue;
       bitset<STATE_MAX> *from_trans = hmm_->state(st_current)->from_states();  // list of states from which we could've arrive at <st_current>
@@ -205,7 +205,7 @@ void trellis::Forward() {
   for(size_t st = 0; st < hmm_->n_states(); ++st) {
     if(!(*initial_to_states)[st])  // skip <st> if there's no transition to it from <init>
       continue;
-    double emission_val = hmm_->state(st)->emission_logprob(&seqs_, 0);
+    double emission_val = hmm_->state(st)->EmissionLogprob(&seqs_, 0);
     double dp_val = emission_val + init->transition_logprob(st);
     if(dp_val == -INFINITY)
       continue;
@@ -235,7 +235,7 @@ void trellis::Forward() {
       if(!current_states[st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
         continue;
 
-      double emission_val = hmm_->state(st_current)->emission_logprob(&seqs_, position);
+      double emission_val = hmm_->state(st_current)->EmissionLogprob(&seqs_, position);
       if(emission_val == -INFINITY)
         continue;
       bitset<STATE_MAX> *from_trans = hmm_->state(st_current)->from_states();  // list of states from which we could've arrive at <st_current>

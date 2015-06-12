@@ -2,15 +2,28 @@
 
 namespace ham {
 // ----------------------------------------------------------------------------------------
-Model::Model() : overall_prob_(0.0), original_overall_mute_freq_(0.0), rescale_ratio_(-INFINITY), ambiguous_char_(""), initial_(NULL), finalized_(false) {
+Model::Model() :
+  overall_prob_(0.0),
+  original_overall_mute_freq_(0.0),
+  rescale_ratio_(-INFINITY),
+  ambiguous_char_(""),
+  track_(nullptr),
+  initial_(nullptr),
+  finalized_(false)
+{
   ending_ = new State;
 }
 
 // ----------------------------------------------------------------------------------------
+Model::~Model() {
+  delete ending_;
+  ending_ = nullptr;
+}
+
+// ----------------------------------------------------------------------------------------
 void Model::Parse(string infname) {
-  if(!ifstream(infname)) {
-    throw runtime_error("ERROR " + infname + " does not exist.");
-  }
+  if(!ifstream(infname))
+    throw runtime_error("input file " + infname + " does not exist.");
 
   // load yaml
   YAML::Node config = YAML::LoadFile(infname);
@@ -31,14 +44,15 @@ void Model::Parse(string infname) {
   try {
     // and the tracks
     YAML::Node tracks(config["tracks"]);
+    assert(tracks.size() == 1);  // don't at the moment support multiple tracks
     for(YAML::const_iterator it = tracks.begin(); it != tracks.end(); ++it) {
-      Track *trk = new Track;
-      trk->set_name(it->first.as<string>());
+      assert(track_ == nullptr);  // shouldn't already be initialized
+      track_ = new Track;
+      track_->set_name(it->first.as<string>());
       if(ambiguous_char_ != "")
-	trk->SetAmbiguous(ambiguous_char_);
+	track_->SetAmbiguous(ambiguous_char_);
       for(size_t ic = 0; ic < it->second.size(); ++ic)
-        trk->AddSymbol(it->second[ic].as<string>());
-      tracks_.push_back(trk);
+        track_->AddSymbol(it->second[ic].as<string>());
     }
   } catch(...) {
     cerr << "ERROR invalid track specifications in " << infname << endl;
@@ -68,7 +82,7 @@ void Model::Parse(string infname) {
   for(size_t ist = 0; ist < state_names.size(); ++ist) {
     State *st(new State);
     try {
-      st->Parse(config["states"][ist], state_names, tracks_);
+      st->Parse(config["states"][ist], state_names, track_);
     } catch(...) {
       cerr << "ERROR invalid specification for state '" << state_names[ist] << "' in " << infname << endl;
       throw;
