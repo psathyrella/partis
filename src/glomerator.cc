@@ -242,26 +242,28 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 }
 
 // ----------------------------------------------------------------------------------------
-int Glomerator::HammingDistance(string seq_a, string seq_b) {
+double Glomerator::HammingFraction(string seq_a, string seq_b) {
   if(seq_a.size() != seq_b.size())
-    throw runtime_error("ERROR sequences different length in Glomerator::HammingDistance (" + seq_a + "," + seq_b + ")\n");
-  int distance(0);
+    throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a + "," + seq_b + ")\n");
+  int distance(0), len_excluding_ambigs(0);
   for(size_t ic=0; ic<seq_a.size(); ++ic) {
-    if(seq_a[ic] != seq_b[ic])
+    string ch_a(seq_a.substr(ic, 1));
+    string ch_b(seq_b.substr(ic, 1));
+    if(ch_a == args_->ambig_base() || ch_b == args_->ambig_base())  // skip this position if either sequence has an ambiguous character (if not set, ambig-base should be the empty string)
+      continue;
+    assert(track_->symbol_index(ch_a) < track_->alphabet_size());  // check that both characters are in the expected alphabet
+    assert(track_->symbol_index(ch_b) < track_->alphabet_size());  // check that both characters are in the expected alphabet
+
+    ++len_excluding_ambigs;
+    if(ch_a != ch_b)
       ++distance;
   }
-  return distance;
+  return distance / double(len_excluding_ambigs);
 }
 
 // ----------------------------------------------------------------------------------------
-int Glomerator::HammingDistance(Sequence seq_a, Sequence seq_b) {
-  assert(seq_a.size() == seq_b.size());
-  int distance(0);
-  for(size_t ic=0; ic<seq_a.size(); ++ic) {
-    if(seq_a[ic] != seq_b[ic])
-      ++distance;
-  }
-  return distance;
+double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
+  return HammingFraction(seq_a.undigitized(), seq_b.undigitized());
 }
 
 // ----------------------------------------------------------------------------------------
@@ -280,7 +282,7 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
 	     int(nseqs[0].size()), int(nseqs[1].size()),
 	     key_a.c_str(), key_b.c_str());
   }
-  return HammingDistance(nseqs[0], nseqs[1]) / double(nseqs[0].size());  // hamming distance fcn will fail if the seqs aren't the same length
+  return HammingFraction(nseqs[0], nseqs[1]);  // hamming distance fcn will fail if the seqs aren't the same length
 }
 
 // ----------------------------------------------------------------------------------------

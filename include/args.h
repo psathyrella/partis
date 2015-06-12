@@ -25,9 +25,8 @@ public:
   string cachefile() { return cachefile_arg_.getValue(); }
   float hamming_fraction_cutoff() { return hamming_fraction_cutoff_arg_.getValue(); }
   string algorithm() { return algorithm_arg_.getValue(); }
-  // string algorithm() { return algorithm_; }
+  string ambig_base() { return ambig_base_arg_.getValue(); }
   int debug() { return debug_arg_.getValue(); }
-  // int debug() { return debug_; }
   int n_best_events() { return n_best_events_arg_.getValue(); }
   int smc_particles() { return smc_particles_arg_.getValue(); }
   bool chunk_cache() { return chunk_cache_arg_.getValue(); }
@@ -41,7 +40,7 @@ public:
   vector<int> debug_ints_;
   ValuesConstraint<string> algo_vals_;
   ValuesConstraint<int> debug_vals_;
-  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, cachefile_arg_, algorithm_arg_;
+  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, cachefile_arg_, algorithm_arg_, ambig_base_arg_;
   ValueArg<float> hamming_fraction_cutoff_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_, smc_particles_arg_;
   SwitchArg chunk_cache_arg_, partition_arg_, truncate_seqs_arg_, rescale_emissions_arg_, unphysical_insertions_arg_;
@@ -54,11 +53,6 @@ public:
   map<string, vector<vector<int> > > int_lists_;
   map<string, vector<vector<double> > > float_lists_;
   set<string> str_headers_, int_headers_, float_headers_, str_list_headers_, int_list_headers_, float_list_headers_;
-
-  // // extra values to cache command line args (TCLAP calls to ValuesConstraint::check() seem to be really slow
-  // UPDATE hmm, didn't seem to help. leave it for the moment
-  // string algorithm_;
-  // int debug_;
 };
 }
 #endif

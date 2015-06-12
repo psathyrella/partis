@@ -14,6 +14,7 @@ Args::Args(int argc, const char * argv[]):
   outfile_arg_("", "outfile", "output csv file", true, "", "string"),
   cachefile_arg_("", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
+  ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
   hamming_fraction_cutoff_arg_("", "hamming-fraction-cutoff", "hamming fraction cutoff for clustering", false, -1.0, "float"),
   debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
   n_best_events_arg_("", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
@@ -39,6 +40,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(cachefile_arg_);
     cmd.add(hamming_fraction_cutoff_arg_);
     cmd.add(algorithm_arg_);
+    cmd.add(ambig_base_arg_);
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
     cmd.add(smc_particles_arg_);
