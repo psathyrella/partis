@@ -138,6 +138,7 @@ Colors['head'] = '\033[95m'
 Colors['bold'] = '\033[1m'
 Colors['purple'] = '\033[95m'
 Colors['blue'] = '\033[94m'
+Colors['light_blue'] = '\033[1;34m'
 Colors['green'] = '\033[92m'
 Colors['yellow'] = '\033[93m'
 Colors['red'] = '\033[91m'
@@ -146,6 +147,16 @@ Colors['end'] = '\033[0m'
 def color(col, seq):
     assert col in Colors
     return Colors[col] + seq + Colors['end']
+
+# ----------------------------------------------------------------------------------------
+def color_chars(char, col, seq):
+    return_str = ''
+    for ch in seq:
+        if ch == char:
+            return_str += color(col, ch)
+        else:
+            return_str += ch
+    return return_str
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str=''):
@@ -329,10 +340,10 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
-def is_mutated(original, final, n_muted=-1, n_total=-1):
+def is_mutated(original, final, n_muted=-1, n_total=-1, ambiguous_base=''):
     n_total += 1
     return_str = final
-    if original != final:
+    if original != final and ambiguous_base != original and ambiguous_base != final:
         return_str = color('red', final)
         n_muted += 1
     return return_str, n_muted, n_total
@@ -502,7 +513,7 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     #     print '      ERROR %s failed to add match info' % ' '.join([str(i) for i in ids])
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label=''):
+def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', ambiguous_base=''):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
@@ -538,23 +549,23 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
         else:
             ilocal -= len(line['fv_insertion'])
             if ilocal < lengths['v']:
-                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
+                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
             else:
                 ilocal -= lengths['v']
                 if ilocal < len(line['vd_insertion']):
-                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
+                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
                 else:
                     ilocal -= len(line['vd_insertion'])
                     if ilocal < lengths['d']:
-                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
+                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
                     else:
                         ilocal -= lengths['d']
                         if ilocal < len(line['dj_insertion']):
-                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
+                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
                         else:
                             ilocal -= len(line['dj_insertion'])
                             if ilocal < lengths['j']:
-                                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
+                                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total, ambiguous_base)
                             else:
                                 new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total+1
                                 j_right_extra += ' '
@@ -603,6 +614,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     insert_line += j_right_extra
     insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
+    if ambiguous_base != '':
+        insert_line = color_chars(ambiguous_base, 'light_blue', insert_line)
 
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
@@ -611,6 +624,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
     # d_line += ' '*len(line['jf_insertion'])
+    if ambiguous_base != '':
+        d_line = color_chars(ambiguous_base, 'light_blue', d_line)
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
@@ -619,6 +634,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
     # vj_line += ' '*len(line['jf_insertion'])
+    if ambiguous_base != '':
+        vj_line = color_chars(ambiguous_base, 'light_blue', vj_line)
 
     if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
         # print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
@@ -647,6 +664,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             j_3p_del_space_str = j_3p_del_space_str[line['chops']['right'] : ]
             final_seq = final_seq + color('green', '.'*line['chops']['right'])
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
+    if ambiguous_base != '':
+        final_seq = color_chars(ambiguous_base, 'light_blue', final_seq)
 
     out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info

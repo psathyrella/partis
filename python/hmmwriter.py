@@ -6,6 +6,7 @@ import collections
 import yaml
 from scipy.stats import norm
 import csv
+import time
 
 import utils
 from opener import opener
@@ -171,16 +172,22 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seq, args):
+    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seqs, args, cyst_positions, tryp_positions):
+        self.region = utils.get_region(gene_name)
+        self.raw_name = gene_name  # i.e. unsanitized
+        self.germline_seqs = germline_seqs  # all germline alleles
+        self.germline_seq = self.germline_seqs[self.region][gene_name]  # germline sequence for this hmm
         self.indir = base_indir
         self.args = args
+        self.cyst_positions = cyst_positions
+        self.tryp_positions = tryp_positions
 
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = 20
-        self.allow_unphysical_insertions = self.args.allow_unphysical_insertions # allow fv and jf insertions. NOTE this slows things down by a factor of 6 or so
         # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
+        self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
 
         self.v_3p_del_pseudocount_limit = 10  # add at least one entry 
 
@@ -188,21 +195,19 @@ class HmmWriter(object):
         # self.mean_mute_freq = 0.0
 
         self.outdir = outdir
-        self.region = utils.get_region(gene_name)
         self.naivety = naivety
-        self.germline_seq = germline_seq
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
 
         # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
         self.insertions = []
         if self.region == 'v':
-            if self.allow_unphysical_insertions:
+            if self.args.allow_unphysical_insertions:
                 self.insertions.append('fv')
         elif self.region == 'd':
             self.insertions.append('vd')
         elif self.region == 'j':
             self.insertions.append('dj')
-            if self.allow_unphysical_insertions:
+            if self.args.allow_unphysical_insertions:
                 self.insertions.append('jf')
 
         self.erosion_probs = {}
@@ -243,6 +248,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_states(self):
+        # TODO it'd kinda make more sense for the fv and jf insertions to only have one state (rather than 4), but for the moment I'm just leaving with 4 'cause it's easier to leave them the same as the physical insertions
         self.add_init_state()
         # then left side insertions
         for insertion in self.insertions:
@@ -254,7 +260,7 @@ class HmmWriter(object):
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             self.add_internal_state(inuke)
         # and finally right side insertions
-        if self.region == 'j' and self.allow_unphysical_insertions:
+        if self.region == 'j' and self.args.allow_unphysical_insertions:
             self.add_righthand_insert_state(insertion='jf')
 
     # ----------------------------------------------------------------------------------------
@@ -262,14 +268,18 @@ class HmmWriter(object):
         init_state = State('init')
         lefthand_insertion = ''
         if len(self.insertions) > 0:
-            lefthand_insertion = self.insertions[0]
+            lefthand_insertion = self.insertions[0]  # assumes it's impossible to have only a righthand deletion... which it oughta be
             assert 'jf' not in lefthand_insertion
         self.add_region_entry_transitions(init_state, lefthand_insertion)
         self.hmm.add_state(init_state)
 
     # ----------------------------------------------------------------------------------------
     def add_lefthand_insert_states(self, insertion):
-        for nuke in utils.nukes:  # these states emit Ns, so we don't need a separate N insert state
+        if not insertion in utils.boundaries:
+            nukelist = ['N', ]
+        else:
+            nukelist = utils.nukes
+        for nuke in nukelist:  # these states emit Ns, so we don't need a separate N insert state
             insert_state = State('insert_left_' + nuke)
             insert_state.extras['germline'] = nuke
             self.add_region_entry_transitions(insert_state, insertion)
@@ -292,7 +302,7 @@ class HmmWriter(object):
         distance_to_end = len(self.germline_seq) - inuke - 1
         if distance_to_end > 0:  # if we're not at the end of this germline gene, add a transition to the next state
             state.add_transition('%s_%d' % (self.saniname, inuke+1), 1.0 - exit_probability)
-        if exit_probability >= utils.eps or distance_to_end == 0:  # add transition to 'end' or 'insert_right' if there's a decent chance of eroding to here, or if we're at the end of the germline sequence
+        if exit_probability >= utils.eps or distance_to_end == 0:  # add transitions to end and righthand insertions if there's a decent chance of eroding to here, or if we're at the end of the germline sequence
             self.add_region_exit_transitions(state, exit_probability)
 
         # emissions
@@ -302,10 +312,14 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_righthand_insert_state(self, insertion):
-        for nuke in utils.nukes:  # these states emit Ns, so we don't need a separate N insert state
+        if not insertion in utils.boundaries:
+            nukelist = ['N', ]
+        else:
+            nukelist = utils.nukes
+        for nuke in nukelist:  # these states emit Ns, so we don't need a separate N insert state
             insert_state = State('insert_right_' + nuke)
             insert_state.extras['germline'] = nuke
-            self.add_region_exit_transitions(insert_state, exit_probability=1.0)
+            self.add_region_exit_transitions(insert_state, exit_probability=1.0)  # the 1.0 means we're not really exiting a region, but already exited it and are in the righthand insert states
 
             self.add_emissions(insert_state, germline_nuke=nuke)
             self.hmm.add_state(insert_state)
@@ -456,19 +470,61 @@ class HmmWriter(object):
             print '  insertion content for', insertion, self.insertion_content_probs[insertion]
 
     # ----------------------------------------------------------------------------------------
-    def get_mean_insert_length(self, insertion):
-        total, n_tot = 0.0, 0.0
-        for length, prob in self.insertion_probs[insertion].iteritems():
-            total += prob*length
-            n_tot += prob
-        if n_tot == 0.0:
-            return -1
-        else:
-            return total / n_tot
+    def get_mean_insert_length(self, insertion, debug=False):
+        if insertion in utils.boundaries:  # for real insertions, use the mean of the inferred histogram
+            total, n_tot = 0.0, 0.0
+            for length, prob in self.insertion_probs[insertion].iteritems():
+                total += prob*length
+                n_tot += prob
+            if n_tot == 0.0:
+                return -1
+            else:
+                return total / n_tot
+        else:  # but for fv and jf, use the relative germline allele lengths
+            lengths = []
+            if insertion == 'fv':  # use the mean difference between other V gene cdr3 positions and ours (or zero, if its negative, i.e. if this V gene is really long)
+                our_cpos = self.cyst_positions[self.raw_name]['cysteine-position']  # cpos of this hmm's gene
+                if debug:
+                    print '  %15s  cpos  delta_cpos' % ''
+                for gene in self.germline_seqs['v']:
+                    cpos = self.cyst_positions[gene]['cysteine-position']
+                    delta_cpos = cpos - our_cpos
+                    if delta_cpos < 0:  # count shorter genes as zeros in the averaging
+                        lengths.append(0)
+                    else:
+                        lengths.append(delta_cpos)
+                    if debug:
+                        print '  %15s %3d %3d   %3d' % (gene, cpos, delta_cpos, lengths[-1])
+            elif insertion == 'jf':
+                our_tpos_to_end = len(self.germline_seq) - int(self.tryp_positions[self.raw_name])  # tpos of this hmm's gene
+                if debug:
+                    print '  our tpos to end: %d - %d = %d' % (len(self.germline_seq), int(self.tryp_positions[self.raw_name]), len(self.germline_seq) - int(self.tryp_positions[self.raw_name]))
+                    print '  %15s  tpos-to-end  delta' % ''
+                for gene in self.germline_seqs['j']:
+                    tpos_to_end = len(self.germline_seqs['j'][gene]) - int(self.tryp_positions[gene])
+                    delta_tpos_to_end = tpos_to_end - our_tpos_to_end
+                    if delta_tpos_to_end < 0:  # count shorter genes as zeros in the averaging
+                        lengths.append(0)
+                    else:
+                        lengths.append(delta_tpos_to_end)
+                    if debug:
+                        print '  %15s %3d %3d    %3d' % (gene, tpos_to_end, delta_tpos_to_end, lengths[-1])
+            else:
+                raise Exception('bad unphysical insertion %s' % insertion)
+
+            mean_len = float(sum(lengths)) / len(lengths)
+            return_val = mean_len
+            if mean_len <= self.min_mean_unphysical_insertion_length[insertion]:  # if the mean is very small, return 1.5 instead, since we want to allow a little fuzz (i.e. some insertion) just in case (we invert this to get the prob of zero length insertion, so we need it to be bigger than 1.)
+                return_val = self.min_mean_unphysical_insertion_length[insertion]
+
+            if debug:
+                print 'mean: %.2f  (return %.2f)' % (mean_len, return_val)
+
+            return return_val
 
     # ----------------------------------------------------------------------------------------
     def get_inverse_insert_length(self, insertion):
-        mean_length = self.get_mean_insert_length(insertion)
+        mean_length = self.get_mean_insert_length(insertion)  # it's kind of wasteful to call this in a few places, but it's actually really fast
         assert mean_length >= 0.0
         inverse_length = 0.0
         if mean_length > 0.0:
@@ -499,6 +555,18 @@ class HmmWriter(object):
             return self_transition_prob
 
     # ----------------------------------------------------------------------------------------
+    def get_zero_length_insertion_prob(self, insertion):
+        if insertion in utils.boundaries:  # for real insertions, it's just the zero bin in the input inferred histogram
+            return self.insertion_probs[insertion][0]
+        else:  # but for fv and jf insertions, we need the insertion length to be determined by the relative lengths of the germline alleles
+            mean_length = self.get_mean_insert_length(insertion)  # it's kind of wasteful to call this in a few places, but it's actually really fast
+            assert mean_length > 0.0  # should have returned min_mean_unphysical_insertion_length if the mean was small
+            zero_length_prob = 1. / mean_length  # return the prob of zero for a geometric distribution with the same mean
+            if zero_length_prob < 0. or zero_length_prob > 1.:
+                raise Exception('bad zero length insertion prob %f' % zero_length_prob)
+            return zero_length_prob
+
+    # ----------------------------------------------------------------------------------------
     def add_region_entry_transitions(self, state, insertion):
         """
         Add transitions *into* the v, d, or j regions. Called from either the 'init' state or the 'insert_left' state.
@@ -509,16 +577,13 @@ class HmmWriter(object):
         assert 'jf' not in insertion  # need these to only be *left*-hand insertions
         assert state.name == 'init' or 'insert' in state.name
 
-        region_entry_prob = 0.0  # Prob to go directly into the region (i.e. with no insertion)
-                                 # The sum of the region entry probs must be (1 - non_zero_insertion_prob) for d and j
-                                 # (i.e. such that [prob of transitions to insert] + [prob of transitions *not* to insert] is 1.0)
-
         # first add transitions to the insert state
+        region_entry_prob = 0.0  # Prob to go to an internal germline state (i.e. not to an insert state)
         if state.name == 'init':
             if insertion == '':
                 region_entry_prob = 1.0  # if no insert state on this side (i.e. we're on left side of v), we have no choice but to enter the region (the internal states)
             else:
-                region_entry_prob = self.insertion_probs[insertion][0]  # prob of entering the region from 'init' is the prob of a zero-length insertion
+                region_entry_prob = self.get_zero_length_insertion_prob(insertion)  # prob of entering the region from 'init' is the prob of a zero-length insertion
         elif 'insert' in state.name:
             region_entry_prob = 1.0 - self.get_insert_self_transition_prob(insertion)  # the 'insert_left' state has to either go to itself, or else enter the region
         else:
@@ -528,8 +593,13 @@ class HmmWriter(object):
         # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
         # update: now, we also multiply by the insertion content prob, since we now have four insert states (and can thus no longer use this prob in the emissions)
         if insertion != '':
-            for nuke in utils.nukes:
-                state.add_transition('insert_left_' + nuke, (1.0 - region_entry_prob) * self.insertion_content_probs[insertion][nuke])
+            if not insertion in utils.boundaries:
+                nukelist = ['N', ]
+            else:
+                nukelist = utils.nukes
+            for nuke in nukelist:
+                content_prob = 1. if nuke == 'N' else self.insertion_content_probs[insertion][nuke]
+                state.add_transition('insert_left_' + nuke, (1.0 - region_entry_prob) * content_prob)
 
         # then add transitions to the region's internal states
         total = 0.0
@@ -555,16 +625,34 @@ class HmmWriter(object):
             raise Exception('normalization problem in add_region_entry_transitions():\n  region_entry_prob: %f   total / region_entry_prob: %f' % (region_entry_prob, total / region_entry_prob))
 
     # ----------------------------------------------------------------------------------------
-    def add_region_exit_transitions(self, state, exit_probability):
-        non_zero_insertion_prob = 0.0
-        if self.region == 'j' and self.allow_unphysical_insertions:  # add transition to the righthand insert state with probability the observed probability of a non-zero insertion (times the exit_probability)
+    def add_region_exit_transitions(self, state, exit_probability):  # <exit_probability> is the prob of skipping the remainder of the internal states (of eroding up to here) [it's just 1.0 if <state> is an insert state]
+        """ add transitions from <state> to righthand insert and end states (<state> can be internal or a righthand insert). """
+        insertion = ''
+        if self.region == 'j' and self.args.allow_unphysical_insertions:
             insertion = 'jf'
-            non_zero_insertion_prob = 1.0 - self.insertion_probs[insertion][0]
-            # state.add_transition('insert_right', non_zero_insertion_prob * exit_probability)
-            for nuke in utils.nukes:
-                state.add_transition('insert_right_' + nuke, non_zero_insertion_prob * exit_probability * self.insertion_content_probs[insertion][nuke])
 
-        state.add_transition('end', (1.0 - non_zero_insertion_prob) * exit_probability)  # and add a transition to 'end' with the complement, to allow zero-length insertions
+        if 'insert' in state.name:
+            insert_self_transition_prob = self.get_insert_self_transition_prob(insertion)
+            end_prob = 1.0 - insert_self_transition_prob  # prob of going to end state from this insert state
+        else:  # internal state
+            if insertion == '':  # if no jf insertion, there's nowhere else to go but the end
+                end_prob = 1.0
+            else:
+                end_prob = self.get_zero_length_insertion_prob(insertion)  # prob of skipping insertions altogether
+
+        if insertion != '':  # add transition to righthand insert states with probability the observed probability of a non-zero insertion (times the exit_probability)
+            if not insertion in utils.boundaries:
+                nukelist = ['N', ]
+            else:
+                nukelist = utils.nukes
+            for nuke in nukelist:
+                content_prob = 1. if nuke == 'N' else self.insertion_content_probs[insertion][nuke]
+                if 'insert' in state.name:
+                    state.add_transition('insert_right_' + nuke, insert_self_transition_prob * exit_probability * content_prob)  # exit_probability should be 1.0 in this case
+                else:  # internal state
+                    state.add_transition('insert_right_' + nuke, (1.0 - end_prob) * exit_probability * content_prob)
+
+        state.add_transition('end', end_prob * exit_probability)
 
     # ----------------------------------------------------------------------------------------
     def get_exit_probability(self, inuke):
@@ -596,11 +684,11 @@ class HmmWriter(object):
             raise Exception('bad nuke (%s)' % nuke1)
         prob = 1.0
         if is_insert:
-            if germline_nuke == '':
+            if germline_nuke == '' or germline_nuke == 'N':
                 assert insertion == 'fv' or insertion == 'jf'
                 prob = 1. / len(utils.nukes)
             else:
-                assert germline_nuke in utils.nukes
+                assert germline_nuke in utils.nukes + ['N', ]
                 mute_freq = self.mute_freqs['overall_mean']  # for now, just use the mean mute freq over the whole sequence for the insertion mute freq
                 if nuke1 == germline_nuke:
                     prob = 1.0 - mute_freq  # I can think of some other ways to arrange this, but this seems ok
@@ -636,9 +724,10 @@ class HmmWriter(object):
     def get_ambiguos_emission_prob(self, inuke):
         # total_counts = mute_obs['total_counts']
         if inuke in self.mute_obs:
-            obs = [c for c in self.mute_obs[inuke].values()]  # list of length four with the number of times we observed A, C, G, and T at this position
-            sqobs = [o*o for o in obs]
-            prob = float(sum(sqobs)) / (sum(obs))**2  # mean prob per base without Ns (i.e., the use of this value for N emission should ensure that sequences with lots of Ns on average have the same total probability as those without any Ns)
+            prob = 1. / len(utils.nukes)  # hm, on second thought maybe 0.25 is better?
+            # obs = [c for c in self.mute_obs[inuke].values()]  # list of length four with the number of times we observed A, C, G, and T at this position
+            # sqobs = [o*o for o in obs]
+            # prob = float(sum(sqobs)) / (sum(obs))**2  # mean prob per base without Ns (i.e., the use of this value for N emission should ensure that sequences with lots of Ns on average have the same total probability as those without any Ns)
         else:
             prob = 1. / len(utils.nukes)  # NOTE it's debatable whether this is the best value. This will mostly (only?) get used for parts of the germline that we never saw in data (e.g. way on the left side of V when we have short reads). For these parts we use the mean mutation rate, which gives something like [0.94, 0.02, 0.02, 0.02]... but these are in practice nearly always going to be observed as ambiguous, so screw it
 
@@ -666,7 +755,7 @@ class HmmWriter(object):
         if math.fabs(total - 1.0) >= self.eps:
             raise Exception('emission not normalized in state %s (total %f)   %s' % (state.name, total, emission_probs))
         state.add_emission(self.track, emission_probs)
-        if self.args.ambig_base is not None:
+        if self.args.ambig_base is not None:  # and 'insert' not in state.name:
             state.extras['ambiguous_emission_prob'] = self.get_ambiguos_emission_prob(inuke)
             state.extras['ambiguous_char'] = 'N'
             # print '%30s, %4d %f' % (state.name, inuke, self.get_ambiguos_emission_prob(inuke))

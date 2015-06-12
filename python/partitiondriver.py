@@ -261,7 +261,7 @@ class PartitionDriver(object):
         cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
-        cmd_str += ' --datadir ' + self.args.datadir
+        cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
@@ -277,10 +277,10 @@ class PartitionDriver(object):
         if self.args.truncate_n_sets:
             cmd_str += ' --truncate-seqs'
         if self.args.allow_unphysical_insertions:
-            cmd_str += ' --unphysical-insertions
+            cmd_str += ' --unphysical-insertions'
 
-        print cmd_str
-        sys.exit()
+        # print cmd_str
+        # sys.exit()
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
@@ -582,8 +582,9 @@ class PartitionDriver(object):
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety,
-                               self.germline_seqs[utils.get_region(gene)][gene],
-                               self.args)
+                               self.germline_seqs,
+                               self.args,
+                               self.cyst_positions, self.tryp_positions)
             writer.write()
 
         # print '    time to write hmms: %.3f' % (time.time()-start)
@@ -649,7 +650,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
-
         all_v_matches, all_j_matches = set(), set()
         for query in self.sw_info['queries']:
             swfo = self.sw_info[query]
@@ -671,7 +671,7 @@ class PartitionDriver(object):
                 if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
                     maxima['gl_cpos'] = gl_cpos
             for j_match in all_j_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
-                gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + 10  # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment [so I'm just adding 10 a.t.m., for testing]
+                gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del']  # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment
                 if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
                     maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
             # if debug:
@@ -713,7 +713,7 @@ class PartitionDriver(object):
                                                             padfo['k_v']['min'], padfo['k_v']['max'])
 
         for query in self.sw_info['queries']:
-            print '%s %s' % (query, self.sw_info[query]['padded']['seq'])
+            print '%12s %s' % (query, self.sw_info[query]['padded']['seq'])
 
     # ----------------------------------------------------------------------------------------
     def truncate_seqs(self, seqinfo, kvinfo, cyst_positions, debug=False):
@@ -1139,17 +1139,19 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in self.get_true_clusters(line['unique_ids']).values():
                 for iid in range(len(uids)):
-                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0))
+                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0), ambiguous_base=self.args.ambig_base)
                     out_str_list.append(true_event_str)
             ilabel = 'inferred:'
 
-        chops = self.get_bcrham_truncations(line)
+        if self.args.truncate_n_sets:
+            chops = self.get_bcrham_truncations(line)
         for iseq in range(0, len(line['unique_ids'])):
             tmpline = dict(line)
             tmpline['seq'] = line['seqs'][iseq]
-            tmpline['chops'] = chops[iseq]
+            if self.args.truncate_n_sets:
+                tmpline['chops'] = chops[iseq]
             label = ilabel if iseq==0 else ''
-            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
+            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0), ambiguous_base=self.args.ambig_base)
             out_str_list.append(event_str)
 
             # if iseq == 0:
