@@ -251,7 +251,6 @@ class Waterer(object):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
-        raw_best = {}  # best gene for each region, as output by sw (we may decide later that we disagree on which are the best)
         first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
         all_match_names = {}
         warnings = {}  # ick, this is a messy way to pass stuff around
@@ -271,8 +270,6 @@ class Waterer(object):
             glbounds = (read.pos, read.aend)
             if region == 'v' and first_match_query_bounds is None:
                 first_match_query_bounds = qrbounds
-            # if region not in raw_best:  # we need these 'cause *these* are the v and j that get excised by sw, so to calculate k_d for every other match we have to 
-            #     raw_best[region] = gene
 
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
                 cpos = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, 'v', gene, glbounds, qrbounds, assert_on_fail=False)
@@ -280,8 +277,6 @@ class Waterer(object):
                     raise Exception('bad cysteine in %s: %d %s' % (gene, self.cyst_positions[gene]['cysteine-position'], self.germline_seqs['v'][gene]))
                 if cpos < 0 or cpos >= len(query_seq):
                     n_skipped_invalid_cpos += 1
-                    # if region not in raw_best:
-                    #     print '    skipping best %s match with cpos %d (negative or greater than %d)' % (gene, cpos, len(query_seq))
                     continue
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels
@@ -313,7 +308,7 @@ class Waterer(object):
 
         # if n_skipped_invalid_cpos > 0:
         #     print '      skipped %d invalid cpos values for %s' % (n_skipped_invalid_cpos, query_name)
-        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds)
+        self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds)
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
@@ -439,14 +434,9 @@ class Waterer(object):
             perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds):
+    def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds):
         if self.args.debug:
             print '%s' % query_name
-
-        # for region in utils.regions:
-        #     if region not in raw_best:
-        #         print '    skipping %s: no %s gene matches' % (query_name, region)
-        #         return
 
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
@@ -494,7 +484,6 @@ class Waterer(object):
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 if region == 'd':
-                    # this_k_d = all_query_bounds[gene][1] - all_query_bounds[raw_best['v']][1]  # end of d minus end of v
                     this_k_d = all_query_bounds[gene][1] - first_match_query_bounds[1]  # end of d minus end of v
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
