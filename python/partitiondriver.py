@@ -786,7 +786,7 @@ class PartitionDriver(object):
             genes_to_use = []
             for region in utils.regions:  # take the best <self.args.n_max_per_region> from each region
                 reg_genes = [g for g in only_genes if utils.get_region(g) == region]
-                n_genes = min(len(reg_genes), int(self.args.n_max_per_region[utils.regions.index(region)]))  # minimum of [the number of gene matches for this region] and [the number we want for this region]
+                n_genes = min(len(reg_genes), self.args.n_max_per_region[utils.regions.index(region)])  # minimum of [the number of gene matches for this region] and [the number we want for this region]
                 for ig in range(n_genes):  # take the first <n_genes> matches (they're ordered by sw match score)
                     genes_to_use.append(reg_genes[ig])
 
@@ -925,8 +925,8 @@ class PartitionDriver(object):
         if len(skipped_gene_matches) > 0:
             print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
             for region in utils.regions:
-                print '  %s: %d' % (region, len([gene for gene in skipped_gene_matches if utils.get_region(gene) == region])),
-                # print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
+                # print '  %s: %d' % (region, len([gene for gene in skipped_gene_matches if utils.get_region(gene) == region])),
+                print '\n      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
             print ''
 
     # ----------------------------------------------------------------------------------------

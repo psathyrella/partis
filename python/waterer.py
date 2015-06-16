@@ -75,6 +75,26 @@ class Waterer(object):
         sys.stdout.flush()
         n_procs = self.args.n_fewer_procs
         self.write_vdjalign_input(base_infname, n_procs=n_procs)
+
+        self.execute_command(base_infname, base_outfname, n_procs)
+
+        self.read_output(base_outfname, plot_performance=self.args.plot_performance, n_procs=n_procs)
+        # print '    sw time: %.3f' % (time.time()-start)
+        if self.n_unproductive > 0:
+            print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
+        if len(self.info['skipped_indel_queries']) > 0:
+            print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
+        if self.pcounter != None:
+            self.pcounter.write(self.parameter_dir)
+            # if self.true_pcounter != None:
+            #     self.true_pcounter.write(parameter_xxx_dir, plotdir=plotdir + '/true')
+            if not self.args.no_plot and self.plotdir != '':
+                self.pcounter.plot(self.plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+                if self.true_pcounter != None:
+                    self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+
+    # ----------------------------------------------------------------------------------------
+    def execute_command(self, base_infname, base_outfname, n_procs):
         if n_procs == 1:
             cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
             check_call(cmd_str.split())
@@ -94,20 +114,6 @@ class Waterer(object):
                     os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
 
         sys.stdout.flush()
-        self.read_output(base_outfname, plot_performance=self.args.plot_performance, n_procs=n_procs)
-        # print '    sw time: %.3f' % (time.time()-start)
-        if self.n_unproductive > 0:
-            print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
-        if len(self.info['skipped_indel_queries']) > 0:
-            print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
-        if self.pcounter != None:
-            self.pcounter.write(self.parameter_dir)
-            # if self.true_pcounter != None:
-            #     self.true_pcounter.write(parameter_xxx_dir, plotdir=plotdir + '/true')
-            if not self.args.no_plot and self.plotdir != '':
-                self.pcounter.plot(self.plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
-                if self.true_pcounter != None:
-                    self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname, n_procs):
@@ -148,7 +154,8 @@ class Waterer(object):
         if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'
-        cmd_str += ' --match 5 --mismatch 3'
+        match, mismatch = self.args.match_mismatch
+        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + self.args.datadir
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname

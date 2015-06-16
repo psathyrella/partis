@@ -75,6 +75,7 @@ parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k
 parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
 parser.add_argument('--smc-particles', type=int, default=1, help='Number of particles (clustering paths) to simulate with SMC')
 parser.add_argument('--gap-open-penalty', type=int, default=1000, help='Penalty for indel creation in Smith-Waterman step (reduce this if you want to look for indels).')
+parser.add_argument('--match-mismatch', default='5:3', help='match:mismatch scores for smith-waterman.')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 # parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
@@ -161,11 +162,14 @@ else:
     from partitiondriver import PartitionDriver
     random.seed(args.seed)
 
-    args.queries = utils.get_arg_list(args.queries, intify=False)
-    args.reco_ids = utils.get_arg_list(args.reco_ids, intify=False)
-    args.n_max_per_region = utils.get_arg_list(args.n_max_per_region)
+    args.queries = utils.get_arg_list(args.queries)
+    args.reco_ids = utils.get_arg_list(args.reco_ids)
+    args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
+    args.match_mismatch = utils.get_arg_list(args.match_mismatch, intify=True)
     if len(args.n_max_per_region) != 3:
-        raise Exception('ERROR n-max-per-region should be of the form \'x:y:z\', but I got' + str(args.n_max_per_region))
+        raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
+    if len(args.match_mismatch) != 2:
+        raise Exception('match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
 
     parter = PartitionDriver(args)
 
