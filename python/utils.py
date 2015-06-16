@@ -216,36 +216,53 @@ def int_to_nucleotide(number):
         sys.exit()
 
 # ----------------------------------------------------------------------------------------                    
-def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str=''):
+def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str='', assert_on_fail=True):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     if len(seq) < cyst_position+3:
         if debug:
-            print '%sERROR seq not long enough in cysteine checker %d %s' % (extra_str, cyst_position, seq)
-        assert False
+            print '%sseq not long enough in cysteine checker %d %s' % (extra_str, cyst_position, seq)
+        if assert_on_fail:
+            assert False
+        else:
+            return False
     cyst_word = str(seq[cyst_position:cyst_position+3])
     if cyst_word != 'TGT' and cyst_word != 'TGC':
         if debug:
-            print '%sERROR cysteine in v is messed up: %s (%s %d)' % (extra_str, cyst_word, seq, cyst_position)
-        assert False
+            print '%scysteine in v is messed up: %s (%s %d)' % (extra_str, cyst_word, seq, cyst_position)
+        if assert_on_fail:
+            assert False
+        else:
+            return False
+
+    return True
 
 # ----------------------------------------------------------------------------------------
-def check_conserved_tryptophan(seq, tryp_position, debug=False, extra_str=''):
+def check_conserved_tryptophan(seq, tryp_position, debug=False, extra_str='', assert_on_fail=True):
     """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
     if len(seq) < tryp_position+3:
         if debug:
-            print '%sERROR seq not long enough in tryp checker %d %s' % (extra_str, tryp_position, seq)
-        assert False
+            print '%sseq not long enough in tryp checker %d %s' % (extra_str, tryp_position, seq)
+        if assert_on_fail:
+            assert False
+        else:
+            return False
     tryp_word = str(seq[tryp_position:tryp_position+3])
     if tryp_word != 'TGG':
         if debug:
-            print '%sERROR tryptophan in j is messed up: %s (%s %d)' % (extra_str, tryp_word, seq, tryp_position)
-        assert False
+            print '%stryptophan in j is messed up: %s (%s %d)' % (extra_str, tryp_word, seq, tryp_position)
+        if assert_on_fail:
+            assert False
+        else:
+            return False
+
+    return True
 
 # ----------------------------------------------------------------------------------------
-def check_both_conserved_codons(seq, cyst_position, tryp_position, debug=False, extra_str=''):
+def check_both_conserved_codons(seq, cyst_position, tryp_position, debug=False, extra_str='', assert_on_fail=True):
     """ Double check that we conserved the cysteine and the tryptophan. """
-    check_conserved_cysteine(seq, cyst_position, debug, extra_str=extra_str)
-    check_conserved_tryptophan(seq, tryp_position, debug, extra_str=extra_str)
+    cyst_ok = check_conserved_cysteine(seq, cyst_position, debug, extra_str=extra_str, assert_on_fail=assert_on_fail)
+    tryp_ok = check_conserved_tryptophan(seq, tryp_position, debug, extra_str=extra_str, assert_on_fail=assert_on_fail)
+    return cyst_ok and tryp_ok
 
 # ----------------------------------------------------------------------------------------
 def are_conserved_codons_screwed_up(reco_event):
@@ -256,17 +273,22 @@ def are_conserved_codons_screwed_up(reco_event):
     if len(reco_event.final_seqs) == 0:
         return True
     for seq in reco_event.final_seqs:
-        try:
-            check_both_conserved_codons(seq, reco_event.final_cyst_position, reco_event.final_tryp_position)
-        except AssertionError:
+        codons_ok = check_both_conserved_codons(seq, reco_event.final_cyst_position, reco_event.final_tryp_position, assert_on_fail=False)
+        if not codons_ok:
             return True
 
     return False
 
 #----------------------------------------------------------------------------------------
-def check_for_stop_codon(seq, cyst_position, debug=False):
-    """ make sure there is no in-frame stop codon, where frame is inferred from <cyst_position> """
-    assert cyst_position < len(seq)
+def stop_codon_check(seq, cyst_position, debug=False):
+    """ 
+    Make sure there is no in-frame stop codon, where frame is inferred from <cyst_position>.
+    Returns True if no stop codon is found
+    """
+    if cyst_position >= len(seq):
+        if debug:
+            print '      not sure if there\'s a stop codon (invalid cysteine position)'
+        return False  # not sure if there is one, since we have to way to establish the frame
     # jump leftward in steps of three until we reach the start of the sequence
     ipos = cyst_position
     while ipos > 2:
@@ -274,11 +296,13 @@ def check_for_stop_codon(seq, cyst_position, debug=False):
     # ipos should now bet the index of the start of the first complete codon
     while ipos + 2 < len(seq):  # then jump forward in steps of three bases making sure none of them are stop codons
         codon = seq[ipos:ipos+3]
-        if codon == 'TAG' or codon == 'TAA' or codon == 'TGA':
+        if codon == 'TAG' or codon == 'TAA' or codon == 'TGA':  # found a stop codon
             if debug:
-                print '      ERROR stop codon %s at %d in %s' % (codon, ipos, seq)
-            assert False
+                print '      stop codon %s at %d in %s' % (codon, ipos, seq)
+            return False
         ipos += 3
+
+    return True  # no stop codon
 
 #----------------------------------------------------------------------------------------
 def is_position_protected(protected_positions, prospective_position):
@@ -342,12 +366,16 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
 
 # ----------------------------------------------------------------------------------------
 def is_mutated(original, final, n_muted=-1, n_total=-1):
-    n_total += 1
-    return_str = final
     alphabet = nukes + ambiguous_bases
     if original not in alphabet or final not in alphabet:
         raise Exception('bad base (%s or %s) in utils.is_mutated()' % (original, final))
-    if original != final and original not in ambiguous_bases and final not in ambiguous_bases:
+
+    return_str = final
+    if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
+        return return_str, n_muted, n_total
+        
+    n_total += 1
+    if original != final:
         return_str = color('red', final)
         n_muted += 1
     return return_str, n_muted, n_total
@@ -376,7 +404,7 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
         eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
 
 # ----------------------------------------------------------------------------------------
-def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, all_glbounds, all_qrbounds):
+def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds, assert_on_fail=True):
     """
     Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
     its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
@@ -392,10 +420,11 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, a
     if gl_pos == None:
         raise Exception('none type gl_pos for %s ' % gene)
 
-    glbounds = all_glbounds[gene]
-    qrbounds = all_qrbounds[gene]
-    assert glbounds[0] <= gl_pos  # make sure we didn't erode off the conserved codon
+    if assert_on_fail:
+        assert glbounds[0] <= gl_pos  # make sure we didn't erode off the conserved codon
     query_pos = gl_pos - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+    # if region == 'v':
+    #     print '%s  %d = %d - %d + %d' % (color_gene(gene), query_pos, gl_pos, glbounds[0], qrbounds[0])
     return query_pos
 
 # ----------------------------------------------------------------------------------------
@@ -428,14 +457,12 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
                 print 'ERROR previously calculated value of ' + key + ' (' + str(line[key]) + ') not equal to new value (' + str(val) + ') for ' + str(line['unique_id'])
         else:
             line[key] = val
-    
-    try:
-        check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ')
-        check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ')
-    except AssertionError:
+
+    cyst_ok = check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ', assert_on_fail=False)
+    tryp_ok = check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ', assert_on_fail=False)
+    if not cyst_ok or not tryp_ok:
         if debug:
-            print '    bad codon, setting cdr3_length to -1'
-        line['cdr3_length'] = -1
+            print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
@@ -703,19 +730,11 @@ def unsanitize_name(name):
 #----------------------------------------------------------------------------------------
 def read_germlines(data_dir):
     """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
-    print 'read gl from', data_dir
     germlines = {}
     for region in regions:
         germlines[region] = OrderedDict()
         for seq_record in SeqIO.parse(data_dir + '/igh'+region+'.fasta', "fasta"):
             gene_name = seq_record.name
-            # if remove_fp and region == 'j':
-            #     gene_name = gene_name[:-2]
-            # if add_fp and region == 'j':
-            #     if 'P' in gene_name:
-            #         gene_name = gene_name + '_P'
-            #     else:
-            #         gene_name = gene_name + '_F'
             seq_str = str(seq_record.seq)
             germlines[region][gene_name] = seq_str
     return germlines
@@ -920,7 +939,9 @@ def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False):
         if ch1 != ch2:
             distance += 1
 
-    fraction = distance / float(len_excluding_ambig)
+    fraction = 0.
+    if len_excluding_ambig > 0:
+        fraction = distance / float(len_excluding_ambig)
     if return_len_excluding_ambig:
         return fraction, len_excluding_ambig
     else:
@@ -1047,3 +1068,25 @@ def print_linsim_output(outstr):
     print '       normalized mi %f' % linsim_out['metrics']['normalized_mi']
     print '  completeness score %f' % linsim_out['metrics']['completeness_score']
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
+
+# ----------------------------------------------------------------------------------------
+def process_out_err(out, err, extra_str):
+    print_str = ''
+    for line in err.split('\n'):
+        if 'srun: job' in line and 'queued and waiting for resources' in line:
+            continue
+        if 'srun: job' in line and 'has been allocated resources' in line:
+            continue
+        if 'GSL_RNG_TYPE=' in line or 'GSL_RNG_SEED=' in line:
+            continue
+        if '[ig_align] Read' in line or '[ig_align] Aligned' in line:
+            continue
+        if len(line.strip()) > 0:
+            print_str += line + '\n'
+
+    print_str += out
+
+    if print_str != '':
+        print ' --> proc %s' % extra_str
+        print print_str
+

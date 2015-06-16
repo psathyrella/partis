@@ -104,7 +104,7 @@ class Recombinator(object):
                             self.insertion_content_probs[bound][nuke] = 0
                         self.insertion_content_probs[bound][nuke] /= float(total)
             else:
-                self.insertion_content_probs[bound] = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
+                self.insertion_content_probs[bound] = {n : 0.25 for n in utils.nukes}
 
             assert utils.is_normed(self.insertion_content_probs[bound])
             # if self.args.debug:

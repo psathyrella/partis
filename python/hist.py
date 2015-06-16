@@ -115,7 +115,7 @@ class Hist(object):
         self.fill_ibin(self.find_bin(value), weight)
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self):
+    def normalize(self, overflow_warn=True):  # since when you normalize hists you have to make the arbitrary decision whether you're going to include the under/overflow bins (we don't include them here), in general we prefer to avoid having under/overflow entries
         """ NOTE does not multiply/divide by bin widths """
         sum_value = 0.0
         for ib in range(1, self.n_bins + 1):  # don't include under/overflows
@@ -124,7 +124,7 @@ class Hist(object):
             print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
             return
         # make sure there's not too much stuff in the under/overflows
-        if self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10:
+        if overflow_warn and (self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10):
             print 'WARNING under/overflows in Hist::normalize()'
         for ib in range(1, self.n_bins + 1):
             self.bin_contents[ib] /= sum_value

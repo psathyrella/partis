@@ -283,9 +283,6 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, inuke):
         germline_nuke = self.germline_seq[inuke]
-        # if germline_nuke == 'N' or germline_nuke == 'Y':
-        #     print '\n    WARNING replacing %s with A' % germline_nuke
-        #     germline_nuke = 'A'
 
         # initialize
         state = State('%s_%d' % (self.saniname, inuke))
@@ -457,7 +454,7 @@ class HmmWriter(object):
                         self.insertion_content_probs[insertion][nuke] = 0
                     self.insertion_content_probs[insertion][nuke] /= float(total)
         else:
-            self.insertion_content_probs[insertion] = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
+            self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
 
         assert utils.is_normed(self.insertion_content_probs[insertion])
         if self.args.debug:

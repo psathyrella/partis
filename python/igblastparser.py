@@ -54,9 +54,9 @@ def clean_alignment_crap(query_seq, match_seq):
         elif mnuke == '.':
             final_match_seq.append(qnuke)
         else:
-            if mnuke == 'N':
-                mnuke = 'A'
-                print 'WARNING replacing N with A in germlines'
+            # if mnuke == 'N':
+            #     mnuke = 'A'
+            #     print 'WARNING replacing N with A in germlines'
             if mnuke not in utils.nukes:
                 print 'ERROR unexpected character %s' % mnuke
                 sys.exit()

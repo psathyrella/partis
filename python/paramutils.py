@@ -62,7 +62,9 @@ def read_mute_info(indir, this_gene, approved_genes=None):  # NOTE this would pr
         overall_total += total
         overall_sum_of_weights += sum_of_weights
 
-    mute_freqs['overall_mean'] = overall_total / overall_sum_of_weights
+    mute_freqs['overall_mean'] = 0.
+    if overall_sum_of_weights > 0.:
+        mute_freqs['overall_mean'] = overall_total / overall_sum_of_weights
     observed_counts['total_counts'] = total_counts
     return mute_freqs, observed_counts
 

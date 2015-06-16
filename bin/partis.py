@@ -100,8 +100,13 @@ else:
     args.n_fewer_procs = args.n_procs[1]
 args.n_procs = args.n_procs[0]
 
+print '\n\nmove bad cysteine-skipping code somewhere better? or at least rationalize it a bit\n\n'
+print '\n\nclean up raw_best stuff\n\n'
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
+
+if args.pad_sequences and not args.allow_unphysical_insertions:
+    raise Exception('pad-sequences set without allowing v_5p and j_3p deletions... which isn\'t going to work')
 
 print '\nsetting rescale emissions to true\n'
 args.rescale_emissions = True

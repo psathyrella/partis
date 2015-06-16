@@ -23,8 +23,8 @@ class ParameterCounter(object):
         for column in utils.column_dependencies:
             self.counts[column] = {}
         for bound in utils.boundaries:
-            self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion
-        self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
+            self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
+        self.counts['seq_content'] = {n : 0 for n in utils.nukes}
         self.mutefreqer = MuteFreqer(germline_seqs)  #, self.base_outdir, self.plotdir, write_parameters=self.write_parameters, plot_parameters=self.plot_parameters)
 
     # ----------------------------------------------------------------------------------------
@@ -55,6 +55,8 @@ class ParameterCounter(object):
         self.mute_total += 1
         self.mutefreqer.increment(info)
         for nuke in info['seq']:
+            if nuke in utils.ambiguous_bases:
+                continue
             self.counts['seq_content'][nuke] += 1
 
     # ----------------------------------------------------------------------------------------
@@ -75,6 +77,8 @@ class ParameterCounter(object):
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
+                if nuke in utils.ambiguous_bases:
+                    continue
                 self.counts[bound + '_insertion_content'][nuke] += 1
 
     # ----------------------------------------------------------------------------------------
@@ -97,7 +101,7 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None):
         print '  plotting parameters'
-        start = time.time()
+        # start = time.time()
         utils.prep_dir(plotdir + '/plots')  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
             if column == 'all':
@@ -154,17 +158,17 @@ class ParameterCounter(object):
             check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
             check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
 
-        print '    parameter plot time: %.3f' % (time.time()-start)
+        # print '    parameter plot time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):
-        print '  writing parameters'
-        start = time.time()
+        print '    writing parameters'
+        # start = time.time()
 
         utils.prep_dir(base_outdir, multilings=('*.csv', '*.svg'))
-        mute_start = time.time()
+        # mute_start = time.time()
         self.mutefreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
-        print '      mut freq write time: %.3f' % (time.time() - mute_start)
+        # print '      mut freq write time: %.3f' % (time.time() - mute_start)
         # print ' %d / %d cached' % (self.mutefreqer.n_cached, self.mutefreqer.n_cached + self.mutefreqer.n_not_cached)
         for column in self.counts:
             index = None
@@ -195,4 +199,4 @@ class ParameterCounter(object):
                     line['count'] = count
                     out_data.writerow(line)
 
-        print '    parameter write time: %.3f' % (time.time()-start)
+        # print '    parameter write time: %.3f' % (time.time()-start)

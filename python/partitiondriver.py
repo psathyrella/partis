@@ -285,24 +285,6 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def process_out_err(self, iproc, out, err):
-        print_str = ''
-        for line in err.split('\n'):
-            if 'srun: job' in line and 'queued and waiting for resources' in line:
-                continue
-            if 'srun: job' in line and 'has been allocated resources' in line:
-                continue
-            if 'GSL_RNG_TYPE=' in line or 'GSL_RNG_SEED=' in line:
-                continue
-            print_str += line + '\n'
-
-        print_str += out
-
-        if print_str != '':
-            print ' --> proc %d' % iproc
-            print print_str
-
-    # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, plotdir=None, n_procs=None, shuffle_input_order=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
@@ -332,7 +314,7 @@ class PartitionDriver(object):
                 time.sleep(0.1)
             for iproc in range(len(procs)):
                 out, err = procs[iproc].communicate()
-                self.process_out_err(iproc, out, err)
+                utils.process_out_err(out, err, extra_str=str(iproc))
 
         sys.stdout.flush()
         # print '      hmm run time: %.3f' % (time.time()-start)
@@ -562,38 +544,50 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
         """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
-        print 'writing hmms with info from %s' % parameter_dir
+        print '  writing hmms with info from %s' % parameter_dir
         # start = time.time()
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
 
-        gene_list = self.args.only_genes
-        if gene_list is None and self.sw_info is not None:  # if specific genes weren't specified, do the ones for which we have sw matches
-            gene_list = []
-            for region in utils.regions:
-                for gene in self.germline_seqs[region]:
-                    if gene in self.sw_info['all_best_matches']:
-                        gene_list.append(gene)
+        # gene_list = self.args.only_genes
+        # if gene_list is None and self.sw_info is not None:  # if specific genes weren't specified, do the ones for which we have sw matches
+        #     print 'only-gene s argument not specified, writing hmms using sw matches'
+        #     gene_list = []
+        #     for region in utils.regions:
+        #         for gene in self.germline_seqs[region]:
+        #             if gene in self.sw_info['all_best_matches']:
+        #                 gene_list.append(gene)
 
-        if gene_list is None:  # ack, just do 'em all
+        # if gene_list is None:  # ack, just do 'em all
+        #     print 'just do them all'
+        #     gene_list = []
+        #     for region in utils.regions:
+        #         gene_list += list(self.germline_seqs[region].keys())
+
+        if self.args.only_genes is None:  # make a list of all the genes for which we have counts in <parameter_dir> (a.tm., this is all the genes that appeared as a best match at least once)
             gene_list = []
             for region in utils.regions:
-                gene_list += list(self.germline_seqs[region].keys())
+                with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
+                    reader = csv.DictReader(pfile)
+                    for line in reader:
+                        gene_list.append(line[region + '_gene'])
+        else:
+            gene_list = self.args.only_genes
+
         for gene in gene_list:
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety,
-                               self.germline_seqs,
-                               self.args,
+                               self.germline_seqs, self.args,
                                self.cyst_positions, self.tryp_positions)
             writer.write()
 
         # print '    time to write hmms: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir):  #, query_name, second_query_name=None):
-        """ Check if hmm model file exists, and if not remove gene from <gene_list> and print a warning """
+    def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir):
+        """ Check if hmm model file exists, and if not remove gene from <gene_list> """
         # first get the list of genes for which we don't have hmm files
         if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
             raise Exception('no yamels in %s' % parameter_dir)
@@ -682,7 +676,7 @@ class PartitionDriver(object):
         return maxima
 
     # ----------------------------------------------------------------------------------------
-    def pad_seqs_to_same_length(self, debug=True):
+    def pad_seqs_to_same_length(self, debug=False):
         """
         Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
@@ -696,6 +690,8 @@ class PartitionDriver(object):
                 return
             seq = swfo['seq']
             cpos = swfo['cyst_position']
+            if cpos < 0 or cpos >= len(seq):
+                print 'hm now what do I want to do here?'
             k_v = swfo['k_v']
 
             padleft = maxima['gl_cpos'] - cpos
@@ -715,8 +711,9 @@ class PartitionDriver(object):
                                                             k_v['min'], k_v['max'],
                                                             padfo['k_v']['min'], padfo['k_v']['max'])
 
-        for query in self.sw_info['queries']:
-            print '%12s %s' % (query, self.sw_info[query]['padded']['seq'])
+        if debug:
+            for query in self.sw_info['queries']:
+                print '%12s %s' % (query, self.sw_info[query]['padded']['seq'])
 
     # ----------------------------------------------------------------------------------------
     def truncate_seqs(self, seqinfo, kvinfo, cyst_positions, debug=False):
@@ -783,18 +780,19 @@ class PartitionDriver(object):
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(k_d['max'], combo['k_d']['max'])
 
-            only_genes = swfo['all'].split(':')  # sw matches for this query
-            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)
-            used_only_genes = []
-            for region in utils.regions:
+            # work out which genes to tell the hmm to use
+            only_genes = swfo['all'].split(':')  # start with all the sw matches for this query
+            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)  # remove the ones for which we don't have hmm files (we only write hmms for genes that appeared as the best sw match for at least one query, but swfo['all'] in general includes genes that were never the *best* match for any one query)
+            genes_to_use = []
+            for region in utils.regions:  # take the best <self.args.n_max_per_region> from each region
                 reg_genes = [g for g in only_genes if utils.get_region(g) == region]
                 n_genes = min(len(reg_genes), int(self.args.n_max_per_region[utils.regions.index(region)]))  # minimum of [the number of gene matches for this region] and [the number we want for this region]
-                for ig in range(n_genes):
-                    used_only_genes.append(reg_genes[ig])
+                for ig in range(n_genes):  # take the first <n_genes> matches (they're ordered by sw match score)
+                    genes_to_use.append(reg_genes[ig])
 
-            combo['only_genes'] = list(set(used_only_genes) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
+            # and finally OR this query's genes into the ones from previous queries
+            combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
-        # self.check_hmm_existence(combo['only_genes'], skipped_gene_matches, parameter_dir, name)  # this should be superfluous now
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
 
@@ -925,9 +923,11 @@ class PartitionDriver(object):
             self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
 
         if len(skipped_gene_matches) > 0:
-            print '    not found in %s, i.e. were never the best sw match for any query, so removing from consideration for hmm:' % (parameter_dir)
+            print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
             for region in utils.regions:
-                print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
+                print '  %s: %d' % (region, len([gene for gene in skipped_gene_matches if utils.get_region(gene) == region])),
+                # print '      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
+            print ''
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, plotdir):
@@ -1107,9 +1107,9 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot()
 
-        print '  processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
+        print '    processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
         if len(boundary_error_queries) > 0:
-            print '    %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
+            print '      %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
 
         if self.args.outfname is not None:
             outpath = self.args.outfname

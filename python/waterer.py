@@ -9,7 +9,7 @@ import itertools
 import operator
 import pysam
 import contextlib
-from subprocess import check_call, check_output, Popen
+from subprocess import check_call, check_output, Popen, PIPE
 
 import utils
 from opener import opener
@@ -67,6 +67,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
+        print 'smith-waterman'
         # start = time.time()
 
         base_infname = 'query-seqs.fa'
@@ -83,10 +84,11 @@ class Waterer(object):
             procs = []
             for iproc in range(n_procs):
                 cmd_str = self.get_vdjalign_cmd_str(self.args.workdir + '/sw-' + str(iproc), base_infname, base_outfname)
-                procs.append(Popen(cmd_str.split()))
+                procs.append(Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE))
                 time.sleep(0.1)
-            for proc in procs:
-                proc.wait()
+            for iproc in range(len(procs)):
+                out, err = procs[iproc].communicate()
+                utils.process_out_err(out, err, extra_str=str(iproc))
             if not self.args.no_clean:
                 for iproc in range(n_procs):
                     os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
@@ -95,9 +97,9 @@ class Waterer(object):
         self.read_output(base_outfname, plot_performance=self.args.plot_performance, n_procs=n_procs)
         # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
-            print '    unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
+            print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if len(self.info['skipped_indel_queries']) > 0:
-            print '    indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
+            print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
         if self.pcounter != None:
             self.pcounter.write(self.parameter_dir)
             # if self.true_pcounter != None:
@@ -180,7 +182,7 @@ class Waterer(object):
                 if n_procs > 1:  # still need the top-level workdir
                     os.rmdir(workdir)
 
-        print '  processed %d queries' % n_processed
+        print '    processed %d queries' % n_processed
 
         if perfplotter != None:
             perfplotter.plot()
@@ -242,30 +244,40 @@ class Waterer(object):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
-        raw_best = {}
+        raw_best = {}  # best gene for each region, as output by sw (we may decide later that we disagree on which are the best)
+        first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
         all_match_names = {}
         warnings = {}  # ick, this is a messy way to pass stuff around
         for region in utils.regions:
             all_match_names[region] = []
         all_query_bounds, all_germline_bounds = {}, {}
+        n_skipped_invalid_cpos = 0
         for read in reads:  # loop over the matches found for each query sequence
             read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
             gene = bam.references[read.tid]
             region = utils.get_region(gene)
-            warnings[gene] = ''
-
-            if region not in raw_best:  # best v, d, and j before multiplying by gene choice probs. needed 'cause *these* are the v and j that get excised
-                raw_best[region] = gene
-
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs
             score = raw_score
             if self.args.apply_choice_probs_in_sw:  # NOTE I stopped applying the gene choice probs here because the smith-waterman scores don't correspond to log-probs, so throwing on the gene choice probs was dubious (and didn't seem to work that well)
                 score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
-            # set bounds
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
+            if region == 'v' and first_match_query_bounds is None:
+                first_match_query_bounds = qrbounds
+            # if region not in raw_best:  # we need these 'cause *these* are the v and j that get excised by sw, so to calculate k_d for every other match we have to 
+            #     raw_best[region] = gene
 
-            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indells
+            if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
+                cpos = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, 'v', gene, glbounds, qrbounds, assert_on_fail=False)
+                if not utils.check_conserved_cysteine(self.germline_seqs['v'][gene], self.cyst_positions[gene]['cysteine-position'], assert_on_fail=False):  # some of the damn cysteine positions in the json file were wrong, so now we check
+                    raise Exception('bad cysteine in %s: %d %s' % (gene, self.cyst_positions[gene]['cysteine-position'], self.germline_seqs['v'][gene]))
+                if cpos < 0 or cpos >= len(query_seq):
+                    n_skipped_invalid_cpos += 1
+                    # if region not in raw_best:
+                    #     print '    skipping best %s match with cpos %d (negative or greater than %d)' % (gene, cpos, len(query_seq))
+                    continue
+
+            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels
                 if len(all_match_names[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
                     print '  LEN', len(all_match_names[region])
                     self.print_indel_info(query_name, read.cigarstring, read.seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
@@ -287,11 +299,14 @@ class Waterer(object):
 
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
 
+            warnings[gene] = ''
             all_match_names[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
 
-        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings)
+        # if n_skipped_invalid_cpos > 0:
+        #     print '      skipped %d invalid cpos values for %s' % (n_skipped_invalid_cpos, query_name)
+        self.summarize_query(query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds)
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
@@ -417,9 +432,14 @@ class Waterer(object):
             perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings):
+    def summarize_query(self, query_name, query_seq, raw_best, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds):
         if self.args.debug:
             print '%s' % query_name
+
+        # for region in utils.regions:
+        #     if region not in raw_best:
+        #         print '    skipping %s: no %s gene matches' % (query_name, region)
+        #         return
 
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
@@ -467,7 +487,8 @@ class Waterer(object):
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 if region == 'd':
-                    this_k_d = all_query_bounds[gene][1] - all_query_bounds[raw_best['v']][1]  # end of d minus end of v
+                    # this_k_d = all_query_bounds[gene][1] - all_query_bounds[raw_best['v']][1]  # end of d minus end of v
+                    this_k_d = all_query_bounds[gene][1] - first_match_query_bounds[1]  # end of d minus end of v
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
 
@@ -497,20 +518,17 @@ class Waterer(object):
             return
 
         # check for unproductive rearrangements
-        try:
-            for region in utils.regions:
-                codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds, all_query_bounds)  # position in the query sequence, that is
-            # NOTE it's actually expected that this'll fail with a 'sequence too short' error, since the s-w doesn't know it's supposed to make sure the match contains the conserved codons
-            utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.args.debug, extra_str='      ')
-            cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
-            if cdr3_length % 3 != 0:  # make sure we've stayed in frame
-                if self.args.debug:
-                    print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
-                assert False
-            utils.check_for_stop_codon(query_seq, codon_positions['v'], debug=self.args.debug)
-        except AssertionError:
+        for region in utils.regions:
+            codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds[best[region]], all_query_bounds[best[region]], assert_on_fail=False)  # position in the query sequence, that is
+        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.args.debug, extra_str='      ', assert_on_fail=False)
+        cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
+        in_frame_cdr3 = (cdr3_length % 3 == 0)
+        if self.args.debug and not in_frame_cdr3:
+                print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
+        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.args.debug)
+        if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.args.debug:
-                print '       unproductive rearrangement in waterer'
+                print '       unproductive rearrangement in waterer codons_ok: %s   in_frame_cdr3: %s   no_stop_codon: %s' % (codons_ok, in_frame_cdr3, no_stop_codon)
             if self.args.skip_unproductive:
                 if self.args.debug:
                     print '            ...skipping'

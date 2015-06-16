@@ -52,8 +52,11 @@ class MuteFreqer(object):
             assert len(germline_seq) == len(query_seq)
             for inuke in range(len(germline_seq)):
                 i_germline = inuke + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
+                if germline_seq[inuke] in utils.ambiguous_bases or query_seq[inuke] in utils.ambiguous_bases:
+                    continue
                 if i_germline not in mute_counts:  # if we have not yet observed this position in a query sequence, initialize it
-                    mute_counts[i_germline] = {'A':0, 'C':0, 'G':0, 'T':0, 'total':0, 'gl_nuke':germline_seq[inuke]}
+                    mute_counts[i_germline] = {n : 0 for n in utils.nukes + ['total', ]}
+                    mute_counts[i_germline]['gl_nuke'] = germline_seq[inuke]
                 mute_counts[i_germline]['total'] += 1
                 mute_counts[i_germline][query_seq[inuke]] += 1
 
@@ -115,9 +118,9 @@ class MuteFreqer(object):
                 counts[position]['freq_lo_err'] = mutated_fraction_err[0]
                 counts[position]['freq_hi_err'] = mutated_fraction_err[1]
 
-        self.mean_rates['all'].normalize()
+        self.mean_rates['all'].normalize(overflow_warn=False)  # we expect overflows in mute freq hists, so no need to warn us
         for region in utils.regions:
-            self.mean_rates[region].normalize()
+            self.mean_rates[region].normalize(overflow_warn=False)
 
         # for gene in self.tmpcounts:
         #     for position in self.tmpcounts[gene]:

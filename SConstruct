@@ -19,13 +19,14 @@ testoutdir = '_output/test'
 if not os.path.exists(testoutdir):
     os.makedirs(testoutdir)
 cmd = './bin/partis.py'
-base_cmd = './bin/run-driver.py --label test --extra-args __seed:1:--no-plot --datafname test/adaptive-A-250.tsv.bz2 --stashdir _output --plotdir ' + testoutdir + '/plots --n-queries 250 --n-sim-events 50 --n-procs 5'
+datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
+base_cmd = './bin/run-driver.py --label test --extra-args __seed:1:--no-plot --datafname ' + datafname + ' --stashdir _output --plotdir ' + testoutdir + '/plots --n-sim-events 50 --n-procs 5 --no-skip-unproductive'
 actions = OrderedDict()
 actions['cache-data-parameters'] = 'data'  # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
 actions['simulate'] = 'simu.csv'
 actions['cache-simu-parameters'] = 'simu'
 actions['plot-performance'] = 'plots'
-
+print 'add random number of leaves and whatnot'
 tests = OrderedDict()
 existing_parameter_dir = 'test/regression/parameters/simu/hmm'
 # first add the simple, few-sequence tests (using partis.py)

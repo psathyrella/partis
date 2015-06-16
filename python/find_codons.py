@@ -29,11 +29,8 @@ bad_genes = []
 for name, align_seq in align_info.items():  # NOTE there's a whole bunch of sequences in seqinfo that aren't in aliinfo. If imgt doesn't have alignment info for 'em, though, I'm ignoring 'em
     print '%-20s' % name,
     # check for unexpected characters
-    if 'N' in align_seq:
-        print '\n    WARNING replacing N with A'
-        align_seq = align_seq.replace('N', 'A')
     for pos in align_seq:
-        if pos not in 'ACGT.':
+        if pos not in utils.nukes + ['.', ]:  #'ACGT.':
             print 'ERROR unexpected character %s in %s from %s' % (pos, name, align_fname)
             sys.exit()
 
