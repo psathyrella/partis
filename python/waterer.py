@@ -35,6 +35,7 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
         self.info['skipped_indel_queries'] = []  # list of queries that had indels
+        self.info['skipped_no_d_matches'] = []
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from', parameter_dir
@@ -259,6 +260,7 @@ class Waterer(object):
         all_query_bounds, all_germline_bounds = {}, {}
         n_skipped_invalid_cpos = 0
         for read in reads:  # loop over the matches found for each query sequence
+            # set this match's values
             read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
             gene = bam.references[read.tid]
             region = utils.get_region(gene)
@@ -271,6 +273,7 @@ class Waterer(object):
             if region == 'v' and first_match_query_bounds is None:
                 first_match_query_bounds = qrbounds
 
+            # perform a few checks and see if we want to skip this match
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
                 cpos = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, 'v', gene, glbounds, qrbounds, assert_on_fail=False)
                 if not utils.check_conserved_cysteine(self.germline_seqs['v'][gene], self.cyst_positions[gene]['cysteine-position'], assert_on_fail=False):  # some of the damn cysteine positions in the json file were wrong, so now we check
@@ -279,7 +282,7 @@ class Waterer(object):
                     n_skipped_invalid_cpos += 1
                     continue
 
-            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels
+            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.args.gap_open_penalty>)
                 if len(all_match_names[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
                     print '  LEN', len(all_match_names[region])
                     self.print_indel_info(query_name, read.cigarstring, read.seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
@@ -298,9 +301,9 @@ class Waterer(object):
                 print '  ', glbounds[1], len(self.germline_seqs[region][gene])
                 print '  ', self.germline_seqs[region][gene]
             assert glbounds[1] <= len(self.germline_seqs[region][gene])
-
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
 
+            # and finally add this match's information
             warnings[gene] = ''
             all_match_names[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
@@ -500,10 +503,11 @@ class Waterer(object):
 
         for region in utils.regions:
             if region not in best:
-                print '    no', region, 'match found for', query_name  # NOTE if no d match found, we should really should just assume entire d was eroded
+                print '    no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
                 if not self.args.is_data:
                     print '    true:'
                     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
+                self.info['skipped_no_d_matches'].append(query_name)
                 return
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j

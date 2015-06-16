@@ -65,8 +65,8 @@ class TreeGenerator(object):
             mutehist = plotting.make_hist_from_bin_entry_file(infname, mtype+'-mute-freqs')
             self.branch_lengths[mtype]['mean'] = mutehist.GetMean()
 
-            if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
-                print 'WARNING nonzero under/overflow bins read from %s' % infname
+            # if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
+            #     print 'WARNING nonzero under/overflow bins read from %s' % infname
 
             check_sum = 0.0
             for ibin in range(1, mutehist.GetNbinsX()+1):  # ignore under/overflow bins

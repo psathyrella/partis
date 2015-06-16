@@ -191,7 +191,7 @@ class PartitionDriver(object):
                     if uid in cluster:
                         found = True
                         break
-                if not found and uid not in self.sw_info['skipped_unproductive_queries']:
+                if not found and uid not in self.sw_info['skipped_unproductive_queries'] and uid not in self.sw_info['skipped_no_d_matches']:
                     path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
                     raise Exception('%s not found in merged partition' % uid)
             for cluster in partition:
@@ -205,9 +205,12 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths, tmpglom):
         with opener('w')(outfname) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi', 'n_clusters', 'n_procs', 'bad_clusters'))  #'normalized_score'
+            headers = ['path_index', 'score', 'logweight', 'adj_mi', 'n_clusters', 'n_procs', 'clusters']
+            if not self.args.is_data:
+                headers += ['bad_clusters', ]
+            writer = csv.DictWriter(outfile, headers)
             writer.writeheader()
-            true_partition = tmpglom.get_true_partition()
+            true_partition = None if self.args.is_data else tmpglom.get_true_partition()
             for ipath in range(len(paths)):
                 for ipart in range(len(paths[ipath].partitions)):
                     # print 'ipart', ipart
@@ -219,35 +222,37 @@ class PartitionDriver(object):
                         if ic > 0:
                             cluster_str += ';'
                         cluster_str += ':'.join(part[ic])
-
-                        same_event = utils.from_same_event(self.args.is_data, self.reco_info, part[ic])  # are all the sequences from the same event?
-                        entire_cluster = True  # ... and if so, are they the entire true cluster?
-                        if same_event:
-                            reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
-                            true_cluster = true_partition[reco_id]
-                            # print '    true %s:  %s' % (reco_id, ':'.join(true_cluster))
-                            for uid in true_cluster:
-                                if uid not in part[ic]:
-                                    # print '        missing %s (and maybe others)' % uid
-                                    entire_cluster = False
-                                    break
-                        else:
-                            entire_cluster = False
-                        if not same_event or not entire_cluster:
-                            bad_clusters.append(':'.join(part[ic]))
+                        if not self.args.is_data:
+                            same_event = utils.from_same_event(self.args.is_data, self.reco_info, part[ic])  # are all the sequences from the same event?
+                            entire_cluster = True  # ... and if so, are they the entire true cluster?
+                            if same_event:
+                                reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
+                                true_cluster = true_partition[reco_id]
+                                # print '    true %s:  %s' % (reco_id, ':'.join(true_cluster))
+                                for uid in true_cluster:
+                                    if uid not in part[ic]:
+                                        # print '        missing %s (and maybe others)' % uid
+                                        entire_cluster = False
+                                        break
+                            else:
+                                entire_cluster = False
+                            if not same_event or not entire_cluster:
+                                bad_clusters.append(':'.join(part[ic]))
 
                     if len(bad_clusters) > 25:
                         bad_clusters = ['too', 'long']
-                    writer.writerow({'path_index' : os.getpid() + ipath,
-                                     'score' : paths[ipath].logprobs[ipart],
-                                     'logweight' : paths[ipath].logweights[ipart],
-                                     # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : paths[ipath].adj_mis[ipart],
-                                     'n_clusters' : len(part),
-                                     'n_procs' : paths[ipath].n_procs[ipart],
-                                     'bad_clusters' : ';'.join(bad_clusters)
-                                     # 'clusters' : cluster_str
-                                 })
+                    row = {'path_index' : self.args.seed + ipath,
+                           'score' : paths[ipath].logprobs[ipart],
+                           'logweight' : paths[ipath].logweights[ipart],
+                           # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
+                           'adj_mi' : paths[ipath].adj_mis[ipart],
+                           'n_clusters' : len(part),
+                           'n_procs' : paths[ipath].n_procs[ipart],
+                           'clusters' : cluster_str
+                    }
+                    if not self.args.is_data:
+                        row['bad_clusters'] = ';'.join(bad_clusters)
+                    writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -864,7 +869,7 @@ class PartitionDriver(object):
             self.write_cachefile(self.hmm_cachefname)
 
         if self.args.pad_sequences:
-            self.pad_seqs_to_same_length()  # adds padded info to sw_info
+            self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
 
         def shuffle_nset_order(tmp_nsets):
             # randomize the order of the query list in <tmp_nsets>. Note that the list gets split into chunks for parallelization later
@@ -959,7 +964,7 @@ class PartitionDriver(object):
                 seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
                 if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
                     print 'error in bcrham output %s for sequences:' % (line['errors'])
-                    print '        %s' % seqstr.replace(':', '\n')
+                    print '%s' % seqstr.replace(':', '\n')
 
                 score, naive_seq, cpos = None, None, None
                 if line['score'] != '':
@@ -972,7 +977,8 @@ class PartitionDriver(object):
                     if abs(score - self.cached_results[seqstr]['logprob']) > 1e-4:
                         print 'WARNING unequal logprobs for %s: %f %f' % (seqstr, score, self.cached_results[seqstr]['logprob'])
                     if naive_seq != self.cached_results[seqstr]['naive_seq']:
-                        raise Exception('different naive seqs for %s: %s %s' % (seqstr, naive_seq, self.cached_results[seqstr]['naive_seq']))
+                        print 'WARNING different naive seqs for %s:\n   %s\n   %s' % (seqstr, naive_seq, self.cached_results[seqstr]['naive_seq'])
+                        self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
                     if cpos != self.cached_results[seqstr]['cyst_position']:
                         raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))
                 else:
@@ -1093,7 +1099,8 @@ class PartitionDriver(object):
                         if true_pcounter is not None:
                             true_pcounter.increment_mutation_params(self.reco_info[ids[iseq]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
-                            perfplotter.evaluate(self.reco_info[ids[iseq]], tmp_line)
+                            perfplotter.evaluate(self.reco_info[ids[iseq]], tmp_line,
+                                                 self.sw_info[ids[iseq]]['padded'] if self.args.pad_sequences else None)
                         n_seqs_processed += 1
 
         if pcounter is not None:

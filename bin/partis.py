@@ -60,10 +60,11 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
-# tree generation (see also branch-length-fname)
+# #simulation (see also branch-length-fname, and gtr-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
+parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearrangement events to simulate')
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
-parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree')
+parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
 parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves based on <n-leaves> (a.t.m. from a hacktified exponential). Otherwise give all trees <n-leaves> leaves')
 
 # numerical inputs
@@ -101,8 +102,6 @@ else:
     args.n_fewer_procs = args.n_procs[1]
 args.n_procs = args.n_procs[0]
 
-print '\n\nmove bad cysteine-skipping code somewhere better? or at least rationalize it a bit\n\n'
-print '\n\nclean up raw_best stuff\n\n'
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
@@ -123,9 +122,9 @@ if args.plot_performance:
 def run_simulation(args):
     print 'simulating'
     assert args.parameter_dir != None and args.outfname != None
-    assert args.n_max_queries > 0
+    assert args.n_sim_events > 0
     random.seed(args.seed)
-    n_per_proc = int(float(args.n_max_queries) / args.n_procs)
+    n_per_proc = int(float(args.n_sim_events) / args.n_procs)
     all_random_ints = []
     for iproc in range(args.n_procs):  # have to generate these all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
         all_random_ints.append([random.randint(0, sys.maxint) for i in range(n_per_proc)])

@@ -136,7 +136,7 @@ class Recombinator(object):
         try:
             reco_event.set_final_cyst_tryp_positions(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
         except AssertionError:
-            print 'ERROR bad conserved codos, what the hell?'
+            print 'ERROR bad conserved codons, what the hell?'
             return False
 
         if self.args.naivety == 'M':

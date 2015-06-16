@@ -15,28 +15,43 @@ env.Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-dr
 
 Alias('test', 'test/_results/ALL.passed')
 
+
+def get_extra_str(extra_list):
+    modified_list = [ex.replace(':', '.').replace('--', '__') for ex in extra_list]
+    return ' --extra-args ' + ':'.join(modified_list)
+
 testoutdir = '_output/test'
 if not os.path.exists(testoutdir):
     os.makedirs(testoutdir)
-cmd = './bin/partis.py'
 datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
-base_cmd = './bin/run-driver.py --label test --extra-args __seed:1:--no-plot --datafname ' + datafname + ' --stashdir _output --plotdir ' + testoutdir + '/plots --n-sim-events 50 --n-procs 5 --no-skip-unproductive'
-actions = OrderedDict()
-actions['cache-data-parameters'] = 'data'  # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
-actions['simulate'] = 'simu.csv'
-actions['cache-simu-parameters'] = 'simu'
-actions['plot-performance'] = 'plots'
-print 'add random number of leaves and whatnot'
-tests = OrderedDict()
-existing_parameter_dir = 'test/regression/parameters/simu/hmm'
-# first add the simple, few-sequence tests (using partis.py)
-tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 1 --debug 1'
-tests['partition-a-few'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1'  # --truncate-n-sets'
-tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + existing_parameter_dir + ' --debug 1 --n-max-queries 3' # --truncate-n-sets
-# then add the tests that run over the framework (using run-driver.py)
-for action in actions:
-    tests[action] = base_cmd + ' --action ' + action
 
+common_extras = ['--seed', '1', '--no-plot']
+padargs = ['--allow-unphysical-insertions', '--pad-sequences']
+semi_common_extras = ['--match-mismatch', '5:1'] + padargs
+base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --plotdir ' + testoutdir + '/plots --no-skip-unproductive'
+
+actions = OrderedDict()
+# key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
+actions['cache-data-parameters'] = {'target' : 'data', 'extras' : semi_common_extras}
+actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--random-number-of-leaves', '--n-sim-events', '150']}
+actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : semi_common_extras}
+actions['plot-performance'] = {'target' : 'plots', 'extras' : semi_common_extras}
+
+tests = OrderedDict()
+# first add the tests that run over the framework (using run-driver.py)
+for action, config in actions.items():
+    tests[action] = base_cmd + ' --action ' + action + get_extra_str(config['extras'] + common_extras)
+
+simu_parameter_dir = 'test/regression/parameters/simu/hmm'
+data_parameter_dir = 'test/regression/parameters/data/hmm'
+# then add the simple, few-sequence tests (using partis.py)
+cmd = './bin/partis.py'
+tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 3 --debug 1 ' + ' '.join(common_extras + semi_common_extras)
+tests['partition-data'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile ' + datafname + ' --is-data --parameter-dir ' + data_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras + semi_common_extras)
+tests['partition-simu'] = cmd + ' --action partition --force-dont-randomize-input-order --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras + semi_common_extras)
+tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --debug 1 --n-max-queries 3 ' + ' '.join(common_extras + semi_common_extras)
+
+# ----------------------------------------------------------------------------------------
 all_passed = 'test/_results/ALL.passed'
 individual_passed = ['test/_results/{}.passed'.format(name) for name in tests.keys()]
 
@@ -49,11 +64,16 @@ for name, test_cmd in tests.items():
     out = 'test/_results/%s.out' % name
     Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])
     if name in actions:
+        # print test_cmd
+        # continue
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name, out,
-                    './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name] + ' --arg2 ' + testoutdir + '/' + actions[name] + ' && touch $TARGET')
+                    './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + testoutdir + '/' + actions[name]['target'] + ' && touch $TARGET')
     else:
-        env.Command(out, cmd, test_cmd + ' >$TARGET')
+        # print test_cmd + ' --outfname ' + out
+        # continue
+        # env.Command(out, cmd, test_cmd + ' >$TARGET')
+        env.Command(out, cmd, test_cmd + ' --outfname $TARGET')
         # touch a sentinel `passed` file if we get what we expect
         # NOTE [vdj]: regex is a hack. I can't figure out a.t.m. why the missing genes come up in a different order each time
         env.Command('test/_results/%s.passed' % name,

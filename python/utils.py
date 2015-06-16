@@ -439,6 +439,11 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
+    # if len(line['fv_insertion']) > 0:
+    #     print line
+    # if len(line['jf_insertion']) > 0:
+    #     print line
+
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
     eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     # if debug:
@@ -1090,3 +1095,19 @@ def process_out_err(out, err, extra_str):
         print ' --> proc %s' % extra_str
         print print_str
 
+# ----------------------------------------------------------------------------------------
+def remove_ambiguous_ends(seq, fv_insertion, jf_insertion):
+    """ remove ambiguous bases from the left and right ends of <seq> """
+    i_seq_start, i_seq_end = None, None  # positions at which the "real" (non-ambiguous) sequence begins and [just after it] ends
+    for ib in range(len(seq)):
+        if seq[ib] not in ambiguous_bases:
+            i_seq_start = ib
+            break
+    for ib in range(len(seq) - 1, -1, -1):
+        if seq[ib] not in ambiguous_bases:
+            i_seq_end = ib + 1
+            break
+
+    # print 'fv: %s  jf: %s ' % (fv_insertion, jf_insertion)
+    # print '    ', i_seq_start, i_seq_end
+    return fv_insertion + seq[i_seq_start: i_seq_end] + jf_insertion

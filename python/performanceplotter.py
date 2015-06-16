@@ -43,7 +43,7 @@ class PerformancePlotter(object):
             self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(50, 0., 0.4)
 
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, debug=False):
+    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, padfo=None, debug=False):
         """
         Hamming distance between the inferred naive sequence and the tue naive sequence.
         <restrict_to_region> if set, restrict the comparison to the section of the *true* sequence assigned to the given region.
@@ -57,7 +57,7 @@ class PerformancePlotter(object):
         left_hack_add_on = ''
         right_hack_add_on = ''
         if len(true_line['seq']) > len(line['seq']):  # ihhhmmm doesn't report the bits of the sequence it erodes off the ends, so we have to add them back on
-        # if len(true_naive_seq) > len(inferred_naive_seq):  # hm, now why I did use line['seq'] stuff before?
+        # if len(true_naive_seq) > len(inferred_naive_seq):  # hm, now why did I use line['seq'] stuff before?
             start = true_line['seq'].find(line['seq'])
             assert start >= 0
             end = len(line['seq']) + start
@@ -68,15 +68,20 @@ class PerformancePlotter(object):
             if debug:
                 print '  adding to inferred naive seq'
 
+        # if restrict_to_region == '':
+        #     print '  before', inferred_naive_seq
+        if padfo is not None:  # remove N padding from the inferred sequence
+            inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
+            if padfo['padright'] > 0:
+                inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]
+        # if restrict_to_region == '':
+        #     print '  after ', inferred_naive_seq
+
         bounds = None
         if restrict_to_region != '':
             bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, self.germlines, true_line)  # get the bounds of this *true* region
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
-
-
-        # if len(true_naive_seq) > len(inferred_naive_seq):
-            
 
         if debug:
             print restrict_to_region, 'region, bounds', bounds
@@ -84,10 +89,7 @@ class PerformancePlotter(object):
             print '  infer', inferred_naive_seq
 
         if len(true_naive_seq) != len(inferred_naive_seq):
-            print 'ERROR still not the same lengths for %s' % query_name
-            print '  true ', true_naive_seq
-            print '  infer', inferred_naive_seq
-            sys.exit()
+            raise Exception('still not the same lengths for %s\n  %s\n  %s' % (query_name, true_naive_seq, inferred_naive_seq))
         fraction, len_excluding_ambig = utils.hamming_fraction(true_naive_seq, inferred_naive_seq, return_len_excluding_ambig=True)
         total_distance = int(fraction * len_excluding_ambig)
         if len(true_naive_seq) == 0:
@@ -123,7 +125,7 @@ class PerformancePlotter(object):
                 pass
 
     # ----------------------------------------------------------------------------------------
-    def evaluate(self, true_line, inf_line):
+    def evaluate(self, true_line, inf_line, padfo=None):
 
         overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
 
@@ -148,7 +150,7 @@ class PerformancePlotter(object):
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it does the job
                     restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
                     normalize = '_norm' in column
-                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, inf_line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize)
+                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, inf_line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize, padfo=padfo)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])

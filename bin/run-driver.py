@@ -17,7 +17,6 @@ def run_command(cmd_str):
 parser = argparse.ArgumentParser()
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
-parser.add_argument('--n-sim-events', default='2000')  # NOTE still have to multiply by the number of leaves to get the number of sequences (default is 5, though, which'll give you 10k seqs)
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
 parser.add_argument('--simfname')
@@ -58,7 +57,6 @@ if 'simulate' in args.actions:
     # simulate based on data parameters
     cmd_str = ' --action simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
-    cmd_str += ' --n-max-queries ' + str(args.n_sim_events)  # NOTE confusing using n-max-queries for both these thigns, sorry...
     # cmd_str += ' --random-number-of-leaves'
     run_command(cmd_str)
 
