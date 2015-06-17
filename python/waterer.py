@@ -14,6 +14,7 @@ from subprocess import check_call, check_output, Popen, PIPE
 import utils
 from opener import opener
 from parametercounter import ParameterCounter
+from performanceplotter import PerformancePlotter
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
@@ -22,20 +23,26 @@ class Waterer(object):
         self.parameter_dir = parameter_dir
         self.plotdir = plotdir
         self.args = args
+
         self.input_info = input_info
+        self.remaining_queries = [query for query in self.input_info.keys()]  # we remove queries from this list when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
+
         self.reco_info = reco_info
         self.germline_seqs = germline_seqs
-        self.pcounter, self.true_pcounter = None, None
+        self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
         if write_parameters:
             self.pcounter = ParameterCounter(self.germline_seqs)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.germline_seqs)
+        if self.args.plot_performance:
+            assert self.args.plotdir != None
+            assert not self.args.is_data
+            self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw/performance', 'sw')
         self.info = {}
         self.info['queries'] = []
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
         self.info['skipped_indel_queries'] = []  # list of queries that had indels
-        self.info['skipped_no_d_matches'] = []
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from', parameter_dir
@@ -54,6 +61,8 @@ class Waterer(object):
         self.n_unproductive = 0
         self.n_total = 0
 
+        print 'smith-waterman'
+
     # ----------------------------------------------------------------------------------------
     def __del__(self):
         if self.args.outfname != None:
@@ -68,18 +77,22 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
-        print 'smith-waterman'
         # start = time.time()
-
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
-        n_procs = self.args.n_fewer_procs
-        self.write_vdjalign_input(base_infname, n_procs=n_procs)
 
-        self.execute_command(base_infname, base_outfname, n_procs)
+        while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
+            self.write_vdjalign_input(base_infname, n_procs=self.args.n_fewer_procs)
+            self.execute_command(base_infname, base_outfname, self.args.n_fewer_procs)
+            self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
 
-        self.read_output(base_outfname, plot_performance=self.args.plot_performance, n_procs=n_procs)
+        self.finalize()
+
+    # ----------------------------------------------------------------------------------------
+    def finalize(self):
+        if self.perfplotter is not None:
+            self.perfplotter.plot()
         # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
@@ -98,7 +111,9 @@ class Waterer(object):
     def execute_command(self, base_infname, base_outfname, n_procs):
         if n_procs == 1:
             cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
-            check_call(cmd_str.split())
+            proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
+            out, err = proc.communicate()
+            utils.process_out_err(out, err)
             if not self.args.no_clean:
                 os.remove(self.args.workdir + '/' + base_infname)
         else:
@@ -118,15 +133,10 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname, n_procs):
-        # first make a list of query names so we can iterate over an ordered collection
-        ordered_info = []
-        for query_name in self.input_info:
-            ordered_info.append(query_name)
-
-        queries_per_proc = float(len(self.input_info)) / n_procs
+        queries_per_proc = float(len(self.remaining_queries)) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
         if n_procs == 1:  # double check for rounding problems or whatnot
-            assert n_queries_per_proc == len(self.input_info)
+            assert n_queries_per_proc == len(self.remaining_queries)
         for iproc in range(n_procs):
             workdir = self.args.workdir
             if n_procs > 1:
@@ -134,9 +144,9 @@ class Waterer(object):
                 utils.prep_dir(workdir)
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
                 for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
-                    if iquery >= len(ordered_info):
+                    if iquery >= len(self.remaining_queries):
                         break
-                    query_name = ordered_info[iquery]
+                    query_name = self.remaining_queries[iquery]
                     sub_infile.write('>' + query_name + ' NUKES\n')
                     sub_infile.write(self.input_info[query_name]['seq'] + '\n')
 
@@ -164,14 +174,7 @@ class Waterer(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def read_output(self, base_outfname, plot_performance=False, n_procs=1):
-        perfplotter = None
-        if plot_performance:
-            assert self.args.plotdir != None
-            assert not self.args.is_data
-            from performanceplotter import PerformancePlotter
-            perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw/performance', 'sw')
-
+    def read_output(self, base_outfname, n_procs=1):
         n_processed = 0
         for iproc in range(n_procs):
             workdir = self.args.workdir
@@ -182,7 +185,7 @@ class Waterer(object):
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
                     self.n_total += 1
-                    self.process_query(bam, list(reads), perfplotter)
+                    self.process_query(bam, list(reads))
                     n_processed += 1
 
             if not self.args.no_clean:
@@ -192,8 +195,9 @@ class Waterer(object):
 
         print '    processed %d queries' % n_processed
 
-        if perfplotter != None:
-            perfplotter.plot()
+        if len(self.remaining_queries) > 0:
+            print '    %d queries with no valid events, increasing mismatch score: %d --> %d' % (len(self.remaining_queries), self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
+            self.args.match_mismatch[1] += 1
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
@@ -248,7 +252,7 @@ class Waterer(object):
         print 'Note that we could do that automatically here... but that\'s really neither very transparent nor principled, so we\'re making you do it by hand for now.'
 
     # ----------------------------------------------------------------------------------------
-    def process_query(self, bam, reads, perfplotter=None):
+    def process_query(self, bam, reads):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
@@ -311,7 +315,7 @@ class Waterer(object):
 
         # if n_skipped_invalid_cpos > 0:
         #     print '      skipped %d invalid cpos values for %s' % (n_skipped_invalid_cpos, query_name)
-        self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds)
+        self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds)
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
@@ -387,7 +391,7 @@ class Waterer(object):
                 best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions, perfplotter=None):
+    def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions):
         assert query_name not in self.info
         self.info['queries'].append(query_name)
         self.info[query_name] = {}
@@ -427,17 +431,19 @@ class Waterer(object):
                 utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:')
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:')
 
-        if self.pcounter != None:
+        if self.pcounter is not None:
             self.pcounter.increment_reco_params(self.info[query_name])
             self.pcounter.increment_mutation_params(self.info[query_name])
         if self.true_pcounter != None:
             self.true_pcounter.increment_reco_params(self.reco_info[query_name])
             self.true_pcounter.increment_mutation_params(self.reco_info[query_name])
-        if perfplotter != None:
-            perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
+        if self.perfplotter is not None:
+            self.perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
+
+        self.remaining_queries.remove(query_name)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, perfplotter, warnings, first_match_query_bounds):
+    def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds):
         if self.args.debug:
             print '%s' % query_name
 
@@ -503,19 +509,17 @@ class Waterer(object):
 
         for region in utils.regions:
             if region not in best:
-                print '    no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
+                print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
                 if not self.args.is_data:
                     print '    true:'
                     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
-                self.info['skipped_no_d_matches'].append(query_name)
                 return
 
         # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
         try:
             self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
         except AssertionError:
-            print '      ERROR %s apportionment failed' % query_name
-            return
+            raise Exception('%s: apportionment failed' % query_name)
 
         # check for unproductive rearrangements
         for region in utils.regions:
@@ -570,4 +574,4 @@ class Waterer(object):
         kvals = {}
         kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-        self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions, perfplotter=perfplotter)
+        self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions)

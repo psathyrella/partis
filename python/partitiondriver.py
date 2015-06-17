@@ -190,7 +190,7 @@ class PartitionDriver(object):
                     if uid in cluster:
                         found = True
                         break
-                if not found and uid not in self.sw_info['skipped_unproductive_queries'] and uid not in self.sw_info['skipped_no_d_matches']:
+                if not found and uid not in self.sw_info['skipped_unproductive_queries']:
                     path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
                     raise Exception('%s not found in merged partition' % uid)
             for cluster in partition:
@@ -963,7 +963,7 @@ class PartitionDriver(object):
                     if abs(score - self.cached_results[seqstr]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
                         print 'unequal logprobs: %f %f' % (score, self.cached_results[seqstr]['logprob'])
                     if naive_seq != self.cached_results[seqstr]['naive_seq']:
-                        print 'different naive seqs:\n   %s\n   %s' % (seqstr, naive_seq, self.cached_results[seqstr]['naive_seq'])
+                        print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[seqstr]['naive_seq'])
                         self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
                     if cpos != self.cached_results[seqstr]['cyst_position']:
                         raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))

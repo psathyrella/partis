@@ -1075,7 +1075,7 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str):
+def process_out_err(out, err, extra_str='0'):
     print_str = ''
     for line in err.split('\n'):
         if 'srun: job' in line and 'queued and waiting for resources' in line:
