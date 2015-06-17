@@ -27,7 +27,7 @@ parser.add_argument('--is-data', action='store_true', help='True if not simulati
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-n-sets', action='store_true', help='If running on <n-sets> sequences, truncate such that they all have the same length to the left and right of the conserved cysteine')
-parser.add_argument('--pad-sequences', action='store_true', help='Pad (with Ns) all input sequences out to, at minimum, the same length on either side of the conserved cysteine. Also pad out far enough so as to eliminate all v_5p and j_3p deletions.')
+parser.add_argument('--dont-pad-sequences', action='store_true', help='Don\'t pad (with Ns) all input sequences out to, at minimum, the same length on either side of the conserved cysteine. Also pad out far enough so as to eliminate all v_5p and j_3p deletions.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
@@ -86,7 +86,7 @@ parser.add_argument('--branch-length-fname', default='data/recombinator/branch-l
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
-parser.add_argument('--allow-unphysical-insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
+parser.add_argument('--dont-allow-unphysical-insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 # parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simulated sequences')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
@@ -103,9 +103,6 @@ args.n_procs = args.n_procs[0]
 
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
-
-if args.pad_sequences and not args.allow_unphysical_insertions:
-    raise Exception('pad-sequences set without allowing v_5p and j_3p deletions... which isn\'t going to work')
 
 print '\nsetting rescale emissions to true\n'
 args.rescale_emissions = True

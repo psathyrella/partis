@@ -106,7 +106,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
         self.sw_info = waterer.info
-        if self.args.pad_sequences:  # have to do this before we divvy... sigh TODO clean this up and only call it in one place
+        if not self.args.dont_pad_sequences:  # have to do this before we divvy... sigh TODO clean this up and only call it in one place
             # TODO oh, duh, just do it in waterer
             self.pad_seqs_to_same_length()  # adds padded info to sw_info
 
@@ -279,7 +279,7 @@ class PartitionDriver(object):
             cmd_str += ' --cachefile ' + self.hmm_cachefname
         if self.args.truncate_n_sets:
             cmd_str += ' --truncate-seqs'
-        if self.args.allow_unphysical_insertions:
+        if not self.args.dont_allow_unphysical_insertions:
             cmd_str += ' --unphysical-insertions'
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
@@ -342,7 +342,7 @@ class PartitionDriver(object):
                 # cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
             elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                 naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
-                if self.args.pad_sequences:
+                if not self.args.dont_pad_sequences:
                     padleft = self.sw_info[query]['padded']['padleft']  # we're padding the *naive* seq corresponding to query now, but it'll be the same length as the query seq
                     padright = self.sw_info[query]['padded']['padright']
                     assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
@@ -767,7 +767,7 @@ class PartitionDriver(object):
 
         for name in query_names:
             swfo = self.sw_info[name]
-            if self.args.pad_sequences:
+            if not self.args.dont_pad_sequences:
                 k_v = swfo['padded']['k_v']
                 seq = swfo['padded']['seq']
                 cpos = swfo['padded']['cyst_position']
@@ -867,7 +867,7 @@ class PartitionDriver(object):
         else:
             self.write_cachefile(self.hmm_cachefname)
 
-        if self.args.pad_sequences:
+        if not self.args.dont_pad_sequences:
             self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
 
         skipped_gene_matches = set()
@@ -1086,7 +1086,7 @@ class PartitionDriver(object):
                             true_pcounter.increment_mutation_params(self.reco_info[ids[iseq]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
                             perfplotter.evaluate(self.reco_info[ids[iseq]], tmp_line,
-                                                 self.sw_info[ids[iseq]]['padded'] if self.args.pad_sequences else None)
+                                                 None if self.args.dont_pad_sequences else self.sw_info[ids[iseq]]['padded'])
                         n_seqs_processed += 1
 
         if pcounter is not None:
