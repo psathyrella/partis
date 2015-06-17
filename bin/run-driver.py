@@ -15,13 +15,14 @@ def run_command(cmd_str):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
+fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
 parser.add_argument('--simfname')
-parser.add_argument('--stashdir', default='/fh/fast/matsen_e/dralph/work/partis-dev/_output')
-parser.add_argument('--plotdir', required=True)
+parser.add_argument('--stashdir', default=fsdir + '/_output')
+parser.add_argument('--plotdir', default=fsdir + '/_output')
 parser.add_argument('--no-skip-unproductive', action='store_true')
 # parser.add_argument('--XXX', action='store_true')
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
@@ -49,7 +50,7 @@ if 'cache-data-parameters' in args.actions:
     if not args.no_skip_unproductive:
          cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
-    cmd_str += ' --plotdir ' + args.plotdir + '/params/data'
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/params/data'
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
@@ -64,13 +65,13 @@ if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
     cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu'
-    cmd_str += ' --plotdir ' + args.plotdir + '/params/simu'
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/simu'
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
-    cmd_str += ' --plotdir ' + args.plotdir
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label
     cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)

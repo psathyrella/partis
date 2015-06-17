@@ -27,7 +27,7 @@ datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
 
 common_extras = ['--seed', '1', '--no-plot']
 semi_common_extras = ['--match-mismatch', '5:1']
-base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --plotdir ' + testoutdir + '/plots --no-skip-unproductive'
+base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --plotdir ' + testoutdir.replace('/test', '') + '/plots --no-skip-unproductive'
 
 actions = OrderedDict()
 # key is name, value is target (note that the target corresponds to a directory or file in <testoutdir>
