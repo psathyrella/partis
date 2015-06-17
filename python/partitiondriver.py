@@ -32,10 +32,9 @@ class PartitionDriver(object):
             tryp_reader = csv.reader(csv_file)
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
-        randomize_order = self.args.action == 'partition' and not self.args.force_dont_randomize_input_order
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids, randomize_order=randomize_order, replace_N_with=None)  # if we're partitioning, we need to randomize input order (at least for simulation)
+                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids)
 
         self.cached_results = None
 
@@ -144,7 +143,7 @@ class PartitionDriver(object):
         while n_procs > 0:
             nclusters = get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, shuffle_input_order=(self.args.smc_particles == 1))  # don't shuffle sequences if we have multiple paths, 'cause, you know, if you do ALL HELL BREAKS LOOSE
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs)
             n_proc_list.append(n_procs)
 
             if n_procs == 1:
@@ -290,7 +289,7 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, plotdir=None, n_procs=None, shuffle_input_order=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, plotdir=None, n_procs=None):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -299,7 +298,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(parameter_dir=parameter_in_dir, shuffle_input_order=shuffle_input_order)
+        self.write_hmm_input(parameter_dir=parameter_in_dir)
 
         print '    running'
         sys.stdout.flush()
@@ -859,7 +858,7 @@ class PartitionDriver(object):
         # print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, parameter_dir, shuffle_input_order=False):
+    def write_hmm_input(self, parameter_dir):
         """ Write input file for bcrham """
         print '    writing input'
         if self.cached_results is None:
@@ -870,16 +869,6 @@ class PartitionDriver(object):
 
         if self.args.pad_sequences:
             self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
-
-        def shuffle_nset_order(tmp_nsets):
-            # randomize the order of the query list in <tmp_nsets>. Note that the list gets split into chunks for parallelization later
-            assert self.args.smc_particles == 1
-            random_nsets = []
-            while len(tmp_nsets) > 0:
-                irand = random.randint(0, len(tmp_nsets) - 1)  # NOTE interval is inclusive
-                random_nsets.append(tmp_nsets[irand])
-                tmp_nsets.remove(tmp_nsets[irand])
-            return random_nsets
 
         skipped_gene_matches = set()
 
@@ -921,9 +910,6 @@ class PartitionDriver(object):
                             this_set.append(keylist[iquery])
                         if len(this_set) > 0:
                             nsets.append(this_set)
-
-            if shuffle_input_order:  # TODO make sure this is ok, and doesn't overwrite anything untoward (<self.paths>)
-                nsets = shuffle_nset_order(nsets)
 
             self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
 

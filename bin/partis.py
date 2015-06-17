@@ -36,7 +36,6 @@ parser.add_argument('--plot-parameters', action='store_true', help='Plot inferre
 parser.add_argument('--dont-mimic-data-read-length', action='store_true', help='Simulate events with the entire v, d, and j regions? (Otherwise we mimic the read length observed in data)')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
-parser.add_argument('--force-dont-randomize-input-order', action='store_true', help='For scons test we want to be able to overide randomization of sequence order.')
 parser.add_argument('--rescale-emissions', action='store_true')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
 
