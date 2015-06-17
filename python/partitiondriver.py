@@ -974,10 +974,10 @@ class PartitionDriver(object):
                     cpos = int(line['cyst_position'])
 
                 if seqstr in self.cached_results:  # make sure we don't get contradicting info
-                    if abs(score - self.cached_results[seqstr]['logprob']) > 1e-4:
-                        print 'WARNING unequal logprobs for %s: %f %f' % (seqstr, score, self.cached_results[seqstr]['logprob'])
+                    if abs(score - self.cached_results[seqstr]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
+                        print 'unequal logprobs: %f %f' % (score, self.cached_results[seqstr]['logprob'])
                     if naive_seq != self.cached_results[seqstr]['naive_seq']:
-                        print 'WARNING different naive seqs for %s:\n   %s\n   %s' % (seqstr, naive_seq, self.cached_results[seqstr]['naive_seq'])
+                        print 'different naive seqs:\n   %s\n   %s' % (seqstr, naive_seq, self.cached_results[seqstr]['naive_seq'])
                         self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
                     if cpos != self.cached_results[seqstr]['cyst_position']:
                         raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))

@@ -1,6 +1,7 @@
 import os
 import sys
 import math
+import csv
 
 import utils
 from opener import opener
@@ -53,7 +54,15 @@ class ClusterPath(object):
         self.n_procs.pop(0)
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info, extrastr='', one_line=False, abbreviate=True):
+    def readfile(self, fname):
+        with opener('r')(fname) as infile:
+            reader = csv.DictReader(infile)
+            for line in reader:
+                partition = [cl.split(':') for cl in line['clusters'].split(';')]
+                self.add_partition(partition, float(line['score']), float(line['logweight']), float(line['adj_mi']), int(line['n_procs']))
+
+    # ----------------------------------------------------------------------------------------
+    def print_partition(self, ip, reco_info=None, extrastr='', one_line=False, abbreviate=True):
         if one_line:
             if ip > 0:
                 delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -93,7 +102,7 @@ class ClusterPath(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info, extrastr='', one_line=False, abbreviate=True, header=True):
+    def print_partitions(self, reco_info=None, extrastr='', one_line=False, abbreviate=True, header=True):
         if header:
             print '    %7s  %7s   %-7s %8s     %5s   %10s  %7s' % ('', 'logprob', 'delta', 'adj mi', 'clusters', 'pot.parents', 'logweight')
         for ip in range(len(self.partitions)):
