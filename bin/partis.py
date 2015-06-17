@@ -59,7 +59,7 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
-# #simulation (see also branch-length-fname, and gtr-fname)
+# simulation (see also branch-length-fname, and gtr-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearrangement events to simulate')
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
