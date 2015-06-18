@@ -144,10 +144,10 @@ class ClusterPath(object):
                     cluster_str += ';'
                 cluster_str += ':'.join(part[ic])
                 if not is_data:
-                    same_event = utils.from_same_event(is_data, self.reco_info, part[ic])  # are all the sequences from the same event?
+                    same_event = utils.from_same_event(is_data, reco_info, part[ic])  # are all the sequences from the same event?
                     entire_cluster = True  # ... and if so, are they the entire true cluster?
                     if same_event:
-                        reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
+                        reco_id = reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
                         true_cluster = true_partition[reco_id]
                         for uid in true_cluster:
                             if uid not in part[ic]:
