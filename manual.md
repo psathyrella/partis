@@ -30,7 +30,7 @@ This creates a new container from the partis image, and attaches you to it inter
 Now you're in the container, then, you'll want to build everything:
 
 ```
-source ./bin/handbuild.sh
+./bin/build.sh && export $PWD/packages/samtools
 ```
 
 Then, you can run individual partis commands, just poke around, or run the scons targets `test` or `validate`.

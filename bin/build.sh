@@ -1,8 +1,8 @@
 echo "running $0"
 set -eu
 
-if [ "$USER" == "" ]; then  # if we're in docker
-    basedir=/partis
+if grep -v '/$' /proc/1/cgroup>/dev/null; then
+    basedir=/partis  # if we're in docker
 else
     basedir=$PWD
 fi
