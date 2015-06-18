@@ -60,7 +60,7 @@ class PartitionDriver(object):
     def clean(self):
         if self.args.initial_cachefname is not None:
             self.merge_cachefiles(infnames=[self.hmm_cachefname, self.args.initial_cachefname], outfname=self.args.initial_cachefname)
-        if not self.args.no_clean:
+        if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
             os.remove(self.hmm_cachefname)
 
         if not self.args.no_clean:
@@ -206,7 +206,7 @@ class PartitionDriver(object):
     def write_partitions(self, outfname, paths, tmpglom):
         csv.field_size_limit(sys.maxsize)  # 'clusters' field can be very large
         with opener('w')(outfname) as outfile:
-            headers = ['score', 'n_clusters', 'n_procs', 'clusters']
+            headers = ['logprob', 'n_clusters', 'n_procs', 'clusters']
             if self.args.smc_particles > 1:
                 headers += ['path_index', 'logweight']
             if not self.args.is_data:
@@ -921,8 +921,8 @@ class PartitionDriver(object):
                     print '%s' % seqstr.replace(':', '\n')
 
                 score, naive_seq, cpos = None, None, None
-                if line['score'] != '':
-                    score = float(line['score'])
+                if line['logprob'] != '':
+                    score = float(line['logprob'])
                 if line['naive_seq'] != '':
                     naive_seq = line['naive_seq']
                     cpos = int(line['cyst_position'])
@@ -947,10 +947,10 @@ class PartitionDriver(object):
             time.sleep(0.5)
         lockfile = open(lockfname, 'w')
         with opener('w')(fname) as cachefile:
-            writer = csv.DictWriter(cachefile, ('query_seqs', 'score', 'naive_seq', 'cyst_position'))
+            writer = csv.DictWriter(cachefile, ('query_seqs', 'logprob', 'naive_seq', 'cyst_position'))
             writer.writeheader()
             for seqstr, cachefo in self.cached_results.items():
-                writer.writerow({'query_seqs':seqstr, 'score':cachefo['logprob'], 'naive_seq':cachefo['naive_seq'], 'cyst_position':cachefo['cyst_position']})
+                writer.writerow({'query_seqs':seqstr, 'logprob':cachefo['logprob'], 'naive_seq':cachefo['naive_seq'], 'cyst_position':cachefo['cyst_position']})
 
         lockfile.close()
         os.remove(lockfname)
@@ -1018,7 +1018,7 @@ class PartitionDriver(object):
                 utils.process_input_line(line,
                                          splitargs=('unique_ids', 'seqs'),
                                          int_columns=('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
-                                         float_columns=('score'))
+                                         float_columns=('logprob'))
                 ids = line['unique_ids']
                 same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
                 if same_event is None:

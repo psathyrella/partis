@@ -170,7 +170,7 @@ class Glomerator(object):
                     paths[path_index] = ClusterPath(int(line['initial_path_index']))
                 else:
                     assert paths[path_index].initial_path_index == int(line['initial_path_index'])
-                paths[path_index].add_partition(uids, float(line['score']), float(line['logweight']), self.mutual_information(uids, debug=False))
+                paths[path_index].add_partition(uids, float(line['logprob']), float(line['logweight']), self.mutual_information(uids, debug=False))
 
         for cp in paths:
             if cp is None:

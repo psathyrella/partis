@@ -15,7 +15,8 @@ def run_command(cmd_str):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
+if os.getenv('USER') is not None:
+    fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)

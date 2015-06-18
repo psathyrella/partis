@@ -110,7 +110,7 @@ for fname in args.infnames:
             ipath = int(line['path_index'])
             if ipath not in logprobs:
                 logprobs[ipath], adj_mis[ipath], logweights[ipath] = [], [], []
-            logprobs[ipath].append(float(line['score']))
+            logprobs[ipath].append(float(line['logprob']))
             adj_mis[ipath].append(float(line['adj_mi']))
             logweights[ipath].append(float(line['logweight']))
 

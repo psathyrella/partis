@@ -59,7 +59,7 @@ class ClusterPath(object):
             reader = csv.DictReader(infile)
             for line in reader:
                 partition = [cl.split(':') for cl in line['clusters'].split(';')]
-                self.add_partition(partition, float(line['score']), float(line['logweight']), float(line['adj_mi']), int(line['n_procs']))
+                self.add_partition(partition, float(line['logprob']), float(line['logweight']), float(line['adj_mi']), int(line['n_procs']))
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info=None, extrastr='', one_line=False, abbreviate=True):
@@ -160,7 +160,7 @@ class ClusterPath(object):
 
             if len(bad_clusters) > 25:
                 bad_clusters = ['too', 'long']
-            row = {'score' : self.logprobs[ipart],
+            row = {'logprob' : self.logprobs[ipart],
                    'n_clusters' : len(part),
                    'n_procs' : self.n_procs[ipart],
                    'clusters' : cluster_str}

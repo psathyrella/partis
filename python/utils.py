@@ -702,8 +702,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info
     out_str_list.append('   muted: %4.2f' % (float(n_muted) / n_total))
-    if 'score' in line:
-        out_str_list.append('  score: %s' % line['score'])
+    if 'logprob' in line:
+        out_str_list.append('  score: %s' % line['logprob'])
     if 'cdr3_length' in line:
         out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
     out_str_list.append('\n')
@@ -921,7 +921,7 @@ def get_hamming_distances(pairs):
             seq_b = seq_b[-min_length : ]
             chopped_off_left_sides = True
         mutation_frac = hamming_fraction(seq_a, seq_b)
-        return_info.append({'id_a':info['id_a'], 'id_b':info['id_b'], 'score':mutation_frac})
+        return_info.append({'id_a':info['id_a'], 'id_b':info['id_b'], 'logprob':mutation_frac})
 
     return return_info
 

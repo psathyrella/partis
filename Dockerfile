@@ -35,4 +35,4 @@ RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstud
 
 COPY . /partis
 WORKDIR /partis
-CMD ./bin/build-and-test.sh
+CMD . ./bin/build.sh && scons test
