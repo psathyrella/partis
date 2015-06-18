@@ -22,6 +22,3 @@ cd $basedir/packages/smctc/ && make
 echo "\n--> building ham"
 cd $basedir/packages/ham/ && scons bcrham
 cd $basedir/
-
-echo "\n--> scons test"
-scons test
