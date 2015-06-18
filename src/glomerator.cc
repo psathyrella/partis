@@ -140,7 +140,7 @@ void Glomerator::ReadCachedLogProbs() {
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   vector<string> headstrs(SplitString(line, ","));
   assert(headstrs[0].find("query_seqs") == 0);  // each set of unique_ids can appear many times, once for each truncation
-  assert(headstrs[1].find("score") == 0);
+  assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("cyst_position") == 0);
 
@@ -157,7 +157,7 @@ void Glomerator::ReadCachedLogProbs() {
     if(naive_seq.size() > 0)
       naive_seqs_[seqstr] = Sequence(track_, seqstr, naive_seq, cyst_position);  // NOTE the Sequence's name is here given by the <seqstr>, not by their names
   }
-  // cout << "      read " << log_probs_.size() << " cached results" << endl;
+  cout << "      read " << log_probs_.size() << " cached results" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -191,7 +191,7 @@ void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->cachefile());
   if(!log_prob_ofs.is_open())
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "query_seqs,score,naive_seq,cyst_position,errors" << endl;
+  log_prob_ofs << "query_seqs,logprob,naive_seq,cyst_position,errors" << endl;
 
   log_prob_ofs << setprecision(20);
   // first write everything for which we have log probs
@@ -221,7 +221,7 @@ void Glomerator::WriteCachedLogProbs() {
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
-  ofs_ << "path_index,initial_path_index,partition,score,logweight" << endl;
+  ofs_ << "path_index,initial_path_index,partition,logprob,logweight" << endl;
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
