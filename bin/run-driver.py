@@ -15,7 +15,9 @@ def run_command(cmd_str):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-if os.getenv('USER') is not None:
+if os.getenv('USER') is None:  # if we're in docker
+    fsdir = '/partis'  # shouldn't need it in this case
+else:
     fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
