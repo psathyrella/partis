@@ -24,23 +24,31 @@ Once you have Docker installed, pull the partis image from dockerhub
 
 Then enter it with
 
-``` sudo docker run -t -i psathyrella/partis /bin/bash ```.
+``` sudo docker run -i -t psathyrella/partis /bin/bash ```.
 
-This will drop you into the main `partis/` directory, from which you'll want to build:
+This creates a new container from the partis image, and attaches you to it interactively.
+Now you're in the container, then, you'll want to build everything:
 
 ```
 source ./bin/handbuild.sh
 ```
 
-Then, you can run the full analysis chain with
+Then, you can run individual partis commands, just poke around, or run the scons targets `test` or `validate`.
+To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
-```scons validate```.
+###### Docker tips
+Docker is really awesome.
+But it's confusing at first, mostly because it's kinda-sorta like virtual machines, only different.
+The thing to remember is that everything that isn't working for you has in the past also confused many other people on stackoverflow, so it's easy to google what you're doing wrong.
 
-To find out what the "full analysis chain" is, look elsewhere in this manual.
-In short, though, it infers a set of parameters from a test data set, then makes a simulated data set based on these parameters, and finally annotates these simulated sequences.
-
-Docker tip: if you do some of the above, and exit, then do `docker run` again, it'll start a new container.
-If, instead, you want to attach to the previous one, that's different: look up the difference between `attach`, `enter`, and `run` in the Docker documentation.
+A few tips:
+  - We use `docker run` above: this creates a new "container" from the current image (kindasorta: "creates a new instance of the partis image").
+  - If you exit and then do `docker run` again, that'll create a new container. But most of the time you want to reattach to the one you made before.
+    - to reattach to the same container:
+      - run `docker ps -a` (lists all running and stopped containers) to get the right container ID
+      - run `docker attach <ID>`
+    - Hence the `-i -t` and `/bin/bash` options: this allocates a pseudo-tty keeps STDIN open, and runs bash instead of the default command, without all of which you can't reattach
+    - [this](http://stackoverflow.com/questions/26153686/how-to-run-a-command-on-an-already-existing-docker-container) is a helpful discussion. Also, look up the difference between `attach` and `run` in the docker docs.
 
 ### Installation
 
