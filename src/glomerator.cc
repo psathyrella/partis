@@ -555,16 +555,14 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 
   // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
   if(max_log_prob == -INFINITY) {
-    if(args_->debug()) {
-      if(path->CurrentPartition().size() == 1)
-	cout << "     stop with partition of size one" << endl;
-      else if(n_skipped_hamming == n_total_pairs)
-	cout << "     stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_cutoff() << endl;
-      else if(n_inf_factors == n_total_pairs)
-	cout << "     stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
-      else
-	cout << "     stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
-    }
+    if(path->CurrentPartition().size() == 1)
+      cout << "     stop with partition of size one" << endl;
+    else if(n_skipped_hamming == n_total_pairs)
+      cout << "     stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_cutoff() << endl;
+    else if(n_inf_factors == n_total_pairs)
+      cout << "     stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
+    else
+      cout << "     stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
 
     path->finished_ = true;
     return;
