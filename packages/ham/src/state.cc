@@ -61,7 +61,7 @@ void State::Parse(YAML::Node node, vector<string> state_names, Track *track) {
   if(node["emissions"].IsNull()) {
     stringstream node_ss;
     node_ss << node;
-    throw runtime_error("ERROR no emissions found in " + node_ss.str());
+    throw runtime_error("no emissions found in " + node_ss.str());
   }
   emission_.Parse(node["emissions"], track);
 }
@@ -71,8 +71,8 @@ void State::RescaleOverallMuteFreq(double factor) {
   if(germline_nuc_ == ambiguous_char_ || germline_nuc_ == "")  // if the germline state is N, or if this state has no germline (most likely fv or jf insertion)
     return;
 
-  if(factor <= 0.0 || factor > 10.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
-    throw runtime_error("ERROR State::RescaleOverallMuteFreq got a bad factor: " + to_string(factor) + "\n");
+  if(factor <= 0.0 || factor > 15.0)  // ten is a hack... but boy, you probably don't really want to multiply by more than 10
+    cout << "very large factor in State::RescaleOverallMuteFreq: " << to_string(factor) << endl;
 
   assert(emission_.track()->symbol_index(germline_nuc_) < emission_.track()->alphabet_size());  // this'll throw an exception on the symbol_index call if the germline nuc is bad
 
