@@ -60,8 +60,7 @@ class PartitionDriver(object):
     def clean(self):
         if self.args.initial_cachefname is not None:
             self.merge_cachefiles(infnames=[self.hmm_cachefname, self.args.initial_cachefname], outfname=self.args.initial_cachefname)
-            # check_call(['cp', '-v', self.hmm_cachefname, self.args.initial_cachefname])
-        if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
+        if not self.args.no_clean:
             os.remove(self.hmm_cachefname)
 
         if not self.args.no_clean:
@@ -119,7 +118,7 @@ class PartitionDriver(object):
             cp.add_partition([[cl, ] for cl in self.input_info.keys()], 0., 0., -1.)
             self.paths = [cp, ]
         else:
-            initial_divvied_queries = self.divvy_up_queries(n_procs, self.sw_info)
+            initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
             self.smc_info = [[], ]
             for clusters in initial_divvied_queries:  # one set of <clusters> for each process
                 self.smc_info[-1].append([])
@@ -191,67 +190,32 @@ class PartitionDriver(object):
                         found = True
                         break
                 if not found and uid not in self.sw_info['skipped_unproductive_queries']:
-                    path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
-                    raise Exception('%s not found in merged partition' % uid)
+                    # path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
+                    # raise Exception('%s not found in merged partition' % uid)
+                    print 'WARNING %s not found in merged partition' % uid
             for cluster in partition:
                 for uid in cluster:
                     if uid not in self.input_info:
-                        raise Exception('%s not found in merged partition' % uid)
+                        # raise Exception('%s not found in merged partition' % uid)
+                        print 'WARNING %s not found in merged partition' % uid
 
         for ipart in range(len(path.partitions)):
             check_partition(path.partitions[ipart], ipart)
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths, tmpglom):
+        csv.field_size_limit(sys.maxsize)  # 'clusters' field can be very large
         with opener('w')(outfname) as outfile:
-            headers = ['path_index', 'score', 'logweight', 'adj_mi', 'n_clusters', 'n_procs', 'clusters']
+            headers = ['score', 'n_clusters', 'n_procs', 'clusters']
+            if self.args.smc_particles > 1:
+                headers += ['path_index', 'logweight']
             if not self.args.is_data:
-                headers += ['bad_clusters', ]
+                headers += ['adj_mi', 'bad_clusters']
             writer = csv.DictWriter(outfile, headers)
             writer.writeheader()
             true_partition = None if self.args.is_data else tmpglom.get_true_partition()
             for ipath in range(len(paths)):
-                for ipart in range(len(paths[ipath].partitions)):
-                    # print 'ipart', ipart
-                    part = paths[ipath].partitions[ipart]
-                    cluster_str = ''
-                    bad_clusters = []  # inferred clusters that aren't really all from the same event
-                    for ic in range(len(part)):
-                        # print '  %d:  %s' % (ic, ':'.join(part[ic]))
-                        if ic > 0:
-                            cluster_str += ';'
-                        cluster_str += ':'.join(part[ic])
-                        if not self.args.is_data:
-                            same_event = utils.from_same_event(self.args.is_data, self.reco_info, part[ic])  # are all the sequences from the same event?
-                            entire_cluster = True  # ... and if so, are they the entire true cluster?
-                            if same_event:
-                                reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
-                                true_cluster = true_partition[reco_id]
-                                # print '    true %s:  %s' % (reco_id, ':'.join(true_cluster))
-                                for uid in true_cluster:
-                                    if uid not in part[ic]:
-                                        # print '        missing %s (and maybe others)' % uid
-                                        entire_cluster = False
-                                        break
-                            else:
-                                entire_cluster = False
-                            if not same_event or not entire_cluster:
-                                bad_clusters.append(':'.join(part[ic]))
-
-                    if len(bad_clusters) > 25:
-                        bad_clusters = ['too', 'long']
-                    row = {'path_index' : self.args.seed + ipath,
-                           'score' : paths[ipath].logprobs[ipart],
-                           'logweight' : paths[ipath].logweights[ipart],
-                           # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                           'adj_mi' : paths[ipath].adj_mis[ipart],
-                           'n_clusters' : len(part),
-                           'n_procs' : paths[ipath].n_procs[ipart],
-                           'clusters' : cluster_str
-                    }
-                    if not self.args.is_data:
-                        row['bad_clusters'] = ';'.join(bad_clusters)
-                    writer.writerow(row)
+                paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath)
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -330,12 +294,14 @@ class PartitionDriver(object):
             vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info)
 
     # ----------------------------------------------------------------------------------------
-    def divvy_up_queries(self, n_procs, info, debug=True):
+    def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
         naive_seqs = {}
         # , cyst_positions = {}, {}
         for line in info:
-            query = line['names'] if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
-            seqstr = line['padded']['seqs'] if 'padded' in line else line['seqs']
+            # query = line['names'] if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
+            # seqstr = line['padded']['seqs'] if 'padded' in line else line['seqs']
+            query = line[namekey]
+            seqstr = line['padded'][seqkey] if 'padded' in line else line[seqkey]
             # NOTE cached naive seqs should all be the same length
             if self.cached_results is not None and seqstr in self.cached_results:  # first try to used cached hmm results
                 naive_seqs[query] = self.cached_results[seqstr]['naive_seq']
@@ -405,7 +371,7 @@ class PartitionDriver(object):
                 check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
 
         if self.args.action == 'partition':
-            divvied_queries = self.divvy_up_queries(n_procs, info)
+            divvied_queries = self.divvy_up_queries(n_procs, info, 'names', 'seqs')
         for iproc in range(n_procs):
             for iquery in range(len(info)):
                 if self.args.action == 'partition':
@@ -805,13 +771,15 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def remove_sw_failures(self, query_names):
         """ If any of the queries in <query_names> was unproductive, return an empty list (which will be skipped entirely), otherwise return the original name list """
-        unproductive, indel = False, False
+        unproductive, indel, unknown = False, False, False
         for qrn in query_names:
             if qrn in self.sw_info['skipped_unproductive_queries']:
                 unproductive = True
             if qrn in self.sw_info['skipped_indel_queries']:
                 indel = True
-        if unproductive or indel:
+            if qrn in self.sw_info['skipped_unknown_queries']:
+                unknown = True
+        if unproductive or indel or unknown:
             return []
 
         # otherwise they should be in self.sw_info, but doesn't hurt to check
@@ -863,7 +831,7 @@ class PartitionDriver(object):
         print '    writing input'
         if self.cached_results is None:
             if self.args.initial_cachefname is not None:
-                check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/'])
+                check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/' + os.path.basename(self.hmm_cachefname)])
         else:
             self.write_cachefile(self.hmm_cachefname)
 

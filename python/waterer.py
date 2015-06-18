@@ -43,6 +43,7 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
         self.info['skipped_indel_queries'] = []  # list of queries that had indels
+        self.info['skipped_unknown_queries'] = []
         if self.args.apply_choice_probs_in_sw:
             if self.args.debug:
                 print '  reading gene choice probs from', parameter_dir
@@ -82,10 +83,15 @@ class Waterer(object):
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
 
+        n_tries = 0
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             self.write_vdjalign_input(base_infname, n_procs=self.args.n_fewer_procs)
             self.execute_command(base_infname, base_outfname, self.args.n_fewer_procs)
             self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
+            n_tries += 1
+            if n_tries > 1:
+                self.info['skipped_unknown_queries'] += self.remaining_queries
+                break
 
         self.finalize()
 
@@ -196,7 +202,7 @@ class Waterer(object):
         print '    processed %d queries' % n_processed
 
         if len(self.remaining_queries) > 0:
-            print '    %d queries with no valid events, increasing mismatch score: %d --> %d' % (len(self.remaining_queries), self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
+            print '      %d queries with no valid events, increasing mismatch score (%d --> %d) and rerunning them' % (len(self.remaining_queries), self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
             self.args.match_mismatch[1] += 1
 
     # ----------------------------------------------------------------------------------------
@@ -509,17 +515,18 @@ class Waterer(object):
 
         for region in utils.regions:
             if region not in best:
-                print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
-                if not self.args.is_data:
-                    print '    true:'
-                    utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
+                # print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
+                # if not self.args.is_data:
+                #     print '    true:'
+                #     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
                 return
 
-        # s-w allows d and j matches to overlap... which makes no sense, so arbitrarily give the disputed territory to j
+        # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         try:
             self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
         except AssertionError:
-            raise Exception('%s: apportionment failed' % query_name)
+            print '%s: apportionment failed' % query_name
+            return
 
         # check for unproductive rearrangements
         for region in utils.regions:

@@ -58,7 +58,7 @@ if 'simulate' in args.actions:
     # simulate based on data parameters
     cmd_str = ' --action simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
-    # cmd_str += ' --random-number-of-leaves'
+    cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
 if 'cache-simu-parameters' in args.actions:

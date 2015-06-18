@@ -132,3 +132,42 @@ class ClusterPath(object):
                 last_logweight = self.logweights[ip-1]
             this_logweight = last_logweight + math.log(1. / potential_n_parents(self.partitions[ip]))
             self.logweights[ip] = this_logweight
+
+    # ----------------------------------------------------------------------------------------
+    def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index):
+        for ipart in range(len(self.partitions)):
+            part = self.partitions[ipart]
+            cluster_str = ''
+            bad_clusters = []  # inferred clusters that aren't really all from the same event
+            for ic in range(len(part)):
+                if ic > 0:
+                    cluster_str += ';'
+                cluster_str += ':'.join(part[ic])
+                if not is_data:
+                    same_event = utils.from_same_event(is_data, self.reco_info, part[ic])  # are all the sequences from the same event?
+                    entire_cluster = True  # ... and if so, are they the entire true cluster?
+                    if same_event:
+                        reco_id = self.reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
+                        true_cluster = true_partition[reco_id]
+                        for uid in true_cluster:
+                            if uid not in part[ic]:
+                                entire_cluster = False
+                                break
+                    else:
+                        entire_cluster = False
+                    if not same_event or not entire_cluster:
+                        bad_clusters.append(':'.join(part[ic]))
+
+            if len(bad_clusters) > 25:
+                bad_clusters = ['too', 'long']
+            row = {'score' : self.logprobs[ipart],
+                   'n_clusters' : len(part),
+                   'n_procs' : self.n_procs[ipart],
+                   'clusters' : cluster_str}
+            if smc_particles > 1:
+                row['path_index'] = path_index
+                row['logweight'] = self.logweights[ipart]
+            if not is_data:
+                row['adj_mi'] = self.adj_mis[ipart]
+                row['bad_clusters'] = ';'.join(bad_clusters)
+            writer.writerow(row)

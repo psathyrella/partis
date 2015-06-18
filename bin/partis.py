@@ -57,14 +57,13 @@ parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-ev
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
-parser.add_argument('--max_clusters_per_proc', type=int, default=50)
 
 # simulation (see also branch-length-fname, and gtr-fname)
 # NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearrangement events to simulate')
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
-parser.add_argument('--random-number-of-leaves', action='store_true', help='For each tree choose a random number of leaves based on <n-leaves> (a.t.m. from a hacktified exponential). Otherwise give all trees <n-leaves> leaves')
+parser.add_argument('--random-number-of-leaves', default=True, action='store_true', help='For each tree choose a random number of leaves based on <n-leaves> (a.t.m. from a hacktified exponential). Otherwise give all trees <n-leaves> leaves')
 
 # numerical inputs
 parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.2, help='Threshold for hamming distance single-linkage preclustering')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths
@@ -135,6 +134,7 @@ def run_simulation(args):
 
 # ----------------------------------------------------------------------------------------
 def make_events(args, n_events, iproc, random_ints):
+    assert n_events > 0
     # NOTE all the different seeds! this sucks but is necessary
     reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc))  #, total_length_from_right=args.total_length_from_right)
     for ievt in range(n_events):

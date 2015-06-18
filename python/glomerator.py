@@ -310,16 +310,3 @@ class Glomerator(object):
         self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
 
         return self.paths
-
-    # ----------------------------------------------------------------------------------------
-    def write_partitions(self, outfname, mode, paths):
-        with open(outfname, mode) as outfile:
-            writer = csv.DictWriter(outfile, ('path_index', 'score', 'logweight', 'adj_mi'))
-            writer.writeheader()
-            for ipath in range(len(paths)):
-                for ipart in range(len(paths[ipath].partitions)):
-                    writer.writerow({'path_index' : ipath,
-                                     'score' : paths[ipath].logprobs[ipart],
-                                     'logweight' : paths[ipath].logweights[ipart],
-                                     # 'normalized_score' : part['score'] / self.max_log_probs[ipath],
-                                     'adj_mi' : paths[ipath].adj_mis[ipart]})

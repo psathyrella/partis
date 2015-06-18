@@ -462,15 +462,15 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     leg.Draw()
 
     if xline is not None:
-        if xline <= hframe.GetXaxis().GetXmin() or xline >= hframe.GetXaxis().GetXmax():  # make sure we got valid a x position for the line
-            print 'WARNING plotting x line at %f out of bounds (%f, %f)' % (float(xmin), hframe.GetXaxis().GetXmin(), hframe.GetXaxis().GetXmax())
+        # if xline < hframe.GetXaxis().GetXmin() or xline > hframe.GetXaxis().GetXmax():  # make sure we got valid a x position for the line
+        #     print 'WARNING plotting x line at %f out of bounds (%f, %f)' % (float(xmin), hframe.GetXaxis().GetXmin(), hframe.GetXaxis().GetXmax())
         # xl = TLine(xline, hframe.GetYaxis().GetXmin(), xline, 0.5*ymax)
         xl = TLine(xline, -0.1*ymax, xline, 0.5*ymax)
         xl.SetLineStyle(2)
         xl.Draw()
     if yline is not None:
-        if yline <= hframe.GetYaxis().GetXmin() or xline >= hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
-            print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
+        # if yline < hframe.GetYaxis().GetXmin() or xline > hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
+        #     print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
         yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
         yl.Draw()
 
