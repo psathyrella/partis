@@ -58,7 +58,7 @@ def get_lines(fname, reduce_precision=False):
              return lines
         
     except IOError:
-        raise Exception('ERROR ' + os.path.basename(fname) + ' not found in ' + os.path.dirname(fname))
+        raise Exception(os.path.basename(fname) + ' not found in ' + os.path.dirname(fname))
 
 def check_lines(lines1, lines2):
     difflines = []
@@ -123,6 +123,6 @@ for fname in filelist:
     elif '.svg' in fname or '.html' in fname:
         continue
     else:
-        raise Exception('ERROR ' + fname + ' has an extension I can\'t handle')
+        raise Exception(fname + ' has an extension I can\'t handle')
 
 sys.exit(0)

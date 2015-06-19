@@ -25,14 +25,14 @@ datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
 
 common_extras = ['--seed', '1', '--no-plot']
 semi_common_extras = ['--match-mismatch', '5:1']
-base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --plotdir ' + stashdir + '/plots --no-skip-unproductive'
+base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --plotdir ' + stashdir + ' --no-skip-unproductive'
 
 actions = OrderedDict()
 # key is name, value is target (note that the target corresponds to a directory or file in <stashdir>
 actions['cache-data-parameters'] = {'target' : 'data', 'extras' : semi_common_extras}
 actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--random-number-of-leaves', '--n-sim-events', '150']}
 actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : semi_common_extras}
-actions['plot-performance'] = {'target' : 'plots', 'extras' : semi_common_extras}
+actions['plot-performance'] = {'target' : 'performance', 'extras' : semi_common_extras}
 
 tests = OrderedDict()
 # first add the tests that run over the framework (using run-driver.py)

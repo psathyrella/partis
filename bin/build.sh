@@ -1,4 +1,4 @@
-echo "\n--> running $0"
+echo -e "\n--> running $0"
 set -eu
 
 if grep -v '/$' /proc/1/cgroup>/dev/null; then
@@ -7,21 +7,21 @@ else
     basedir=$PWD
 fi
 
-echo "\n--> building samtools"
+echo -e "\n--> building samtools"
 export LEIN_ROOT=1
 cd $basedir/packages/samtools/ && make
 export PATH=$PWD:$PATH
 
-echo "\n--> building ighutil"
+echo -e "\n--> building ighutil"
 cd $basedir/packages/ighutil/ && make -C clj
 pip install --user ./python
 
-echo "\n--> building smctc"
+echo -e "\n--> building smctc"
 cd $basedir/packages/smctc/ && make
 
-echo "\n--> building ham"
+echo -e "\n--> building ham"
 cd $basedir/packages/ham/ && scons bcrham
 cd $basedir/
 
-echo "\n--> scons test"
+echo -e "\n--> scons test"
 scons test
