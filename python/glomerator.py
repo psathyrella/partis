@@ -138,8 +138,8 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def mutual_information(self, partition, debug=False):
-        if self.reco_info is None:
-            return -1.0
+        # if self.reco_info is None:
+        #     return -1.0
         true_cluster_list, inferred_cluster_list = [], []
         for iclust in range(len(partition)):
             for uid in partition[iclust]:
@@ -170,7 +170,10 @@ class Glomerator(object):
                     paths[path_index] = ClusterPath(int(line['initial_path_index']))
                 else:
                     assert paths[path_index].initial_path_index == int(line['initial_path_index'])
-                paths[path_index].add_partition(uids, float(line['logprob']), float(line['logweight']), self.mutual_information(uids, debug=False))
+                n_procs = int(line['n_procs']) if 'n_procs' in line else 1
+                logweight = float(line['logweight']) if 'logweight' in line else None
+                adj_mi = self.mutual_information(uids, debug=False) if self.reco_info is not None else -1
+                paths[path_index].add_partition(uids, float(line['logprob']), n_procs=n_procs, logweight=logweight, adj_mi=adj_mi)
 
         for cp in paths:
             if cp is None:
@@ -180,10 +183,6 @@ class Glomerator(object):
                     raise Exception('zero length partition read from %s' % infname)
 
         return paths
-
-    # ----------------------------------------------------------------------------------------
-    def merge_partitions(self, partitions, logprobs, logweights, adj_mis):
-        pass
 
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
@@ -212,9 +211,9 @@ class Glomerator(object):
                     for ip in range(len(previous_path.partitions)):
                         # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                         #     continue
-                        extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip], previous_path.n_procs[ip])
+                        extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.n_procs[ip], logweight=previous_path.logweights[ip], adj_mi=previous_path.adj_mis[ip])
                     for ip in range(len(current_path.partitions)):
-                        extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip], current_path.n_procs[ip])
+                        extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip], adj_mi=current_path.adj_mis[ip])
                     fileinfos[ifile][ipath] = extended_path
                     fileinfos[ifile][ipath].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                     if debug:
@@ -256,8 +255,8 @@ class Glomerator(object):
                     for cluster in fileinfos[ifile][ipath].partitions[0]:
                         global_partition.append(list(cluster))
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
-                global_adj_mi = self.mutual_information(global_partition, debug=False)
-                self.paths[ipath].add_partition(global_partition, global_logprob, 0., global_adj_mi, n_procs=len(fileinfos))  # don't know the logweight yet (or maybe at all!)
+                global_adj_mi = self.mutual_information(global_partition, debug=False) if self.reco_info is not None else -1
+                self.paths[ipath].add_partition(global_partition, global_logprob, n_procs=len(fileinfos), logweight=0., adj_mi=global_adj_mi)  # don't know the logweight yet (or maybe at all!)
 
             while not last_one():
                 add_next_global_partition()
@@ -292,9 +291,9 @@ class Glomerator(object):
                 for ip in range(len(previous_path.partitions)):
                     # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                     #     continue
-                    extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.logweights[ip], previous_path.adj_mis[ip], previous_path.n_procs[ip])
+                    extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.n_procs[ip], logweight=previous_path.logweights[ip], adj_mi=previous_path.adj_mis[ip])
                 for ip in range(len(current_path.partitions)):
-                    extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.logweights[ip], current_path.adj_mis[ip], current_path.n_procs[ip])
+                    extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip], adj_mi=current_path.adj_mis[ip])
                 self.paths[0] = extended_path
                 self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                 if debug:

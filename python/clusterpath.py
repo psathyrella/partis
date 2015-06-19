@@ -31,7 +31,7 @@ class ClusterPath(object):
                 # self.conservative_max_minus_ten_logprob = self.logprobs[self.i_best_minus_ten]
                 break
 
-    def add_partition(self, partition, logprob, logweight, adj_mi, n_procs=-1):
+    def add_partition(self, partition, logprob, n_procs, logweight=None, adj_mi=None):
         # don't add it if it's the same as the last partition
         if len(self.partitions) > 0 and len(partition) == len(self.partitions[-1]) and logprob == self.logprobs[-1]:
             return
@@ -59,26 +59,38 @@ class ClusterPath(object):
             reader = csv.DictReader(infile)
             for line in reader:
                 partition = [cl.split(':') for cl in line['clusters'].split(';')]
-                self.add_partition(partition, float(line['logprob']), float(line['logweight']), float(line['adj_mi']), int(line['n_procs']))
+                logweight = float(line['logweight']) if 'logweight' in line else None
+                adj_mi = float(line['adj_mi']) if 'adj_mi' in line else None
+                self.add_partition(partition, float(line['logprob']), int(line['n_procs']), logweight=logweight, adj_mi=adj_mi)
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info=None, extrastr='', one_line=False, abbreviate=True):
         if one_line:
-            if ip > 0:
+            if ip > 0:  # delta between this logprob and the previous one
                 delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
             else:
                 delta_str = ''
-            expon = math.exp(self.logweights[ip])
-            n_ways = 0 if expon == 0. else 1. / expon
-            way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
-            if self.adj_mis[ip] > 1e-3:
-                adj_mi_str = '%-8.3f' % self.adj_mis[ip]
-            else:
-                adj_mi_str = '%-8.0e' % self.adj_mis[ip]
-            print '      %5s  %-10.2f%-7s   %8s   %5d   %10s    %8.3f   ' % (extrastr, self.logprobs[ip], delta_str, adj_mi_str, len(self.partitions[ip]), way_str, self.logweights[ip]),
+            print '      %5s  %-12.2f%-7s   %-5d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip])),
+
+            if reco_info is not None:
+                # logweight (and inverse of number of potential parents)
+                way_str, logweight_str = '', ''
+                expon = math.exp(self.logweights[ip])
+                n_ways = 0 if expon == 0. else 1. / expon
+                way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
+                logweight_str = '%8.3f' % self.logweights[ip]
+                # adj mi
+                adj_mi_str = ''
+                if self.adj_mis[ip] > 1e-3:
+                    adj_mi_str = '%-8.3f' % self.adj_mis[ip]
+                else:
+                    adj_mi_str = '%-8.0e' % self.adj_mis[ip]
+                print '   %8s   %10s    %8s   ' % (adj_mi_str, way_str, logweight_str),
         else:
             print '  %5s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
             print '   clonal?   ids'
+
+        # clusters
         for cluster in self.partitions[ip]:
             same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
             if same_event is None:
@@ -102,10 +114,31 @@ class ClusterPath(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', one_line=False, abbreviate=True, header=True):
-        if header:
-            print '    %7s  %7s   %-7s %8s     %5s   %10s  %7s' % ('', 'logprob', 'delta', 'adj mi', 'clusters', 'pot.parents', 'logweight')
-        for ip in range(len(self.partitions)):
+    def get_partition_subset(self, n_partitions):
+        """ return a list of partition indices centered on <self.i_best> of length <n_partitions> """
+        if n_partitions is None:  # print all partitions
+            ilist = range(len(self.partitions))
+        else:  # print the specified number surrounding the maximum logprob
+            if n_partitions < 0 or n_partitions >= len(self.partitions):
+                n_partitions = len(self.partitions)
+            ilist = [self.i_best, ]
+            while len(ilist) < n_partitions:  # add partition numbers before and after <i_best> until we get to <n_partitions>
+                if ilist[0] > 0:  # stop adding them beforehand if we've hit the first partition
+                    ilist.insert(0, ilist[0] - 1)
+                if len(ilist) < n_partitions and ilist[-1] < len(self.partitions) - 1:  # don't add them afterward if we already have enough, or if we're already at the end
+                    ilist.append(ilist[-1] + 1)
+
+        return ilist
+
+    # ----------------------------------------------------------------------------------------
+    def print_partitions(self, reco_info=None, extrastr='', one_line=False, abbreviate=True, print_header=True, n_to_print=None):
+        if print_header:
+            print '    %7s %10s   %-7s  %5s' % ('', 'logprob', 'delta', 'clusters'),
+            if reco_info is not None:
+                print '    %8s  %10s  %7s' % ('adj mi', 'pot.parents', 'logweight'),
+            print ''
+
+        for ip in self.get_partition_subset(n_partitions=n_to_print):
             mark = ''
             if ip == self.i_best:
                 mark += '*'
@@ -134,8 +167,8 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index):
-        for ipart in range(len(self.partitions)):
+    def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index, n_to_write=None):
+        for ipart in self.get_partition_subset(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''
             bad_clusters = []  # inferred clusters that aren't really all from the same event

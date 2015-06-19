@@ -115,7 +115,7 @@ class PartitionDriver(object):
         # add initial lists of paths
         if self.args.smc_particles == 1:
             cp = ClusterPath(-1)
-            cp.add_partition([[cl, ] for cl in self.input_info.keys()], 0., 0., -1.)
+            cp.add_partition([[cl, ] for cl in self.input_info.keys()], logprob=0., n_procs=n_procs)
             self.paths = [cp, ]
         else:
             initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
@@ -124,7 +124,7 @@ class PartitionDriver(object):
                 self.smc_info[-1].append([])
                 for iptl in range(self.args.smc_particles):
                     cp = ClusterPath(-1)
-                    cp.add_partition([[cl, ] for cl in clusters], 0., 0., -1.)
+                    cp.add_partition([[cl, ] for cl in clusters], logprob=0., n_procs=n_procs)
                     self.smc_info[-1][-1].append(cp)
 
         # get number of clusters based on sum of last paths in <self.smc_info>
@@ -161,7 +161,7 @@ class PartitionDriver(object):
             if self.args.debug:
                 print 'final'
                 for ipath in range(len(self.paths)):  # one path for each glomeration step
-                    self.paths[ipath].print_partitions(self.reco_info, one_line=True, header=(ipath==0))
+                    self.paths[ipath].print_partitions(self.reco_info, one_line=True, print_header=(ipath==0))
                     print ''
             if self.args.outfname is not None:
                 self.write_partitions(self.args.outfname, [self.paths[-1], ], tmpglom)  # [last agglomeration step]
@@ -215,7 +215,7 @@ class PartitionDriver(object):
             writer.writeheader()
             true_partition = None if self.args.is_data else tmpglom.get_true_partition()
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath)
+                paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=100)
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
