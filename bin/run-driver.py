@@ -27,8 +27,8 @@ parser.add_argument('--simfname')
 parser.add_argument('--stashdir', default=fsdir + '/_output')
 parser.add_argument('--plotdir', default=fsdir + '/_output')
 parser.add_argument('--no-skip-unproductive', action='store_true')
-# parser.add_argument('--XXX', action='store_true')
-all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance')
+
+all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 parser.add_argument('--n-procs', default=str(max(1, multiprocessing.cpu_count() / 2)))
 
@@ -37,7 +37,7 @@ args.extra_args = utils.get_arg_list(args.extra_args)
 args.actions = utils.get_arg_list(args.actions)
 
 cmd = './bin/partis.py'
-common_args = ' --n-procs ' + str(args.n_procs)
+common_args = ' --n-procs ' + str(args.n_procs) + ' --n-max-queries ' + args.n_queries
 if args.extra_args != None:
     assert 'n-procs' not in args.extra_args  # didn't used to have it as an option here
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace('.', ':')
@@ -54,14 +54,12 @@ if 'cache-data-parameters' in args.actions:
          cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/params/data'
-    cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
 if 'simulate' in args.actions:
     # simulate based on data parameters
     cmd_str = ' --action simulate --outfname ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
-    cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
 if 'cache-simu-parameters' in args.actions:
@@ -69,12 +67,16 @@ if 'cache-simu-parameters' in args.actions:
     cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu'
     cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/simu'
-    cmd_str += ' --n-max-queries ' + args.n_queries
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
     cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/performance'
-    cmd_str += ' --n-max-queries ' + args.n_queries
+    run_command(cmd_str)
+
+if 'partition' in args.actions:
+    cmd_str = ' --action partition --seqfile ' + args.simfname + common_args
+    cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
+    cmd_str += ' --outfname ' + args.simfname.replace('.csv', '-partitions.csv')
     run_command(cmd_str)

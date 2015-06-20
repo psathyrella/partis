@@ -50,10 +50,10 @@ class TreeGenerator(object):
         numpy.random.seed(seed)
         if self.args.debug:
             print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_dir),
-            if self.args.random_number_of_leaves:
-                print ' with random number of leaves with parameter %d' % self.args.n_leaves
-            else:
+            if self.args.constant_number_of_leaves:
                 print ' with %d leaves' % self.args.n_leaves
+            else:
+                print ' with random number of leaves with parameter %d' % self.args.n_leaves
 
     #----------------------------------------------------------------------------------------
     def read_mute_freqs(self, mute_freq_dir):
@@ -169,11 +169,11 @@ class TreeGenerator(object):
                 commandfile.write('set.seed(' + str(seed)+ ')\n')
                 ages = []
                 for itree in range(self.args.n_trees):
-                    if self.args.random_number_of_leaves:
+                    if self.args.constant_number_of_leaves:
+                        n_leaves = self.args.n_leaves
+                    else:
                         n_leaves = max(2, int(numpy.random.exponential(scale=self.args.n_leaves)))
                         # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
-                    else:
-                        n_leaves = self.args.n_leaves
                     age = self.choose_mean_branch_length()
                     ages.append(age)
                     if n_leaves == 1:  # TODO doesn't work yet

@@ -7,6 +7,7 @@ import math
 import os
 import glob
 import csv
+csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import random
 from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE
@@ -182,6 +183,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_path(self, path):
+        missing_ids = []
         def check_partition(partition, ipart):
             for uid in self.input_info:
                 found = False
@@ -190,21 +192,25 @@ class PartitionDriver(object):
                         found = True
                         break
                 if not found and uid not in self.sw_info['skipped_unproductive_queries']:
+                    missing_ids.append(uid)
                     # path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
                     # raise Exception('%s not found in merged partition' % uid)
-                    print 'WARNING %s not found in merged partition' % uid
+                    # print 'WARNING %s not found in merged partition' % uid
             for cluster in partition:
                 for uid in cluster:
                     if uid not in self.input_info:
                         # raise Exception('%s not found in merged partition' % uid)
-                        print 'WARNING %s not found in merged partition' % uid
+                        # print 'WARNING %s not found in merged partition' % uid
+                        missing_ids.append(uid)
 
         for ipart in range(len(path.partitions)):
             check_partition(path.partitions[ipart], ipart)
 
+        if len(missing_ids) > 0:
+            print 'WARNING not found in merged partitions: ' + ' '.join(missing_ids)
+
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths, tmpglom):
-        csv.field_size_limit(sys.maxsize)  # 'clusters' field can be very large
         with opener('w')(outfname) as outfile:
             headers = ['logprob', 'n_clusters', 'n_procs', 'clusters']
             if self.args.smc_particles > 1:
@@ -295,29 +301,28 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
+
+        def get_query_from_sw(qry):
+            assert qry in self.sw_info
+            naive_seq = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[qry])
+            if not self.args.dont_pad_sequences:
+                padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
+                padright = self.sw_info[qry]['padded']['padright']
+                assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+                naive_seq = padleft * utils.ambiguous_bases[0] + naive_seq + padright * utils.ambiguous_bases[0]
+            return naive_seq
+
         naive_seqs = {}
-        # , cyst_positions = {}, {}
         for line in info:
-            # query = line['names'] if 'names' in line else line['unique_id']  # the first time through, we just pass in <self.sw_info>, so we need 'unique_id' instead of 'names'
-            # seqstr = line['padded']['seqs'] if 'padded' in line else line['seqs']
             query = line[namekey]
             seqstr = line['padded'][seqkey] if 'padded' in line else line[seqkey]
             # NOTE cached naive seqs should all be the same length
-            if self.cached_results is not None and seqstr in self.cached_results:  # first try to used cached hmm results
+            if self.cached_results is not None and seqstr in self.cached_results and self.cached_results[seqstr]['naive_seq'] is not None:  # first try to used cached hmm results
                 naive_seqs[query] = self.cached_results[seqstr]['naive_seq']
-                # cyst_positions[query] = self.cached_results[seqstr]['cyst_position']
-            elif query in self.sw_info:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
-                naive_seqs[query] = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[query])
-                if not self.args.dont_pad_sequences:
-                    padleft = self.sw_info[query]['padded']['padleft']  # we're padding the *naive* seq corresponding to query now, but it'll be the same length as the query seq
-                    padright = self.sw_info[query]['padded']['padright']
-                    assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-                    naive_seqs[query] = padleft * utils.ambiguous_bases[0] + naive_seqs[query] + padright * utils.ambiguous_bases[0]
-                # cyst_positions[query] = self.sw_info[query]['cyst_position']
-            elif len(query.split(':')) > 1:  # hmm... multiple queries without cached hmm naive sequences... that shouldn't happen
-                print 'ERROR no naive sequence for %s' % query
-                for qry in query.split(':'):
-                    print '    %s %s' % (qry, utils.get_full_naive_seq(self.germline_seqs, self.sw_info[qry]))
+            elif len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
+               naive_seqs[query] = get_query_from_sw(query)
+            elif len(query.split(':')) > 1:
+                naive_seqs[query] = get_query_from_sw(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
@@ -327,11 +332,6 @@ class PartitionDriver(object):
             assert False  # deprecated and broken
             # print '  truncate in divvy'
             # self.truncate_seqs(naive_seqs, kvinfo=None, cyst_positions=cyst_positions)
-
-        # print 'naive'
-        # for qr, s in naive_seqs.items():
-        #     print qr, s
-        # sys.exit()
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
@@ -932,8 +932,9 @@ class PartitionDriver(object):
                         print 'unequal logprobs: %f %f' % (score, self.cached_results[seqstr]['logprob'])
                     if naive_seq != self.cached_results[seqstr]['naive_seq']:
                         print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[seqstr]['naive_seq'])
-                        self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
-                    if cpos != self.cached_results[seqstr]['cyst_position']:
+                        if naive_seq is not None:  # only replace the old one if the new one isn't None
+                            self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
+                    if cpos != self.cached_results[seqstr]['cyst_position'] and cpos is not None and self.cached_results[seqstr]['cyst_position'] is not None:
                         raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))
                 else:
                     self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos}

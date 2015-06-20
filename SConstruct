@@ -3,6 +3,8 @@ import glob
 from collections import OrderedDict
 import sys
 from SCons.Script import Command, Depends
+sys.path.insert(1, './python')
+import utils
 
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
@@ -14,11 +16,6 @@ env.Command('_output/validation/valid.out', './bin/run-driver.py', './bin/run-dr
 # scons test
 
 Alias('test', 'test/_results/ALL.passed')
-
-
-def get_extra_str(extra_list):
-    modified_list = [ex.replace(':', '.').replace('--', '__') for ex in extra_list]
-    return ' --extra-args ' + ':'.join(modified_list)
 
 stashdir = '_output'
 datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
@@ -37,7 +34,7 @@ actions['plot-performance'] = {'target' : 'performance', 'extras' : semi_common_
 tests = OrderedDict()
 # first add the tests that run over the framework (using run-driver.py)
 for action, config in actions.items():
-    tests[action] = base_cmd + ' --action ' + action + get_extra_str(config['extras'] + common_extras)
+    tests[action] = base_cmd + ' --action ' + action + utils.get_extra_str(config['extras'] + common_extras)
 
 simu_parameter_dir = 'test/regression/parameters/simu/hmm'
 data_parameter_dir = 'test/regression/parameters/data/hmm'
