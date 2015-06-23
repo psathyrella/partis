@@ -70,22 +70,26 @@ class ClusterPath(object):
                 delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
             else:
                 delta_str = ''
-            print '      %5s  %-12.2f%-7s   %-5d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip])),
+            print '      %5s  %-12.2f%-7s   %-5d  %5d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip]), self.n_procs[ip]),
 
-            if reco_info is not None:
-                # logweight (and inverse of number of potential parents)
+            # logweight (and inverse of number of potential parents)
+            if self.logweights[ip] is not None:
                 way_str, logweight_str = '', ''
                 expon = math.exp(self.logweights[ip])
                 n_ways = 0 if expon == 0. else 1. / expon
                 way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
                 logweight_str = '%8.3f' % self.logweights[ip]
-                # adj mi
+
+            # adj mi
+            if reco_info is not None:
                 adj_mi_str = ''
                 if self.adj_mis[ip] > 1e-3:
                     adj_mi_str = '%-8.3f' % self.adj_mis[ip]
                 else:
                     adj_mi_str = '%-8.0e' % self.adj_mis[ip]
-                print '   %8s   %10s    %8s   ' % (adj_mi_str, way_str, logweight_str),
+                print '      %8s   ' % (adj_mi_str),
+            if self.logweights[ip] is not None:
+                print '   %10s    %8s   ' % (way_str, logweight_str),
         else:
             print '  %5s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
             print '   clonal?   ids'
@@ -133,9 +137,11 @@ class ClusterPath(object):
     # ----------------------------------------------------------------------------------------
     def print_partitions(self, reco_info=None, extrastr='', one_line=False, abbreviate=True, print_header=True, n_to_print=None):
         if print_header:
-            print '    %7s %10s   %-7s  %5s' % ('', 'logprob', 'delta', 'clusters'),
+            print '    %7s %10s   %-7s %5s  %5s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None:
-                print '    %8s  %10s  %7s' % ('adj mi', 'pot.parents', 'logweight'),
+                print ' %8s' % ('adj mi'),
+            if self.logweights[0] is not None:
+                print '  %10s  %7s' % ('pot.parents', 'logweight'),
             print ''
 
         for ip in self.get_partition_subset(n_partitions=n_to_print):
@@ -202,5 +208,6 @@ class ClusterPath(object):
                 row['logweight'] = self.logweights[ipart]
             if not is_data:
                 row['adj_mi'] = self.adj_mis[ipart]
+                row['n_true_clusters'] = len(true_partition)
                 row['bad_clusters'] = ';'.join(bad_clusters)
             writer.writerow(row)

@@ -20,7 +20,6 @@ if os.getenv('USER') is None:  # if we're in docker
 else:
     fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
-parser.add_argument('--n-queries', default='-1')  # label for this test run. e.g. results are written to dirs with this name
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
 parser.add_argument('--simfname')
@@ -28,7 +27,7 @@ parser.add_argument('--stashdir', default=fsdir + '/_output')
 parser.add_argument('--plotdir', default=fsdir + '/_output')
 parser.add_argument('--no-skip-unproductive', action='store_true')
 
-all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition')
+all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition', 'run-viterbi')
 parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 parser.add_argument('--n-procs', default=str(max(1, multiprocessing.cpu_count() / 2)))
 
@@ -37,10 +36,10 @@ args.extra_args = utils.get_arg_list(args.extra_args)
 args.actions = utils.get_arg_list(args.actions)
 
 cmd = './bin/partis.py'
-common_args = ' --n-procs ' + str(args.n_procs) + ' --n-max-queries ' + args.n_queries
+common_args = ' --n-procs ' + str(args.n_procs)
 if args.extra_args != None:
     assert 'n-procs' not in args.extra_args  # didn't used to have it as an option here
-    common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace('.', ':')
+    common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace(',', ':')
 if args.simfname == None:
     args.simfname = args.stashdir + '/' + args.label + '/simu.csv'
 param_dir = args.stashdir + '/' + args.label
@@ -62,21 +61,24 @@ if 'simulate' in args.actions:
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
     run_command(cmd_str)
 
+sim_param_dir = os.path.basename(args.simfname).replace('.csv', '')  # 'sim', if simfname is just 'simu.csv'
 if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
     cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/simu'
-    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/simu'
+    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/' + sim_param_dir
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
-    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/performance'
+    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir + '/hmm'
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/' + sim_param_dir + '/performance'
     run_command(cmd_str)
 
-if 'partition' in args.actions:
-    cmd_str = ' --action partition --seqfile ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/simu/hmm'
-    cmd_str += ' --outfname ' + args.simfname.replace('.csv', '-partitions.csv')
+assert len(args.actions) == 1
+action = args.actions[0]
+if action == 'partition' or action == 'run-viterbi':
+    cmd_str = ' --action ' + action + ' --seqfile ' + args.simfname + common_args
+    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir + '/hmm'
+    cmd_str += ' --outfname ' + args.simfname.replace('.csv', '-' + action + '.csv')
     run_command(cmd_str)

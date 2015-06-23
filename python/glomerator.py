@@ -116,20 +116,10 @@ class Glomerator(object):
         return clusters
 
     # ----------------------------------------------------------------------------------------
-    def get_true_partition(self):
-        true_partition = {}
-        for key in self.reco_info:
-            reco_id = self.reco_info[key]['reco_id']
-            if reco_id not in true_partition:
-                true_partition[reco_id] = []
-            true_partition[reco_id].append(self.reco_info[key]['unique_id'])
-        return true_partition
-
-    # ----------------------------------------------------------------------------------------
     def print_true_partition(self):
         print '  true partition'
         print '   clonal?   ids'
-        true_partition = self.get_true_partition()
+        true_partition = utils.get_true_partition(self.reco_info)
         for cluster in true_partition.values():
             same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
             if same_event is None:
@@ -138,13 +128,9 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def mutual_information(self, partition, debug=False):
-        # if self.reco_info is None:
-        #     return -1.0
         true_cluster_list, inferred_cluster_list = [], []
         for iclust in range(len(partition)):
             for uid in partition[iclust]:
-                if uid not in self.reco_info:
-                    raise Exception('ERROR %s' % str(uid))
                 true_cluster_list.append(self.reco_info[uid]['reco_id'])
                 inferred_cluster_list.append(iclust)
         adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)

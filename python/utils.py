@@ -37,10 +37,11 @@ def get_arg_list(arg, intify=False, floatify=False):  # make lists from args tha
         else:
             return arglist
 
+# ----------------------------------------------------------------------------------------
 def get_extra_str(extra_list):
     if len(extra_list) == 0:
         return ''
-    modified_list = [ex.replace(':', '.').replace('--', '__') for ex in extra_list]
+    modified_list = [str(ex).replace(':', ',').replace('--', '__') for ex in extra_list]
     return ' --extra-args ' + ':'.join(modified_list)
 
 # # ----------------------------------------------------------------------------------------
@@ -1117,3 +1118,29 @@ def remove_ambiguous_ends(seq, fv_insertion, jf_insertion):
     # print 'fv: %s  jf: %s ' % (fv_insertion, jf_insertion)
     # print '    ', i_seq_start, i_seq_end
     return fv_insertion + seq[i_seq_start: i_seq_end] + jf_insertion
+
+# ----------------------------------------------------------------------------------------
+def get_true_clusters(ids, reco_info):
+    clusters = {}
+    for uid in ids:
+        rid = reco_info[uid]['reco_id']
+        found = False
+        for clid in clusters:
+            if rid == clid:
+                clusters[clid].append(uid)
+                found = True
+                break
+        if not found:
+            clusters[rid] = [uid]
+    return clusters
+
+# ----------------------------------------------------------------------------------------
+def get_true_partition(reco_info):
+    true_partition = {}
+    for key in reco_info:
+        reco_id = reco_info[key]['reco_id']
+        if reco_id not in true_partition:
+            true_partition[reco_id] = []
+        true_partition[reco_id].append(reco_info[key]['unique_id'])
+    return true_partition
+

@@ -407,10 +407,10 @@ class Recombinator(object):
             region = tmpstr.split(':')[0]
             assert region in utils.regions
             ratio = float(tmpstr.split(':')[1])
-            if self.args.branch_length_multiplier != None:  # multiply the branch lengths by some factor
+            if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
                 # if self.args.debug:
-                # print '    adding branch length factor %f ' % self.args.branch_length_multiplier
-                ratio *= self.args.branch_length_multiplier
+                # print '    adding branch length factor %f ' % self.args.mutation_multiplier
+                ratio *= self.args.mutation_multiplier
             branch_length_ratios[region] = ratio
 
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point

@@ -20,6 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--infnames')
 parser.add_argument('--normalize-axes')
 parser.add_argument('--only-last-step', action='store_true', default=True)
+parser.add_argument('--is-data', action='store_true')
 parser.add_argument('--xbounds')
 parser.add_argument('--logprob-bounds')
 parser.add_argument('--adjmi-bounds')
@@ -107,12 +108,12 @@ for fname in args.infnames:
         for line in csv.DictReader(infile):
             if args.only_last_step and int(line['n_procs']) != 1:  # skip any preliminary steps with more than one process
                 continue
-            ipath = int(line['path_index'])
+            ipath = int(line.get('path_index', 0))
             if ipath not in logprobs:
                 logprobs[ipath], adj_mis[ipath], logweights[ipath] = [], [], []
             logprobs[ipath].append(float(line['logprob']))
-            adj_mis[ipath].append(float(line['adj_mi']))
-            logweights[ipath].append(float(line['logweight']))
+            adj_mis[ipath].append(float(line.get('adj_mi', -1)))
+            logweights[ipath].append(float(line.get('logweight', 1)))
 
 process_paths(logprobs, adj_mis, logweights)
 
@@ -197,19 +198,23 @@ for ipath in logprobs.keys():
         steps = [i for i in range(len(logprobs[ipath]))]
     sizes = [markersize for i in range(len(logprobs[ipath]))]
     fig_logprob = ax2.plot(steps, logprobs[ipath], color=logprob_color, alpha=.5, linewidth=1)
-    fig_adj_mi = ax.plot(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, linewidth=1)
+    if not args.is_data:
+        fig_adj_mi = ax.plot(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, linewidth=1)
 
     fig_logprob_sc = ax2.scatter(steps, logprobs[ipath], color=logprob_color, alpha=.5, s=sizes)
-    fig_adj_mi_sc = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+    if not args.is_data:
+        fig_adj_mi_sc = ax.scatter(steps, adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
 
 
 xlinepos_logprob = [imaxes['logprob'][0] for _ in range(2)]
-xlinepos_adj_mi = [imaxes['adj_mi'][0] for _ in range(2)]
+if not args.is_data:
+    xlinepos_adj_mi = [imaxes['adj_mi'][0] for _ in range(2)]
 if 'step' in args.normalize_axes:
     assert False
     # xlinepos_logprob = [ float(x) / len(logprobs xlinepos_logprob
 plt.plot(xlinepos_logprob, [min_logprob, max_logprob], color=logprob_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
-plt.plot(xlinepos_adj_mi, [min_adj_mi, max_adj_mi], color=adj_mi_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
+if not args.is_data:
+    plt.plot(xlinepos_adj_mi, [min_adj_mi, max_adj_mi], color=adj_mi_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
 
 plotdir = os.getenv('www') + '/tmp'
 plotname = 'foo'

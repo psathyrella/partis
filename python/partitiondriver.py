@@ -15,7 +15,7 @@ from subprocess import Popen, check_call, PIPE
 import utils
 from opener import opener
 from seqfileopener import get_seqfile_info
-from clusterer import Clusterer
+import annotationclustering
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
@@ -102,6 +102,12 @@ class PartitionDriver(object):
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('parameter dir %s d.n.e.' % self.args.parameter_dir)
 
+        if self.args.print_partitions:
+            cp = ClusterPath(-1)
+            cp.readfile(self.args.outfname)
+            cp.print_partitions(reco_info=self.reco_info, one_line=True, abbreviate=True, n_to_print=100)
+            return
+
         # run smith-waterman
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
@@ -155,7 +161,6 @@ class PartitionDriver(object):
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
         # deal with final partition
-        tmpglom = Glomerator(self.reco_info)
         if self.args.smc_particles == 1:
             for path in self.paths:
                 self.check_path(path)
@@ -165,7 +170,7 @@ class PartitionDriver(object):
                     self.paths[ipath].print_partitions(self.reco_info, one_line=True, print_header=(ipath==0))
                     print ''
             if self.args.outfname is not None:
-                self.write_partitions(self.args.outfname, [self.paths[-1], ], tmpglom)  # [last agglomeration step]
+                self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
@@ -176,14 +181,15 @@ class PartitionDriver(object):
                     path = final_paths[ipath]
                     path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
             if self.args.outfname is not None:
-                self.write_partitions(self.args.outfname, final_paths, tmpglom)
+                self.write_partitions(self.args.outfname, final_paths)
 
         if self.args.debug and not self.args.is_data:
+            tmpglom = Glomerator(self.reco_info)
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
     def check_path(self, path):
-        missing_ids = []
+        missing_ids = set()
         def check_partition(partition, ipart):
             for uid in self.input_info:
                 found = False
@@ -192,7 +198,7 @@ class PartitionDriver(object):
                         found = True
                         break
                 if not found and uid not in self.sw_info['skipped_unproductive_queries']:
-                    missing_ids.append(uid)
+                    missing_ids.add(uid)
                     # path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
                     # raise Exception('%s not found in merged partition' % uid)
                     # print 'WARNING %s not found in merged partition' % uid
@@ -201,7 +207,7 @@ class PartitionDriver(object):
                     if uid not in self.input_info:
                         # raise Exception('%s not found in merged partition' % uid)
                         # print 'WARNING %s not found in merged partition' % uid
-                        missing_ids.append(uid)
+                        missing_ids.add(uid)
 
         for ipart in range(len(path.partitions)):
             check_partition(path.partitions[ipart], ipart)
@@ -210,16 +216,16 @@ class PartitionDriver(object):
             print 'WARNING not found in merged partitions: ' + ' '.join(missing_ids)
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, outfname, paths, tmpglom):
+    def write_partitions(self, outfname, paths):
         with opener('w')(outfname) as outfile:
             headers = ['logprob', 'n_clusters', 'n_procs', 'clusters']
             if self.args.smc_particles > 1:
                 headers += ['path_index', 'logweight']
             if not self.args.is_data:
-                headers += ['adj_mi', 'bad_clusters']
+                headers += ['adj_mi', 'n_true_clusters', 'bad_clusters']
             writer = csv.DictWriter(outfile, headers)
             writer.writeheader()
-            true_partition = None if self.args.is_data else tmpglom.get_true_partition()
+            true_partition = None if self.args.is_data else utils.get_true_partition(self.reco_info)
             for ipath in range(len(paths)):
                 paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=100)
 
@@ -294,10 +300,6 @@ class PartitionDriver(object):
         # print '      hmm run time: %.3f' % (time.time()-start)
 
         self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, plotdir)
-
-        if self.args.vollmers_clustering:
-            vollmers_clusterer = Clusterer()
-            vollmers_clusterer.vollmers_cluster(hmminfo, reco_info=self.reco_info)
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
@@ -911,14 +913,24 @@ class PartitionDriver(object):
         if self.cached_results is None:
             self.cached_results = {}
 
+        n_boundary_errors, n_unidentified_errors = 0, 0
+        unidentified_errors = set()
         with opener('r')(fname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
                 # query = line['unique_ids']
                 seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
                 if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-                    print 'error in bcrham output %s for sequences:' % (line['errors'])
-                    print '%s' % seqstr.replace(':', '\n')
+                    tmperrors = line['errors'].strip(':').split(':')
+                    # print 'error in bcrham output %s for sequences:' % (line['errors'])
+                    # print '%s' % seqstr.replace(':', '\n')
+                    if 'boundary' in tmperrors:
+                        n_boundary_errors += 1
+                        tmperrors.remove('boundary')
+                    if len(tmperrors) > 0:
+                        n_unidentified_errors += 1
+                        for unid in errors:
+                            unidentified_errors.add(unid)
 
                 score, naive_seq, cpos = None, None, None
                 if line['logprob'] != '':
@@ -938,6 +950,10 @@ class PartitionDriver(object):
                         raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))
                 else:
                     self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos}
+        if n_boundary_errors > 0:
+            print '    %d boundary errors in bcrham output' % n_boundary_errors
+        if n_unidentified_errors > 0:
+            print '    %d unidentified errors in bcrham output:\n    %s' % (n_unidentified_errors, ' '.join(unidentified_errors))
 
     # ----------------------------------------------------------------------------------------
     def write_cachefile(self, fname):
@@ -1012,6 +1028,7 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter(self.germline_seqs, plotdir + '/hmm/performance', 'hmm') if self.args.plot_performance else None
 
         n_seqs_processed, n_events_processed = 0, 0
+        hmminfo = {}
         with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             boundary_error_queries = []
@@ -1045,17 +1062,18 @@ class PartitionDriver(object):
                         true_pcounter.increment_reco_params(self.reco_info[ids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                     n_events_processed += 1
                     for iseq in range(len(ids)):
-                        tmp_line = dict(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-                        tmp_line['seq'] = line['seqs'][iseq]
-                        tmp_line['unique_id'] = ids[iseq]
-                        utils.add_match_info(self.germline_seqs, tmp_line, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+                        uid = ids[iseq]
+                        hmminfo[uid] = dict(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+                        hmminfo[uid]['seq'] = line['seqs'][iseq]
+                        hmminfo[uid]['unique_id'] = uid
+                        utils.add_match_info(self.germline_seqs, hmminfo[uid], self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                         if pcounter is not None:
-                            pcounter.increment_mutation_params(tmp_line)
+                            pcounter.increment_mutation_params(hmminfo[uid])
                         if true_pcounter is not None:
-                            true_pcounter.increment_mutation_params(self.reco_info[ids[iseq]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                            true_pcounter.increment_mutation_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
-                            perfplotter.evaluate(self.reco_info[ids[iseq]], tmp_line,
-                                                 None if self.args.dont_pad_sequences else self.sw_info[ids[iseq]]['padded'])
+                            perfplotter.evaluate(self.reco_info[uid], hmminfo[uid],
+                                                 None if self.args.dont_pad_sequences else self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
         if pcounter is not None:
@@ -1079,30 +1097,35 @@ class PartitionDriver(object):
                 outpath = os.getcwd() + '/' + outpath
             shutil.copyfile(self.hmm_outfname, outpath)
 
+        if self.args.annotation_clustering == 'vollmers':
+            if self.args.outfname is not None:
+                outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
+                headers = ['n_clusters', 'threshold']
+                if not self.args.is_data:
+                    headers += ['adj_mi', 'n_true_clusters']
+                writer = csv.DictWriter(outfile, headers)
+                writer.writeheader()
+
+            for thresh in self.args.annotation_clustering_thresholds:
+                adj_mi, n_clusters = annotationclustering.vollmers(hmminfo, threshold=thresh, reco_info=self.reco_info)
+                if self.args.outfname is not None:
+                    row = {'n_clusters' : n_clusters, 'threshold' : thresh}
+                    if not self.args.is_data:
+                        row['adj_mi'] = adj_mi
+                        row['n_true_clusters'] = len(utils.get_true_partition(self.reco_info))
+                    writer.writerow(row)
+            if self.args.outfname is not None:
+                outfile.close()
+
         if not self.args.no_clean:
             os.remove(self.hmm_outfname)
-
-    # ----------------------------------------------------------------------------------------
-    def get_true_clusters(self, ids):
-        clusters = {}
-        for uid in ids:
-            rid = self.reco_info[uid]['reco_id']
-            found = False
-            for clid in clusters:
-                if rid == clid:
-                    clusters[clid].append(uid)
-                    found = True
-                    break
-            if not found:
-                clusters[rid] = [uid]
-        return clusters
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):  #, perfplotter=None):
         out_str_list = []
         ilabel = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            for uids in self.get_true_clusters(line['unique_ids']).values():
+            for uids in utils.get_true_clusters(line['unique_ids']).values():
                 for iid in range(len(uids)):
                     true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0))
                     out_str_list.append(true_event_str)

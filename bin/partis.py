@@ -30,14 +30,17 @@ parser.add_argument('--truncate-n-sets', action='store_true', help='If running o
 parser.add_argument('--dont-pad-sequences', action='store_true', help='Don\'t pad (with Ns) all input sequences out to, at minimum, the same length on either side of the conserved cysteine. Also pad out far enough so as to eliminate all v_5p and j_3p deletions.')
 parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
-parser.add_argument('--branch-length-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
+parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 # parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
 parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
 parser.add_argument('--dont-mimic-data-read-length', action='store_true', help='Simulate events with the entire v, d, and j regions? (Otherwise we mimic the read length observed in data)')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
-parser.add_argument('--vollmers-clustering', action='store_true', help='Perform annotation-based clustering from Vollmers paper')
+parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--rescale-emissions', action='store_true')
+parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
+parser.add_argument('--annotation-clustering-thresholds')
+
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -58,8 +61,8 @@ parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum numbe
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
 
-# simulation (see also branch-length-fname, and gtr-fname)
-# NOTE see also branch-length-multiplier, although that comes into play after the trees are generated
+# simulation (see also gtr-fname)
+# NOTE see also mutation-multiplier, although that comes into play after the trees are generated
 parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearrangement events to simulate')
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
@@ -79,7 +82,6 @@ parser.add_argument('--match-mismatch', default='5:1', help='match:mismatch scor
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 # parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
-parser.add_argument('--branch-length-fname', default='data/recombinator/branch-lengths.txt', help='Branch lengths from Connor\'s mebcell stuff')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 # uncommon arguments
@@ -161,6 +163,7 @@ else:
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
     args.match_mismatch = utils.get_arg_list(args.match_mismatch, intify=True)
+    args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     if len(args.n_max_per_region) != 3:
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.match_mismatch) != 2:
