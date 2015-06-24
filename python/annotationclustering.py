@@ -111,6 +111,18 @@ def vollmers(info, threshold, reco_info=None, debug=False):
     return adj_mi, len(id_clusters)
 
 # ----------------------------------------------------------------------------------------
+def bashford_rogers(info, reco_info=None, debug=False):
+    """
+    Fig 2a, methods, and Fig S1 here: http://genome.cshlp.org/content/23/11/1874
+
+    to cluster:
+      - precluster sequences with more than 95% sequence identity
+      - then within each of these clusters, each seq is a node
+      - connect all nodes that differ by one base (substitution or indel)
+      - clusters are groups of connected nodes
+    """
+
+# ----------------------------------------------------------------------------------------
 class SingleLinkClusterer(object):
     def __init__(self, threshold=0.0, greater_than=True, singletons=None):  # put in same cluster if greater than threshold, or less than equal to?
         self.threshold = threshold
