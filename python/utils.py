@@ -41,7 +41,7 @@ def get_arg_list(arg, intify=False, floatify=False):  # make lists from args tha
 def get_extra_str(extra_list):
     if len(extra_list) == 0:
         return ''
-    modified_list = [str(ex).replace(':', ',').replace('--', '__') for ex in extra_list]
+    modified_list = [str(ex).replace(':', ',').replace('--', '__').replace(' ', '+') for ex in extra_list]
     return ' --extra-args ' + ':'.join(modified_list)
 
 # # ----------------------------------------------------------------------------------------

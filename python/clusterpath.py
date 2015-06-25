@@ -64,7 +64,7 @@ class ClusterPath(object):
                 self.add_partition(partition, float(line['logprob']), int(line['n_procs']), logweight=logweight, adj_mi=adj_mi)
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', one_line=False, abbreviate=True):
+    def print_partition(self, ip, reco_info=None, extrastr='', one_line=True, abbreviate=True):
         if one_line:
             if ip > 0:  # delta between this logprob and the previous one
                 delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -91,7 +91,10 @@ class ClusterPath(object):
             if self.logweights[ip] is not None:
                 print '   %10s    %8s   ' % (way_str, logweight_str),
         else:
-            print '  %5s partition   %-15.2f    %-8.2f' % (extrastr, self.logprobs[ip], self.adj_mis[ip])
+            print '  %5s partition   %-15.2f' % (extrastr, self.logprobs[ip]),
+            if reco_info is not None:
+                print '    %-8.2f' % (self.adj_mis[ip]),
+            print ''
             print '   clonal?   ids'
 
         # clusters
@@ -135,7 +138,22 @@ class ClusterPath(object):
         return ilist
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', one_line=False, abbreviate=True, print_header=True, n_to_print=None):
+    def get_parent_clusters(self, ipart):
+        """ Return the parent clusters that were merged to form the <ipart>th partition. """
+        if ipart == 0:
+            raise Exception('get_parent_clusters got ipart of zero... that don\'t make no sense yo')
+        if len(self.partitions[ipart - 1]) <= len(self.partitions[ipart]):
+            return None  # this step isn't a merging step -- it's a synthetic rewinding step due to multiple processes
+
+        parents = []
+        for cluster in self.partitions[ipart - 1]:  # find all clusters in the previous partition that aren't in the current one
+            if cluster not in self.partitions[ipart]:
+                parents.append(cluster)
+        assert len(parents) == 2  # there should've been two -- those're the two that were merged to form the new cluster
+        return parents
+
+    # ----------------------------------------------------------------------------------------
+    def print_partitions(self, reco_info=None, extrastr='', one_line=True, abbreviate=True, print_header=True, n_to_print=None):
         if print_header:
             print '    %7s %10s   %-7s %5s  %5s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None:

@@ -57,6 +57,8 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
 
         input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}
         if not is_data:
+            if 'v_gene' not in line:
+                raise Exception('simulation info not found in %s -- if this is data add option --is-data' % fname)
             reco_info[line['unique_id']] = line
             utils.add_match_info(germline_seqs, line, cyst_positions, tryp_positions)
         n_queries += 1

@@ -23,6 +23,7 @@ class Waterer(object):
         self.parameter_dir = parameter_dir
         self.plotdir = plotdir
         self.args = args
+        self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
         self.input_info = input_info
         self.remaining_queries = [query for query in self.input_info.keys()]  # we remove queries from this list when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
@@ -45,7 +46,7 @@ class Waterer(object):
         self.info['skipped_indel_queries'] = []  # list of queries that had indels
         self.info['skipped_unknown_queries'] = []
         if self.args.apply_choice_probs_in_sw:
-            if self.args.debug:
+            if self.debug:
                 print '  reading gene choice probs from', parameter_dir
             self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
 
@@ -325,7 +326,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
-        if self.args.debug < 2:
+        if self.debug < 2:
             return
         out_str_list = []
         buff_str = (20 - len(gene)) * ' '
@@ -383,7 +384,7 @@ class Waterer(object):
                         r_portion += 1
                         r_length -= 1
 
-                if self.args.debug:
+                if self.debug:
                     print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
                 assert l_portion + r_portion == overlap
                 qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
@@ -432,7 +433,7 @@ class Waterer(object):
             self.info['all_best_matches'].add(best[region])
 
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
-        if self.args.debug:
+        if self.debug:
             if not self.args.is_data:
                 utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:')
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:')
@@ -450,7 +451,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds):
-        if self.args.debug:
+        if self.debug:
             print '%s' % query_name
 
         best, match_names, n_matches = {}, {}, {}
@@ -510,7 +511,7 @@ class Waterer(object):
                     best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
                     best[region + '_score'] = score
 
-            if self.args.debug and n_skipped > 0:
+            if self.debug and n_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_skipped, region)
 
         for region in utils.regions:
@@ -531,17 +532,17 @@ class Waterer(object):
         # check for unproductive rearrangements
         for region in utils.regions:
             codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds[best[region]], all_query_bounds[best[region]], assert_on_fail=False)  # position in the query sequence, that is
-        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.args.debug, extra_str='      ', assert_on_fail=False)
+        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        if self.args.debug and not in_frame_cdr3:
+        if self.debug and not in_frame_cdr3:
                 print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
-        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.args.debug)
+        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.debug)
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
-            if self.args.debug:
+            if self.debug:
                 print '       unproductive rearrangement in waterer codons_ok: %s   in_frame_cdr3: %s   no_stop_codon: %s' % (codons_ok, in_frame_cdr3, no_stop_codon)
             if self.args.skip_unproductive:
-                if self.args.debug:
+                if self.debug:
                     print '            ...skipping'
                 self.n_unproductive += 1
                 self.info['skipped_unproductive_queries'].append(query_name)
@@ -552,12 +553,12 @@ class Waterer(object):
         k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
 
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
-            if self.args.debug:
+            if self.debug:
                 print '  expanding k_d'
             k_d_max = max(8, k_d_max)
 
         if 'IGHJ4*' in best['j'] and self.germline_seqs['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
-            if self.args.debug:
+            if self.debug:
                 print '  doubly expanding k_d'
             if k_d_max-k_d_min < 8:
                 k_d_min -= 5
@@ -569,7 +570,7 @@ class Waterer(object):
         k_d_max += self.args.default_d_fuzz
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
 
-        if self.args.debug:
+        if self.debug:
             print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
             print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
             print '         used',

@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plotting')
 sys.argv.append('-b')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
+parser.add_argument('--sw-debug', type=int, default=0, choices=[0, 1, 2], help='debug level for smith-waterman')
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions

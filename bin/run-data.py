@@ -137,7 +137,7 @@ def execute(action, label, n_leaves, fname, mut_mult):
     cmd += utils.get_extra_str(extras)
     print '   ' + cmd
     # check_call(cmd.split())
-    logbase = fsdir + '/_logs/' + os.path.basename(simfname).replace('.csv', '')
+    logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '')
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
     # sys.exit()
@@ -151,6 +151,7 @@ n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
 hists, adj_mis = {}, {}
 procs = []
+
 # ----------------------------------------------------------------------------------------
 for fname in files:
     if args.dataset == 'stanford':
