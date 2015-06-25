@@ -1128,7 +1128,7 @@ class PartitionDriver(object):
         out_str_list = []
         ilabel = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            for uids in utils.get_true_clusters(line['unique_ids']).values():
+            for uids in utils.get_true_clusters(line['unique_ids'], self.reco_info).values():
                 for iid in range(len(uids)):
                     true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0))
                     out_str_list.append(true_event_str)

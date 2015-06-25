@@ -83,10 +83,13 @@ class ClusterPath(object):
             # adj mi
             if reco_info is not None:
                 adj_mi_str = ''
-                if self.adj_mis[ip] > 1e-3:
-                    adj_mi_str = '%-8.3f' % self.adj_mis[ip]
+                if self.adj_mis[ip] is None:
+                    adj_mi_str = 'na'
                 else:
-                    adj_mi_str = '%-8.0e' % self.adj_mis[ip]
+                    if self.adj_mis[ip] > 1e-3:
+                        adj_mi_str = '%-8.3f' % self.adj_mis[ip]
+                    else:
+                        adj_mi_str = '%-8.0e' % self.adj_mis[ip]
                 print '      %8s   ' % (adj_mi_str),
             if self.logweights[ip] is not None:
                 print '   %10s    %8s   ' % (way_str, logweight_str),

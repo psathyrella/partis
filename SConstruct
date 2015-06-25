@@ -27,7 +27,7 @@ base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --sta
 actions = OrderedDict()
 # key is name, value is target (note that the target corresponds to a directory or file in <stashdir>
 actions['cache-data-parameters'] = {'target' : 'data', 'extras' : semi_common_extras}
-actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--random-number-of-leaves', '--n-sim-events', '150']}
+actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--n-sim-events', '150']}
 actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : semi_common_extras}
 actions['plot-performance'] = {'target' : 'performance', 'extras' : semi_common_extras}
 
