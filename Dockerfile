@@ -25,7 +25,7 @@ RUN pip install \
     biopython \
     cython \
     decorator \
-    dendropy \
+    dendropy==3.12.3 \
     lxml \
     networkx \
     pysam \
