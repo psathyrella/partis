@@ -108,7 +108,8 @@ def vollmers(info, threshold, reco_info=None, debug=False):
         adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
         print '       threshold  %.2f:   %d clusters (%d true)   adj_mi: %.3f' % (threshold, len(set(inferred_cluster_list)), len(set(true_cluster_list)), adj_mi)
 
-    return adj_mi, len(id_clusters)
+    partition = [uids for uids in id_clusters.values()]  # convert to list of lists (no clid info)
+    return adj_mi, partition
 
 # ----------------------------------------------------------------------------------------
 def bashford_rogers(info, reco_info=None, debug=False):

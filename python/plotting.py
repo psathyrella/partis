@@ -1,3 +1,10 @@
+import matplotlib as mpl
+mpl.use('Agg')
+from pandas import DataFrame
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
 import math
 import os
 import glob
@@ -787,7 +794,82 @@ def make_mean_plots(plotdir, subdirs, outdir):
 
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
 
-# # ----------------------------------------------------------------------------------------
-# def make_html(plotdir, filetype):
-#     outfname = plotdir + '/plots.html'
-#     imagefiles = glob.glob(plotdir + )
+# ----------------------------------------------------------------------------------------
+def get_cluster_size_hist(partition):
+    sizes = [len(c) for c in partition]
+    hist = Hist(max(sizes), 0.5, max(sizes) + 0.5)
+    for sz in sizes:
+        hist.fill(sz)
+    return hist
+
+# ----------------------------------------------------------------------------------------
+def plot_cluster_size_hists(outdir, hists):
+    fsize = 20
+    mpl.rcParams.update({
+        # 'font.size': fsize,
+        'legend.fontsize': fsize,
+        'axes.titlesize': fsize,
+        # 'axes.labelsize': fsize,
+        'xtick.labelsize': fsize,
+        'ytick.labelsize': fsize,
+        'axes.labelsize': fsize
+    })
+
+    base_xvals = hists['true'].get_bin_centers()
+    data = {}
+    for name, hist in hists.items():
+        hist.normalize()
+
+        contents = hist.bin_contents
+        centers = hist.get_bin_centers()
+        if len(centers) > len(base_xvals):
+            assert False
+        for ic in range(len(base_xvals)):
+            if ic < len(centers):
+                if centers[ic] != base_xvals[ic]:
+                    print centers
+                    print base_xvals
+                    assert False
+            else:
+                contents.append(0)
+
+        data[name] = contents
+        
+    fig, ax = plt.subplots()
+    fig.tight_layout()
+    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+
+    colors = {'true' : '#006600',
+              'partis' : '#cc0000',
+              'vollmers-0.5' : '#3333ff',
+              'vollmers-0.9' : '#3399ff'
+    }
+
+    plots = {}
+    plots['true'] = ax.plot(base_xvals, hists['true'].bin_contents, linewidth=7, label='true', color=colors['true'], linestyle='--', alpha=0.5)
+
+    for name, hist in hists.items():
+        if 'vollmers' in name:
+            if '0.7' in name or '0.8' in name or '0.95' in name:
+                continue
+        if name == 'true':
+            continue
+        plots[name] = ax.plot(base_xvals, data[name], label=name, color=colors[name], linewidth=2)
+
+    legend = ax.legend()
+    # ax = fig.gca()
+    # print ax.lines
+    
+    sns.despine(trim=True)
+    sns.set_style("ticks")
+
+    # axes = plt.gca()
+    # ylimits = axes.get_ylim()
+    # xmin, xmax = 0.3, 1.02
+    # plt.xlim(xmin, xmax)
+    plt.xlabel('cluster size')
+    plt.ylabel('fraction of clusters')
+    plt.subplots_adjust(bottom=0.14, left=0.14)
+    plotdir = os.getenv('www') + '/tmp'
+    plt.savefig(plotdir + '/foo.png')
+    check_call(['./bin/permissify-www', plotdir])

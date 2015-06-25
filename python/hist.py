@@ -177,3 +177,15 @@ class Hist(object):
                 else:
                     row['sum-weights-squared'] = self.sum_weights_squared[ib]
                 writer.writerow(row)
+
+    # ----------------------------------------------------------------------------------------
+    def get_bin_centers(self):
+        bin_centers = []
+        for ibin in range(len(self.low_edges)):
+            low_edge = self.low_edges[ibin]
+            if ibin < len(self.low_edges) - 1:
+                high_edge = self.low_edges[ibin + 1]
+            else:
+                high_edge = low_edge + (self.low_edges[ibin] - self.low_edges[ibin - 1])  # overflow bin has undefined upper limit, so just use the next-to-last bin width
+            bin_centers.append(0.5 * (low_edge + high_edge))
+        return bin_centers

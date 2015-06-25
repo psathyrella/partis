@@ -1121,6 +1121,7 @@ def remove_ambiguous_ends(seq, fv_insertion, jf_insertion):
 
 # ----------------------------------------------------------------------------------------
 def get_true_clusters(ids, reco_info):
+    """ NOTE returns a dict, not a list of lists """
     clusters = {}
     for uid in ids:
         rid = reco_info[uid]['reco_id']
@@ -1136,6 +1137,7 @@ def get_true_clusters(ids, reco_info):
 
 # ----------------------------------------------------------------------------------------
 def get_true_partition(reco_info):
+    """ NOTE returns a dict, not a list of lists """
     true_partition = {}
     for key in reco_info:
         reco_id = reco_info[key]['reco_id']
@@ -1144,3 +1146,16 @@ def get_true_partition(reco_info):
         true_partition[reco_id].append(reco_info[key]['unique_id'])
     return true_partition
 
+# ----------------------------------------------------------------------------------------
+def get_partition_from_str(partition_str):
+    """ NOTE there's code in some other places that do the same thing """
+    clusters = partition_str.split(';')
+    partition = [cl.split(':') for cl in clusters]
+    return partition
+
+# ----------------------------------------------------------------------------------------
+def get_str_from_partition(partition):
+    """ NOTE there's code in some other places that do the same thing """
+    clusters = [':'.join(cl) for cl in partition]
+    partition_str = ';'.join(clusters)
+    return partition_str

@@ -1100,19 +1100,22 @@ class PartitionDriver(object):
         if self.args.annotation_clustering == 'vollmers':
             if self.args.outfname is not None:
                 outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
-                headers = ['n_clusters', 'threshold']
+                headers = ['n_clusters', 'threshold', 'clusters', 'true_clusters']
                 if not self.args.is_data:
                     headers += ['adj_mi', 'n_true_clusters']
                 writer = csv.DictWriter(outfile, headers)
                 writer.writeheader()
 
             for thresh in self.args.annotation_clustering_thresholds:
-                adj_mi, n_clusters = annotationclustering.vollmers(hmminfo, threshold=thresh, reco_info=self.reco_info)
+                adj_mi, partition = annotationclustering.vollmers(hmminfo, threshold=thresh, reco_info=self.reco_info)
+                n_clusters = len(partition)
                 if self.args.outfname is not None:
-                    row = {'n_clusters' : n_clusters, 'threshold' : thresh}
+                    row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'clusters' : utils.get_str_from_partition(partition)}
                     if not self.args.is_data:
                         row['adj_mi'] = adj_mi
                         row['n_true_clusters'] = len(utils.get_true_partition(self.reco_info))
+                        true_partition = [cl for cl in utils.get_true_partition(self.reco_info).values()]
+                        row['true_clusters'] = utils.get_str_from_partition(true_partition)
                     writer.writerow(row)
             if self.args.outfname is not None:
                 outfile.close()

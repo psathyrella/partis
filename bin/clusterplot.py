@@ -14,12 +14,13 @@ from subprocess import check_call
 sns.set_style("ticks")
 sys.path.insert(1, './python')
 
-from utils import get_arg_list
+from utils import get_arg_list, get_partition_from_str
+import plotting
 
 class ClusterPlot(object):
     def __init__(self, args):
         self.args = args
-        self.logprobs, self.n_clusters, self.adj_mis, self.logweights = {}, {}, {}, {}
+        self.logprobs, self.n_clusters, self.adj_mis, self.logweights, self.hists = {}, {}, {}, {}, {}
         self.final_logweights = []
         self.tmp_n_true_clusters = None
         for fname in self.args.infnames:
@@ -29,12 +30,15 @@ class ClusterPlot(object):
                     if not self.args.use_all_steps and int(line['n_procs']) != 1:  # skip any preliminary steps with more than one process
                         continue
                     ipath = int(line.get('path_index', 0))
+                    if ipath != 0:
+                        raise Exception('need to update some things for smc. see TODOs')
                     if ipath not in self.logprobs:
-                        self.logprobs[ipath], self.n_clusters[ipath], self.adj_mis[ipath], self.logweights[ipath] = [], [], [], []
+                        self.logprobs[ipath], self.n_clusters[ipath], self.adj_mis[ipath], self.logweights[ipath], self.hists[ipath] = [], [], [], [], []
                     self.logprobs[ipath].append(float(line['logprob']))
                     self.n_clusters[ipath].append(int(line['n_clusters']))
                     self.adj_mis[ipath].append(float(line.get('adj_mi', -1)))
                     self.logweights[ipath].append(float(line.get('logweight', 1)))
+                    self.hists[ipath].append(plotting.get_cluster_size_hist(get_partition_from_str(line['clusters'])))
                     if self.tmp_n_true_clusters is None:
                         self.tmp_n_true_clusters = int(line.get('n_true_clusters', -1))
     
@@ -88,8 +92,9 @@ class ClusterPlot(object):
         print '      adj_mi: %.4f' % (max_adj_mi_means['adj_mis'][0] - max_logprob_means['adj_mis'][0])
 
         self.adj_mi_at_max_logprob = max_logprob_means['adj_mis'][0]
-        tmp_ipath = 0  # NOTE only for the first path a.t.m.
-        self.tmp_n_clusters = self.n_clusters[tmp_ipath][int(self.imaxes['logprob'][0])]
+        tmp_ipath = 0  # NOTE only for the first path a.t.m. TODO fix that
+        self.tmp_n_clusters = self.n_clusters[tmp_ipath][int(self.imaxes['logprob'][0])]  # [0] is because imaxes is (mean, err)
+        self.tmp_cluster_size_hist = self.hists[tmp_ipath][int(self.imaxes['logprob'][0])]
         print '   n_clusters at max logprob for zeroth path: %d' % self.tmp_n_clusters
 
     # ----------------------------------------------------------------------------------------
@@ -157,47 +162,48 @@ class ClusterPlot(object):
             min_logprob = self.args.logprob_bounds[0]
             max_logprob = self.args.logprob_bounds[1]
         
-        ax.set_xlim(self.args.xbounds[0], self.args.xbounds[1])
-        ax.set_ylim(min_adj_mi, yextrafactor * max_adj_mi)
-        ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
-        ax.set_xlabel('agglomeration step', fontweight='bold')
-        ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
-        ax2.set_ylabel('log prob', color=logprob_color, fontweight='bold')
-        fig.tight_layout()
-        plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
-        
-        ax.locator_params(nbins=nxbins, axis='x')
-        ax.locator_params(nbins=nybins, axis='y')
-        
-        for ipath in self.logprobs.keys():
+        if __name__ == '__main__':
+            ax.set_xlim(self.args.xbounds[0], self.args.xbounds[1])
+            ax.set_ylim(min_adj_mi, yextrafactor * max_adj_mi)
+            ax2.set_ylim(min_logprob, yextrafactor * max_logprob)
+            ax.set_xlabel('agglomeration step', fontweight='bold')
+            ax.set_ylabel('adjusted MI', color=adj_mi_color, fontweight='bold')
+            ax2.set_ylabel('log prob', color=logprob_color, fontweight='bold')
+            fig.tight_layout()
+            plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+            
+            ax.locator_params(nbins=nxbins, axis='x')
+            ax.locator_params(nbins=nybins, axis='y')
+            
+            for ipath in self.logprobs.keys():
+                if 'step' in self.args.normalize_axes:
+                    steps = [float(i) / len(self.logprobs[ipath]) for i in range(len(self.logprobs[ipath]))]
+                else:
+                    steps = [i for i in range(len(self.logprobs[ipath]))]
+                sizes = [markersize for i in range(len(self.logprobs[ipath]))]
+                fig_logprob = ax2.plot(steps, self.logprobs[ipath], color=logprob_color, alpha=.5, linewidth=1)
+                if not self.args.is_data:
+                    fig_adj_mi = ax.plot(steps, self.adj_mis[ipath], color=adj_mi_color, alpha=1, linewidth=1)
+            
+                fig_logprob_sc = ax2.scatter(steps, self.logprobs[ipath], color=logprob_color, alpha=.5, s=sizes)
+                if not self.args.is_data:
+                    fig_adj_mi_sc = ax.scatter(steps, self.adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
+            
+            
+            xlinepos_logprob = [self.imaxes['logprob'][0] for _ in range(2)]
+            if not self.args.is_data:
+                xlinepos_adj_mi = [self.imaxes['adj_mi'][0] for _ in range(2)]
             if 'step' in self.args.normalize_axes:
-                steps = [float(i) / len(self.logprobs[ipath]) for i in range(len(self.logprobs[ipath]))]
-            else:
-                steps = [i for i in range(len(self.logprobs[ipath]))]
-            sizes = [markersize for i in range(len(self.logprobs[ipath]))]
-            fig_logprob = ax2.plot(steps, self.logprobs[ipath], color=logprob_color, alpha=.5, linewidth=1)
+                assert False
+                # xlinepos_logprob = [ float(x) / len(logprobs xlinepos_logprob
+            plt.plot(xlinepos_logprob, [min_logprob, max_logprob], color=logprob_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
             if not self.args.is_data:
-                fig_adj_mi = ax.plot(steps, self.adj_mis[ipath], color=adj_mi_color, alpha=1, linewidth=1)
-        
-            fig_logprob_sc = ax2.scatter(steps, self.logprobs[ipath], color=logprob_color, alpha=.5, s=sizes)
-            if not self.args.is_data:
-                fig_adj_mi_sc = ax.scatter(steps, self.adj_mis[ipath], color=adj_mi_color, alpha=1, s=sizes)
-        
-        
-        xlinepos_logprob = [self.imaxes['logprob'][0] for _ in range(2)]
-        if not self.args.is_data:
-            xlinepos_adj_mi = [self.imaxes['adj_mi'][0] for _ in range(2)]
-        if 'step' in self.args.normalize_axes:
-            assert False
-            # xlinepos_logprob = [ float(x) / len(logprobs xlinepos_logprob
-        plt.plot(xlinepos_logprob, [min_logprob, max_logprob], color=logprob_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
-        if not self.args.is_data:
-            plt.plot(xlinepos_adj_mi, [min_adj_mi, max_adj_mi], color=adj_mi_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
-        
-        plotdir = os.getenv('www') + '/tmp'
-        plotname = 'foo'
-        plt.savefig(plotdir + '/' + plotname + '.png')
-        check_call(['permissify-www', plotdir])
+                plt.plot(xlinepos_adj_mi, [min_adj_mi, max_adj_mi], color=adj_mi_color, linestyle='--')  #, color='k', linestyle='-', linewidth=2)
+            
+            plotdir = os.getenv('www') + '/tmp'
+            plotname = 'foo'
+            plt.savefig(plotdir + '/' + plotname + '.png')
+            check_call(['permissify-www', plotdir])
 
 
 if __name__ == '__main__':
