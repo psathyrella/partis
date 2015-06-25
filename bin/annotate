@@ -1,0 +1,18 @@
+#!/bin/bash
+
+infname=$1
+if ! [ -f $infname ]; then
+    echo "bad input file \"$infname\""
+    exit 1
+fi
+
+label=`basename $infname`
+label=`echo $label | sed 's/\..*//'`
+
+cmd="./bin/partis.py --action cache-parameters --seqfile $infname --is-data --parameter-dir $PWD/_tmp/$label --no-plot --n-max-queries 100"
+echo "RUN $cmd"
+$cmd
+
+cmd="./bin/partis.py --action run-viterbi --seqfile $infname --is-data --parameter-dir $PWD/_tmp/$label/hmm --no-plot --outfname $label.csv --n-max-queries 100"
+echo "RUN $cmd"
+$cmd

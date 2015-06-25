@@ -7,33 +7,26 @@ Partis is free software under the GPL v3.
 This manual is organized into the following sections: Quick Start (to start doing things without understanding what they do); Installation; Subcommands (a rundown on each of the actions `partis.py` can run); Parallelization; and Higher Abstractions (for a description of scripts that automate a number of `partis.py` actions).
 There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis.py --help`.
-In general, we will assume that the reader is familiar with the [paper TODO: add a link](xxx) describing partis.
+In general, we will assume that the reader is familiar with the [paper](http://arxiv.org/abs/1503.04224) describing partis.
 
 ### Quick Start
 
-Partis has a lot of dependencies.
-We promise that these are all totally necessary (except ROOT; That &*@! is getting exorcised real soon).
-But the upshot is that partis is kind of a pain to install from scratch.
-So, unless you need to do a lot of mucking about under the hood, you'll have an easier time of it just using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
+Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
+If, however, you'll be doing a lot of mucking about under the hood, bare installation might be preferable.
 
-To use Docker, you'll first want to follow Docker's instructions for your particular system.
-Once you have Docker installed, pull the partis image from dockerhub
-
-``` sudo docker pull psathyrella/partis ```.
-
-Then enter it with
-
-``` sudo docker run -i -t psathyrella/partis /bin/bash ```.
-
-This creates a new container from the partis image, and attaches you to it interactively.
-Now you're in the container, then, you'll want to build everything:
+You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
+Once Docker's installed, pull the partis image from dockerhub (depending on your setup, the `sudo`s may be unnecessary), start up a container from this image and attach yourself to it interactively, and compile:
 
 ```
+sudo docker pull psathyrella/partis
+sudo docker run -i -t psathyrella/partis /bin/bash
 ./bin/build.sh && export PATH=$PATH:$PWD/packages/samtools
 ```
 
-Then, you can run individual partis commands, just poke around, or run the scons targets `test` or `validate`.
+Then, you can run individual partis commands (described below), poke around in the code, or run the scons targets `test` or `validate`.
+If you just want to annotate a set of BCR sequences, say that you've got in `yourseqs.fa`
+``` ./bin/annotation yourseqs.fa ```
 To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
 ###### Docker tips

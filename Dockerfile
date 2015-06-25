@@ -29,7 +29,8 @@ RUN pip install \
     lxml \
     networkx \
     pysam \
-    pyyaml
+    pyyaml \
+    seaborn
 RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
 
 
