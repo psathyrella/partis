@@ -203,6 +203,7 @@ class ClusterPlot(object):
             plotdir = os.getenv('www') + '/tmp'
             plotname = 'foo'
             plt.savefig(plotdir + '/' + plotname + '.png')
+            plt.close()  # wtf? doesn't eliminate warning about too many figures
             check_call(['permissify-www', plotdir])
 
 

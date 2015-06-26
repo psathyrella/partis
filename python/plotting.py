@@ -801,7 +801,7 @@ def get_cluster_size_hist(partition):
     return hist
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outdir, hists):
+def plot_cluster_size_hists(outfname, hists, title):
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -865,9 +865,12 @@ def plot_cluster_size_hists(outdir, hists):
     # ylimits = axes.get_ylim()
     # xmin, xmax = 0.3, 1.02
     # plt.xlim(xmin, xmax)
+    plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
-    plotdir = os.getenv('www') + '/tmp'
-    plt.savefig(plotdir + '/foo.png')
+    plotdir = os.path.dirname(outfname)
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir)
+    plt.savefig(outfname)
     check_call(['./bin/permissify-www', plotdir])

@@ -1,18 +1,24 @@
 #!/bin/bash
 
-infname=$1
-if ! [ -f $infname ]; then
+infname=$1  # pass input file as first argument
+if ! [ -f $infname ]; then  # make sure it exists
     echo "bad input file \"$infname\""
     exit 1
 fi
 
+# use the basename without suffix of the input file as a label for the analysis
 label=`basename $infname`
 label=`echo $label | sed 's/\..*//'`
 
-cmd="./bin/partis.py --action cache-parameters --seqfile $infname --is-data --parameter-dir $PWD/_tmp/$label --no-plot --n-max-queries 100"
+# cache parameters based on the sequences in the input file
+cmd="./bin/partis.py --action cache-parameters --seqfile $infname --is-data --parameter-dir $PWD/_tmp/$label --no-plot"
 echo "RUN $cmd"
 $cmd
 
-cmd="./bin/partis.py --action run-viterbi --seqfile $infname --is-data --parameter-dir $PWD/_tmp/$label/hmm --no-plot --outfname $label.csv --n-max-queries 100"
+# use the cached parameters to annotate the sequences in the input file
+cmd="./bin/partis.py --action run-viterbi --seqfile $infname --is-data --parameter-dir $PWD/_tmp/$label/hmm --no-plot --outfname $label.csv"
 echo "RUN $cmd"
 $cmd
+
+echo "output written to $label.csv"
+

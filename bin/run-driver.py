@@ -73,7 +73,7 @@ if 'cache-simu-parameters' in args.actions:
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir + '/hmm'
-    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/' + sim_param_dir + '/performance'
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/' + sim_param_dir + '-performance'
     run_command(cmd_str)
 
 assert len(args.actions) == 1

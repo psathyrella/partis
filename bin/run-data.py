@@ -73,7 +73,7 @@ def execute(action, label, n_leaves, fname, mut_mult):
         extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.7:0.8:0.9:0.95']
         cmd += ' --simfname ' + simfname
         extras += ['--n-max-queries', n_to_partition]
-        n_procs = n_to_partition / 100
+        n_procs = n_to_partition / 50
     elif action == 'plot':
         if n_leaves not in hists:
             hists[n_leaves] = {}
@@ -121,7 +121,9 @@ def execute(action, label, n_leaves, fname, mut_mult):
                 truehist.write(vollmers_fname.replace('.csv', '-true-hist.csv'))  # will overwite itself a few times
                 hists[n_leaves][mut_mult]['true'] = truehist
 
-        plotting.plot_cluster_size_hists(os.path.dirname(simfname), hists[n_leaves][mut_mult])
+        plotname = os.getenv('www') + '/tmp/plots/' + os.path.basename(simfname).replace('.csv', '-plot.svg')
+        plotting.plot_cluster_size_hists(plotname, hists[n_leaves][mut_mult], title='mean leaves %s, mutation x %s' % (n_leaves, mut_mult))
+        check_call(['./bin/makeHtml', os.path.dirname(plotname).replace('/plots', ''), '3', 'null', 'svg'])
 
         return
 
@@ -137,7 +139,7 @@ def execute(action, label, n_leaves, fname, mut_mult):
     cmd += utils.get_extra_str(extras)
     print '   ' + cmd
     # check_call(cmd.split())
-    logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '')
+    logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '') + '-' + action
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
     # sys.exit()
@@ -189,11 +191,19 @@ for fname in files:
         # time.sleep(10)
 
     if 'plot' in args.actions:
-        for n_leaves in n_leaf_list:
-            for mut_mult in mutation_multipliers:
-                print '  %s leaves   %s mut_mult' % (n_leaves, mut_mult)
-                for name, adj_mi in adj_mis[n_leaves][mut_mult].items():
-                    print '    %20s  %5.2f' % (name, adj_mi)
+        for mut_mult in mutation_multipliers:
+            print 'mutation x %s' % mut_mult
+            for n_leaves in n_leaf_list:
+                print '  &  %s  ' % n_leaves,
+            print '\\\\'
+            for name in adj_mis[n_leaf_list[0]][mutation_multipliers[0]]:
+                if 'vollmers' in name:
+                    if '0.7' in name or '0.8' in name or '0.95' in name:
+                        continue
+                print '%25s' % name,
+                for n_leaves in n_leaf_list:
+                    print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
+                print '\\\\'
 
     break
 
