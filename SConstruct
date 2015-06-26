@@ -29,7 +29,7 @@ actions = OrderedDict()
 actions['cache-data-parameters'] = {'target' : 'data', 'extras' : semi_common_extras + ['--no-plot', ]}
 actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--n-sim-events', '150']}
 actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : semi_common_extras + ['--no-plot', ]}
-actions['plot-performance'] = {'target' : 'performance', 'extras' : semi_common_extras}
+actions['plot-performance'] = {'target' : 'simu-performance', 'extras' : semi_common_extras}
 
 tests = OrderedDict()
 # first add the tests that run over the framework (using run-driver.py)

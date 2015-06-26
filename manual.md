@@ -9,7 +9,7 @@ There are also many flags and optional parameters; unless mentioned below these 
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis.py --help`.
 In general, we will assume that the reader is familiar with the [paper](http://arxiv.org/abs/1503.04224) describing partis.
 
-### Quick Start
+### Quick Start (with Docker)
 
 Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
@@ -21,7 +21,8 @@ Once Docker's installed, pull the partis image from dockerhub (depending on your
 ```
 sudo docker pull psathyrella/partis
 sudo docker run -it -v /:/host psathyrella/partis /bin/bash
-./bin/build.sh && export PATH=$PATH:$PWD/packages/samtools
+./bin/build.sh
+export PATH=$PATH:$PWD/packages/samtools
 ```
 Note the `-v`, which mounts the root of the host filesystem inside the container.
 
@@ -43,10 +44,11 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
     - Hence the `-it` and `/bin/bash` options we used above for `docker run`: these allocate a pseudo-tty, keep STDIN open, and run bash instead of the default command, without all of which you can't reattach
     - the Docker docs are good, but googling on stackoverflow is frequently better
 
-### Installation
+### Slow Start (install from scratch)
 
 As noted above, for most use cases you'll likely be happier using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
-But installing from scratch isn't really so bad, you just need to make sure you have the following dependencies:
+But if you're going to be doing lots of development it's nice to not have to be inside Docker all the time, and installing from scratch isn't really so bad.
+You'll need to have recent versions of the following (to see which versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile)):
 
 ##### required
   - scons
@@ -85,7 +87,8 @@ cd partis
 And then build:
 
 ```
-source ./bin/handbuild.sh
+./bin/build.sh
+export PATH=$PATH:$PWD/packages/samtools
 ```
 
 ### Subcommands
