@@ -1,4 +1,6 @@
-### Introduction
+  * [Quick Start](#quick-start)
+  * [Slow Start](#slow-start)
+  * [Details](#details)
 
 Partis is an HMM-based framework for B-cell receptor annotation, simulation, and partitioning.
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ighutil](https://github.com/cmccoy/ighutil) set of Smith-Waterman annotation tools.
@@ -27,10 +29,13 @@ export PATH=$PATH:$PWD/packages/samtools
 Note the `-v`, which mounts the root of the host filesystem inside the container.
 
 Then, you can run individual partis commands (described below), poke around in the code, or run the scons targets `test` or `validate`.
-If you just want to annotate a set of BCR sequences, say at `/path/to/yourseqs.fa`
+If you just want to annotate a set of BCR sequences, say at `/path/to/yourseqs.fa`, run
 
-``` ./bin/annotation /host/path/to/yourseqs.fa ```
-Note that inside the container, you access the fasta file with the path on the host system with `/host` tacked on the front.
+``` ./bin/annotate --infname /host/path/to/yourseqs.fa```
+
+Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
+This'll write the output csv to the directory that `--infname` came from.
+Depending on your system, 5000 sequences will take perhaps ten minutes -- if you have many more than that, you should look through the parallelization options below.
 
 To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
@@ -47,7 +52,7 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
 ### Slow Start (install from scratch)
 
 As noted above, for most use cases you'll likely be happier using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
-But if you're going to be doing lots of development it's nice to not have to be inside Docker all the time, and installing from scratch isn't really so bad.
+But if you're doing lots of development it's nice to be able to work outside of Docker, and installing from scratch isn't really so bad.
 You'll need to have recent versions of the following (to see which versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile)):
 
 ##### required
@@ -70,7 +75,7 @@ You'll need to have recent versions of the following (to see which versions, fol
   - dendropy
   - TreeSim
 
-The following packages are also used by partis, but they're included as sub trees in the source code, so you don't need to do anything:
+The following packages are also used by partis, but they're included as `git subtree`s in the source code, so you don't need to do anything:
   - tclap
   - yaml-cpp
   - ham
@@ -91,7 +96,9 @@ And then build:
 export PATH=$PATH:$PWD/packages/samtools
 ```
 
-### Subcommands
+### Details
+
+#### Subcommands
 
 `partis.py`, in `bin/`, is the script that drives everything.
 Every time you invoke it, you choose from a list of actions you want it to perform

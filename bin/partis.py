@@ -37,7 +37,7 @@ parser.add_argument('--plot-parameters', action='store_true', help='Plot inferre
 parser.add_argument('--dont-mimic-data-read-length', action='store_true', help='Simulate events with the entire v, d, and j regions? (Otherwise we mimic the read length observed in data)')
 parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
-parser.add_argument('--rescale-emissions', action='store_true')
+parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
 parser.add_argument('--annotation-clustering-thresholds')
@@ -105,9 +105,6 @@ args.n_procs = args.n_procs[0]
 
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
-
-print '\nsetting rescale emissions to true\n'
-args.rescale_emissions = True
 
 assert not args.truncate_n_sets  # disabled and deprecated (I'm breaking it to make N padding easier to implement)
 if args.plot_performance:
