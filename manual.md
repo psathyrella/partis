@@ -20,28 +20,28 @@ Once Docker's installed, pull the partis image from dockerhub (depending on your
 
 ```
 sudo docker pull psathyrella/partis
-sudo docker run -i -t psathyrella/partis /bin/bash
+sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 ./bin/build.sh && export PATH=$PATH:$PWD/packages/samtools
 ```
+Note the `-v`, which mounts the root of the host filesystem inside the container.
 
 Then, you can run individual partis commands (described below), poke around in the code, or run the scons targets `test` or `validate`.
-If you just want to annotate a set of BCR sequences, say that you've got in `yourseqs.fa`
-``` ./bin/annotation yourseqs.fa ```
+If you just want to annotate a set of BCR sequences, say at `/path/to/yourseqs.fa`
+
+``` ./bin/annotation /host/path/to/yourseqs.fa ```
+Note that inside the container, you access the fasta file with the path on the host system with `/host` tacked on the front.
+
 To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
 ###### Docker tips
-Docker is really awesome.
-But it's confusing at first, mostly because it's kinda-sorta like virtual machines, only different.
-The thing to remember is that everything that isn't working for you has in the past also confused many other people on stackoverflow, so it's easy to google what you're doing wrong.
-
-A few tips:
-  - We use `docker run` above: this creates a new "container" from the current image (kindasorta: "creates a new instance of the partis image").
-  - If you exit and then do `docker run` again, that'll create a new container. But most of the time you want to reattach to the one you made before.
+Docker containers and images are kinda-sorta like virtual machines, only different, so a few things:
+  - We use `docker run` above: this creates a new "container" from (instance of ) the partis image
+  - If you exit (ctrl-d or `exit`) and then do `docker run` again, that'll create a new container. But most of the time you want to reattach to the one you made before.
     - to reattach to the same container:
       - run `docker ps -a` (lists all running and stopped containers) to get the right container ID
       - run `docker attach <ID>`
-    - Hence the `-i -t` and `/bin/bash` options: this allocates a pseudo-tty keeps STDIN open, and runs bash instead of the default command, without all of which you can't reattach
-    - [this](http://stackoverflow.com/questions/26153686/how-to-run-a-command-on-an-already-existing-docker-container) is a helpful discussion. Also, look up the difference between `attach` and `run` in the docker docs.
+    - Hence the `-it` and `/bin/bash` options we used above for `docker run`: these allocate a pseudo-tty, keep STDIN open, and run bash instead of the default command, without all of which you can't reattach
+    - the Docker docs are good, but googling on stackoverflow is frequently better
 
 ### Installation
 
