@@ -1,13 +1,16 @@
-  * [Quick Start](#quick-start)
-  * [Slow Start](#slow-start)
-  * [Details](#details)
+### Introduction
 
 Partis is an HMM-based framework for B-cell receptor annotation, simulation, and partitioning.
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ighutil](https://github.com/cmccoy/ighutil) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
-This manual is organized into the following sections: Quick Start (to start doing things without understanding what they do); Installation; Subcommands (a rundown on each of the actions `partis.py` can run); Parallelization; and Higher Abstractions (for a description of scripts that automate a number of `partis.py` actions).
-There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
+This manual is organized into the following sections:
+
+  * [Quick Start](#quick-start) install/run with Docker
+  * [Slow Start](#slow-start) install from scratch
+  * [Details](#details) how to navigate the various `partis.py` subcommands
+
+There are also many flags and optional parameters; unless mentioned below these are tautologically beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis.py --help`.
 In general, we will assume that the reader is familiar with the [paper](http://arxiv.org/abs/1503.04224) describing partis.
 
