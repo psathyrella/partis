@@ -163,7 +163,7 @@ Exactly the same as `run-viterbi`, except with the forward algorithm, i.e. it su
 
 Happily enough, sequence annotation lends itself quite readily to independent parallelization.
 You specify the number of processes on your local machine with `--n-procs`.
-If you also throw in the `--slurm` flag, subsidiary processes will be run with slurm (under the hood this just adds 'srun' to the front of the commands).
+If you also throw in the `--slurm` flag, subsidiary processes will be run with slurm (under the hood this just adds 'srun' to the front of the commands -- so if you're inside docker you'll also need to install `srun`).
 Now, partis writes a lot of temporary files to a working directory, which is by default under `/tmp/$USER`.
 If you're running with slurm, though, you need the working directory to be a network mount everybody can see, so if you're slurming you'll need to set `--workdir` to something visible by your batch nodes.
 A suitable choice on our system is `_tmp/$RANDOM`.
@@ -173,6 +173,6 @@ A suitable choice on our system is `_tmp/$RANDOM`.
 The script `bin/run-driver.py` can help to automate some of these steps.
 The command
 
-```./bin/run-driver.py --label example --datafname test/A-every-100-subset-0.tsv.bz2 --plotdir _plots/example```
+```./bin/run-driver.py --label example --datafname test/A-every-100-subset-0.tsv.bz2```
 
 will cache data parameters, run simulation, cache simulation parameters, and then run annotation a final time in order to plot performance.
