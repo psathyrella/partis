@@ -840,11 +840,12 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     colors = {'true' : '#006600',
               'partis' : '#cc0000',
               'vollmers-0.5' : '#3333ff',
-              'vollmers-0.9' : '#3399ff'
+              'vollmers-0.9' : '#3399ff'# ,
+              # 'changeo' : ''
     }
 
     plots = {}
-    plots['true'] = ax.plot(base_xvals, hists['true'].bin_contents, linewidth=7, label='true', color=colors['true'], linestyle='--', alpha=0.5)
+    plots['true'] = ax.plot(base_xvals, hists['true'].bin_contents, linewidth=10, label='true', color=colors['true'], linestyle='--', alpha=0.5)
 
     for name, hist in hists.items():
         if 'vollmers' in name:
@@ -852,7 +853,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
                 continue
         if name == 'true':
             continue
-        plots[name] = ax.plot(base_xvals, data[name], label=name, color=colors[name], linewidth=2)
+        plots[name] = ax.plot(base_xvals, data[name], label=name, color=colors.get(name, 'grey'), linewidth=4)
 
     legend = ax.legend()
     # ax = fig.gca()

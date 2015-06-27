@@ -11,8 +11,10 @@ sys.path.insert(1, './python')
 
 from humans import humans
 import plotting
+import seqfileopener
 import utils
 from clusterplot import ClusterPlot
+from glomerator import Glomerator
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')
@@ -58,6 +60,55 @@ def write_all_plot_csvs(label):
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
 # ----------------------------------------------------------------------------------------
+def parse_partis(these_hists, these_adj_mis, simfname, histfname):
+    args.infnames = [simfname.replace('.csv', '-partition.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
+    args.is_data = False
+    args.use_all_steps = False
+    args.normalize_axes = []
+    args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
+    cplot = ClusterPlot(args)
+    cplot.tmp_cluster_size_hist.write(histfname)
+    these_hists['partis'] = cplot.tmp_cluster_size_hist
+    these_adj_mis['partis'] = cplot.adj_mi_at_max_logprob
+
+# ----------------------------------------------------------------------------------------
+def parse_vollmers(these_hists, these_adj_mis, simfname, histfbase, true_histfname):
+    vollmers_fname = simfname.replace('.csv', '-run-viterbi.csv')
+    with open(vollmers_fname) as vfile:
+        vreader = csv.DictReader(vfile)
+        for line in vreader:
+            vhist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['clusters']))
+            vhist.write(histfbase + line['threshold'] + '-hist.csv')
+            these_hists['vollmers-' + line['threshold']] = vhist
+            these_adj_mis['vollmers-' + line['threshold']] = float(line['adj_mi'])
+
+            truehist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['true_clusters']))  # true partition is also written here, for lack of a better place (note that it's of course the same for all thresholds)
+            truehist.write(true_histfname)  # will overwite itself a few times
+            these_hists['true'] = truehist
+
+# ----------------------------------------------------------------------------------------
+def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
+    input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+    
+    indir = fsdir.replace('/partis-dev/_output', '/changeo')
+    infname = indir + '/' + simfbase.replace('-', '_').replace('simu_', '') + '_db-pass_parse-select_clone-pass.tab'
+    
+    id_clusters = {}  # map from cluster id to list of seq ids
+    with open(infname) as chfile:
+        reader = csv.DictReader(chfile, delimiter='\t')
+        for line in reader:
+            clid = line['CLONE']
+            uid = line['SEQUENCE_ID']
+            if clid not in id_clusters:
+                id_clusters[clid] = []
+            id_clusters[clid].append(uid)
+    
+    partition = [ids for ids in id_clusters.values()]
+    glom = Glomerator(reco_info)
+    these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
+    these_adj_mis['changeo'] = glom.mutual_information(partition, debug=True)
+
+# ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     if n_leaves not in hists:
         hists[n_leaves] = {}
@@ -65,35 +116,21 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     if mut_mult not in hists[n_leaves]:
         hists[n_leaves][mut_mult] = {}
         adj_mis[n_leaves][mut_mult] = {}
+    these_hists = hists[n_leaves][mut_mult]
+    these_adj_mis = adj_mis[n_leaves][mut_mult]
 
     simfname = fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
     simfbase = leafmutstr(n_leaves, mut_mult)
     csvdir = os.path.dirname(simfname) + '/plots'
 
     # first do partis stuff
-    args.infnames = [simfname.replace('.csv', '-partition.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
-    args.is_data = False
-    args.use_all_steps = False
-    args.normalize_axes = []
-    args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
-    cplot = ClusterPlot(args)
-    cplot.tmp_cluster_size_hist.write(csvdir + '/' + simfbase + '-partis-hist.csv')
-    hists[n_leaves][mut_mult]['partis'] = cplot.tmp_cluster_size_hist
-    adj_mis[n_leaves][mut_mult]['partis'] = cplot.adj_mi_at_max_logprob
+    parse_partis(these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-partis-hist.csv')
 
-    # then vollmers annotation
-    vollmers_fname = simfname.replace('.csv', '-run-viterbi.csv')
-    with open(vollmers_fname) as vfile:
-        vreader = csv.DictReader(vfile)
-        for line in vreader:
-            vhist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['clusters']))
-            vhist.write(csvdir + '/' + simfbase + '-vollmers-' + line['threshold'] + '-hist.csv')
-            hists[n_leaves][mut_mult]['vollmers-' + line['threshold']] = vhist
-            adj_mis[n_leaves][mut_mult]['vollmers-' + line['threshold']] = float(line['adj_mi'])
+    # then vollmers annotation (and true hists)
+    parse_vollmers(these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-vollmers-', csvdir + '/' + simfbase + '-true-hist.csv')
 
-            truehist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['true_clusters']))  # true partition is also written here, for lack of a better place (note that it's of course the same for all thresholds)
-            truehist.write(csvdir + '/' + simfbase + '-true-hist.csv')  # will overwite itself a few times
-            hists[n_leaves][mut_mult]['true'] = truehist
+    # then changeo
+    parse_changeo(these_hists, these_adj_mis, simfname, simfbase)
 
     plotdir = os.getenv('www') + '/partis/clustering/' + label
     plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', hists[n_leaves][mut_mult], title='mean leaves %s, mutation x %s' % (n_leaves, mut_mult), xmax=n_leaves*3)
@@ -166,8 +203,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 # ----------------------------------------------------------------------------------------
 n_to_partition = 1000
 n_data_to_cache = 50000
-mutation_multipliers = ['1', '2', '4']
-n_leaf_list = [5, 5, 10, 25, 50]
+mutation_multipliers = ['1', ]  #'2', '4']
+n_leaf_list = [3]  #[5, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
