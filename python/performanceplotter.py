@@ -13,11 +13,9 @@ bool_columns = ('v_gene', 'd_gene', 'j_gene')
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, germlines, plotdir, name):
+    def __init__(self, germlines, name):
         self.germlines = germlines
-        self.plotdir = plotdir
         self.name = name
-        utils.prep_dir(self.plotdir + '/plots', wildling=None, multilings=['*.csv', '*.svg', '*.root'])
         self.values = {}
         for column in utils.index_columns:
             if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
@@ -172,7 +170,8 @@ class PerformancePlotter(object):
             self.hists[column].fill(guessval - trueval)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self):
+    def plot(self, plotdir):
+        utils.prep_dir(plotdir + '/plots', wildling=None, multilings=['*.csv', '*.svg', '*.root'])
         for column in self.values:
             if column in bool_columns:
                 right = self.values[column]['right']
@@ -180,7 +179,7 @@ class PerformancePlotter(object):
                 errs = fraction_uncertainty.err(right, right+wrong)
                 print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), errs[0], errs[1])
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
-                plotting.draw(hist, 'bool', plotname=column, plotdir=self.plotdir, write_csv=True)
+                plotting.draw(hist, 'bool', plotname=column, plotdir=plotdir, write_csv=True)
             else:
                 # TODO this is dumb... I should make the integer-valued ones histograms as well
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=True)
@@ -189,10 +188,10 @@ class PerformancePlotter(object):
                     hist.GetXaxis().SetTitle('hamming distance')
                 else:
                     hist.GetXaxis().SetTitle('inferred - true')
-                plotting.draw(hist, 'int', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
+                plotting.draw(hist, 'int', plotname=column, plotdir=plotdir, write_csv=True, log=log)
         for column in self.hists:
             hist = plotting.make_hist_from_my_hist_class(self.hists[column], column)
-            plotting.draw(hist, 'float', plotname=column, plotdir=self.plotdir, write_csv=True, log=log)
+            plotting.draw(hist, 'float', plotname=column, plotdir=plotdir, write_csv=True, log=log)
         
-        check_call(['./bin/makeHtml', self.plotdir, '3', 'null', 'svg'])
-        check_call(['./bin/permissify-www', self.plotdir])  # NOTE this should really permissify starting a few directories higher up
+        check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+        check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up

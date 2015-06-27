@@ -25,11 +25,12 @@ parser.add_argument('--datafname')
 parser.add_argument('--is-data', action='store_true')
 parser.add_argument('--simfname')
 parser.add_argument('--stashdir', default=fsdir + '/_output')
-parser.add_argument('--plotdir', default=fsdir + '/_output')
+parser.add_argument('--plotdir')
 parser.add_argument('--no-skip-unproductive', action='store_true')
 
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition', 'run-viterbi')
-parser.add_argument('--actions', default=':'.join(all_actions), choices=all_actions, help='Colon-separated list of actions to perform')
+default_actions = all_actions[ : -2]
+parser.add_argument('--actions', default=':'.join(default_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 parser.add_argument('--n-procs', default=str(max(1, multiprocessing.cpu_count() / 2)))
 
 args = parser.parse_args()
@@ -38,8 +39,8 @@ args.actions = utils.get_arg_list(args.actions)
 
 cmd = './bin/partis.py'
 common_args = ' --n-procs ' + str(args.n_procs)
+
 if args.extra_args is not None:
-    assert 'n-procs' not in args.extra_args  # didn't used to have it as an option here
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace(',', ':').replace('+', ' ')
 if args.simfname is None:
     args.simfname = args.stashdir + '/' + args.label + '/simu.csv'
@@ -53,7 +54,8 @@ if 'cache-data-parameters' in args.actions:
     if not args.no_skip_unproductive:
          cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
-    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/params/data'
+    if args.plotdir is not None:
+        cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/params/data'
     run_command(cmd_str)
 
 if 'simulate' in args.actions:
@@ -67,18 +69,21 @@ if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
     cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir
-    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/' + sim_param_dir
+    if args.plotdir is not None:
+        cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/' + sim_param_dir
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir + '/hmm'
-    cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/' + sim_param_dir + '-performance'
+    perf_plotdir = fsdir + '/_output' if args.plotdir is None else args.plotdir
+    cmd_str += ' --plotdir ' + perf_plotdir + '/' + args.label + '/' + sim_param_dir + '-performance'
     run_command(cmd_str)
 
-assert len(args.actions) == 1
-action = args.actions[0]
-if action == 'partition' or action == 'run-viterbi':
+if 'partition' in args.actions or 'run-viterbi' in args.actions:
+    assert len(args.actions) == 1
+    action = args.actions[0]
+
     cmd_str = ' --action ' + action + common_args
     if args.is_data:
         cmd_str += ' --is-data'

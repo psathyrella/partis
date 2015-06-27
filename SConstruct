@@ -22,19 +22,21 @@ datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
 
 common_extras = ['--seed', '1']
 semi_common_extras = ['--match-mismatch', '5:1']
-base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --plotdir ' + stashdir + ' --no-skip-unproductive'
+base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --n-procs 5 --no-skip-unproductive'
 
 actions = OrderedDict()
 # key is name, value is target (note that the target corresponds to a directory or file in <stashdir>
-actions['cache-data-parameters'] = {'target' : 'data', 'extras' : semi_common_extras + ['--no-plot', ]}
+actions['cache-data-parameters'] = {'target' : 'data', 'extras' : semi_common_extras}
 actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--n-sim-events', '150']}
-actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : semi_common_extras + ['--no-plot', ]}
+actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : semi_common_extras}
 actions['plot-performance'] = {'target' : 'simu-performance', 'extras' : semi_common_extras}
 
 tests = OrderedDict()
 # first add the tests that run over the framework (using run-driver.py)
 for action, config in actions.items():
     tests[action] = base_cmd + ' --action ' + action + utils.get_extra_str(config['extras'] + common_extras)
+    if action == 'plot-performance':
+        tests[action] += ' --plotdir ' + stashdir
 
 simu_parameter_dir = 'test/regression/parameters/simu/hmm'
 data_parameter_dir = 'test/regression/parameters/data/hmm'

@@ -19,9 +19,8 @@ from performanceplotter import PerformancePlotter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir, write_parameters=False, plotdir=None):
+    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir, write_parameters=False):
         self.parameter_dir = parameter_dir
-        self.plotdir = plotdir
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -36,9 +35,7 @@ class Waterer(object):
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.germline_seqs)
         if self.args.plot_performance:
-            assert self.args.plotdir != None
-            assert not self.args.is_data
-            self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir + '/sw/performance', 'sw')
+            self.perfplotter = PerformancePlotter(self.germline_seqs, 'sw')
         self.info = {}
         self.info['queries'] = []
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
@@ -57,7 +54,7 @@ class Waterer(object):
             self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         self.outfile = None
-        if self.args.outfname != None:
+        if self.args.outfname is not None:
             self.outfile = open(self.args.outfname, 'a')
 
         self.n_unproductive = 0
@@ -67,14 +64,14 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
-        if self.args.outfname != None:
+        if self.args.outfname is not None:
             self.outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
-        if self.pcounter != None:
+        if self.pcounter is not None:
             self.pcounter.clean()
-        if self.true_pcounter != None:
+        if self.true_pcounter is not None:
             self.true_pcounter.clean()
 
     # ----------------------------------------------------------------------------------------
@@ -99,20 +96,18 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def finalize(self):
         if self.perfplotter is not None:
-            self.perfplotter.plot()
+            self.perfplotter.plot(self.args.plotdir + '/sw/performance')
         # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
         if len(self.info['skipped_indel_queries']) > 0:
             print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
-        if self.pcounter != None:
+        if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
-            # if self.true_pcounter != None:
-            #     self.true_pcounter.write(parameter_xxx_dir, plotdir=plotdir + '/true')
-            if not self.args.no_plot and self.plotdir != '':
-                self.pcounter.plot(self.plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
-                if self.true_pcounter != None:
-                    self.true_pcounter.plot(self.plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+            if self.args.plotdir is not None:
+                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+                if self.true_pcounter is not None:
+                    self.true_pcounter.plot(self.args.plotdir + 'sw/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
     # ----------------------------------------------------------------------------------------
     def execute_command(self, base_infname, base_outfname, n_procs):
@@ -346,7 +341,7 @@ class Waterer(object):
             out_str_list.append('WARNING ' + warnings[gene])
         if skipping:
             out_str_list.append('skipping!')
-        if self.args.outfname == None:
+        if self.args.outfname is None:
             print ''.join(out_str_list)
         else:
             out_str_list.append('\n')
@@ -441,7 +436,7 @@ class Waterer(object):
         if self.pcounter is not None:
             self.pcounter.increment_reco_params(self.info[query_name])
             self.pcounter.increment_mutation_params(self.info[query_name])
-        if self.true_pcounter != None:
+        if self.true_pcounter is not None:
             self.true_pcounter.increment_reco_params(self.reco_info[query_name])
             self.true_pcounter.increment_mutation_params(self.reco_info[query_name])
         if self.perfplotter is not None:
@@ -477,7 +472,7 @@ class Waterer(object):
                 # TODO since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative
 
                 # only use a specified set of genes
-                if self.args.only_genes != None and gene not in self.args.only_genes:
+                if self.args.only_genes is not None and gene not in self.args.only_genes:
                     n_skipped += 1
                     continue
 

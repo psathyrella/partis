@@ -73,16 +73,13 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
-        # assert self.args.n_sets == 1  # er, could do it for n > 1, but I'd want to think through a few things first
-        assert self.args.plotdir is not None
-
         sw_parameter_dir = self.args.parameter_dir + '/sw'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True, plotdir=self.args.plotdir + '/sw')
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True)
         waterer.run()
         self.sw_info = waterer.info
         self.write_hmms(sw_parameter_dir)
         parameter_out_dir = self.args.parameter_dir + '/hmm'
-        self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True, plotdir=self.args.plotdir + '/hmm')
+        self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
         self.write_hmms(parameter_out_dir)
 
     # ----------------------------------------------------------------------------------------
@@ -94,7 +91,7 @@ class PartitionDriver(object):
         waterer.run()
 
         self.sw_info = waterer.info
-        self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir, count_parameters=self.args.plot_parameters, plotdir=self.args.plotdir)
+        self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
@@ -265,7 +262,7 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, plotdir=None, n_procs=None):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -299,7 +296,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
         # print '      hmm run time: %.3f' % (time.time()-start)
 
-        self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, plotdir)
+        self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir)
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
@@ -891,7 +888,7 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, plotdir):
+    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir):
         if self.args.smc_particles == 1:
             if self.args.action == 'partition' or n_procs > 1:
                 self.merge_all_hmm_outputs(n_procs)
@@ -902,7 +899,7 @@ class PartitionDriver(object):
             self.read_cachefile(self.hmm_cachefname)
 
         if self.args.action != 'partition':
-            self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, plotdir=plotdir)
+            self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
@@ -1016,16 +1013,15 @@ class PartitionDriver(object):
         return chops
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None, plotdir=None):
+    def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
 
         if count_parameters:
             assert parameter_out_dir is not None
-            assert plotdir is not None
         pcounter = ParameterCounter(self.germline_seqs) if count_parameters else None
         true_pcounter = ParameterCounter(self.germline_seqs) if (count_parameters and not self.args.is_data) else None
-        perfplotter = PerformancePlotter(self.germline_seqs, plotdir + '/hmm/performance', 'hmm') if self.args.plot_performance else None
+        perfplotter = PerformancePlotter(self.germline_seqs, 'hmm') if self.args.plot_performance else None
 
         n_seqs_processed, n_events_processed = 0, 0
         hmminfo = {}
@@ -1072,20 +1068,20 @@ class PartitionDriver(object):
                         if true_pcounter is not None:
                             true_pcounter.increment_mutation_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
-                            perfplotter.evaluate(self.reco_info[uid], hmminfo[uid],
-                                                 None if self.args.dont_pad_sequences else self.sw_info[uid]['padded'])
+                            perfplotter.evaluate(self.reco_info[uid], hmminfo[uid], None if self.args.dont_pad_sequences else self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
         if pcounter is not None:
             pcounter.write(parameter_out_dir)
-            if not self.args.no_plot:
-                pcounter.plot(plotdir, subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+            if self.args.plotdir is not None:
+                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if true_pcounter is not None:
             true_pcounter.write(parameter_out_dir + '/true')
-            if not self.args.no_plot:
-                true_pcounter.plot(plotdir + '/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+            if self.args.plotdir is not None:
+                true_pcounter.plot(self.args.plotdir + '/hmm/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if perfplotter is not None:
-            perfplotter.plot()
+            assert self.args.plotdir is not None
+            perfplotter.plot(self.args.plotdir + '/hmm/performance')
 
         print '    processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
         if len(boundary_error_queries) > 0:

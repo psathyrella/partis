@@ -33,9 +33,7 @@ parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 # parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
-parser.add_argument('--plot-parameters', action='store_true', help='Plot inferred parameters?')
 parser.add_argument('--dont-mimic-data-read-length', action='store_true', help='Simulate events with the entire v, d, and j regions? (Otherwise we mimic the read length observed in data)')
-parser.add_argument('--no-plot', action='store_true', help='Don\'t write any plots (we write a *lot* of plots for debugging, which can be slow).')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
@@ -48,7 +46,7 @@ parser.add_argument('--seqfile', help='input sequence file')
 parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
 parser.add_argument('--datadir', default='data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')
-parser.add_argument('--plotdir', default='_plots')
+parser.add_argument('--plotdir', help='Base directory to which to write plots (no plot are written if this isn\'t set)')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999)), help='Temporary working directory (see also <no-clean>)')
 parser.add_argument('--initial-cachefname')
@@ -109,9 +107,7 @@ if args.slurm and '/tmp' in args.workdir:
 assert not args.truncate_n_sets  # disabled and deprecated (I'm breaking it to make N padding easier to implement)
 if args.plot_performance:
     assert not args.is_data
-    # assert args.algorithm == 'viterbi'
-# if args.plot_all_best_events:
-#     assert args.n_max_queries == 1  # at least for now
+    assert args.plotdir is not None
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
