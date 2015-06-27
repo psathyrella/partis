@@ -1,5 +1,6 @@
 import csv
 import math
+import os
 from opener import opener
 from utils import is_normed
 
@@ -162,6 +163,8 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def write(self, outfname):
+        if not os.path.exists(os.path.dirname(outfname)):
+            os.makedirs(os.path.dirname(outfname))
         with opener('w')(outfname) as outfile:
             header = [ 'bin_low_edge', 'contents', 'binlabel' ]
             if self.errors is not None:

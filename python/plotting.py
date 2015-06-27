@@ -19,20 +19,20 @@ import fraction_uncertainty
 import plotconfig
 from hist import Hist
 
-def check_root():
-    try:
-        from ROOT import kBlue
-        return True
-    except ImportError:
-        return False
+# def check_root():
+#     try:
+#         from ROOT import kBlue
+#         return True
+#     except ImportError:
+#         return False
 
-sys.argv.append('-b')  # root just loves its stupid little splashes
-has_root = check_root()
-if has_root:
-    from ROOT import gStyle, TH1D, TGraphErrors, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
-    gROOT.Macro("plotting/MitStyleRemix.cc+")
-else:
-    print ' ROOT not found, proceeding without plotting'
+# sys.argv.append('-b')  # root just loves its stupid little splashes
+# has_root = check_root()
+# if has_root:
+#     from ROOT import gStyle, TH1D, TGraphErrors, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
+#     gROOT.Macro("plotting/MitStyleRemix.cc+")
+# else:
+#     print ' ROOT not found, proceeding without plotting'
 
 from opener import opener
 
@@ -801,7 +801,7 @@ def get_cluster_size_hist(partition):
     return hist
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outfname, hists, title):
+def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -865,12 +865,14 @@ def plot_cluster_size_hists(outfname, hists, title):
     # ylimits = axes.get_ylim()
     # xmin, xmax = 0.3, 1.02
     # plt.xlim(xmin, xmax)
+    if xmax is not None:
+        ax.set_xlim(1, xmax)
     plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
+    ax.set_xscale('log')
     plotdir = os.path.dirname(outfname)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
     plt.savefig(outfname)
-    check_call(['./bin/permissify-www', plotdir])
