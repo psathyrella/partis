@@ -19,20 +19,20 @@ import fraction_uncertainty
 import plotconfig
 from hist import Hist
 
-# def check_root():
-#     try:
-#         from ROOT import kBlue
-#         return True
-#     except ImportError:
-#         return False
+def check_root():
+    try:
+        from ROOT import kBlue
+        return True
+    except ImportError:
+        return False
 
-# sys.argv.append('-b')  # root just loves its stupid little splashes
-# has_root = check_root()
-# if has_root:
-#     from ROOT import gStyle, TH1D, TGraphErrors, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
-#     gROOT.Macro("plotting/MitStyleRemix.cc+")
-# else:
-#     print ' ROOT not found, proceeding without plotting'
+sys.argv.append('-b')  # root just loves its stupid little splashes
+has_root = check_root()
+if has_root:
+    from ROOT import gStyle, TH1D, TGraphErrors, TCanvas, kRed, gROOT, TLine, TH2Poly, TLegend, kBlue, kGreen, kCyan, kOrange
+    gROOT.Macro("plotting/MitStyleRemix.cc+")
+else:
+    print ' ROOT not found, proceeding without plotting'
 
 from opener import opener
 
@@ -813,25 +813,26 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
         'axes.labelsize': fsize
     })
 
-    base_xvals = hists['true'].get_bin_centers()
-    data = {}
-    for name, hist in hists.items():
-        hist.normalize()
+    # base_xvals = hists['true'].get_bin_centers()
+    # data = {}
+    # for name, hist in hists.items():
+    #     hist.normalize()
 
-        contents = hist.bin_contents
-        centers = hist.get_bin_centers()
-        if len(centers) > len(base_xvals):
-            assert False
-        for ic in range(len(base_xvals)):
-            if ic < len(centers):
-                if centers[ic] != base_xvals[ic]:
-                    print centers
-                    print base_xvals
-                    assert False
-            else:
-                contents.append(0)
+    #     contents = hist.bin_contents
+    #     centers = hist.get_bin_centers()
+    #     if len(centers) > len(base_xvals):
+    #         print centers, base_xvals
+    #         assert False
+    #     for ic in range(len(base_xvals)):
+    #         if ic < len(centers):
+    #             if centers[ic] != base_xvals[ic]:
+    #                 print centers
+    #                 print base_xvals
+    #                 assert False
+    #         else:
+    #             contents.append(0)
 
-        data[name] = contents
+    #     data[name] = contents
         
     fig, ax = plt.subplots()
     fig.tight_layout()
@@ -843,23 +844,32 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
               'vollmers-0.9' : '#3399ff'# ,
               # 'changeo' : ''
     }
+    linewidths = {'true' : 10,
+                  'partis' : 4,
+                  'vollmers-0.5' : 4,
+                  'vollmers-0.9' : 4,
+                  'changeo' : 8
+              }
 
     plots = {}
-    plots['true'] = ax.plot(base_xvals, hists['true'].bin_contents, linewidth=10, label='true', color=colors['true'], linestyle='--', alpha=0.5)
-
     for name, hist in hists.items():
         if 'vollmers' in name:
             if '0.7' in name or '0.8' in name or '0.95' in name:
                 continue
+        linestyle = '-'
+        alpha = 1.
         if name == 'true':
-            continue
-        plots[name] = ax.plot(base_xvals, data[name], label=name, color=colors.get(name, 'grey'), linewidth=4)
+            linestyle = '--'
+            alpha = 0.5
+        # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        hist.normalize()
+        plots[name] = ax.plot(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
 
     legend = ax.legend()
     # ax = fig.gca()
     # print ax.lines
     
-    sns.despine(trim=True)
+    sns.despine(trim=True, bottom=True)
     sns.set_style("ticks")
 
     # axes = plt.gca()
@@ -873,6 +883,9 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
     ax.set_xscale('log')
+    potential_xticks = [1, 2, 3, 9, 30, 50, 100]
+    xticks = [xt for xt in potential_xticks if xt < xmax]
+    plt.xticks(xticks, [str(xt) for xt in xticks])
     plotdir = os.path.dirname(outfname)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)

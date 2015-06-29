@@ -150,6 +150,7 @@ if args.action == 'simulate' or args.action == 'generate-trees':
     from recombinator import Recombinator
     run_simulation(args)
 else:
+    start = time.time()
     from partitiondriver import PartitionDriver
     random.seed(args.seed)
 
@@ -177,3 +178,4 @@ else:
         raise Exception('ERROR bad action ' + args.action)
 
     parter.clean()
+    print '      total time: %.3f' % (time.time()-start)

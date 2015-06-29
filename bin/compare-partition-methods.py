@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'run-viterbi', 'write-plots']
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'run-viterbi', 'run-changeo', 'write-plots']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
@@ -51,13 +51,6 @@ def write_latex_table(adj_mis):
             for n_leaves in n_leaf_list:
                 print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
             print '\\\\'
-
-# ----------------------------------------------------------------------------------------
-def write_all_plot_csvs(label):
-    hists, adj_mis = {}, {}
-    for n_leaves in n_leaf_list:
-        for mut_mult in mutation_multipliers:
-            write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
 # ----------------------------------------------------------------------------------------
 def parse_partis(these_hists, these_adj_mis, simfname, histfname):
@@ -91,7 +84,7 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
     input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
     
     indir = fsdir.replace('/partis-dev/_output', '/changeo')
-    infname = indir + '/' + simfbase.replace('-', '_').replace('simu_', '') + '_db-pass_parse-select_clone-pass.tab'
+    infname = indir + '/' + simfbase.replace('-', '_') + '_db-pass_parse-select_clone-pass.tab'
     
     id_clusters = {}  # map from cluster id to list of seq ids
     with open(infname) as chfile:
@@ -107,6 +100,16 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
     glom = Glomerator(reco_info)
     these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
     these_adj_mis['changeo'] = glom.mutual_information(partition, debug=True)
+
+
+# ----------------------------------------------------------------------------------------
+def write_all_plot_csvs(label):
+    hists, adj_mis = {}, {}
+    for n_leaves in n_leaf_list:
+        for mut_mult in mutation_multipliers:
+            write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
+
+    write_latex_table(adj_mis)
 
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
@@ -133,7 +136,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     parse_changeo(these_hists, these_adj_mis, simfname, simfbase)
 
     plotdir = os.getenv('www') + '/partis/clustering/' + label
-    plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', hists[n_leaves][mut_mult], title='mean leaves %s, mutation x %s' % (n_leaves, mut_mult), xmax=n_leaves*3)
+    plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', hists[n_leaves][mut_mult], title='mean leaves %s, mutation x %s' % (n_leaves, mut_mult), xmax=n_leaves*3.01)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
@@ -180,8 +183,25 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd += ' --simfname ' + simfname
         extras += ['--n-max-queries', n_to_partition]
         n_procs = n_to_partition / 50
-    else:  # for plotting actions don't do anything here
+    elif action == 'run-changeo':
+        changeodir = '/home/dralph/work/changeo/changeo'
+        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo'
+        _simfbase = leafmutstr(n_leaves, mut_mult).replace('-', '_')
+
+        def run(cmdstr):
+            print 'RUN %s' % cmdstr
+            check_call(cmdstr.split())
+
+        
+        cmd = changeodir + '/MakeDb.py imgt -i ' + changeo_fsdir + '/' + _simfbase + ' -s ' + changeo_fsdir + '/' + _simfbase.replace('_', '-') + '.fasta'
+        run(cmd)
+        cmd = changeodir + '/ParseDb.py select -d ' + changeo_fsdir + '/' + _simfbase + '_db-pass.tab -f FUNCTIONAL -u T'
+        run(cmd)
+        cmd = changeodir + '/DefineClones.py bygroup -d ' + changeo_fsdir + '/' + _simfbase + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
+        run(cmd)
         return
+    else:
+        raise Exception('bad action %s' % action)
 
     cmd +=  ' --plotdir ' + os.getenv('www') + '/partis'
     n_proc_str = str(n_procs)
@@ -203,8 +223,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 # ----------------------------------------------------------------------------------------
 n_to_partition = 1000
 n_data_to_cache = 50000
-mutation_multipliers = ['1', ]  #'2', '4']
-n_leaf_list = [3]  #[5, 10, 25, 50]
+mutation_multipliers = ['1',  '2', '4']
+n_leaf_list = [5]#, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []

@@ -144,11 +144,13 @@ class PartitionDriver(object):
 
         # run that shiznit
         while n_procs > 0:
+            start = time.time()
             nclusters = get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs)
             n_proc_list.append(n_procs)
 
+            print '      partition step time: %.3f' % (time.time()-start)
             if n_procs == 1:
                 break
 
@@ -275,7 +277,7 @@ class PartitionDriver(object):
 
         print '    running'
         sys.stdout.flush()
-        # start = time.time()
+        start = time.time()
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
         if n_procs == 1:
             check_call(cmd_str.split())
@@ -286,6 +288,10 @@ class PartitionDriver(object):
             procs = []
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
+
+                # print cmd_str.replace(self.args.workdir, workdir)
+                # sys.exit()
+
                 proc = Popen(cmd_str.replace(self.args.workdir, workdir).split(), stdout=PIPE, stderr=PIPE)
                 procs.append(proc)
                 time.sleep(0.1)
@@ -294,7 +300,7 @@ class PartitionDriver(object):
                 utils.process_out_err(out, err, extra_str=str(iproc))
 
         sys.stdout.flush()
-        # print '      hmm run time: %.3f' % (time.time()-start)
+        print '      hmm run time: %.3f' % (time.time()-start)
 
         self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir)
 
@@ -880,7 +886,7 @@ class PartitionDriver(object):
 
             self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
 
-        if len(skipped_gene_matches) > 0:
+        if self.args.debug and len(skipped_gene_matches) > 0:
             print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
             for region in utils.regions:
                 # print '  %s: %d' % (region, len([gene for gene in skipped_gene_matches if utils.get_region(gene) == region])),
