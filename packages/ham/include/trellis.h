@@ -44,6 +44,8 @@ public:
   vector<int> *viterbi_pointers() { return viterbi_pointers_; }
 
   void Viterbi();
+  void CacheForwardLogProb(size_t position, double dpval, size_t i_st_current);
+  void MiddleLogProbs(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position);
   void Forward();
   void Traceback(TracebackPath &path);
 
@@ -59,8 +61,8 @@ private:
   double  ending_viterbi_log_prob_;
   double  ending_forward_log_prob_;
 
-  vector<double> *viterbi_log_probs_;  // log prob of best path up to and including each position NOTE does *not* include log prob of transition to end
-  vector<double> *forward_log_probs_;  // log prob of best path up to and including each position NOTE does *not* include log prob of transition to end
+  vector<double> *viterbi_log_probs_;  // log prob of best path up to and including each position NOTE includes log prob of transition to end
+  vector<double> *forward_log_probs_;  // log prob of best path up to and including each position NOTE includes log prob of transition to end
   vector<int> *viterbi_pointers_;  // pointer to the state at which this best log prob occurred
   vector<double> *swap_ptr_;
 };
