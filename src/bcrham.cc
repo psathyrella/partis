@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <map>
 #include <iomanip>
-// #include <ctime>
+#include <ctime>
 #include <fstream>
 #include <cfenv>
 
@@ -91,6 +91,7 @@ int main(int argc, const char * argv[]) {
   // hmms.CacheAll();
 
   if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
+    clock_t run_start(clock());
     Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
     if(args.smc_particles() == 1) {
       glom.Cluster();
@@ -118,6 +119,7 @@ int main(int argc, const char * argv[]) {
       glom.WritePartitions(paths);
     }
     ofs.close();
+    cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
     return 0;
   }
 
