@@ -15,6 +15,8 @@
 using namespace std;
 namespace ham {
 
+typedef pair<vector<string>, vector<string> > ClusterPair;
+
 string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
 
@@ -39,6 +41,12 @@ public:
   double LogProbOfPartition(Partition &clusters, bool debug=false);
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
 
+  void CacheNaiveSeqs();
+  void PrintClusterSizes(set<vector<string> > &clusters);
+  ClusterPair GetClustersToMerge(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
+  ClusterPair GetSmallBigClusters(set<vector<string> > &clusters);
+  void NaiveSeqGlomerate(int n_clusters);
+  
   // Return the next (i.e. the <i_initial_partition_>th) initial partition in the list of initial partitions, and increment <i_initial_partition_>.
   // Also sets arguments <initial_path_index> and <logweight> to correspond to the returned partition.
   Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
@@ -84,6 +92,7 @@ private:
   map<string, double> log_probs_;  // includes cached info from previous runs
   map<string, Sequence> naive_seqs_;  // includes cached info from previous runs
   map<string, string> errors_;
+  map<string, double> naive_hamming_fractions_;
 
   int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_;
 };

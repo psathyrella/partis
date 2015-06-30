@@ -103,6 +103,12 @@ Glomerator::~Glomerator() {
 }
 
 // ----------------------------------------------------------------------------------------
+void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructor, so we just need to calculate them here
+  for(auto &kv : seq_info_)
+    GetNaiveSeq(kv.first);
+}
+
+// ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
 
@@ -129,12 +135,14 @@ void Glomerator::ReadCachedLogProbs() {
   ifstream ifs(args_->cachefile());
   if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
     // throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
+    cout << "        cachefile d.n.e." << endl;
     return;
   }
   string line;
 
   // check the header is right (no cached info)
   if(!getline(ifs, line)) {
+    cout << "        empty cachefile" << endl;
     return;  // return for zero length file
   }
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
@@ -157,7 +165,7 @@ void Glomerator::ReadCachedLogProbs() {
     if(naive_seq.size() > 0)
       naive_seqs_[seqstr] = Sequence(track_, seqstr, naive_seq, cyst_position);  // NOTE the Sequence's name is here given by the <seqstr>, not by their names
   }
-  cout << "        read " << log_probs_.size() << " cached results" << endl;
+  cout << "         read " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -205,6 +213,7 @@ void Glomerator::WriteCachedLogProbs() {
     }
     log_prob_ofs << seqstr << "," << logprob << "," << naive_seq << "," << cyst_position_str << "," << errors_[seqstr] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
   }
+  cout << "        wrote " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl; // NOTE as long as the assert(0); below continues to hold
 
   // then write the queries for which we have naive seqs but not logprobs (if they were hamming-skipped )
   for(auto &kv : naive_seqs_) {
@@ -268,10 +277,13 @@ double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
-  GetNaiveSeq(key_a);
-  GetNaiveSeq(key_b);
   string seqstr_a(JoinSeqStrings(seq_info_[key_a]));  // colon-separated list of query strings
   string seqstr_b(JoinSeqStrings(seq_info_[key_b]));
+  if(naive_hamming_fractions_.count(seqstr_a + '-' + seqstr_b))  // if we've already calculated this distance
+    return naive_hamming_fractions_[seqstr_a + '-' + seqstr_b];
+
+  GetNaiveSeq(key_a);
+  GetNaiveSeq(key_b);
   vector<Sequence> nseqs{naive_seqs_[seqstr_a], naive_seqs_[seqstr_b]};
   if(args_->truncate_seqs()) {
     vector<KBounds> kbvector{kbinfo_[key_a], kbinfo_[key_b]};  // don't need kbounds here, but we need to pass in something
@@ -282,7 +294,11 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
 	     int(nseqs[0].size()), int(nseqs[1].size()),
 	     key_a.c_str(), key_b.c_str());
   }
-  return HammingFraction(nseqs[0], nseqs[1]);  // hamming distance fcn will fail if the seqs aren't the same length
+  
+  double hfrac = HammingFraction(nseqs[0], nseqs[1]);  // hamming distance fcn will fail if the seqs aren't the same length
+  naive_hamming_fractions_[seqstr_a + '-' + seqstr_b] = hfrac;  // add it with both key orderings... hackey, but only doubles the memory consumption
+  naive_hamming_fractions_[seqstr_b + '-' + seqstr_a] = hfrac;
+  return hfrac;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -424,7 +440,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
     qmerged.only_genes_.push_back(g);
   // TODO mute freqs aren't really right any more if we truncated things above
-  qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / float(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
+  qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / double(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
   qmerged.parents_ = pair<string, string>(name_a, name_b);
   return qmerged;
 }
@@ -492,13 +508,11 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 
   double max_log_prob(-INFINITY);
   int imax(-1);
-
   vector<pair<double, Query> > potential_merges;
-
   int n_total_pairs(0), n_skipped_hamming(0), n_inf_factors(0);
-  for(Partition::const_iterator iter1 = path->CurrentPartition().begin(); iter1 != path->CurrentPartition().end(); ++iter1) {
-    for(Partition::const_iterator iter2 = iter1; ++iter2 != path->CurrentPartition().end();) {
-      string key_a(*iter1), key_b(*iter2);
+  for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
+    for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
+      string key_a(*it_a), key_b(*it_b);
       ++n_total_pairs;
 
       // NOTE it might help to also cache hamming fractions
@@ -601,6 +615,139 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
     PrintPartition(new_partition, extrastr);
   }
+}
+
+// ----------------------------------------------------------------------------------------
+ClusterPair Glomerator::GetClustersToMerge(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got) {
+  double smallest_min_distance(9999);
+  ClusterPair clusters_to_merge;
+  int n_skipped(0);
+  for(set<vector<string> >::iterator clust_a = clusters.begin(); clust_a != clusters.end(); ++clust_a) {
+    for(set<vector<string> >::iterator clust_b = clust_a; ++clust_b != clusters.end();) {
+      if(!merge_whatever_you_got && clust_a->size() + clust_b->size() > (size_t)max_per_cluster) {  // merged cluster would be too big, so look for smaller (albeit further-apart) things to merge
+	++n_skipped;
+	continue;
+      }
+
+      double min_distance(9999);  // find the smallest hamming distance between any two sequences in the two clusters
+      for(auto &query_a : *clust_a) {
+	for(auto &query_b : *clust_b) {
+	  double hfrac = NaiveHammingFraction(query_a, query_b);
+	  if(hfrac < min_distance)
+	    min_distance = hfrac;
+	}
+      }
+
+      if(min_distance < smallest_min_distance) {
+	smallest_min_distance = min_distance;
+	// vector<string> &ref_a(*clust_a), &ref_b(*clust_b);
+	clusters_to_merge = ClusterPair(*clust_a, *clust_b);
+      }
+      // if(args_->debug() && n_skipped > 0)
+      // 	printf("      skipped: %d", n_skipped);
+    }
+  }
+  return clusters_to_merge;
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::PrintClusterSizes(set<vector<string> > &clusters) {
+  for(auto &cl : clusters)
+    cout << " " << cl.size();
+  cout << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+ClusterPair Glomerator::GetSmallBigClusters(set<vector<string> > &clusters) { // return the samllest and biggest clusters
+  ClusterPair smallbig;
+  for(auto &clust : clusters) {
+    if(smallbig.first.size() == 0 || clust.size() < smallbig.first.size())
+      smallbig.first = clust;
+    if(smallbig.second.size() == 0 || clust.size() > smallbig.second.size())
+      smallbig.second = clust;
+  }
+  return smallbig;
+}
+
+// ----------------------------------------------------------------------------------------
+// perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
+void Glomerator::NaiveSeqGlomerate(int n_clusters) {
+  // clusters = [[names,] for names in naive_seqs.keys()]
+  double seqs_per_cluster = double(seq_info_.size()) / n_clusters;
+  int max_per_cluster = ceil(seqs_per_cluster);
+  if(args_->debug())
+    printf("  max %d per cluster\n", max_per_cluster);
+
+  set<vector<string> > clusters;
+  for(auto &kv : seq_info_)
+    clusters.insert(vector<string>{kv.first});
+
+  PrintClusterSizes(clusters);
+
+  bool merge_whatever_you_got(false);
+  while(clusters.size() > (size_t)n_clusters) {
+    // if(args_->debug())//   printf'    current ', ' '.join([str(len(cl)) for cl in clusters])
+    ClusterPair clusters_to_merge = GetClustersToMerge(clusters, max_per_cluster, merge_whatever_you_got);
+    if(clusters_to_merge.first.size() == 0) {  // if we didn't find a suitable pair
+      // if debug://     print '    didn\'t find shiznitz'
+      merge_whatever_you_got = true;  // next time through, merge whatever's best regardless of size
+    } else {
+      // if debug:print '    merging', len(clusters_to_merge[0]), len(clusters_to_merge[1])
+      vector<string> new_cluster(clusters_to_merge.first);
+      new_cluster.insert(new_cluster.end(), clusters_to_merge.second.begin(), clusters_to_merge.second.end());  // add clusters from the second cluster to the first cluster
+      clusters.insert(new_cluster);
+      clusters.erase(clusters_to_merge.first);  // then erase the old clusters
+      clusters.erase(clusters_to_merge.second);
+      PrintClusterSizes(clusters);
+    }
+  }
+
+  cout << "homogenizing" << endl;
+
+  size_t itries(0);
+  ClusterPair smallbig = GetSmallBigClusters(clusters);
+  while(float(smallbig.second.size()) / smallbig.first.size() > 1.1 && smallbig.second.size() - smallbig.first.size() > 3) {  // keep homogenizing while biggest cluster is more than 3/2 the size of the smallest (and while their sizes differ by more than 2)
+    int n_to_keep_in_biggest_cluster = ceil(double(smallbig.first.size() + smallbig.second.size()) / 2);
+    clusters.erase(smallbig.first);
+    clusters.erase(smallbig.second);
+    smallbig.first.insert(smallbig.first.end(), smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
+    smallbig.second.erase(smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
+    clusters.insert(smallbig.first);
+    clusters.insert(smallbig.second);
+    PrintClusterSizes(clusters);
+    ++itries;
+    if(itries > clusters.size()) {
+      // if debug: print '  too many homogenization tries'
+      break;
+    }
+    smallbig = GetSmallBigClusters(clusters);
+  }
+
+  // cout << "  final bcrham divvy" << endl;
+  // int tmpic(0);
+  // for(auto &clust : clusters) {
+  //   cout << "      " << tmpic << endl;
+  //   for(auto &query : clust)
+  //     cout << "          " << query << endl;
+  //   ++tmpic;
+  // }
+
+  ofs_.open(args_->outfile());
+  ofs_ << "partition" << endl;
+  int ic(0);
+  for(auto &clust : clusters) {
+    if(ic > 0)
+      ofs_ << "|";
+    int iq(0);
+    for(auto &query : clust) {
+      if(iq > 0)
+	ofs_ << ";";
+      ofs_ << query;
+      ++iq;
+    }
+    ++ic;
+  }
+  ofs_.close();
 }
 
 }
