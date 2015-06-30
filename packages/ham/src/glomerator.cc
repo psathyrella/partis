@@ -96,7 +96,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  cout << " cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
+  cout << "        cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
        << "    fwd " << n_fwd_cached_ << "/" << (n_fwd_cached_ + n_fwd_calculated_) << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
@@ -157,7 +157,7 @@ void Glomerator::ReadCachedLogProbs() {
     if(naive_seq.size() > 0)
       naive_seqs_[seqstr] = Sequence(track_, seqstr, naive_seq, cyst_position);  // NOTE the Sequence's name is here given by the <seqstr>, not by their names
   }
-  cout << "      read " << log_probs_.size() << " cached results" << endl;
+  cout << "        read " << log_probs_.size() << " cached results" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -496,16 +496,9 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   vector<pair<double, Query> > potential_merges;
 
   int n_total_pairs(0), n_skipped_hamming(0), n_inf_factors(0);
-
-  set<string> already_done;  // keeps track of which  a-b pairs we've already done
-  for(auto &key_a : path->CurrentPartition()) {  // note that c++ maps are ordered
-    for(auto &key_b : path->CurrentPartition()) {  // also, note that CurrentPartition() returns a reference
-      if(key_a == key_b) continue;
-      if(already_done.count(JoinNames(key_a, key_b)))  // already did this pair (this is kind of a weird way of looping only over unique pairs... oh, well. Wish I had python itertools here)
-  	continue;
-      else
-  	already_done.insert(JoinNames(key_a, key_b));
-
+  for(Partition::const_iterator iter1 = path->CurrentPartition().begin(); iter1 != path->CurrentPartition().end(); ++iter1) {
+    for(Partition::const_iterator iter2 = iter1; ++iter2 != path->CurrentPartition().end();) {
+      string key_a(*iter1), key_b(*iter2);
       ++n_total_pairs;
 
       // NOTE it might help to also cache hamming fractions
@@ -556,13 +549,13 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
   if(max_log_prob == -INFINITY) {
     if(path->CurrentPartition().size() == 1)
-      cout << "     stop with partition of size one" << endl;
+      cout << "        stop with partition of size one" << endl;
     else if(n_skipped_hamming == n_total_pairs)
-      cout << "     stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_cutoff() << endl;
+      cout << "        stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_cutoff() << endl;
     else if(n_inf_factors == n_total_pairs)
-      cout << "     stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
+      cout << "        stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
     else
-      cout << "     stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
+      cout << "        stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
 
     path->finished_ = true;
     return;
