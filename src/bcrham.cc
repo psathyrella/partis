@@ -90,6 +90,18 @@ int main(int argc, const char * argv[]) {
   vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &track));
   // hmms.CacheAll();
 
+  if(args.cache_naive_seqs()) {
+    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
+    glom.CacheNaiveSeqs();
+    return 0;
+  }
+
+  if(args.naive_hamming_cluster() > 0) {
+    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
+    glom.NaiveSeqGlomerate(args.naive_hamming_cluster());
+    return 0;
+  }
+
   if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
     clock_t run_start(clock());
     Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
