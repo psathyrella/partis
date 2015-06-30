@@ -4,6 +4,7 @@ import sys
 import math
 import csv
 from sklearn.metrics.cluster import adjusted_mutual_info_score
+import time
 
 import utils
 from opener import opener
@@ -19,6 +20,7 @@ class Glomerator(object):
     # ----------------------------------------------------------------------------------------
     def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=False):
         """ Perform hierarchical agglomeration (with naive hamming distance as the distance), stopping at <n_clusters> """
+        start = time.time()
         clusters = [[names,] for names in naive_seqs.keys()]
 
         seqs_per_cluster = float(len(clusters)) / n_clusters
@@ -107,6 +109,7 @@ class Glomerator(object):
                         print '  too many homogenization tries'
                     break
 
+        print '    divvy time: %.3f' % (time.time()-start)
         return clusters
 
     # ----------------------------------------------------------------------------------------
@@ -283,9 +286,11 @@ class Glomerator(object):
     # ----------------------------------------------------------------------------------------
     def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
+        start = time.time()
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles))
         self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
+        print '        read cached glomeration time: %.3f' % (time.time()-start)
 
         return self.paths

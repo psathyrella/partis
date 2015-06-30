@@ -38,6 +38,8 @@ class PartitionDriver(object):
                                                                self.args.n_max_queries, self.args.queries, self.args.reco_ids)
 
         self.cached_results = None
+        self.bcrham_divvied_queries = None
+        self.n_max_divvy = 5
 
         self.sw_info = None
 
@@ -142,12 +144,15 @@ class PartitionDriver(object):
                 nclusters += len(path.partitions[path.i_best_minus_x])
             return nclusters
 
+        # cache hmm naive seqs for each single query
+        self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
+
         # run that shiznit
         while n_procs > 0:
             start = time.time()
             nclusters = get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs)
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(get_n_clusters() > self.n_max_divvy))
             n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-start)
@@ -155,7 +160,7 @@ class PartitionDriver(object):
                 break
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
-                n_procs = n_procs / 2
+                n_procs = int(n_procs / 1.5)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
@@ -259,32 +264,17 @@ class PartitionDriver(object):
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
 
-        # print cmd_str
-        # sys.exit()
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None):
-        """ 
-        Run bcrham, possibly with many processes, and parse and interpret the output.
-        NOTE the local <n_procs>, which overrides the one from <self.args>
-        """
-        print 'hmm'
-        if n_procs is None:
-            n_procs = self.args.n_procs
-
-        self.write_hmm_input(parameter_dir=parameter_in_dir)
-
+    def execute(self, cmd_str, n_procs):
         print '    running'
-        sys.stdout.flush()
+        # print cmd_str
+        # sys.exit()
         start = time.time()
-        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
         if n_procs == 1:
             check_call(cmd_str.split())
         else:
-            if self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
-                self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm')
-
             procs = []
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
@@ -302,10 +292,44 @@ class PartitionDriver(object):
         sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
 
-        self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir)
+    # ----------------------------------------------------------------------------------------
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, divvy_with_bcrham=False):
+        """ 
+        Run bcrham, possibly with many processes, and parse and interpret the output.
+        NOTE the local <n_procs>, which overrides the one from <self.args>
+        """
+        print 'hmm'
+        if n_procs is None:
+            n_procs = self.args.n_procs
+        if n_procs < 1 or n_procs > 9999:
+            raise Exception('bad n_procs %s' % n_procs)
+
+        # if not naive_hamming_cluster:  # should already be there
+        self.write_hmm_input(parameter_dir=parameter_in_dir)  # TODO don't keep rewriting it
+
+        # sys.stdout.flush()
+        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
+        if cache_naive_seqs:
+            print '      caching all naive sequences'
+            assert '--partition' in cmd_str
+            cmd_str = cmd_str.replace('--partition', '--cache-naive-seqs')
+
+        if n_procs > 1 and self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
+            if divvy_with_bcrham:
+                print '      naive hamming clustering'
+                assert '--partition' in cmd_str and algorithm == 'forward'
+                self.execute(cmd_str.replace('--partition', '--naive-hamming-cluster ' + str(n_procs)), n_procs=1)
+                self.read_naive_hamming_clusters()
+            self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm', divvy_up=(self.args.action=='partition' and algorithm=='forward'))
+
+        self.execute(cmd_str, n_procs)
+
+        self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
 
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
+        if self.bcrham_divvied_queries is not None:
+            return self.bcrham_divvied_queries
 
         def get_query_from_sw(qry):
             assert qry in self.sw_info
@@ -352,7 +376,7 @@ class PartitionDriver(object):
         return divvied_queries
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname, prefix):
+    def split_input(self, n_procs, infname, prefix, divvy_up):
         """ Do stuff. Probably correctly. """
         # read single input file
         assert self.args.smc_particles == 1
@@ -375,11 +399,11 @@ class PartitionDriver(object):
             if os.path.exists(self.hmm_cachefname):
                 check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
 
-        if self.args.action == 'partition':
+        if divvy_up:
             divvied_queries = self.divvy_up_queries(n_procs, info, 'names', 'seqs')
         for iproc in range(n_procs):
             for iquery in range(len(info)):
-                if self.args.action == 'partition':
+                if divvy_up:
                     if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
                         continue
                 else:
@@ -412,25 +436,26 @@ class PartitionDriver(object):
                 writer.writerow(line)
 
     # ----------------------------------------------------------------------------------------
-    def merge_all_hmm_outputs(self, n_procs):
+    def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
         """ Merge any/all output files from subsidiary bcrham processes (used when *not* doing smc) """
         assert self.args.smc_particles == 1  # have to do things more complicatedly for smc
         if self.args.action == 'partition':  # merge partitions from several files
-            if n_procs == 1:
-                infnames = [self.hmm_outfname, ]
-            else:
-                infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
-            previous_info = None
-            if len(self.paths) > 1:
-                previous_info = self.paths[-1]
-            glomerer = Glomerator(self.reco_info)
-            glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
-            assert len(glomerer.paths) == 1
-            self.check_path(glomerer.paths[0])
-            self.paths.append(glomerer.paths[0])
-
             if n_procs > 1:
                 self.merge_csv_files(self.hmm_cachefname, n_procs)
+
+            if not cache_naive_seqs:
+                if n_procs == 1:
+                    infnames = [self.hmm_outfname, ]
+                else:
+                    infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
+                previous_info = None
+                if len(self.paths) > 1:
+                    previous_info = self.paths[-1]
+                glomerer = Glomerator(self.reco_info)
+                glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+                assert len(glomerer.paths) == 1
+                self.check_path(glomerer.paths[0])
+                self.paths.append(glomerer.paths[0])
         else:
             self.merge_csv_files(self.hmm_outfname, n_procs)
 
@@ -894,10 +919,10 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir):
+    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs):
         if self.args.smc_particles == 1:
             if self.args.action == 'partition' or n_procs > 1:
-                self.merge_all_hmm_outputs(n_procs)
+                self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
         else:
             self.merge_pairs_of_procs(n_procs)
 
@@ -945,7 +970,7 @@ class PartitionDriver(object):
                 if seqstr in self.cached_results:  # make sure we don't get contradicting info
                     if abs(score - self.cached_results[seqstr]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
                         print 'unequal logprobs: %f %f' % (score, self.cached_results[seqstr]['logprob'])
-                    if naive_seq != self.cached_results[seqstr]['naive_seq']:
+                    if naive_seq != self.cached_results[seqstr]['naive_seq'] and naive_seq is not None and self.cached_results[seqstr]['naive_seq'] is not None:
                         print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[seqstr]['naive_seq'])
                         if naive_seq is not None:  # only replace the old one if the new one isn't None
                             self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
@@ -1017,6 +1042,21 @@ class PartitionDriver(object):
             assert bcrham_seq == truncated_seq
 
         return chops
+
+    # ----------------------------------------------------------------------------------------
+    def read_naive_hamming_clusters(self):
+        self.bcrham_divvied_queries = None
+        with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
+            lines = hmm_csv_outfile.readlines()
+            if len(lines) != 2:
+                raise Exception('%d!' % len(lines))
+            if lines[0].find('partition') != 0:
+                raise Exception('%s' % lines[0])
+            clusters = lines[1].split('|')
+            self.bcrham_divvied_queries = [cl.split(';') for cl in clusters]
+
+        print '  read divvies from bcrham:'
+        print '      ', ' '.join([str(len(cl)) for cl in self.bcrham_divvied_queries])
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None):

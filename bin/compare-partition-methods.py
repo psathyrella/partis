@@ -221,7 +221,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     # sys.exit()
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 1000
+n_to_partition = 5000
 n_data_to_cache = 50000
 mutation_multipliers = ['1',  '2', '4']
 n_leaf_list = [5]#, 10, 25, 50]
