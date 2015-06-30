@@ -32,7 +32,7 @@ void ClusterPath::AddPartition(Partition partition, double logprob) {
   }
 
   if(max_log_prob_of_partition_ - logprob > 1000.0) {  // stop if we've moved too far past the maximum
-    cout << "    stopping after drop " << max_log_prob_of_partition_ << " --> " << logprob << endl;
+    cout << "        stopping after drop " << max_log_prob_of_partition_ << " --> " << logprob << endl;
     finished_ = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
   }
 }
