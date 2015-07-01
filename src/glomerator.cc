@@ -632,7 +632,15 @@ ClusterPair Glomerator::GetClustersToMerge(set<vector<string> > &clusters, int m
       double min_distance(9999);  // find the smallest hamming distance between any two sequences in the two clusters
       for(auto &query_a : *clust_a) {
 	for(auto &query_b : *clust_b) {
-	  double hfrac = NaiveHammingFraction(query_a, query_b);
+	  string key(query_a + "-" + query_b);
+	  double hfrac;
+	  if(hamming_fractions_.count(key) == 0) {
+	    hfrac = NaiveHammingFraction(query_a, query_b);
+	    hamming_fractions_[key] = hfrac;
+	    hamming_fractions_[query_b + "-" + query_a] = hfrac;  // also add the reverse-ordered key
+	  } else {
+	    hfrac = hamming_fractions_[key];
+	  }
 	  if(hfrac < min_distance)
 	    min_distance = hfrac;
 	}
@@ -672,6 +680,7 @@ ClusterPair Glomerator::GetSmallBigClusters(set<vector<string> > &clusters) { //
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
 void Glomerator::NaiveSeqGlomerate(int n_clusters) {
+  clock_t run_start(clock());
   // clusters = [[names,] for names in naive_seqs.keys()]
   double seqs_per_cluster = double(seq_info_.size()) / n_clusters;
   int max_per_cluster = ceil(seqs_per_cluster);
@@ -748,6 +757,8 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
     ++ic;
   }
   ofs_.close();
+
+  cout << "        naive hamming cluster time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
 }
 
 }
