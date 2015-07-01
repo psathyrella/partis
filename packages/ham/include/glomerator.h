@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <iomanip>
+#include <ctime>
 
 #include "smctc.hh"
 #include "args.h"
@@ -79,6 +80,8 @@ private:
   vector<Partition> initial_partitions_;
   vector<double> initial_logprobs_;
   vector<double> initial_logweights_;
+
+  map<string, double> hamming_fractions_;  // cached hamming fractions NOTE key is query names, *not* sequences
 
   int i_initial_partition_;  // index of the next inital paritition to grab (for smc stuff)
 
