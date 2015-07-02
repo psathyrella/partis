@@ -39,7 +39,7 @@ class PartitionDriver(object):
 
         self.cached_results = None
         self.bcrham_divvied_queries = None
-        self.n_max_divvy = 5
+        self.n_max_divvy = 5  # if input info is longer than this, divvy with bcrham
 
         self.sw_info = None
 
@@ -96,6 +96,18 @@ class PartitionDriver(object):
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
+    # get number of clusters based on sum of last paths in <self.smc_info>
+    def get_n_clusters(self):
+        if self.args.smc_particles == 1:
+            return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+
+        nclusters = 0
+        for iproc in range(len(self.smc_info[-1])):  # number of processes
+            path = self.smc_info[-1][iproc][0]  # uses the first smc particle, but the others will be similar
+            nclusters += len(path.partitions[path.i_best_minus_x])
+        return nclusters
+
+    # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         if not os.path.exists(self.args.parameter_dir):
@@ -133,26 +145,15 @@ class PartitionDriver(object):
                     cp.add_partition([[cl, ] for cl in clusters], logprob=0., n_procs=n_procs)
                     self.smc_info[-1][-1].append(cp)
 
-        # get number of clusters based on sum of last paths in <self.smc_info>
-        def get_n_clusters():
-            if self.args.smc_particles == 1:
-                return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-
-            nclusters = 0
-            for iproc in range(len(self.smc_info[-1])):  # number of processes
-                path = self.smc_info[-1][iproc][0]  # uses the first smc particle, but the others will be similar
-                nclusters += len(path.partitions[path.i_best_minus_x])
-            return nclusters
-
         # cache hmm naive seqs for each single query
         self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
 
         # run that shiznit
         while n_procs > 0:
             start = time.time()
-            nclusters = get_n_clusters()
+            nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(get_n_clusters() > self.n_max_divvy))
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy))
             n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-start)
@@ -267,22 +268,32 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def execute(self, cmd_str, n_procs):
+    def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
         print '    running'
-        # print cmd_str
-        # sys.exit()
         start = time.time()
         if n_procs == 1:
+            if total_naive_hamming_cluster_procs is not None:
+                cmd_str = cmd_str.replace('XXX', str(total_naive_hamming_cluster_procs))
+            # print cmd_str
+            # sys.exit()
             check_call(cmd_str.split())
         else:
             procs = []
+            if total_naive_hamming_cluster_procs is not None:
+                n_leftover = total_naive_hamming_cluster_procs - (total_naive_hamming_cluster_procs / n_procs) * n_procs
             for iproc in range(n_procs):
                 workdir = self.args.workdir + '/hmm-' + str(iproc)
-
+                this_cmd_str = cmd_str.replace(self.args.workdir, workdir)
+                if total_naive_hamming_cluster_procs is not None:
+                    clusters_this_proc = total_naive_hamming_cluster_procs / n_procs
+                    if n_leftover > 0:
+                        clusters_this_proc += 1
+                        n_leftover -= 1
+                    this_cmd_str = this_cmd_str.replace('XXX', str(clusters_this_proc))
                 # print cmd_str.replace(self.args.workdir, workdir)
                 # sys.exit()
 
-                proc = Popen(cmd_str.replace(self.args.workdir, workdir).split(), stdout=PIPE, stderr=PIPE)
+                proc = Popen(this_cmd_str.split(), stdout=PIPE, stderr=PIPE)
                 procs.append(proc)
                 time.sleep(0.1)
             for iproc in range(len(procs)):
@@ -318,8 +329,10 @@ class PartitionDriver(object):
             if divvy_with_bcrham:
                 print '      naive hamming clustering'
                 assert '--partition' in cmd_str and algorithm == 'forward'
-                self.execute(cmd_str.replace('--partition', '--naive-hamming-cluster ' + str(n_procs)), n_procs=1)
-                self.read_naive_hamming_clusters()
+                n_divvy_procs = self.get_n_clusters() / 500  # number of bcrham procs used to divvy up queries with naive hamming clustering
+                self.split_input(n_procs=n_divvy_procs, infname=self.hmm_infname, prefix='hmm', divvy_up=False)
+                self.execute(cmd_str.replace('--partition', '--naive-hamming-cluster XXX'), n_procs=n_divvy_procs, total_naive_hamming_cluster_procs=n_procs)
+                self.read_naive_hamming_clusters(n_procs=n_divvy_procs)
             self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm', divvy_up=(self.args.action=='partition' and algorithm=='forward'))
 
         self.execute(cmd_str, n_procs)
@@ -329,6 +342,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
         if self.bcrham_divvied_queries is not None:
+            if len(self.bcrham_divvied_queries) != n_procs:
+                raise Exception('Wrong number of clusters %d for %d procs' % (len(self.bcrham_divvied_queries), n_procs))
             return self.bcrham_divvied_queries
 
         def get_query_from_sw(qry):
@@ -414,16 +429,25 @@ class PartitionDriver(object):
         for iproc in range(n_procs):
             sub_outfiles[iproc].close()
 
+        if self.bcrham_divvied_queries is not None:
+            self.bcrham_divvied_queries = None
+
     # ----------------------------------------------------------------------------------------
     def merge_csv_files(self, fname, n_procs):
         """ Merge the output csv files from subsidiary bcrham processes, remaining agnostic about the csv content """
         header = None
         outfo = []
+        header = None
         for iproc in range(n_procs):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             with opener('r')(workdir + '/' + os.path.basename(fname)) as sub_outfile:
                 reader = csv.DictReader(sub_outfile)
-                header = reader.fieldnames
+                if header is None:
+                    header = reader.fieldnames
+                else:
+                    if header != reader.fieldnames:
+                        print n_procs
+                        raise Exception('headers don\'t match:\n%s\n%s' % (header, reader.fieldnames))
                 for line in reader:
                     outfo.append(line)
             if not self.args.no_clean:
@@ -1044,16 +1068,22 @@ class PartitionDriver(object):
         return chops
 
     # ----------------------------------------------------------------------------------------
-    def read_naive_hamming_clusters(self):
-        self.bcrham_divvied_queries = None
+    def read_naive_hamming_clusters(self, n_procs):
+        if n_procs > 1:
+            self.merge_csv_files(self.hmm_outfname, n_procs)
+        self.bcrham_divvied_queries = []
         with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
             lines = hmm_csv_outfile.readlines()
-            if len(lines) != 2:
+            if len(lines) != n_procs + 1:
                 raise Exception('%d!' % len(lines))
             if lines[0].find('partition') != 0:
                 raise Exception('%s' % lines[0])
-            clusters = lines[1].split('|')
-            self.bcrham_divvied_queries = [cl.split(';') for cl in clusters]
+            for line in lines[1:]:
+                clusters = line.split('|')
+                self.bcrham_divvied_queries += [cl.split(';') for cl in clusters]
+
+        if not self.args.no_clean:
+            os.remove(self.hmm_outfname)
 
         print '  read divvies from bcrham:'
         print '      ', ' '.join([str(len(cl)) for cl in self.bcrham_divvied_queries])
