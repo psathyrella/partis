@@ -8,6 +8,7 @@ import math
 import glob
 from collections import OrderedDict
 import csv
+from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 from opener import opener
 
@@ -1099,7 +1100,7 @@ def process_out_err(out, err, extra_str='0'):
     print_str += out
 
     if print_str != '':
-        print ' --> proc %s' % extra_str
+        print '      --> proc %s' % extra_str
         print print_str
 
 # ----------------------------------------------------------------------------------------
@@ -1159,3 +1160,17 @@ def get_str_from_partition(partition):
     clusters = [':'.join(cl) for cl in partition]
     partition_str = ';'.join(clusters)
     return partition_str
+
+# ----------------------------------------------------------------------------------------
+def mutual_information(partition, reco_info, debug=False):
+    true_cluster_list, inferred_cluster_list = [], []
+    for iclust in range(len(partition)):
+        for uid in partition[iclust]:
+            true_cluster_list.append(reco_info[uid]['reco_id'])
+            inferred_cluster_list.append(iclust)
+    adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
+    if debug:
+        print '       true clusters %d' % len(set(true_cluster_list))
+        print '   inferred clusters %d' % len(set(inferred_cluster_list))
+        print '         adjusted mi %.2f' % adj_mi
+    return adj_mi

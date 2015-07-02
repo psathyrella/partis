@@ -3,7 +3,6 @@ import os
 import sys
 import math
 import csv
-from sklearn.metrics.cluster import adjusted_mutual_info_score
 import time
 
 import utils
@@ -124,21 +123,7 @@ class Glomerator(object):
             print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
 
     # ----------------------------------------------------------------------------------------
-    def mutual_information(self, partition, debug=False):
-        true_cluster_list, inferred_cluster_list = [], []
-        for iclust in range(len(partition)):
-            for uid in partition[iclust]:
-                true_cluster_list.append(self.reco_info[uid]['reco_id'])
-                inferred_cluster_list.append(iclust)
-        adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
-        if debug:
-            print '       true clusters %d' % len(set(true_cluster_list))
-            print '   inferred clusters %d' % len(set(inferred_cluster_list))
-            print '         adjusted mi %.2f' % adj_mi
-        return adj_mi
-
-    # ----------------------------------------------------------------------------------------
-    def read_file_info(self, infname, n_paths):
+    def read_file_info(self, infname, n_paths, calc_adj_mi):
         paths = [None for _ in range(n_paths)]
         with opener('r')(infname) as csvfile:
             reader = csv.DictReader(csvfile)
@@ -155,7 +140,9 @@ class Glomerator(object):
                     assert paths[path_index].initial_path_index == int(line['initial_path_index'])
                 n_procs = int(line['n_procs']) if 'n_procs' in line else 1
                 logweight = float(line['logweight']) if 'logweight' in line else None
-                adj_mi = self.mutual_information(uids, debug=False) if self.reco_info is not None else -1
+                adj_mi = -1
+                if calc_adj_mi:
+                    adj_mi = utils.mutual_information(uids, self.reco_info, debug=False) if self.reco_info is not None else -1
                 paths[path_index].add_partition(uids, float(line['logprob']), n_procs=n_procs, logweight=logweight, adj_mi=adj_mi)
 
         for cp in paths:
@@ -168,7 +155,7 @@ class Glomerator(object):
         return paths
 
     # ----------------------------------------------------------------------------------------
-    def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
+    def merge_fileinfos(self, fileinfos, smc_particles, calc_adj_mi, previous_info=None, debug=False):
          # 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit EDIT nevermind, that seems to be a result of smc (presumably it was choosing very unlikely merges)'
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
@@ -238,7 +225,9 @@ class Glomerator(object):
                     for cluster in fileinfos[ifile][ipath].partitions[0]:
                         global_partition.append(list(cluster))
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
-                global_adj_mi = self.mutual_information(global_partition, debug=False) if self.reco_info is not None else -1
+                global_adj_mi = -1
+                if calc_adj_mi:
+                    global_adj_mi = utils.mutual_information(global_partition, self.reco_info, debug=False) if self.reco_info is not None else -1
                 self.paths[ipath].add_partition(global_partition, global_logprob, n_procs=len(fileinfos), logweight=0., adj_mi=global_adj_mi)  # don't know the logweight yet (or maybe at all!)
 
             while not last_one():
@@ -284,13 +273,13 @@ class Glomerator(object):
                     self.paths[0].print_partitions(self.reco_info, one_line=True)
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
+    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, calc_adj_mi=False, debug=False):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         start = time.time()
         fileinfos = []
         for fname in infnames:
-            fileinfos.append(self.read_file_info(fname, smc_particles))
-        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
+            fileinfos.append(self.read_file_info(fname, smc_particles, calc_adj_mi))
+        self.merge_fileinfos(fileinfos, smc_particles, calc_adj_mi, previous_info=previous_info, debug=debug)
         print '        read cached glomeration time: %.3f' % (time.time()-start)
 
         return self.paths

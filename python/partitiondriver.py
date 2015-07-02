@@ -495,7 +495,7 @@ class PartitionDriver(object):
                 if len(self.paths) > 1:
                     previous_info = self.paths[-1]
                 glomerer = Glomerator(self.reco_info)
-                glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+                glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, calc_adj_mi=self.args.debug, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
                 self.check_path(glomerer.paths[0])
                 self.paths.append(glomerer.paths[0])
@@ -537,7 +537,7 @@ class PartitionDriver(object):
             if len(self.smc_info) > 2:
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
-            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, calc_adj_mi=self.args.debug, debug=self.args.debug)  #, outfname=self.hmm_outfname)
             self.smc_info[-1].append(paths)
 
             # ack? self.glomclusters.append(glomerer)
@@ -1094,11 +1094,11 @@ class PartitionDriver(object):
             self.merge_csv_files(self.hmm_outfname, n_procs)
         self.bcrham_divvied_queries = []
         with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
-            lines = hmm_csv_outfile.readlines()
+            lines = [l.strip() for l in hmm_csv_outfile.readlines()]
             if len(lines) != n_procs + 1:
                 raise Exception('%d!' % len(lines))
-            if lines[0].find('partition') != 0:
-                raise Exception('%s' % lines[0])
+            if lines[0] != 'partition':
+                raise Exception('bad bcrham naive clustering output header: %s' % lines[0])
             for line in lines[1:]:
                 clusters = line.split('|')
                 self.bcrham_divvied_queries += [cl.split(';') for cl in clusters]

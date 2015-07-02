@@ -228,7 +228,10 @@ class ClusterPath(object):
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
             if not is_data:
-                row['adj_mi'] = self.adj_mis[ipart]
+                if self.adj_mis[ipart] == -1:
+                    row['adj_mi'] = utils.mutual_information(part, reco_info)
+                else:
+                    row['adj_mi'] = self.adj_mis[ipart]
                 row['n_true_clusters'] = len(true_partition)
                 row['bad_clusters'] = ';'.join(bad_clusters)
             writer.writerow(row)
