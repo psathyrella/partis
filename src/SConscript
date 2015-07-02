@@ -3,8 +3,8 @@ import sys
 import glob
 
 env = Environment()
-env.Append(CPPFLAGS = ['-g', '-Ofast', '-Wall', '-std=c++0x'])  # add -pg for gprof
-env.Append(LINKFLAGS = ['-g', '-Ofast', '-std=c++0x'])  # add -pg for gprof
+env.Append(CPPFLAGS =  ['-Ofast', '-Wall', '-std=c++0x'])  # '-pg', '-g', 
+env.Append(LINKFLAGS = ['-Ofast', '-std=c++0x'])           # '-pg', '-g', 
 # build_dir = os.getcwd()  # should be packages/ham/_build
 # env.Append(CPPPATH = ['../include', build_dir.replace('_build', 'smctc/include')])  #, '../../../smctc/include'])
 env.Append(CPPPATH = ['../include', '../../smctc/include'])
