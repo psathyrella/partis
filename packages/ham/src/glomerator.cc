@@ -762,7 +762,7 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
   ofs_ << endl;
   ofs_.close();
 
-  cout << "        naive hamming cluster time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+  cout << "        naive hamming cluster time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << "   to condense " << seq_info_.size() << " --> " << n_clusters <<  endl;
 }
 
 }
