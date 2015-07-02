@@ -146,7 +146,8 @@ class PartitionDriver(object):
                     self.smc_info[-1][-1].append(cp)
 
         # cache hmm naive seqs for each single query
-        self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
+        if len(self.input_info) > 50:
+            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
 
         # run that shiznit
         while n_procs > 0:
@@ -268,6 +269,11 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
+    def execute_iproc(self, cmd_str):
+        proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
+        return proc
+
+    # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
         print '    running'
         start = time.time()
@@ -278,27 +284,40 @@ class PartitionDriver(object):
             # sys.exit()
             check_call(cmd_str.split())
         else:
-            procs = []
             if total_naive_hamming_cluster_procs is not None:
                 n_leftover = total_naive_hamming_cluster_procs - (total_naive_hamming_cluster_procs / n_procs) * n_procs
+            cmd_strs, workdirs = [], []
             for iproc in range(n_procs):
-                workdir = self.args.workdir + '/hmm-' + str(iproc)
-                this_cmd_str = cmd_str.replace(self.args.workdir, workdir)
+                workdirs.append(self.args.workdir + '/hmm-' + str(iproc))
+                cmd_strs.append(cmd_str.replace(self.args.workdir, workdirs[-1]))
                 if total_naive_hamming_cluster_procs is not None:
                     clusters_this_proc = total_naive_hamming_cluster_procs / n_procs
                     if n_leftover > 0:
                         clusters_this_proc += 1
                         n_leftover -= 1
-                    this_cmd_str = this_cmd_str.replace('XXX', str(clusters_this_proc))
-                # print cmd_str.replace(self.args.workdir, workdir)
+                    cmd_strs[-1] = cmd_strs[-1].replace('XXX', str(clusters_this_proc))
+                # print cmd_strs[-1]
                 # sys.exit()
-
-                proc = Popen(this_cmd_str.split(), stdout=PIPE, stderr=PIPE)
-                procs.append(proc)
-                time.sleep(0.1)
-            for iproc in range(len(procs)):
-                out, err = procs[iproc].communicate()
-                utils.process_out_err(out, err, extra_str=str(iproc))
+            procs, n_tries = [], []
+            for iproc in range(n_procs):
+                procs.append(self.execute_iproc(cmd_strs[iproc]))
+                n_tries.append(1)
+            while procs.count(None) != len(procs):
+                for iproc in range(n_procs):
+                    if procs[iproc] is None:
+                        continue
+                    out, err = procs[iproc].communicate()
+                    utils.process_out_err(out, err, extra_str=str(iproc))
+                    outfname = self.hmm_outfname.replace(self.args.workdir, workdirs[iproc])
+                    if os.path.exists(outfname):  # TODO also check cachefile, if necessary
+                        procs[iproc] = None  # job succeeded
+                    elif n_tries[iproc] > 5:
+                        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
+                    else:
+                        print '    rerunning proc %d' % iproc
+                        procs[iproc] = self.execute_iproc(cmd_strs[iproc])
+                        n_tries[iproc] += 1
+                        time.sleep(0.1)
 
         sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
@@ -329,7 +348,7 @@ class PartitionDriver(object):
             if divvy_with_bcrham:
                 print '      naive hamming clustering'
                 assert '--partition' in cmd_str and algorithm == 'forward'
-                n_divvy_procs = self.get_n_clusters() / 500  # number of bcrham procs used to divvy up queries with naive hamming clustering
+                n_divvy_procs = max(1, self.get_n_clusters() / 500)  # number of bcrham procs used to divvy up queries with naive hamming clustering
                 self.split_input(n_procs=n_divvy_procs, infname=self.hmm_infname, prefix='hmm', divvy_up=False)
                 self.execute(cmd_str.replace('--partition', '--naive-hamming-cluster XXX'), n_procs=n_divvy_procs, total_naive_hamming_cluster_procs=n_procs)
                 self.read_naive_hamming_clusters(n_procs=n_divvy_procs)
@@ -442,12 +461,12 @@ class PartitionDriver(object):
             workdir = self.args.workdir + '/hmm-' + str(iproc)
             with opener('r')(workdir + '/' + os.path.basename(fname)) as sub_outfile:
                 reader = csv.DictReader(sub_outfile)
-                if header is None:
-                    header = reader.fieldnames
-                else:
-                    if header != reader.fieldnames:
-                        print n_procs
-                        raise Exception('headers don\'t match:\n%s\n%s' % (header, reader.fieldnames))
+                # if header is None:
+                header = reader.fieldnames
+                # else:
+                #     if header != reader.fieldnames:
+                #         print n_procs
+                #         print 'headers don\'t match:\n%s\n%s' % (header, reader.fieldnames)
                 for line in reader:
                     outfo.append(line)
             if not self.args.no_clean:
@@ -485,12 +504,14 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             if n_procs == 1:
+                print 'removing ', self.hmm_outfname
                 os.remove(self.hmm_outfname)
             else:
                 for iproc in range(n_procs):
                     subworkdir = self.args.workdir + '/hmm-' + str(iproc)
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                     if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
+                        print 'removing ', subworkdir + '/' + os.path.basename(self.hmm_outfname)
                         os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
                     os.rmdir(subworkdir)
 
