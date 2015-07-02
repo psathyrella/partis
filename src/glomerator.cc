@@ -685,13 +685,14 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
   double seqs_per_cluster = double(seq_info_.size()) / n_clusters;
   int max_per_cluster = ceil(seqs_per_cluster);
   if(args_->debug())
-    printf("  max %d per cluster\n", max_per_cluster);
+    printf("  making %d clusters (max %d per cluster)\n", n_clusters, max_per_cluster);
 
   set<vector<string> > clusters;
   for(auto &kv : seq_info_)
     clusters.insert(vector<string>{kv.first});
 
-  PrintClusterSizes(clusters);
+  if(args_->debug())
+    PrintClusterSizes(clusters);
 
   bool merge_whatever_you_got(false);
   while(clusters.size() > (size_t)n_clusters) {
@@ -707,15 +708,16 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
       clusters.insert(new_cluster);
       clusters.erase(clusters_to_merge.first);  // then erase the old clusters
       clusters.erase(clusters_to_merge.second);
-      PrintClusterSizes(clusters);
+      if(args_->debug())
+	PrintClusterSizes(clusters);
     }
   }
-
-  cout << "homogenizing" << endl;
 
   size_t itries(0);
   ClusterPair smallbig = GetSmallBigClusters(clusters);
   while(float(smallbig.second.size()) / smallbig.first.size() > 1.1 && smallbig.second.size() - smallbig.first.size() > 3) {  // keep homogenizing while biggest cluster is more than 3/2 the size of the smallest (and while their sizes differ by more than 2)
+    if(args_->debug())
+      cout << "homogenizing" << endl;
     int n_to_keep_in_biggest_cluster = ceil(double(smallbig.first.size() + smallbig.second.size()) / 2);
     clusters.erase(smallbig.first);
     clusters.erase(smallbig.second);
@@ -723,7 +725,8 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
     smallbig.second.erase(smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
     clusters.insert(smallbig.first);
     clusters.insert(smallbig.second);
-    PrintClusterSizes(clusters);
+    if(args_->debug())
+      PrintClusterSizes(clusters);
     ++itries;
     if(itries > clusters.size()) {
       // if debug: print '  too many homogenization tries'
@@ -756,6 +759,7 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
     }
     ++ic;
   }
+  ofs_ << endl;
   ofs_.close();
 
   cout << "        naive hamming cluster time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
