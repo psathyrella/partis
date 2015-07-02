@@ -97,9 +97,8 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
             id_clusters[clid].append(uid)
     
     partition = [ids for ids in id_clusters.values()]
-    glom = Glomerator(reco_info)
     these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
-    these_adj_mis['changeo'] = glom.mutual_information(partition, debug=True)
+    these_adj_mis['changeo'] = utils.mutual_information(partition, reco_info, debug=True)
 
 
 # ----------------------------------------------------------------------------------------
@@ -221,10 +220,10 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     # sys.exit()
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 5000
+n_to_partition = 3000
 n_data_to_cache = 50000
-mutation_multipliers = ['1',  '2', '4']
-n_leaf_list = [5]#, 10, 25, 50]
+mutation_multipliers = ['1']  #,  '2', '4']
+n_leaf_list = [5]  #, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []

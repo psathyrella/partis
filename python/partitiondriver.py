@@ -497,7 +497,7 @@ class PartitionDriver(object):
                 glomerer = Glomerator(self.reco_info)
                 glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, calc_adj_mi=self.args.debug, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
-                self.check_path(glomerer.paths[0])
+                # self.check_path(glomerer.paths[0])
                 self.paths.append(glomerer.paths[0])
         else:
             self.merge_csv_files(self.hmm_outfname, n_procs)

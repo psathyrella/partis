@@ -165,7 +165,7 @@ void Glomerator::ReadCachedLogProbs() {
     if(naive_seq.size() > 0)
       naive_seqs_[seqstr] = Sequence(track_, seqstr, naive_seq, cyst_position);  // NOTE the Sequence's name is here given by the <seqstr>, not by their names
   }
-  cout << "         read " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl;
+  cout << "        read " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl;
 }
 
 // ----------------------------------------------------------------------------------------
