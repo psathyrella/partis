@@ -319,9 +319,9 @@ class Recombinator(object):
         else:
             region = utils.get_region(gene_name)
 
+        treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
+        n_leaf_nodes = len(treg.findall(chosen_tree))
         if len(seq) == 0:  # zero length insertion (or d)
-            treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
-            n_leaf_nodes = len(treg.findall(chosen_tree))
             return ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
 
         # write the tree to a tmp file
@@ -332,6 +332,12 @@ class Recombinator(object):
         treefname = self.workdir + '/' + label + '-tree.tre'
         reco_seq_fname = self.workdir + '/' + label + '-start-seq.txt'
         leaf_seq_fname = self.workdir + '/' + label + '-leaf-seqs.fa'
+        if n_leaf_nodes == 1:  # add an extra leaf to one-leaf trees so bppseqgen doesn't barf (we'll ignore it later)
+            lreg = re.compile('t1:[0-9]\.[0-9][0-9]*')
+            leafstr = lreg.findall(chosen_tree)
+            assert len(leafstr) == 1
+            leafstr = leafstr[0]
+            chosen_tree = chosen_tree.replace(leafstr, '(' + leafstr + ',' + leafstr + '):0.0')
         with opener('w')(treefname) as treefile:
             treefile.write(chosen_tree)
         self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
@@ -367,6 +373,9 @@ class Recombinator(object):
         mutated_seqs = []
         for seq_record in SeqIO.parse(leaf_seq_fname, "fasta"):  # get the leaf node sequences from the file that bppseqgen wrote
             mutated_seqs.append(str(seq_record.seq))
+            if n_leaf_nodes == 1:  # skip the extra leaf we added above
+                break
+        assert n_leaf_nodes == len(mutated_seqs)
 
         # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
 
@@ -417,6 +426,8 @@ class Recombinator(object):
             print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
             if len(re.findall('t', chosen_tree)) > 1:  # if more than one leaf
                 Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
+            else:
+                print '    one leaf'
             print '    with branch length ratios ', ', '.join(['%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
 
         scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)

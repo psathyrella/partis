@@ -44,8 +44,7 @@ class TreeGenerator(object):
         self.tree_generator = 'TreeSim'  # other option: ape
         self.branch_lengths = {}
         self.read_mute_freqs(mute_freq_dir)
-        assert self.args.outfname != None
-        assert self.args.n_leaves > 1
+        assert self.args.outfname is not None
         random.seed(seed)
         numpy.random.seed(seed)
         if self.args.debug:
@@ -84,7 +83,7 @@ class TreeGenerator(object):
                 print '     %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
 
     #----------------------------------------------------------------------------------------
-    def add_branch_lengths_and_things(self, treefname):
+    def add_branch_lengths_and_things(self, treefname, lonely_leaves, ages):
         """ 
         Each tree is written with branch length the mean branch length over the whole sequence
         So we need to add the length for each region afterward, so each line looks e.g. like
@@ -95,8 +94,10 @@ class TreeGenerator(object):
             treestrings = treefile.readlines()
         # then add the region-specific branch info
         length_list = ['%s:%f'% (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
-        for iline in range(len(treestrings)):
-            treestrings[iline] = treestrings[iline].replace(';', ';' + ','.join(length_list))
+        for itree in range(len(ages)):
+            if lonely_leaves[itree]:
+                treestrings.insert(itree, 't1:%f;\n' % ages[itree])
+            treestrings[itree] = treestrings[itree].replace(';', ';' + ','.join(length_list))
         # and finally write out the final lines
         with opener('w')(treefname) as treefile:
             for line in treestrings:
@@ -131,7 +132,7 @@ class TreeGenerator(object):
                 if self.args.debug > 1:
                     print '%s:%f' % (name, depth),
                 if not utils.is_normed(depth / ages[itree], this_eps=1e-6):
-                    raise Exception('ERROR asked for branch length %f but got %f' % (ages[itree], depth))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
+                    raise Exception('asked for branch length %f but got %f\n   %s' % (ages[itree], depth, treestrs[itree]))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
             total_length += ages[itree]
             total_leaves += len(re.findall('t', treestrs[itree]))
             if self.args.debug > 1:
@@ -167,25 +168,29 @@ class TreeGenerator(object):
             with tempfile.NamedTemporaryFile() as commandfile:
                 commandfile.write('require(TreeSim, quietly=TRUE)\n')
                 commandfile.write('set.seed(' + str(seed)+ ')\n')
-                ages = []
+                ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
                 for itree in range(self.args.n_trees):
                     if self.args.constant_number_of_leaves:
                         n_leaves = self.args.n_leaves
                     else:
-                        n_leaves = max(2, int(numpy.random.exponential(scale=self.args.n_leaves)))
+                        n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
                         # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
                     age = self.choose_mean_branch_length()
                     ages.append(age)
                     if n_leaves == 1:  # TODO doesn't work yet
-                        with open(outfname, 'a') as outfile:
-                            outfile.write('t1:%f;\n' % age)
+                        lonely_leaves.append(True)
                         continue
+                    lonely_leaves.append(False)
                     commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
                     commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
                 r_command += ' -f ' + commandfile.name
                 commandfile.flush()
-                check_call(r_command, shell=True)
-            self.add_branch_lengths_and_things(outfname)
+                if lonely_leaves.count(True) == len(ages):
+                    print '  all lonely leaves'
+                    open(outfname, 'w').close()
+                else:
+                    check_call(r_command, shell=True)
+            self.add_branch_lengths_and_things(outfname, lonely_leaves, ages)
             self.check_tree_lengths(outfname, ages)
         else:
             assert False
