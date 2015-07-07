@@ -173,7 +173,8 @@ class TreeGenerator(object):
                     if self.args.constant_number_of_leaves:
                         n_leaves = self.args.n_leaves
                     else:
-                        n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
+                        n_leaves = numpy.random.geometric(1./self.args.n_leaves)
+                        # n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
                         # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
                     age = self.choose_mean_branch_length()
                     ages.append(age)
