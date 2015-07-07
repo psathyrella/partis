@@ -202,13 +202,14 @@ class ClusterPlot(object):
             
             plotdir = os.getenv('www') + '/tmp'
             plotname = 'foo'
-            plt.savefig(plotdir + '/' + plotname + '.png')
+            plt.savefig(plotdir + '/' + plotname + '.svg')
             plt.close()  # wtf? doesn't eliminate warning about too many figures
             check_call(['permissify-www', plotdir])
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('-b', action='store_true')
     parser.add_argument('--infnames')
     parser.add_argument('--outfname')
     parser.add_argument('--normalize-axes', default=[])

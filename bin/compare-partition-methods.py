@@ -220,10 +220,10 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     # sys.exit()
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 3000
+n_to_partition = 5000
 n_data_to_cache = 50000
-mutation_multipliers = ['1']  #,  '2', '4']
-n_leaf_list = [5]  #, 10, 25, 50]
+mutation_multipliers = ['1', '4']
+n_leaf_list = [5, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
@@ -255,6 +255,8 @@ for datafname in files:
             for mut_mult in mutation_multipliers:
                 print '         ----> mutate', mut_mult
                 execute(action, label, datafname, n_leaves, mut_mult)
+                sys.exit()
+                # time.sleep(600)
 
     if 'write-plots' in args.actions:
         write_all_plot_csvs(label)
