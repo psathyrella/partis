@@ -147,7 +147,7 @@ void Glomerator::ReadCachedLogProbs() {
   }
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   vector<string> headstrs(SplitString(line, ","));
-  assert(headstrs[0].find("query") == 0);  // each set of unique_ids can appear many times, once for each truncation
+  assert(headstrs[0].find("unique_ids") == 0);  // each set of unique_ids can appear many times, once for each truncation
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("cyst_position") == 0);
@@ -199,7 +199,7 @@ void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->cachefile());
   if(!log_prob_ofs.is_open())
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "query,logprob,naive_seq,cyst_position,errors" << endl;
+  log_prob_ofs << "unique_ids,logprob,naive_seq,cyst_position,errors" << endl;
 
   log_prob_ofs << setprecision(20);
   // first write everything for which we have log probs
