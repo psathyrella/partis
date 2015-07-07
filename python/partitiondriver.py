@@ -991,10 +991,10 @@ class PartitionDriver(object):
         with opener('r')(fname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                # query = line['unique_ids']
-                seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
+                query = line['unique_ids']
+                # seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
                 if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-                    tmperrors = line['errors'].strip(':').split(':')
+                    tmperrors = line['errors'].strip(':').split(':') if line['errors'] is not None else ''
                     # print 'error in bcrham output %s for sequences:' % (line['errors'])
                     # print '%s' % seqstr.replace(':', '\n')
                     if 'boundary' in tmperrors:
@@ -1005,24 +1005,21 @@ class PartitionDriver(object):
                         for unid in errors:
                             unidentified_errors.add(unid)
 
-                score, naive_seq, cpos = None, None, None
+                score, naive_seq = None, None
                 if line['logprob'] != '':
                     score = float(line['logprob'])
                 if line['naive_seq'] != '':
                     naive_seq = line['naive_seq']
-                    cpos = int(line['cyst_position'])
 
-                if seqstr in self.cached_results:  # make sure we don't get contradicting info
-                    if abs(score - self.cached_results[seqstr]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
-                        print 'unequal logprobs: %f %f' % (score, self.cached_results[seqstr]['logprob'])
-                    if naive_seq != self.cached_results[seqstr]['naive_seq'] and naive_seq is not None and self.cached_results[seqstr]['naive_seq'] is not None:
-                        print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[seqstr]['naive_seq'])
+                if query in self.cached_results:  # make sure we don't get contradicting info
+                    if abs(score - self.cached_results[query]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
+                        print 'unequal logprobs: %f %f' % (score, self.cached_results[query]['logprob'])
+                    if naive_seq != self.cached_results[query]['naive_seq'] and naive_seq is not None and self.cached_results[query]['naive_seq'] is not None:
+                        print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[query]['naive_seq'])
                         if naive_seq is not None:  # only replace the old one if the new one isn't None
-                            self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos} # TODO move this back to being an exception when you figure out why it happens
-                    if cpos != self.cached_results[seqstr]['cyst_position'] and cpos is not None and self.cached_results[seqstr]['cyst_position'] is not None:
-                        raise Exception('unequal cyst positions for %s: %d %d' % (seqstr, cpos, self.cached_results[seqstr]['cyst_position']))
+                            self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq} # TODO move this back to being an exception when you figure out why it happens
                 else:
-                    self.cached_results[seqstr] = {'logprob' : score, 'naive_seq' : naive_seq, 'cyst_position' : cpos}
+                    self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq}
         if n_boundary_errors > 0:
             print '    %d boundary errors in bcrham output' % n_boundary_errors
         if n_unidentified_errors > 0:
@@ -1037,10 +1034,10 @@ class PartitionDriver(object):
             time.sleep(0.5)
         lockfile = open(lockfname, 'w')
         with opener('w')(fname) as cachefile:
-            writer = csv.DictWriter(cachefile, ('query_seqs', 'logprob', 'naive_seq', 'cyst_position'))
+            writer = csv.DictWriter(cachefile, ('unique_ids', 'logprob', 'naive_seq', 'cyst_position'))
             writer.writeheader()
-            for seqstr, cachefo in self.cached_results.items():
-                writer.writerow({'query_seqs':seqstr, 'logprob':cachefo['logprob'], 'naive_seq':cachefo['naive_seq'], 'cyst_position':cachefo['cyst_position']})
+            for query, cachefo in self.cached_results.items():
+                writer.writerow({'unique_ids':query, 'logprob':cachefo['logprob'], 'naive_seq':cachefo['naive_seq']})
 
         lockfile.close()
         os.remove(lockfname)
