@@ -250,6 +250,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::HammingFraction(string seq_a, string seq_b) {
+  assert(0);
   if(seq_a.size() != seq_b.size())
     throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a + "," + seq_b + ")\n");
   int distance(0), len_excluding_ambigs(0);
@@ -270,32 +271,43 @@ double Glomerator::HammingFraction(string seq_a, string seq_b) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
-  return HammingFraction(seq_a.undigitized(), seq_b.undigitized());
+  // return HammingFraction(seq_a.undigitized(), seq_b.undigitized());
+  if(seq_a.size() != seq_b.size())
+    throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a.undigitized() + "," + seq_b.undigitized() + ")\n");
+  int distance(0), len_excluding_ambigs(0);
+  for(size_t ic=0; ic<seq_a.size(); ++ic) {
+    uint8_t ch_a(seq_a[ic]), ch_b(seq_b[ic]);
+    if(ch_a == track_->ambiguous_index() || ch_b == track_->ambiguous_index())  // skip this position if either sequence has an ambiguous character (if not set, ambig-base should be the empty string)
+      continue;
+    ++len_excluding_ambigs;
+    if(ch_a != ch_b)
+      ++distance;
+  }
+  return distance / double(len_excluding_ambigs);
 }
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
-  string seqstr_a(JoinSeqStrings(seq_info_[key_a]));  // colon-separated list of query strings
-  string seqstr_b(JoinSeqStrings(seq_info_[key_b]));
-  if(naive_hamming_fractions_.count(seqstr_a + '-' + seqstr_b))  // if we've already calculated this distance
-    return naive_hamming_fractions_[seqstr_a + '-' + seqstr_b];
+  if(naive_hamming_fractions_.count(key_a + '-' + key_b))  // if we've already calculated this distance
+    return naive_hamming_fractions_[key_a + '-' + key_b];
 
   GetNaiveSeq(key_a);
   GetNaiveSeq(key_b);
   vector<Sequence> nseqs{naive_seqs_[key_a], naive_seqs_[key_b]};
   if(args_->truncate_seqs()) {
-    vector<KBounds> kbvector{kbinfo_[key_a], kbinfo_[key_b]};  // don't need kbounds here, but we need to pass in something
-    TruncateSeqs(nseqs, kbvector);
-    if(args_->debug() > 1)
-      printf("  truncate in NaiveHammingDistance: %d, %d --> %d, %d        %s %s\n",
-	     int(naive_seqs_[key_a].size()), int(naive_seqs_[key_b].size()),
-	     int(nseqs[0].size()), int(nseqs[1].size()),
-	     key_a.c_str(), key_b.c_str());
+    assert(0);  // deprecated
+    // vector<KBounds> kbvector{kbinfo_[key_a], kbinfo_[key_b]};  // don't need kbounds here, but we need to pass in something
+    // TruncateSeqs(nseqs, kbvector);
+    // if(args_->debug() > 1)
+    //   printf("  truncate in NaiveHammingDistance: %d, %d --> %d, %d        %s %s\n",
+    // 	     int(naive_seqs_[key_a].size()), int(naive_seqs_[key_b].size()),
+    // 	     int(nseqs[0].size()), int(nseqs[1].size()),
+    // 	     key_a.c_str(), key_b.c_str());
   }
   
   double hfrac = HammingFraction(nseqs[0], nseqs[1]);  // hamming distance fcn will fail if the seqs aren't the same length
-  naive_hamming_fractions_[seqstr_a + '-' + seqstr_b] = hfrac;  // add it with both key orderings... hackey, but only doubles the memory consumption
-  naive_hamming_fractions_[seqstr_b + '-' + seqstr_a] = hfrac;
+  naive_hamming_fractions_[key_a + '-' + key_b] = hfrac;  // add it with both key orderings... hackey, but only doubles the memory consumption
+  naive_hamming_fractions_[key_b + '-' + key_a] = hfrac;
   return hfrac;
 }
 
