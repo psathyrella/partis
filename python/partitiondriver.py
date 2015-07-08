@@ -249,7 +249,8 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        cmd_str += ' --hamming-fraction-cutoff ' + str(self.args.hamming_cluster_cutoff)
+        cmd_str += ' --hamming-fraction-bound-lo ' + str(self.args.hamming_fraction_bounds[0])
+        cmd_str += ' --hamming-fraction-bound-hi ' + str(self.args.hamming_fraction_bounds[1])
         if self.args.smc_particles > 1:
             os.environ['GSL_RNG_TYPE'] = 'ranlux'
             os.environ['GSL_RNG_SEED'] = str(random.randint(0, 99999))

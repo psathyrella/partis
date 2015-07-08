@@ -33,7 +33,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   n_fwd_cached_(0),
   n_fwd_calculated_(0),
   n_vtb_cached_(0),
-  n_vtb_calculated_(0)
+  n_vtb_calculated_(0),
+  n_automerged_hamming_(0)
 {
   ReadCachedLogProbs();
 
@@ -96,8 +97,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  cout << "        cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
-       << "    fwd " << n_fwd_cached_ << "/" << (n_fwd_cached_ + n_fwd_calculated_) << endl;
+  // cout << "        cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
+  //      << "    fwd " << n_fwd_cached_ << "/" << (n_fwd_cached_ + n_fwd_calculated_) << endl;
+  cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming auto merged " << n_automerged_hamming_ << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
 }
@@ -510,26 +512,27 @@ string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
 
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
-void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
-  if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
-    return;
-
+Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio) {
   double max_log_prob(-INFINITY);
   int imax(-1);
-  vector<pair<double, Query> > potential_merges;
+  vector<pair<double, Query> > potential_merges, potential_auto_merges;  // "auto" means "merge without running the hmm because the naive hamming seqs are close"
   int n_total_pairs(0), n_skipped_hamming(0), n_inf_factors(0);
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
       ++n_total_pairs;
 
-      // NOTE it might help to also cache hamming fractions
-      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_cutoff()) {  // truncates naive sequences before passing to actual hamming distance function
+      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {  // truncates naive sequences before passing to actual hamming distance function
 	++n_skipped_hamming;
 	continue;
       }
 
       Query qmerged(GetMergedQuery(key_a, key_b));  // truncates <key_a> and <key_b> sequences to the same length
+
+      if(args_->hamming_fraction_bound_lo() > 0.0 && NaiveHammingFraction(key_a, key_b) < args_->hamming_fraction_bound_lo()) {  // truncates naive sequences before passing to actual hamming distance function
+	potential_auto_merges.push_back(pair<double, Query>(NaiveHammingFraction(key_a, key_b), qmerged));
+	continue;
+      }
 
       // NOTE need to get the a_seqs and b_seqs from <qmerged> (instead of <seq_info_>) so they're properly truncated
       vector<Sequence> a_seqs, b_seqs;
@@ -568,58 +571,87 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     }
   }
 
+  if(potential_auto_merges.size() > 0) {  // if lower hamming fraction was set, then merge the best (nearest) pair of clusters
+    double min_fraction(9999);
+    Query *best_merge(nullptr);
+    for(size_t im=0; im<potential_auto_merges.size(); ++im) {
+      double fraction(potential_auto_merges[im].first);
+      if(fraction < min_fraction) {
+	min_fraction = fraction;
+	best_merge = &potential_auto_merges[im].second;
+      }
+    }
+    ++n_automerged_hamming_;
+    *chosen_lratio = -INFINITY;  // er... or something
+    return *best_merge;
+  }
+
+  if(args_->debug()) {
+    printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
+  }
+
   // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
   if(max_log_prob == -INFINITY) {
     if(path->CurrentPartition().size() == 1)
       cout << "        stop with partition of size one" << endl;
     else if(n_skipped_hamming == n_total_pairs)
-      cout << "        stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_cutoff() << endl;
+      cout << "        stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_bound_hi() << endl;
     else if(n_inf_factors == n_total_pairs)
       cout << "        stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
     else
       cout << "        stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
 
     path->finished_ = true;
-    return;
+    return Query();
   }
 
-  Query *chosen_qmerge(nullptr);
-  double chosen_lratio;
   if(args_->smc_particles() == 1) {
-    chosen_qmerge = &potential_merges[imax].second;
-    chosen_lratio = potential_merges[imax].first;
+    *chosen_lratio = potential_merges[imax].first;
+    return potential_merges[imax].second;
   } else {
-    chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
-    chosen_lratio = log_probs_[chosen_qmerge->name_];
+    Query *chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
+    *chosen_lratio = log_probs_[chosen_qmerge->name_];
+    return *chosen_qmerge;
   }
-  
-  // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
-  if(seq_info_.count(chosen_qmerge->name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
-    seq_info_[chosen_qmerge->name_] = chosen_qmerge->seqs_;
-    kbinfo_[chosen_qmerge->name_] = chosen_qmerge->kbounds_;
-    mute_freqs_[chosen_qmerge->name_] = chosen_qmerge->mean_mute_freq_;
-    only_genes_[chosen_qmerge->name_] = chosen_qmerge->only_genes_;
+}
 
-    GetNaiveSeq(chosen_qmerge->name_);
+// ----------------------------------------------------------------------------------------
+// perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
+void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
+  if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
+    return;
+
+  double chosen_lratio;
+  Query chosen_qmerge = ChooseMerge(path, rgen, &chosen_lratio);
+  if(path->finished_)
+    return;
+
+  // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
+  if(seq_info_.count(chosen_qmerge.name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+    seq_info_[chosen_qmerge.name_] = chosen_qmerge.seqs_;
+    kbinfo_[chosen_qmerge.name_] = chosen_qmerge.kbounds_;
+    mute_freqs_[chosen_qmerge.name_] = chosen_qmerge.mean_mute_freq_;
+    only_genes_[chosen_qmerge.name_] = chosen_qmerge.only_genes_;
+
+    GetNaiveSeq(chosen_qmerge.name_);
   }
 
   double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
-  new_partition.erase(chosen_qmerge->parents_.first);
-  new_partition.erase(chosen_qmerge->parents_.second);
-  new_partition.insert(chosen_qmerge->name_);
+  new_partition.erase(chosen_qmerge.parents_.first);
+  new_partition.erase(chosen_qmerge.parents_.second);
+  new_partition.insert(chosen_qmerge.name_);
   path->AddPartition(new_partition, LogProbOfPartition(new_partition));
 
   if(args_->debug()) {
     // cout << "    path " << path->initial_path_index_ << endl;
-    printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
     // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
-    // assert(SameLength(chosen_qmerge->seqs_, true));
+    // assert(SameLength(chosen_qmerge.seqs_, true));
     printf("       merged %-8.2f", chosen_lratio);
     double newdelta = LogProbOfPartition(new_partition) - last_partition_logprob;
     if(fabs(newdelta - chosen_lratio) > 1e-8)
       printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
-    printf("   %s and %s\n", chosen_qmerge->parents_.first.c_str(), chosen_qmerge->parents_.second.c_str());
+    printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
     string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
     PrintPartition(new_partition, extrastr);
   }

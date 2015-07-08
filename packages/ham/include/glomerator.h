@@ -69,6 +69,7 @@ private:
   string JoinNames(string name1, string name2);
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
+  Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   // input info
@@ -97,7 +98,7 @@ private:
   map<string, string> errors_;
   map<string, double> naive_hamming_fractions_;
 
-  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_;
+  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_automerged_hamming_;
 };
 
 }

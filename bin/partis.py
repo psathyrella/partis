@@ -38,7 +38,7 @@ parser.add_argument('--annotation-clustering', help='Perform annotation-based cl
 parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
-parser.add_argument('--annotation-clustering-thresholds')
+parser.add_argument('--annotation-clustering-thresholds', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
 
 
 # input and output locations
@@ -68,8 +68,7 @@ parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves pe
 parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a hacktified exponential with mean <n_leaves>)')
 
 # numerical inputs
-parser.add_argument('--hamming-cluster-cutoff', type=float, default=0.2, help='Threshold for hamming distance single-linkage preclustering')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths
-parser.add_argument('--pair-hmm-cluster-cutoff', type=float, default=0.0, help='Threshold for pair hmm single-linkage preclustering')
+parser.add_argument('--hamming-fraction-bounds', default='0.0:0.2', help='Thresholds for hamming distance preclustering -- we run the forward algorithm only on pairs with naive hamming distance within these bounds (pairs below the first value are automatically merged)')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
 parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
@@ -93,13 +92,10 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
-
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
-if len(args.n_procs) == 1:
-    args.n_fewer_procs = args.n_procs[0]
-else:
-    args.n_fewer_procs = args.n_procs[1]
+args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+args.hamming_fraction_bounds = utils.get_arg_list(args.hamming_fraction_bounds, floatify=True)
 
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
