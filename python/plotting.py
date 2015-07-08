@@ -839,7 +839,8 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
 
     colors = {'true' : '#006600',
-              'partis' : '#cc0000',
+              'partition partis' : '#cc0000',
+              'auto-partition partis' : '#A52A2A',
               'vollmers-0.5' : '#3333ff',
               'vollmers-0.9' : '#3399ff'# ,
               # 'changeo' : ''

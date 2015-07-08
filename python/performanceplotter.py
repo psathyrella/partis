@@ -25,6 +25,7 @@ class PerformancePlotter(object):
                 self.values[column]['right'] = 0
                 self.values[column]['wrong'] = 0
         self.values['hamming_to_true_naive'] = {}
+        self.values['hamming_to_true_naive_normed'] = {}
         for region in utils.regions:
             self.values[region + '_hamming_to_true_naive'] = {}
             self.values[region + '_hamming_to_true_naive_normed'] = {}

@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'run-viterbi', 'run-changeo', 'write-plots']
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'run-viterbi', 'run-changeo', 'write-plots']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
@@ -53,16 +53,16 @@ def write_latex_table(adj_mis):
             print '\\\\'
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(these_hists, these_adj_mis, simfname, histfname):
-    args.infnames = [simfname.replace('.csv', '-partition.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
+def parse_partis(action, these_hists, these_adj_mis, simfname, histfname):
+    args.infnames = [simfname.replace('.csv', '-' + action + '.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
     args.is_data = False
     args.use_all_steps = False
     args.normalize_axes = []
     args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
     cplot = ClusterPlot(args)
     cplot.tmp_cluster_size_hist.write(histfname)
-    these_hists['partis'] = cplot.tmp_cluster_size_hist
-    these_adj_mis['partis'] = cplot.adj_mi_at_max_logprob
+    these_hists[action + ' partis'] = cplot.tmp_cluster_size_hist
+    these_adj_mis[action + ' partis'] = cplot.adj_mi_at_max_logprob
 
 # ----------------------------------------------------------------------------------------
 def parse_vollmers(these_hists, these_adj_mis, simfname, histfbase, true_histfname):
@@ -98,8 +98,12 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
     
     partition = [ids for ids in id_clusters.values()]
     these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
-    these_adj_mis['changeo'] = utils.mutual_information(partition, reco_info, debug=True)
-
+    adj_mi_fname = indir + '/' + simfbase.replace('-', '_') + '-adj_mi.csv'
+    with open(adj_mi_fname) as adj_mi_file:
+        reader = csv.DictReader(adj_mi_file)
+        for line in reader:
+            these_adj_mis['changeo'] = float(line['adj_mi'])
+            break
 
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
@@ -126,7 +130,8 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     csvdir = os.path.dirname(simfname) + '/plots'
 
     # first do partis stuff
-    parse_partis(these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-partis-hist.csv')
+    parse_partis('partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-partis-hist.csv')
+    parse_partis('naive-hamming-partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-partis-hist.csv')
 
     # then vollmers annotation (and true hists)
     parse_vollmers(these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-vollmers-', csvdir + '/' + simfbase + '-true-hist.csv')
@@ -141,7 +146,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
 
 # ----------------------------------------------------------------------------------------
 def execute(action, label, datafname, n_leaves=None, mut_mult=None):
-    cmd = './bin/run-driver.py --label ' + label + ' --action ' + action
+    cmd = './bin/run-driver.py --label ' + label + ' --action ' + action.replace('naive-hamming-partition', 'partition')  # hack which only applies to the 'auto-partition' action
     if n_leaves is not None:
         simfname = fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
     extras = []
@@ -172,8 +177,17 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-partition.csv')
             return
         cmd += ' --simfname ' + simfname
+        cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
         extras += ['--n-max-queries', n_to_partition]
         n_procs = n_to_partition / 15  # something like 15 seqs/process to start with
+    elif action == 'naive-hamming-partition':
+        if os.path.exists(simfname.replace('.csv', '-naive-hamming-partition.csv')):
+            print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-partition.csv')
+            return
+        cmd += ' --simfname ' + simfname
+        cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
+        extras += ['--n-max-queries', n_to_partition, '--hamming-fraction-bounds', '0.05:0.05']
+        n_procs = n_to_partition / 30  # something like 15 seqs/process to start with
     elif action == 'run-viterbi':
         if os.path.exists(simfname.replace('.csv', '-run-viterbi.csv')):
             print '                      vollmers output exists, skipping (%s)' % simfname.replace('.csv', '-run-viterbi.csv')
@@ -198,6 +212,28 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         run(cmd)
         cmd = changeodir + '/DefineClones.py bygroup -d ' + changeo_fsdir + '/' + _simfbase + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
         run(cmd)
+
+        # read changeo's output and toss it into a csv
+        input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+        infname = changeo_fsdir + '/' + _simfbase.replace('-', '_') + '_db-pass_parse-select_clone-pass.tab'
+        id_clusters = {}  # map from cluster id to list of seq ids
+        with open(infname) as chfile:
+            reader = csv.DictReader(chfile, delimiter='\t')
+            for line in reader:
+                clid = line['CLONE']
+                uid = line['SEQUENCE_ID']
+                if clid not in id_clusters:
+                    id_clusters[clid] = []
+                id_clusters[clid].append(uid)
+        
+        partition = [ids for ids in id_clusters.values()]
+        # these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
+        adj_mi_fname = changeo_fsdir + '/' + _simfbase.replace('-', '_') + '-adj_mi.csv'
+        with open(adj_mi_fname, 'w') as adj_mi_file:
+            writer = csv.DictWriter(adj_mi_file, ['adj_mi'])
+            print 'calcing...'
+            writer.writerow({'adj_mi' : utils.mutual_information(partition, reco_info, debug=True)})
+            print '  done'
         return
     else:
         raise Exception('bad action %s' % action)
@@ -213,17 +249,18 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
     cmd += utils.get_extra_str(extras)
     print '   ' + cmd
-    # check_call(cmd.split())
+    check_call(cmd.split())
+    return
     logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '') + '-' + action
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # sys.exit()
+    # time.sleep(60)
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 5000
+n_to_partition = 1000
 n_data_to_cache = 50000
-mutation_multipliers = ['1', '4']
-n_leaf_list = [5, 10, 25, 50]
+mutation_multipliers = ['1']  #, '4']
+n_leaf_list = [5]  #, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
@@ -255,8 +292,7 @@ for datafname in files:
             for mut_mult in mutation_multipliers:
                 print '         ----> mutate', mut_mult
                 execute(action, label, datafname, n_leaves, mut_mult)
-                sys.exit()
-                # time.sleep(600)
+                # sys.exit()
 
     if 'write-plots' in args.actions:
         write_all_plot_csvs(label)

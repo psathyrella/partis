@@ -249,6 +249,7 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
+        cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
         cmd_str += ' --hamming-fraction-bound-lo ' + str(self.args.hamming_fraction_bounds[0])
         cmd_str += ' --hamming-fraction-bound-hi ' + str(self.args.hamming_fraction_bounds[1])
         if self.args.smc_particles > 1:
@@ -1187,6 +1188,17 @@ class PartitionDriver(object):
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
                 outpath = os.getcwd() + '/' + outpath
             shutil.copyfile(self.hmm_outfname, outpath)
+            with open(outpath) as outfile:
+                reader = csv.DictReader(outfile)
+                outfo = []
+                for line in reader:
+                    outfo.append(line)
+                    outfo[-1]['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
+            with open(outpath, 'w') as outfile:
+                writer = csv.DictWriter(outfile, outfo[0].keys())
+                writer.writeheader()
+                for line in outfo:
+                    writer.writerow(line)
 
         if self.args.annotation_clustering == 'vollmers':
             if self.args.outfname is not None:

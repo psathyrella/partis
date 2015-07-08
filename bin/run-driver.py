@@ -11,7 +11,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 def run_command(cmd_str):
     print 'RUN', cmd + cmd_str
-    check_call([cmd,] + cmd_str.split())
+    # check_call([cmd,] + cmd_str.split())
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -24,6 +24,7 @@ parser.add_argument('--extra-args')  # args to pass on to commands (colon-separa
 parser.add_argument('--datafname')
 parser.add_argument('--is-data', action='store_true')
 parser.add_argument('--simfname')
+parser.add_argument('--outfname')
 parser.add_argument('--stashdir', default=fsdir + '/_output')
 parser.add_argument('--plotdir')
 parser.add_argument('--no-skip-unproductive', action='store_true')
@@ -89,12 +90,14 @@ if 'partition' in args.actions or 'run-viterbi' in args.actions:
         cmd_str += ' --is-data'
         seqfile = args.datafname
         pdir = param_dir + '/data/hmm'
-        outfname =  param_dir + '/data-' + action + '.csv'
+        if args.outfname is None:
+            args.outfname =  param_dir + '/data-' + action + '.csv'
     else:
         seqfile = args.simfname
         pdir = param_dir + '/' + sim_param_dir + '/hmm'
-        outfname = args.simfname.replace('.csv', '-' + action + '.csv')
+        if args.outfname is None:
+            args.outfname = args.simfname.replace('.csv', '-' + action + '.csv')
     cmd_str += ' --seqfile ' + seqfile
     cmd_str += ' --parameter-dir ' + pdir
-    cmd_str += ' --outfname ' + outfname
+    cmd_str += ' --outfname ' + args.outfname
     run_command(cmd_str)
