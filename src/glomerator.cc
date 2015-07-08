@@ -67,8 +67,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     kbinfo_[key] = kb;
 
     vector<KBounds> kbvector(seq_info_[key].size(), kbinfo_[key]);
-    TruncateSeqs(seq_info_[key], kbvector);
-    // assert(SameLength(seq_info_[key]));
 
     mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
   }
@@ -296,16 +294,6 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
   GetNaiveSeq(key_a);
   GetNaiveSeq(key_b);
   vector<Sequence> nseqs{naive_seqs_[key_a], naive_seqs_[key_b]};
-  if(args_->truncate_seqs()) {
-    assert(0);  // deprecated
-    // vector<KBounds> kbvector{kbinfo_[key_a], kbinfo_[key_b]};  // don't need kbounds here, but we need to pass in something
-    // TruncateSeqs(nseqs, kbvector);
-    // if(args_->debug() > 1)
-    //   printf("  truncate in NaiveHammingDistance: %d, %d --> %d, %d        %s %s\n",
-    // 	     int(naive_seqs_[key_a].size()), int(naive_seqs_[key_b].size()),
-    // 	     int(nseqs[0].size()), int(nseqs[1].size()),
-    // 	     key_a.c_str(), key_b.c_str());
-  }
   
   double hfrac = HammingFraction(nseqs[0], nseqs[1]);  // hamming distance fcn will fail if the seqs aren't the same length
   naive_hamming_fractions_[key_a + '-' + key_b] = hfrac;  // add it with both key orderings... hackey, but only doubles the memory consumption
@@ -433,17 +421,6 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
       kbvector.push_back(kbinfo_[name_b]);  // ... and second part is for those from name_b
   }
 
-  if(args_->truncate_seqs()) {
-    TruncateSeqs(qmerged.seqs_, kbvector);
-    if(args_->debug() > 1)
-      printf("  truncate in GetMergedQuery: %d, %d --> %d, %d (%d-%d, %d-%d --> %d-%d, %d-%d)      %s %s\n",
-	     int(seq_info_[name_a][0].size()), int(seq_info_[name_b][0].size()), int(qmerged.seqs_[0].size()), int(qmerged.seqs_.back().size()),
-	     int(kbinfo_[name_a].vmin), int(kbinfo_[name_a].vmax),
-	     int(kbinfo_[name_b].vmin), int(kbinfo_[name_b].vmax),
-	     int(kbvector[0].vmin), int(kbvector[0].vmax),
-	     int(kbvector.back().vmin), int(kbvector.back().vmax),
-	     name_a.c_str(), name_b.c_str());
-  }
   qmerged.kbounds_ = kbvector[0].LogicalOr(kbvector.back());  // OR of the kbounds for name_a and name_b, after they've been properly truncated
 
   qmerged.only_genes_ = only_genes_[name_a];
@@ -511,7 +488,6 @@ string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
-// perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
 Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio) {
   double max_log_prob(-INFINITY);
   int imax(-1);
@@ -522,38 +498,29 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       string key_a(*it_a), key_b(*it_b);
       ++n_total_pairs;
 
-      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {  // truncates naive sequences before passing to actual hamming distance function
+      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {
 	++n_skipped_hamming;
 	continue;
       }
 
-      Query qmerged(GetMergedQuery(key_a, key_b));  // truncates <key_a> and <key_b> sequences to the same length
+      Query qmerged(GetMergedQuery(key_a, key_b));
 
-      if(args_->hamming_fraction_bound_lo() > 0.0 && NaiveHammingFraction(key_a, key_b) < args_->hamming_fraction_bound_lo()) {  // truncates naive sequences before passing to actual hamming distance function
+      if(args_->hamming_fraction_bound_lo() > 0.0 && NaiveHammingFraction(key_a, key_b) < args_->hamming_fraction_bound_lo()) {
 	potential_auto_merges.push_back(pair<double, Query>(NaiveHammingFraction(key_a, key_b), qmerged));
 	continue;
       }
 
-      // NOTE need to get the a_seqs and b_seqs from <qmerged> (instead of <seq_info_>) so they're properly truncated
-      vector<Sequence> a_seqs, b_seqs;
-      for(size_t is=0; is<qmerged.seqs_.size(); ++is) {
-	if(is < seq_info_[key_a].size())  // the first part of the vector is for sequences from key_a
-	  a_seqs.push_back(qmerged.seqs_[is]);
-	else
-	  b_seqs.push_back(qmerged.seqs_[is]);  // ... and second part is for those from key_b
-      }
-	
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
 
       // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-      GetLogProb(key_a, a_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);  // it is ABSOLUTELY CRUCIAL that caching is turned off here if we're truncating, since a_seqs is different for each choice of b_seqs
-      GetLogProb(key_b, b_seqs, qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
+      GetLogProb(key_a, seq_info_[key_a], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);
+      GetLogProb(key_b, seq_info_[key_b], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
       GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
 
       double lratio(log_probs_[qmerged.name_] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
-	printf("       %8.3f = ", lratio);  // NOTE this is *not* necessarily the delta that will show up in the path of partitions, since in the path of partitions <a_seqs> and <b_seqs> are not necessarily truncated to the same length as each other
+	printf("       %8.3f = ", lratio);
 	printf("%2s %8.2f", "", log_probs_[qmerged.name_]);
 	printf(" - %8.2f - %8.2f", log_probs_[key_a], log_probs_[key_b]);
 	printf("\n");
