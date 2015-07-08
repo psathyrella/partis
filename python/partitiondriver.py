@@ -21,6 +21,7 @@ from clusterpath import ClusterPath
 from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
+from hist import Hist
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -250,6 +251,20 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
+
+        if self.args.auto_hamming_fraction_bounds:
+            mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
+            mute_freq = mutehist.get_mean()
+            # just use a line based on two points (mute_freq, threshold)
+            x1, x2 = 0.1, 0.25
+            y1, y2 = 0.04, 0.08
+            m = (y2 - y1) / (x2 - x1);
+            b = 0.5 * (y1 + y2 - m*(x1 + x2));
+            # for x in [x1, x2]:
+            #     print '%f x + %f = %f' % (m, b, m*x + b)
+            bound = m * mute_freq + b
+            self.args.hamming_fraction_bounds = [bound, bound]
+
         cmd_str += ' --hamming-fraction-bound-lo ' + str(self.args.hamming_fraction_bounds[0])
         cmd_str += ' --hamming-fraction-bound-hi ' + str(self.args.hamming_fraction_bounds[1])
         if self.args.smc_particles > 1:

@@ -192,3 +192,14 @@ class Hist(object):
                 high_edge = low_edge + (self.low_edges[ibin] - self.low_edges[ibin - 1])  # overflow bin has undefined upper limit, so just use the next-to-last bin width
             bin_centers.append(0.5 * (low_edge + high_edge))
         return bin_centers
+
+    # ----------------------------------------------------------------------------------------
+    def get_mean(self):
+        centers = self.get_bin_centers()
+        total, integral = 0.0, 0.0
+        for ib in range(1, self.n_bins + 1):  # don't include under/overflows
+            # print '    ', centers[ib], self.bin_contents[ib]
+            total += self.bin_contents[ib] * centers[ib]
+            integral += self.bin_contents[ib]
+        # print total, integral
+        return total / integral
