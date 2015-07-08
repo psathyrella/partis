@@ -16,7 +16,8 @@ Args::Args(int argc, const char * argv[]):
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
   hamming_fraction_bound_lo_arg_("", "hamming-fraction-bound-lo", "if hamming fraction for a pair is smaller than this, merge them without running hmm", false, 0.0, "float"),
-  hamming_fraction_bound_hi_arg_("", "hamming-fraction-bound-hi", "if hamming fraction for a pair is larger than this, skip without running hmm", false, 1.0, "float"),
+  hamming_fraction_bound_hi_arg_("", "hamming-fraction-bound-hi", "if hamming fraction for a pair is larger than this, skip without running hmm", true, 1.0, "float"),
+  max_logprob_drop_arg_("", "max-logprob-drop", "stop glomerating when the total logprob has dropped by this much", true, -1.0, "float"),
   debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
   n_best_events_arg_("", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
   smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
@@ -43,6 +44,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(cachefile_arg_);
     cmd.add(hamming_fraction_bound_lo_arg_);
     cmd.add(hamming_fraction_bound_hi_arg_);
+    cmd.add(max_logprob_drop_arg_);
     cmd.add(algorithm_arg_);
     cmd.add(ambig_base_arg_);
     cmd.add(debug_arg_);

@@ -601,7 +601,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
-  path->AddPartition(new_partition, LogProbOfPartition(new_partition));
+  path->AddPartition(new_partition, LogProbOfPartition(new_partition), args_->max_logprob_drop());
 
   if(args_->debug()) {
     // cout << "    path " << path->initial_path_index_ << endl;
