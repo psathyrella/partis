@@ -98,7 +98,7 @@ private:
   map<string, string> errors_;
   map<string, double> naive_hamming_fractions_;
 
-  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_automerged_hamming_;
+  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_hamming_merged_;
 };
 
 }

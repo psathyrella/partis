@@ -34,7 +34,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   n_fwd_calculated_(0),
   n_vtb_cached_(0),
   n_vtb_calculated_(0),
-  n_automerged_hamming_(0)
+  n_hamming_merged_(0)
 {
   ReadCachedLogProbs();
 
@@ -97,7 +97,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 Glomerator::~Glomerator() {
   // cout << "        cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
   //      << "    fwd " << n_fwd_cached_ << "/" << (n_fwd_cached_ + n_fwd_calculated_) << endl;
-  cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming auto merged " << n_automerged_hamming_ << endl;
+  cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming merged " << n_hamming_merged_ << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
 }
@@ -293,9 +293,7 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
 
   GetNaiveSeq(key_a);
   GetNaiveSeq(key_b);
-  vector<Sequence> nseqs{naive_seqs_[key_a], naive_seqs_[key_b]};
-  
-  double hfrac = HammingFraction(nseqs[0], nseqs[1]);  // hamming distance fcn will fail if the seqs aren't the same length
+  double hfrac = HammingFraction(naive_seqs_[key_a], naive_seqs_[key_b]);  // hamming distance fcn will fail if the seqs aren't the same length
   naive_hamming_fractions_[key_a + '-' + key_b] = hfrac;  // add it with both key orderings... hackey, but only doubles the memory consumption
   naive_hamming_fractions_[key_b + '-' + key_a] = hfrac;
   return hfrac;
@@ -489,26 +487,32 @@ string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
 
 // ----------------------------------------------------------------------------------------
 Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio) {
-  double max_log_prob(-INFINITY);
+  double max_log_prob(-INFINITY), min_hamming_fraction(INFINITY);
+  Query min_hamming_merge;
   int imax(-1);
-  vector<pair<double, Query> > potential_merges, potential_auto_merges;  // "auto" means "merge without running the hmm because the naive hamming seqs are close"
+  vector<pair<double, Query> > potential_merges;
   int n_total_pairs(0), n_skipped_hamming(0), n_inf_factors(0);
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
       ++n_total_pairs;
 
-      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {
+      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair
 	++n_skipped_hamming;
 	continue;
       }
 
       Query qmerged(GetMergedQuery(key_a, key_b));
 
-      if(args_->hamming_fraction_bound_lo() > 0.0 && NaiveHammingFraction(key_a, key_b) < args_->hamming_fraction_bound_lo()) {
-	potential_auto_merges.push_back(pair<double, Query>(NaiveHammingFraction(key_a, key_b), qmerged));
+      if(args_->hamming_fraction_bound_lo() > 0.0 && NaiveHammingFraction(key_a, key_b) < args_->hamming_fraction_bound_lo()) {  // if naive hamming is small enough, merge the pair without running hmm
+	if(NaiveHammingFraction(key_a, key_b) < min_hamming_fraction) {
+	  min_hamming_fraction = NaiveHammingFraction(key_a, key_b);
+	  min_hamming_merge = qmerged;
+	}
 	continue;
       }
+      if(min_hamming_fraction < INFINITY)  // if we have any potential hamming merges, that means we'll do those before we do any hmm tomfoolery
+	continue;
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
@@ -538,24 +542,14 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
     }
   }
 
-  if(potential_auto_merges.size() > 0) {  // if lower hamming fraction was set, then merge the best (nearest) pair of clusters
-    double min_fraction(9999);
-    Query *best_merge(nullptr);
-    for(size_t im=0; im<potential_auto_merges.size(); ++im) {
-      double fraction(potential_auto_merges[im].first);
-      if(fraction < min_fraction) {
-	min_fraction = fraction;
-	best_merge = &potential_auto_merges[im].second;
-      }
-    }
-    ++n_automerged_hamming_;
+  if(min_hamming_fraction < INFINITY) {  // if lower hamming fraction was set, then merge the best (nearest) pair of clusters
+    ++n_hamming_merged_;
     *chosen_lratio = -INFINITY;  // er... or something
-    return *best_merge;
+    return min_hamming_merge;
   }
 
-  if(args_->debug()) {
+  if(args_->debug())
     printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
-  }
 
   // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
   if(max_log_prob == -INFINITY) {
@@ -599,7 +593,6 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     kbinfo_[chosen_qmerge.name_] = chosen_qmerge.kbounds_;
     mute_freqs_[chosen_qmerge.name_] = chosen_qmerge.mean_mute_freq_;
     only_genes_[chosen_qmerge.name_] = chosen_qmerge.only_genes_;
-
     GetNaiveSeq(chosen_qmerge.name_);
   }
 
