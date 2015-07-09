@@ -194,7 +194,7 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index, n_to_write=None):
+    def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index, n_to_write=None, calc_adj_mi=None):
         for ipart in self.get_partition_subset(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''
@@ -228,10 +228,13 @@ class ClusterPath(object):
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
             if not is_data:
-                if self.adj_mis[ipart] == -1:
-                    row['adj_mi'] = utils.mutual_information(part, reco_info)
-                else:
+                if calc_adj_mi is None or self.adj_mis[ipart] != -1:  # if we don't want to write any adj mis, or if we already calculated it
                     row['adj_mi'] = self.adj_mis[ipart]
+                else:
+                    if calc_adj_mi == 'best' and ipart == self.i_best:  # only calculate adj_mi for the best partition
+                        row['adj_mi'] = utils.mutual_information(part, reco_info)
+                    else:
+                        row['adj_mi'] = self.adj_mis[ipart]
                 row['n_true_clusters'] = len(true_partition)
                 row['bad_clusters'] = ';'.join(bad_clusters)
             writer.writerow(row)

@@ -168,7 +168,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         n_procs = 10
     elif action == 'cache-simu-parameters':
         if os.path.exists(simfname.replace('.csv', '')):
-            print '                      simu parametes exist in %s, skipping ' % os.path.dirname(simfname)
+            print '                      simu parameters exist in %s, skipping ' % simfname.replace('.csv', '')
             return
         cmd += ' --simfname ' + simfname
         n_procs = 20
@@ -182,12 +182,12 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         n_procs = n_to_partition / 15  # something like 15 seqs/process to start with
     elif action == 'naive-hamming-partition':
         if os.path.exists(simfname.replace('.csv', '-naive-hamming-partition.csv')):
-            print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-partition.csv')
+            print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-naive-hamming-partition.csv')
             return
         cmd += ' --simfname ' + simfname
         cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
-        extras += ['--n-max-queries', n_to_partition, '--hamming-fraction-bounds', '0.05:0.05']
-        n_procs = n_to_partition / 30  # something like 15 seqs/process to start with
+        extras += ['--n-max-queries', n_to_partition, '--auto-hamming-fraction-bounds']
+        n_procs = n_to_partition / 30
     elif action == 'run-viterbi':
         if os.path.exists(simfname.replace('.csv', '-run-viterbi.csv')):
             print '                      vollmers output exists, skipping (%s)' % simfname.replace('.csv', '-run-viterbi.csv')
@@ -249,18 +249,18 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
     cmd += utils.get_extra_str(extras)
     print '   ' + cmd
-    check_call(cmd.split())
-    return
+    # check_call(cmd.split())
+    # return
     logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '') + '-' + action
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(60)
+    time.sleep(5)
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 1000
+n_to_partition = 5000
 n_data_to_cache = 50000
-mutation_multipliers = ['1']  #, '4']
-n_leaf_list = [5]  #, 10, 25, 50]
+mutation_multipliers = ['1', '4']
+n_leaf_list = [25]  #[5, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []

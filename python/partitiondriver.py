@@ -10,7 +10,7 @@ import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import random
 from collections import OrderedDict
-from subprocess import Popen, check_call, PIPE
+from subprocess import Popen, check_call, PIPE, check_output
 
 import utils
 from opener import opener
@@ -54,16 +54,26 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-    # ----------------------------------------------------------------------------------------
-    def merge_cachefiles(self, infnames, outfname):
-        for fname in infnames:
-            self.read_cachefile(fname)
-        self.write_cachefile(outfname)
+    # # ----------------------------------------------------------------------------------------
+    # def merge_cachefiles(self, infnames, outfname):
+    #     for fname in infnames:
+    #         self.read_cachefile(fname)
+    #     self.write_cachefile(outfname)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
         if self.args.initial_cachefname is not None:
-            self.merge_cachefiles(infnames=[self.hmm_cachefname, self.args.initial_cachefname], outfname=self.args.initial_cachefname)
+            lockfname = self.args.initial_cachefname + '.lock'
+            while os.path.exists(lockfname):
+                print '  waiting for lock on %s' % lockfname
+                time.sleep(0.5)
+            lockfile = open(lockfname, 'w')
+            tmp_cachefname = self.args.initial_cachefname + '.tmp'
+            check_call(['cp', '-v', self.args.initial_cachefname, tmp_cachefname])
+            self.merge_files(infnames=[tmp_cachefname, self.hmm_cachefname], outfname=self.args.initial_cachefname)
+            os.remove(tmp_cachefname)
+            lockfile.close()
+            os.remove(lockfname)
         if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
             os.remove(self.hmm_cachefname)
 
@@ -197,7 +207,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_path(self, path):
         missing_ids = set()
-        def check_partition(partition, ipart):
+        def check_partition(partition):
             for uid in self.input_info:
                 found = False
                 for cluster in partition:
@@ -206,18 +216,14 @@ class PartitionDriver(object):
                         break
                 if not found and uid not in self.sw_info['skipped_unproductive_queries']:
                     missing_ids.add(uid)
-                    # path.print_partition(ipart, self.reco_info, one_line=False, abbreviate=False)
-                    # raise Exception('%s not found in merged partition' % uid)
-                    # print 'WARNING %s not found in merged partition' % uid
             for cluster in partition:
                 for uid in cluster:
                     if uid not in self.input_info:
-                        # raise Exception('%s not found in merged partition' % uid)
-                        # print 'WARNING %s not found in merged partition' % uid
                         missing_ids.add(uid)
 
-        for ipart in range(len(path.partitions)):
-            check_partition(path.partitions[ipart], ipart)
+        check_partition(path.partitions[path.i_best])
+        # for ipart in range(len(path.partitions)):
+        #     check_partition(path.partitions[ipart])
 
         if len(missing_ids) > 0:
             print 'WARNING not found in merged partitions: ' + ' '.join(missing_ids)
@@ -234,7 +240,7 @@ class PartitionDriver(object):
             writer.writeheader()
             true_partition = None if self.args.is_data else utils.get_true_partition(self.reco_info)
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=100)
+                paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_adj_mi='best')
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -263,6 +269,7 @@ class PartitionDriver(object):
             # for x in [x1, x2]:
             #     print '%f x + %f = %f' % (m, b, m*x + b)
             bound = m * mute_freq + b
+            print '    auto naive hamming bound %f' % bound
             self.args.hamming_fraction_bounds = [bound, bound]
 
         cmd_str += ' --hamming-fraction-bound-lo ' + str(self.args.hamming_fraction_bounds[0])
@@ -469,31 +476,47 @@ class PartitionDriver(object):
             self.bcrham_divvied_queries = None
 
     # ----------------------------------------------------------------------------------------
-    def merge_csv_files(self, fname, n_procs):
-        """ Merge the output csv files from subsidiary bcrham processes, remaining agnostic about the csv content """
-        header = None
-        outfo = []
-        header = None
+    def merge_subprocess_files(self, fname, n_procs, csv_header=True):
+        subfnames = []
         for iproc in range(n_procs):
-            workdir = self.args.workdir + '/hmm-' + str(iproc)
-            with opener('r')(workdir + '/' + os.path.basename(fname)) as sub_outfile:
-                reader = csv.DictReader(sub_outfile)
-                # if header is None:
-                header = reader.fieldnames
-                # else:
-                #     if header != reader.fieldnames:
-                #         print n_procs
-                #         print 'headers don\'t match:\n%s\n%s' % (header, reader.fieldnames)
-                for line in reader:
-                    outfo.append(line)
-            if not self.args.no_clean:
-                os.remove(workdir + '/' + os.path.basename(fname))
+            subfnames.append(self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(fname))
+        self.merge_files(subfnames, fname, csv_header)
 
-        with opener('w')(fname) as outfile:
-            writer = csv.DictWriter(outfile, header)
-            writer.writeheader()
-            for line in outfo:
-                writer.writerow(line)
+    # ----------------------------------------------------------------------------------------
+    def merge_files(self, infnames, outfname, csv_header=True):
+        # header = None
+        # outfo = []
+        # for iproc in range(n_procs):
+        #     workdir = self.args.workdir + '/hmm-' + str(iproc)
+        #     with opener('r')(workdir + '/' + os.path.basename(fname)) as sub_outfile:
+        #         reader = csv.DictReader(sub_outfile)
+        #         header = reader.fieldnames
+        #         for line in reader:
+        #             outfo.append(line)
+        #     if not self.args.no_clean:
+        #         os.remove(workdir + '/' + os.path.basename(fname))
+
+        # with opener('w')(fname) as outfile:
+        #     writer = csv.DictWriter(outfile, header)
+        #     writer.writeheader()
+        #     for line in outfo:
+        #         writer.writerow(line)
+        assert outfname not in infnames
+        start = time.time()
+        if csv_header:
+            check_call('head -n1 ' + infnames[0] + ' >' + outfname, shell=True)
+        else:
+            open(outfname).close()  # open and close zero-length file
+        cmd = 'cat ' + ' '.join(infnames) + '| grep -v logprob | sort | uniq >>' + outfname
+        print cmd
+        check_call(cmd, shell=True)
+        print '    time to merge csv files: %.3f' % (time.time()-start)
+        start = time.time()
+
+        if not self.args.no_clean:
+            for infname in infnames:
+                os.remove(infname)
+        print '    time to rm csv files: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
@@ -501,7 +524,7 @@ class PartitionDriver(object):
         assert self.args.smc_particles == 1  # have to do things more complicatedly for smc
         if self.args.action == 'partition':  # merge partitions from several files
             if n_procs > 1:
-                self.merge_csv_files(self.hmm_cachefname, n_procs)
+                self.merge_subprocess_files(self.hmm_cachefname, n_procs)
 
             if not cache_naive_seqs:
                 if n_procs == 1:
@@ -517,7 +540,7 @@ class PartitionDriver(object):
                 # self.check_path(glomerer.paths[0])
                 self.paths.append(glomerer.paths[0])
         else:
-            self.merge_csv_files(self.hmm_outfname, n_procs)
+            self.merge_subprocess_files(self.hmm_outfname, n_procs)
 
         if not self.args.no_clean:
             if n_procs == 1:
@@ -560,8 +583,8 @@ class PartitionDriver(object):
             # ack? self.glomclusters.append(glomerer)
             # boof? self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
 
-        if n_procs > 1:
-            self.merge_csv_files(self.hmm_cachefname, n_procs)
+        if n_procs > 1:  # TODO I don't think this is right any more...
+            self.merge_subprocess_files(self.hmm_cachefname, n_procs)
             
         if not self.args.no_clean:
             if n_procs == 1:
@@ -921,11 +944,13 @@ class PartitionDriver(object):
     def write_hmm_input(self, parameter_dir):
         """ Write input file for bcrham """
         print '    writing input'
-        if self.cached_results is None:
-            if self.args.initial_cachefname is not None:
-                check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/' + os.path.basename(self.hmm_cachefname)])
-        else:
-            self.write_cachefile(self.hmm_cachefname)
+        # if self.cached_results is None:
+        if self.args.initial_cachefname is not None:
+            check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/' + os.path.basename(self.hmm_cachefname)])
+        # else:
+        #     pass
+        #     # assert os.path.exists(self.hmm_cachefname)
+        #     # self.write_cachefile(self.hmm_cachefname)
 
         if not self.args.dont_pad_sequences:
             self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
@@ -988,8 +1013,8 @@ class PartitionDriver(object):
         else:
             self.merge_pairs_of_procs(n_procs)
 
-        if os.path.exists(self.hmm_cachefname):
-            self.read_cachefile(self.hmm_cachefname)
+        # if os.path.exists(self.hmm_cachefname):
+        #     self.read_cachefile(self.hmm_cachefname)
 
         if self.args.action != 'partition':
             self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
@@ -997,67 +1022,50 @@ class PartitionDriver(object):
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
 
-    # ----------------------------------------------------------------------------------------
-    def read_cachefile(self, fname):
-        """ Read cached bcrham partition info """
-        if self.cached_results is None:
-            self.cached_results = {}
+    # # ----------------------------------------------------------------------------------------
+    # def read_cachefile(self, fname):
+    #     """ Read cached bcrham partition info """
+    #     if self.cached_results is None:
+    #         self.cached_results = {}
 
-        n_boundary_errors, n_unidentified_errors = 0, 0
-        unidentified_errors = set()
-        with opener('r')(fname) as cachefile:
-            reader = csv.DictReader(cachefile)
-            for line in reader:
-                query = line['unique_ids']
-                # seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
-                if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-                    tmperrors = line['errors'].strip(':').split(':') if line['errors'] is not None else ''
-                    # print 'error in bcrham output %s for sequences:' % (line['errors'])
-                    # print '%s' % seqstr.replace(':', '\n')
-                    if 'boundary' in tmperrors:
-                        n_boundary_errors += 1
-                        tmperrors.remove('boundary')
-                    if len(tmperrors) > 0:
-                        n_unidentified_errors += 1
-                        for unid in errors:
-                            unidentified_errors.add(unid)
+    #     n_boundary_errors, n_unidentified_errors = 0, 0
+    #     unidentified_errors = set()
+    #     with opener('r')(fname) as cachefile:
+    #         reader = csv.DictReader(cachefile)
+    #         for line in reader:
+    #             query = line['unique_ids']
+    #             # seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
+    #             if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
+    #                 tmperrors = line['errors'].strip(':').split(':') if line['errors'] is not None else ''
+    #                 # print 'error in bcrham output %s for sequences:' % (line['errors'])
+    #                 # print '%s' % seqstr.replace(':', '\n')
+    #                 if 'boundary' in tmperrors:
+    #                     n_boundary_errors += 1
+    #                     tmperrors.remove('boundary')
+    #                 if len(tmperrors) > 0:
+    #                     n_unidentified_errors += 1
+    #                     for unid in errors:
+    #                         unidentified_errors.add(unid)
 
-                score, naive_seq = None, None
-                if line['logprob'] != '':
-                    score = float(line['logprob'])
-                if line['naive_seq'] != '':
-                    naive_seq = line['naive_seq']
+    #             score, naive_seq = None, None
+    #             if line['logprob'] != '':
+    #                 score = float(line['logprob'])
+    #             if line['naive_seq'] != '':
+    #                 naive_seq = line['naive_seq']
 
-                if query in self.cached_results:  # make sure we don't get contradicting info
-                    if abs(score - self.cached_results[query]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
-                        print 'unequal logprobs: %f %f' % (score, self.cached_results[query]['logprob'])
-                    if naive_seq != self.cached_results[query]['naive_seq'] and naive_seq is not None and self.cached_results[query]['naive_seq'] is not None:
-                        print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[query]['naive_seq'])
-                        if naive_seq is not None:  # only replace the old one if the new one isn't None
-                            self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq} # TODO move this back to being an exception when you figure out why it happens
-                else:
-                    self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq}
-        if n_boundary_errors > 0:
-            print '    %d boundary errors in bcrham output' % n_boundary_errors
-        if n_unidentified_errors > 0:
-            print '    %d unidentified errors in bcrham output:\n    %s' % (n_unidentified_errors, ' '.join(unidentified_errors))
-
-    # ----------------------------------------------------------------------------------------
-    def write_cachefile(self, fname):
-        # write everything we've cached so far to file for bcrham (or a future process) to read
-        lockfname = fname + '.lock'
-        while os.path.exists(lockfname):
-            print '  waiting for lock to clear'
-            time.sleep(0.5)
-        lockfile = open(lockfname, 'w')
-        with opener('w')(fname) as cachefile:
-            writer = csv.DictWriter(cachefile, ('unique_ids', 'logprob', 'naive_seq', 'cyst_position'))
-            writer.writeheader()
-            for query, cachefo in self.cached_results.items():
-                writer.writerow({'unique_ids':query, 'logprob':cachefo['logprob'], 'naive_seq':cachefo['naive_seq']})
-
-        lockfile.close()
-        os.remove(lockfname)
+    #             if query in self.cached_results:  # make sure we don't get contradicting info
+    #                 if abs(score - self.cached_results[query]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
+    #                     print 'unequal logprobs: %f %f' % (score, self.cached_results[query]['logprob'])
+    #                 if naive_seq != self.cached_results[query]['naive_seq'] and naive_seq is not None and self.cached_results[query]['naive_seq'] is not None:
+    #                     print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[query]['naive_seq'])
+    #                     if naive_seq is not None:  # only replace the old one if the new one isn't None
+    #                         self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq} # TODO move this back to being an exception when you figure out why it happens
+    #             else:
+    #                 self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq}
+    #     if n_boundary_errors > 0:
+    #         print '    %d boundary errors in bcrham output' % n_boundary_errors
+    #     if n_unidentified_errors > 0:
+    #         print '    %d unidentified errors in bcrham output:\n    %s' % (n_unidentified_errors, ' '.join(unidentified_errors))
 
     # ----------------------------------------------------------------------------------------
     def get_bcrham_truncations(self, line):
@@ -1105,7 +1113,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_naive_hamming_clusters(self, n_procs):
         if n_procs > 1:
-            self.merge_csv_files(self.hmm_outfname, n_procs)
+            self.merge_subprocess_files(self.hmm_outfname, n_procs)
         self.bcrham_divvied_queries = []
         with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
             lines = [l.strip() for l in hmm_csv_outfile.readlines()]

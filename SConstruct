@@ -4,7 +4,7 @@ from collections import OrderedDict
 import sys
 from SCons.Script import Command, Depends
 sys.path.insert(1, './python')
-import utils
+from utils import get_extra_str
 
 env = Environment(ENV=os.environ, SHELL='/bin/bash')
 sys.path.append(os.getenv('HOME') + '/bin')
@@ -34,7 +34,7 @@ actions['plot-performance'] = {'target' : 'simu-performance', 'extras' : semi_co
 tests = OrderedDict()
 # first add the tests that run over the framework (using run-driver.py)
 for action, config in actions.items():
-    tests[action] = base_cmd + ' --action ' + action + utils.get_extra_str(config['extras'] + common_extras)
+    tests[action] = base_cmd + ' --action ' + action + get_extra_str(config['extras'] + common_extras)
     if action == 'plot-performance':
         tests[action] += ' --plotdir ' + stashdir
 
