@@ -85,6 +85,7 @@ The following packages are also used by partis, but they're included as `git sub
   - ham
   - samtools
   - bppseqgen
+  - vsearch
 
 Once you've got all the necessary things on your system, you can proceed to clone the repository:
 

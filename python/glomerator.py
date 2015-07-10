@@ -236,7 +236,8 @@ class Glomerator(object):
             add_next_global_partition()
 
 
-            self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
+            if smc_particles > 1:
+                self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
                 print '  merged path:'
                 self.paths[ipath].print_partitions(self.reco_info, one_line=True)
@@ -267,7 +268,7 @@ class Glomerator(object):
                 for ip in range(len(current_path.partitions)):
                     extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip], adj_mi=current_path.adj_mis[ip])
                 self.paths[0] = extended_path
-                self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
+                # self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                 if debug:
                     print '    after'
                     self.paths[0].print_partitions(self.reco_info, one_line=True)

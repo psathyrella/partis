@@ -157,8 +157,12 @@ class PartitionDriver(object):
                     self.smc_info[-1][-1].append(cp)
 
         # cache hmm naive seqs for each single query
-        if len(self.input_info) > 50:
+        if len(self.input_info) > 50 or self.args.naive_vsearch:
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
+
+        if self.args.naive_vsearch:
+            self.cluster_with_naive_vsearch(self.args.parameter_dir)
+            return
 
         # run that shiznit
         while n_procs > 0:
@@ -243,6 +247,76 @@ class PartitionDriver(object):
                 paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_adj_mi='best')
 
     # ----------------------------------------------------------------------------------------
+    def cluster_with_naive_vsearch(self, parameter_dir):
+        start = time.time()
+        # read cached naive seqs
+        naive_seqs = {}
+        with open(self.hmm_cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            for line in reader:
+                unique_ids = line['unique_ids'].split(':')
+                assert len(unique_ids) == 1
+                unique_id = unique_ids[0]
+                naive_seqs[unique_id] = line['naive_seq']
+
+        # make a fasta file
+        fastafname = self.args.workdir + '/simu.fasta'
+        with open(fastafname, 'w') as fastafile:
+            for query, naive_seq in naive_seqs.items():
+                fastafile.write('>' + query + '\n' + naive_seq + '\n')
+
+        print '      vsearch prep time: %.3f' % (time.time()-start)
+        start = time.time()
+
+        # run vsearch
+        bound = self.get_naive_hamming_auto_bounds(parameter_dir) /  2.  # yay for heuristics! (I did actually optimize this...)
+        id_fraction = 1. - bound
+        clusterfname = self.args.workdir + '/vsearch-clusters.txt'
+        cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
+        print cmd
+        check_call(cmd.split())
+        print '      vsearch run time: %.3f' % (time.time()-start)
+        start = time.time()
+
+        # read output
+        id_clusters = {}
+        with open(clusterfname) as clusterfile:
+            reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
+            for line in reader:
+                if line['type'] == 'C':  # batshit otuput format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
+                    continue
+                cluster_id = int(line['cluster_id'])
+                if cluster_id not in id_clusters:
+                    id_clusters[cluster_id] = []
+                id_clusters[cluster_id].append(line['query'])
+
+        os.remove(fastafname)
+        os.remove(clusterfname)
+
+        partition = id_clusters.values()
+        adj_mi = utils.mutual_information(partition, self.reco_info, debug=True)
+        cp = ClusterPath(-1)
+        cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi)
+        if self.args.outfname is not None:
+            self.write_partitions(self.args.outfname, [cp, ])
+
+        print '      vsearch finish time: %.3f' % (time.time()-start)
+
+    # ----------------------------------------------------------------------------------------
+    def get_naive_hamming_auto_bounds(self, parameter_dir):
+        mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
+        mute_freq = mutehist.get_mean()
+        # just use a line based on two points (mute_freq, threshold)
+        x1, x2 = 0.1, 0.25
+        y1, y2 = 0.04, 0.08
+        m = (y2 - y1) / (x2 - x1);
+        b = 0.5 * (y1 + y2 - m*(x1 + x2));
+        # for x in [x1, x2]:
+        #     print '%f x + %f = %f' % (m, b, m*x + b)
+        bound = m * mute_freq + b
+        return bound
+
+    # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
         """ Return the appropriate bcrham command string """
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
@@ -259,16 +333,7 @@ class PartitionDriver(object):
         cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
 
         if self.args.auto_hamming_fraction_bounds:
-            mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-            mute_freq = mutehist.get_mean()
-            # just use a line based on two points (mute_freq, threshold)
-            x1, x2 = 0.1, 0.25
-            y1, y2 = 0.04, 0.08
-            m = (y2 - y1) / (x2 - x1);
-            b = 0.5 * (y1 + y2 - m*(x1 + x2));
-            # for x in [x1, x2]:
-            #     print '%f x + %f = %f' % (m, b, m*x + b)
-            bound = m * mute_freq + b
+            bound = self.get_naive_hamming_auto_bounds(parameter_dir)
             print '    auto naive hamming bound %f' % bound
             self.args.hamming_fraction_bounds = [bound, bound]
 
@@ -503,11 +568,13 @@ class PartitionDriver(object):
         #         writer.writerow(line)
         assert outfname not in infnames
         start = time.time()
+        with open(infnames[0]) as tmpfile:
+            header = tmpfile.readline().strip()
         if csv_header:
             check_call('head -n1 ' + infnames[0] + ' >' + outfname, shell=True)
         else:
             open(outfname).close()  # open and close zero-length file
-        cmd = 'cat ' + ' '.join(infnames) + '| grep -v logprob | sort | uniq >>' + outfname
+        cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'' + header + '\' | sort | uniq >>' + outfname
         print cmd
         check_call(cmd, shell=True)
         print '    time to merge csv files: %.3f' % (time.time()-start)
@@ -1118,7 +1185,7 @@ class PartitionDriver(object):
         with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
             lines = [l.strip() for l in hmm_csv_outfile.readlines()]
             if len(lines) != n_procs + 1:
-                raise Exception('%d!' % len(lines))
+                raise Exception('expected %d lines (%d procs), but got %d!' % (n_procs + 1, n_procs, len(lines)))
             if lines[0] != 'partition':
                 raise Exception('bad bcrham naive clustering output header: %s' % lines[0])
             for line in lines[1:]:

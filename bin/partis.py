@@ -39,7 +39,7 @@ parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
 parser.add_argument('--annotation-clustering-thresholds', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
-
+parser.add_argument('--naive-vsearch', action='store_true')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

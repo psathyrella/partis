@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'run-viterbi', 'run-changeo', 'write-plots']
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
@@ -130,14 +130,16 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     csvdir = os.path.dirname(simfname) + '/plots'
 
     # first do partis stuff
-    parse_partis('partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-partis-hist.csv')
-    parse_partis('naive-hamming-partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-partis-hist.csv')
+    for ptype in ['', 'vsearch-']:  #['', 'naive-hamming-', 'vsearch-']:
+        parse_partis(ptype + 'partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-' + ptype + 'partis-hist.csv')
+    # # parse_partis('naive-hamming-partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-naive-hamming-partis-hist.csv')
+    # parse_partis('vsearch-partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-vsearch-partis-hist.csv')
 
     # then vollmers annotation (and true hists)
     parse_vollmers(these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-vollmers-', csvdir + '/' + simfbase + '-true-hist.csv')
 
     # then changeo
-    parse_changeo(these_hists, these_adj_mis, simfname, simfbase)
+    # parse_changeo(these_hists, these_adj_mis, simfname, simfbase)
 
     plotdir = os.getenv('www') + '/partis/clustering/' + label
     plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', hists[n_leaves][mut_mult], title='mean leaves %s, mutation x %s' % (n_leaves, mut_mult), xmax=n_leaves*3.01)
@@ -146,10 +148,20 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
 
 # ----------------------------------------------------------------------------------------
 def execute(action, label, datafname, n_leaves=None, mut_mult=None):
-    cmd = './bin/run-driver.py --label ' + label + ' --action ' + action.replace('naive-hamming-partition', 'partition')  # hack which only applies to the 'auto-partition' action
+    real_action = action
+    if 'partition' in action:
+        real_action = 'partition'
+    cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
     if n_leaves is not None:
         simfname = fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
     extras = []
+
+    def output_exists(outfname):
+        if os.path.exists(outfname):
+            print '                      partition output exists, skipping (%s)' % outfname
+            return True
+        else:
+            return False
 
     if action == 'cache-data-parameters':
         if os.path.exists(fsdir + '/' + label + '/data'):
@@ -188,6 +200,14 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
         extras += ['--n-max-queries', n_to_partition, '--auto-hamming-fraction-bounds']
         n_procs = n_to_partition / 30
+    elif action == 'vsearch-partition':
+        outfname = simfname.replace('.csv', '-' + action + '.csv')
+        if output_exists(outfname):
+            return
+        cmd += ' --simfname ' + simfname
+        cmd += ' --outfname ' + outfname
+        extras += ['--n-max-queries', n_to_partition, '--naive-vsearch']
+        n_procs = n_to_partition / 100  # only used for ighutil step
     elif action == 'run-viterbi':
         if os.path.exists(simfname.replace('.csv', '-run-viterbi.csv')):
             print '                      vollmers output exists, skipping (%s)' % simfname.replace('.csv', '-run-viterbi.csv')
@@ -249,18 +269,19 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
     cmd += utils.get_extra_str(extras)
     print '   ' + cmd
+    # return
     # check_call(cmd.split())
     # return
     logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '') + '-' + action
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(5)
+    time.sleep(30)
 
 # ----------------------------------------------------------------------------------------
 n_to_partition = 5000
 n_data_to_cache = 50000
 mutation_multipliers = ['1', '4']
-n_leaf_list = [25]  #[5, 10, 25, 50]
+n_leaf_list = [5]  #[5, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
