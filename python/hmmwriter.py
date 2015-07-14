@@ -324,12 +324,10 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_pseudocounts(self, erosion_probs):
         for n_eroded in range(self.erosion_pseudocount_length):
-            print '  ', n_eroded, erosion_probs.get(n_eroded, 0)
             if n_eroded not in erosion_probs:
                 erosion_probs[n_eroded] = 0
             if erosion_probs[n_eroded] == 0:
                 erosion_probs[n_eroded] += 1
-                print '    added one'
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, this_gene, approved_genes=None):
