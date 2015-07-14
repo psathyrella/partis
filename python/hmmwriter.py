@@ -185,7 +185,7 @@ class HmmWriter(object):
         # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
 
-        self.v_3p_del_pseudocount_limit = 10  # add at least one entry 
+        self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
 
         # self.insert_mute_prob = 0.0
         # self.mean_mute_freq = 0.0
@@ -322,6 +322,16 @@ class HmmWriter(object):
         # self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
+    def add_pseudocounts(self, erosion_probs):
+        for n_eroded in range(self.erosion_pseudocount_length):
+            print '  ', n_eroded, erosion_probs.get(n_eroded, 0)
+            if n_eroded not in erosion_probs:
+                erosion_probs[n_eroded] = 0
+            if erosion_probs[n_eroded] == 0:
+                erosion_probs[n_eroded] += 1
+                print '    added one'
+
+    # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, this_gene, approved_genes=None):
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
         if approved_genes == None:
@@ -331,6 +341,7 @@ class HmmWriter(object):
             if erosion[0] != self.region:
                 continue
             self.erosion_probs[erosion] = {}
+            print erosion
             deps = utils.column_dependencies[erosion + '_del']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
@@ -360,6 +371,7 @@ class HmmWriter(object):
                 n_max = -1
             # print '   interpolate erosions'
             interpolate_bins(self.erosion_probs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
+            self.add_pseudocounts(self.erosion_probs[erosion])
 
             # and finally, normalize
             total = 0.0
