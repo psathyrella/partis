@@ -16,16 +16,21 @@ def run_cluster(cl, iclust=None):
     Popen(cmd.split())
 
 label = 'chaim-test'
-infname = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/' + label + '/partitions.csv'
+# infname = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/' + label + '/partitions.csv'
+infname = 'chaim-for-erick.csv'
 
 cp = ClusterPath(-1)
 cp.readfile(infname)
 
 print '---> annotations for clusters in best partition:'
-iclust = 0
+# print cp.i_best
+# for ip in range(len(cp.partitions)):
+#     print ip, len(cp.partitions[ip])
+# sys.exit()
 
-for cluster in cp.partitions[cp.i_best]:
-    # run_cluster(cluster, iclust)
+iclust = 0
+for cluster in cp.partitions[355]:
+    run_cluster(cluster, iclust)
     iclust += 1
     # if iclust > 3:
     #     break

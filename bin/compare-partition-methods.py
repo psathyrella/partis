@@ -4,6 +4,7 @@ import argparse
 import sys
 import random
 import re
+from collections import OrderedDict
 import time
 import csv
 from subprocess import check_call, Popen
@@ -26,6 +27,14 @@ args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
 args.actions = utils.get_arg_list(args.actions)
 
+legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
+           'partition partis' : 'full partis',
+           'naive-hamming-partition partis' : 'naive partis',
+           'vsearch-partition partis' : 'vsearch partis',
+           'changeo' : 'Change-O'
+           }
+
+
 if args.dataset == 'stanford':
     datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
     files = [ datadir + '/' + f for f in os.listdir(datadir)]
@@ -42,14 +51,35 @@ def leafmutstr(n_leaves, mut_mult):
 # ----------------------------------------------------------------------------------------
 def write_latex_table(adj_mis):
     for mut_mult in mutation_multipliers:
-        print 'mutation x %s' % mut_mult
+  # \textbf{multiplier} & \textbf{program}  &  5     &  10     &  25     &  50   \\
+  # \multirow{3}{*}{$\times 1$} & partis   &     0.94   &     0.93   &     0.89   &     0.81 \\
         for n_leaves in n_leaf_list:
-            print '  &  %s  ' % n_leaves,
+            if n_leaves == n_leaf_list[0]:
+                print '\\textbf{multiplier} & \\textbf{program}  ',
+            print ' & %s  ' % n_leaves,
         print '\\\\'
+        print '\\hline'
+        iname = 0
+        if 5 not in adj_mis:  # TODO remove
+            adj_mis[5] = {}
+        if mut_mult not in adj_mis[5]:  # TODO remove
+            adj_mis[5][mut_mult] = {}
+            for name in adj_mis[10]['1']:
+                adj_mis[5][mut_mult][name] = -1
         for name in adj_mis[n_leaf_list[0]][mutation_multipliers[0]]:
-            print '%25s' % name,
+            if name == 'vollmers-0.5':
+                continue
+            if iname == 0:
+                print '\\multirow{3}{*}{$\\times %s$} & ' % mut_mult,
+            else:
+                print '& ',
+            print '%25s' % legends.get(name, name),
+            iname += 1
             for n_leaves in n_leaf_list:
-                print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
+                if n_leaves == 5 and mut_mult == '1' or n_leaves == 25 and mut_mult == '4':
+                    print '  &    %5.2f' % -1,
+                else:
+                    print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
             print '\\\\'
 
 # ----------------------------------------------------------------------------------------
@@ -100,7 +130,7 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
     these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
     adj_mi_fname = indir + '/' + simfbase.replace('-', '_') + '-adj_mi.csv'
     with open(adj_mi_fname) as adj_mi_file:
-        reader = csv.DictReader(adj_mi_file)
+        reader = csv.DictReader(adj_mi_file, fieldnames=['adj_mi'])
         for line in reader:
             these_adj_mis['changeo'] = float(line['adj_mi'])
             break
@@ -110,6 +140,10 @@ def write_all_plot_csvs(label):
     hists, adj_mis = {}, {}
     for n_leaves in n_leaf_list:
         for mut_mult in mutation_multipliers:
+            if n_leaves == 5 and mut_mult == '1':
+                continue
+            if n_leaves == 25 and mut_mult == '4':
+                continue
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
     write_latex_table(adj_mis)
@@ -120,8 +154,8 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
         hists[n_leaves] = {}
         adj_mis[n_leaves] = {}
     if mut_mult not in hists[n_leaves]:
-        hists[n_leaves][mut_mult] = {}
-        adj_mis[n_leaves][mut_mult] = {}
+        hists[n_leaves][mut_mult] = OrderedDict()
+        adj_mis[n_leaves][mut_mult] = OrderedDict()
     these_hists = hists[n_leaves][mut_mult]
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
@@ -129,20 +163,18 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     simfbase = leafmutstr(n_leaves, mut_mult)
     csvdir = os.path.dirname(simfname) + '/plots'
 
-    # first do partis stuff
-    for ptype in ['', 'vsearch-']:  #['', 'naive-hamming-', 'vsearch-']:
-        parse_partis(ptype + 'partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-' + ptype + 'partis-hist.csv')
-    # # parse_partis('naive-hamming-partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-naive-hamming-partis-hist.csv')
-    # parse_partis('vsearch-partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-vsearch-partis-hist.csv')
-
     # then vollmers annotation (and true hists)
     parse_vollmers(these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-vollmers-', csvdir + '/' + simfbase + '-true-hist.csv')
 
     # then changeo
-    # parse_changeo(these_hists, these_adj_mis, simfname, simfbase)
+    parse_changeo(these_hists, these_adj_mis, simfname, simfbase)
+
+    # first do partis stuff
+    for ptype in ['vsearch-', 'naive-hamming-', '']:
+        parse_partis(ptype + 'partition', these_hists, these_adj_mis, simfname, csvdir + '/' + simfbase + '-' + ptype + 'partis-hist.csv')
 
     plotdir = os.getenv('www') + '/partis/clustering/' + label
-    plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', hists[n_leaves][mut_mult], title='mean leaves %s, mutation x %s' % (n_leaves, mut_mult), xmax=n_leaves*3.01)
+    plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', these_hists, title='%s leaves, %sx mutation' % (n_leaves, mut_mult), legends=legends, xmax=n_leaves*3.01)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
@@ -220,6 +252,15 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         changeodir = '/home/dralph/work/changeo/changeo'
         changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo'
         _simfbase = leafmutstr(n_leaves, mut_mult).replace('-', '_')
+        if os.path.isdir(changeo_fsdir + '/' + _simfbase):
+            print '                      changeo txz dir exists %s' % changeo_fsdir + '/' + _simfbase
+            return
+        tar_cmd = 'mkdir ' + changeo_fsdir + '/' + _simfbase + ';'
+        tar_cmd += ' tar Jxvf ' + changeo_fsdir + '/' + _simfbase + '.txz --exclude=\'IMGT_HighV-QUEST_individual_files_folder/*\' -C ' + changeo_fsdir + '/' + _simfbase
+        # 'tar Jxvf /fh/fast/matsen_e/dralph/work/changeo/simu_10_leaves_1_mutate.txz --exclude='IMGT_HighV-QUEST_individual_files_folder/*' -C foop/'
+        # print tar_cmd
+        # sys.exit()
+        check_call(tar_cmd, shell=True)
 
         def run(cmdstr):
             print 'RUN %s' % cmdstr
@@ -275,13 +316,13 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '') + '-' + action
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(30)
+    time.sleep(5)
 
 # ----------------------------------------------------------------------------------------
 n_to_partition = 5000
 n_data_to_cache = 50000
-mutation_multipliers = ['1', '4']
-n_leaf_list = [5]  #[5, 10, 25, 50]
+mutation_multipliers = ['4']  #['1', '4']
+n_leaf_list = [5, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
@@ -311,6 +352,10 @@ for datafname in files:
         for n_leaves in n_leaf_list:
             print '  ----> ', n_leaves, ' leaves'
             for mut_mult in mutation_multipliers:
+                if n_leaves == 5 and mut_mult == '1':
+                    continue
+                if n_leaves == 25 and mut_mult == '4':
+                    continue
                 print '         ----> mutate', mut_mult
                 execute(action, label, datafname, n_leaves, mut_mult)
                 # sys.exit()

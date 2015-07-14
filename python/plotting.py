@@ -801,7 +801,7 @@ def get_cluster_size_hist(partition):
     return hist
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outfname, hists, title, xmax=None):
+def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -837,34 +837,39 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     fig, ax = plt.subplots()
     fig.tight_layout()
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
-
+    # dark red '#A52A2A',
     colors = {'true' : '#006600',
               'partition partis' : '#cc0000',
-              'auto-partition partis' : '#A52A2A',
+              'vsearch-partition partis' : '#cc0000',
+              'naive-hamming-partition partis' : '#cc0000',
               'vollmers-0.5' : '#3333ff',
-              'vollmers-0.9' : '#3399ff'# ,
-              # 'changeo' : ''
+              'vollmers-0.9' : 'grey',
+              'changeo' :  '#3399ff'
     }
     linewidths = {'true' : 10,
                   'partis' : 4,
                   'vollmers-0.5' : 4,
-                  'vollmers-0.9' : 4,
-                  'changeo' : 8
+                  'vollmers-0.9' : 8,
+                  'changeo' : 4
               }
 
     plots = {}
     for name, hist in hists.items():
         if 'vollmers' in name:
-            if '0.7' in name or '0.8' in name or '0.95' in name:
+            if '0.7' in name or '0.8' in name or '0.95' in name or '0.5' in name:
                 continue
         linestyle = '-'
         alpha = 1.
-        if name == 'true':
+        if 'vsearch' in name:
+            linestyle = '-.'
+        elif 'naive-hamming-partition' in name:
+            linestyle = '--'
+        elif name == 'true':
             linestyle = '--'
             alpha = 0.5
         # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
         hist.normalize()
-        plots[name] = ax.plot(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        plots[name] = ax.plot(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
 
     legend = ax.legend()
     # ax = fig.gca()

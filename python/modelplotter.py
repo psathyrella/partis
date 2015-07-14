@@ -28,7 +28,7 @@ class ModelPlotter(object):
     def __init__(self, args, base_plotdir, skip_boring_states=''):
         self.base_plotdir = base_plotdir
         self.skip_boring_states = skip_boring_states
-        plot_types = ('transitions', 'emissions', 'pair-emissions')
+        plot_types = ('transitions', 'emissions')
         for ptype in plot_types:
             plotdir = self.base_plotdir + '/' + ptype + '/plots'
             utils.prep_dir(plotdir, '*.png')
@@ -50,7 +50,6 @@ class ModelPlotter(object):
                 model = yaml.load(infile)
                 self.make_transition_plot(gene_name, model)
                 self.make_emission_plot(gene_name, model)
-                # self.make_pair_emission_plot(gene_name, model)
 
         for ptype in plot_types:
             check_call(['./bin/makeHtml', self.base_plotdir + '/' + ptype, '1', 'null', 'png'])
@@ -126,7 +125,7 @@ class ModelPlotter(object):
     def make_emission_plot(self, gene_name, model):
         plotting_info = []
         for state in model.states:
-            if len(state.emissions) == 0:
+            if state.emissions is None:
                 assert state.name == 'init'
                 continue
 
@@ -137,15 +136,15 @@ class ModelPlotter(object):
         paramutils.make_mutefreq_plot(self.base_plotdir + '/emissions', gene_name, plotting_info)
 
     # # ----------------------------------------------------------------------------------------
-    # def make_pair_emission_plot(self, gene_name, model):  NOTE still need to make the pair plots
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--hmmdir')
 parser.add_argument('--infiles')
 args = parser.parse_args()
-        
+assert args.hmmdir is not None or args.infiles is not None
+
 if __name__ == '__main__':
     # hmmdir = os.getenv('HOME') + '/work/partis/caches/' + args.label + '/' + args.flavor + '_parameters/hmms'
     assert os.path.exists(os.getenv('www'))
-    mplot = ModelPlotter(args, os.getenv('www') + '/modelplots/', skip_boring_states='v')
+    mplot = ModelPlotter(args, os.getenv('www') + '/modelplots/', skip_boring_states='')  #'v')

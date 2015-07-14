@@ -273,7 +273,7 @@ class PartitionDriver(object):
         id_fraction = 1. - bound
         clusterfname = self.args.workdir + '/vsearch-clusters.txt'
         cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-        print cmd
+        # print xcmd
         check_call(cmd.split())
         print '      vsearch run time: %.3f' % (time.time()-start)
         start = time.time()
@@ -294,7 +294,9 @@ class PartitionDriver(object):
         os.remove(clusterfname)
 
         partition = id_clusters.values()
-        adj_mi = utils.mutual_information(partition, self.reco_info, debug=True)
+        adj_mi = -1
+        if not self.args.is_data:
+            adj_mi = utils.mutual_information(partition, self.reco_info, debug=True)
         cp = ClusterPath(-1)
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi)
         if self.args.outfname is not None:
@@ -575,7 +577,7 @@ class PartitionDriver(object):
         else:
             open(outfname).close()  # open and close zero-length file
         cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'' + header + '\' | sort | uniq >>' + outfname
-        print cmd
+        # printx cmd
         check_call(cmd, shell=True)
         print '    time to merge csv files: %.3f' % (time.time()-start)
         start = time.time()
