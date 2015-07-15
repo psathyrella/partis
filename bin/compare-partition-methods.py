@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import os
 import argparse
+import glob
 import sys
 import random
 import re
 from collections import OrderedDict
 import time
 import csv
-from subprocess import check_call, Popen
+from subprocess import check_call, Popen, check_output
 sys.path.insert(1, './python')
 
 from humans import humans
@@ -21,11 +22,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots']
+parser.add_argument('--subset', type=int)
+parser.add_argument('--n-subsets', type=int)
+parser.add_argument('--istartstop')  # NOTE usual zero indexing
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots', 'compare-sample-sizes']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
 args.actions = utils.get_arg_list(args.actions)
+args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
+
+assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'partition partis' : 'full partis',
@@ -49,10 +56,41 @@ def leafmutstr(n_leaves, mut_mult):
     return 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
 
 # ----------------------------------------------------------------------------------------
+def get_simfname(label, n_leaves, mut_mult):
+    return fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
+
+# ----------------------------------------------------------------------------------------
+def generate_incorrect_partition(true_partition, n_misassigned, error_type, debug=False):
+    new_partition = list(true_partition)
+    if debug:
+        print '  before', new_partition
+    for _ in range(n_misassigned):
+        iclust = random.randint(0, len(new_partition) - 1)  # choose a cluster from which to remove a sequence
+        iseq = random.randint(0, len(new_partition[iclust]) - 1)  # and choose the sequence to remove from this cluster
+        uid = new_partition[iclust][iseq]
+        new_partition[iclust].remove(uid)  # remove it
+        if [] in new_partition:
+            new_partition.remove([])
+        if error_type == 'singletons':  # put the sequence in a cluster by itself
+            new_partition.append([uid, ])
+            if debug:
+                print '    %s: %d --> singleton' % (uid, iclust)
+        elif error_type == 'reassign':  # choose a different cluster to add it to
+            inewclust = iclust
+            while inewclust == iclust:
+                inewclust = random.randint(0, len(new_partition) - 1)
+            new_partition[inewclust].append(uid)
+            if debug:
+                print '    %s: %d --> %d' % (uid, iclust, inewclust)
+        else:
+            assert False
+    if debug:
+        print '  after', new_partition
+    return new_partition
+
+# ----------------------------------------------------------------------------------------
 def write_latex_table(adj_mis):
     for mut_mult in mutation_multipliers:
-  # \textbf{multiplier} & \textbf{program}  &  5     &  10     &  25     &  50   \\
-  # \multirow{3}{*}{$\times 1$} & partis   &     0.94   &     0.93   &     0.89   &     0.81 \\
         for n_leaves in n_leaf_list:
             if n_leaves == n_leaf_list[0]:
                 print '\\textbf{multiplier} & \\textbf{program}  ',
@@ -60,12 +98,6 @@ def write_latex_table(adj_mis):
         print '\\\\'
         print '\\hline'
         iname = 0
-        if 5 not in adj_mis:  # TODO remove
-            adj_mis[5] = {}
-        if mut_mult not in adj_mis[5]:  # TODO remove
-            adj_mis[5][mut_mult] = {}
-            for name in adj_mis[10]['1']:
-                adj_mis[5][mut_mult][name] = -1
         for name in adj_mis[n_leaf_list[0]][mutation_multipliers[0]]:
             if name == 'vollmers-0.5':
                 continue
@@ -76,10 +108,7 @@ def write_latex_table(adj_mis):
             print '%25s' % legends.get(name, name),
             iname += 1
             for n_leaves in n_leaf_list:
-                if n_leaves == 5 and mut_mult == '1' or n_leaves == 25 and mut_mult == '4':
-                    print '  &    %5.2f' % -1,
-                else:
-                    print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
+                print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
             print '\\\\'
 
 # ----------------------------------------------------------------------------------------
@@ -114,6 +143,7 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase):
     input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
     
     indir = fsdir.replace('/partis-dev/_output', '/changeo')
+    # indir = indir.replace('changeo', 'changeo.bak')
     infname = indir + '/' + simfbase.replace('-', '_') + '_db-pass_parse-select_clone-pass.tab'
     
     id_clusters = {}  # map from cluster id to list of seq ids
@@ -140,10 +170,6 @@ def write_all_plot_csvs(label):
     hists, adj_mis = {}, {}
     for n_leaves in n_leaf_list:
         for mut_mult in mutation_multipliers:
-            if n_leaves == 5 and mut_mult == '1':
-                continue
-            if n_leaves == 25 and mut_mult == '4':
-                continue
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
     write_latex_table(adj_mis)
@@ -159,7 +185,13 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     these_hists = hists[n_leaves][mut_mult]
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
-    simfname = fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
+    simfname = get_simfname(label, n_leaves, mut_mult)
+    if args.subset is not None:  # TODO not yet functional
+        assert False
+        subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
+    if args.istartstop is not None:  # TODO not yet functional
+        assert False
+        # subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
     simfbase = leafmutstr(n_leaves, mut_mult)
     csvdir = os.path.dirname(simfname) + '/plots'
 
@@ -178,6 +210,36 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
+    # for name, adj_mi in these_adj_mis.items():
+    #     with open(os.path.dirname(simfname) + '/adj_mis/' + name.replace(' ', '_') + '.csv', 'w') as adjmifile:
+    #         adjmifile.write(adj_mi + '\n')
+
+# ----------------------------------------------------------------------------------------
+def compare_subsets(label, n_leaves, mut_mult):
+    adj_mis = {}
+    # for fname in glob.glob(os.path.dirname(get_simfname(label, n_leaves, mut_mult)) + '/adj_mis/*.csv'):
+    # for fname in glob.glob('_tmp/adj_mis/*.csv'):
+    #     with open(fname
+
+# ----------------------------------------------------------------------------------------
+def compare_sample_sizes(label, n_leaves, mut_mult):
+    n_reps = 3
+    misassign_fractions = [0.1, ]
+    simfname = get_simfname(label, n_leaves, mut_mult)
+    input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+    uid_list = input_info.keys()
+    for nseqs in [100, ]:
+        for irep in range(n_reps):  # repeat <nreps> times
+            istart = irep * nseqs
+            istop = istart + nseqs
+            uids = uid_list[istart : istop]
+            true_partition = utils.get_true_clusters(uids, reco_info).values()
+            for mfrac in misassign_fractions:
+                n_misassigned = int(mfrac * nseqs)
+                new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='reassign')
+                # new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='singletons')
+                print utils.mutual_information(new_partition, reco_info, debug=True)
+
 # ----------------------------------------------------------------------------------------
 def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     real_action = action
@@ -185,7 +247,33 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         real_action = 'partition'
     cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
     if n_leaves is not None:
-        simfname = fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
+        simfname = get_simfname(label, n_leaves, mut_mult)
+        if args.subset is not None:
+            ntot = int(check_output(['wc', '-l', simfname]).split()[0]) - 1
+            subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
+            if os.path.exists(subsimfname):
+                print '      subset file exists %s' % subsimfname
+            else:
+                print '      subsetting %d / %d' % (args.subset, args.n_subsets)
+                if not os.path.exists(os.path.dirname(subsimfname)):
+                    os.makedirs(os.path.dirname(subsimfname))
+                check_call('head -n1 ' + simfname + ' >' + subsimfname, shell=True)
+                n_per_subset = int(float(ntot) / args.n_subsets)  # NOTE ignores remainders, i.e. last few sequences
+                istart = args.subset * n_per_subset + 2  # NOTE sed indexing (one-indexed with inclusive bounds). Also note extra +1 to avoid header
+                istop = istart + n_per_subset - 1
+                check_call('sed -n \'' + str(istart) + ',' + str(istop) + ' p\' ' + simfname + '>>' + subsimfname, shell=True)
+            simfname = subsimfname
+        if args.istartstop is not None:
+            subsimfname = simfname.replace(label + '/', label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
+            if os.path.exists(subsimfname):
+                print '      subset file exists %s' % subsimfname
+            else:
+                print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
+                if not os.path.exists(os.path.dirname(subsimfname)):
+                    os.makedirs(os.path.dirname(subsimfname))
+                check_call('head -n1 ' + simfname + ' >' + subsimfname, shell=True)
+                check_call('sed -n \'' + str(args.istartstop[0] + 2) + ',' + str(args.istartstop[1] + 1) + ' p\' ' + simfname + '>>' + subsimfname, shell=True)  # NOTE conversion from standdard zero indexing to sed inclusive one-indexing (and +1 for header line)
+            simfname = subsimfname
     extras = []
 
     def output_exists(outfname):
@@ -197,7 +285,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
     if action == 'cache-data-parameters':
         if os.path.exists(fsdir + '/' + label + '/data'):
-            print '                      data parametes exist in %s, skipping ' % os.path.dirname(simfname)
+            print '                      data parametes exist in %s, skipping ' % (fsdir + '/' + label + '/data')
             return
         cmd += ' --datafname ' + datafname
         extras += ['--n-max-queries', + n_data_to_cache]
@@ -223,7 +311,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd += ' --simfname ' + simfname
         cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
         extras += ['--n-max-queries', n_to_partition]
-        n_procs = n_to_partition / 15  # something like 15 seqs/process to start with
+        n_procs = max(1, n_to_partition / 15)  # something like 15 seqs/process to start with
     elif action == 'naive-hamming-partition':
         if os.path.exists(simfname.replace('.csv', '-naive-hamming-partition.csv')):
             print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-naive-hamming-partition.csv')
@@ -231,7 +319,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd += ' --simfname ' + simfname
         cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
         extras += ['--n-max-queries', n_to_partition, '--auto-hamming-fraction-bounds']
-        n_procs = n_to_partition / 30
+        n_procs = max(1, n_to_partition / 30)
     elif action == 'vsearch-partition':
         outfname = simfname.replace('.csv', '-' + action + '.csv')
         if output_exists(outfname):
@@ -239,7 +327,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd += ' --simfname ' + simfname
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', n_to_partition, '--naive-vsearch']
-        n_procs = n_to_partition / 100  # only used for ighutil step
+        n_procs = max(1, n_to_partition / 100)  # only used for ighutil step
     elif action == 'run-viterbi':
         if os.path.exists(simfname.replace('.csv', '-run-viterbi.csv')):
             print '                      vollmers output exists, skipping (%s)' % simfname.replace('.csv', '-run-viterbi.csv')
@@ -247,25 +335,21 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
         cmd += ' --simfname ' + simfname
         extras += ['--n-max-queries', n_to_partition]
-        n_procs = n_to_partition / 50
+        n_procs = max(1, n_to_partition / 50)
     elif action == 'run-changeo':
         changeodir = '/home/dralph/work/changeo/changeo'
-        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo'
+        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo'  #.bak'
         _simfbase = leafmutstr(n_leaves, mut_mult).replace('-', '_')
         if os.path.isdir(changeo_fsdir + '/' + _simfbase):
-            print '                      changeo txz dir exists %s' % changeo_fsdir + '/' + _simfbase
-            return
-        tar_cmd = 'mkdir ' + changeo_fsdir + '/' + _simfbase + ';'
-        tar_cmd += ' tar Jxvf ' + changeo_fsdir + '/' + _simfbase + '.txz --exclude=\'IMGT_HighV-QUEST_individual_files_folder/*\' -C ' + changeo_fsdir + '/' + _simfbase
-        # 'tar Jxvf /fh/fast/matsen_e/dralph/work/changeo/simu_10_leaves_1_mutate.txz --exclude='IMGT_HighV-QUEST_individual_files_folder/*' -C foop/'
-        # print tar_cmd
-        # sys.exit()
-        check_call(tar_cmd, shell=True)
+            print '                      already untar\'d into %s' % changeo_fsdir + '/' + _simfbase
+        else:
+            tar_cmd = 'mkdir ' + changeo_fsdir + '/' + _simfbase + ';'
+            tar_cmd += ' tar Jxvf ' + changeo_fsdir + '/' + _simfbase + '.txz --exclude=\'IMGT_HighV-QUEST_individual_files_folder/*\' -C ' + changeo_fsdir + '/' + _simfbase
+            check_call(tar_cmd, shell=True)
 
         def run(cmdstr):
             print 'RUN %s' % cmdstr
             check_call(cmdstr.split())
-
         
         cmd = changeodir + '/MakeDb.py imgt -i ' + changeo_fsdir + '/' + _simfbase + ' -s ' + changeo_fsdir + '/' + _simfbase.replace('_', '-') + '.fasta'
         run(cmd)
@@ -296,6 +380,9 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             writer.writerow({'adj_mi' : utils.mutual_information(partition, reco_info, debug=True)})
             print '  done'
         return
+    elif action == 'compare-sample-sizes':
+        compare_sample_sizes(label, n_leaves, mut_mult)
+        return
     else:
         raise Exception('bad action %s' % action)
 
@@ -313,16 +400,24 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     # return
     # check_call(cmd.split())
     # return
-    logbase = os.path.dirname(simfname) + '/_logs/' + os.path.basename(simfname).replace('.csv', '') + '-' + action
+    logbase = fsdir + '/' + label + '/_logs/' + leafmutstr(n_leaves, mut_mult) + '-' + action
+    if args.subset is not None:
+        logbase = logbase.replace('_logs/', '_logs/subset-' + str(args.subset) + '/')
+    if args.istartstop is not None:
+        logbase = logbase.replace('_logs/', '_logs/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
+    if not os.path.exists(os.path.dirname(logbase)):
+        os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
     time.sleep(5)
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 5000
+n_to_partition = 1300
+if args.istartstop is not None:
+    n_to_partition = args.istartstop[1] - args.istartstop[0]
 n_data_to_cache = 50000
-mutation_multipliers = ['4']  #['1', '4']
-n_leaf_list = [5, 10, 25, 50]
+mutation_multipliers = ['1']  #['1', '4']
+n_leaf_list = [10]  #[5, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
@@ -335,6 +430,7 @@ for datafname in files:
 	    human = re.findall('[ABC]', datafname)[0]
     print 'run', human
     label = human
+    # label += '.bak'
 
     if args.only_run is not None and human not in args.only_run:
         continue
@@ -352,10 +448,6 @@ for datafname in files:
         for n_leaves in n_leaf_list:
             print '  ----> ', n_leaves, ' leaves'
             for mut_mult in mutation_multipliers:
-                if n_leaves == 5 and mut_mult == '1':
-                    continue
-                if n_leaves == 25 and mut_mult == '4':
-                    continue
                 print '         ----> mutate', mut_mult
                 execute(action, label, datafname, n_leaves, mut_mult)
                 # sys.exit()
