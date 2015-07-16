@@ -1174,3 +1174,16 @@ def mutual_information(partition, reco_info, debug=False):
         print '   inferred clusters %d' % len(set(inferred_cluster_list))
         print '         adjusted mi %.2f' % adj_mi
     return adj_mi
+
+# ----------------------------------------------------------------------------------------
+def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t', debug=False):
+    """ rewrite csv files <fnames> to <outdir>, removing lines with uid not in <uids> """
+    for fname in fnames:
+        with open(fname) as infile:
+            reader = csv.DictReader(infile, delimiter=delimiter)
+            with open(outdir + '/' + os.path.basename(fname), 'w') as outfile:
+                writer = csv.DictWriter(outfile, reader.fieldnames, delimiter=delimiter)
+                writer.writeheader()
+                for line in reader:
+                    if line[uid_header] in uids:
+                        writer.writerow(line)

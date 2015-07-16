@@ -340,27 +340,44 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         changeodir = '/home/dralph/work/changeo/changeo'
         changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo'  #.bak'
         _simfbase = leafmutstr(n_leaves, mut_mult).replace('-', '_')
-        if os.path.isdir(changeo_fsdir + '/' + _simfbase):
-            print '                      already untar\'d into %s' % changeo_fsdir + '/' + _simfbase
+        imgtdir = changeo_fsdir + '/' + _simfbase
+        if os.path.isdir(imgtdir):
+            print '                      already untar\'d into %s' % imgtdir
         else:
-            tar_cmd = 'mkdir ' + changeo_fsdir + '/' + _simfbase + ';'
-            tar_cmd += ' tar Jxvf ' + changeo_fsdir + '/' + _simfbase + '.txz --exclude=\'IMGT_HighV-QUEST_individual_files_folder/*\' -C ' + changeo_fsdir + '/' + _simfbase
+            tar_cmd = 'mkdir ' + imgtdir + ';'
+            tar_cmd += ' tar Jxvf ' + imgtdir + '.txz --exclude=\'IMGT_HighV-QUEST_individual_files_folder/*\' -C ' + imgtdir
             check_call(tar_cmd, shell=True)
+
+        if args.subset is not None:
+            subset_dir = imgtdir + '/subset-' + str(args.subset)
+            if not os.path.exists(subset_dir):
+                os.makedirs(subset_dir)
+                tsvfnames = glob.glob(imgtdir + '/*.txt')
+                check_call(['cp', '-v', imgtdir + '/11_Parameters.txt', subset_dir + '/'])
+                tsvfnames.remove(imgtdir + '/11_Parameters.txt')
+                tsvfnames.remove(imgtdir + '/README.txt')
+                input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+                subset_ids = input_info.keys()
+                utils.subset_files(subset_ids, tsvfnames, subset_dir)
+            imgtdir = subset_dir
 
         def run(cmdstr):
             print 'RUN %s' % cmdstr
             check_call(cmdstr.split())
         
-        cmd = changeodir + '/MakeDb.py imgt -i ' + changeo_fsdir + '/' + _simfbase + ' -s ' + changeo_fsdir + '/' + _simfbase.replace('_', '-') + '.fasta'
+        check_call(['./bin/csv2fasta', simfname])
+        check_call(['mv', simfname.replace('.csv', '.fa'), simfname.replace('.csv', '.fasta')])
+        cmd = changeodir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + simfname.replace('.csv', '.fasta')
         run(cmd)
-        cmd = changeodir + '/ParseDb.py select -d ' + changeo_fsdir + '/' + _simfbase + '_db-pass.tab -f FUNCTIONAL -u T'
+        cmd = changeodir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab -f FUNCTIONAL -u T'
         run(cmd)
-        cmd = changeodir + '/DefineClones.py bygroup -d ' + changeo_fsdir + '/' + _simfbase + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
+        cmd = changeodir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
         run(cmd)
 
         # read changeo's output and toss it into a csv
         input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
-        infname = changeo_fsdir + '/' + _simfbase.replace('-', '_') + '_db-pass_parse-select_clone-pass.tab'
+        # infname = changeo_fsdir + '/' + _simfbase.replace('-', '_') + '_db-pass_parse-select_clone-pass.tab'
+        infname = imgtdir + '_db-pass_parse-select_clone-pass.tab'
         id_clusters = {}  # map from cluster id to list of seq ids
         with open(infname) as chfile:
             reader = csv.DictReader(chfile, delimiter='\t')
@@ -417,7 +434,7 @@ if args.istartstop is not None:
     n_to_partition = args.istartstop[1] - args.istartstop[0]
 n_data_to_cache = 50000
 mutation_multipliers = ['1']  #['1', '4']
-n_leaf_list = [10]  #[5, 10, 25, 50]
+n_leaf_list = [5]  #, 10, 25, 50]
 n_sim_seqs = 10000
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []

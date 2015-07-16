@@ -1,0 +1,10 @@
+#!/bin/bash
+
+infile=$1
+if ! [ $infile ] || ! [ -f $infile ]; then
+    echo "ERROR $infile d.n.e."
+    exit 1
+fi
+outfile=`echo $infile | sed 's/\.csv/.fa/'`
+
+grep -v unique $infile | cut -d, -f1,17 | column -t -s, | awk '{print ">",$1,"\n",$2}' | tr '\r' ' ' | sed 's/ //g' > $outfile
