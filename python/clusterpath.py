@@ -32,9 +32,11 @@ class ClusterPath(object):
                 break
 
     def add_partition(self, partition, logprob, n_procs, logweight=None, adj_mi=None):
-        # don't add it if it's the same as the last partition
-        if len(self.partitions) > 0 and len(partition) == len(self.partitions[-1]) and logprob == self.logprobs[-1]:
-            return
+        # # don't add it if it's the same as the last partition
+        # UPDATE we can get in trouble if we don't add duplicates, because they can have different numbers of procs... the duplicates don't really matter, anyway, as for most purposes I ignore partitions with greater than 1 proc
+        # if len(self.partitions) > 0 and len(partition) == len(self.partitions[-1]) and logprob == self.logprobs[-1]:
+        #     print 'NOT ADDING with n_procs %d --> %d' % (self.n_procs[-1], n_procs)
+        #     return
         self.partitions.append(partition)
         self.logprobs.append(logprob)
         self.logweights.append(logweight)

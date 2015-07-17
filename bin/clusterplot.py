@@ -42,6 +42,8 @@ class ClusterPlot(object):
                     if self.tmp_n_true_clusters is None:
                         self.tmp_n_true_clusters = int(line.get('n_true_clusters', -1))
     
+        if len(self.logprobs) == 0:
+            raise Exception('didn\'t read any lines from %s' % ' '.join(self.args.infnames))
         self.process_paths()
         self.plot()
 
