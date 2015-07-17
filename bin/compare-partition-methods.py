@@ -115,7 +115,11 @@ def write_latex_table(adj_mis):
             print '%25s' % legends.get(name, name),
             iname += 1
             for n_leaves in args.n_leaf_list:
-                print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
+                try:
+                    val, err = adj_mis[n_leaves][mut_mult][name]
+                    print '  &    %5.2f $\\pm$ %.2f' % (val, err),
+                except TypeError:
+                    print '  &    %5.2f' % adj_mis[n_leaves][mut_mult][name],
             print '\\\\'
 
 # ----------------------------------------------------------------------------------------
@@ -243,26 +247,40 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     #         adjmifile.write(adj_mi + '\n')
 
 # ----------------------------------------------------------------------------------------
-def compare_subsets(label, n_leaves, mut_mult):
-    adj_mis = OrderedDict()
+def compare_all_subsets(label):
+    hists, adj_mis = {}, {}
+    for n_leaves in args.n_leaf_list:
+        for mut_mult in args.mutation_multipliers:
+            compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis)
+
+    write_latex_table(adj_mis)
+
+# ----------------------------------------------------------------------------------------
+def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
+    if n_leaves not in hists:
+        hists[n_leaves] = {}
+        adj_mis[n_leaves] = {}
+    if mut_mult not in hists[n_leaves]:
+        hists[n_leaves][mut_mult] = OrderedDict()
+        adj_mis[n_leaves][mut_mult] = OrderedDict()
+    these_hists = hists[n_leaves][mut_mult]
+    these_adj_mis = adj_mis[n_leaves][mut_mult]
+
     basedir = fsdir + '/' + label
     expected_methods = ['vollmers-0.9', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    tmp_adj_mis = OrderedDict()
     for isub in range(args.n_subsets):
         subdir = basedir + '/subset-' + str(isub)
-        # for fname in glob.glob(subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/adj_mis/*.csv'):
-            # method = os.path.basename(fname).replace('.csv', '')
         for method in expected_methods:
             fname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/adj_mis/' + method + '.csv'
-            if method not in adj_mis:
-                adj_mis[method] = []
-            adj_mis[method].append(read_adj_mi(fname))
-    for meth, vals in adj_mis.items():
+            if method not in tmp_adj_mis:
+                tmp_adj_mis[method] = []
+            tmp_adj_mis[method].append(read_adj_mi(fname))
+    for meth, vals in tmp_adj_mis.items():
         mean = numpy.mean(vals)
         std = numpy.std(vals)
+        these_adj_mis[meth] = (mean, std)
         print '  %30s %.3f +/- %.3f' % (meth, mean, std)
-    # for fname in glob.glob(os.path.dirname(get_simfname(label, n_leaves, mut_mult)) + '/adj_mis/*.csv'):
-    # for fname in glob.glob('_tmp/adj_mis/*.csv'):
-    #     with open(fname
 
 # ----------------------------------------------------------------------------------------
 def compare_sample_sizes(label, n_leaves, mut_mult):
@@ -442,8 +460,9 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         compare_sample_sizes(label, n_leaves, mut_mult)
         return
     elif action == 'compare-subsets':
-        compare_subsets(label, n_leaves, mut_mult)
-        return
+        assert False
+        # compare_subsets(label, n_leaves, mut_mult)
+        # return
     else:
         raise Exception('bad action %s' % action)
 
@@ -500,7 +519,7 @@ for datafname in files:
     performance_file_header = ['method', 'mut_mult', 'n_leaves', 'adj_mi', 'n_clusters', 'n_true_clusters']
 
     for action in args.actions:
-        if action == 'write-plots':
+        if action == 'write-plots' or action == 'compare-subsets':
             continue
         print '      ----> ', action
         if action == 'cache-data-parameters':
@@ -515,5 +534,7 @@ for datafname in files:
 
     if 'write-plots' in args.actions:
         write_all_plot_csvs(label)
+    if 'compare-subsets' in args.actions:
+        compare_all_subsets(label)
 
     break
