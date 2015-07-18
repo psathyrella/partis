@@ -842,6 +842,9 @@ def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
               'partition partis' : '#cc0000',
               'vsearch-partition partis' : '#cc0000',
               'naive-hamming-partition partis' : '#cc0000',
+              'partition' : '#cc0000',
+              'vsearch-partition' : '#cc0000',
+              'naive-hamming-partition' : '#cc0000',
               'vollmers-0.5' : '#3333ff',
               'vollmers-0.9' : 'grey',
               'changeo' :  '#3399ff'

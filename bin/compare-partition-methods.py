@@ -14,6 +14,7 @@ sys.path.insert(1, './python')
 
 from humans import humans
 import plotting
+from hist import Hist
 import seqfileopener
 import utils
 from clusterplot import ClusterPlot
@@ -24,7 +25,7 @@ parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
 parser.add_argument('--mutation-multipliers', default='1')
-parser.add_argument('--n-leaf-list', default='5')
+parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
@@ -41,9 +42,14 @@ assert args.subset is None or args.istartstop is None  # dosn't make sense to se
 
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'partition partis' : 'full partis',
+           'partition' : 'full partis',
            'naive-hamming-partition partis' : 'naive partis',
+           'naive-hamming-partition' : 'naive partis',
            'vsearch-partition partis' : 'vsearch partis',
-           'changeo' : 'Change-O'
+           'vsearch-partition' : 'vsearch partis',
+           'changeo' : 'Change-O',
+           '0.1-true-singletons' : '10% random singletons',
+           '0.1-true-reassign' : '10% random reassign'
            }
 
 
@@ -90,7 +96,7 @@ def generate_incorrect_partition(true_partition, n_misassigned, error_type, debu
             if debug:
                 print '    %s: %d --> %d' % (uid, iclust, inewclust)
         else:
-            assert False
+            raise Exception('%s not among %s' % (error_type, 'singletons, reassign'))
     if debug:
         print '  after', new_partition
     return new_partition
@@ -267,15 +273,26 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    expected_methods = ['vollmers-0.9', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['true', 'vollmers-0.9', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     tmp_adj_mis = OrderedDict()
     for isub in range(args.n_subsets):
         subdir = basedir + '/subset-' + str(isub)
         for method in expected_methods:
+            # hists
+            histfname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/hists/' + method + '.csv'
+            if method == 'true':  # or method == 'naive-hamming-partition':
+                these_hists[method + str(isub)] = Hist(fname=histfname)
+            if method == 'true':
+                continue
+            # adj mis
             fname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/adj_mis/' + method + '.csv'
             if method not in tmp_adj_mis:
                 tmp_adj_mis[method] = []
             tmp_adj_mis[method].append(read_adj_mi(fname))
+    plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
+    plotting.plot_cluster_size_hists(plotdir + '/plots/' + leafmutstr(n_leaves, mut_mult) + '.svg', these_hists, title='%d leaves, %dx mutation' % (n_leaves, mut_mult), legends=legends, xmax=n_leaves*3.01)
+    check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+    check_call(['./bin/permissify-www', plotdir])
     for meth, vals in tmp_adj_mis.items():
         mean = numpy.mean(vals)
         std = numpy.std(vals)
@@ -283,23 +300,112 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
         print '  %30s %.3f +/- %.3f' % (meth, mean, std)
 
 # ----------------------------------------------------------------------------------------
-def compare_sample_sizes(label, n_leaves, mut_mult):
-    n_reps = 3
-    misassign_fractions = [0.1, ]
-    simfname = get_simfname(label, n_leaves, mut_mult)
+def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
     input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+    n_reps = 1
     uid_list = input_info.keys()
-    for nseqs in [100, ]:
+    new_partitions = {}
+    for nseqs in nseq_list:
         for irep in range(n_reps):  # repeat <nreps> times
             istart = irep * nseqs
             istop = istart + nseqs
             uids = uid_list[istart : istop]
             true_partition = utils.get_true_clusters(uids, reco_info).values()
-            for mfrac in misassign_fractions:
-                n_misassigned = int(mfrac * nseqs)
-                new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='reassign')
-                # new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='singletons')
-                print utils.mutual_information(new_partition, reco_info, debug=True)
+            n_misassigned = int(misassign_fraction * nseqs)
+            new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type=error_type)
+            # new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='singletons')
+            new_partitions[nseqs] = new_partition
+    return {nseqs : utils.mutual_information(new_partitions[nseqs], reco_info) for nseqs in nseq_list}
+
+# ----------------------------------------------------------------------------------------
+def compare_sample_sizes(label, n_leaves, mut_mult):
+    expected_methods = ['vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    basedir = fsdir + '/' + label
+    nseq_list = []
+    method_results = OrderedDict()
+    for meth in expected_methods:
+        method_results[meth] = {}
+    for dirname in glob.glob(basedir + '/istartstop-*'):
+        dumstr, istart, istop = dirname.split('/')[-1].split('-')
+        istart, istop = int(istart), int(istop)
+        nseqs = istop - istart
+        # if nseqs > 900:
+        #     continue
+        nseq_list.append(nseqs)
+        for meth in expected_methods:
+            csvfname = dirname + '/' + leafmutstr(n_leaves, mut_mult) + '-' + meth + '.csv'
+            args.infnames = [csvfname, ]  # NOTE make sure not to add any args here that conflict with the real command line args
+            args.is_data = False
+            args.use_all_steps = False
+            args.normalize_axes = []
+            args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
+            cplot = ClusterPlot(args)
+            # cplot.tmp_cluster_size_hist.write(outdir + '/hists/' + action + '.csv')
+            # these_hists[action + ' partis'] = cplot.tmp_cluster_size_hist
+            method_results[meth][nseqs] = cplot.adj_mi_at_max_logprob
+
+    nseq_list.sort()
+
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    fsize = 20
+    mpl.rcParams.update({
+        # 'font.size': fsize,
+        'legend.fontsize': fsize,
+        'axes.titlesize': fsize,
+        # 'axes.labelsize': fsize,
+        'xtick.labelsize': fsize,
+        'ytick.labelsize': fsize,
+        'axes.labelsize': fsize
+    })
+    fig, ax = plt.subplots()
+    fig.tight_layout()
+    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+
+    plots = {}
+
+    colors = {'vsearch-partition' : '#008b8b',
+              'naive-hamming-partition' : '#ff8c00',
+              'partition' : '#cc0000',
+              '0.1-true-singletons' : '#006600',
+              '0.1-true-reassign' : '#32cd32'}
+    method_results['0.1-true-singletons'] = get_misassigned_adj_mis(get_simfname(label, n_leaves, mut_mult), 0.1, nseq_list, 'singletons')
+    method_results['0.1-true-reassign'] = get_misassigned_adj_mis(get_simfname(label, n_leaves, mut_mult), 0.1, nseq_list, 'reassign')
+    for meth in method_results:
+        linewidth = 2
+        linestyle = '-'
+        if 'true' in meth:
+            linewidth = 4
+            linestyle = '--'
+        plots[meth] = ax.plot(nseq_list, [method_results[meth][ns] for ns in nseq_list], linewidth=linewidth, label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=1)
+        if 'true' not in meth:
+            plt.scatter(nseq_list, [method_results[meth][ns] for ns in nseq_list], color=colors.get(meth, 'grey'), linestyle='-', alpha=1, s=[30 for _ in range(len(nseq_list))])
+
+    legend = ax.legend(loc=(0.55, 0.1))
+    sns.despine(trim=True, bottom=True)
+    sns.set_style("ticks")
+    plt.title('%d leaves, %dx mutation' % (n_leaves, mut_mult))
+    plt.xlabel('sample size')
+    plt.ylabel('adjusted MI')
+    plt.subplots_adjust(bottom=0.14, left=0.14)
+    ax.set_xscale('log')
+    xmin, xmax = nseq_list[0], nseq_list[-1] + 10
+    plt.xlim(xmin, xmax)
+    plt.ylim(0, 1.08)
+    potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
+    xticks = [xt for xt in potential_xticks if xt < xmax]
+    plt.xticks(xticks, [str(xt) for xt in xticks])
+    plotdir = os.getenv('www') + '/partis/clustering/sample-sizes/' + label
+    outfname = plotdir + '/plots/sample-sizes.svg'
+    if not os.path.exists(plotdir + '/plots'):
+        os.makedirs(plotdir + '/plots')
+    plt.savefig(outfname)
+    check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+    check_call(['./bin/permissify-www', plotdir])
+
+    return
 
 # ----------------------------------------------------------------------------------------
 def execute(action, label, datafname, n_leaves=None, mut_mult=None):
