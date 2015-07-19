@@ -3,6 +3,7 @@ require member variables. """
 
 import sys
 import os
+import ast
 import re
 import math
 import glob
@@ -373,14 +374,17 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
-def is_mutated(original, final, n_muted=-1, n_total=-1):
-    alphabet = nukes + ambiguous_bases
+def is_mutated(original, final, n_muted=-1, n_total=-1, also_allow=['*', ]):
+    alphabet = nukes + ambiguous_bases + also_allow
     if original not in alphabet or final not in alphabet:
         raise Exception('bad base (%s or %s) in utils.is_mutated()' % (original, final))
 
+    # print '%s %s' % (original, final)
     return_str = final
     if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
         return return_str, n_muted, n_total
+    # if original in also_allow:
+    #     return color('light_blue', return_str), n_muted, n_total
         
     n_total += 1
     if original != final:
@@ -557,12 +561,20 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     #     print '      ERROR %s failed to add match info' % ' '.join([str(i) for i in ids])
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label=''):
+def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
     """
-    
+    reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
+    if 'indels' in line:
+        if line['indels'] == '':
+            indelfo = None
+        else:
+            assert indelfo is None  # don't want indel info from two places
+            indelfo = {'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
+            reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
+
     v_5p_del = int(line['v_5p_del'])
     v_3p_del = int(line['v_3p_del'])
     d_5p_del = int(line['d_5p_del'])
@@ -575,21 +587,46 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
-    germline_v_end = len(line['fv_insertion']) + len(original_seqs['v']) - v_5p_del - 1  # position in the query sequence at which we find the last base of the v match.
-                                                                                         # NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
-    germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - d_5p_del
-    germline_d_end = germline_d_start + len(original_seqs['d'])
-    germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
+    if indelfo is not None:  # and not reverse_indels:
+        add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded_seqs, reverse_indels)
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
     n_muted, n_total = 0, 0
     j_right_extra = ''  # portion of query sequence to right of end of the j match
+    n_inserted = 0
     for inuke in range(len(line['seq'])):
+        if indelfo is not None:
+            lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
+              # if we're at the position that the insertion started at (before we removed it)
+        if indelfo is not None and lastfo['type'] == 'insertion':
+            if reverse_indels and inuke == lastfo['pos']:
+                final_seq += lastfo['seqstr']  # put the insertion back into the query sequence
+                n_inserted += len(lastfo['seqstr'])
+            elif not reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:
+                final_seq += line['seq'][inuke]
+                n_inserted += 1
+                continue
+            # if inuke > lastfo['pos'] + lastfo['len']:
+            #     inuke -= lastfo['len']
+        if indelfo is not None and lastfo['type'] == 'deletion':
+            if reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
+                final_seq += color('light_blue', '*')
+                # j_right_extra += ' '
+                continue
+            elif not reverse_indels and inuke == lastfo['pos']:
+                final_seq += lastfo['len'] * color('light_blue', '*')
+                n_inserted = - lastfo['len']
+                # j_right_extra += ' ' * lastfo['len']
+
+        new_nuke = ''  # now not necessarily a single base
         ilocal = inuke
-        new_nuke = ''
+        if indelfo is not None and reverse_indels:
+            ilocal += n_inserted
+        if indelfo is not None and not reverse_indels and lastfo['type'] == 'deletion':
+            ilocal -= n_inserted
         if ilocal < len(line['fv_insertion']):  # haven't got to start of v match yet, so just add on the query seq nuke
-            new_nuke = line['seq'][inuke]
+            new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
         else:
             ilocal -= len(line['fv_insertion'])
             if ilocal < lengths['v']:
@@ -611,14 +648,14 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
                             if ilocal < lengths['j']:
                                 new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
                             else:
-                                new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total+1
+                                new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
                                 j_right_extra += ' '
 
         if 'cyst_position' in line and 'tryp_position' in line:
             for pos in (line['cyst_position'], line['tryp_position']):  # reverse video for the conserved codon positions
-                # adjusted_pos = pos - v_5p_del  # adjust positions to allow for reads not extending all the way to left side of v
-                adjusted_pos = pos  # don't need to subtract it for smith-waterman stuff... gr, need to make it general
-                if inuke >= adjusted_pos and inuke < adjusted_pos+3:
+                if indelfo is not None and not reverse_indels:
+                    pos += n_inserted
+                if inuke >= pos and inuke < pos + 3:
                     new_nuke = '\033[7m' + new_nuke + '\033[m'
 
         final_seq += new_nuke
@@ -658,32 +695,37 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     insert_line += j_right_extra
     insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
-    insert_line = color_chars(ambiguous_bases, 'light_blue', insert_line)
 
+    germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - d_5p_del
+    germline_d_end = germline_d_start + len(original_seqs['d'])
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
-    d_line += ' ' * (len(original_seqs['j']) - j_5p_del - j_3p_del + len(line['dj_insertion']) - d_3p_del)
+    d_line += ' ' * (len(eroded_seqs['j']) + len(line['dj_insertion']) - d_3p_del)
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
     # d_line += ' '*len(line['jf_insertion'])
-    d_line = color_chars(ambiguous_bases, 'light_blue', d_line)
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
+    germline_v_end = len(line['fv_insertion']) + len(eroded_seqs['v']) + v_3p_del - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+    germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
     # vj_line += ' '*len(line['jf_insertion'])
-    vj_line = color_chars(ambiguous_bases, 'light_blue', vj_line)
 
-    if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
-        # print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
-        # assert no_space
-        if not no_space:
-            print 'ERROR no space'
-        # print ' ...but we\'re out of space so it\'s expected'
+    # if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
+    #     # print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
+    #     # assert no_space
+    #     if not no_space:
+    #         print 'ERROR no space'
+    #     # print ' ...but we\'re out of space so it\'s expected'
+
+    insert_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', insert_line)
+    d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
+    vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
     out_str_list = []
     # insert, d, and vj lines
@@ -705,7 +747,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             j_3p_del_space_str = j_3p_del_space_str[line['chops']['right'] : ]
             final_seq = final_seq + color('green', '.'*line['chops']['right'])
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
-    final_seq = color_chars(ambiguous_bases, 'light_blue', final_seq)
+    final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
 
     out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info
@@ -715,6 +757,13 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     if 'cdr3_length' in line:
         out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
     out_str_list.append('\n')
+
+    # if print_width is not None:
+    #     a_str_list, b_str_list = [], []
+    #     for line in out_str_list:
+    #         a_str_list.append(line[ : print_width] + '\n')
+    #         b_str_list.append(line[print_width : ])
+    #     out_str_list = a_str_list + b_str_list
 
     if return_string:
         return ''.join(out_str_list)
@@ -1187,3 +1236,26 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                 for line in reader:
                     if line[uid_header] in uids:
                         writer.writerow(line)
+
+# ----------------------------------------------------------------------------------------
+def add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded_seqs, reverse_indels):
+    lastfo = indelfo['indels'][-1]
+    if lastfo['type'] == 'insertion':
+        chunks = [line['fv_insertion'], eroded_seqs['v'], line['vd_insertion'], eroded_seqs['d'], line['dj_insertion'], eroded_seqs['j'], line['jf_insertion']]
+        chunknames =  ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
+        weirdolist = []
+        for ichunk in range(len(chunks)):
+            for inuke in range(len(chunks[ichunk])):
+                weirdolist.append(chunknames[ichunk])
+        thischunk = weirdolist[lastfo['pos']]
+        # offset = 0
+        # if reverse_indels:
+        offset = weirdolist.index(thischunk)  # index of first occurence
+        if thischunk in eroded_seqs:
+            # original_seqs[thischunk] = original_seqs[thischunk][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + eroded_seqs[thischunk][lastfo['pos'] - offset : ]
+            lengths[thischunk] += lastfo['len']
+            eroded_seqs[thischunk] = eroded_seqs[thischunk][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + eroded_seqs[thischunk][lastfo['pos'] - offset : ]
+        else:
+            raise Exception('I really doubt we\'ll actually see any indels within insertions')
+    else:
+        pass

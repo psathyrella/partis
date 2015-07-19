@@ -1325,7 +1325,7 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in utils.get_true_clusters(line['unique_ids'], self.reco_info).values():
                 for iid in range(len(uids)):
-                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0))
+                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0), indelfo=self.sw_info['indels'].get(iid, None))
                     out_str_list.append(true_event_str)
             ilabel = 'inferred:'
 
@@ -1337,7 +1337,7 @@ class PartitionDriver(object):
             if self.args.truncate_n_sets:
                 tmpline['chops'] = chops[iseq]
             label = ilabel if iseq==0 else ''
-            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0))
+            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0), indelfo=self.sw_info['indels'].get(line['unique_ids'][iseq], None))
             out_str_list.append(event_str)
 
             # if iseq == 0:

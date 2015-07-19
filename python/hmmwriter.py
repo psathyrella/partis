@@ -339,7 +339,6 @@ class HmmWriter(object):
             if erosion[0] != self.region:
                 continue
             self.erosion_probs[erosion] = {}
-            print erosion
             deps = utils.column_dependencies[erosion + '_del']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
                 reader = csv.DictReader(infile)

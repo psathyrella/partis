@@ -75,7 +75,7 @@ parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best 
 parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
 parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
 parser.add_argument('--smc-particles', type=int, default=1, help='Number of particles (clustering paths) to simulate with SMC')
-parser.add_argument('--gap-open-penalty', type=int, default=1000, help='Penalty for indel creation in Smith-Waterman step (reduce this if you want to look for indels).')
+parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step (reduce this if you want to look for indels).')
 parser.add_argument('--match-mismatch', default='5:1', help='match:mismatch scores for smith-waterman.')
 parser.add_argument('--max-logprob-drop', type=float, default=1000., help='stop glomerating when the total logprob has dropped by this much')
 parser.add_argument('--n-partitions-to-write', type=int, default=300, help='')
