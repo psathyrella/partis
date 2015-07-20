@@ -917,7 +917,8 @@ class PartitionDriver(object):
 
         for name in query_names:
             swfo = self.sw_info[name]
-            if not self.args.dont_pad_sequences:
+            if 'padded' in swfo:
+                assert not self.args.dont_pad_sequences
                 k_v = swfo['padded']['k_v']
                 seq = swfo['padded']['seq']
                 cpos = swfo['padded']['cyst_position']
@@ -1021,7 +1022,7 @@ class PartitionDriver(object):
         #     # assert os.path.exists(self.hmm_cachefname)
         #     # self.write_cachefile(self.hmm_cachefname)
 
-        if not self.args.dont_pad_sequences:
+        if self.args.action == 'partition' and not self.args.dont_pad_sequences:
             self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
 
         skipped_gene_matches = set()
