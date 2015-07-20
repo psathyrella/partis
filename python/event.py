@@ -25,7 +25,7 @@ class RecombinationEvent(object):
         self.insertion_lengths = {}
         self.insertions = {}
         self.recombined_seq = ''  # combined sequence *before* mutations
-        self.final_seqs = []
+        self.final_seqs, self.indelfo = [], []
         self.original_cyst_word = ''
         self.original_tryp_word = ''
 
@@ -94,7 +94,7 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
-        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', )
+        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indels')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'
@@ -138,10 +138,9 @@ class RecombinationEvent(object):
                 if irandom is None:  # NOTE see note above
                     unique_id += str(numpy.random.uniform())
                 else:
-                    # print 'ievt',irandom
                     unique_id += str(irandom)
                 row['unique_id'] = hash(unique_id)
-                # print row['unique_id'], unique_id
+                row['indels'] = self.indelfo[imute]
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
@@ -166,7 +165,8 @@ class RecombinationEvent(object):
             line['seq'] = self.final_seqs[imute]
             if total_length_from_right > 0:
                 line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
-            utils.print_reco_event(self.germlines, line, one_line=(imute!=0))
+            line['indels'] = self.indelfo[imute]
+            utils.print_reco_event(self.germlines, line, one_line=(imute!=0 and len(self.indelfo[imute]['indels']) == 0))
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):

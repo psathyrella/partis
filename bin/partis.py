@@ -66,6 +66,8 @@ parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearr
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
 parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a hacktified exponential with mean <n_leaves>)')
+parser.add_argument('--indel-frequency', default=0.01)
+parser.add_argument('--mean-indel-length', default=5)
 
 # numerical inputs
 parser.add_argument('--hamming-fraction-bounds', default='0.0:0.2', help='Thresholds for hamming distance preclustering -- we run the forward algorithm only on pairs with naive hamming distance within these bounds (pairs below the first value are automatically merged)')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths
@@ -75,20 +77,19 @@ parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best 
 parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
 parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
 parser.add_argument('--smc-particles', type=int, default=1, help='Number of particles (clustering paths) to simulate with SMC')
-parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step (reduce this if you want to look for indels).')
+parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step.')
 parser.add_argument('--match-mismatch', default='5:1', help='match:mismatch scores for smith-waterman.')
 parser.add_argument('--max-logprob-drop', type=float, default=1000., help='stop glomerating when the total logprob has dropped by this much')
 parser.add_argument('--n-partitions-to-write', type=int, default=300, help='')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
-# parser.add_argument('--tree-parameter-file', default='/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz', help='File from which to read inferred tree parameters (from mebcell analysis)')
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
 
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
-parser.add_argument('--dont-allow-unphysical-insertions', action='store_true', help='allow insertions on left side of v and right side of j. NOTE this is very slow.')
+parser.add_argument('--dont-allow-unphysical-insertions', action='store_true', help='dont allow insertions on left side of v and right side of j.')
 # parser.add_argument('--allow_external_deletions', action='store_true')     # ( " ) deletions (               "                     )
 # parser.add_argument('--total-length-from-right', type=int, default=-1, help='Total read length you want for simulated sequences')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')

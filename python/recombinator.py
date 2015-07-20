@@ -408,6 +408,42 @@ class Recombinator(object):
         return rescaled_trees
 
     # ----------------------------------------------------------------------------------------
+    def add_shm_insertion(self, reco_event, seq, pos, length):
+        """ insert a random sequence with <length> beginning at <pos> """
+        inserted_sequence = ''
+        for ipos in range(length):
+            inuke = random.randint(0, len(utils.nukes) - 1)  # inclusive
+            inserted_sequence += utils.nukes[inuke]
+        return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
+        reco_event.indelfo[-1]['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
+        if self.args.debug:
+            print '        inserting %s at %d' % (inserted_sequence, pos)
+            # print '             before %s' % seq
+            # print '             after  %s' % return_seq
+        return return_seq
+
+    # ----------------------------------------------------------------------------------------
+    def add_shm_indels(self, reco_event):
+        for iseq in range(len(reco_event.final_seqs)):
+            reco_event.indelfo.append({'reversed_seq' : '', 'indels' : []})
+            if numpy.random.uniform(0, 1) > self.args.indel_frequency:
+                continue
+            seq = reco_event.final_seqs[iseq]
+            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
+            length = numpy.random.geometric(1. / self.args.mean_indel_length)
+            if numpy.random.uniform(0, 1) < 0.5:
+                new_seq = self.add_shm_insertion(reco_event, seq, pos, length)
+            else:
+                deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
+                reco_event.indelfo[-1]['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
+                if self.args.debug:
+                    print '        deleting %d bases at %d' % (length, pos)
+                    # print '             before %s' % seq
+                    # print '             after  %s' % deleted_seq
+                new_seq = deleted_seq
+            reco_event.final_seqs[iseq] = new_seq
+
+    # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
         chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
         chosen_tree = chosen_treeinfo.split(';')[0] + ';'
@@ -445,8 +481,7 @@ class Recombinator(object):
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 
         assert not utils.are_conserved_codons_screwed_up(reco_event)
-        # print '    check full seq trees'
-        # self.check_tree_simulation('', chosen_tree, reco_event)
+        self.add_shm_indels(reco_event)
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):

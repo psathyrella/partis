@@ -4,6 +4,7 @@ require member variables. """
 import sys
 import os
 import ast
+import ast
 import re
 import math
 import glob
@@ -568,11 +569,11 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     """
     reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if 'indels' in line:
-        if line['indels'] == '':
+        if len(line['indels']) == 0:
             indelfo = None
         else:
             assert indelfo is None  # don't want indel info from two places
-            indelfo = {'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
+            indelfo = line['indels']  #{'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
             reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
 
     v_5p_del = int(line['v_5p_del'])
@@ -1049,7 +1050,7 @@ def prep_dir(dirname, wildling=None, multilings=None):
             assert False
 
 # ----------------------------------------------------------------------------------------
-def process_input_line(info, splitargs=(), int_columns=(), float_columns=()):
+def process_input_line(info, splitargs=(), int_columns=(), float_columns=(), literal_columns=()):
     """ 
     Attempt to convert all the keys and values in <info> from str to int.
     The keys listed in <splitargs> will be split as colon-separated lists before intification.
@@ -1070,6 +1071,8 @@ def process_input_line(info, splitargs=(), int_columns=(), float_columns=()):
                 info[key] = int(info[key])
             elif key in float_columns:
                 info[key] = float(info[key])
+            elif key in literal_columns:
+                info[key] = ast.literal_eval(info[key])
 
 # ----------------------------------------------------------------------------------------
 def merge_csvs(outfname, csv_list, cleanup=True):
