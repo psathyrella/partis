@@ -33,12 +33,13 @@ Depending on your setup, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
 
 Now you can run individual partis commands (described below), poke around in the code, or run the scons targets `test` or `validate`.
-If you just want to annotate a set of BCR sequences, say at `/path/to/yourseqs.fa`, run
+If you just want to annotate a set of BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
 
 ``` ./bin/annotate --infname /host/path/to/yourseqs.fa```
 
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
 This command by default writes the output csv to the directory that `--infname` came from.
+There's also some example sequences you can run on in `test/example.fa`.
 Depending on your system, 5000 sequences will take perhaps ten minutes -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
 
 To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
