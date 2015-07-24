@@ -247,13 +247,13 @@ class Waterer(object):
             elif code == 'S':
                 continue
             elif code == 'I':
-                qrprintstr += utils.color('red', qrseq[iqr])
-                glprintstr += utils.color('red', '*')
+                qrprintstr += utils.color('light_blue', qrseq[iqr])
+                glprintstr += utils.color('light_blue', '*')
                 indelfo['indels'][-1]['seqstr'] += qrseq[iqr]  # and to the sequence of just this indel
                 igl -= 1
             elif code == 'D':
-                qrprintstr += utils.color('red', '*')
-                glprintstr += utils.color('red', glseq[igl])
+                qrprintstr += utils.color('light_blue', '*')
+                glprintstr += utils.color('light_blue', glseq[igl])
                 indelfo['reversed_seq'] += glseq[igl]  # add the base to the overall sequence with all indels reversed
                 indelfo['indels'][-1]['seqstr'] += glseq[igl]  # and to the sequence of just this indel
                 iqr -= 1
@@ -268,7 +268,7 @@ class Waterer(object):
         print '          %20s %s' % (gene, glprintstr)
         print '          %20s %s' % ('query', qrprintstr)
         for iindel in indelfo['indels']:
-            print '          %10s at %d: %s' % (iindel['type'], iindel['pos'], iindel['seqstr'])
+            print '          %d base %10s at %d: %s' % (iindel['len'], iindel['type'], iindel['pos'], iindel['seqstr'])
         # print '         cigar:', cigarstr
         # print 'Since the HMM does not currently support indels we\'re gonna tell it to *skip* this sequence.'
         # print 'However, if you\'re pretty sure this really is an indel, you can simply add/remove the bases in question by hand and rerun.'

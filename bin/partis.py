@@ -49,7 +49,7 @@ parser.add_argument('--outfname')
 parser.add_argument('--plotdir', help='Base directory to which to write plots (no plot are written if this isn\'t set)')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
 parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999)), help='Temporary working directory (see also <no-clean>)')
-parser.add_argument('--initial-cachefname')
+parser.add_argument('--persistent-cachefname')
 
 # run/batch control
 parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')

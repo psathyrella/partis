@@ -54,24 +54,19 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-    # # ----------------------------------------------------------------------------------------
-    # def merge_cachefiles(self, infnames, outfname):
-    #     for fname in infnames:
-    #         self.read_cachefile(fname)
-    #     self.write_cachefile(outfname)
-
     # ----------------------------------------------------------------------------------------
     def clean(self):
-        if self.args.initial_cachefname is not None:
-            lockfname = self.args.initial_cachefname + '.lock'
+        if self.args.persistent_cachefname is not None:
+            lockfname = self.args.persistent_cachefname + '.lock'
             while os.path.exists(lockfname):
                 print '  waiting for lock on %s' % lockfname
                 time.sleep(0.5)
             lockfile = open(lockfname, 'w')
-            tmp_cachefname = self.args.initial_cachefname + '.tmp'
-            check_call(['cp', '-v', self.args.initial_cachefname, tmp_cachefname])
-            self.merge_files(infnames=[tmp_cachefname, self.hmm_cachefname], outfname=self.args.initial_cachefname)
-            os.remove(tmp_cachefname)
+            if not os.path.exists(self.args.persistent_cachefname):
+                open(self.args.persistent_cachefname, 'w').close()
+            tmp_cachefname = self.args.persistent_cachefname + '.tmp'
+            check_call(['cp', self.args.persistent_cachefname, tmp_cachefname])
+            self.merge_files(infnames=[tmp_cachefname, self.hmm_cachefname], outfname=self.args.persistent_cachefname)
             lockfile.close()
             os.remove(lockfname)
         if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
@@ -551,41 +546,35 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_files(self, infnames, outfname, csv_header=True):
-        # header = None
-        # outfo = []
-        # for iproc in range(n_procs):
-        #     workdir = self.args.workdir + '/hmm-' + str(iproc)
-        #     with opener('r')(workdir + '/' + os.path.basename(fname)) as sub_outfile:
-        #         reader = csv.DictReader(sub_outfile)
-        #         header = reader.fieldnames
-        #         for line in reader:
-        #             outfo.append(line)
-        #     if not self.args.no_clean:
-        #         os.remove(workdir + '/' + os.path.basename(fname))
-
-        # with opener('w')(fname) as outfile:
-        #     writer = csv.DictWriter(outfile, header)
-        #     writer.writeheader()
-        #     for line in outfo:
-        #         writer.writerow(line)
+        """ 
+        Merge <infnames> into <outfname>.
+        NOTE that <outfname> is overwritten with the zero-length file if it exists, otherwise it is created.
+        Some of <infnames> may not exist.
+        """
         assert outfname not in infnames
         start = time.time()
-        with open(infnames[0]) as tmpfile:
-            header = tmpfile.readline().strip()
-        if csv_header:
-            check_call('head -n1 ' + infnames[0] + ' >' + outfname, shell=True)
-        else:
-            open(outfname).close()  # open and close zero-length file
-        cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'' + header + '\' | sort | uniq >>' + outfname
-        # printx cmd
+
+        header = ''
+        with open(outfname, 'w') as outfile:
+            if csv_header:  # if not <csv_header>, we'll just end up with a zero-length file
+                for fname in infnames:
+                    if not os.path.exists(fname) or os.stat(fname).st_size == 0:
+                        continue
+                    with open(fname) as headfile:
+                        reader = csv.DictReader(headfile)
+                        writer = csv.DictWriter(outfile, reader.fieldnames)
+                        writer.writeheader()
+                        header = ','.join(reader.fieldnames)
+                    break
+
+        cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'^' + header + '$\' | sort | uniq >>' + outfname
         check_call(cmd, shell=True)
-        print '    time to merge csv files: %.3f' % (time.time()-start)
-        start = time.time()
 
         if not self.args.no_clean:
             for infname in infnames:
                 os.remove(infname)
-        print '    time to rm csv files: %.3f' % (time.time()-start)
+
+        print '    time to merge csv files: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
@@ -1015,14 +1004,14 @@ class PartitionDriver(object):
         """ Write input file for bcrham """
         print '    writing input'
         # if self.cached_results is None:
-        if self.args.initial_cachefname is not None:
-            check_call(['cp', '-v', self.args.initial_cachefname, self.args.workdir + '/' + os.path.basename(self.hmm_cachefname)])
+        if self.args.persistent_cachefname is not None and os.path.exists(self.args.persistent_cachefname):
+            check_call(['cp', '-v', self.args.persistent_cachefname, self.args.workdir + '/' + os.path.basename(self.hmm_cachefname)])
         # else:
         #     pass
         #     # assert os.path.exists(self.hmm_cachefname)
         #     # self.write_cachefile(self.hmm_cachefname)
 
-        if self.args.action == 'partition' and not self.args.dont_pad_sequences:
+        if (self.args.action == 'partition' or self.args.n_sets > 1) and not self.args.dont_pad_sequences:
             self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
 
         skipped_gene_matches = set()
