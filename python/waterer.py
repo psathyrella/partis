@@ -26,6 +26,7 @@ class Waterer(object):
 
         self.input_info = input_info
         self.remaining_queries = [query for query in self.input_info.keys()]  # we remove queries from this list when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
+        self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.reco_info = reco_info
         self.germline_seqs = germline_seqs
@@ -40,7 +41,7 @@ class Waterer(object):
         self.info['queries'] = []
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
-        self.info['skipped_indel_queries'] = []  # list of queries that had indels
+        # self.info['skipped_indel_queries'] = []  # list of queries that had indels
         self.info['skipped_unknown_queries'] = []
         self.info['indels'] = {}
         if self.args.apply_choice_probs_in_sw:
@@ -88,7 +89,7 @@ class Waterer(object):
             self.execute_command(base_infname, base_outfname, self.args.n_fewer_procs)
             self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
             n_tries += 1
-            if n_tries > 1:
+            if n_tries > 2:
                 self.info['skipped_unknown_queries'] += self.remaining_queries
                 break
 
@@ -101,8 +102,8 @@ class Waterer(object):
         # print '    sw time: %.3f' % (time.time()-start)
         if self.n_unproductive > 0:
             print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
-        if len(self.info['skipped_indel_queries']) > 0:
-            print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
+        # if len(self.info['skipped_indel_queries']) > 0:
+        #     print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
         if len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
         if self.pcounter is not None:
@@ -205,8 +206,13 @@ class Waterer(object):
         print '    processed %d queries' % n_processed
 
         if len(self.remaining_queries) > 0:
-            print '      %d queries with no valid events, increasing mismatch score (%d --> %d) and rerunning them' % (len(self.remaining_queries), self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
-            self.args.match_mismatch[1] += 1
+            if self.new_indels > 0:  # if we skipped some events, and if none of those were because they were indels, then increase mismatch score
+                print '      skipped %d queries (%d indels), rerunning them' % (len(self.remaining_queries), self.new_indels)
+                self.new_indels = 0
+            else:
+                print '      skipped %d queries (%d indels), increasing mismatch score (%d --> %d) and rerunning them' % (len(self.remaining_queries), self.new_indels, self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
+                self.args.match_mismatch[1] += 1
+                self.new_indels = 0
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
@@ -225,12 +231,17 @@ class Waterer(object):
         codestr = ''
         qpos = 0  # position within query sequence
         indelfo = {'reversed_seq' : '', 'indels' : []}  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+        tmp_indices = []
         for code, length in cigars:
             codestr += length * code
             if code == 'I':  # advance qr seq but not gl seq
                 indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # insertion begins at <pos>
+                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]# indel index corresponding to this position in the alignment
             elif code == 'D':  # advance qr seq but not gl seq
                 indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
+                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]# indel index corresponding to this position in the alignment
+            else:
+                tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
             qpos += length
 
         qrprintstr, glprintstr = '', ''
@@ -249,13 +260,13 @@ class Waterer(object):
             elif code == 'I':
                 qrprintstr += utils.color('light_blue', qrseq[iqr])
                 glprintstr += utils.color('light_blue', '*')
-                indelfo['indels'][-1]['seqstr'] += qrseq[iqr]  # and to the sequence of just this indel
+                indelfo['indels'][tmp_indices[icode]]['seqstr'] += qrseq[iqr]  # and to the sequence of just this indel
                 igl -= 1
             elif code == 'D':
                 qrprintstr += utils.color('light_blue', '*')
                 glprintstr += utils.color('light_blue', glseq[igl])
                 indelfo['reversed_seq'] += glseq[igl]  # add the base to the overall sequence with all indels reversed
-                indelfo['indels'][-1]['seqstr'] += glseq[igl]  # and to the sequence of just this indel
+                indelfo['indels'][tmp_indices[icode]]['seqstr'] += glseq[igl]  # and to the sequence of just this indel
                 iqr -= 1
             else:
                 raise Exception('unhandled code %s' % code)
@@ -263,16 +274,13 @@ class Waterer(object):
             iqr += 1
             igl += 1
 
-        # print '\nWARNING in the reasoned opinion of Mssrs. Smith, Waterman (Esq.) the query %s appears to harbor a within-gene indel:' % query_name
         print '\n      indels in %s' % query_name
         print '          %20s %s' % (gene, glprintstr)
         print '          %20s %s' % ('query', qrprintstr)
-        for iindel in indelfo['indels']:
-            print '          %d base %10s at %d: %s' % (iindel['len'], iindel['type'], iindel['pos'], iindel['seqstr'])
-        # print '         cigar:', cigarstr
-        # print 'Since the HMM does not currently support indels we\'re gonna tell it to *skip* this sequence.'
-        # print 'However, if you\'re pretty sure this really is an indel, you can simply add/remove the bases in question by hand and rerun.'
-        # print 'Note that we could do that automatically here... but that\'s really neither very transparent nor principled, so we\'re making you do it by hand for now.'
+        for idl in indelfo['indels']:
+            print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
+        utils.undo_indels(indelfo)
+        print '                       %s' % self.input_info[query_name]['seq']
 
         return indelfo
 
@@ -316,6 +324,7 @@ class Waterer(object):
                     if query_name not in self.info['indels']:
                         self.info['indels'][query_name] = self.get_indel_info(query_name, read.cigarstring, query_seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
                         self.info['indels'][query_name]['reversed_seq'] = query_seq[ : qrbounds[0]] + self.info['indels'][query_name]['reversed_seq'] + query_seq[qrbounds[1] : ]
+                        self.new_indels += 1
                         # print ' query seq  %s' % query_seq
                         # print 'indelfo seq %s' % self.info['indels'][query_name]['reversed_seq']
                         # self.info['skipped_indel_queries'].append(query_name)
@@ -540,9 +549,6 @@ class Waterer(object):
         for region in utils.regions:
             if region not in best:
                 print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
-                # if not self.args.is_data:
-                #     print '    true:'
-                #     utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='    ')
                 return
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases

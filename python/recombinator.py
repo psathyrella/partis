@@ -429,6 +429,7 @@ class Recombinator(object):
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:
                 continue
             seq = reco_event.final_seqs[iseq]
+            reco_event.indelfo[-1]['reversed_seq'] = seq
             pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
             length = numpy.random.geometric(1. / self.args.mean_indel_length)
             if numpy.random.uniform(0, 1) < 0.5:

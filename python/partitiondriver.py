@@ -945,15 +945,13 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def remove_sw_failures(self, query_names):
         """ If any of the queries in <query_names> was unproductive, return an empty list (which will be skipped entirely), otherwise return the original name list """
-        unproductive, indel, unknown = False, False, False
+        unproductive, unknown = False, False
         for qrn in query_names:
             if qrn in self.sw_info['skipped_unproductive_queries']:
                 unproductive = True
-            if qrn in self.sw_info['skipped_indel_queries']:
-                indel = True
             if qrn in self.sw_info['skipped_unknown_queries']:
                 unknown = True
-        if unproductive or indel or unknown:
+        if unproductive or unknown:
             return []
 
         # otherwise they should be in self.sw_info, but doesn't hurt to check
@@ -1080,51 +1078,6 @@ class PartitionDriver(object):
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
-
-    # # ----------------------------------------------------------------------------------------
-    # def read_cachefile(self, fname):
-    #     """ Read cached bcrham partition info """
-    #     if self.cached_results is None:
-    #         self.cached_results = {}
-
-    #     n_boundary_errors, n_unidentified_errors = 0, 0
-    #     unidentified_errors = set()
-    #     with opener('r')(fname) as cachefile:
-    #         reader = csv.DictReader(cachefile)
-    #         for line in reader:
-    #             query = line['unique_ids']
-    #             # seqstr = line['query_seqs']  # colon-separated list of the query sequences corresponding to this cache
-    #             if 'errors' in line and line['errors'] != '':  # not sure why this needed to be an exception
-    #                 tmperrors = line['errors'].strip(':').split(':') if line['errors'] is not None else ''
-    #                 # print 'error in bcrham output %s for sequences:' % (line['errors'])
-    #                 # print '%s' % seqstr.replace(':', '\n')
-    #                 if 'boundary' in tmperrors:
-    #                     n_boundary_errors += 1
-    #                     tmperrors.remove('boundary')
-    #                 if len(tmperrors) > 0:
-    #                     n_unidentified_errors += 1
-    #                     for unid in errors:
-    #                         unidentified_errors.add(unid)
-
-    #             score, naive_seq = None, None
-    #             if line['logprob'] != '':
-    #                 score = float(line['logprob'])
-    #             if line['naive_seq'] != '':
-    #                 naive_seq = line['naive_seq']
-
-    #             if query in self.cached_results:  # make sure we don't get contradicting info
-    #                 if abs(score - self.cached_results[query]['logprob']) > 0.1:  # TODO darn it, I'm not sure why, but this I'm getting logprobs that differ by ~1e-5 for some query strings
-    #                     print 'unequal logprobs: %f %f' % (score, self.cached_results[query]['logprob'])
-    #                 if naive_seq != self.cached_results[query]['naive_seq'] and naive_seq is not None and self.cached_results[query]['naive_seq'] is not None:
-    #                     print 'different naive seqs:\n   %s\n   %s' % (naive_seq, self.cached_results[query]['naive_seq'])
-    #                     if naive_seq is not None:  # only replace the old one if the new one isn't None
-    #                         self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq} # TODO move this back to being an exception when you figure out why it happens
-    #             else:
-    #                 self.cached_results[query] = {'logprob' : score, 'naive_seq' : naive_seq}
-    #     if n_boundary_errors > 0:
-    #         print '    %d boundary errors in bcrham output' % n_boundary_errors
-    #     if n_unidentified_errors > 0:
-    #         print '    %d unidentified errors in bcrham output:\n    %s' % (n_unidentified_errors, ' '.join(unidentified_errors))
 
     # ----------------------------------------------------------------------------------------
     def get_bcrham_truncations(self, line):
@@ -1309,34 +1262,24 @@ class PartitionDriver(object):
             os.remove(self.hmm_outfname)
 
     # ----------------------------------------------------------------------------------------
-    def print_hmm_output(self, line, print_true=False):  #, perfplotter=None):
+    def print_hmm_output(self, line, print_true=False):
         out_str_list = []
-        ilabel = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in utils.get_true_clusters(line['unique_ids'], self.reco_info).values():
-                for iid in range(len(uids)):
-                    true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0), indelfo=self.sw_info['indels'].get(iid, None))
-                    out_str_list.append(true_event_str)
-            ilabel = 'inferred:'
+                synthetic_true_line = dict(self.reco_info[uids[0]])
+                synthetic_true_line['unique_ids'] = uids
+                synthetic_true_line['seqs'] = [self.reco_info[iid]['seq'] for iid in uids]
+                del synthetic_true_line['unique_id']
+                del synthetic_true_line['seq']
+                indelfos = [self.sw_info['indels'].get(iid, None) for iid in uids]
+                event_str = utils.print_reco_event(self.germline_seqs, synthetic_true_line, extra_str='    ', return_string=True, label='true:', indelfos=indelfos)
+                out_str_list.append(event_str)
+                # for iid in range(len(uids)):
+                #     true_event_str = utils.print_reco_event(self.germline_seqs, self.reco_info[uids[iid]], extra_str='    ', return_string=True, label='true:', one_line=(iid != 0), indelfo=self.sw_info['indels'].get(iid, None))
+                #     out_str_list.append(true_event_str)
 
-        if self.args.truncate_n_sets:
-            chops = self.get_bcrham_truncations(line)
-        for iseq in range(0, len(line['unique_ids'])):
-            tmpline = dict(line)
-            tmpline['seq'] = line['seqs'][iseq]
-            if self.args.truncate_n_sets:
-                tmpline['chops'] = chops[iseq]
-            label = ilabel if iseq==0 else ''
-            event_str = utils.print_reco_event(self.germline_seqs, tmpline, extra_str='    ', return_string=True, label=label, one_line=(iseq>0), indelfo=self.sw_info['indels'].get(line['unique_ids'][iseq], None))
-            out_str_list.append(event_str)
-
-            # if iseq == 0:
-            #     true_naive = utils.get_full_naive_seq(self.germline_seqs, self.reco_info[tmpline['unique_ids'][iseq]])
-            #     inf_naive = utils.get_full_naive_seq(self.germline_seqs, tmpline)
-            #     utils.color_mutants(true_naive, inf_naive, print_result=True, extra_str='       mistaken: ')
-
-        # if not self.args.is_data:
-        #     self.print_performance_info(line, perfplotter=perfplotter)
+        event_str = utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
+        out_str_list.append(event_str)
 
         print ''.join(out_str_list),
 

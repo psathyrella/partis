@@ -562,19 +562,46 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     #     print '      ERROR %s failed to add match info' % ' '.join([str(i) for i in ids])
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None):
+def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
+    """ if <line> describes a whole event, with multiple sequences, it'll have <unique_ids> and <seqs> fields; otherwise it'll have <unique_id> and <seq> """
+    event_str_list = []
+    if 'unique_ids' in line:
+        for iseq in range(len(line['unique_ids'])):
+            tmpline = dict(line)
+            del tmpline['unique_ids']  # not that they'd cause any harm, but may as well be tidy
+            del tmpline['seqs']
+            tmpline['seq'] = line['seqs'][iseq]
+            if indelfos is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
+                tmpline['seq'] = indelfos[iseq]['reversed_seq']
+            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, return_string=return_string,
+                                                      label=(label if iseq==0 else ''),
+                                                      one_line=(iseq>0),
+                                                      indelfo=None)
+            event_str_list.append(event_str)
+    else:
+        if indelfo is not None and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
+            indelfo = None
+        event_str = print_seq_in_reco_event(germlines, line, extra_str=extra_str, return_string=return_string, label=label, one_line=one_line, indelfo=indelfo)
+        event_str_list.append(event_str)
+
+    if return_string:
+        return ''.join(event_str_list)
+
+# ----------------------------------------------------------------------------------------
+def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, label='', indelfo=None, one_line=False):
     """ Print ascii summary of recombination event and mutation.
 
     If <one_line>, then only print out the final_seq line.
     """
     reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if 'indels' in line:
-        if len(line['indels']) == 0:
-            indelfo = None
-        else:
-            assert indelfo is None  # don't want indel info from two places
-            indelfo = line['indels']  #{'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
-            reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
+        pass  # need to implement printing for multiple indels and multiple sequences
+        # if len(line['indels']) == 0:
+        #     indelfo = None
+        # else:
+        #     assert indelfo is None  # don't want indel info from two places
+        #     indelfo = line['indels']  #{'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
+        #     reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
 
     v_5p_del = int(line['v_5p_del'])
     v_3p_del = int(line['v_3p_del'])
@@ -588,8 +615,11 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
-    if indelfo is not None:  # and not reverse_indels:
-        add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded_seqs, reverse_indels)
+    if indelfo is not None:
+        if len(indelfo['indels']) == 0:  # TODO make this less hackey
+            indelfo = None
+        else:
+            add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded_seqs, reverse_indels)
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
@@ -752,11 +782,12 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
 
     out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info
-    out_str_list.append('   muted: %4.2f' % (float(n_muted) / n_total))
-    if 'logprob' in line:
-        out_str_list.append('  score: %s' % line['logprob'])
-    if 'cdr3_length' in line:
-        out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
+    out_str_list.append('   %4.2f mut' % (float(n_muted) / n_total))
+    # out_str_list.append(' %4.0f%%' % (100 * float(n_muted) / n_total))
+    # if 'logprob' in line:
+    #     out_str_list.append('  score: %s' % line['logprob'])
+    # if 'cdr3_length' in line:
+    #     out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
     out_str_list.append('\n')
 
     # if print_width is not None:
@@ -1259,6 +1290,23 @@ def add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded
             lengths[thischunk] += lastfo['len']
             eroded_seqs[thischunk] = eroded_seqs[thischunk][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + eroded_seqs[thischunk][lastfo['pos'] - offset : ]
         else:
-            raise Exception('I really doubt we\'ll actually see any indels within insertions')
+            print '     unhandled indel in NTIs'
+            pass
     else:
         pass
+
+# ----------------------------------------------------------------------------------------
+def undo_indels(indelfo):
+    rseq = indelfo['reversed_seq']
+    oseq = rseq  # original sequence
+    for i_indel in range(len(indelfo['indels']) - 1, 0, -1):
+    # for i_indel in range(len(indelfo['indels'])):
+        idl = indelfo['indels'][i_indel]
+        if idl['type'] == 'insertion':
+            oseq = oseq[ : idl['pos']] + idl['seqstr'] + oseq[idl['pos'] : ]
+        elif idl['type'] == 'deletion':
+            if rseq[idl['pos'] : idl['pos'] + idl['len']] != idl['seqstr']:
+                raise Exception('found %s instead of expected insertion (%s)' % (rseq[idl['pos'] : idl['pos'] + idl['len']], idl['seqstr']))
+            oseq = oseq[ : idl['pos']] + oseq[idl['pos'] + idl['len'] : ]
+    print '              reversed %s' % rseq
+    print '              original %s' % oseq

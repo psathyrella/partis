@@ -66,7 +66,7 @@ parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearr
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
 parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a hacktified exponential with mean <n_leaves>)')
-parser.add_argument('--indel-frequency', default=0.01)
+parser.add_argument('--indel-frequency', default=0.01, type=float)
 parser.add_argument('--mean-indel-length', default=5)
 
 # numerical inputs
