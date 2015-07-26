@@ -574,15 +574,16 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             if indelfos is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
                 if 'indels' not in extra_str:
                     extra_str += color('yellow', 'indels')
-                tmpline['seq'] = indelfos[iseq]['reversed_seq']
+                if indelfos[iseq] is not None:
+                    tmpline['seq'] = indelfos[iseq]['reversed_seq']
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, return_string=return_string,
                                                       label=(label if iseq==0 else ''),
                                                       one_line=(iseq>0),
                                                       indelfo=None)
             event_str_list.append(event_str)
     else:
+        tmpline = dict(line)
         if indelfo is not None:  # and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
-            tmpline = dict(line)
             tmpline['seq'] = indelfo['reversed_seq']
             indelfo = None
             if 'indels' not in extra_str:
@@ -601,6 +602,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
     """
     reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if 'indels' in line:
+        # raise Exception('')
         pass  # need to implement printing for multiple indels and multiple sequences
         # if len(line['indels']) == 0:
         #     indelfo = None

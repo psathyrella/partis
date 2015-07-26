@@ -468,7 +468,7 @@ class Waterer(object):
             self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
             self.info['all_best_matches'].add(best[region])
 
-        self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
+        self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
         if self.debug:
             if not self.args.is_data:
                 utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
