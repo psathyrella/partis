@@ -161,12 +161,15 @@ class RecombinationEvent(object):
         assert 'jf_insertion' not in line
         line['fv_insertion'] = ''
         line['jf_insertion'] = ''
-        for imute in range(len(self.final_seqs)):
-            line['seq'] = self.final_seqs[imute]
-            if total_length_from_right > 0:
-                line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
-            line['indels'] = self.indelfo[imute]
-            utils.print_reco_event(self.germlines, line, one_line=(imute!=0 and len(self.indelfo[imute]['indels']) == 0))
+        line['seqs'] = self.final_seqs
+        line['unique_ids'] = [i for i in range(len(self.final_seqs))]
+        utils.print_reco_event(self.germlines, line, indelfos=self.indelfo)
+        # for imute in range(len(self.final_seqs)):
+        #     line['seq'] = self.final_seqs[imute]
+        #     if total_length_from_right > 0:
+        #         line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
+        #     line['indels'] = self.indelfo[imute]
+        #     utils.print_reco_event(self.germlines, line, one_line=(imute!=0 and len(self.indelfo[imute]['indels']) == 0))
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):

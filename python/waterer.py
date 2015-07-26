@@ -279,8 +279,8 @@ class Waterer(object):
         print '          %20s %s' % ('query', qrprintstr)
         for idl in indelfo['indels']:
             print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
-        utils.undo_indels(indelfo)
-        print '                       %s' % self.input_info[query_name]['seq']
+        # utils.undo_indels(indelfo)
+        # print '                       %s' % self.input_info[query_name]['seq']
 
         return indelfo
 
@@ -444,6 +444,10 @@ class Waterer(object):
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         self.info[query_name]['cyst_position'] = codon_positions['v']
         self.info[query_name]['tryp_position'] = codon_positions['j']
+        if self.info[query_name]['cyst_position'] < 0 or self.info[query_name]['cyst_position'] >= len(query_seq):
+            raise Exception('cpos %d invalid for %s (%s)' % (self.info[query_name]['cyst_position'], query_name, query_seq))
+        if self.info[query_name]['tryp_position'] < 0 or self.info[query_name]['tryp_position'] >= len(query_seq):
+            raise Exception('tpos %d invalid for %s (%s)' % (self.info[query_name]['tryp_position'], query_name, query_seq))
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
@@ -467,8 +471,9 @@ class Waterer(object):
         self.info[query_name]['seq'] = query_seq  # only need to add this so I can pass it to print_reco_event
         if self.debug:
             if not self.args.is_data:
-                utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:')
+                utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
+        print query_name, self.info[query_name]['v_5p_del']
 
         if self.pcounter is not None:
             self.pcounter.increment_reco_params(self.info[query_name])

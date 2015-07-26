@@ -66,8 +66,9 @@ parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearr
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
 parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a hacktified exponential with mean <n_leaves>)')
-parser.add_argument('--indel-frequency', default=0.01, type=float)
-parser.add_argument('--mean-indel-length', default=5)
+parser.add_argument('--indel-frequency', default=0.01, type=float, help='fraction of simulated sequences with indels')
+parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
+parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution) ')
 
 # numerical inputs
 parser.add_argument('--hamming-fraction-bounds', default='0.0:0.2', help='Thresholds for hamming distance preclustering -- we run the forward algorithm only on pairs with naive hamming distance within these bounds (pairs below the first value are automatically merged)')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths

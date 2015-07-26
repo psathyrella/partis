@@ -572,6 +572,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             del tmpline['seqs']
             tmpline['seq'] = line['seqs'][iseq]
             if indelfos is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
+                if 'indels' not in extra_str:
+                    extra_str += color('yellow', 'indels')
                 tmpline['seq'] = indelfos[iseq]['reversed_seq']
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, return_string=return_string,
                                                       label=(label if iseq==0 else ''),
@@ -579,9 +581,13 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
                                                       indelfo=None)
             event_str_list.append(event_str)
     else:
-        if indelfo is not None and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
+        if indelfo is not None:  # and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
+            tmpline = dict(line)
+            tmpline['seq'] = indelfo['reversed_seq']
             indelfo = None
-        event_str = print_seq_in_reco_event(germlines, line, extra_str=extra_str, return_string=return_string, label=label, one_line=one_line, indelfo=indelfo)
+            if 'indels' not in extra_str:
+                extra_str += color('yellow', 'indels')
+        event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, return_string=return_string, label=label, one_line=one_line, indelfo=indelfo)
         event_str_list.append(event_str)
 
     if return_string:
@@ -771,6 +777,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
     v_5p_del_space_str = ' '*len(v_5p_del_str)
     j_3p_del_space_str = ' ' * j_3p_del
     if 'chops' in line:
+        assert False  # deprecated
         if line['chops']['left'] > 0:
             v_5p_del_space_str = v_5p_del_space_str[ : -line['chops']['left']]
             final_seq = color('green', '.'*line['chops']['left']) + final_seq
@@ -1297,6 +1304,7 @@ def add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded
 
 # ----------------------------------------------------------------------------------------
 def undo_indels(indelfo):
+    """ not finished """
     rseq = indelfo['reversed_seq']
     oseq = rseq  # original sequence
     for i_indel in range(len(indelfo['indels']) - 1, 0, -1):
@@ -1308,5 +1316,5 @@ def undo_indels(indelfo):
             if rseq[idl['pos'] : idl['pos'] + idl['len']] != idl['seqstr']:
                 raise Exception('found %s instead of expected insertion (%s)' % (rseq[idl['pos'] : idl['pos'] + idl['len']], idl['seqstr']))
             oseq = oseq[ : idl['pos']] + oseq[idl['pos'] + idl['len'] : ]
-    print '              reversed %s' % rseq
-    print '              original %s' % oseq
+    # print '              reversed %s' % rseq
+    # print '              original %s' % oseq

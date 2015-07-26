@@ -417,10 +417,24 @@ class Recombinator(object):
         return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
         reco_event.indelfo[-1]['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
         if self.args.debug:
-            print '        inserting %s at %d' % (inserted_sequence, pos)
-            # print '             before %s' % seq
-            # print '             after  %s' % return_seq
+            print '          inserting %s at %d' % (inserted_sequence, pos)
         return return_seq
+
+    # ----------------------------------------------------------------------------------------
+    def add_single_indel(self, seq, reco_event):
+        pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
+        length = numpy.random.geometric(1. / self.args.mean_indel_length)
+
+        if numpy.random.uniform(0, 1) < 0.5:  # fifty-fifty chance of insertion and deletion
+            new_seq = self.add_shm_insertion(reco_event, seq, pos, length)
+        else:
+            deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
+            reco_event.indelfo[-1]['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
+            if self.args.debug:
+                print '          deleting %d bases at %d' % (length, pos)
+            new_seq = deleted_seq
+
+        return new_seq
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
@@ -429,20 +443,12 @@ class Recombinator(object):
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:
                 continue
             seq = reco_event.final_seqs[iseq]
-            reco_event.indelfo[-1]['reversed_seq'] = seq
-            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
-            length = numpy.random.geometric(1. / self.args.mean_indel_length)
-            if numpy.random.uniform(0, 1) < 0.5:
-                new_seq = self.add_shm_insertion(reco_event, seq, pos, length)
-            else:
-                deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
-                reco_event.indelfo[-1]['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
-                if self.args.debug:
-                    print '        deleting %d bases at %d' % (length, pos)
-                    # print '             before %s' % seq
-                    # print '             after  %s' % deleted_seq
-                new_seq = deleted_seq
-            reco_event.final_seqs[iseq] = new_seq
+            reco_event.indelfo[-1]['reversed_seq'] = seq  # set the original sequence (i.e. with all the indels reversed)
+            n_indels = numpy.random.geometric(1. / self.args.mean_n_indels)
+            print '        add %d indels:' % n_indels
+            for _ in range(n_indels):
+                seq = self.add_single_indel(seq, reco_event)
+            reco_event.final_seqs[iseq] = seq
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
