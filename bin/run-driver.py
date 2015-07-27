@@ -41,6 +41,7 @@ args.actions = utils.get_arg_list(args.actions)
 
 cmd = './bin/partis.py'
 # common_args = ' --n-procs ' + str(args.n_procs)
+common_args = ''
 
 if args.extra_args is not None:
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace(',', ':').replace('+', ' ')

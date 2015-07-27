@@ -40,6 +40,7 @@ parser.add_argument('--print-partitions', action='store_true', help='Print parti
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
 parser.add_argument('--annotation-clustering-thresholds', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
 parser.add_argument('--naive-vsearch', action='store_true')
+parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -66,8 +67,9 @@ parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearr
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
 parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a hacktified exponential with mean <n_leaves>)')
-parser.add_argument('--indel-frequency', default=0.01, type=float, help='fraction of simulated sequences with indels')
-parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
+parser.add_argument('--indel-frequency', default=0., type=float, help='fraction of simulated sequences with indels')
+# disabled for now, but if you want multiple indels per sequence you can use this (you'd also need to uncomment a line in recombinator):
+# parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
 parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution) ')
 
 # numerical inputs

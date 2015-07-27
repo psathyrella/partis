@@ -444,7 +444,7 @@ class Recombinator(object):
                 continue
             seq = reco_event.final_seqs[iseq]
             reco_event.indelfo[-1]['reversed_seq'] = seq  # set the original sequence (i.e. with all the indels reversed)
-            n_indels = numpy.random.geometric(1. / self.args.mean_n_indels)
+            n_indels = 1  #numpy.random.geometric(1. / self.args.mean_n_indels)
             print '        add %d indels:' % n_indels
             for _ in range(n_indels):
                 seq = self.add_single_indel(seq, reco_event)

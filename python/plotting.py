@@ -801,6 +801,36 @@ def get_cluster_size_hist(partition):
     return hist
 
 # ----------------------------------------------------------------------------------------
+def make_mean_hist(hists, debug=False):
+    """ return the hist with bin contents the mean over <hists> of each bin """
+    binvals = {}
+    for hist in hists:
+        if debug:
+            print '    sub',
+        for ib in range(0, hist.n_bins + 2):
+            low_edge = hist.low_edges[ib]
+            if low_edge not in binvals:
+                binvals[low_edge] = 0.
+            binvals[low_edge] += hist.bin_contents[ib]
+            if debug:
+                print '   ', low_edge, hist.bin_contents[ib],
+        if debug:
+            print ''
+    binlist = sorted(binvals.keys())
+    meanhist = Hist(len(binlist) - 2, binlist[1], binlist[-1], binlist[1 : -1])
+    if debug:
+        print '   mean',
+    for ib in range(len(binlist)):
+        meanhist.set_ibin(ib, binvals[binlist[ib]])
+        if debug:
+            print '   ', meanhist.low_edges[ib], meanhist.bin_contents[ib],
+    if debug:
+        print ''
+
+    meanhist.normalize()
+    return meanhist
+
+# ----------------------------------------------------------------------------------------
 def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
     fsize = 20
     mpl.rcParams.update({

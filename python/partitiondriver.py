@@ -830,7 +830,7 @@ class PartitionDriver(object):
         return maxima
 
     # ----------------------------------------------------------------------------------------
-    def pad_seqs_to_same_length(self, debug=True):
+    def pad_seqs_to_same_length(self, debug=False):
         """
         Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.

@@ -275,20 +275,25 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
     basedir = fsdir + '/' + label
     expected_methods = ['true', 'vollmers-0.9', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     tmp_adj_mis = OrderedDict()
-    for isub in range(args.n_subsets):
-        subdir = basedir + '/subset-' + str(isub)
-        for method in expected_methods:
+    for method in expected_methods:
+        method_hists = []
+        for isub in range(args.n_subsets):
+            subdir = basedir + '/subset-' + str(isub)
+
             # hists
             histfname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/hists/' + method + '.csv'
-            if method == 'true':  # or method == 'naive-hamming-partition':
-                these_hists[method + str(isub)] = Hist(fname=histfname)
+            method_hists.append(Hist(fname=histfname))
             if method == 'true':
                 continue
+
             # adj mis
             fname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/adj_mis/' + method + '.csv'
             if method not in tmp_adj_mis:
                 tmp_adj_mis[method] = []
             tmp_adj_mis[method].append(read_adj_mi(fname))
+
+        these_hists[method] = plotting.make_mean_hist(method_hists)
+
     plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
     plotting.plot_cluster_size_hists(plotdir + '/plots/' + leafmutstr(n_leaves, mut_mult) + '.svg', these_hists, title='%d leaves, %dx mutation' % (n_leaves, mut_mult), legends=legends, xmax=n_leaves*3.01)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
@@ -567,8 +572,6 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         return
     elif action == 'compare-subsets':
         assert False
-        # compare_subsets(label, n_leaves, mut_mult)
-        # return
     else:
         raise Exception('bad action %s' % action)
 
