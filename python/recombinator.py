@@ -438,14 +438,19 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
+        if self.args.debug:
+            print '      indels'
         for iseq in range(len(reco_event.final_seqs)):
             reco_event.indelfo.append({'reversed_seq' : '', 'indels' : []})
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:
+                if self.args.debug:
+                    print '        0'
                 continue
             seq = reco_event.final_seqs[iseq]
             reco_event.indelfo[-1]['reversed_seq'] = seq  # set the original sequence (i.e. with all the indels reversed)
             n_indels = 1  #numpy.random.geometric(1. / self.args.mean_n_indels)
-            print '        add %d indels:' % n_indels
+            if self.args.debug:
+                print '        %d' % n_indels
             for _ in range(n_indels):
                 seq = self.add_single_indel(seq, reco_event)
             reco_event.final_seqs[iseq] = seq

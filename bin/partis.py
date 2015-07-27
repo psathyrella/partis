@@ -70,7 +70,7 @@ parser.add_argument('--constant-number-of-leaves', action='store_true', help='Gi
 parser.add_argument('--indel-frequency', default=0., type=float, help='fraction of simulated sequences with indels')
 # disabled for now, but if you want multiple indels per sequence you can use this (you'd also need to uncomment a line in recombinator):
 # parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
-parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution) ')
+parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution)')
 
 # numerical inputs
 parser.add_argument('--hamming-fraction-bounds', default='0.0:0.2', help='Thresholds for hamming distance preclustering -- we run the forward algorithm only on pairs with naive hamming distance within these bounds (pairs below the first value are automatically merged)')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths

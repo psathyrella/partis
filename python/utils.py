@@ -529,7 +529,8 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
         assert end[chkreg] >= 0
         assert end[chkreg] >= start[chkreg]
     # print end['j'], len(line['seq']), line['v_5p_del'], line['j_3p_del']
-    assert end['j'] == len(line['seq'])
+    if end['j'] != len(line['seq']):
+        raise Exception('end of j %d not equal to sequence length %d in %s' % (end['j'], len(line['seq']), line['unique_id']))
 
     return (start[return_reg], end[return_reg])
 
@@ -574,7 +575,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             if indelfos is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
                 if 'indels' not in extra_str:
                     extra_str += color('yellow', 'indels')
-                if indelfos[iseq] is not None:
+                if indelfos[iseq] is not None and len(indelfos[iseq]['indels']) > 0:
                     tmpline['seq'] = indelfos[iseq]['reversed_seq']
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, return_string=return_string,
                                                       label=(label if iseq==0 else ''),

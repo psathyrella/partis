@@ -25,6 +25,7 @@ parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
 parser.add_argument('--mutation-multipliers', default='1')
+parser.add_argument('--indels', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-subsets', type=int)
@@ -66,11 +67,14 @@ elif args.dataset == 'adaptive':
 
 # ----------------------------------------------------------------------------------------
 def leafmutstr(n_leaves, mut_mult):
-    return 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
+    return_str = 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
+    if args.indels:
+        return_str += '-indels'
+    return return_str
 
 # ----------------------------------------------------------------------------------------
 def get_simfname(label, n_leaves, mut_mult):
-    return fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'  # NOTE duplicate code
+    return fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'
 
 # ----------------------------------------------------------------------------------------
 def generate_incorrect_partition(true_partition, n_misassigned, error_type, debug=False):
@@ -420,6 +424,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
     if n_leaves is not None:
         simfname = get_simfname(label, n_leaves, mut_mult)
+
         if args.subset is not None:
             ntot = int(check_output(['wc', '-l', simfname]).split()[0]) - 1
             subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
@@ -435,6 +440,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
                 istop = istart + n_per_subset - 1
                 check_call('sed -n \'' + str(istart) + ',' + str(istop) + ' p\' ' + simfname + '>>' + subsimfname, shell=True)
             simfname = subsimfname
+
         if args.istartstop is not None:
             subsimfname = simfname.replace(label + '/', label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
             if os.path.exists(subsimfname):
@@ -446,6 +452,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
                 check_call('head -n1 ' + simfname + ' >' + subsimfname, shell=True)
                 check_call('sed -n \'' + str(args.istartstop[0] + 2) + ',' + str(args.istartstop[1] + 1) + ' p\' ' + simfname + '>>' + subsimfname, shell=True)  # NOTE conversion from standdard zero indexing to sed inclusive one-indexing (and +1 for header line)
             simfname = subsimfname
+
     extras = []
 
     def output_exists(outfname):
@@ -469,6 +476,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd += ' --simfname ' + simfname
         extras += ['--n-sim-events', int(float(n_sim_seqs) / n_leaves)]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
+        if args.indels:
+            extras += ['--indel-frequency', 0.5]
         n_procs = 10
     elif action == 'cache-simu-parameters':
         if os.path.exists(simfname.replace('.csv', '')):
@@ -581,7 +590,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         n_proc_str += ':10'
         extras += ['--slurm', '--workdir', fsdir + '/_tmp/' + str(random.randint(0,99999))]
         
-    cmd += ' --n-procs ' + n_proc_str
+    extras += ['--n-procs', n_proc_str]
     # extras += ['--print-partitions', ]
 
     cmd += utils.get_extra_str(extras)
@@ -601,7 +610,9 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     time.sleep(5)
 
 # ----------------------------------------------------------------------------------------
-n_to_partition = 1300
+n_to_partition = 5000
+if args.subset is not None:
+    1300
 if args.istartstop is not None:
     n_to_partition = args.istartstop[1] - args.istartstop[0]
 n_data_to_cache = 50000

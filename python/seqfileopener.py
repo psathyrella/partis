@@ -49,19 +49,22 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
     n_queries = 0
     for line in reader:
         utils.process_input_line(line, int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'), literal_columns=('indels'))
+        unique_id = line[name_column]
         # if command line specified query or reco ids, skip other ones
-        if queries is not None and line[name_column] not in queries:
+        if queries is not None and unique_id not in queries:
             continue
         if reco_ids is not None and line['reco_id'] not in reco_ids:
             continue
 
-        input_info[line[name_column]] = {'unique_id':line[name_column], 'seq':line[seq_column]}
+        input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[seq_column]}
         if not is_data:
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s -- if this is data add option --is-data' % fname)
-            reco_info[line['unique_id']] = line
+            reco_info[unique_id] = dict(line)
+            if 'indels' in line and line['indels']['reversed_seq'] != '':  # TODO unhackify this
+                reco_info[unique_id]['seq'] = line['indels']['reversed_seq']
             if germline_seqs is not None:
-                utils.add_match_info(germline_seqs, line, cyst_positions, tryp_positions)
+                utils.add_match_info(germline_seqs, reco_info[unique_id], cyst_positions, tryp_positions)
         n_queries += 1
         if n_max_queries > 0 and n_queries >= n_max_queries:
             break

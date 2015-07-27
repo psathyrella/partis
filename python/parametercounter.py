@@ -54,7 +54,10 @@ class ParameterCounter(object):
     def increment_mutation_params(self, info):
         self.mute_total += 1
         self.mutefreqer.increment(info)
-        for nuke in info['seq']:
+        seq = info['seq']
+        # if 'indels' in info:
+        #     seq = info['indels']['reversed_seq']  # TODO unhackify this
+        for nuke in seq:
             if nuke in utils.ambiguous_bases:
                 continue
             self.counts['seq_content'][nuke] += 1
