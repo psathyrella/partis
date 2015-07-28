@@ -800,8 +800,8 @@ class PartitionDriver(object):
 
         maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}  #, 'fv_insertion_len' : None, 'jf_insertion_len' : None}
         for query in self.sw_info['queries']:
-            fvstuff = len(swfo['fv_insertion']) - swfo['v_5p_del']
-            jfstuff = len(swfo['jf_insertion']) - swfo['j_3p_del']
+            fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
+            jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
 
             for v_match in all_v_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
                 gl_cpos = self.cyst_positions[v_match]['cysteine-position'] + fvstuff
@@ -1027,7 +1027,8 @@ class PartitionDriver(object):
         #     # assert os.path.exists(self.hmm_cachefname)
         #     # self.write_cachefile(self.hmm_cachefname)
 
-        if (self.args.action == 'partition' or self.args.n_sets > 1) and not self.args.dont_pad_sequences:
+        # if (self.args.action == 'partition' or self.args.n_sets > 1) and not self.args.dont_pad_sequences:
+        if not self.args.dont_pad_sequences:
             self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
 
         skipped_gene_matches = set()

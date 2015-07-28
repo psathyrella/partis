@@ -473,7 +473,6 @@ class Waterer(object):
             if not self.args.is_data:
                 utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
-        print query_name, self.info[query_name]['v_5p_del']
 
         if self.pcounter is not None:
             self.pcounter.increment_reco_params(self.info[query_name])
