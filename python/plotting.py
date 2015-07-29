@@ -877,13 +877,21 @@ def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
               'naive-hamming-partition' : '#cc0000',
               'vollmers-0.5' : '#3333ff',
               'vollmers-0.9' : 'grey',
-              'changeo' :  '#3399ff'
+              'changeo' :  '#3399ff',
+              'mixcr' : '#7b68ee'
+              # 'v-true' : '#006600',
+              # 'cdr3-true' : '#006600',
+              # 'v-indels' : '#cc0000',
+              # 'cdr3-indels' : '#cc0000',
     }
     linewidths = {'true' : 10,
                   'partis' : 4,
                   'vollmers-0.5' : 4,
                   'vollmers-0.9' : 8,
-                  'changeo' : 4
+                  'changeo' : 4,
+                  'mixcr' : 4
+                  # 'v-true' : 10,
+                  # 'cdr3-true' : 10
               }
 
     plots = {}
@@ -897,9 +905,15 @@ def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
             linestyle = '-.'
         elif 'naive-hamming-partition' in name:
             linestyle = '--'
-        elif name == 'true':
+        elif 'true' in name:
             linestyle = '--'
             alpha = 0.5
+        # if 'v-' in name:
+        #     linestyle = '-'
+        #     # alpha = 1
+        # elif 'cdr3-' in name:
+        #     linestyle = '--'
+        #     # alpha = 0.5
         # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
         hist.normalize()
         plots[name] = ax.plot(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
