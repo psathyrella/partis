@@ -10,11 +10,12 @@ import utils
 
 def run_cluster(cl, iclust=None):
     cmd = './bin/run-driver.py --label ' + label + ' --action run-viterbi --is-data --datafname VRC01_heavy_chains-dealigned.fasta'  # --simfname ' + os.path.dirname(infname) + '/simu-foo-bar.csv'
-    # cmd += ' --outfname _tmp/chaim/' + str(iclust) + '.csv'
+    # cmd += ' --outfname '
     extras = ['--n-sets', len(cl), '--queries', ':'.join(cl), '--debug', 1, '--sw-debug', 0, '--n-procs', 1, '--n-best-events', 1]
     cmd += utils.get_extra_str(extras)
     print cmd
-    check_call(cmd.split())
+    # check_call(cmd.split())
+    Popen(cmd + ' >_tmp/chaim/' + str(iclust) + '.csv', shell=True)
 
 label = 'chaim-test'
 # infname = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/' + label + '/partitions.csv'

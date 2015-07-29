@@ -53,16 +53,16 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            '0.1-true-singletons' : '10% random singletons',
            '0.1-true-reassign' : '10% random reassign',
            'mixcr' : 'MiXCR'
-           # 'v-true' : 'true (V indels)',
-           # 'cdr3-true' : 'true (CDR3 indels)',
-           # 'v-indels' : 'partis (V indels)',
-           # 'cdr3-indels' : 'partis (CDR3 indels)',
            }
 
 
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 
 # # ----------------------------------------------------------------------------------------
+# legends['v-true'] = 'true (V indels)'
+# legends['cdr3-true'] = 'true (CDR3 indels)'
+# legends['v-indels'] = 'partis (V indels)'
+# legends['cdr3-indels'] = 'partis (CDR3 indels)'
 # args.is_data = False
 # args.use_all_steps = False
 # args.normalize_axes = []
@@ -70,12 +70,12 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('v-indels.csv', is_data=False)
 # v_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-# args.infnames = ['v-indels-partitions.csv', ]
+# args.infnames = ['v-indels-partitions-new.csv', ]
 # v_cplot = ClusterPlot(args)
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('cdr3-indels.csv', is_data=False)
 # cdr3_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-# args.infnames = ['cdr3-indels-partitions.csv', ]
+# args.infnames = ['cdr3-indels-partitions-new.csv', ]
 # cdr3_cplot = ClusterPlot(args)
 # print 'v-indels: %f' % v_cplot.adj_mi_at_max_logprob
 # print 'cdr3-indels: %f' % cdr3_cplot.adj_mi_at_max_logprob
@@ -86,7 +86,7 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 #                                      ['cdr3-true', cdr3_truehist],
 #                                      ['cdr3-indels', cdr3_cplot.tmp_cluster_size_hist]
 #                                  ]),
-#                                  title='', legends=legends, xmax=10*3.01)
+#                                  title='%d leaves, %dx mutation' % (10, 1), legends=legends, xmax=10*3.01)
 # sys.exit()
 # # ----------------------------------------------------------------------------------------
 

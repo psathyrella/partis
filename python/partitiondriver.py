@@ -1187,7 +1187,6 @@ class PartitionDriver(object):
                 same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
                 if same_event is None:
                     same_event = -1
-                id_str = ''.join(['%20s ' % i for i in ids])
 
                 # check for errors
                 if line['nth_best'] == 0:  # if this is the first line for this set of ids (i.e. the best viterbi path or only forward score)
@@ -1199,7 +1198,10 @@ class PartitionDriver(object):
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
-                        print '%s   %d' % (id_str, same_event)
+                        print '      %s' % ':'.join(ids),
+                        if not self.args.is_data:
+                            print '   %d' % same_event,
+                        print ''
                     self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
                 if line['nth_best'] == 0 and (line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
                     if pcounter is not None:
@@ -1295,7 +1297,7 @@ class PartitionDriver(object):
                 event_str = utils.print_reco_event(self.germline_seqs, synthetic_true_line, extra_str='    ', return_string=True, label='true:', indelfos=indelfos)
                 out_str_list.append(event_str)
 
-        event_str = utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
+        event_str = utils.print_reco_event(self.germline_seqs, line, extra_str='xxx', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
         out_str_list.append(event_str)
 
         print ''.join(out_str_list),
