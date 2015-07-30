@@ -24,7 +24,8 @@ class ClusterPlot(object):
         self.final_logweights = []
         self.tmp_n_true_clusters = None
         for fname in self.args.infnames:
-            print fname
+            if self.args.debug:
+                print fname
             with open(fname) as infile:
                 for line in csv.DictReader(infile):
                     if not self.args.use_all_steps and int(line['n_procs']) != 1:  # skip any preliminary steps with more than one process
@@ -81,23 +82,26 @@ class ClusterPlot(object):
         max_adj_mi_means = {'logprobs' : weighted_mean_rootvariance(max_adj_mi['logprobs'], max_adj_mi['weights']),
                             'adj_mis' : weighted_mean_rootvariance(max_adj_mi['adj_mis'], max_adj_mi['weights'])}
 
-        print 'max logprob step %.1f:' % self.imaxes['logprob'][0]
-        print '     logprob: %.1f +/- %.1e' % max_logprob_means['logprobs']
-        print '      adj_mi: %.4f +/- %.1e' % max_logprob_means['adj_mis']
-        print 'max adj_mi step %.1f:' % self.imaxes['adj_mi'][0]
-        print '     logprob: %.1f +/- %.1e' % max_adj_mi_means['logprobs']
-        print '      adj_mi: %.4f +/- %.1e' % max_adj_mi_means['adj_mis']
-        print 'change: %.1f steps' % mean_delta_imax[0]
+        if self.args.debug:
+            print 'max logprob step %.1f:' % self.imaxes['logprob'][0]
+            print '     logprob: %.1f +/- %.1e' % max_logprob_means['logprobs']
+            print '      adj_mi: %.4f +/- %.1e' % max_logprob_means['adj_mis']
+            print 'max adj_mi step %.1f:' % self.imaxes['adj_mi'][0]
+            print '     logprob: %.1f +/- %.1e' % max_adj_mi_means['logprobs']
+            print '      adj_mi: %.4f +/- %.1e' % max_adj_mi_means['adj_mis']
+            print 'change: %.1f steps' % mean_delta_imax[0]
         logprob_at_adj_mi = max_adj_mi_means['logprobs'][0]
         logprob_at_logprob = max_logprob_means['logprobs'][0]
-        print '     logprob: %.1f (delta %.3f)' % (logprob_at_adj_mi - logprob_at_logprob, (logprob_at_adj_mi - logprob_at_logprob) / logprob_at_logprob)
-        print '      adj_mi: %.4f' % (max_adj_mi_means['adj_mis'][0] - max_logprob_means['adj_mis'][0])
+        if self.args.debug:
+            print '     logprob: %.1f (delta %.3f)' % (logprob_at_adj_mi - logprob_at_logprob, (logprob_at_adj_mi - logprob_at_logprob) / logprob_at_logprob)
+            print '      adj_mi: %.4f' % (max_adj_mi_means['adj_mis'][0] - max_logprob_means['adj_mis'][0])
 
         self.adj_mi_at_max_logprob = max_logprob_means['adj_mis'][0]
         tmp_ipath = 0  # NOTE only for the first path a.t.m. TODO fix that
         self.tmp_n_clusters = self.n_clusters[tmp_ipath][int(self.imaxes['logprob'][0])]  # [0] is because imaxes is (mean, err)
         self.tmp_cluster_size_hist = self.hists[tmp_ipath][int(self.imaxes['logprob'][0])]
-        print '   n_clusters at max logprob for zeroth path: %d' % self.tmp_n_clusters
+        if self.args.debug:
+            print '   n_clusters at max logprob for zeroth path: %d' % self.tmp_n_clusters
 
     # ----------------------------------------------------------------------------------------
     def plot(self):
@@ -109,7 +113,8 @@ class ClusterPlot(object):
         
         min_logprob, max_logprob = None, None
         min_logprobs, max_logprobs = {}, {}  #[None for _ in range(len(logprobs.keys()))], [None for _ in range(len(logprobs.keys()))]
-        print '%d paths' % len(self.logprobs.keys())
+        if self.args.debug:
+            print '%d paths' % len(self.logprobs.keys())
         for ipath in self.logprobs.keys():
             # while len(logprobs[ipath]) < max_length:
             #     logprobs[ipath].append(None)

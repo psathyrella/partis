@@ -831,7 +831,47 @@ def make_mean_hist(hists, debug=False):
     return meanhist
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
+legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
+           'partition partis' : 'full partis',
+           'partition' : 'full partis',
+           'naive-hamming-partition partis' : 'naive partis',
+           'naive-hamming-partition' : 'naive partis',
+           'vsearch-partition partis' : 'vsearch partis',
+           'vsearch-partition' : 'vsearch partis',
+           'changeo' : 'Change-O',
+           '0.1-true-singletons' : '10% random singletons',
+           '0.1-true-reassign' : '10% random reassign',
+           'mixcr' : 'MiXCR'
+           }
+
+colors = {'true' : '#006600',
+          'partition partis' : '#cc0000',
+          'vsearch-partition partis' : '#cc0000',
+          'naive-hamming-partition partis' : '#cc0000',
+          'partition' : '#cc0000',
+          'vsearch-partition' : '#cc0000',
+          'naive-hamming-partition' : '#cc0000',
+          'vollmers-0.5' : '#3333ff',
+          'vollmers-0.9' : 'grey',
+          'changeo' :  '#3399ff',
+          'mixcr' : '#7b68ee'# ,  #---
+          # 'v-true' : '#006600',
+          # 'cdr3-true' : '#006600',
+          # 'v-indels' : '#cc0000',
+          # 'cdr3-indels' : '#cc0000'
+}
+linewidths = {'true' : 10,
+              'partis' : 4,
+              'vollmers-0.5' : 4,
+              'vollmers-0.9' : 8,
+              'changeo' : 4,
+              'mixcr' : 4# ,  #-----
+              # 'v-true' : 10,
+              # 'cdr3-true' : 10
+          }
+
+# ----------------------------------------------------------------------------------------
+def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -868,32 +908,6 @@ def plot_cluster_size_hists(outfname, hists, title, legends, xmax=None):
     fig.tight_layout()
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
     # dark red '#A52A2A',
-    colors = {'true' : '#006600',
-              'partition partis' : '#cc0000',
-              'vsearch-partition partis' : '#cc0000',
-              'naive-hamming-partition partis' : '#cc0000',
-              'partition' : '#cc0000',
-              'vsearch-partition' : '#cc0000',
-              'naive-hamming-partition' : '#cc0000',
-              'vollmers-0.5' : '#3333ff',
-              'vollmers-0.9' : 'grey',
-              'changeo' :  '#3399ff',
-              'mixcr' : '#7b68ee'# ,  #---
-              # 'v-true' : '#006600',
-              # 'cdr3-true' : '#006600',
-              # 'v-indels' : '#cc0000',
-              # 'cdr3-indels' : '#cc0000'
-    }
-    linewidths = {'true' : 10,
-                  'partis' : 4,
-                  'vollmers-0.5' : 4,
-                  'vollmers-0.9' : 8,
-                  'changeo' : 4,
-                  'mixcr' : 4# ,  #-----
-                  # 'v-true' : 10,
-                  # 'cdr3-true' : 10
-              }
-
     plots = {}
     for name, hist in hists.items():
         if 'vollmers' in name:

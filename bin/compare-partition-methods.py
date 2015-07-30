@@ -20,17 +20,20 @@ import utils
 from clusterplot import ClusterPlot
 from glomerator import Glomerator
 
+fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
 parser.add_argument('--mutation-multipliers', default='1')
+parser.add_argument('--data', action='store_true')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--bak', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
+parser.add_argument('--startstoplist')  # list of istartstops for comparisons
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
@@ -39,24 +42,12 @@ args.actions = utils.get_arg_list(args.actions)
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
+args.startstoplist = utils.get_arg_list(args.startstoplist)
 
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
-legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
-           'partition partis' : 'full partis',
-           'partition' : 'full partis',
-           'naive-hamming-partition partis' : 'naive partis',
-           'naive-hamming-partition' : 'naive partis',
-           'vsearch-partition partis' : 'vsearch partis',
-           'vsearch-partition' : 'vsearch partis',
-           'changeo' : 'Change-O',
-           '0.1-true-singletons' : '10% random singletons',
-           '0.1-true-reassign' : '10% random reassign',
-           'mixcr' : 'MiXCR'
-           }
-
-
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
+from plotting import legends, colors, linewidths
 
 # # ----------------------------------------------------------------------------------------
 # legends['v-true'] = 'true (V indels)'
@@ -64,6 +55,7 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 # legends['v-indels'] = 'partis (V indels)'
 # legends['cdr3-indels'] = 'partis (CDR3 indels)'
 # args.is_data = False
+# args.debug = False
 # args.use_all_steps = False
 # args.normalize_axes = []
 # args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
@@ -86,7 +78,7 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 #                                      ['cdr3-true', cdr3_truehist],
 #                                      ['cdr3-indels', cdr3_cplot.tmp_cluster_size_hist]
 #                                  ]),
-#                                  title='%d leaves, %dx mutation' % (10, 1), legends=legends, xmax=10*3.01)
+#                                  title='%d leaves, %dx mutation' % (10, 1), xmax=10*3.01)
 # sys.exit()
 # # ----------------------------------------------------------------------------------------
 
@@ -94,10 +86,11 @@ if args.dataset == 'stanford':
     datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
     files = [ datadir + '/' + f for f in os.listdir(datadir)]
 elif args.dataset == 'adaptive':
-    datadirs = [ '/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/' + h for h in humans['adaptive'] ]
-    files = []
-    for datadir in datadirs:
-        files += [ datadir + '/' + fname for fname in os.listdir(datadir) if '-M_merged.tsv.bz2' in fname ]  # if you switch to naive (N), be careful 'cause A is split in pieces
+    # files = []
+    # datadirs = [ '/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/' + h for h in humans['adaptive'] ]
+    # for datadir in datadirs:
+    #     files += [ datadir + '/' + fname for fname in os.listdir(datadir) if '-M_merged.tsv.bz2' in fname ]  # if you switch to naive (N), be careful 'cause A is split in pieces
+    files = [ fsdir.replace('_output', 'data') + '/' + args.dataset + '/' + human + '/shuffled.csv' for human in humans[args.dataset]]
 
 # ----------------------------------------------------------------------------------------
 def leafmutstr(n_leaves, mut_mult):
@@ -107,8 +100,43 @@ def leafmutstr(n_leaves, mut_mult):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def get_simfname(label, n_leaves, mut_mult):
-    return fsdir + '/' + label + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'
+def get_outdirname(label, no_subset=False):
+    outdirname = fsdir + '/' + label
+    if not no_subset:
+        if args.subset is not None:
+            outdirname += '/subset-' + str(args.subset)
+        if args.istartstop is not None:
+            outdirname += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+    return outdirname
+
+# ----------------------------------------------------------------------------------------
+def get_simfname(label, n_leaves, mut_mult, no_subset=False):
+    return get_outdirname(label, no_subset=no_subset) + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'
+
+# ----------------------------------------------------------------------------------------
+def get_mixcr_outdir(label, n_leaves, mut_mult):
+    basedir = '/fh/fast/matsen_e/dralph/work/mixcr/' + label
+    if args.data:
+        outdir = basedir + '/data'
+    else:
+        outdir = basedir + '/' + leafmutstr(n_leaves, mut_mult)
+    if args.subset is not None:
+        outdir += '/subset-' + str(args.subset)
+    if args.istartstop is not None:
+        outdir += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+    return outdir
+
+# ----------------------------------------------------------------------------------------
+def get_changeo_outdir(label, n_leaves, mut_mult):
+    if args.bak:
+        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo.bak/' + label
+    else:
+        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo/' + label
+    if args.data:
+        imgtdir = changeo_fsdir + '/data'
+    else:    
+        imgtdir = changeo_fsdir + '/' + leafmutstr(n_leaves, mut_mult).replace('-', '_')
+    return imgtdir
 
 # ----------------------------------------------------------------------------------------
 def generate_incorrect_partition(true_partition, n_misassigned, error_type, debug=False):
@@ -164,8 +192,8 @@ def write_latex_table(adj_mis):
             print '\\\\'
 
 # ----------------------------------------------------------------------------------------
-def parse_vollmers(these_hists, these_adj_mis, simfname, outdir, reco_info):
-    vollmers_fname = simfname.replace('.csv', '-run-viterbi.csv')
+def parse_vollmers(these_hists, these_adj_mis, seqfname, outdir, reco_info):
+    vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
         for line in vreader:
@@ -173,20 +201,23 @@ def parse_vollmers(these_hists, these_adj_mis, simfname, outdir, reco_info):
             histfname = outdir + '/hists/vollmers-'  + line['threshold'] + '.csv'
             vhist.write(histfname)
             these_hists['vollmers-' + line['threshold']] = vhist
-            these_adj_mis['vollmers-' + line['threshold']] = float(line['adj_mi']), -1.
-            write_adj_mi(float(line['adj_mi']), outdir + '/adj_mis/' + os.path.basename(histfname))
+            if not args.data:
+                these_adj_mis['vollmers-' + line['threshold']] = float(line['adj_mi']), -1.
+                print '    %s: %f' % ('vollmers-' + line['threshold'], float(line['adj_mi']))
+                write_adj_mi(float(line['adj_mi']), outdir + '/adj_mis/' + os.path.basename(histfname))
 
-            # truehist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['true_clusters']))  # true partition is also written here, for lack of a better place (note that it's of course the same for all thresholds)
-            truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-            truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
-            these_hists['true'] = truehist
+                # truehist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['true_clusters']))  # true partition is also written here, for lack of a better place (note that it's of course the same for all thresholds)
+                truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
+                truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
+                these_hists['true'] = truehist
 
 # ----------------------------------------------------------------------------------------
 def parse_changeo(these_hists, these_adj_mis, simfname, simfbase, outdir, reco_info):
+    assert not is_data  # need to update parsers for data
     
-    indir = fsdir.replace('/partis-dev/_output', '/changeo')
-    if args.bak:
-        indir = indir.replace('changeo', 'changeo.bak')
+    indir = get_changeo_outdir(label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
+    # if args.bak:
+    #     indir = indir.replace('changeo', 'changeo.bak')
     if args.bak:
         infname = indir + '/' + simfbase.replace('-', '_') + changeorandomcrapstr
     else:
@@ -211,10 +242,12 @@ def parse_changeo(these_hists, these_adj_mis, simfname, simfbase, outdir, reco_i
     these_hists['changeo'].write(outdir + '/hists/changeo.csv')
     adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
     check_call(['cp', adj_mi_fname, outdir + '/adj_mis/changeo.csv'])
-    these_adj_mis['changeo'] = read_adj_mi(adj_mi_fname)
+    these_adj_mis['changeo'] = (read_adj_mi(adj_mi_fname), -1.)
+    print '    %s: %f' % ('changeo', these_adj_mis['changeo'][0])
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(these_hists, these_adj_mis, simfname, outdir, reco_info):
+    assert not is_data  # need to update parsers for data
     mixfname = simfname.replace('.csv', '-mixcr.tsv')
     cluster_size_list = []  # put 'em in a list first so we know where to put the hist limits
     max_cluster_size = 1
@@ -233,17 +266,20 @@ def parse_mixcr(these_hists, these_adj_mis, simfname, outdir, reco_info):
     these_adj_mis['mixcr'] = -1., -1.
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(action, these_hists, these_adj_mis, simfname, outdir):
-    args.infnames = [simfname.replace('.csv', '-' + action + '.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
-    args.is_data = False
+def parse_partis(action, these_hists, these_adj_mis, seqfname, outdir):
+    args.infnames = [seqfname.replace('.csv', '-' + action + '.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
+    args.is_data = args.data
     args.use_all_steps = False
     args.normalize_axes = []
+    args.debug = False
     args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
     cplot = ClusterPlot(args)
     cplot.tmp_cluster_size_hist.write(outdir + '/hists/' + action + '.csv')
     these_hists[action + ' partis'] = cplot.tmp_cluster_size_hist
-    these_adj_mis[action + ' partis'] = cplot.adj_mi_at_max_logprob, -1.
-    write_adj_mi(cplot.adj_mi_at_max_logprob, outdir + '/adj_mis/' + action + '.csv')
+    if not args.data:
+        these_adj_mis[action + ' partis'] = cplot.adj_mi_at_max_logprob, -1.
+        print '    %s: %f' % (action + ' partis', cplot.adj_mi_at_max_logprob)
+        write_adj_mi(cplot.adj_mi_at_max_logprob, outdir + '/adj_mis/' + action + '.csv')
 
 # ----------------------------------------------------------------------------------------
 def write_adj_mi(adj_mi, fname):
@@ -259,7 +295,7 @@ def read_adj_mi(fname):
     with open(fname) as infile:
         reader = csv.DictReader(infile, fieldnames=['adj_mi'])
         for line in reader:
-            return float(line['adj_mi']), -1.
+            return float(line['adj_mi'])
     raise Exception('something wrong with %s file' % fname)
 
 # ----------------------------------------------------------------------------------------
@@ -269,7 +305,8 @@ def write_all_plot_csvs(label):
         for mut_mult in args.mutation_multipliers:
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
-    write_latex_table(adj_mis)
+    if not args.data:
+        write_latex_table(adj_mis)
 
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
@@ -282,37 +319,46 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     these_hists = hists[n_leaves][mut_mult]
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
-    simfname = get_simfname(label, n_leaves, mut_mult)
-    if args.subset is not None:  # TODO not yet functional
-        simfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
-    if args.istartstop is not None:  # TODO not yet functional
-        assert False
-        # subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
-    simfbase = leafmutstr(n_leaves, mut_mult)
-    csvdir = os.path.dirname(simfname) + '/' + simfbase
+    plotdir = os.getenv('www') + '/partis/clustering/' + label
+    if args.data:
+        seqfname = get_simfname(label, n_leaves, mut_mult).replace(leafmutstr(n_leaves, mut_mult), 'data')  # hackey hackey hackey
+        simfbase = None
+        csvdir = os.path.dirname(seqfname) + '/data'
+        plotfname = plotdir + '/plots/data.svg'
+        title = 'data (%s)' % label
+    else:
+        simfbase = leafmutstr(n_leaves, mut_mult)
+        csvdir = os.path.dirname(seqfname) + '/' + simfbase
+        seqfname = get_simfname(label, n_leaves, mut_mult)
+        plotfname = plotdir + '/plots/' + simfbase + '.svg'
+        title = '%d leaves, %dx mutation' % (n_leaves, mut_mult)
+    # if args.subset is not None:
+    #     seqfname = seqfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
+    # if args.istartstop is not None:  # TODO not yet functional
+    #     assert False
+    #     # subseqfname = seqfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
 
-    input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+    input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
 
     # then vollmers annotation (and true hists)
-    parse_vollmers(these_hists, these_adj_mis, simfname, csvdir, reco_info)
+    parse_vollmers(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
     # mixcr
-    parse_mixcr(these_hists, these_adj_mis, simfname, csvdir, reco_info)
+    # parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
     # then changeo
-    parse_changeo(these_hists, these_adj_mis, simfname, simfbase, csvdir, reco_info)
+    # parse_changeo(these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info)
 
     # partis stuff
-    for ptype in ['vsearch-', 'naive-hamming-', '']:
-        parse_partis(ptype + 'partition', these_hists, these_adj_mis, simfname, csvdir)
+    for ptype in ['', ]:  #['vsearch-', 'naive-hamming-', '']:
+        parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir)
 
-    plotdir = os.getenv('www') + '/partis/clustering/' + label
-    plotting.plot_cluster_size_hists(plotdir + '/plots/' + simfbase + '.svg', these_hists, title='%d leaves, %dx mutation' % (n_leaves, mut_mult), legends=legends, xmax=n_leaves*3.01)
+    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*3.01)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
     # for name, adj_mi in these_adj_mis.items():
-    #     with open(os.path.dirname(simfname) + '/adj_mis/' + name.replace(' ', '_') + '.csv', 'w') as adjmifile:
+    #     with open(os.path.dirname(seqfname) + '/adj_mis/' + name.replace(' ', '_') + '.csv', 'w') as adjmifile:
     #         adjmifile.write(adj_mi + '\n')
 
 # ----------------------------------------------------------------------------------------
@@ -322,7 +368,8 @@ def compare_all_subsets(label):
         for mut_mult in args.mutation_multipliers:
             compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis)
 
-    write_latex_table(adj_mis)
+    if not args.data:
+        write_latex_table(adj_mis)
 
 # ----------------------------------------------------------------------------------------
 def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
@@ -336,36 +383,59 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    expected_methods = ['true', 'vollmers-0.9', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['true', 'vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'partition']
     tmp_adj_mis = OrderedDict()
     for method in expected_methods:
         method_hists = []
-        for isub in range(args.n_subsets):
-            subdir = basedir + '/subset-' + str(isub)
-
+        if args.n_subsets is not None:
+            subdirs = [basedir + '/subset-' + str(isub) for isub in range(args.n_subsets)]
+        elif args.startstoplist is not None:
+            subdirs = [basedir + '/istartstop-' + istartstop.replace(',', '-') for istartstop in args.startstoplist]
+        else:
+            assert False
+        for subdir in subdirs:
             # hists
-            histfname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/hists/' + method + '.csv'
+            if args.data:
+                histfname = subdir + '/data/hists/' + method + '.csv'
+            else:
+                histfname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/hists/' + method + '.csv'
             method_hists.append(Hist(fname=histfname))
             if method == 'true':
                 continue
 
-            # adj mis
-            fname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/adj_mis/' + method + '.csv'
-            if method not in tmp_adj_mis:
-                tmp_adj_mis[method] = []
-            tmp_adj_mis[method].append(read_adj_mi(fname))
+            if not args.data:
+                # adj mis
+                fname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/adj_mis/' + method + '.csv'
+                if method not in tmp_adj_mis:
+                    tmp_adj_mis[method] = []
+                if method == 'mixcr':
+                    tmp_adj_mis[method].append(-1.)
+                else:
+                    tmp_adj_mis[method].append(read_adj_mi(fname))
 
         these_hists[method] = plotting.make_mean_hist(method_hists)
 
     plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
-    plotting.plot_cluster_size_hists(plotdir + '/plots/' + leafmutstr(n_leaves, mut_mult) + '.svg', these_hists, title='%d leaves, %dx mutation' % (n_leaves, mut_mult), legends=legends, xmax=n_leaves*3.01)
+    if args.data:
+        title = 'data (%s)' % label
+        plotfname = plotdir + '/plots/data.svg'
+        xmax = 30
+    else:
+        title = '%d leaves, %dx mutation' % (n_leaves, mut_mult)
+        if args.indels:
+            title += ', indels'
+        plotfname = plotdir + '/plots/' + leafmutstr(n_leaves, mut_mult) + '.svg'
+        xmax = n_leaves*3.01
+    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=xmax)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
-    for meth, vals in tmp_adj_mis.items():
-        mean = numpy.mean(vals)
-        std = numpy.std(vals)
-        these_adj_mis[meth] = (mean, std)
-        print '  %30s %.3f +/- %.3f' % (meth, mean, std)
+    if not args.data:
+        for meth, vals in tmp_adj_mis.items():
+            mean = numpy.mean(vals)
+            std = numpy.std(vals)
+            these_adj_mis[meth] = (mean, std)
+            print '  %30s %.3f +/- %.3f' % (meth, mean, std)
 
 # ----------------------------------------------------------------------------------------
 def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
@@ -386,34 +456,7 @@ def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type)
     return {nseqs : utils.mutual_information(new_partitions[nseqs], reco_info) for nseqs in nseq_list}
 
 # ----------------------------------------------------------------------------------------
-def compare_sample_sizes(label, n_leaves, mut_mult):
-    expected_methods = ['vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    basedir = fsdir + '/' + label
-    nseq_list = []
-    method_results = OrderedDict()
-    for meth in expected_methods:
-        method_results[meth] = {}
-    for dirname in glob.glob(basedir + '/istartstop-*'):
-        dumstr, istart, istop = dirname.split('/')[-1].split('-')
-        istart, istop = int(istart), int(istop)
-        nseqs = istop - istart
-        # if nseqs > 900:
-        #     continue
-        nseq_list.append(nseqs)
-        for meth in expected_methods:
-            csvfname = dirname + '/' + leafmutstr(n_leaves, mut_mult) + '-' + meth + '.csv'
-            args.infnames = [csvfname, ]  # NOTE make sure not to add any args here that conflict with the real command line args
-            args.is_data = False
-            args.use_all_steps = False
-            args.normalize_axes = []
-            args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
-            cplot = ClusterPlot(args)
-            # cplot.tmp_cluster_size_hist.write(outdir + '/hists/' + action + '.csv')
-            # these_hists[action + ' partis'] = cplot.tmp_cluster_size_hist
-            method_results[meth][nseqs] = cplot.adj_mi_at_max_logprob
-
-    nseq_list.sort()
-
+def make_adj_mi_vs_sample_size_plot(label, n_leaves, mut_mult, nseq_list, adj_mis):
     import matplotlib as mpl
     mpl.use('Agg')
     import matplotlib.pyplot as plt
@@ -439,17 +482,17 @@ def compare_sample_sizes(label, n_leaves, mut_mult):
               'partition' : '#cc0000',
               '0.1-true-singletons' : '#006600',
               '0.1-true-reassign' : '#32cd32'}
-    method_results['0.1-true-singletons'] = get_misassigned_adj_mis(get_simfname(label, n_leaves, mut_mult), 0.1, nseq_list, 'singletons')
-    method_results['0.1-true-reassign'] = get_misassigned_adj_mis(get_simfname(label, n_leaves, mut_mult), 0.1, nseq_list, 'reassign')
-    for meth in method_results:
+    adj_mis['0.1-true-singletons'] = get_misassigned_adj_mis(get_simfname(label, n_leaves, mut_mult), 0.1, nseq_list, 'singletons')
+    adj_mis['0.1-true-reassign'] = get_misassigned_adj_mis(get_simfname(label, n_leaves, mut_mult), 0.1, nseq_list, 'reassign')
+    for meth in adj_mis:
         linewidth = 2
         linestyle = '-'
         if 'true' in meth:
             linewidth = 4
             linestyle = '--'
-        plots[meth] = ax.plot(nseq_list, [method_results[meth][ns] for ns in nseq_list], linewidth=linewidth, label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=1)
+        plots[meth] = ax.plot(nseq_list, [adj_mis[meth][ns] for ns in nseq_list], linewidth=linewidth, label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=1)
         if 'true' not in meth:
-            plt.scatter(nseq_list, [method_results[meth][ns] for ns in nseq_list], color=colors.get(meth, 'grey'), linestyle='-', alpha=1, s=[30 for _ in range(len(nseq_list))])
+            plt.scatter(nseq_list, [adj_mis[meth][ns] for ns in nseq_list], color=colors.get(meth, 'grey'), linestyle='-', alpha=1, s=[30 for _ in range(len(nseq_list))])
 
     legend = ax.legend(loc=(0.55, 0.1))
     sns.despine(trim=True, bottom=True)
@@ -476,13 +519,98 @@ def compare_sample_sizes(label, n_leaves, mut_mult):
     return
 
 # ----------------------------------------------------------------------------------------
-def execute(action, label, datafname, n_leaves=None, mut_mult=None):
-    real_action = action
-    if 'partition' in action:
-        real_action = 'partition'
-    cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
-    if n_leaves is not None:
-        simfname = get_simfname(label, n_leaves, mut_mult)
+def compare_sample_sizes(label, n_leaves, mut_mult):
+    """ see sample-size-partition.py """
+    raise Exception('It is possible that I may have broken this')
+    expected_methods = ['vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'partition']  # mostly so we can specify the order
+    basedir = fsdir + '/' + label
+    nseq_list = []
+    adj_mis, hists = OrderedDict(), OrderedDict()
+    for meth in expected_methods:
+        adj_mis[meth], hists = {}, {}
+    # for dirname in glob.glob(basedir + '/istartstop-*'):
+    #     dumstr, istart, istop = dirname.split('/')[-1].split('-')
+    #     istart, istop = int(istart), int(istop)
+    for istartstop in args.startstoplist:
+        istart, istop = [int(i) for i in istartstop.split(',')]
+        nseqs = istop - istart
+        dirname = basedir + '/istartstop-' + str(istart) + '-' + str(istop)
+        nseq_list.append(nseqs)
+        for meth in expected_methods:
+            action = meth
+            if 'vollmers' in meth:
+                action = 'run-viterbi'
+            if args.data:
+                csvfname = dirname + '/data' + '-' + action + '.csv'
+            else:
+                csvfname = dirname + '/' + leafmutstr(n_leaves, mut_mult) + '-' + action + '.csv'
+            args.infnames = [csvfname, ]  # NOTE make sure not to add any args here that conflict with the real command line args
+            args.is_data = args.data
+            args.use_all_steps = False
+            args.normalize_axes = []
+            args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
+            args.debug = False
+            cplot = ClusterPlot(args)
+            # cplot.tmp_cluster_size_hist.write(outdir + '/hists/' + action + '.csv')
+            if args.data:
+                adj_mis[meth][nseqs] = cplot.adj_mi_at_max_logprob
+            hists[meth][nseqs] = cplot.tmp_cluster_size_hist
+
+    nseq_list.sort()
+
+    if not args.data:
+        make_adj_mi_vs_sample_size_plot(label, n_leaves, mut_mult, nseq_list, adj_mis)
+
+    mean_hists = OrderedDict()
+    for meth in expected_methods:
+        mean_hists[meth] = plotting.make_mean_hist(hists[meth])
+    plotdir = os.getenv('www') + '/partis/clustering/' + label
+    if args.data:
+        plotfname = plotdir + '/plots/data.svg'
+        title = 'data (%s)' % label
+        xmax = None
+    else:
+        plotfname = plotdir + '/plots/' + simfbase + '.svg'
+        title = '%d leaves, %dx mutation' % (n_leaves, mut_mult)
+        xmax = n_leaves*3.01
+    plotting.plot_cluster_size_hists(plotfname, mean_hists, title=title, xmax=xmax)
+
+# ----------------------------------------------------------------------------------------
+def get_seqfile(action, label, datafname, n_leaves=None, mut_mult=None):
+
+    def slice_csv(csv_infname, csv_outfname):
+        if os.path.exists(csv_outfname):
+            print '      slicefile exists %s' % csv_outfname
+            return
+        print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
+        if not os.path.exists(os.path.dirname(csv_outfname)):
+            os.makedirs(os.path.dirname(csv_outfname))
+        remove_csv_infname = False
+        # if '.bz2' in csv_infname:  # put ~10 more lines than we need into a tmp file that isn't bzipped
+        #     tmpfname = '.tmp'.join(os.path.splitext(csv_outfname))
+        #     assert '.tsv' in csv_infname  # aw, screw it, just replace tabs with commas
+        #     assert '.csv' in csv_outfname
+        #     check_call('bzgrep -m' + str(args.istartstop[1] + 10) + ' . ' + csv_infname + ' | sed \'s/\t/,/g\' >' + tmpfname, shell=True)
+        #     csv_infname = tmpfname
+        #     remove_csv_infname = True
+        # check_call('head -n1 ' + csv_infname + ' | sed -e s/name/unique_id/ -e s/nucleotide/seq/ >' + csv_outfname, shell=True)
+        check_call('head -n1 ' + csv_infname + ' >' + csv_outfname, shell=True)
+        check_call('sed -n \'' + str(args.istartstop[0] + 2) + ',' + str(args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname, shell=True)  # NOTE conversion from standard zero indexing to sed inclusive one-indexing (and +1 for header line)
+        if remove_csv_infname:
+            assert '/dralph/' in csv_infname
+            os.remove(csv_infname)
+
+    if args.data:
+        if args.istartstop is not None:
+            subfname = fsdir + '/' + label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/data.csv'
+            slice_csv(datafname, subfname)
+            datafname = subfname
+
+        seqfname = datafname
+    else:
+        assert n_leaves is not None and mut_mult is not None
+        simfname = get_simfname(label, n_leaves, mut_mult, no_subset=True)
 
         if args.subset is not None:
             ntot = int(check_output(['wc', '-l', simfname]).split()[0]) - 1
@@ -502,87 +630,96 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
         if args.istartstop is not None:
             subsimfname = simfname.replace(label + '/', label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
-            if os.path.exists(subsimfname):
-                print '      subset file exists %s' % subsimfname
-            else:
-                print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
-                if not os.path.exists(os.path.dirname(subsimfname)):
-                    os.makedirs(os.path.dirname(subsimfname))
-                check_call('head -n1 ' + simfname + ' >' + subsimfname, shell=True)
-                check_call('sed -n \'' + str(args.istartstop[0] + 2) + ',' + str(args.istartstop[1] + 1) + ' p\' ' + simfname + '>>' + subsimfname, shell=True)  # NOTE conversion from standdard zero indexing to sed inclusive one-indexing (and +1 for header line)
+            slice_csv(simfname, subsimfname)
             simfname = subsimfname
 
+        seqfname = simfname
+
+    return seqfname
+
+# ----------------------------------------------------------------------------------------
+def execute(action, label, datafname, n_leaves=None, mut_mult=None):
+    real_action = action
+    if 'partition' in action:
+        real_action = 'partition'
+    cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
+
     extras = []
+    seqfname = get_seqfile(action, label, datafname, n_leaves, mut_mult)
+    if args.data:
+        cmd += ' --datafname ' + seqfname + ' --is-data'
+        if args.dataset == 'adaptive':
+            extras += ['--skip-unproductive', ]
+    else:
+        cmd += ' --simfname ' + seqfname
 
     def output_exists(outfname):
         if os.path.exists(outfname):
-            print '                      partition output exists, skipping (%s)' % outfname
+            print '                      output exists, skipping (%s)' % outfname
             return True
         else:
             return False
+
+    def get_outputname():
+        if args.data:
+            return get_outdirname(label) + '/data-' + action + '.csv'
+        else:
+            return ('-' + action).join(os.path.splitext(seqfname))
 
     if action == 'cache-data-parameters':
         if os.path.exists(fsdir + '/' + label + '/data'):
             print '                      data parametes exist in %s, skipping ' % (fsdir + '/' + label + '/data')
             return
-        cmd += ' --datafname ' + datafname
         extras += ['--n-max-queries', + n_data_to_cache]
         n_procs = n_data_to_cache / 500
     elif action == 'simulate':
-        if os.path.exists(simfname):
-            print '                      simfile exists, skipping (%s)' % simfname
+        if os.path.exists(seqfname):
+            print '                      simfile exists, skipping (%s)' % seqfname
             return
-        cmd += ' --simfname ' + simfname
         extras += ['--n-sim-events', int(float(n_sim_seqs) / n_leaves)]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
             extras += ['--indel-frequency', 0.5]
         n_procs = 10
     elif action == 'cache-simu-parameters':
-        if os.path.exists(simfname.replace('.csv', '')):
-            print '                      simu parameters exist in %s, skipping ' % simfname.replace('.csv', '')
+        if os.path.exists(seqfname.replace('.csv', '')):
+            print '                      simu parameters exist in %s, skipping ' % seqfname.replace('.csv', '')
             return
-        cmd += ' --simfname ' + simfname
         n_procs = 20
     elif action == 'partition':
-        if os.path.exists(simfname.replace('.csv', '-partition.csv')):
-            print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-partition.csv')
+        outfname = get_outputname()
+        if output_exists(outfname):
             return
-        cmd += ' --simfname ' + simfname
-        cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
+        cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', n_to_partition]
         n_procs = max(1, n_to_partition / 15)  # something like 15 seqs/process to start with
     elif action == 'naive-hamming-partition':
-        if os.path.exists(simfname.replace('.csv', '-naive-hamming-partition.csv')):
-            print '                      partition output exists, skipping (%s)' % simfname.replace('.csv', '-naive-hamming-partition.csv')
+        outfname = get_outputname()
+        if output_exists(outfname):
             return
-        cmd += ' --simfname ' + simfname
-        cmd += ' --outfname ' + simfname.replace('.csv', '-' + action + '.csv')
+        cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', n_to_partition, '--auto-hamming-fraction-bounds']
         n_procs = max(1, n_to_partition / 30)
     elif action == 'vsearch-partition':
-        outfname = simfname.replace('.csv', '-' + action + '.csv')
+        outfname = get_outputname()
+        # outfname = '-vsearch-partition'.join(os.path.splitext(seqfname))
         if output_exists(outfname):
             return
-        cmd += ' --simfname ' + simfname
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', n_to_partition, '--naive-vsearch']
         n_procs = max(1, n_to_partition / 100)  # only used for ighutil step
     elif action == 'run-viterbi':
-        if os.path.exists(simfname.replace('.csv', '-run-viterbi.csv')):
-            print '                      vollmers output exists, skipping (%s)' % simfname.replace('.csv', '-run-viterbi.csv')
+        outfname = get_outputname()
+        # outfname = '-run-viterbi'.join(os.path.splitext(seqfname))
+        if output_exists(outfname):
             return
+        cmd += ' --outfname ' + outfname
         extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
-        cmd += ' --simfname ' + simfname
         extras += ['--n-max-queries', n_to_partition]
         n_procs = max(1, n_to_partition / 50)
     elif action == 'run-changeo':
-        changeodir = '/home/dralph/work/changeo/changeo'
-        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo'
-        if args.bak:
-            changeo_fsdir += '.bak'
-        _simfbase = leafmutstr(n_leaves, mut_mult).replace('-', '_')
-        imgtdir = changeo_fsdir + '/' + _simfbase
+        assert not args.data
+        imgtdir = get_changeo_outdir(label, n_leaves, mut_mult)
         if os.path.isdir(imgtdir):
             print '                      already untar\'d into %s' % imgtdir
         else:
@@ -598,7 +735,19 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
                 check_call(['cp', '-v', imgtdir + '/11_Parameters.txt', subset_dir + '/'])
                 tsvfnames.remove(imgtdir + '/11_Parameters.txt')
                 tsvfnames.remove(imgtdir + '/README.txt')
-                input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+                input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+                subset_ids = input_info.keys()
+                utils.subset_files(subset_ids, tsvfnames, subset_dir)
+            imgtdir = subset_dir
+        if args.istartstop is not None:
+            subset_dir = imgtdir + '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+            if not os.path.exists(subset_dir):
+                os.makedirs(subset_dir)
+                tsvfnames = glob.glob(imgtdir + '/*.txt')
+                check_call(['cp', '-v', imgtdir + '/11_Parameters.txt', subset_dir + '/'])
+                tsvfnames.remove(imgtdir + '/11_Parameters.txt')
+                tsvfnames.remove(imgtdir + '/README.txt')
+                input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
                 subset_ids = input_info.keys()
                 utils.subset_files(subset_ids, tsvfnames, subset_dir)
             imgtdir = subset_dir
@@ -612,17 +761,22 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             print '                         changeo already finished (%s)' % resultfname
             return
 
-        check_call(['./bin/csv2fasta', simfname])
-        check_call(['mv', simfname.replace('.csv', '.fa'), simfname.replace('.csv', '.fasta')])
-        cmd = changeodir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + simfname.replace('.csv', '.fasta')
+        # check_call(['./bin/csv2fasta', seqfname])
+        fastafname = os.path.splitext(seqfname)[0] + '.fasta'
+        utils.csv_to_fasta(seqfname, outfname=fastafname, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
+        bindir = '/home/dralph/work/changeo/changeo'
+        start = time.time()
+        # check_call(['mv', seqfname.replace('.csv', '.fa'), seqfname.replace('.csv', '.fasta')])
+        cmd = bindir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + fastafname
         run(cmd)
-        cmd = changeodir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab -f FUNCTIONAL -u T'
+        cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab -f FUNCTIONAL -u T'
         run(cmd)
-        cmd = changeodir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
+        cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
         run(cmd)
+        print '        changeo time: %.3f' % (time.time()-start)
 
         # read changeo's output and toss it into a csv
-        input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+        input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
         id_clusters = {}  # map from cluster id to list of seq ids
         with open(resultfname) as chfile:
             reader = csv.DictReader(chfile, delimiter='\t')
@@ -635,22 +789,26 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         
         partition = [ids for ids in id_clusters.values()]
         # these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
-        write_adj_mi(utils.mutual_information(partition, reco_info, debug=True), imgtdir + '-adj_mi.csv')
+        if not args.data:
+            write_adj_mi(utils.mutual_information(partition, reco_info, debug=True), imgtdir + '-adj_mi.csv')
         return
     elif action == 'run-mixcr':
         binary = '/home/dralph/work/mixcr/mixcr-1.2/mixcr'
-        mixcr_workdir = fsdir.replace('/partis-dev/_output', '/mixcr') + '/' + label + '/' + leafmutstr(n_leaves, mut_mult)
+        mixcr_workdir = get_mixcr_outdir(label, n_leaves, mut_mult)
         if not os.path.exists(mixcr_workdir):
             os.makedirs(mixcr_workdir)
-        infname = mixcr_workdir + '/' + os.path.basename(simfname.replace('.csv', '.fasta'))
-        outfname = simfname.replace('.csv', '-mixcr.tsv')
+
+        # fastafname = os.path.splitext(seqfname)[0] + '.fasta'
+        infname = mixcr_workdir + '/' + os.path.basename(os.path.splitext(seqfname)[0] + '.fasta')
+        outfname = os.path.splitext(seqfname)[0] + '-mixcr.tsv'
         if os.path.exists(outfname):
             print '                      mixcr output exists, skipping (%s)' % outfname
             return
 
-        check_call(['./bin/csv2fasta', simfname])
-        check_call('head -n' + str(2*n_to_partition) + ' ' + simfname.replace('.csv', '.fa') + ' >' + infname, shell=True)
-        os.remove(simfname.replace('.csv', '.fa'))
+        # check_call(['./bin/csv2fasta', seqfname])
+        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
+        # check_call('head -n' + str(2*n_to_partition) + ' ' + fastafname + ' >' + infname, shell=True)
+        # os.remove(seqfname.replace('.csv', '.fa'))
 
         def run(cmdstr):
             print 'RUN %s' % cmdstr
@@ -682,14 +840,16 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         extras += ['--slurm', '--workdir', fsdir + '/_tmp/' + str(random.randint(0,99999))]
         
     extras += ['--n-procs', n_proc_str]
-    # extras += ['--print-partitions', ]
 
     cmd += utils.get_extra_str(extras)
     print '   ' + cmd
     # return
     # check_call(cmd.split())
     # return
-    logbase = fsdir + '/' + label + '/_logs/' + leafmutstr(n_leaves, mut_mult) + '-' + action
+    if args.data:
+        logbase = fsdir + '/' + label + '/_logs/data-' + action
+    else:
+        logbase = fsdir + '/' + label + '/_logs/' + leafmutstr(n_leaves, mut_mult) + '-' + action
     if args.subset is not None:
         logbase = logbase.replace('_logs/', '_logs/subset-' + str(args.subset) + '/')
     if args.istartstop is not None:
@@ -707,10 +867,7 @@ if args.subset is not None:
 if args.istartstop is not None:
     n_to_partition = args.istartstop[1] - args.istartstop[0]
 n_data_to_cache = 50000
-# mutation_multipliers = ['1']  #['1', '4']
-# n_leaf_list = [5]  #, 10, 25, 50]
 n_sim_seqs = 10000
-fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 procs = []
 
 # ----------------------------------------------------------------------------------------

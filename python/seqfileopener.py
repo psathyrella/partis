@@ -48,6 +48,9 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
         reco_info = OrderedDict()
     n_queries = 0
     for line in reader:
+        if '.csv' in fname and name_column not in line:  # hackey hackey hackey
+            name_column = 'name'
+            seq_column = 'nucleotide'
         utils.process_input_line(line, int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'), literal_columns=('indels'))
         unique_id = line[name_column]
         # if command line specified query or reco ids, skip other ones

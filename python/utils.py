@@ -1109,6 +1109,8 @@ def process_input_line(info, splitargs=(), int_columns=(), float_columns=(), lit
         return
 
     for key, val in info.items():
+        if key is None:
+            continue
         if key in splitargs:
             info[key] = info[key].split(':')
             for i in range(len(info[key])):
@@ -1330,3 +1332,31 @@ def undo_indels(indelfo):
             oseq = oseq[ : idl['pos']] + oseq[idl['pos'] + idl['len'] : ]
     # print '              reversed %s' % rseq
     # print '              original %s' % oseq
+
+# ----------------------------------------------------------------------------------------
+def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='seq', n_max_lines=None):
+    if not os.path.exists(infname):
+        raise Exception('input file %s d.n.e.' % infname)
+    if outfname is None:
+        assert '.csv' in infname
+        outfname = infname.replace('.csv', '.fa')
+    if '.csv' in infname:
+        delimiter = ','
+    elif '.tsv' in infname:
+        delimiter = '\t'
+    else:
+        assert False
+    
+    with open(infname) as infile:
+        reader = csv.DictReader(infile, delimiter=delimiter)
+        with open(outfname, 'w') as outfile:
+            n_lines = 0
+            for line in reader:
+                if name_column not in line:
+                    name_column = 'name'
+                    seq_column = 'nucleotide'
+                n_lines += 1
+                if n_max_lines is not None and n_lines > n_max_lines:
+                    break
+                outfile.write('>%s\n' % line[name_column])
+                outfile.write('%s\n' % line[seq_column])
