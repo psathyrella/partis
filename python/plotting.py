@@ -854,21 +854,25 @@ colors = {'true' : '#006600',
           'vollmers-0.5' : '#3333ff',
           'vollmers-0.9' : 'grey',
           'changeo' :  '#3399ff',
-          'mixcr' : '#7b68ee'# ,  #---
-          # 'v-true' : '#006600',
-          # 'cdr3-true' : '#006600',
-          # 'v-indels' : '#cc0000',
-          # 'cdr3-indels' : '#cc0000'
+          'mixcr' : '#7b68ee'
 }
+
 linewidths = {'true' : 10,
-              'partis' : 4,
+              'partis' : 2,
+              # 'vsearch-partition' : 6,
+              'partition' : 2,
               'vollmers-0.5' : 4,
               'vollmers-0.9' : 8,
-              'changeo' : 4,
-              'mixcr' : 4# ,  #-----
-              # 'v-true' : 10,
-              # 'cdr3-true' : 10
-          }
+              'changeo' : 3,
+              'mixcr' : 6
+              }
+
+# linewidths['v-true'] = 10
+# linewidths['cdr3-true'] = 10
+# colors['v-true'] = '#006600'
+# colors['cdr3-true'] = '#006600'
+# colors['v-indels'] = '#cc0000'
+# colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_size_hists(outfname, hists, title, xmax=None):

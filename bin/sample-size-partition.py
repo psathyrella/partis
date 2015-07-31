@@ -28,6 +28,7 @@ mpl.rcParams.update({
     'ytick.labelsize': fsize,
     'axes.labelsize': fsize
 })
+# sns.set_style('ticks')  # hm, it actually works here
 fig, ax = plt.subplots()
 fig.tight_layout()
 plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
