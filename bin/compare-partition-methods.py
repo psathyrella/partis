@@ -28,6 +28,7 @@ parser.add_argument('--only-run')  # colon-separated list of human,subset pairs 
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
 parser.add_argument('--indels', action='store_true')
+parser.add_argument('--lonely-leaves', action='store_true')
 parser.add_argument('--bak', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--subset', type=int)
@@ -107,6 +108,8 @@ def leafmutstr(n_leaves, mut_mult):
     return_str = 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
     if args.indels:
         return_str += '-indels'
+    if args.lonely_leaves:
+        return_str += '-lonely-leaves'
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -339,9 +342,9 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
         plotfname = plotdir + '/plots/data.svg'
         title = get_title(label, n_leaves, mut_mult)
     else:
+        seqfname = get_simfname(label, n_leaves, mut_mult)
         simfbase = leafmutstr(n_leaves, mut_mult)
         csvdir = os.path.dirname(seqfname) + '/' + simfbase
-        seqfname = get_simfname(label, n_leaves, mut_mult)
         plotfname = plotdir + '/plots/' + simfbase + '.svg'
         title = get_title(label, n_leaves, mut_mult)
     # if args.subset is not None:
@@ -358,8 +361,8 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     # mixcr
     parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
-    # then changeo
-    parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info)
+    # # then changeo
+    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info)
 
     # partis stuff
     for ptype in ['vsearch-', 'naive-hamming-', '']:
@@ -375,6 +378,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
 
 # ----------------------------------------------------------------------------------------
 def compare_all_subsets(label):
+    print '\n\nfigure out why all the adj mis are screwed up\n\n'
     hists, adj_mis = {}, {}
     for n_leaves in args.n_leaf_list:
         for mut_mult in args.mutation_multipliers:
@@ -395,7 +399,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     if not args.data:
         expected_methods.insert(0, 'true')
     # expected_methods = ['vollmers-0.9', 'vsearch-partition', 'naive-hamming-partition']
@@ -692,6 +697,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
             extras += ['--indel-frequency', 0.5]
+        if args.lonely_leaves:
+            extras += ['--constant-number-of-leaves', ]
         n_procs = 10
     elif action == 'cache-simu-parameters':
         if os.path.exists(seqfname.replace('.csv', '')):
@@ -892,6 +899,8 @@ procs = []
 
 # ----------------------------------------------------------------------------------------
 for datafname in files:
+    # if '/B/' not in datafname:
+    #     continue
     if args.dataset == 'stanford':
 	    human = os.path.basename(datafname).replace('_Lineages.fasta', '')
     elif args.dataset == 'adaptive':
@@ -926,4 +935,4 @@ for datafname in files:
     if 'compare-subsets' in args.actions:
         compare_all_subsets(label)
 
-    # break
+    break

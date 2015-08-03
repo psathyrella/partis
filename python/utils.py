@@ -574,18 +574,19 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             tmpline['seq'] = line['seqs'][iseq]
             this_extra_str = ''
             if indelfos[iseq] is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
-                if indelfos[iseq]['indels'] is not None:
-                    for ii in range(len(indelfos[iseq]['indels'])):
-                        idl = indelfos[iseq]['indels'][ii]
-                        if ii > 0:
-                            this_extra_str += '\nxxx'
-                        this_extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
-                # if 'indels' not in extra_str:
-                #     extra_str += color('yellow', 'indels')
+                # if indelfos[iseq]['indels'] is not None:
+                #     for ii in range(len(indelfos[iseq]['indels'])):
+                #         idl = indelfos[iseq]['indels'][ii]
+                #         if ii > 0:
+                #             this_extra_str += '\nxxx'
+                #         this_extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
+                # # if 'indels' not in extra_str:
+                # #     extra_str += color('yellow', 'indels')
                 if indelfos[iseq] is not None and len(indelfos[iseq]['indels']) > 0:
                     tmpline['seq'] = indelfos[iseq]['reversed_seq']
             else:
-                this_extra_str = ' %10s  %2s          %3s'  % ('', '', '')
+                pass
+                # this_extra_str = ' %10s  %2s          %3s'  % ('', '', '')
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str + this_extra_str, return_string=return_string,
                                                       label=(label if iseq==0 else ''),
                                                       one_line=(iseq>0),

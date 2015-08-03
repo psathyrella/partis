@@ -27,4 +27,4 @@ if args.simfname is not None:
 
 cp = ClusterPath(-1)
 cp.readfile(args.infname)
-cp.print_partitions(one_line=True, abbreviate=(not args.dont_abbreviate), n_to_print=args.n_to_print)
+cp.print_partitions(one_line=True, abbreviate=(not args.dont_abbreviate), n_to_print=args.n_to_print, reco_info=reco_info)

@@ -168,7 +168,7 @@ class PartitionDriver(object):
             n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-start)
-            if n_procs == 1:
+            if n_procs == 1 or len(n_proc_list) >= self.args.n_partition_steps:
                 break
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
@@ -1297,7 +1297,7 @@ class PartitionDriver(object):
                 event_str = utils.print_reco_event(self.germline_seqs, synthetic_true_line, extra_str='    ', return_string=True, label='true:', indelfos=indelfos)
                 out_str_list.append(event_str)
 
-        event_str = utils.print_reco_event(self.germline_seqs, line, extra_str='xxx', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
+        event_str = utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
         out_str_list.append(event_str)
 
         print ''.join(out_str_list),
