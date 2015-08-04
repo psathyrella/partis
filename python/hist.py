@@ -182,7 +182,7 @@ class Hist(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def get_bin_centers(self):
+    def get_bin_centers(self, without_overflows=False):
         bin_centers = []
         for ibin in range(len(self.low_edges)):
             low_edge = self.low_edges[ibin]
@@ -191,7 +191,10 @@ class Hist(object):
             else:
                 high_edge = low_edge + (self.low_edges[ibin] - self.low_edges[ibin - 1])  # overflow bin has undefined upper limit, so just use the next-to-last bin width
             bin_centers.append(0.5 * (low_edge + high_edge))
-        return bin_centers
+        if without_overflows:
+            return bin_centers[1:-1]
+        else:
+            return bin_centers
 
     # ----------------------------------------------------------------------------------------
     def get_mean(self):
@@ -203,3 +206,10 @@ class Hist(object):
             integral += self.bin_contents[ib]
         # print total, integral
         return total / integral
+
+    # ----------------------------------------------------------------------------------------
+    def __str__(self):
+        str_list = []
+        for ib in range(len(self.low_edges)):
+            str_list += ['    %5.1f  %5f\n'  % (self.low_edges[ib], self.bin_contents[ib]), ]
+        return ''.join(str_list)

@@ -963,3 +963,46 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
     plt.savefig(outfname)
+
+# ----------------------------------------------------------------------------------------
+def mpl_init():
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    fsize = 20
+    mpl.rcParams.update({
+        # 'font.size': fsize,
+        'legend.fontsize': fsize,
+        'axes.titlesize': fsize,
+        # 'axes.labelsize': fsize,
+        'xtick.labelsize': fsize,
+        'ytick.labelsize': fsize,
+        'axes.labelsize': fsize
+    })
+    fig, ax = plt.subplots()
+    fig.tight_layout()
+    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+
+    return fig, ax
+
+
+# ----------------------------------------------------------------------------------------
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel=''):
+    legend = ax.legend()  #loc=(0.55, 0.1))
+    sns.despine(trim=True, bottom=True)
+    sns.set_style("ticks")
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    # ax.set_xscale('log')
+    # plt.xlim(xmin, xmax)
+    # plt.ylim(0, 1.08)
+    # potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
+    # xticks = [xt for xt in potential_xticks if xt < xmax]
+    # plt.xticks(xticks, [str(xt) for xt in xticks])
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir + '/plots')
+    plt.savefig(plotdir + '/plots/' + plotname + '.svg')
+    check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+    check_call(['./bin/permissify-www', plotdir])

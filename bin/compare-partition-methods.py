@@ -10,9 +10,11 @@ from collections import OrderedDict
 import time
 import csv
 from subprocess import check_call, Popen, check_output
+import itertools
 sys.path.insert(1, './python')
 
 from humans import humans
+from plotting import legends, colors, linewidths
 import plotting
 from hist import Hist
 import seqfileopener
@@ -27,11 +29,16 @@ parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adap
 parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
+parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--lonely-leaves', action='store_true')
 parser.add_argument('--bak', action='store_true')
+parser.add_argument('--count-distances', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--subset', type=int)
+parser.add_argument('--n-to-partition', type=int, default=5000)
+parser.add_argument('--n-data-to-cache', type=int, default=50000)
+parser.add_argument('--n-sim-seqs', type=int, default=10000)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
 parser.add_argument('--startstoplist')  # list of istartstops for comparisons
@@ -47,8 +54,14 @@ args.startstoplist = utils.get_arg_list(args.startstoplist)
 
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
+if args.subset is not None:
+    args.n_to_partition = 1300
+if args.istartstop is not None:
+    args.n_to_partition = args.istartstop[1] - args.istartstop[0]
+
+# ----------------------------------------------------------------------------------------
+procs = []
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
-from plotting import legends, colors, linewidths
 
 # # ----------------------------------------------------------------------------------------
 # legends['v-true'] = 'true (V indels)'
@@ -314,6 +327,83 @@ def read_adj_mi(fname):
     raise Exception('something wrong with %s file' % fname)
 
 # ----------------------------------------------------------------------------------------
+def make_distance_plots(cachefname, reco_info):
+    cachevals = {}
+    singletons = []
+    with open(cachefname) as cachefile:
+        reader = csv.DictReader(cachefile)
+        for line in reader:
+            unique_ids = line['unique_ids'].split(':')
+            cachevals[line['unique_ids']] = float(line['logprob'])
+            if len(unique_ids) == 1:
+                singletons.append(unique_ids[0])
+
+    def get_joint_key(u1, u2):
+        jk1, jk2 = u1 + ':' + u2, u2 + ':' + u1
+        if jk1 in cachevals:
+            return jk1
+        elif jk2 in cachevals:
+            return jk2
+        else:
+            return None
+
+    def find_nearest_clonemate(uid):
+        """ nearest is largest logprob, dinglebumpkus """
+        maxval, maxmate = None, None
+        for uidstr, val in cachevals.items():
+            uids = uidstr.split(':')
+            if len(uids) != 2:
+                continue
+            if uid not in uids:
+                continue
+            if maxval is None or val > maxval:
+                maxval = val
+                if uids[0] == uid:
+                    maxmate = uids[1]
+                else:
+                    maxmate = uids[0]
+        return maxmate
+
+    nbins, xmin, xmax = 30, -20, 50
+    nearest_clones = Hist(nbins, xmin, xmax)
+    for uid in singletons:
+        mate = find_nearest_clonemate(uid)
+        if mate is None:
+            continue
+        jk = get_joint_key(uid, mate)
+        if jk is None:
+            continue
+        lratio = cachevals[jk] - cachevals[uid] - cachevals[mate]
+        nearest_clones.fill(lratio)
+
+    hclones = Hist(nbins, xmin, xmax)
+    hnot = Hist(nbins, xmin, xmax)
+    for st_a, st_b in itertools.combinations(singletons, 2):
+        jk1, jk2 = st_a + ':' + st_b, st_b + ':' + st_a
+        if jk1 in cachevals:
+            jk = jk1
+        elif jk2 in cachevals:
+            jk = jk2
+        else:
+            continue
+        lratio = cachevals[jk] - cachevals[st_a] - cachevals[st_b]
+        # print '%f - %f - %f = %f' % (cachevals[jk], cachevals[st_a], cachevals[st_b], lratio)
+        if utils.from_same_event(args.data, reco_info, [st_a, st_b]):
+            hclones.fill(lratio)
+        else:
+            hnot.fill(lratio)
+
+    fig, ax = plotting.mpl_init()
+    plots = {}
+    nearest_clones.normalize()
+    hclones.normalize()
+    hnot.normalize()
+    plots['clonal'] = ax.plot(hclones.get_bin_centers()[1:-1], hclones.bin_contents[1:-1], label='clonal')
+    plots['not'] = ax.plot(hnot.get_bin_centers()[1:-1], hnot.bin_contents[1:-1], label='not')
+    plots['nearest_clones'] = ax.plot(nearest_clones.get_bin_centers()[1:-1], nearest_clones.bin_contents[1:-1], label='nearest clones')
+    plotting.mpl_finish(ax, os.getenv('www') + '/partis/tmp', 'foop')
+
+# ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
     hists, adj_mis = {}, {}
     for n_leaves in args.n_leaf_list:
@@ -347,25 +437,24 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
         csvdir = os.path.dirname(seqfname) + '/' + simfbase
         plotfname = plotdir + '/plots/' + simfbase + '.svg'
         title = get_title(label, n_leaves, mut_mult)
-    # if args.subset is not None:
-    #     seqfname = seqfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
-    # if args.istartstop is not None:  # TODO not yet functional
-    #     assert False
-    #     # subseqfname = seqfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
 
     input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
+    if args.count_distances:
+        make_distance_plots(seqfname.replace('.csv', '-partition-cache.csv'), reco_info)
+        return
 
     # then vollmers annotation (and true hists)
     parse_vollmers(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
     # mixcr
-    parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
+    # parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
     # # then changeo
     # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info)
 
     # partis stuff
-    for ptype in ['vsearch-', 'naive-hamming-', '']:
+    # for ptype in ['vsearch-', 'naive-hamming-', '']:
+    for ptype in ['', ]:
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir)
 
     plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*3.01)
@@ -672,8 +761,12 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
     def output_exists(outfname):
         if os.path.exists(outfname):
-            print '                      output exists, skipping (%s)' % outfname
-            return True
+            if args.overwrite:
+                print '                      overwriting %s' % outfname
+                return False
+            else:
+                print '                      output exists, skipping (%s)' % outfname
+                return True
         else:
             return False
 
@@ -684,16 +777,14 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             return ('-' + action).join(os.path.splitext(seqfname))
 
     if action == 'cache-data-parameters':
-        if os.path.exists(fsdir + '/' + label + '/data'):
-            print '                      data parametes exist in %s, skipping ' % (fsdir + '/' + label + '/data')
+        if output_exists(fsdir + '/' + label + '/data'):
             return
-        extras += ['--n-max-queries', + n_data_to_cache]
-        n_procs = n_data_to_cache / 500
+        extras += ['--n-max-queries', + args.n_data_to_cache]
+        n_procs = args.n_data_to_cache / 500
     elif action == 'simulate':
-        if os.path.exists(seqfname):
-            print '                      simfile exists, skipping (%s)' % seqfname
+        if output_exists(seqfname):
             return
-        extras += ['--n-sim-events', int(float(n_sim_seqs) / n_leaves)]
+        extras += ['--n-sim-events', int(float(args.n_sim_seqs) / n_leaves)]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
             extras += ['--indel-frequency', 0.5]
@@ -701,8 +792,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             extras += ['--constant-number-of-leaves', ]
         n_procs = 10
     elif action == 'cache-simu-parameters':
-        if os.path.exists(seqfname.replace('.csv', '')):
-            print '                      simu parameters exist in %s, skipping ' % seqfname.replace('.csv', '')
+        if output_exists(seqfname.replace('.csv', '')):
             return
         n_procs = 20
     elif action == 'partition':
@@ -710,23 +800,25 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', n_to_partition]
-        n_procs = max(1, n_to_partition / 15)  # something like 15 seqs/process to start with
+        extras += ['--n-max-queries', args.n_to_partition]
+        if args.count_distances:
+            extras += ['--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1, 
+        n_procs = max(1, args.n_to_partition / 15)  # something like 15 seqs/process to start with
     elif action == 'naive-hamming-partition':
         outfname = get_outputname()
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', n_to_partition, '--auto-hamming-fraction-bounds']
-        n_procs = max(1, n_to_partition / 30)
+        extras += ['--n-max-queries', args.n_to_partition, '--auto-hamming-fraction-bounds']
+        n_procs = max(1, args.n_to_partition / 30)
     elif action == 'vsearch-partition':
         outfname = get_outputname()
         # outfname = '-vsearch-partition'.join(os.path.splitext(seqfname))
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', n_to_partition, '--naive-vsearch']
-        n_procs = max(1, n_to_partition / 100)  # only used for ighutil step
+        extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
+        n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
     elif action == 'run-viterbi':
         outfname = get_outputname()
         # outfname = '-run-viterbi'.join(os.path.splitext(seqfname))
@@ -734,8 +826,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             return
         cmd += ' --outfname ' + outfname
         extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
-        extras += ['--n-max-queries', n_to_partition]
-        n_procs = max(1, n_to_partition / 50)
+        extras += ['--n-max-queries', args.n_to_partition]
+        n_procs = max(1, args.n_to_partition / 50)
     elif action == 'run-changeo':
 
         def untar_imgt(imgtdir):
@@ -833,8 +925,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             return
 
         # check_call(['./bin/csv2fasta', seqfname])
-        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
-        # check_call('head -n' + str(2*n_to_partition) + ' ' + fastafname + ' >' + infname, shell=True)
+        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
+        # check_call('head -n' + str(2*args.n_to_partition) + ' ' + fastafname + ' >' + infname, shell=True)
         # os.remove(seqfname.replace('.csv', '.fa'))
 
         def run(cmdstr):
@@ -886,16 +978,6 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
     time.sleep(5)
-
-# ----------------------------------------------------------------------------------------
-n_to_partition = 5000
-if args.subset is not None:
-    n_to_partition = 1300
-if args.istartstop is not None:
-    n_to_partition = args.istartstop[1] - args.istartstop[0]
-n_data_to_cache = 50000
-n_sim_seqs = 10000
-procs = []
 
 # ----------------------------------------------------------------------------------------
 for datafname in files:

@@ -567,7 +567,7 @@ class PartitionDriver(object):
                         header = ','.join(reader.fieldnames)
                     break
 
-        cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'^' + header + '$\' | sort | uniq >>' + outfname
+        cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'' + header + '\' | sort | uniq >>' + outfname
         check_call(cmd, shell=True)
 
         if not self.args.no_clean:
