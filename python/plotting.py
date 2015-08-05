@@ -992,7 +992,6 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel=''):
     legend = ax.legend()  #loc=(0.55, 0.1))
     sns.despine(trim=True, bottom=True)
     sns.set_style("ticks")
-    plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     # ax.set_xscale('log')
@@ -1001,8 +1000,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel=''):
     # potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
     # xticks = [xt for xt in potential_xticks if xt < xmax]
     # plt.xticks(xticks, [str(xt) for xt in xticks])
+    plt.title(title)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir + '/plots')
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
-    check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+    check_call(['./bin/makeHtml', plotdir, '4', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])

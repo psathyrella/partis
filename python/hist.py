@@ -116,25 +116,29 @@ class Hist(object):
         self.fill_ibin(self.find_bin(value), weight)
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, overflow_warn=True):  # since when you normalize hists you have to make the arbitrary decision whether you're going to include the under/overflow bins (we don't include them here), in general we prefer to avoid having under/overflow entries
+    def normalize(self, include_overflows=False):
         """ NOTE does not multiply/divide by bin widths """
         sum_value = 0.0
-        for ib in range(1, self.n_bins + 1):  # don't include under/overflows
+        if include_overflows:
+            imin, imax = 0, self.n_bins + 2
+        else:
+            imin, imax = 1, self.n_bins + 1
+        for ib in range(imin, imax):
             sum_value += self.bin_contents[ib]
         if sum_value == 0.0:
             print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
             return
         # make sure there's not too much stuff in the under/overflows
-        if overflow_warn and (self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10):
+        if not include_overflows and (self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10):
             print 'WARNING under/overflows in Hist::normalize()'
-        for ib in range(1, self.n_bins + 1):
+        for ib in range(imin, imax):
             self.bin_contents[ib] /= sum_value
             if self.sum_weights_squared is not None:
                 self.sum_weights_squared[ib] /= sum_value*sum_value
             if self.errors is not None:
                 self.errors[ib] /= sum_value
         check_sum = 0.0
-        for ib in range(1, self.n_bins + 1):  # check it
+        for ib in range(imin, imax):  # check it
             check_sum += self.bin_contents[ib]
         assert is_normed(check_sum, this_eps=1e-10)
 
@@ -213,3 +217,13 @@ class Hist(object):
         for ib in range(len(self.low_edges)):
             str_list += ['    %5.1f  %5f\n'  % (self.low_edges[ib], self.bin_contents[ib]), ]
         return ''.join(str_list)
+
+    # ----------------------------------------------------------------------------------------
+    def mpl_plot(self, ax, ignore_overflows=False, label='', alpha=1., linewidth=2):
+        if ignore_overflows:
+            xvals = self.get_bin_centers()[1:-1]
+            yvals = self.bin_contents[1:-1]
+        else:
+            xvals = self.get_bin_centers()
+            yvals = self.bin_contents
+        return ax.step(xvals, yvals, label=label, alpha=alpha, linewidth=linewidth)

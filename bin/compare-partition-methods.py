@@ -232,8 +232,9 @@ def parse_vollmers(these_hists, these_adj_mis, seqfname, outdir, reco_info):
                 print '    %s: %f' % ('vollmers-' + line['threshold'], float(line['adj_mi']))
                 write_adj_mi(float(line['adj_mi']), outdir + '/adj_mis/' + os.path.basename(histfname))
 
-                # truehist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['true_clusters']))  # true partition is also written here, for lack of a better place (note that it's of course the same for all thresholds)
-                truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
+                vollmers_clusters = [cl.split(':') for cl in line['clusters'].split(';')]
+                all_ids = [val for cluster in vollmers_clusters for val in cluster]
+                truehist = plotting.get_cluster_size_hist(utils.get_true_clusters(all_ids, reco_info).values())
                 truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
                 these_hists['true'] = truehist
 
@@ -294,7 +295,7 @@ def parse_mixcr(these_hists, these_adj_mis, seqfname, outdir, reco_info):
         these_adj_mis['mixcr'] = -1., -1.
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(action, these_hists, these_adj_mis, seqfname, outdir):
+def parse_partis(action, these_hists, these_adj_mis, seqfname, outdir, reco_info):
     args.infnames = [seqfname.replace('.csv', '-' + action + '.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
     args.is_data = args.data
     args.use_all_steps = False
@@ -308,6 +309,11 @@ def parse_partis(action, these_hists, these_adj_mis, seqfname, outdir):
         these_adj_mis[action + ' partis'] = cplot.adj_mi_at_max_logprob, -1.
         print '    %s: %f' % (action + ' partis', cplot.adj_mi_at_max_logprob)
         write_adj_mi(cplot.adj_mi_at_max_logprob, outdir + '/adj_mis/' + action + '.csv')
+
+        # all_ids = [val for cluster in cplot.partitions[i_best] for val in cluster]
+        # truehist = plotting.get_cluster_size_hist(utils.get_true_clusters(all_ids, reco_info).values())
+        # truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
+        # these_hists['true'] = truehist
 
 # ----------------------------------------------------------------------------------------
 def write_adj_mi(adj_mi, fname):
@@ -327,19 +333,11 @@ def read_adj_mi(fname):
     raise Exception('something wrong with %s file' % fname)
 
 # ----------------------------------------------------------------------------------------
-def make_distance_plots(cachefname, reco_info):
-    cachevals = {}
-    singletons = []
-    with open(cachefname) as cachefile:
-        reader = csv.DictReader(cachefile)
-        for line in reader:
-            unique_ids = line['unique_ids'].split(':')
-            cachevals[line['unique_ids']] = float(line['logprob'])
-            if len(unique_ids) == 1:
-                singletons.append(unique_ids[0])
-
-    def get_joint_key(u1, u2):
-        jk1, jk2 = u1 + ':' + u2, u2 + ':' + u1
+def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, plottitle):
+    def get_joint_key(k1, k2):
+        """ figure out which order we have <k1>, <k2> in the cache (if neither, return None) """
+        jk1 = k1 + ':' + k2
+        jk2 = k2 + ':' + k1
         if jk1 in cachevals:
             return jk1
         elif jk2 in cachevals:
@@ -347,61 +345,80 @@ def make_distance_plots(cachefname, reco_info):
         else:
             return None
 
-    def find_nearest_clonemate(uid):
-        """ nearest is largest logprob, dinglebumpkus """
-        maxval, maxmate = None, None
-        for uidstr, val in cachevals.items():
-            uids = uidstr.split(':')
-            if len(uids) != 2:
-                continue
-            if uid not in uids:
-                continue
-            if maxval is None or val > maxval:
-                maxval = val
-                if uids[0] == uid:
-                    maxmate = uids[1]
-                else:
-                    maxmate = uids[0]
-        return maxmate
-
-    nbins, xmin, xmax = 30, -20, 50
-    nearest_clones = Hist(nbins, xmin, xmax)
-    for uid in singletons:
-        mate = find_nearest_clonemate(uid)
-        if mate is None:
-            continue
-        jk = get_joint_key(uid, mate)
+    nbins, xmin, xmax = 15, -5, 55
+    nearest_clones, farthest_clones, all_clones, hnot = [Hist(nbins, xmin, xmax) for _ in range(4)]
+    bigvals, smallvals = {}, {}
+    for key_a, key_b in combinations:  # <key_[ab]> is colon-separated string (not a list of keys)
+        jk = get_joint_key(key_a, key_b)
         if jk is None:
             continue
-        lratio = cachevals[jk] - cachevals[uid] - cachevals[mate]
-        nearest_clones.fill(lratio)
-
-    hclones = Hist(nbins, xmin, xmax)
-    hnot = Hist(nbins, xmin, xmax)
-    for st_a, st_b in itertools.combinations(singletons, 2):
-        jk1, jk2 = st_a + ':' + st_b, st_b + ':' + st_a
-        if jk1 in cachevals:
-            jk = jk1
-        elif jk2 in cachevals:
-            jk = jk2
-        else:
-            continue
-        lratio = cachevals[jk] - cachevals[st_a] - cachevals[st_b]
-        # print '%f - %f - %f = %f' % (cachevals[jk], cachevals[st_a], cachevals[st_b], lratio)
-        if utils.from_same_event(args.data, reco_info, [st_a, st_b]):
-            hclones.fill(lratio)
+        lratio = cachevals[jk] - cachevals[key_a] - cachevals[key_b]
+        # print '%f - %f - %f = %f' % (cachevals[jk], cachevals[key_a], cachevals[key_b], lratio),
+        # print 'y', key_a, key_b,
+        a_ids, b_ids = key_a.split(':'), key_b.split(':')
+        if utils.from_same_event(args.data, reco_info, a_ids + b_ids):
+            # print ' clonal', lratio
+            # print lratio, key_a, key_b
+            all_clones.fill(lratio)
+            for key in (key_a, key_b):
+                if key not in bigvals:
+                    bigvals[key] = lratio
+                if lratio > bigvals[key]:
+                    bigvals[key] = lratio
+                if key not in smallvals:
+                    smallvals[key] = lratio
+                if lratio < smallvals[key]:
+                    smallvals[key] = lratio
         else:
             hnot.fill(lratio)
+            # print ' not', lratio
+
+    for k, val in bigvals.items():
+        # print 'x', k, val, 'new near'
+        nearest_clones.fill(val)
+    for k, val in smallvals.items():
+        # print 'small', k, val
+        farthest_clones.fill(val)
 
     fig, ax = plotting.mpl_init()
+    ignore = False
     plots = {}
-    nearest_clones.normalize()
-    hclones.normalize()
-    hnot.normalize()
-    plots['clonal'] = ax.plot(hclones.get_bin_centers()[1:-1], hclones.bin_contents[1:-1], label='clonal')
-    plots['not'] = ax.plot(hnot.get_bin_centers()[1:-1], hnot.bin_contents[1:-1], label='not')
-    plots['nearest_clones'] = ax.plot(nearest_clones.get_bin_centers()[1:-1], nearest_clones.bin_contents[1:-1], label='nearest clones')
-    plotting.mpl_finish(ax, os.getenv('www') + '/partis/tmp', 'foop')
+    for h in (nearest_clones, farthest_clones, all_clones, hnot):
+        h.normalize(include_overflows=not ignore)
+    plots['clonal'] = all_clones.mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.5, linewidth=6)
+    plots['not'] = hnot.mpl_plot(ax, ignore_overflows=ignore, label='not', linewidth=6, alpha=0.5)
+    # plots['nearest'] = nearest_clones.mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+    # plots['farthest'] = farthest_clones.mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3)
+    # ax.set_yscale('log')
+    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel='log prob', ylabel='counts')
+
+# ----------------------------------------------------------------------------------------
+def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
+    cachevals = {}
+    singletons, pairs, triplets = [], [], []
+    with open(cachefname) as cachefile:
+        reader = csv.DictReader(cachefile)
+        for line in reader:
+            cachevals[line['unique_ids']] = float(line['logprob'])
+            unique_ids = line['unique_ids'].split(':')
+            if len(unique_ids) == 1:
+                singletons.append(line['unique_ids'])
+            elif len(unique_ids) == 2:
+                pairs.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+            elif len(unique_ids) == 3:
+                triplets.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+
+    baseplotdir = os.getenv('www') + '/partis/clustering/' + label + '/distances'
+    make_a_distance_plot(itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/singletons', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
+    # singletons = ['a1', 'a2']
+    # pairs = ['b1', 'b2', 'b3']
+    one_pair_one_singleton = []
+    for ipair in range(len(pairs)):
+        for ising in range(len(singletons)):
+            one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
+    make_a_distance_plot(one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-pair-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
+    make_a_distance_plot(itertools.combinations(pairs, 2), reco_info, cachevals, plotdir=baseplotdir + '/pairs', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
+    # make_a_distance_plot(itertools.combinations(triplets, 2), reco_info, cachevals, plotdir=baseplotdir + '/triplets', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
@@ -410,7 +427,7 @@ def write_all_plot_csvs(label):
         for mut_mult in args.mutation_multipliers:
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
-    if not args.data:
+    if not args.data and not args.count_distances:
         write_latex_table(adj_mis)
 
 # ----------------------------------------------------------------------------------------
@@ -440,7 +457,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
 
     input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
-        make_distance_plots(seqfname.replace('.csv', '-partition-cache.csv'), reco_info)
+        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info)
         return
 
     # then vollmers annotation (and true hists)
@@ -455,7 +472,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     # partis stuff
     # for ptype in ['vsearch-', 'naive-hamming-', '']:
     for ptype in ['', ]:
-        parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir)
+        parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
     plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*3.01)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])

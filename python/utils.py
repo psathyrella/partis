@@ -1242,6 +1242,7 @@ def get_true_clusters(ids, reco_info):
     return clusters
 
 # ----------------------------------------------------------------------------------------
+# dammit, it is confusing having both get_true_clusters and get_true_partition
 def get_true_partition(reco_info):
     """ NOTE returns a dict, not a list of lists """
     true_partition = {}
