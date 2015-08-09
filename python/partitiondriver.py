@@ -152,11 +152,11 @@ class PartitionDriver(object):
                     self.smc_info[-1][-1].append(cp)
 
         # cache hmm naive seqs for each single query
-        if len(self.input_info) > 50 or self.args.naive_vsearch:
+        if len(self.input_info) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
 
-        if self.args.naive_vsearch:
-            self.cluster_with_naive_vsearch(self.args.parameter_dir)
+        if self.args.naive_vsearch or self.args.naive_swarm:
+            self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
         # run that shiznit
@@ -242,7 +242,7 @@ class PartitionDriver(object):
                 paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_adj_mi='best')
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch(self, parameter_dir):
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):  # TODO change name of function if you switch to just swarm
         start = time.time()
         # read cached naive seqs
         naive_seqs = {}
@@ -256,38 +256,55 @@ class PartitionDriver(object):
 
         # make a fasta file
         fastafname = self.args.workdir + '/simu.fasta'
+        # if not os.path.exists(fastafname):
         with open(fastafname, 'w') as fastafile:
             for query, naive_seq in naive_seqs.items():
+                if self.args.naive_swarm:
+                    query += '_1'
+                    print '    NOTE: replacing N with A for input to swarm'
+                    naive_seq = naive_seq.replace('N', 'A')
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
-        print '      vsearch prep time: %.3f' % (time.time()-start)
-        start = time.time()
+        if self.args.naive_vsearch:
+            bound = self.get_naive_hamming_auto_bounds(parameter_dir) /  2.  # yay for heuristics! (I did actually optimize this...)
+            id_fraction = 1. - bound
+            clusterfname = self.args.workdir + '/vsearch-clusters.txt'
+            cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
+            # print cmd
+            check_call(cmd.split())
+    
+        elif self.args.naive_swarm:
+            clusterfname = self.args.workdir + '/vsearch-clusters.txt'
+            cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
+            cmd += ' -t 5'  # five threads TODO set this more intelligently
+            cmd += ' -f'
+            cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
+            cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
+            cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
+            # cmd += ' --gap-extension-penalty'
+            cmd += ' --uclust-file ' + clusterfname
+            print cmd
+            check_call(cmd.split())
+        else:
+            assert False
 
-        # run vsearch
-        bound = self.get_naive_hamming_auto_bounds(parameter_dir) /  2.  # yay for heuristics! (I did actually optimize this...)
-        id_fraction = 1. - bound
-        clusterfname = self.args.workdir + '/vsearch-clusters.txt'
-        cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-        # print xcmd
-        check_call(cmd.split())
-        print '      vsearch run time: %.3f' % (time.time()-start)
-        start = time.time()
+        os.remove(fastafname)
 
         # read output
         id_clusters = {}
         with open(clusterfname) as clusterfile:
             reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
             for line in reader:
-                if line['type'] == 'C':  # batshit otuput format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
+                if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
                     continue
                 cluster_id = int(line['cluster_id'])
                 if cluster_id not in id_clusters:
                     id_clusters[cluster_id] = []
-                id_clusters[cluster_id].append(line['query'])
-
-        os.remove(fastafname)
+                uid = line['query']
+                if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
+                    uid = uid[:-2]
+                id_clusters[cluster_id].append(uid)
         os.remove(clusterfname)
-
         partition = id_clusters.values()
         adj_mi = -1
         if not self.args.is_data:
@@ -297,7 +314,7 @@ class PartitionDriver(object):
         if self.args.outfname is not None:
             self.write_partitions(self.args.outfname, [cp, ])
 
-        print '      vsearch finish time: %.3f' % (time.time()-start)
+        print '      vsearch/swarm time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_auto_bounds(self, parameter_dir):

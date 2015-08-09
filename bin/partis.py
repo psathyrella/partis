@@ -40,6 +40,7 @@ parser.add_argument('--print-partitions', action='store_true', help='Print parti
 # parser.add_argument('--use_mean_at_boundaries', action='store_true')
 parser.add_argument('--annotation-clustering-thresholds', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
 parser.add_argument('--naive-vsearch', action='store_true')
+parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 

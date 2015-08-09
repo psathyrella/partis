@@ -55,6 +55,8 @@ args.startstoplist = utils.get_arg_list(args.startstoplist)
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
 if args.subset is not None:
+    if 'write-plots' not in args.actions:
+        assert args.n_subsets == 10
     args.n_to_partition = 1300
 if args.istartstop is not None:
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
