@@ -333,7 +333,7 @@ def read_adj_mi(fname):
     raise Exception('something wrong with %s file' % fname)
 
 # ----------------------------------------------------------------------------------------
-def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, plottitle):
+def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, plottitle, normalized):
     def get_joint_key(k1, k2):
         """ figure out which order we have <k1>, <k2> in the cache (if neither, return None) """
         jk1 = k1 + ':' + k2
@@ -346,20 +346,23 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
             return None
 
     nbins, xmin, xmax = 15, -5, 55
-    nearest_clones, farthest_clones, all_clones, hnot = [Hist(nbins, xmin, xmax) for _ in range(4)]
+    hists = OrderedDict()
+    hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
     bigvals, smallvals = {}, {}
     for key_a, key_b in combinations:  # <key_[ab]> is colon-separated string (not a list of keys)
+        a_ids, b_ids = key_a.split(':'), key_b.split(':')
+        if not utils.from_same_event(args.data, reco_info, a_ids) or not utils.from_same_event(args.data, reco_info, b_ids):  # skip clusters that were erroneously merged -- i.e., in effect, assume the previous step didn't screw up at all
+            continue
         jk = get_joint_key(key_a, key_b)
         if jk is None:
             continue
         lratio = cachevals[jk] - cachevals[key_a] - cachevals[key_b]
         # print '%f - %f - %f = %f' % (cachevals[jk], cachevals[key_a], cachevals[key_b], lratio),
         # print 'y', key_a, key_b,
-        a_ids, b_ids = key_a.split(':'), key_b.split(':')
         if utils.from_same_event(args.data, reco_info, a_ids + b_ids):
             # print ' clonal', lratio
             # print lratio, key_a, key_b
-            all_clones.fill(lratio)
+            hists['all-clones'].fill(lratio)
             for key in (key_a, key_b):
                 if key not in bigvals:
                     bigvals[key] = lratio
@@ -370,32 +373,34 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
                 if lratio < smallvals[key]:
                     smallvals[key] = lratio
         else:
-            hnot.fill(lratio)
+            hists['not'].fill(lratio)
             # print ' not', lratio
 
     for k, val in bigvals.items():
         # print 'x', k, val, 'new near'
-        nearest_clones.fill(val)
+        hists['nearest-clones'].fill(val)
     for k, val in smallvals.items():
         # print 'small', k, val
-        farthest_clones.fill(val)
+        hists['farthest-clones'].fill(val)
 
     fig, ax = plotting.mpl_init()
     ignore = False
+    if normalized:
+        for k, h in hists.items():
+            h.normalize(include_overflows=not ignore, expect_empty=True)
+            print '    %20s %f' % (k, h.get_mean(ignore_overflows=ignore))
     plots = {}
-    for h in (nearest_clones, farthest_clones, all_clones, hnot):
-        h.normalize(include_overflows=not ignore)
-    plots['clonal'] = all_clones.mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.5, linewidth=6)
-    plots['not'] = hnot.mpl_plot(ax, ignore_overflows=ignore, label='not', linewidth=6, alpha=0.5)
-    # plots['nearest'] = nearest_clones.mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-    # plots['farthest'] = farthest_clones.mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3)
+    plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.5, linewidth=6)
+    plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='not', linewidth=7, alpha=0.5)
+    plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+    plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3)
     # ax.set_yscale('log')
-    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel='log prob', ylabel='counts')
+    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel='log prob', ylabel='frequency' if normalized else 'counts')
 
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
     cachevals = {}
-    singletons, pairs, triplets = [], [], []
+    singletons, pairs, triplets, quads = [], [], [], []
     with open(cachefname) as cachefile:
         reader = csv.DictReader(cachefile)
         for line in reader:
@@ -407,24 +412,50 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
                 pairs.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
             elif len(unique_ids) == 3:
                 triplets.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+            elif len(unique_ids) == 4:
+                quads.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
 
+    normalized = True
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label + '/distances'
-    make_a_distance_plot(itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/singletons', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
-    # singletons = ['a1', 'a2']
-    # pairs = ['b1', 'b2', 'b3']
-    one_pair_one_singleton = []
-    for ipair in range(len(pairs)):
+    if normalized:
+        baseplotdir += '/normalized'
+
+    # print 'singletons'
+    # make_a_distance_plot(itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/singletons', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+
+    # print 'one pair one singleton'
+    # one_pair_one_singleton = []
+    # for ipair in range(len(pairs)):
+    #     for ising in range(len(singletons)):
+    #         one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
+    # make_a_distance_plot(one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-pair-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+
+    # print 'pairs'
+    # make_a_distance_plot(itertools.combinations(pairs, 2), reco_info, cachevals, plotdir=baseplotdir + '/pairs', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+
+    # print 'triplets'
+    # make_a_distance_plot(itertools.combinations(triplets, 2), reco_info, cachevals, plotdir=baseplotdir + '/triplets', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+
+    # print 'one triplet one singleton'
+    # one_triplet_one_singleton = []
+    # for itriplet in range(len(triplets)):
+    #     for ising in range(len(singletons)):
+    #         one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
+    # make_a_distance_plot(one_triplet_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-triplet-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+
+    print 'one quad one singleton'
+    one_quad_one_singleton = []
+    for iquad in range(len(quads)):
         for ising in range(len(singletons)):
-            one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
-    make_a_distance_plot(one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-pair-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
-    make_a_distance_plot(itertools.combinations(pairs, 2), reco_info, cachevals, plotdir=baseplotdir + '/pairs', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
-    # make_a_distance_plot(itertools.combinations(triplets, 2), reco_info, cachevals, plotdir=baseplotdir + '/triplets', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult))
+            one_quad_one_singleton.append((quads[iquad], singletons[ising]))
+    make_a_distance_plot(one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-quad-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
 
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
     hists, adj_mis = {}, {}
     for n_leaves in args.n_leaf_list:
         for mut_mult in args.mutation_multipliers:
+            print n_leaves, mut_mult
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis)
 
     if not args.data and not args.count_distances:

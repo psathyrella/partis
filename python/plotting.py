@@ -1004,5 +1004,5 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel=''):
     if not os.path.exists(plotdir):
         os.makedirs(plotdir + '/plots')
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
-    check_call(['./bin/makeHtml', plotdir, '4', 'foop', 'svg'])
+    check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])

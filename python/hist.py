@@ -116,7 +116,7 @@ class Hist(object):
         self.fill_ibin(self.find_bin(value), weight)
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=False):
+    def normalize(self, include_overflows=False, expect_empty=False):
         """ NOTE does not multiply/divide by bin widths """
         sum_value = 0.0
         if include_overflows:
@@ -126,7 +126,8 @@ class Hist(object):
         for ib in range(imin, imax):
             sum_value += self.bin_contents[ib]
         if sum_value == 0.0:
-            print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
+            if not expect_empty:
+                print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
             return
         # make sure there's not too much stuff in the under/overflows
         if not include_overflows and (self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10):
@@ -186,7 +187,7 @@ class Hist(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def get_bin_centers(self, without_overflows=False):
+    def get_bin_centers(self, ignore_overflows=False):
         bin_centers = []
         for ibin in range(len(self.low_edges)):
             low_edge = self.low_edges[ibin]
@@ -195,21 +196,28 @@ class Hist(object):
             else:
                 high_edge = low_edge + (self.low_edges[ibin] - self.low_edges[ibin - 1])  # overflow bin has undefined upper limit, so just use the next-to-last bin width
             bin_centers.append(0.5 * (low_edge + high_edge))
-        if without_overflows:
+        if ignore_overflows:
             return bin_centers[1:-1]
         else:
             return bin_centers
 
     # ----------------------------------------------------------------------------------------
-    def get_mean(self):
+    def get_mean(self, ignore_overflows=False):
+        if ignore_overflows:
+            imin, imax = 1, self.n_bins + 1
+        else:
+            imin, imax = 0, self.n_bins + 2
         centers = self.get_bin_centers()
         total, integral = 0.0, 0.0
-        for ib in range(1, self.n_bins + 1):  # don't include under/overflows
+        for ib in range(imin, imax):
             # print '    ', centers[ib], self.bin_contents[ib]
             total += self.bin_contents[ib] * centers[ib]
             integral += self.bin_contents[ib]
         # print total, integral
-        return total / integral
+        if integral > 0.:
+            return total / integral
+        else:
+            return 0.
 
     # ----------------------------------------------------------------------------------------
     def __str__(self):
