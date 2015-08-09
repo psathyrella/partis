@@ -530,15 +530,18 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	printf("\n");
       }
 
-      // // ----------------------------------------------------------------------------------------
-      // if(qmerged.seqs_.size() == 2 && lratio < 25.) {
-      // 	continue;
-      // } else if(qmerged.seqs_.size() == 3 && lratio < 10.) {
-      // 	continue;
-      // } else if(qmerged.seqs_.size() == 4 && lratio < 5.) {
-      // 	continue;
-      // }
-      // // ----------------------------------------------------------------------------------------
+      // ----------------------------------------------------------------------------------------
+      // this should really depend on the sample's mutation frequency as well
+      if(qmerged.seqs_.size() == 2 && lratio < 20.) {
+      	continue;
+      } else if(qmerged.seqs_.size() == 3 && lratio < 15.) {
+      	continue;
+      } else if(qmerged.seqs_.size() == 4 && lratio < 10.) {
+      	continue;
+      } else if(qmerged.seqs_.size() == 5 && lratio < 5.) {
+      	continue;
+      }
+      // ----------------------------------------------------------------------------------------
 
       potential_merges.push_back(pair<double, Query>(lratio, qmerged));
 
