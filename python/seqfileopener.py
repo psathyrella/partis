@@ -66,6 +66,8 @@ def get_seqfile_info(fname, is_data, germline_seqs=None, cyst_positions=None, tr
             reco_info[unique_id] = dict(line)
             if 'indels' in line and line['indels']['reversed_seq'] != '':  # TODO unhackify this
                 reco_info[unique_id]['seq'] = line['indels']['reversed_seq']
+            if 'indels' not in line:  # TODO unhackify this
+                reco_info[unique_id]['indels'] = None
             if germline_seqs is not None:
                 utils.add_match_info(germline_seqs, reco_info[unique_id], cyst_positions, tryp_positions)
         n_queries += 1
