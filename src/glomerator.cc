@@ -204,7 +204,7 @@ void Glomerator::WriteCachedLogProbs() {
   log_prob_ofs << setprecision(20);
   // first write everything for which we have log probs
   for(auto &kv : log_probs_) {
-    string query(kv.first);  // colon-separated list of query seqs
+    string query(kv.first);  // sorted, colon-separated list of query seqs
     double logprob(kv.second);
     string naive_seq;  // if we don't have the naive sequence, write empty strings for both
     if(naive_seqs_.count(query))  // if we calculate the merged prob for two clusters, but don't end up merging them, then we will have the logprob but not the naive seq
@@ -405,7 +405,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   // NOTE truncates sequences!
 
   Query qmerged;
-  qmerged.name_ = JoinNames(name_a, name_b);
+  qmerged.name_ = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
   qmerged.seqs_ = MergeSeqVectors(name_a, name_b);  // doesn't truncate anything
 
   // truncation
@@ -459,7 +459,7 @@ Query *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_mer
 // ----------------------------------------------------------------------------------------
 string Glomerator::JoinNames(string name1, string name2) {
   vector<string> names{name1, name2};
-  sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids
+  sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids. In principle this will lead to unnecessary cache misses (if we later arrive at the same combination of sequences from a different starting point). In practice, this is very unlikely (unless we're dong smc) since we've already merged the constituents of name1 and name2 and we can't unmerge them.
   return names[0] + ":" + names[1];
 }
 
