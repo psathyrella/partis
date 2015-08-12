@@ -802,7 +802,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         real_action = 'partition'
     cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
 
-    extras = []
+    extras = ['--random-divvy']
     seqfname = get_seqfile(action, label, datafname, n_leaves, mut_mult)
     if args.data:
         cmd += ' --datafname ' + seqfname + ' --is-data'

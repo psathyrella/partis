@@ -172,7 +172,8 @@ class PartitionDriver(object):
                 break
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
-                n_procs = int(n_procs / 1.5)
+                if n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]:
+                    n_procs = int(n_procs / 1.2)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
@@ -465,27 +466,42 @@ class PartitionDriver(object):
 
         self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
 
-    # # ----------------------------------------------------------------------------------------
-    # def read_cachefile(self):
-    #     """ a.t.m. just want to know which values we have """
-    #     cachefo = {}
-    #     with open(self.hmm_cachefname) as cachefile:
-    #         reader = csv.DictReader(cachefile)
-    #         for line in reader:
-                
+    # ----------------------------------------------------------------------------------------
+    def read_cachefile(self):
+        """ a.t.m. just want to know which values we have """
+        cachefo = {}
+        if not os.path.exists(self.hmm_cachefname):
+            return cachefo
+        with open(self.hmm_cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            for line in reader:
+                cachefo[line['unique_ids']] = {}
+        return cachefo
 
     # ----------------------------------------------------------------------------------------
     def get_expected_number_of_forward_calculations(self, info, namekey, seqkey):
+        start = time.time()
+        def join_names(name1, name2):  # mimics function in glomeraor.cc
+            sortedlist = sorted([name1, name2])
+            return ':'.join(sortedlist)
+
         naive_seqs = self.get_naive_seqs(info, namekey, seqkey)
-        n_expected = 0
-        for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
+        cachefo = self.read_cachefile()
+        n_total, n_cached = 0, 0
+        for id_a, id_b in itertools.combinations(naive_seqs.keys(), 2):
+            seq_a, seq_b = naive_seqs[id_a], naive_seqs[id_b]
             hfrac = utils.hamming_fraction(seq_a, seq_b)
             if hfrac >= self.args.hamming_fraction_bounds[0] and hfrac <= self.args.hamming_fraction_bounds[1]:  # NOTE not sure the equals match up exactly with what's in ham, but it's an estimate, so it doesn't matter
-                print 'run: %f' % hfrac
-                n_expected += 1
+                n_total += 1
+                if join_names(id_a, id_b) in cachefo:
+                    n_cached += 1
+                    assert ':'.join(sorted([id_a, id_b], reverse=True)) not in cachefo
+                    assert id_a in cachefo
+                    assert id_b in cachefo
 
-        print n_expected
-        return n_expected
+        print 'expected total: %d  (cached: %d) --> %d' % (n_total, n_cached, n_total - n_cached)
+        print '      expected calc time: %.3f' % (time.time()-start)
+        return n_total - n_cached
 
     # ----------------------------------------------------------------------------------------
     def get_naive_seqs(self, info, namekey, seqkey):
@@ -1052,6 +1068,7 @@ class PartitionDriver(object):
         # for k in nsets:
         #     print k
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
+            print 'randomizing input order'
             random_nsets = []
             while len(nsets) > 0:
                 irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive

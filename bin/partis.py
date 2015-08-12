@@ -168,7 +168,8 @@ else:
     start = time.time()
     from partitiondriver import PartitionDriver
     random.seed(args.seed)
-
+    if args.action == 'partition' and not args.random_divvy:
+        assert False
     args.queries = utils.get_arg_list(args.queries)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
