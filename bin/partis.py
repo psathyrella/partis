@@ -51,7 +51,7 @@ parser.add_argument('--datadir', default='data/imgt', help='Directory from which
 parser.add_argument('--outfname')
 parser.add_argument('--plotdir', help='Base directory to which to write plots (no plot are written if this isn\'t set)')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
-parser.add_argument('--workdir', default='/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999)), help='Temporary working directory (see also <no-clean>)')
+parser.add_argument('--workdir', help='Temporary working directory (see also <no-clean>)')
 parser.add_argument('--persistent-cachefname')
 
 # run/batch control
@@ -109,6 +109,15 @@ args.hamming_fraction_bounds = utils.get_arg_list(args.hamming_fraction_bounds, 
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
+if args.workdir is None:  # set default here so we know whether it was set by hand or not
+    # default_workdir = 
+    args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999))
+if os.path.exists(args.workdir):
+    raise Exception('workdir %s already exists' % args.workdir)
+# elif os.path.exists(args.workdir):
+#     print '\nWARNING workdir %s already exists\n' % args.workdir
+
+
 assert not args.truncate_n_sets  # disabled and deprecated (I'm breaking it to make N padding easier to implement)
 if args.plot_performance:
     assert not args.is_data
@@ -148,7 +157,7 @@ if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
         from treegenerator import TreeGenerator, Hist
         treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
-        treegen.generate_trees(self.args.outfname)
+        treegen.generate_trees(args.outfname)
         sys.exit(0)
     # if not args.no_clean:
     #     os.rmdir(reco.workdir)

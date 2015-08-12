@@ -256,12 +256,15 @@ class PartitionDriver(object):
 
         # make a fasta file
         fastafname = self.args.workdir + '/simu.fasta'
+                
         # if not os.path.exists(fastafname):
+        if self.args.naive_swarm:
+            print '    NOTE: replacing N with A for input to swarm'
         with open(fastafname, 'w') as fastafile:
             for query, naive_seq in naive_seqs.items():
                 if self.args.naive_swarm:
                     query += '_1'
-                    print '    NOTE: replacing N with A for input to swarm'
+                    naive_seq = utils.remove_ambiguous_ends(naive_seq, '', '')
                     naive_seq = naive_seq.replace('N', 'A')
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
@@ -288,8 +291,6 @@ class PartitionDriver(object):
         else:
             assert False
 
-        os.remove(fastafname)
-
         # read output
         id_clusters = {}
         with open(clusterfname) as clusterfile:
@@ -304,7 +305,6 @@ class PartitionDriver(object):
                 if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
                     uid = uid[:-2]
                 id_clusters[cluster_id].append(uid)
-        os.remove(clusterfname)
         partition = id_clusters.values()
         adj_mi = -1
         if not self.args.is_data:
@@ -313,6 +313,10 @@ class PartitionDriver(object):
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi)
         if self.args.outfname is not None:
             self.write_partitions(self.args.outfname, [cp, ])
+
+        if not self.args.no_clean:
+            os.remove(fastafname)
+            os.remove(clusterfname)
 
         print '      vsearch/swarm time: %.3f' % (time.time()-start)
 

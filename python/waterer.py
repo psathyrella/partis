@@ -445,9 +445,13 @@ class Waterer(object):
         self.info[query_name]['cyst_position'] = codon_positions['v']
         self.info[query_name]['tryp_position'] = codon_positions['j']
         if self.info[query_name]['cyst_position'] < 0 or self.info[query_name]['cyst_position'] >= len(query_seq):
-            raise Exception('cpos %d invalid for %s (%s)' % (self.info[query_name]['cyst_position'], query_name, query_seq))
+            # raise Exception('cpos %d invalid for %s (%s)' % (self.info[query_name]['cyst_position'], query_name, query_seq))
+            print 'cpos %d invalid for %s (%s) -- set to -1' % (self.info[query_name]['cyst_position'], query_name, query_seq)
+            self.info[query_name]['cyst_position'] = -1
         if self.info[query_name]['tryp_position'] < 0 or self.info[query_name]['tryp_position'] >= len(query_seq):
-            raise Exception('tpos %d invalid for %s (%s)' % (self.info[query_name]['tryp_position'], query_name, query_seq))
+            # raise Exception('tpos %d invalid for %s (%s)' % (self.info[query_name]['tryp_position'], query_name, query_seq))
+            print 'tpos %d invalid for %s (%s) -- set to -1' % (self.info[query_name]['tryp_position'], query_name, query_seq)
+            self.info[query_name]['tryp_position'] = -1
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]

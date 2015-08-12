@@ -118,9 +118,9 @@ class MuteFreqer(object):
                 counts[position]['freq_lo_err'] = mutated_fraction_err[0]
                 counts[position]['freq_hi_err'] = mutated_fraction_err[1]
 
-        self.mean_rates['all'].normalize(overflow_warn=False)  # we expect overflows in mute freq hists, so no need to warn us
+        self.mean_rates['all'].normalize()  # we expect overflows in mute freq hists, so no need to warn us
         for region in utils.regions:
-            self.mean_rates[region].normalize(overflow_warn=False)
+            self.mean_rates[region].normalize()
 
         # for gene in self.tmpcounts:
         #     for position in self.tmpcounts[gene]:

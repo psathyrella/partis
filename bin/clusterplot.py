@@ -18,7 +18,7 @@ from utils import get_arg_list, get_partition_from_str
 import plotting
 
 class ClusterPlot(object):
-    def __init__(self, args):
+    def __init__(self, args, rebin=None):
         self.args = args
         self.logprobs, self.n_clusters, self.adj_mis, self.logweights, self.hists = {}, {}, {}, {}, {}
         self.final_logweights = []
@@ -39,7 +39,7 @@ class ClusterPlot(object):
                     self.n_clusters[ipath].append(int(line['n_clusters']))
                     self.adj_mis[ipath].append(float(line.get('adj_mi', -1)))
                     self.logweights[ipath].append(float(line.get('logweight', 1)))
-                    self.hists[ipath].append(plotting.get_cluster_size_hist(get_partition_from_str(line['clusters'])))
+                    self.hists[ipath].append(plotting.get_cluster_size_hist(get_partition_from_str(line['clusters']), rebin=rebin))
                     if self.tmp_n_true_clusters is None:
                         self.tmp_n_true_clusters = int(line.get('n_true_clusters', -1))
     

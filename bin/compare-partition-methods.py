@@ -220,12 +220,12 @@ def write_latex_table(adj_mis):
             print '\\\\'
 
 # ----------------------------------------------------------------------------------------
-def parse_vollmers(these_hists, these_adj_mis, seqfname, outdir, reco_info):
+def parse_vollmers(these_hists, these_adj_mis, seqfname, outdir, reco_info, rebin=None):
     vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
         for line in vreader:
-            vhist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['clusters']))
+            vhist = plotting.get_cluster_size_hist(utils.get_partition_from_str(line['clusters']), rebin=rebin)
             histfname = outdir + '/hists/vollmers-'  + line['threshold'] + '.csv'
             vhist.write(histfname)
             these_hists['vollmers-' + line['threshold']] = vhist
@@ -236,12 +236,12 @@ def parse_vollmers(these_hists, these_adj_mis, seqfname, outdir, reco_info):
 
                 vollmers_clusters = [cl.split(':') for cl in line['clusters'].split(';')]
                 all_ids = [val for cluster in vollmers_clusters for val in cluster]
-                truehist = plotting.get_cluster_size_hist(utils.get_true_clusters(all_ids, reco_info).values())
+                truehist = plotting.get_cluster_size_hist(utils.get_true_clusters(all_ids, reco_info).values(), rebin=rebin)
                 truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
                 these_hists['true'] = truehist
 
 # ----------------------------------------------------------------------------------------
-def parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, simfname, simfbase, outdir, reco_info):
+def parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, simfname, simfbase, outdir, reco_info, rebin=None):
     indir = get_changeo_outdir(label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
     if args.data:
         fbase = 'data'
@@ -268,7 +268,7 @@ def parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, simfnam
             id_clusters[clid].append(uid)
     
     partition = [ids for ids in id_clusters.values()]
-    these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
+    these_hists['changeo'] = plotting.get_cluster_size_hist(partition, rebin=rebin)
     these_hists['changeo'].write(outdir + '/hists/changeo.csv')
     if not args.data:
         adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
@@ -297,14 +297,14 @@ def parse_mixcr(these_hists, these_adj_mis, seqfname, outdir, reco_info):
         these_adj_mis['mixcr'] = -1., -1.
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(action, these_hists, these_adj_mis, seqfname, outdir, reco_info):
+def parse_partis(action, these_hists, these_adj_mis, seqfname, outdir, reco_info, rebin=None):
     args.infnames = [seqfname.replace('.csv', '-' + action + '.csv'), ]  # NOTE make sure not to add any args here that conflict with the real command line args
     args.is_data = args.data
     args.use_all_steps = False
     args.normalize_axes = []
     args.debug = False
     args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
-    cplot = ClusterPlot(args)
+    cplot = ClusterPlot(args, rebin=rebin)
     cplot.tmp_cluster_size_hist.write(outdir + '/hists/' + action + '.csv')
     these_hists[action + ' partis'] = cplot.tmp_cluster_size_hist
     if not args.data:
@@ -347,7 +347,7 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
         else:
             return None
 
-    nbins, xmin, xmax = 15, -5, 55
+    nbins, xmin, xmax = 30, -15, 55
     hists = OrderedDict()
     hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
     bigvals, smallvals = {}, {}
@@ -395,9 +395,9 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
     plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.5, linewidth=6)
     plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='not', linewidth=7, alpha=0.5)
     plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-    plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3)
+    plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
     # ax.set_yscale('log')
-    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel='log prob', ylabel='frequency' if normalized else 'counts')
+    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel='log prob ratio', ylabel='frequency' if normalized else 'counts')
 
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
@@ -422,15 +422,15 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
     if normalized:
         baseplotdir += '/normalized'
 
-    # print 'singletons'
-    # make_a_distance_plot(itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/singletons', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+    print 'singletons'
+    make_a_distance_plot(itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/singletons', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (singletons)', normalized=normalized)
 
-    # print 'one pair one singleton'
-    # one_pair_one_singleton = []
-    # for ipair in range(len(pairs)):
-    #     for ising in range(len(singletons)):
-    #         one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
-    # make_a_distance_plot(one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-pair-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+    print 'one pair one singleton'
+    one_pair_one_singleton = []
+    for ipair in range(len(pairs)):
+        for ising in range(len(singletons)):
+            one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
+    make_a_distance_plot(one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-pair-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (pair + single)', normalized=normalized)
 
     # print 'pairs'
     # make_a_distance_plot(itertools.combinations(pairs, 2), reco_info, cachevals, plotdir=baseplotdir + '/pairs', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
@@ -438,19 +438,19 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
     # print 'triplets'
     # make_a_distance_plot(itertools.combinations(triplets, 2), reco_info, cachevals, plotdir=baseplotdir + '/triplets', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
 
-    # print 'one triplet one singleton'
-    # one_triplet_one_singleton = []
-    # for itriplet in range(len(triplets)):
-    #     for ising in range(len(singletons)):
-    #         one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
-    # make_a_distance_plot(one_triplet_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-triplet-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+    print 'one triplet one singleton'
+    one_triplet_one_singleton = []
+    for itriplet in range(len(triplets)):
+        for ising in range(len(singletons)):
+            one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
+    make_a_distance_plot(one_triplet_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-triplet-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (triple + single)', normalized=normalized)
 
     print 'one quad one singleton'
     one_quad_one_singleton = []
     for iquad in range(len(quads)):
         for ising in range(len(singletons)):
             one_quad_one_singleton.append((quads[iquad], singletons[ising]))
-    make_a_distance_plot(one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-quad-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+    make_a_distance_plot(one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-quad-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (quad + single)', normalized=normalized)
 
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
@@ -493,21 +493,24 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
         make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info)
         return
 
+    rebin = None
+    # if n_leaves > 10:
+    #     rebin = 2
     # then vollmers annotation (and true hists)
-    parse_vollmers(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
+    parse_vollmers(these_hists, these_adj_mis, seqfname, csvdir, reco_info, rebin=rebin)
 
     # mixcr
-    # parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
+    # parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info, rebin=rebin)
 
     # # then changeo
-    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info)
+    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
     # for ptype in ['vsearch-', 'naive-hamming-', '']:
     for ptype in ['', ]:
-        parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir, reco_info)
+        parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir, reco_info, rebin=rebin)
 
-    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*3.01)
+    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*6.01)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
@@ -517,7 +520,6 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
 
 # ----------------------------------------------------------------------------------------
 def compare_all_subsets(label):
-    print '\n\nfigure out why all the adj mis are screwed up\n\n'
     hists, adj_mis = {}, {}
     for n_leaves in args.n_leaf_list:
         for mut_mult in args.mutation_multipliers:
@@ -539,10 +541,10 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
 
     basedir = fsdir + '/' + label
     # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'partition']
     if not args.data:
         expected_methods.insert(0, 'true')
-    # expected_methods = ['vollmers-0.9', 'vsearch-partition', 'naive-hamming-partition']
     tmp_adj_mis = OrderedDict()
     for method in expected_methods:
         method_hists = []
@@ -582,7 +584,7 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
     else:
         title = get_title(label, n_leaves, mut_mult)
         plotfname = plotdir + '/plots/' + leafmutstr(n_leaves, mut_mult) + '.svg'
-        xmax = n_leaves*3.01
+        xmax = n_leaves*6.01
     plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=xmax)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])

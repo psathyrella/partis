@@ -793,9 +793,14 @@ def make_mean_plots(plotdir, subdirs, outdir):
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
 
 # ----------------------------------------------------------------------------------------
-def get_cluster_size_hist(partition):
+def get_cluster_size_hist(partition, rebin=None):
     sizes = [len(c) for c in partition]
-    hist = Hist(max(sizes), 0.5, max(sizes) + 0.5)
+    nbins = max(sizes)
+    # if nbins > 30:
+    #     rebin = 2
+    if rebin is not None:
+        nbins = int(float(nbins) / rebin)
+    hist = Hist(nbins, 0.5, max(sizes) + 0.5)
     for sz in sizes:
         hist.fill(sz)
     return hist
@@ -956,7 +961,8 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
     ax.set_xscale('log')
-    potential_xticks = [1, 2, 3, 9, 30, 50, 100]
+    # ax.set_yscale('log')
+    potential_xticks = [1, 2, 3, 9, 30, 50, 100, 200]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
     plotdir = os.path.dirname(outfname)

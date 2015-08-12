@@ -63,7 +63,7 @@ class PerformancePlotter(object):
             left_hack_add_on = true_line['seq'][: start]
             right_hack_add_on = true_line['seq'][ end :]
             # extra_penalty = len(left_hack_add_on) + len(right_hack_add_on)
-            inferred_naive_seq = 'x'*len(left_hack_add_on) + inferred_naive_seq + 'x'*len(right_hack_add_on)
+            inferred_naive_seq = 'N'*len(left_hack_add_on) + inferred_naive_seq + 'N'*len(right_hack_add_on)
             if debug:
                 print '  adding to inferred naive seq'
 

@@ -227,11 +227,11 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label='', alpha=1., linewidth=2):
+    def mpl_plot(self, ax, ignore_overflows=False, label='', alpha=1., linewidth=2, linestyle='-'):
         if ignore_overflows:
             xvals = self.get_bin_centers()[1:-1]
             yvals = self.bin_contents[1:-1]
         else:
             xvals = self.get_bin_centers()
             yvals = self.bin_contents
-        return ax.step(xvals, yvals, label=label, alpha=alpha, linewidth=linewidth)
+        return ax.plot(xvals, yvals, label=label, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
