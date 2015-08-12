@@ -40,7 +40,7 @@ class PartitionDriver(object):
 
         self.cached_results = None
         self.bcrham_divvied_queries = None
-        self.n_max_divvy = 5  # if input info is longer than this, divvy with bcrham
+        self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
 
         self.sw_info = None
 
@@ -164,7 +164,7 @@ class PartitionDriver(object):
             start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy))
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and not self.args.random_divvy))
             n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-start)
@@ -453,25 +453,42 @@ class PartitionDriver(object):
 
         if n_procs > 1 and self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
             if divvy_with_bcrham:
-                print '      naive hamming clustering'
+                print '      bcrham naive hamming clustering'
                 assert '--partition' in cmd_str and algorithm == 'forward'
                 n_divvy_procs = max(1, self.get_n_clusters() / 500)  # number of bcrham procs used to divvy up queries with naive hamming clustering
-                self.split_input(n_procs=n_divvy_procs, infname=self.hmm_infname, prefix='hmm', divvy_up=False)
+                self.split_input(n_divvy_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs, bcrham_naive_hamming_cluster=True)
                 self.execute(cmd_str.replace('--partition', '--naive-hamming-cluster XXX'), n_procs=n_divvy_procs, total_naive_hamming_cluster_procs=n_procs)
                 self.read_naive_hamming_clusters(n_procs=n_divvy_procs)
-            self.split_input(n_procs, infname=self.hmm_infname, prefix='hmm', divvy_up=(self.args.action=='partition' and algorithm=='forward'))
+            self.split_input(n_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs, bcrham_naive_hamming_cluster=False)
 
         self.execute(cmd_str, n_procs)
 
         self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
 
-    # ----------------------------------------------------------------------------------------
-    def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
-        if self.bcrham_divvied_queries is not None:
-            if len(self.bcrham_divvied_queries) != n_procs:
-                raise Exception('Wrong number of clusters %d for %d procs' % (len(self.bcrham_divvied_queries), n_procs))
-            return self.bcrham_divvied_queries
+    # # ----------------------------------------------------------------------------------------
+    # def read_cachefile(self):
+    #     """ a.t.m. just want to know which values we have """
+    #     cachefo = {}
+    #     with open(self.hmm_cachefname) as cachefile:
+    #         reader = csv.DictReader(cachefile)
+    #         for line in reader:
+                
 
+    # ----------------------------------------------------------------------------------------
+    def get_expected_number_of_forward_calculations(self, info, namekey, seqkey):
+        naive_seqs = self.get_naive_seqs(info, namekey, seqkey)
+        n_expected = 0
+        for seq_a, seq_b in itertools.combinations(naive_seqs.values(), 2):
+            hfrac = utils.hamming_fraction(seq_a, seq_b)
+            if hfrac >= self.args.hamming_fraction_bounds[0] and hfrac <= self.args.hamming_fraction_bounds[1]:  # NOTE not sure the equals match up exactly with what's in ham, but it's an estimate, so it doesn't matter
+                print 'run: %f' % hfrac
+                n_expected += 1
+
+        print n_expected
+        return n_expected
+
+    # ----------------------------------------------------------------------------------------
+    def get_naive_seqs(self, info, namekey, seqkey):
         def get_query_from_sw(qry):
             assert qry in self.sw_info
             naive_seq = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[qry])
@@ -497,6 +514,18 @@ class PartitionDriver(object):
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
                 raise Exception('zero-length naive sequence found for ' + str(query))
+        return naive_seqs
+
+    # ----------------------------------------------------------------------------------------
+    def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
+        if self.bcrham_divvied_queries is not None:
+            print 'using bcrham_divvied_queries'
+            if len(self.bcrham_divvied_queries) != n_procs:
+                raise Exception('Wrong number of clusters %d for %d procs' % (len(self.bcrham_divvied_queries), n_procs))
+            return self.bcrham_divvied_queries
+
+        print 'no bcrham divvies, divvying with python glomerator'
+        naive_seqs = self.get_naive_seqs(info, namekey, seqkey)
 
         if self.args.truncate_n_sets:
             assert False  # deprecated and broken
@@ -517,17 +546,18 @@ class PartitionDriver(object):
         return divvied_queries
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname, prefix, divvy_up):
+    def split_input(self, n_procs, infname, prefix, algorithm, cache_naive_seqs, bcrham_naive_hamming_cluster):
         """ Do stuff. Probably correctly. """
-        # read single input file
         assert self.args.smc_particles == 1
+
+        # read single input file
         info = []
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
                 info.append(line)
 
-        # initialize
+        # initialize output files
         sub_outfiles, writers = [], []
         for iproc in range(n_procs):
             subworkdir = self.args.workdir + '/' + prefix + '-' + str(iproc)
@@ -540,11 +570,19 @@ class PartitionDriver(object):
             if os.path.exists(self.hmm_cachefname):
                 check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
 
-        if divvy_up:
+        cluster_divvy = False
+        if self.args.action == 'partition' and algorithm == 'forward':
+            if not self.args.random_divvy and not cache_naive_seqs and not bcrham_naive_hamming_cluster:
+                cluster_divvy = True
+        # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')
+        if cluster_divvy:  # cluster similar sequences together (otherwise just do it in order)
+            print 'cluster divvy in split_input'
             divvied_queries = self.divvy_up_queries(n_procs, info, 'names', 'seqs')
+        else:
+            print 'modulo divvy'
         for iproc in range(n_procs):
             for iquery in range(len(info)):
-                if divvy_up:
+                if cluster_divvy:
                     if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
                         continue
                 else:
@@ -623,14 +661,14 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             if n_procs == 1:
-                print 'removing ', self.hmm_outfname
+                # print 'removing ', self.hmm_outfname
                 os.remove(self.hmm_outfname)
             else:
                 for iproc in range(n_procs):
                     subworkdir = self.args.workdir + '/hmm-' + str(iproc)
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                     if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
-                        print 'removing ', subworkdir + '/' + os.path.basename(self.hmm_outfname)
+                        # print 'removing ', subworkdir + '/' + os.path.basename(self.hmm_outfname)
                         os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
                     os.rmdir(subworkdir)
 
@@ -1011,6 +1049,19 @@ class PartitionDriver(object):
             writer.writeheader()
         # start = time.time()
 
+        # for k in nsets:
+        #     print k
+        if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
+            random_nsets = []
+            while len(nsets) > 0:
+                irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
+                random_nsets.append(nsets[irand])
+                nsets.remove(nsets[irand])
+            nsets = random_nsets
+        # print '---'
+        # for k in nsets:
+        #     print k
+        
         for query_names in nsets:
             non_failed_names = self.remove_sw_failures(query_names)
             if len(non_failed_names) == 0:

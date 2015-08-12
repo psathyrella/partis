@@ -43,6 +43,7 @@ parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
+parser.add_argument('--random-divvy', action='store_true')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
