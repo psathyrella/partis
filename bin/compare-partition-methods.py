@@ -500,14 +500,14 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis):
     parse_vollmers(these_hists, these_adj_mis, seqfname, csvdir, reco_info, rebin=rebin)
 
     # mixcr
-    # parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info, rebin=rebin)
+    parse_mixcr(these_hists, these_adj_mis, seqfname, csvdir, reco_info)
 
-    # # then changeo
-    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
+    # then changeo
+    parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
-    # for ptype in ['vsearch-', 'naive-hamming-', '']:
-    for ptype in ['', ]:
+    for ptype in ['vsearch-', 'naive-hamming-', '']:
+    # for ptype in ['', ]:
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, seqfname, csvdir, reco_info, rebin=rebin)
 
     plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*6.01)
@@ -540,9 +540,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis):
     these_adj_mis = adj_mis[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    expected_methods = ['vollmers-0.9', 'partition']
+    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'partition']
     if not args.data:
         expected_methods.insert(0, 'true')
     tmp_adj_mis = OrderedDict()

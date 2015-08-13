@@ -10,10 +10,10 @@ parser.add_argument('--action', required=True)
 args = parser.parse_args()
 
 n_subsets = 10
-for isub in range(3):  #n_subsets):
+for isub in [0, 1, 2]:  #range(1):  #n_subsets):
     cmd = './bin/compare-partition-methods.py --actions ' + args.action + ' --subset ' + str(isub) + ' --n-subsets ' + str(n_subsets)
     cmd += ' --mutation-multipliers 1:4'
-    cmd += ' --n-leaf-list 2'  #1:2:5:10:25:50'
+    cmd += ' --n-leaf-list 2:5:10:25:50'  #1:2:5:10:25:50'
     # cmd += ' --overwrite'
     # cmd += ' --indels'
     # cmd += ' --lonely-leaves'

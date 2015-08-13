@@ -28,22 +28,20 @@ mpl.rcParams.update({
     'axes.labelsize': fsize
 })
 
-n_leaf_list = [5, 10, 25, 50]
+n_leaf_list = [2, 5, 10, 25, 50]
 adj_mis = OrderedDict()
 adj_mis[1] = OrderedDict()
 adj_mis[4] = OrderedDict()
-adj_mis[1]['vollmers-0.9'] =               [(0.31, 0.02), (0.28, 0.05), (0.31, 0.05), (0.28, 0.06)]
-# adj_mis[1]['mixcr'] =                    [(None, None), (None, None), (None, None), (None, None)]
-adj_mis[1]['changeo'] =                    [(0.43, 0.06), (0.38, 0.08), (0.43, 0.09), (0.34, 0.13)]
-adj_mis[1]['vsearch-partition'] =          [(0.90, 0.01), (0.90, 0.03), (0.90, 0.03), (0.89, 0.05)]
-adj_mis[1]['naive-hamming-partition'] =    [(0.96, 0.01), (0.95, 0.02), (0.97, 0.02), (0.91, 0.05)]
-adj_mis[1]['partition'] =                  [(0.98, 0.01), (0.94, 0.03), (0.95, 0.02), (0.84, 0.05)]
-adj_mis[4]['vollmers-0.9'] =               [(0.05, 0.01), (0.05, 0.01), (0.04, 0.01), (0.04, 0.02)]
-# adj_mis[4]['mixcr'] =                    [(None, None), (None, None), (None, None), (None, None)]
-adj_mis[4]['changeo'] =                    [(0.20, 0.05), (0.14, 0.07), (0.13, 0.08), (0.07, 0.03)]
-adj_mis[4]['vsearch-partition'] =          [(0.67, 0.03), (0.70, 0.02), (0.70, 0.05), (0.67, 0.08)]
-adj_mis[4]['naive-hamming-partition'] =    [(0.76, 0.03), (0.85, 0.02), (0.88, 0.02), (0.87, 0.04)]
-adj_mis[4]['partition'] =                  [(0.86, 0.02), (0.93, 0.01), (0.86, 0.03), (0.82, 0.03)]
+adj_mis[1]['vollmers-0.9'] =               [(0.27, 0.02), (0.32, 0.02), (0.32, 0.02), (0.28, 0.04), (0.24, 0.03)]
+adj_mis[1]['changeo'] =                    [(0.48, 0.06), (0.48, 0.03), (0.35, 0.05), (0.42, 0.05), (0.30, 0.13)]
+adj_mis[1]['vsearch-partition'] =          [(0.87, 0.02), (0.90, 0.01), (0.90, 0.03), (0.87, 0.02), (0.89, 0.03)]
+adj_mis[1]['naive-hamming-partition'] =    [(0.82, 0.02), (0.97, 0.01), (0.95, 0.01), (0.97, 0.01), (0.91, 0.07)]
+adj_mis[1]['partition'] =                  [(0.88, 0.03), (0.98, 0.00), (0.93, 0.01), (0.95, 0.02), (0.81, 0.05)]
+adj_mis[4]['vollmers-0.9'] =               [(0.07, 0.01), (0.04, 0.01), (0.06, 0.00), (0.05, 0.01), (0.02, 0.00)]
+adj_mis[4]['changeo'] =                    [(0.38, 0.06), (0.21, 0.07), (0.15, 0.08), (0.16, 0.07), (0.07, 0.04)]
+adj_mis[4]['vsearch-partition'] =          [(0.26, 0.02), (0.67, 0.03), (0.71, 0.02), (0.74, 0.01), (0.70, 0.12)]
+adj_mis[4]['naive-hamming-partition'] =    [(0.45, 0.04), (0.77, 0.01), (0.85, 0.03), (0.88, 0.02), (0.88, 0.06)]
+adj_mis[4]['partition'] =                  [(0.60, 0.05), (0.87, 0.01), (0.93, 0.02), (0.85, 0.02), (0.83, 0.02)]
 
 sns.set_style('ticks')
 def make_plot(mut_mult):
@@ -64,10 +62,10 @@ def make_plot(mut_mult):
         elif 'true' in meth:
             linestyle = '--'
             alpha = 0.5
-        if meth is 'mixcr':
-            plots[meth] = ax.plot(n_leaf_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)
-        else:
-            plots[meth] = ax.errorbar(n_leaf_list, vals, yerr=errs, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha, fmt='-o')
+        # if meth is 'mixcr':
+        #     plots[meth] = ax.plot(n_leaf_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)
+        # else:
+        plots[meth] = ax.errorbar(n_leaf_list, vals, yerr=errs, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha, fmt='-o')
         # plots[meth][-1][0].set_linewidth(linewidths.get(meth, 4))
     
     # legend = ax.legend(loc='center left')
