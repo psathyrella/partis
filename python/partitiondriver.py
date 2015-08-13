@@ -42,6 +42,7 @@ class PartitionDriver(object):
         self.bcrham_divvied_queries = None
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_likelihoods_calculated = None
+        self.n_max_calc_per_process = 400
 
         self.sw_info = None
 
@@ -55,8 +56,12 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
+        if self.args.persistent_cachefname is not None and os.path.exists(self.args.persistent_cachefname):
+            check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
+
     # ----------------------------------------------------------------------------------------
     def clean(self):
+        # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
             lockfname = self.args.persistent_cachefname + '.lock'
             while os.path.exists(lockfname):
@@ -174,7 +179,7 @@ class PartitionDriver(object):
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
                 n_calcd_per_process = self.get_n_calculated_per_process()
-                if n_calcd_per_process < 500:
+                if n_calcd_per_process < self.n_max_calc_per_process:
                     # if n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]:
                     n_procs = int(n_procs / 1.2)
             else:
@@ -1125,13 +1130,6 @@ class PartitionDriver(object):
     def write_hmm_input(self, parameter_dir):
         """ Write input file for bcrham """
         print '    writing input'
-        # if self.cached_results is None:
-        if self.args.persistent_cachefname is not None and os.path.exists(self.args.persistent_cachefname):
-            check_call(['cp', '-v', self.args.persistent_cachefname, self.args.workdir + '/' + os.path.basename(self.hmm_cachefname)])
-        # else:
-        #     pass
-        #     # assert os.path.exists(self.hmm_cachefname)
-        #     # self.write_cachefile(self.hmm_cachefname)
 
         # if (self.args.action == 'partition' or self.args.n_sets > 1) and not self.args.dont_pad_sequences:
         if not self.args.dont_pad_sequences:
