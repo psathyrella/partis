@@ -13,10 +13,11 @@ bool_columns = ('v_gene', 'd_gene', 'j_gene')
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, germlines, name):
+    def __init__(self, germlines, name, only_correct_gene_fractions=False):
         self.germlines = germlines
         self.name = name
         self.values = {}
+        self.only_correct_gene_fractions = only_correct_gene_fractions
         for column in utils.index_columns:
             if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
                 continue
@@ -129,6 +130,8 @@ class PerformancePlotter(object):
         overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
 
         for column in self.values:
+            if self.only_correct_gene_fractions and column not in bool_columns:
+                continue
             if column in bool_columns:
                 if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE you have to change this above as well!
                     self.values[column]['right'] += 1
@@ -174,6 +177,8 @@ class PerformancePlotter(object):
     def plot(self, plotdir):
         utils.prep_dir(plotdir + '/plots', wildling=None, multilings=['*.csv', '*.svg', '*.root'])
         for column in self.values:
+            if self.only_correct_gene_fractions and column not in bool_columns:
+                continue
             if column in bool_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
