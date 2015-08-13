@@ -1188,7 +1188,7 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='0'):
+def process_out_err(out, err, extra_str='0', info=None):
     print_str = ''
     for line in err.split('\n'):
         if 'srun: job' in line and 'queued and waiting for resources' in line:
@@ -1201,6 +1201,15 @@ def process_out_err(out, err, extra_str='0'):
             continue
         if len(line.strip()) > 0:
             print_str += line + '\n'
+
+    for line in out.split('\n'):
+        if info is not None and 'calculated' in line:  # keep track of how many vtb and fwd calculations the process made
+            words = line.split()
+            if words[1] == 'vtb' and words[3] == 'fwd':
+                info['vtb'] = int(words[2])
+                info['fwd'] = int(words[4])
+            else:
+                print 'ERROR bad calculated line: %s' % line
 
     print_str += out
 

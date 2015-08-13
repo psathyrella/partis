@@ -41,6 +41,7 @@ class PartitionDriver(object):
         self.cached_results = None
         self.bcrham_divvied_queries = None
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
+        self.n_likelihoods_calculated = None
 
         self.sw_info = None
 
@@ -172,7 +173,9 @@ class PartitionDriver(object):
                 break
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
-                if n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]:
+                n_calcd_per_process = self.get_n_calculated_per_process()
+                if n_calcd_per_process < 500:
+                    # if n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]:
                     n_procs = int(n_procs / 1.2)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
@@ -382,6 +385,18 @@ class PartitionDriver(object):
         return proc
 
     # ----------------------------------------------------------------------------------------
+    def get_n_calculated_per_process(self):
+        if self.n_likelihoods_calculated is None:
+            return
+        print 'n calcd:'
+        total = 0
+        for procinfo in self.n_likelihoods_calculated:
+            print '    %d' % procinfo['fwd']
+            total += procinfo['fwd']
+        print '  total: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
+        return float(total) / len(self.n_likelihoods_calculated)
+
+    # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
         print '    running'
         start = time.time()
@@ -407,15 +422,17 @@ class PartitionDriver(object):
                 # print cmd_strs[-1]
                 # sys.exit()
             procs, n_tries = [], []
+            self.n_likelihoods_calculated = []
             for iproc in range(n_procs):
                 procs.append(self.execute_iproc(cmd_strs[iproc]))
                 n_tries.append(1)
+                self.n_likelihoods_calculated.append({})
             while procs.count(None) != len(procs):
                 for iproc in range(n_procs):
                     if procs[iproc] is None:
                         continue
                     out, err = procs[iproc].communicate()
-                    utils.process_out_err(out, err, extra_str=str(iproc))
+                    utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
                     outfname = self.hmm_outfname.replace(self.args.workdir, workdirs[iproc])
                     if os.path.exists(outfname):  # TODO also check cachefile, if necessary
                         procs[iproc] = None  # job succeeded
