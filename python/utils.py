@@ -1236,30 +1236,31 @@ def remove_ambiguous_ends(seq, fv_insertion, jf_insertion):
 
 # ----------------------------------------------------------------------------------------
 def get_true_clusters(ids, reco_info):
-    """ NOTE returns a dict, not a list of lists """
+    """ 
+    Group <ids> into their true clonal families.
+    Returns dict of form {cluster_id : [uid, uid, uid]}
+    """
     clusters = {}
     for uid in ids:
         rid = reco_info[uid]['reco_id']
-        found = False
-        for clid in clusters:
-            if rid == clid:
-                clusters[clid].append(uid)
-                found = True
-                break
-        if not found:
-            clusters[rid] = [uid]
+        if rid not in clusters:
+            clusters[rid] = []
+        clusters[rid].append(uid)
+
     return clusters
 
 # ----------------------------------------------------------------------------------------
-# dammit, it is confusing having both get_true_clusters and get_true_partition
 def get_true_partition(reco_info):
-    """ NOTE returns a dict, not a list of lists """
+    """ 
+    Group *all* ids in <reco_info> into their true clonal families.
+    Returns dict of form {cluster_id : [uid, uid, uid]}
+    """
     true_partition = {}
-    for key in reco_info:
-        reco_id = reco_info[key]['reco_id']
-        if reco_id not in true_partition:
-            true_partition[reco_id] = []
-        true_partition[reco_id].append(reco_info[key]['unique_id'])
+    for uid in reco_info:
+        rid = reco_info[uid]['reco_id']
+        if rid not in true_partition:
+            true_partition[rid] = []
+        true_partition[rid].append(uid)
     return true_partition
 
 # ----------------------------------------------------------------------------------------
@@ -1275,6 +1276,55 @@ def get_str_from_partition(partition):
     clusters = [':'.join(cl) for cl in partition]
     partition_str = ';'.join(clusters)
     return partition_str
+
+# ----------------------------------------------------------------------------------------
+def correct_cluster_fractions(partition, reco_info, debug=False):
+
+    def find_clusters_with_ids(ids, partition):
+        """ find all clusters in <partition> that contain at least one of <ids> """
+        clusters = []
+        for cluster in partition:
+            for uid in ids:
+                if uid in cluster:
+                    clusters.append(cluster)
+                    break
+        return clusters
+
+    uids = []
+    for cluster in partition:
+        uids += cluster
+
+    true_clusters = get_true_clusters(uids, reco_info).values()
+    n_under_merged, n_over_merged = 0, 0
+    for trueclust in true_clusters:
+        if debug:
+            print ''
+            print '  ', trueclust
+        infclusters = find_clusters_with_ids(trueclust, partition)  # lsit of inferred clusters that contain any ids from the true cluster
+        assert len(infclusters) > 0
+        under_merged = len(infclusters) > 1  # ids in true cluster are not all in the same inferred cluster
+        over_merged = False  # at least one inferred cluster with an id in true cluster also contains an id not in true cluster
+        for iclust in infclusters:
+            if debug:
+                print '  ', iclust
+            for uid in iclust:
+                if uid not in trueclust:
+                    over_merged = True
+                    break
+            if over_merged:
+                break
+        if debug:
+            print '  under %s   over %s' % (under_merged, over_merged)
+        if under_merged:
+            n_under_merged += 1
+        if over_merged:
+            n_over_merged += 1
+
+    under_frac = float(n_under_merged) / len(true_clusters)
+    over_frac = float(n_over_merged) / len(true_clusters)
+    if debug:
+        print '  under %.2f   over %.2f' % (under_frac, over_frac)
+    return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
 def mutual_information(partition, reco_info, debug=False):

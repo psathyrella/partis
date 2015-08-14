@@ -13,6 +13,7 @@ import numpy
 from scipy import stats
 from array import array
 from subprocess import check_call
+from collections import OrderedDict
 
 import utils
 import fraction_uncertainty
@@ -846,7 +847,10 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'changeo' : 'Change-O',
            '0.1-true-singletons' : '10% random singletons',
            '0.1-true-reassign' : '10% random reassign',
-           'mixcr' : 'MiXCR'
+           'mixcr' : 'MiXCR',
+           'adj_mi' : 'adjusted MI',
+           'ccf_under' : 'fraction not under-merged',
+           'ccf_over' : 'fraction not over-merged'
            }
 
 colors = {'true' : '#006600',
@@ -969,6 +973,52 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
     plt.savefig(outfname)
+
+# ----------------------------------------------------------------------------------------
+def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
+    fig, ax = mpl_init()
+    plots = {}
+    for meth, xyvals in plotvals.items():
+        xvals = xyvals.keys()
+        yvals = [ve[0] for ve in xyvals.values()]
+        yerrs = [ve[1] for ve in xyvals.values()]
+        linestyle = '-'
+        alpha = 1.
+        if 'vollmers' in meth:
+            alpha = 0.5
+        if 'vsearch' in meth:
+            linestyle = '-.'
+        elif 'naive-hamming-partition' in meth:
+            linestyle = '--'
+        elif 'true' in meth:
+            linestyle = '--'
+            alpha = 0.5
+        plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha, fmt='-o')
+    
+    # legend = ax.legend(loc='center left')
+    if mut_mult == 1:
+        ly = 0.85
+    else:
+        ly = 0.62
+    legend = ax.legend(bbox_to_anchor=(0.5, ly))
+    ax.set_xlim(3, 55)
+    ax.set_ylim(0, 1)
+    sns.despine(trim=True, bottom=True)
+    sns.set_style('ticks')
+    plt.title('%dx mutation' % mut_mult)
+    plt.xlabel('mean N leaves')
+    plt.ylabel(legends[valname])
+    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.78, top=0.95)
+    xticks = xvals
+    xticklabels = [str(xt) for xt in xticks]
+    plt.xticks(xticks, xticklabels)
+    yticks = [0., .2, .4, .6, .8, 1.]
+    yticklabels = [str(yt) for yt in yticks]
+    plt.yticks(yticks, yticklabels)
+    if not os.path.exists(plotdir + '/plots'):
+        os.makedirs(plotdir + '/plots')
+    plotname =  valname + '-%d-mutation.svg' % mut_mult
+    plt.savefig(plotdir + '/plots/' + plotname)
 
 # ----------------------------------------------------------------------------------------
 def mpl_init():

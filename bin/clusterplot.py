@@ -14,15 +14,18 @@ from subprocess import check_call
 sns.set_style("ticks")
 sys.path.insert(1, './python')
 
-from utils import get_arg_list, get_partition_from_str
+from utils import get_arg_list, get_partition_from_str, correct_cluster_fractions
 import plotting
 
 class ClusterPlot(object):
-    def __init__(self, args, rebin=None):
+    def __init__(self, args, rebin=None, reco_info=None):
         self.args = args
-        self.logprobs, self.n_clusters, self.adj_mis, self.logweights, self.hists = {}, {}, {}, {}, {}
+        self.logprobs, self.n_clusters, self.adj_mis, self.logweights = {}, {}, {}, {}
+        # self.clusters = {}
+        # self.hists = {}
+        # self.correct_cluster_fractions = {}
         self.final_logweights = []
-        self.tmp_n_true_clusters = None
+        # self.tmp_n_true_clusters = None
         for fname in self.args.infnames:
             if self.args.debug:
                 print fname
@@ -34,14 +37,20 @@ class ClusterPlot(object):
                     if ipath != 0:
                         raise Exception('need to update some things for smc. see TODOs')
                     if ipath not in self.logprobs:
-                        self.logprobs[ipath], self.n_clusters[ipath], self.adj_mis[ipath], self.logweights[ipath], self.hists[ipath] = [], [], [], [], []
+                        self.logprobs[ipath], self.n_clusters[ipath], self.adj_mis[ipath], self.logweights[ipath] = [], [], [], []
+                        # self.clusters[ipath] = []
+                        # self.correct_cluster_fractions[ipath] = []
+                        # self.hists[ipath] = []
                     self.logprobs[ipath].append(float(line['logprob']))
                     self.n_clusters[ipath].append(int(line['n_clusters']))
                     self.adj_mis[ipath].append(float(line.get('adj_mi', -1)))
+                    # partition = get_partition_from_str(line['clusters'])  # TODO this is really wasteful to do this for every partition
+                    # self.clusters[ipath].append(partition)
+                    # self.correct_cluster_fractions[ipath].append(correct_cluster_fractions(partition, reco_info))
                     self.logweights[ipath].append(float(line.get('logweight', 1)))
-                    self.hists[ipath].append(plotting.get_cluster_size_hist(get_partition_from_str(line['clusters']), rebin=rebin))
-                    if self.tmp_n_true_clusters is None:
-                        self.tmp_n_true_clusters = int(line.get('n_true_clusters', -1))
+                    # self.hists[ipath].append(plotting.get_cluster_size_hist(partition, rebin=rebin))
+                    # if self.tmp_n_true_clusters is None:
+                    #     self.tmp_n_true_clusters = int(line.get('n_true_clusters', -1))
     
         if len(self.logprobs) == 0:
             raise Exception('didn\'t read any lines from %s' % ' '.join(self.args.infnames))
@@ -97,11 +106,11 @@ class ClusterPlot(object):
             print '      adj_mi: %.4f' % (max_adj_mi_means['adj_mis'][0] - max_logprob_means['adj_mis'][0])
 
         self.adj_mi_at_max_logprob = max_logprob_means['adj_mis'][0]
-        tmp_ipath = 0  # NOTE only for the first path a.t.m. TODO fix that
-        self.tmp_n_clusters = self.n_clusters[tmp_ipath][int(self.imaxes['logprob'][0])]  # [0] is because imaxes is (mean, err)
-        self.tmp_cluster_size_hist = self.hists[tmp_ipath][int(self.imaxes['logprob'][0])]
-        if self.args.debug:
-            print '   n_clusters at max logprob for zeroth path: %d' % self.tmp_n_clusters
+        # tmp_ipath = 0  # NOTE only for the first path a.t.m. TODO fix that
+        # self.tmp_n_clusters = self.n_clusters[tmp_ipath][int(self.imaxes['logprob'][0])]  # [0] is because imaxes is (mean, err)
+        # # self.tmp_cluster_size_hist = self.hists[tmp_ipath][int(self.imaxes['logprob'][0])]
+        # if self.args.debug:
+        #     print '   n_clusters at max logprob for zeroth path: %d' % self.tmp_n_clusters
 
     # ----------------------------------------------------------------------------------------
     def plot(self):

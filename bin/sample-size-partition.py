@@ -73,7 +73,7 @@ args = parser.parse_args()
 # ----------------------------------------------------------------------------------------
 istart = 0
 # for n_queries in [4, 5, 8, 15, 20, 25, 40, 50, 60, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000]:
-for n_queries in [100, 200, 500, 1000, 2000]:  #, 5000, ]:  # NOTE you've already used pretty much the whole sim file
+for n_queries in [100, 200, 500, 1000, 2000, 5000, ]:  # NOTE you've already used pretty much the whole sim file
     cmd = './bin/compare-partition-methods.py --actions ' + args.action
     istop = istart + n_queries
     # print '  %d queries from %d --> %d' % (n_queries, istart, istop)

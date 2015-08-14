@@ -42,7 +42,7 @@ class PartitionDriver(object):
         self.bcrham_divvied_queries = None
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_likelihoods_calculated = None
-        self.n_max_calc_per_process = 400
+        self.n_max_calc_per_process = 250
 
         self.sw_info = None
 
