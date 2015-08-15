@@ -352,7 +352,7 @@ def read_float_val(fname, valname):
     raise Exception('something wrong with %s file' % fname)
 
 # ----------------------------------------------------------------------------------------
-def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, plottitle, normalized):
+def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, plotname, plottitle, normalized):
     def get_joint_key(k1, k2):
         """ figure out which order we have <k1>, <k2> in the cache (if neither, return None) """
         jk1 = k1 + ':' + k2
@@ -364,7 +364,10 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
         else:
             return None
 
-    nbins, xmin, xmax = 30, -15, 55
+    if metric == 'logprob':
+        nbins, xmin, xmax = 30, -15, 55
+    elif metric == 'naive_seq':
+        nbins, xmin, xmax = 30, 0., 0.3
     hists = OrderedDict()
     hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
     bigvals, smallvals = {}, {}
@@ -372,35 +375,39 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
         a_ids, b_ids = key_a.split(':'), key_b.split(':')
         if not utils.from_same_event(args.data, reco_info, a_ids) or not utils.from_same_event(args.data, reco_info, b_ids):  # skip clusters that were erroneously merged -- i.e., in effect, assume the previous step didn't screw up at all
             continue
-        jk = get_joint_key(key_a, key_b)
-        if jk is None:
-            continue
-        lratio = cachevals[jk] - cachevals[key_a] - cachevals[key_b]
-        # print '%f - %f - %f = %f' % (cachevals[jk], cachevals[key_a], cachevals[key_b], lratio),
-        # print 'y', key_a, key_b,
+        if metric == 'logprob':
+            jk = get_joint_key(key_a, key_b)
+            if jk is None:  # if we don't have the joint logprob cached
+                continue
+            lratio = cachevals[jk] - cachevals[key_a] - cachevals[key_b]
+            # print '%f - %f - %f = %f' % (cachevals[jk], cachevals[key_a], cachevals[key_b], lratio),
+            mval = lratio
+        elif metric == 'naive_seq':
+            mval = utils.hamming_fraction(cachevals[key_a], cachevals[key_b])
         if utils.from_same_event(args.data, reco_info, a_ids + b_ids):
-            # print ' clonal', lratio
-            # print lratio, key_a, key_b
-            hists['all-clones'].fill(lratio)
+            hists['all-clones'].fill(mval)
             for key in (key_a, key_b):
                 if key not in bigvals:
-                    bigvals[key] = lratio
-                if lratio > bigvals[key]:
-                    bigvals[key] = lratio
+                    bigvals[key] = mval
+                if mval > bigvals[key]:
+                    bigvals[key] = mval
                 if key not in smallvals:
-                    smallvals[key] = lratio
-                if lratio < smallvals[key]:
-                    smallvals[key] = lratio
+                    smallvals[key] = mval
+                if mval < smallvals[key]:
+                    smallvals[key] = mval
         else:
-            hists['not'].fill(lratio)
-            # print ' not', lratio
+            hists['not'].fill(mval)
 
+    if metric == 'logprob':
+        bigkey = 'nearest'  # i.e. for logprob ratio, big values mean sequences are nearby
+        smallkey = 'farthest'
+    elif metric == 'naive_seq':
+        bigkey = 'farthest'
+        smallkey = 'nearest'
     for k, val in bigvals.items():
-        # print 'x', k, val, 'new near'
-        hists['nearest-clones'].fill(val)
+        hists[bigkey + '-clones'].fill(val)
     for k, val in smallvals.items():
-        # print 'small', k, val
-        hists['farthest-clones'].fill(val)
+        hists[smallkey + '-clones'].fill(val)
 
     fig, ax = plotting.mpl_init()
     ignore = False
@@ -413,17 +420,23 @@ def make_a_distance_plot(combinations, reco_info, cachevals, plotdir, plotname, 
     plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='not', linewidth=7, alpha=0.5)
     plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
     plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
-    # ax.set_yscale('log')
+    ax.set_yscale('log')
     plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel='log prob ratio', ylabel='frequency' if normalized else 'counts')
 
 # ----------------------------------------------------------------------------------------
-def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
+def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info, metric):
     cachevals = {}
     singletons, pairs, triplets, quads = [], [], [], []
     with open(cachefname) as cachefile:
         reader = csv.DictReader(cachefile)
+        # iline = 0
         for line in reader:
-            cachevals[line['unique_ids']] = float(line['logprob'])
+            if line[metric] == '':
+                continue
+            if metric == 'logprob':
+                cachevals[line['unique_ids']] = float(line['logprob'])
+            elif metric == 'naive_seq':
+                cachevals[line['unique_ids']] = line['naive_seq']
             unique_ids = line['unique_ids'].split(':')
             if len(unique_ids) == 1:
                 singletons.append(line['unique_ids'])
@@ -433,41 +446,40 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info):
                 triplets.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
             elif len(unique_ids) == 4:
                 quads.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+            # iline += 1
+            # if iline > 1000:
+            #     break
 
     normalized = True
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label + '/distances'
     if normalized:
         baseplotdir += '/normalized'
 
+    plotname = leafmutstr(n_leaves, mut_mult)
+
     print 'singletons'
-    make_a_distance_plot(itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/singletons', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (singletons)', normalized=normalized)
+    make_a_distance_plot(metric, itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/singletons', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (singletons)', normalized=normalized)
 
     print 'one pair one singleton'
     one_pair_one_singleton = []
     for ipair in range(len(pairs)):
         for ising in range(len(singletons)):
             one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
-    make_a_distance_plot(one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-pair-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (pair + single)', normalized=normalized)
-
-    # print 'pairs'
-    # make_a_distance_plot(itertools.combinations(pairs, 2), reco_info, cachevals, plotdir=baseplotdir + '/pairs', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
-
-    # print 'triplets'
-    # make_a_distance_plot(itertools.combinations(triplets, 2), reco_info, cachevals, plotdir=baseplotdir + '/triplets', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult), normalized=normalized)
+    make_a_distance_plot(metric, one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-pair-one-singleton', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (pair + single)', normalized=normalized)
 
     print 'one triplet one singleton'
     one_triplet_one_singleton = []
     for itriplet in range(len(triplets)):
         for ising in range(len(singletons)):
             one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
-    make_a_distance_plot(one_triplet_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-triplet-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (triple + single)', normalized=normalized)
+    make_a_distance_plot(metric, one_triplet_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-triplet-one-singleton', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (triple + single)', normalized=normalized)
 
     print 'one quad one singleton'
     one_quad_one_singleton = []
     for iquad in range(len(quads)):
         for ising in range(len(singletons)):
             one_quad_one_singleton.append((quads[iquad], singletons[ising]))
-    make_a_distance_plot(one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/one-quad-one-singleton', plotname=leafmutstr(n_leaves, mut_mult), plottitle=get_title(label, n_leaves, mut_mult) + ' (quad + single)', normalized=normalized)
+    make_a_distance_plot(metric, one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (quad + single)', normalized=normalized)
 
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
@@ -510,7 +522,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs):
 
     input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
-        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info)
+        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'naive_seq')
         return
 
     rebin = None
