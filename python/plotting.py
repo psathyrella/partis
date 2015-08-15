@@ -977,6 +977,8 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     fig, ax = mpl_init()
+    mpl.rcParams.update({
+        'legend.fontsize': 15,})
     plots = {}
     for meth, xyvals in plotvals.items():
         xvals = xyvals.keys()
@@ -996,13 +998,22 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
         plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha, fmt='-o')
     
     # legend = ax.legend(loc='center left')
-    if mut_mult == 1:
-        ly = 0.85
+    if valname == 'adj_mi':
+        lx = 0.5
+        if mut_mult == 1:
+            ly = 0.85
+        else:
+            ly = 0.62
     else:
-        ly = 0.62
-    legend = ax.legend(bbox_to_anchor=(0.5, ly))
+        ly = 0.55
+        lx = 0.85
+    legend = ax.legend(bbox_to_anchor=(lx, ly))
+    # legend.get_frame().set_facecolor('white')
     ax.set_xlim(3, 55)
-    ax.set_ylim(0, 1)
+    ymin = 0
+    # if valname == 'ccf_over':
+    #     ymin = 0.5
+    ax.set_ylim(ymin, 1)
     sns.despine(trim=True, bottom=True)
     sns.set_style('ticks')
     plt.title('%dx mutation' % mut_mult)
@@ -1012,7 +1023,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     xticks = xvals
     xticklabels = [str(xt) for xt in xticks]
     plt.xticks(xticks, xticklabels)
-    yticks = [0., .2, .4, .6, .8, 1.]
+    yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt > ymin]
     yticklabels = [str(yt) for yt in yticks]
     plt.yticks(yticks, yticklabels)
     if not os.path.exists(plotdir + '/plots'):
