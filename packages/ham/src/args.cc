@@ -28,6 +28,7 @@ Args::Args(int argc, const char * argv[]):
   rescale_emissions_arg_("", "rescale-emissions", "", false),
   unphysical_insertions_arg_("", "unphysical-insertions", "", false),
   cache_naive_seqs_arg_("", "cache-naive-seqs", "cache all naive sequences", false),
+  no_fwd_arg_("", "no-fwd", "don't calculate any forward probs ", false),
   str_headers_ {},
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   float_headers_ {"logweight"},
@@ -53,6 +54,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(naive_hamming_cluster_arg_);
     cmd.add(chunk_cache_arg_);
     cmd.add(cache_naive_seqs_arg_);
+    cmd.add(no_fwd_arg_);
     cmd.add(partition_arg_);
     cmd.add(truncate_seqs_arg_);
     cmd.add(rescale_emissions_arg_);

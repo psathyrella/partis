@@ -38,6 +38,7 @@ public:
   bool rescale_emissions() { return rescale_emissions_arg_.getValue(); }
   bool unphysical_insertions() { return unphysical_insertions_arg_.getValue(); }
   bool cache_naive_seqs() { return cache_naive_seqs_arg_.getValue(); }
+  bool no_fwd() { return no_fwd_arg_.getValue(); }
 
   // command line arguments
   vector<string> algo_strings_;
@@ -47,7 +48,7 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, cachefile_arg_, algorithm_arg_, ambig_base_arg_;
   ValueArg<float> hamming_fraction_bound_lo_arg_, hamming_fraction_bound_hi_arg_, max_logprob_drop_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_, smc_particles_arg_, naive_hamming_cluster_arg_;
-  SwitchArg chunk_cache_arg_, partition_arg_, truncate_seqs_arg_, rescale_emissions_arg_, unphysical_insertions_arg_, cache_naive_seqs_arg_;
+  SwitchArg chunk_cache_arg_, partition_arg_, truncate_seqs_arg_, rescale_emissions_arg_, unphysical_insertions_arg_, cache_naive_seqs_arg_, no_fwd_arg_;
 
   // arguments read from csv input file
   map<string, vector<string> > strings_;
