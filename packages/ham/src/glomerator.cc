@@ -34,6 +34,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   n_fwd_calculated_(0),
   n_vtb_cached_(0),
   n_vtb_calculated_(0),
+  n_hfrac_calculated_(0),
   n_hamming_merged_(0)
 {
   ReadCachedLogProbs();
@@ -97,7 +98,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 Glomerator::~Glomerator() {
   // cout << "        cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
   //      << "    fwd " << n_fwd_cached_ << "/" << (n_fwd_cached_ + n_fwd_calculated_) << endl;
-  cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming merged " << n_hamming_merged_ << endl;
+  cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming merged " << n_hamming_merged_
+       << "    naive hfracs " << n_hfrac_calculated_
+       << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
 }
@@ -150,18 +153,27 @@ void Glomerator::ReadCachedLogProbs() {
   assert(headstrs[0].find("unique_ids") == 0);  // each set of unique_ids can appear many times, once for each truncation
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
-  assert(headstrs[3].find("cyst_position") == 0);
+  assert(headstrs[3].find("naive_hfrac") == 0);
+  assert(headstrs[4].find("cyst_position") == 0);
 
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> column_list = SplitString(line, ",");
-    assert(column_list.size() == 4 || column_list.size() == 5);  // if written by bcrham it'll have an error column, while if written by partitiondriver it won't (under normal circumstances we wouldn't see bcrham cachefiles right here, but it can be useful for testing)
+    assert(column_list.size() == 6);
     string query(column_list[0]);
+
     string logprob_str(column_list[1]);
     if(logprob_str.size() > 0)
       log_probs_[query] = stof(logprob_str);
+
     string naive_seq(column_list[2]);
-    int cyst_position(atoi(column_list[3].c_str()));
+
+    string naive_hfrac_str(column_list[3]);
+    if(naive_hfrac_str.size() > 0)
+      naive_hfracs_[query] = stof(naive_hfrac_str);
+
+    int cyst_position(atoi(column_list[4].c_str()));
+
     if(naive_seq.size() > 0)
       naive_seqs_[query] = Sequence(track_, query, naive_seq, cyst_position);
   }
@@ -198,32 +210,53 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 }
 
 // ----------------------------------------------------------------------------------------
+  // void Glomerator::WriteCacheLine(ofstream &ofs, string query, string logprob, string naive_seq, string naive_hfrac, string cpos, string errors) {
+void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
+  ofs << query << ",";
+  if(log_probs_.count(query))
+    ofs << log_probs_[query];
+  ofs << ",";
+  if(naive_seqs_.count(query))
+    ofs << naive_seqs_[query].undigitized();
+  ofs << ",";
+  if(naive_hfracs_.count(query))
+    ofs << naive_hfracs_[query];
+  ofs << ",";
+  if(naive_seqs_.count(query))
+    ofs << naive_seqs_[query].cyst_position();
+  ofs << ",";
+  if(errors_.count(query))
+    ofs << errors_[query];
+  ofs << endl;
+}
+
+// ----------------------------------------------------------------------------------------
 void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->cachefile());
   if(!log_prob_ofs.is_open())
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "unique_ids,logprob,naive_seq,cyst_position,errors" << endl;
+  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,cyst_position,errors" << endl;
 
   log_prob_ofs << setprecision(20);
-  // first write everything for which we have log probs
-  for(auto &kv : log_probs_) {
-    string query(kv.first);  // sorted, colon-separated list of query seqs
-    double logprob(kv.second);
-    string naive_seq;  // if we don't have the naive sequence, write empty strings for both
-    if(naive_seqs_.count(query))  // if we calculate the merged prob for two clusters, but don't end up merging them, then we will have the logprob but not the naive seq
-      naive_seq = naive_seqs_[query].undigitized();
-    log_prob_ofs << query << "," << logprob << "," << naive_seq << "," << errors_[query] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
-  }
-  cout << "        wrote " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl; // NOTE as long as the assert(0); below continues to hold
-
-  // then write the queries for which we have naive seqs but not logprobs (if they were hamming-skipped )
-  for(auto &kv : naive_seqs_) {
+  for(auto &kv : log_probs_)  // first write everything for which we have log probs
+    WriteCacheLine(log_prob_ofs, kv.first);
+  
+  for(auto &kv : naive_seqs_) {  // then write the queries for which we have naive seqs but not logprobs
     if(log_probs_.count(kv.first))  // if it's in log_probs, we've already done it
       continue;
-    log_prob_ofs << kv.first << ",," << kv.second.undigitized() << "," << kv.second.cyst_position() << "," << errors_[kv.first] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
+    WriteCacheLine(log_prob_ofs, kv.first);
+  }
+
+  for(auto &kv : naive_hfracs_) {  // then write any queries for which we have naive hamming fractions, but no logprobs of naive seqs
+    if(log_probs_.count(kv.first))
+      continue;
+    if(naive_seqs_.count(kv.first))
+      continue;
+    WriteCacheLine(log_prob_ofs, kv.first);
   }
 
   log_prob_ofs.close();
+  cout << "        wrote " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl; // NOTE as long as the assert(0); below continues to hold
 }
 
 // ----------------------------------------------------------------------------------------
@@ -251,29 +284,13 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::HammingFraction(string seq_a, string seq_b) {
-  assert(0);
-  if(seq_a.size() != seq_b.size())
-    throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a + "," + seq_b + ")\n");
-  int distance(0), len_excluding_ambigs(0);
-  for(size_t ic=0; ic<seq_a.size(); ++ic) {
-    string ch_a(seq_a.substr(ic, 1));
-    string ch_b(seq_b.substr(ic, 1));
-    if(ch_a == args_->ambig_base() || ch_b == args_->ambig_base())  // skip this position if either sequence has an ambiguous character (if not set, ambig-base should be the empty string)
-      continue;
-    assert(track_->symbol_index(ch_a) < track_->alphabet_size());  // check that both characters are in the expected alphabet
-    assert(track_->symbol_index(ch_b) < track_->alphabet_size());  // check that both characters are in the expected alphabet
-
-    ++len_excluding_ambigs;
-    if(ch_a != ch_b)
-      ++distance;
-  }
-  return distance / double(len_excluding_ambigs);
-}
-
-// ----------------------------------------------------------------------------------------
 double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
-  // return HammingFraction(seq_a.undigitized(), seq_b.undigitized());
+  // NOTE since the cache is index by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
+  string joint_key = JoinNames(seq_a.name(), seq_b.name());
+  if(naive_hfracs_.count(joint_key))  // already did it (note that it's ok to cache naive seqs even when we're truncating, since each sequence, when part of a given group of sequence, always has the same length [it's different for forward because each key is compared in the likelihood ratio to many other keys, and each time its sequences can potentially have a different length]. In other words the difference is because we only calculate the naive sequence for sets of sequences that we've already merged.)
+    return naive_hfracs_[joint_key];
+
+  ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
     throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a.undigitized() + "," + seq_b.undigitized() + ")\n");
   int distance(0), len_excluding_ambigs(0);
@@ -285,7 +302,8 @@ double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
     if(ch_a != ch_b)
       ++distance;
   }
-  return distance / double(len_excluding_ambigs);
+  naive_hfracs_[joint_key] = distance / double(len_excluding_ambigs);
+  return naive_hfracs_[joint_key];
 }
 
 // ----------------------------------------------------------------------------------------
