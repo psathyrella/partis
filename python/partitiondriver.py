@@ -330,23 +330,30 @@ class PartitionDriver(object):
         print '      vsearch/swarm time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_auto_bounds(self, parameter_dir, debug=True):
+    def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=True):
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
         if debug:
             print '  auto hamming bounds:'
             print '      %.3f mutation in %s' % (mute_freq, parameter_dir)
         # just use a line based on two points (mute_freq, threshold)
-        x1, x2 = 0.1, 0.25
-        y1, y2 = 0.04, 0.08
+        # TODO these should kinda depend on the candidate cluster size (like the log prob ratio thresholds), but looking at the plots it's not super obviously necessary, so I'm punting for now
+        x1, x2 = 0.11, 0.28
+        if tightness == 'tight':  # this should be close to optimal for straight naive hamming clustering. It's pretty much where the nearest-clonal and non-clonal lines cross
+            y1, y2 = 0.04, 0.08
+        elif tightness == 'loose':  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
+            y1, y2 = 0.06, 0.09
+        else:
+            assert False
         m = (y2 - y1) / (x2 - x1);
         b = 0.5 * (y1 + y2 - m*(x1 + x2));
+        # if debug:
+        #     for x in [x1, x2]:
+        #         print '%f x + %f = %f' % (m, b, m*x + b)
+        thold = m * mute_freq + b
         if debug:
-            for x in [x1, x2]:
-                print '%f x + %f = %f' % (m, b, m*x + b)
-        bound = m * mute_freq + b
-        sys.exit()
-        return bound
+            print '      threshold: %.3f' % thold
+        return thold
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
@@ -364,14 +371,18 @@ class PartitionDriver(object):
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
 
-        if self.args.auto_hamming_fraction_bounds:
-            bound = self.get_naive_hamming_auto_bounds(parameter_dir)
-            print '    auto naive hamming bound %f' % bound
-            self.args.hamming_fraction_bounds = [bound, bound]
+        if self.args.naive_hamming:
             cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
+            thold = self.get_naive_hamming_threshold(parameter_dir, 'tight')
+            naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios
+            naive_hamming_hi = thold
+        else:
+            naive_hamming_lo = 0.01
+            naive_hamming_hi = self.get_naive_hamming_threshold(parameter_dir, 'loose')
 
-        cmd_str += ' --hamming-fraction-bound-lo ' + str(self.args.hamming_fraction_bounds[0])
-        cmd_str += ' --hamming-fraction-bound-hi ' + str(self.args.hamming_fraction_bounds[1])
+        print '       naive hamming bounds: %.3f %.3f' % (naive_hamming_lo, naive_hamming_hi)
+        cmd_str += ' --hamming-fraction-bound-lo ' + str(naive_hamming_lo)
+        cmd_str += ' --hamming-fraction-bound-hi ' + str(naive_hamming_hi)
         if self.args.smc_particles > 1:
             os.environ['GSL_RNG_TYPE'] = 'ranlux'
             os.environ['GSL_RNG_SEED'] = str(random.randint(0, 99999))

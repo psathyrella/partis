@@ -29,7 +29,7 @@ parser.add_argument('--skip-unproductive', action='store_true', help='Skip seque
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--truncate-n-sets', action='store_true', help='If running on <n-sets> sequences, truncate such that they all have the same length to the left and right of the conserved cysteine')
 parser.add_argument('--dont-pad-sequences', action='store_true', help='Don\'t pad (with Ns) all input sequences out to, at minimum, the same length on either side of the conserved cysteine. Also pad out far enough so as to eliminate all v_5p and j_3p deletions.')
-parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
+# parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 # parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
@@ -44,6 +44,7 @@ parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--random-divvy', action='store_true')
+parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -76,8 +77,6 @@ parser.add_argument('--indel-frequency', default=0., type=float, help='fraction 
 parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution)')
 
 # numerical inputs
-parser.add_argument('--hamming-fraction-bounds', default='0.0:0.2', help='Thresholds for hamming distance preclustering -- we run the forward algorithm only on pairs with naive hamming distance within these bounds (pairs below the first value are automatically merged)')  # See plots in this (https://github.com/psathyrella/partis-dev/issues/70) issue for justification. TODO set threshold dynamically (for each cluster pair) based on uncertainty derived from n-best viterbi paths
-parser.add_argument('--auto-hamming-fraction-bounds', action='store_true', help='')
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
 parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
@@ -85,8 +84,8 @@ parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k
 parser.add_argument('--smc-particles', type=int, default=1, help='Number of particles (clustering paths) to simulate with SMC')
 parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step.')
 parser.add_argument('--match-mismatch', default='5:1', help='match:mismatch scores for smith-waterman.')
-parser.add_argument('--max-logprob-drop', type=float, default=1000., help='stop glomerating when the total logprob has dropped by this much')
-parser.add_argument('--n-partitions-to-write', type=int, default=300, help='')
+parser.add_argument('--max-logprob-drop', type=float, default=250., help='stop glomerating when the total logprob has dropped by this much')
+parser.add_argument('--n-partitions-to-write', type=int, default=100, help='')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
@@ -105,7 +104,6 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
-args.hamming_fraction_bounds = utils.get_arg_list(args.hamming_fraction_bounds, floatify=True)
 
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
