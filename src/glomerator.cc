@@ -170,6 +170,9 @@ void Glomerator::ReadCachedLogProbs() {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
+  if(args_->no_fwd())  // if we're doing pure naive hamming glomeration, we don't want to calculate any forward probs
+    return -INFINITY;
+
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
   if(debug)
@@ -217,7 +220,6 @@ void Glomerator::WriteCachedLogProbs() {
   for(auto &kv : naive_seqs_) {
     if(log_probs_.count(kv.first))  // if it's in log_probs, we've already done it
       continue;
-    assert(0);  // oh, wait, nevermind, I guess we *can't* actually have the naive seq if we don't have the log prob
     log_prob_ofs << kv.first << ",," << kv.second.undigitized() << "," << kv.second.cyst_position() << "," << errors_[kv.first] << endl;  // NOTE if there's no errors, it just prints the empty string, which is fine
   }
 
