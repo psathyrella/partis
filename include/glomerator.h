@@ -57,9 +57,9 @@ private:
   void ReadCachedLogProbs();
   void GetSoloLogProb(string key);
   void PrintPartition(Partition &clusters, string extrastr);
+  void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
   double NaiveHammingFraction(string key_a, string key_b);
-  double HammingFraction(string seq_a, string seq_b);  // dammit I don't like having two functions, but *@!(#ing Sequence class is not stl safe.
   double HammingFraction(Sequence seq_a, Sequence seq_b);
   void GetNaiveSeq(string key);
   void GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
@@ -93,12 +93,14 @@ private:
 
   // NOTE they keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice
-  map<string, double> log_probs_;  // includes cached info from previous runs
-  map<string, Sequence> naive_seqs_;  // includes cached info from previous runs
+  // these all include cached info from previous runs
+  map<string, double> log_probs_;  
+  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a give cluster
+  map<string, Sequence> naive_seqs_;
   map<string, string> errors_;
   map<string, double> naive_hamming_fractions_;
 
-  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_hamming_merged_;
+  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
 };
 
 }
