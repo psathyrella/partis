@@ -330,17 +330,22 @@ class PartitionDriver(object):
         print '      vsearch/swarm time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_auto_bounds(self, parameter_dir):
+    def get_naive_hamming_auto_bounds(self, parameter_dir, debug=True):
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-        mute_freq = mutehist.get_mean()
+        mute_freq = mutehist.get_mean(ignore_overflows=True)
+        if debug:
+            print '  auto hamming bounds:'
+            print '      %.3f mutation in %s' % (mute_freq, parameter_dir)
         # just use a line based on two points (mute_freq, threshold)
         x1, x2 = 0.1, 0.25
         y1, y2 = 0.04, 0.08
         m = (y2 - y1) / (x2 - x1);
         b = 0.5 * (y1 + y2 - m*(x1 + x2));
-        # for x in [x1, x2]:
-        #     print '%f x + %f = %f' % (m, b, m*x + b)
+        if debug:
+            for x in [x1, x2]:
+                print '%f x + %f = %f' % (m, b, m*x + b)
         bound = m * mute_freq + b
+        sys.exit()
         return bound
 
     # ----------------------------------------------------------------------------------------
