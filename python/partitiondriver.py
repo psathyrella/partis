@@ -363,6 +363,7 @@ class PartitionDriver(object):
             bound = self.get_naive_hamming_auto_bounds(parameter_dir)
             print '    auto naive hamming bound %f' % bound
             self.args.hamming_fraction_bounds = [bound, bound]
+            cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
 
         cmd_str += ' --hamming-fraction-bound-lo ' + str(self.args.hamming_fraction_bounds[0])
         cmd_str += ' --hamming-fraction-bound-hi ' + str(self.args.hamming_fraction_bounds[1])
