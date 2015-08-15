@@ -367,7 +367,7 @@ def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, pl
     if metric == 'logprob':
         nbins, xmin, xmax = 30, -15, 55
     elif metric == 'naive_seq':
-        nbins, xmin, xmax = 30, 0., 0.3
+        nbins, xmin, xmax = 30, 0., 0.15
     hists = OrderedDict()
     hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
     bigvals, smallvals = {}, {}
@@ -918,7 +918,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition, '--auto-hamming-fraction-bounds']
+        extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
         n_procs = max(1, args.n_to_partition / 30)
     elif action == 'vsearch-partition':
         outfname = get_outputname()

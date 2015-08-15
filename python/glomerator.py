@@ -143,7 +143,11 @@ class Glomerator(object):
                 adj_mi = -1
                 if calc_adj_mi:
                     adj_mi = utils.mutual_information(uids, self.reco_info, debug=False) if self.reco_info is not None else -1
-                paths[path_index].add_partition(uids, float(line['logprob']), n_procs=n_procs, logweight=logweight, adj_mi=adj_mi)
+                logprob = float(line['logprob'])
+                if line['logprob'] == '-inf' or math.isinf(logprob):  # should either both be true or neither be true
+                    assert math.isinf(logprob)
+                    assert line['logprob'] == '-inf'
+                paths[path_index].add_partition(uids, logprob, n_procs=n_procs, logweight=logweight, adj_mi=adj_mi)
 
         for cp in paths:
             if cp is None:

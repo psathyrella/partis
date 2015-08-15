@@ -1058,7 +1058,7 @@ def mpl_init():
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel=''):
     legend = ax.legend()  #loc=(0.55, 0.1))
     sns.despine(trim=True, bottom=True)
-    sns.set_style("ticks")
+    # sns.set_style("ticks")
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     # ax.set_xscale('log')

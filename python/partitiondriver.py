@@ -278,7 +278,7 @@ class PartitionDriver(object):
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
         if self.args.naive_vsearch:
-            bound = self.get_naive_hamming_auto_bounds(parameter_dir) /  2.  # yay for heuristics! (I did actually optimize this...)
+            bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
@@ -339,8 +339,9 @@ class PartitionDriver(object):
         # just use a line based on two points (mute_freq, threshold)
         # TODO these should kinda depend on the candidate cluster size (like the log prob ratio thresholds), but looking at the plots it's not super obviously necessary, so I'm punting for now
         x1, x2 = 0.11, 0.28
-        if tightness == 'tight':  # this should be close to optimal for straight naive hamming clustering. It's pretty much where the nearest-clonal and non-clonal lines cross
-            y1, y2 = 0.04, 0.08
+        if tightness == 'tight':  # this should be close to optimal for straight naive hamming clustering. 
+            # y1, y2 = 0.04, 0.08  # these are pretty much where the nearest-clonal and non-clonal lines cross
+            y1, y2 = 0.03, 0.07  # this will incorrectly merge fewer singletons
         elif tightness == 'loose':  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
             y1, y2 = 0.06, 0.09
         else:
@@ -413,8 +414,8 @@ class PartitionDriver(object):
         print 'n calcd:'
         total = 0
         for procinfo in self.n_likelihoods_calculated:
-            print '    %d' % procinfo['fwd']
-            total += procinfo['fwd']
+            print '    %d + %d' % (procinfo['vtb'], procinfo['fwd'])
+            total += procinfo['vtb'] + procinfo['fwd']
         print '  total: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
         return float(total) / len(self.n_likelihoods_calculated)
 

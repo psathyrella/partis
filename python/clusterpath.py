@@ -24,6 +24,9 @@ class ClusterPath(object):
         # self.conservative_best_minus_ten_partition, self.conservative_max_minus_ten_logprob = None, None  # have to keep track of these *separately* since they don't necessarily occur in <self.partitions>, if this path is the result of merging a number of others
 
     def update_best_minus_x_partition(self):
+        if math.isinf(self.logprobs[self.i_best]):  # if logprob is infinite, set best and best minus x to the latest one
+            self.i_best_minus_x = self.i_best
+            return
         for ip in range(len(self.partitions)):  # they should be in order of increasing logprob
             if self.logprobs[ip] > self.logprobs[self.i_best] - self.best_minus and self.n_procs[ip] == self.n_procs[self.i_best]:  # TODO is this exactly what I want to do with n_procs?
                 self.i_best_minus_x = ip
@@ -42,7 +45,7 @@ class ClusterPath(object):
         self.logweights.append(logweight)
         self.adj_mis.append(adj_mi)
         self.n_procs.append(n_procs)
-        if self.i_best is None or n_procs < self.n_procs[self.i_best] or logprob > self.logprobs[self.i_best]:  # TODO is this exactly what I want to do with n_procs?
+        if math.isinf(logprob) or self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best]:  # if we haven't set i_best yet, or if this partition is more likely than i_best, or if i_best is set for a larger number of procs
             self.i_best = len(self.partitions) - 1
         self.update_best_minus_x_partition()
 
