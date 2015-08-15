@@ -11,6 +11,7 @@ import time
 import csv
 from subprocess import check_call, Popen, check_output
 import itertools
+from Bio import SeqIO
 sys.path.insert(1, './python')
 
 from humans import humans
@@ -773,32 +774,40 @@ def compare_sample_sizes(label, n_leaves, mut_mult):
 # ----------------------------------------------------------------------------------------
 def get_seqfile(action, label, datafname, n_leaves=None, mut_mult=None):
 
-    def slice_csv(csv_infname, csv_outfname):
+    def slice_file(csv_infname, csv_outfname):  # not necessarily csv
         if os.path.exists(csv_outfname):
             print '      slicefile exists %s' % csv_outfname
             return
         print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
         if not os.path.exists(os.path.dirname(csv_outfname)):
             os.makedirs(os.path.dirname(csv_outfname))
-        remove_csv_infname = False
-        # if '.bz2' in csv_infname:  # put ~10 more lines than we need into a tmp file that isn't bzipped
-        #     tmpfname = '.tmp'.join(os.path.splitext(csv_outfname))
-        #     assert '.tsv' in csv_infname  # aw, screw it, just replace tabs with commas
-        #     assert '.csv' in csv_outfname
-        #     check_call('bzgrep -m' + str(args.istartstop[1] + 10) + ' . ' + csv_infname + ' | sed \'s/\t/,/g\' >' + tmpfname, shell=True)
-        #     csv_infname = tmpfname
-        #     remove_csv_infname = True
-        # check_call('head -n1 ' + csv_infname + ' | sed -e s/name/unique_id/ -e s/nucleotide/seq/ >' + csv_outfname, shell=True)
-        check_call('head -n1 ' + csv_infname + ' >' + csv_outfname, shell=True)
-        check_call('sed -n \'' + str(args.istartstop[0] + 2) + ',' + str(args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname, shell=True)  # NOTE conversion from standard zero indexing to sed inclusive one-indexing (and +1 for header line)
-        if remove_csv_infname:
-            assert '/dralph/' in csv_infname
-            os.remove(csv_infname)
+        if '.csv' in csv_infname:  # if it's actually a csv
+            remove_csv_infname = False
+            check_call('head -n1 ' + csv_infname + ' >' + csv_outfname, shell=True)
+            check_call('sed -n \'' + str(args.istartstop[0] + 2) + ',' + str(args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname, shell=True)  # NOTE conversion from standard zero indexing to sed inclusive one-indexing (and +1 for header line)
+            if remove_csv_infname:
+                assert '/dralph/' in csv_infname
+                os.remove(csv_infname)
+        elif '.fa' in csv_infname:
+            input_info, reco_info = seqfileopener.get_seqfile_info(csv_infname, is_data=True)
+            with open(csv_outfname, 'w') as outfile:
+                writer = csv.DictWriter(outfile, ('unique_id', 'seq'))
+                writer.writeheader()
+                iseq = -1
+                for line in input_info.values():  # hackey, but it's an ordered dict so it should be ok
+                    iseq += 1
+                    if iseq < args.istartstop[0]:
+                        continue
+                    if iseq >= args.istartstop[1]:
+                        break
+                    writer.writerow({'unique_id' : line['unique_id'], 'seq' : line['seq']})
+            # print 'sed -n \'' + str(2*args.istartstop[0] + 1) + ',' + str(2*args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname
+            # check_call('sed -n \'' + str(2*args.istartstop[0] + 1) + ',' + str(2*args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname, shell=True)  # NOTE conversion from standard zero indexing to sed inclusive one-indexing (and multiply by two for fasta file)
 
     if args.data:
         if args.istartstop is not None:
             subfname = fsdir + '/' + label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/data.csv'
-            slice_csv(datafname, subfname)
+            slice_file(datafname, subfname)
             datafname = subfname
 
         seqfname = datafname
