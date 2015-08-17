@@ -42,7 +42,7 @@ class PartitionDriver(object):
         self.bcrham_divvied_queries = None
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_likelihoods_calculated = None
-        self.n_max_calc_per_process = 250
+        self.n_max_calc_per_process = 300
 
         self.sw_info = None
 
@@ -179,9 +179,12 @@ class PartitionDriver(object):
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
                 n_calcd_per_process = self.get_n_calculated_per_process()
-                if n_calcd_per_process < self.n_max_calc_per_process:
-                    # if n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]:
-                    n_procs = int(n_procs / 1.2)
+                if self.args.naive_hamming:
+                    factor = 2
+                else:
+                    factor = 1.3
+                if n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
+                    n_procs = int(n_procs / factor)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
@@ -411,12 +414,10 @@ class PartitionDriver(object):
     def get_n_calculated_per_process(self):
         if self.n_likelihoods_calculated is None:
             return
-        print 'n calcd:'
         total = 0
         for procinfo in self.n_likelihoods_calculated:
-            print '    %d + %d' % (procinfo['vtb'], procinfo['fwd'])
             total += procinfo['vtb'] + procinfo['fwd']
-        print '  total: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
+        print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
         return float(total) / len(self.n_likelihoods_calculated)
 
     # ----------------------------------------------------------------------------------------
