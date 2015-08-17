@@ -116,20 +116,33 @@ class Hist(object):
         self.fill_ibin(self.find_bin(value), weight)
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=False, expect_empty=False):
-        """ NOTE does not multiply/divide by bin widths """
-        sum_value = 0.0
+    def get_bounds(self, include_overflows=False):
         if include_overflows:
             imin, imax = 0, self.n_bins + 2
         else:
             imin, imax = 1, self.n_bins + 1
+        return imin, imax
+
+    # ----------------------------------------------------------------------------------------
+    def integral(self, include_overflows):
+        """ NOTE does not multiply/divide by bin widths """
+        imin, imax = self.get_bounds(include_overflows)
+        sum_value = 0.0
         for ib in range(imin, imax):
             sum_value += self.bin_contents[ib]
+        return sum_value
+
+    # ----------------------------------------------------------------------------------------
+    def normalize(self, include_overflows=False, expect_empty=False):
+        sum_value = self.integral(include_overflows)
+        imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
-            if not expect_empty:
-                print 'WARNING sum zero in Hist::normalize(), returning without doing anything'
             return
         # make sure there's not too much stuff in the under/overflows
+        if sum_value == 0.0:
+            if not expect_empty:
+                print 'WARNING sum zero in Hist::normalize()'
+            return
         if not include_overflows and (self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10):
             print 'WARNING under/overflows in Hist::normalize()'
         for ib in range(imin, imax):
@@ -141,7 +154,8 @@ class Hist(object):
         check_sum = 0.0
         for ib in range(imin, imax):  # check it
             check_sum += self.bin_contents[ib]
-        assert is_normed(check_sum, this_eps=1e-10)
+        if not is_normed(check_sum, this_eps=1e-10):
+            raise Exception('not normalized: %f' % check_sum)
 
     # ----------------------------------------------------------------------------------------
     def divide_by(self, denom_hist, debug=False):
@@ -223,11 +237,19 @@ class Hist(object):
     def __str__(self):
         str_list = []
         for ib in range(len(self.low_edges)):
-            str_list += ['    %5.1f  %5f\n'  % (self.low_edges[ib], self.bin_contents[ib]), ]
+            str_list += ['    %7.4f  %12.3f'  % (self.low_edges[ib], self.bin_contents[ib]), ]
+            if ib == 0:
+                str_list += ['   under']
+            if ib == len(self.low_edges) - 1:
+                str_list += ['   over']
+            str_list += ['\n']
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
     def mpl_plot(self, ax, ignore_overflows=False, label='', alpha=1., linewidth=2, linestyle='-'):
+        if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
+            print '   integral is zero in hist::mpl_plot'
+            return None
         if ignore_overflows:
             xvals = self.get_bin_centers()[1:-1]
             yvals = self.bin_contents[1:-1]

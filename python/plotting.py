@@ -1037,6 +1037,7 @@ def mpl_init():
     mpl.use('Agg')
     import matplotlib.pyplot as plt
     import seaborn as sns
+    sns.set_style("ticks")
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -1055,14 +1056,14 @@ def mpl_init():
 
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel=''):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None):
     legend = ax.legend()  #loc=(0.55, 0.1))
     sns.despine(trim=True, bottom=True)
-    # sns.set_style("ticks")
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     # ax.set_xscale('log')
-    # plt.xlim(xmin, xmax)
+    if xbounds is not None:
+        plt.xlim(xbounds[0], xbounds[1])
     # plt.ylim(0, 1.08)
     # potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
     # xticks = [xt for xt in potential_xticks if xt < xmax]
