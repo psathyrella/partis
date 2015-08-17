@@ -1037,7 +1037,7 @@ def mpl_init():
     mpl.use('Agg')
     import matplotlib.pyplot as plt
     import seaborn as sns
-    sns.set_style("ticks")
+    sns.set_style('ticks')
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,

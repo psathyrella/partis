@@ -709,6 +709,7 @@ def make_adj_mi_vs_sample_size_plot(label, n_leaves, mut_mult, nseq_list, adj_mi
     mpl.use('Agg')
     import matplotlib.pyplot as plt
     import seaborn as sns
+    sns.set_style('ticks')
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -744,7 +745,6 @@ def make_adj_mi_vs_sample_size_plot(label, n_leaves, mut_mult, nseq_list, adj_mi
 
     legend = ax.legend(loc=(0.55, 0.1))
     sns.despine(trim=True, bottom=True)
-    sns.set_style("ticks")
     plt.title('%d leaves, %dx mutation' % (n_leaves, mut_mult))
     plt.xlabel('sample size')
     plt.ylabel('adjusted MI')
@@ -947,7 +947,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         extras += ['--n-max-queries', args.n_to_partition]
         if args.count_distances:
             extras += ['--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1, 
-        n_procs = max(1, args.n_to_partition / 15)  # something like 15 seqs/process to start with
+        n_procs = max(1, args.n_to_partition / 30)  # something like 50 seqs/process to start with
     elif action == 'naive-hamming-partition':
         outfname = get_outputname()
         if output_exists(outfname):
