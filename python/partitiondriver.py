@@ -189,7 +189,7 @@ class PartitionDriver(object):
                     factor = 2
                 else:
                     factor = 1.3
-                if n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or n_proc_list[-1] == n_proc_list[-2]):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
+                if n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2])):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
                     n_procs = int(n_procs / factor)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process

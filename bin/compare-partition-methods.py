@@ -932,7 +932,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if output_exists(fsdir + '/' + label + '/data'):
             return
         extras += ['--n-max-queries', + args.n_data_to_cache]
-        n_procs = args.n_data_to_cache / 500
+        n_procs = max(1, args.n_data_to_cache / 500)
     elif action == 'simulate':
         if output_exists(seqfname):
             return
@@ -1115,7 +1115,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         n_procs = 500
     n_proc_str = str(n_procs)
     if n_procs > 10:
-        n_fewer_procs = min(500, args.n_to_partition / 2000)
+        n_fewer_procs = max(1, min(500, args.n_to_partition / 2000))
         n_proc_str += ':' + str(n_fewer_procs)
         extras += ['--slurm', '--workdir', fsdir + '/_tmp/' + str(random.randint(0,99999))]
         
@@ -1178,4 +1178,4 @@ for datafname in files:
     if 'compare-subsets' in args.actions:
         compare_all_subsets(label)
 
-    break
+    # break

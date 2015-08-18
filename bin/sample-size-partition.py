@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 from collections import OrderedDict
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
 import sys
 sys.path.insert(1, './python')
 import time
@@ -14,9 +10,14 @@ import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--action', required=True)
+parser.add_argument('--timegrep', action='store_true')
 args = parser.parse_args()
 
 # # ----------------------------------------------------------------------------------------
+# import matplotlib as mpl
+# mpl.use('Agg')
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 # from plotting import legends, colors, linewidths
 # fsize = 20
 # mpl.rcParams.update({
@@ -73,24 +74,27 @@ args = parser.parse_args()
 # ----------------------------------------------------------------------------------------
 istart = 0
 # for n_queries in [100, 200, 500, 1000, 2000, 5000, ]:  # NOTE you've already used pretty much the whole sim file
-for n_queries in [50000]:  #, 10000, 100000]:
+for n_queries in [10000]:  #, 50000, 100000]:
     cmd = './bin/compare-partition-methods.py --actions ' + args.action
     istop = istart + n_queries
     # print '  %d queries from %d --> %d' % (n_queries, istart, istop)
 
-    # # grep for timing info:
-    # logfname = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/_logs/istartstop-' + str(istart) + '-' + str(istop) + '/simu-10-leaves-1-mutate-' + args.action + '.out'
-    # outstr = check_output('grep \'total time\' ' + logfname, shell=True)
-    # secs = float(outstr.split()[2])
-    # print n_queries
-    # print '     %.0f' % secs,
+    if args.timegrep:  # grep for timing info:
+        logfname = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/_logs/istartstop-' + str(istart) + '-' + str(istop) + '/data-' + args.action + '.out'
+        outstr = check_output('grep \'total time\' ' + logfname, shell=True)
+        secs = float(outstr.split()[2])
+        print '  %5d' % n_queries,
+        print ' %9.0f\n' % secs,
+        continue
 
     # actually run stuff:
     cmd += ' --istartstop ' + str(istart) + ':' + str(istop)
     # cmd += ' --mutation-multiplier 1 --n-leaf-list 10'
     cmd += ' --data'
+    cmd += ' --humans A'
     # cmd += ' --overwrite'
     print cmd
     check_call(cmd.split())
-
+    
     # istart = istop
+    # break
