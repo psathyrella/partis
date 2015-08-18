@@ -132,8 +132,10 @@ class PartitionDriver(object):
             return
 
         # run smith-waterman
+        start = time.time()
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
+        print '        water time: %.3f' % (time.time()-start)
         self.sw_info = waterer.info
         if not self.args.dont_pad_sequences:  # have to do this before we divvy... sigh TODO clean this up and only call it in one place
             # TODO oh, duh, just do it in waterer
@@ -159,7 +161,11 @@ class PartitionDriver(object):
 
         # cache hmm naive seqs for each single query
         if len(self.input_info) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=int(math.ceil(float(len(self.input_info)) / 50)), cache_naive_seqs=True)
+            n_precache_procs = int(math.ceil(float(len(self.input_info)) / 100))
+            if n_precache_procs > self.args.n_max_procs:
+                print '  naive precache procs too large %d, reducing to args.n_max_procs %d' % (n_precache_procs, self.args.n_max_procs)
+                n_precache_procs = self.args.n_max_procs
+            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=n_precache_procs, cache_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
@@ -614,18 +620,24 @@ class PartitionDriver(object):
             for line in reader:
                 info.append(line)
 
+        # ----------------------------------------------------------------------------------------
+        def get_sub_outfile(siproc, mode):
+            subworkdir = self.args.workdir + '/' + prefix + '-' + str(siproc)
+            if mode == 'w':
+                utils.prep_dir(subworkdir)
+                if os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir
+                    check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
+            return open(subworkdir + '/' + os.path.basename(infname), mode)
+
+        # ----------------------------------------------------------------------------------------
+        def get_writer(sub_outfile):
+            return csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=' ')
+
         # initialize output files
-        sub_outfiles, writers = [], []
         for iproc in range(n_procs):
-            subworkdir = self.args.workdir + '/' + prefix + '-' + str(iproc)
-            utils.prep_dir(subworkdir)
-            # prep each suboutput file
-            sub_outfiles.append(opener('w')(subworkdir + '/' + os.path.basename(infname)))
-            writers.append(csv.DictWriter(sub_outfiles[-1], reader.fieldnames, delimiter=' '))
-            writers[-1].writeheader()
-            # copy cachefile to this subdir
-            if os.path.exists(self.hmm_cachefname):
-                check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
+            sub_outfile = get_sub_outfile(iproc, 'w')
+            get_writer(sub_outfile).writeheader()
+            sub_outfile.close()  # can't leave 'em all open the whole time 'cause python has the thoroughly unreasonable idea that one oughtn't to have thousands of files open at once
 
         cluster_divvy = False
         if self.args.action == 'partition' and algorithm == 'forward':
@@ -638,6 +650,8 @@ class PartitionDriver(object):
         else:
             print 'modulo divvy'
         for iproc in range(n_procs):
+            sub_outfile = get_sub_outfile(iproc, 'a')
+            writer = get_writer(sub_outfile)
             for iquery in range(len(info)):
                 if cluster_divvy:
                     if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
@@ -645,10 +659,8 @@ class PartitionDriver(object):
                 else:
                     if iquery % n_procs != iproc:
                         continue
-                writers[iproc].writerow(info[iquery])
-
-        for iproc in range(n_procs):
-            sub_outfiles[iproc].close()
+                writer.writerow(info[iquery])
+            sub_outfile.close()
 
         if self.bcrham_divvied_queries is not None:
             self.bcrham_divvied_queries = None

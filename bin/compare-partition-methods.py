@@ -47,6 +47,7 @@ parser.add_argument('--startstoplist')  # list of istartstops for comparisons
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
+parser.add_argument('--humans')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
@@ -56,6 +57,7 @@ args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 args.startstoplist = utils.get_arg_list(args.startstoplist)
+args.humans = utils.get_arg_list(args.humans)
 
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
@@ -368,7 +370,7 @@ def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, pl
             return None
 
     if metric == 'logprob':
-        nbins, xmin, xmax = 30, -15, 55
+        nbins, xmin, xmax = 40, -55, 60
         xlabel = 'log prob ratio'
     elif metric == 'naive_hfrac':
         if args.zoom:
@@ -450,9 +452,9 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info, metric
         reader = csv.DictReader(cachefile)
         # iline = 0
         for line in reader:
-            # if line[metric] == '':
-            #     continue
             if metric == 'logprob':
+                if line[metric] == '':
+                    continue
                 cachevals[line['unique_ids']] = float(line['logprob'])
             elif metric == 'naive_hfrac':
                 cachevals[line['unique_ids']] = -1. if line['naive_hfrac'] == '' else float(line['naive_hfrac'])  # we need the singletons, even if they don't have hfracs
@@ -557,24 +559,25 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs):
 
     input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
-        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'naive_hfrac')
+        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'logprob')  #'naive_hfrac')
         return
 
     rebin = None
     # if n_leaves > 10:
     #     rebin = 2
+
     # then vollmers annotation (and true hists)
     parse_vollmers(these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info, rebin=rebin)
 
     # mixcr
     parse_mixcr(these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info)
 
-    # then changeo
-    parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
+    # # then changeo
+    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
     for ptype in ['vsearch-', 'naive-hamming-', '']:
-    # for ptype in ['', ]:
+    # for ptype in ['', 'naive-hamming-']:
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info, rebin=rebin)
 
     plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*6.01)
@@ -598,16 +601,16 @@ def compare_all_subsets(label):
         for mut_mult in args.mutation_multipliers:
             compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, ccf_overs)
 
-    # if not args.data:
+    if not args.data:
     #     write_latex_table(adj_mis)
-    for mut_mult in args.mutation_multipliers:
-        plotvals = convert_adj_mi_and_co_to_plottable(adj_mis, mut_mult)
-        plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'adj_mi')
-
-        plotvals = convert_adj_mi_and_co_to_plottable(ccf_unders, mut_mult)
-        plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'ccf_under')
-        plotvals = convert_adj_mi_and_co_to_plottable(ccf_overs, mut_mult)
-        plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'ccf_over')
+        for mut_mult in args.mutation_multipliers:
+            plotvals = convert_adj_mi_and_co_to_plottable(adj_mis, mut_mult)
+            plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'adj_mi')
+    
+            plotvals = convert_adj_mi_and_co_to_plottable(ccf_unders, mut_mult)
+            plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'ccf_under')
+            plotvals = convert_adj_mi_and_co_to_plottable(ccf_overs, mut_mult)
+            plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'ccf_over')
 
 # ----------------------------------------------------------------------------------------
 def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, ccf_overs):
@@ -628,8 +631,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, 
     these_vals['ccf_over'] = ccf_overs[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    # expected_methods = ['vollmers-0.9', 'partition']
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     if not args.data:
         expected_methods.insert(0, 'true')
     tmp_valdicts = {'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
@@ -880,7 +883,7 @@ def get_seqfile(action, label, datafname, n_leaves=None, mut_mult=None):
 
         if args.istartstop is not None:
             subsimfname = simfname.replace(label + '/', label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
-            slice_csv(simfname, subsimfname)
+            slice_file(simfname, subsimfname)
             simfname = subsimfname
 
         seqfname = simfname
@@ -905,8 +908,13 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
     def output_exists(outfname):
         if os.path.exists(outfname):
-            if args.overwrite:
+            if os.stat(outfname).st_size == 0:
+                print '                      deleting zero length %s' % outfname
+                os.remove(outfname)
+                return False
+            elif args.overwrite:
                 print '                      overwriting %s' % outfname
+                os.remove(outfname)
                 return False
             else:
                 print '                      output exists, skipping (%s)' % outfname
@@ -947,7 +955,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         extras += ['--n-max-queries', args.n_to_partition]
         if args.count_distances:
             extras += ['--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1, 
-        n_procs = max(1, args.n_to_partition / 30)  # something like 50 seqs/process to start with
+        n_procs = max(1, args.n_to_partition / 50)  # something like 50 seqs/process to start with
     elif action == 'naive-hamming-partition':
         outfname = get_outputname()
         if output_exists(outfname):
@@ -1102,9 +1110,13 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         raise Exception('bad action %s' % action)
 
     cmd +=  ' --plotdir ' + os.getenv('www') + '/partis'
+    if n_procs > 500:
+        print 'reducing n_procs %d --> %d' % (n_procs, 500)
+        n_procs = 500
     n_proc_str = str(n_procs)
     if n_procs > 10:
-        n_proc_str += ':10'
+        n_fewer_procs = min(500, args.n_to_partition / 2000)
+        n_proc_str += ':' + str(n_fewer_procs)
         extras += ['--slurm', '--workdir', fsdir + '/_tmp/' + str(random.randint(0,99999))]
         
     extras += ['--n-procs', n_proc_str]
@@ -1126,16 +1138,16 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(5)
+    # time.sleep(5)
 
 # ----------------------------------------------------------------------------------------
 for datafname in files:
-    # if '/B/' not in datafname:
-    #     continue
     if args.dataset == 'stanford':
 	    human = os.path.basename(datafname).replace('_Lineages.fasta', '')
     elif args.dataset == 'adaptive':
 	    human = re.findall('[ABC]', datafname)[0]
+    if args.humans is not None and human not in args.humans:
+        continue
     print 'run', human
     label = human
     if args.bak:

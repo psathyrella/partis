@@ -2,6 +2,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+sns.set_style('ticks')
 
 import math
 import os
@@ -885,6 +886,7 @@ linewidths = {'true' : 10,
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_size_hists(outfname, hists, title, xmax=None):
+
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -948,12 +950,10 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
         plots[name] = ax.plot(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
 
     legend = ax.legend()
+    sns.despine(trim=True, bottom=True)
     # ax = fig.gca()
     # print ax.lines
     
-    sns.despine(trim=True, bottom=True)
-    sns.set_style("ticks")
-
     # axes = plt.gca()
     # ylimits = axes.get_ylim()
     # xmin, xmax = 0.3, 1.02
@@ -1015,7 +1015,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     #     ymin = 0.5
     ax.set_ylim(ymin, 1)
     sns.despine(trim=True, bottom=True)
-    sns.set_style('ticks')
+    # sns.set_style('ticks')
     plt.title('%dx mutation' % mut_mult)
     plt.xlabel('mean N leaves')
     plt.ylabel(legends[valname])
@@ -1033,11 +1033,11 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
 
 # ----------------------------------------------------------------------------------------
 def mpl_init():
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    sns.set_style('ticks')
+    # import matplotlib as mpl
+    # mpl.use('Agg')
+    # import matplotlib.pyplot as plt
+    # import seaborn as sns
+    # sns.set_style('ticks')
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -1057,7 +1057,7 @@ def mpl_init():
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None):
-    legend = ax.legend()  #loc=(0.55, 0.1))
+    legend = ax.legend(loc=(0.04, 0.6))
     sns.despine(trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

@@ -274,11 +274,12 @@ class Waterer(object):
             iqr += 1
             igl += 1
 
-        print '\n      indels in %s' % query_name
-        print '          %20s %s' % (gene, glprintstr)
-        print '          %20s %s' % ('query', qrprintstr)
-        for idl in indelfo['indels']:
-            print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
+        if self.debug:
+            print '\n      indels in %s' % query_name
+            print '          %20s %s' % (gene, glprintstr)
+            print '          %20s %s' % ('query', qrprintstr)
+            for idl in indelfo['indels']:
+                print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
         # utils.undo_indels(indelfo)
         # print '                       %s' % self.input_info[query_name]['seq']
 
