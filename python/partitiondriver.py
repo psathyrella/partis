@@ -298,11 +298,24 @@ class PartitionDriver(object):
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
             cmd += ' -t 5'  # five threads TODO set this more intelligently
-            cmd += ' -f'
+            # cmd += ' -f'
             cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
             cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
             cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
             # cmd += ' --gap-extension-penalty'
+            tmpstart = time.time()
+            total = 0.
+            for key in self.input_info:
+                # padded sequence is here: self.sw_info[key]['padded']['seq']
+                # but this should be un-padded
+                seq = self.input_info[key]['seq']
+                total += float(len(seq))
+            mean_length = total / len(self.input_info)
+            bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
+            differences = int(round(mean_length * bound))
+            print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
+            print '      swarm average time: %.3f' % (time.time()-tmpstart)
+            cmd += ' --differences ' + str(differences)
             cmd += ' --uclust-file ' + clusterfname
             print cmd
             check_call(cmd.split())
@@ -366,7 +379,7 @@ class PartitionDriver(object):
         return thold
 
     # ----------------------------------------------------------------------------------------
-    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir):
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, cache_naive_seqs):
         """ Return the appropriate bcrham command string """
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
         if self.args.slurm:
@@ -379,20 +392,7 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
 
-        if self.args.naive_hamming:
-            cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
-            thold = self.get_naive_hamming_threshold(parameter_dir, 'tight')
-            naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios
-            naive_hamming_hi = thold
-        else:
-            naive_hamming_lo = 0.01
-            naive_hamming_hi = self.get_naive_hamming_threshold(parameter_dir, 'loose')
-
-        print '       naive hamming bounds: %.3f %.3f' % (naive_hamming_lo, naive_hamming_hi)
-        cmd_str += ' --hamming-fraction-bound-lo ' + str(naive_hamming_lo)
-        cmd_str += ' --hamming-fraction-bound-hi ' + str(naive_hamming_hi)
         if self.args.smc_particles > 1:
             os.environ['GSL_RNG_TYPE'] = 'ranlux'
             os.environ['GSL_RNG_SEED'] = str(random.randint(0, 99999))
@@ -400,8 +400,24 @@ class PartitionDriver(object):
         if self.args.rescale_emissions:
             cmd_str += ' --rescale-emissions'
         if self.args.action == 'partition':
-            cmd_str += ' --partition'
             cmd_str += ' --cachefile ' + self.hmm_cachefname
+            if cache_naive_seqs:  # caching all naive sequences before partitioning
+                cmd_str += ' --cache-naive-seqs'
+            else:  # actually partitioning
+                cmd_str += ' --partition'
+                cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
+                if self.args.naive_hamming:
+                    cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
+                    thold = self.get_naive_hamming_threshold(parameter_dir, 'tight')
+                    naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios
+                    naive_hamming_hi = thold
+                else:
+                    naive_hamming_lo = 0.01
+                    naive_hamming_hi = self.get_naive_hamming_threshold(parameter_dir, 'loose')
+        
+                print '       naive hamming bounds: %.3f %.3f' % (naive_hamming_lo, naive_hamming_hi)
+                cmd_str += ' --hamming-fraction-bound-lo ' + str(naive_hamming_lo)
+                cmd_str += ' --hamming-fraction-bound-hi ' + str(naive_hamming_hi)
         if self.args.truncate_n_sets:
             cmd_str += ' --truncate-seqs'
         if not self.args.dont_allow_unphysical_insertions:
@@ -493,11 +509,9 @@ class PartitionDriver(object):
         self.write_hmm_input(parameter_dir=parameter_in_dir)  # TODO don't keep rewriting it
 
         # sys.stdout.flush()
-        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir)
+        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs)
         if cache_naive_seqs:
             print '      caching all naive sequences'
-            assert '--partition' in cmd_str
-            cmd_str = cmd_str.replace('--partition', '--cache-naive-seqs')
 
         if n_procs > 1 and self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
             if divvy_with_bcrham:
