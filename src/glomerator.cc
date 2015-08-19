@@ -154,6 +154,7 @@ void Glomerator::ReadCachedLogProbs() {
   assert(headstrs[3].find("naive_hfrac") == 0);
   assert(headstrs[4].find("cyst_position") == 0);
 
+  // NOTE there can be two lines with the same key (say if in one run we calculated the naive seq, and in a later run calculated the log prob)
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> column_list = SplitString(line, ",");
@@ -217,16 +218,16 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
   // void Glomerator::WriteCacheLine(ofstream &ofs, string query, string logprob, string naive_seq, string naive_hfrac, string cpos, string errors) {
 void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   ofs << query << ",";
-  if(log_probs_.count(query) && !initial_log_probs_.count(query))  // only write it if it wasn't in the initial cache file
+  if(log_probs_.count(query))
     ofs << log_probs_[query];
   ofs << ",";
-  if(naive_seqs_.count(query) && !initial_naive_seqs_.count(query))
+  if(naive_seqs_.count(query))
     ofs << naive_seqs_[query].undigitized();
   ofs << ",";
-  if(naive_hfracs_.count(query) && !initial_naive_hfracs_.count(query))
+  if(naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
-  if(naive_seqs_.count(query) && !initial_naive_seqs_.count(query))
+  if(naive_seqs_.count(query))
     ofs << naive_seqs_[query].cyst_position();
   ofs << ",";
   if(errors_.count(query))
@@ -242,25 +243,28 @@ void Glomerator::WriteCachedLogProbs() {
   log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,cyst_position,errors" << endl;
 
   log_prob_ofs << setprecision(20);
-  for(auto &kv : log_probs_)  // first write everything for which we have log probs
-    WriteCacheLine(log_prob_ofs, kv.first);
-  
+  for(auto &kv : log_probs_) {  // first write everything for which we have log probs
+    if(!initial_log_probs_.count(kv.first))  // as long as we didn't have it to start with
+      WriteCacheLine(log_prob_ofs, kv.first);
+  }
+
   for(auto &kv : naive_seqs_) {  // then write the queries for which we have naive seqs but not logprobs
-    if(log_probs_.count(kv.first))  // if it's in log_probs, we've already done it
+    if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))  // already wrote it
       continue;
-    WriteCacheLine(log_prob_ofs, kv.first);
+    if(!initial_naive_seqs_.count(kv.first))
+      WriteCacheLine(log_prob_ofs, kv.first);
   }
 
   for(auto &kv : naive_hfracs_) {  // then write any queries for which we have naive hamming fractions, but no logprobs of naive seqs
-    if(log_probs_.count(kv.first))
+    if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))
       continue;
-    if(naive_seqs_.count(kv.first))
+    if(naive_seqs_.count(kv.first) && !initial_naive_seqs_.count(kv.first))
       continue;
-    WriteCacheLine(log_prob_ofs, kv.first);
+    if(!initial_naive_hfracs_.count(kv.first))
+      WriteCacheLine(log_prob_ofs, kv.first);
   }
 
   log_prob_ofs.close();
-  cout << "        wrote " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl; // NOTE as long as the assert(0); below continues to hold
 }
 
 // ----------------------------------------------------------------------------------------
