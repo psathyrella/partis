@@ -187,7 +187,7 @@ class PartitionDriver(object):
                     factor = 2
                 else:
                     factor = 1.3
-                if n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2])):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
+                if self.args.naive_hamming or (n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]))):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
                     n_procs = int(n_procs / factor)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
@@ -350,7 +350,7 @@ class PartitionDriver(object):
         print '      vsearch/swarm time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=True):
+    def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=False):
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
         if debug:
@@ -399,13 +399,14 @@ class PartitionDriver(object):
             cmd_str += ' --rescale-emissions'
         if self.args.action == 'partition':
             cmd_str += ' --cachefile ' + self.hmm_cachefname
+            if self.args.naive_hamming:
+                cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
             if cache_naive_seqs:  # caching all naive sequences before partitioning
                 cmd_str += ' --cache-naive-seqs'
             else:  # actually partitioning
                 cmd_str += ' --partition'
                 cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
                 if self.args.naive_hamming:
-                    cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
                     thold = self.get_naive_hamming_threshold(parameter_dir, 'tight')
                     naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios
                     naive_hamming_hi = thold
@@ -657,10 +658,10 @@ class PartitionDriver(object):
                 cluster_divvy = True
         # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')
         if cluster_divvy:  # cluster similar sequences together (otherwise just do it in order)
-            print 'cluster divvy in split_input'
+            # print 'cluster divvy in split_input'
             divvied_queries = self.divvy_up_queries(n_procs, info, 'names', 'seqs')
-        else:
-            print 'modulo divvy'
+        # else:
+        #     print 'modulo divvy'
         for iproc in range(n_procs):
             sub_outfile = get_sub_outfile(iproc, 'a')
             writer = get_writer(sub_outfile)
@@ -695,11 +696,11 @@ class PartitionDriver(object):
         """
         start = time.time()
 
-        check_call(['wc', ] + [fn for fn in infnames if fn != outfname])
-        if os.path.exists(outfname):
-            check_call(['wc', outfname])
-        else:
-            print '  outfname d.n.e.'
+        # check_call(['wc', ] + [fn for fn in infnames if fn != outfname])
+        # if os.path.exists(outfname):
+        #     check_call(['wc', outfname])
+        # else:
+        #     print '  outfname d.n.e.'
 
         header = ''
         outfile = None
@@ -729,7 +730,7 @@ class PartitionDriver(object):
             print 'grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname
             check_call('grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname, shell=True)
             check_call(['mv', '-v', tmpfname, outfname])
-        check_call(['wc',  outfname])
+        # check_call(['wc',  outfname])
         if not self.args.no_clean:
             for infname in infnames:
                 if infname != outfname:
@@ -1155,7 +1156,7 @@ class PartitionDriver(object):
         # for k in nsets:
         #     print k
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
-            print 'randomizing input order'
+            # print 'randomizing input order'
             random_nsets = []
             while len(nsets) > 0:
                 irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
