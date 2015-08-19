@@ -70,9 +70,7 @@ class PartitionDriver(object):
             lockfile = open(lockfname, 'w')
             if not os.path.exists(self.args.persistent_cachefname):
                 open(self.args.persistent_cachefname, 'w').close()
-            tmp_cachefname = self.args.persistent_cachefname + '.tmp'
-            check_call(['cp', self.args.persistent_cachefname, tmp_cachefname])
-            self.merge_files(infnames=[tmp_cachefname, self.hmm_cachefname], outfname=self.args.persistent_cachefname)
+            self.merge_files(infnames=[self.args.persistent_cachefname, self.hmm_cachefname], outfname=self.args.persistent_cachefname, dereplicate=True)
             lockfile.close()
             os.remove(lockfname)
         if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
@@ -680,41 +678,62 @@ class PartitionDriver(object):
             self.bcrham_divvied_queries = None
 
     # ----------------------------------------------------------------------------------------
-    def merge_subprocess_files(self, fname, n_procs, csv_header=True):
+    def merge_subprocess_files(self, fname, n_procs, include_outfile=False):
         subfnames = []
         for iproc in range(n_procs):
             subfnames.append(self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(fname))
-        self.merge_files(subfnames, fname, csv_header)
+        if include_outfile:  # also merge the output file <fname> (i.e. for the cache files, the sub files only include *new* information, so we need to also merge them with the original file)
+            subfnames.append(fname)
+        self.merge_files(subfnames, fname, dereplicate=False)
 
     # ----------------------------------------------------------------------------------------
-    def merge_files(self, infnames, outfname, csv_header=True):
+    def merge_files(self, infnames, outfname, dereplicate):
         """ 
         Merge <infnames> into <outfname>.
         NOTE that <outfname> is overwritten with the zero-length file if it exists, otherwise it is created.
         Some of <infnames> may not exist.
         """
-        assert outfname not in infnames
         start = time.time()
 
+        check_call(['wc', ] + [fn for fn in infnames if fn != outfname])
+        if os.path.exists(outfname):
+            check_call(['wc', outfname])
+        else:
+            print '  outfname d.n.e.'
+
         header = ''
-        with open(outfname, 'w') as outfile:
-            if csv_header:  # if not <csv_header>, we'll just end up with a zero-length file
-                for fname in infnames:
-                    if not os.path.exists(fname) or os.stat(fname).st_size == 0:
-                        continue
-                    with open(fname) as headfile:
-                        reader = csv.DictReader(headfile)
-                        writer = csv.DictWriter(outfile, reader.fieldnames)
-                        writer.writeheader()
-                        header = ','.join(reader.fieldnames)
-                    break
+        outfile = None
+        if outfname not in infnames or not os.path.exists(outfname):  # if it *is* in <infnames> we assume we can just tack the other infnames onto the end of it and use <outfname>'s header
+            outfile = open(outfname, 'w')
+        for fname in infnames:
+            if not os.path.exists(fname) or os.stat(fname).st_size == 0:
+                continue
+            with open(fname) as headfile:
+                reader = csv.DictReader(headfile)
+                header = ','.join(reader.fieldnames)
+                if outfile is not None:
+                    writer = csv.DictWriter(outfile, reader.fieldnames)
+                    writer.writeheader()
+            break  # kinda weird to do it this way, but we just need one of the infiles to get the header info (and some may be zero length)
+        if outfile is not None:
+            outfile.close()
+        assert header != ''
 
-        cmd = 'cat ' + ' '.join(infnames) + ' | grep -v \'' + header + '\' | sort | uniq >>' + outfname
+        cmd = 'cat ' + ' '.join([fn for fn in infnames if fn != outfname]) + ' | grep -v \'' + header + '\''
+        cmd += ' >>' + outfname
         check_call(cmd, shell=True)
-
+        if dereplicate:
+            assert 'cache' not in outfname  # TODO remove me
+            tmpfname = outfname + '.tmp'
+            check_call('echo ' + header + ' >' + tmpfname)
+            print 'grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname
+            check_call('grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname, shell=True)
+            check_call(['mv', '-v', tmpfname, outfname])
+        check_call(['wc',  outfname])
         if not self.args.no_clean:
             for infname in infnames:
-                os.remove(infname)
+                if infname != outfname:
+                    os.remove(infname)
 
         print '    time to merge csv files: %.3f' % (time.time()-start)
 
@@ -724,7 +743,7 @@ class PartitionDriver(object):
         assert self.args.smc_particles == 1  # have to do things more complicatedly for smc
         if self.args.action == 'partition':  # merge partitions from several files
             if n_procs > 1:
-                self.merge_subprocess_files(self.hmm_cachefname, n_procs)
+                self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)  # sub cache files only have new info
 
             if not cache_naive_seqs:
                 if n_procs == 1:
@@ -783,8 +802,9 @@ class PartitionDriver(object):
             # ack? self.glomclusters.append(glomerer)
             # boof? self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
 
-        if n_procs > 1:  # TODO I don't think this is right any more...
-            self.merge_subprocess_files(self.hmm_cachefname, n_procs)
+        if n_procs > 1:
+            assert False  # TODO I don't think this is right any more...
+            self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)
             
         if not self.args.no_clean:
             if n_procs == 1:
