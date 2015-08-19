@@ -137,12 +137,10 @@ Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &log
 void Glomerator::ReadCachedLogProbs() {
   ifstream ifs(args_->cachefile());
   if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
-    // throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
     cout << "        cachefile d.n.e." << endl;
     return;
   }
   string line;
-
   // check the header is right (no cached info)
   if(!getline(ifs, line)) {
     cout << "        empty cachefile" << endl;
@@ -163,19 +161,25 @@ void Glomerator::ReadCachedLogProbs() {
     string query(column_list[0]);
 
     string logprob_str(column_list[1]);
-    if(logprob_str.size() > 0)
+    if(logprob_str.size() > 0) {
       log_probs_[query] = stof(logprob_str);
+      initial_log_probs_.insert(query);
+    }
 
     string naive_seq(column_list[2]);
 
     string naive_hfrac_str(column_list[3]);
-    if(naive_hfrac_str.size() > 0)
+    if(naive_hfrac_str.size() > 0) {
       naive_hfracs_[query] = stof(naive_hfrac_str);
+      initial_naive_hfracs_.insert(query);
+    }
 
     int cyst_position(atoi(column_list[4].c_str()));
 
-    if(naive_seq.size() > 0)
+    if(naive_seq.size() > 0) {
       naive_seqs_[query] = Sequence(track_, query, naive_seq, cyst_position);
+      initial_naive_seqs_.insert(query);
+    }
   }
   cout << "        read " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl;
 }
@@ -213,16 +217,16 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
   // void Glomerator::WriteCacheLine(ofstream &ofs, string query, string logprob, string naive_seq, string naive_hfrac, string cpos, string errors) {
 void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   ofs << query << ",";
-  if(log_probs_.count(query))
+  if(log_probs_.count(query) && !initial_log_probs_.count(query))  // only write it if it wasn't in the initial cache file
     ofs << log_probs_[query];
   ofs << ",";
-  if(naive_seqs_.count(query))
+  if(naive_seqs_.count(query) && !initial_naive_seqs_.count(query))
     ofs << naive_seqs_[query].undigitized();
   ofs << ",";
-  if(naive_hfracs_.count(query))
+  if(naive_hfracs_.count(query) && !initial_naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
-  if(naive_seqs_.count(query))
+  if(naive_seqs_.count(query) && !initial_naive_seqs_.count(query))
     ofs << naive_seqs_[query].cyst_position();
   ofs << ",";
   if(errors_.count(query))

@@ -100,6 +100,8 @@ private:
   map<string, string> errors_;
   map<string, double> naive_hamming_fractions_;
 
+  set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
+
   int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
 };
 
