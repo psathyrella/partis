@@ -1054,7 +1054,6 @@ def mpl_init():
 
     return fig, ax
 
-
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None):
     legend = ax.legend(loc=(0.04, 0.6))
@@ -1074,3 +1073,36 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
+
+# ----------------------------------------------------------------------------------------
+def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2):
+    print meth1, meth2
+    print '\n\n'
+    partition1 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
+    # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
+    partition2 = [['1', '2', '4'], ['3'], ['5'], ['6'], ['7'], ['8']]
+    smatrix = utils.partition_similarity_matrix(partition1, partition2, n_biggest_clusters=3)
+
+    # column_labels = list('ABCD')
+    # row_labels = list('WXYZ')
+    # data = np.random.rand(4,4)
+    fig, ax = plt.subplots()
+    heatmap = ax.pcolor(numpy.array(smatrix), cmap=plt.cm.Blues)
+    
+    # # put the major ticks at the middle of each cell
+    # ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
+    # ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
+    
+    # # want a more natural, table-like display
+    # ax.invert_yaxis()
+    # ax.xaxis.tick_top()
+    
+    # ax.set_xticklabels(row_labels, minor=False)
+    # ax.set_yticklabels(column_labels, minor=False)
+
+    plotname = meth1 + '-' + meth2
+    plotdir = os.getenv('www') + '/partis/tmp'
+    plt.savefig(plotdir + '/plots/' + plotname + '.svg')
+    check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
+    check_call(['./bin/permissify-www', plotdir])
+    sys.exit()

@@ -11,90 +11,98 @@ import random
 parser = argparse.ArgumentParser()
 parser.add_argument('--action', required=True)
 parser.add_argument('--timegrep', action='store_true')
+parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 
-# # ----------------------------------------------------------------------------------------
-# import matplotlib as mpl
-# mpl.use('Agg')
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# from plotting import legends, colors, linewidths
-# fsize = 20
-# mpl.rcParams.update({
-#     # 'font.size': fsize,
-#     'legend.fontsize': 15,
-#     'axes.titlesize': fsize,
-#     # 'axes.labelsize': fsize,
-#     'xtick.labelsize': fsize,
-#     'ytick.labelsize': fsize,
-#     'axes.labelsize': fsize
-# })
-# # sns.set_style('ticks')  # hm, it actually works here
-# fig, ax = plt.subplots()
-# fig.tight_layout()
-# plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
+human = 'A'
 
-# n_query_list = [100, 200, 500, 1000, 2000, 5000]
-# timeinfo = OrderedDict()
-# timeinfo['vollmers-0.9'] = [22, 22, 24, 310, 377, 571]
-# timeinfo['mixcr'] = [5, 5, 6, 7, 7, 9]
-# timeinfo['changeo'] = [4, 4, 4, 6, 7, 9]
-# timeinfo['vsearch-partition'] = [29, 33, 83, 83, 332, 595]
-# timeinfo['naive-hamming-partition'] = [62, 108, 1404, 1589, 1887, 4110]
-# timeinfo['partition'] = [230, 1482, 2357, 9071, 16763, 91098]
-# plots = {}
-# for meth, vals in timeinfo.items():
-#     linestyle = '-'
-#     alpha = 1.
-#     if 'vollmers' in meth:
-#         alpha = 0.5
-#     if 'vsearch' in meth:
-#         linestyle = '-.'
-#     elif 'naive-hamming-partition' in meth:
-#         linestyle = '--'
-#     elif 'true' in meth:
-#         linestyle = '--'
-#         alpha = 0.5
-#     plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)
-
-# legend = ax.legend(loc='upper left')
-# sns.despine(trim=True, bottom=True)
-# sns.set_style('ticks')
-# plt.xlabel('sample size')
-# plt.ylabel('time required')
-# plt.subplots_adjust(bottom=0.14, left=0.18)
-# ax.set_xscale('log')
-# ax.set_yscale('log')
-# yticks = [1, 60, 3600, 86400, 604800]  # seconds
-# yticklabels = ['1 sec', '1 min', '1 hour', '1 day', '1 week']
-# plt.yticks(yticks, yticklabels)
-# plt.savefig(os.getenv('www') + '/partis/tmp/time-required.svg')
-# sys.exit()
+if args.action == 'plot':
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from plotting import legends, colors, linewidths
+    fsize = 20
+    mpl.rcParams.update({
+        # 'font.size': fsize,
+        'legend.fontsize': 15,
+        'axes.titlesize': fsize,
+        # 'axes.labelsize': fsize,
+        'xtick.labelsize': fsize,
+        'ytick.labelsize': fsize,
+        'axes.labelsize': fsize
+    })
+    # sns.set_style('ticks')  # hm, it actually works here
+    fig, ax = plt.subplots()
+    fig.tight_layout()
+    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+    
+    n_query_list = [100, 200, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000]
+    timeinfo = OrderedDict()
+    timeinfo['vollmers-0.9'] =  [30,  34,  43,  218,  396,  217,  398,  534, 635, 2247]
+    timeinfo['mixcr'] = [7, 7, 8, 9, 9, 10, 10, 11, 13, 16]
+    timeinfo['changeo'] = [4, 4, 4, 6, None, 7, None, 9, None, None]
+    timeinfo['vsearch-partition'] = [52, 53, 62, 70, 303, 408, 460, 498, 893, 2561]
+    timeinfo['naive-hamming-partition'] = [42, 52, 258, 138, 294, 277, 795, 2325, 13137, None]
+    timeinfo['partition'] = [80, 87, 147, 544, 1005, 1191, 2644, 7165, 24248, None]
+            
+    plots = {}
+    for meth, vals in timeinfo.items():
+        linestyle = '-'
+        alpha = 1.
+        if 'vollmers' in meth:
+            alpha = 0.5
+        if 'vsearch' in meth:
+            linestyle = '-.'
+        elif 'naive-hamming-partition' in meth:
+            linestyle = '--'
+        elif 'true' in meth:
+            linestyle = '--'
+            alpha = 0.5
+        plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)
+    
+    legend = ax.legend(loc='upper left')
+    sns.despine(trim=True, bottom=True)
+    plt.xlabel('sample size')
+    plt.ylabel('time required')
+    plt.subplots_adjust(bottom=0.14, left=0.18)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    yticks = [1, 60, 3600, 86400, 604800]  # seconds
+    yticklabels = ['1 sec', '1 min', '1 hour', '1 day', '1 week']
+    plt.yticks(yticks, yticklabels)
+    plt.savefig(os.getenv('www') + '/partis/tmp/time-required.svg')
+    sys.exit()
 
 # ----------------------------------------------------------------------------------------
 istart = 0
-# for n_queries in [100, 200, 500, 1000, 2000, 5000, ]:  # NOTE you've already used pretty much the whole sim file
-for n_queries in [10000]:  #, 50000, 100000]:
+# for n_queries in [100, 200, 500, 1000, 1500, 2000, 3000, 5000, 10000]:
+for n_queries in [20000]:  #, 10000, 50000]:
     cmd = './bin/compare-partition-methods.py --actions ' + args.action
     istop = istart + n_queries
     # print '  %d queries from %d --> %d' % (n_queries, istart, istop)
 
+    logfname = fsdir + '/' + human + '/_logs/istartstop-' + str(istart) + '-' + str(istop) + '/data-' + args.action + '.out'
     if args.timegrep:  # grep for timing info:
-        logfname = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/_logs/istartstop-' + str(istart) + '-' + str(istop) + '/data-' + args.action + '.out'
-        outstr = check_output('grep \'total time\' ' + logfname, shell=True)
+        # check_call(['ls', '-ltrh', logfname])
+        outstr = check_output('grep \'total time\|mixcr time\' ' + logfname, shell=True)
         secs = float(outstr.split()[2])
-        print '  %5d' % n_queries,
-        print ' %9.0f\n' % secs,
+        # print ' %9.0f' % secs,
+        print '%.0f,' % secs,
+        # print '  %5d\n' % n_queries,
         continue
 
     # actually run stuff:
     cmd += ' --istartstop ' + str(istart) + ':' + str(istop)
-    # cmd += ' --mutation-multiplier 1 --n-leaf-list 10'
     cmd += ' --data'
     cmd += ' --humans A'
-    # cmd += ' --overwrite'
+    cmd += ' --overwrite'
+    if args.action == 'run-mixcr':
+        cmd += ' >' + logfname
     print cmd
-    check_call(cmd.split())
+    check_call(cmd, shell=True)
+    # time.sleep(900)
     
     # istart = istop
     # break

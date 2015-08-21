@@ -142,7 +142,7 @@ class Glomerator(object):
                 logweight = float(line['logweight']) if 'logweight' in line else None
                 adj_mi = -1
                 if calc_adj_mi:
-                    adj_mi = utils.mutual_information(uids, self.reco_info, debug=False) if self.reco_info is not None else -1
+                    adj_mi = utils.mutual_information_to_true(uids, self.reco_info, debug=False) if self.reco_info is not None else -1
                 logprob = float(line['logprob'])
                 if line['logprob'] == '-inf' or math.isinf(logprob):  # should either both be true or neither be true
                     assert math.isinf(logprob)
@@ -231,7 +231,7 @@ class Glomerator(object):
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
                 global_adj_mi = -1
                 if calc_adj_mi:
-                    global_adj_mi = utils.mutual_information(global_partition, self.reco_info, debug=False) if self.reco_info is not None else -1
+                    global_adj_mi = utils.mutual_information_to_true(global_partition, self.reco_info, debug=False) if self.reco_info is not None else -1
                 self.paths[ipath].add_partition(global_partition, global_logprob, n_procs=len(fileinfos), logweight=0., adj_mi=global_adj_mi)  # don't know the logweight yet (or maybe at all!)
 
             while not last_one():

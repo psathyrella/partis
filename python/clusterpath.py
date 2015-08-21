@@ -237,7 +237,7 @@ class ClusterPath(object):
                     row['adj_mi'] = self.adj_mis[ipart]
                 else:
                     if calc_adj_mi == 'best' and ipart == self.i_best:  # only calculate adj_mi for the best partition
-                        row['adj_mi'] = utils.mutual_information(part, reco_info)
+                        row['adj_mi'] = utils.mutual_information_to_true(part, reco_info)
                     else:
                         row['adj_mi'] = self.adj_mis[ipart]
                 row['n_true_clusters'] = len(true_partition)

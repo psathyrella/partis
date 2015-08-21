@@ -337,7 +337,7 @@ class PartitionDriver(object):
         partition = id_clusters.values()
         adj_mi = -1
         if not self.args.is_data:
-            adj_mi = utils.mutual_information(partition, self.reco_info, debug=True)
+            adj_mi = utils.mutual_information_to_true(partition, self.reco_info, debug=True)
         cp = ClusterPath(-1)
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi)
         if self.args.outfname is not None:
@@ -509,6 +509,9 @@ class PartitionDriver(object):
 
         # sys.stdout.flush()
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs)
+        if n_procs > 10 and 'srun' not in cmd_str:
+            print '   hacking in srun'
+            cmd_str = 'srun ' + cmd_str
         if cache_naive_seqs:
             print '      caching all naive sequences'
 
