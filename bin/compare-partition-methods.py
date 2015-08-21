@@ -243,7 +243,9 @@ def parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seq
 
                 vollmers_clusters = [cl.split(':') for cl in line['clusters'].split(';')]
                 all_ids = [val for cluster in vollmers_clusters for val in cluster]
-                truehist = plotting.get_cluster_size_hist(utils.get_true_clusters(all_ids, reco_info).values(), rebin=rebin)
+                true_partition = utils.get_true_clusters(all_ids, reco_info).values()
+                truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
+                these_partitions['true'] = true_partition
                 truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
                 these_hists['true'] = truehist
 

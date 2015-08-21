@@ -1075,23 +1075,35 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2):
+def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2, n_biggest_clusters=10):
     print meth1, meth2
     print '\n\n'
-    partition1 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
-    # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
-    partition2 = [['1', '2', '4'], ['3'], ['5'], ['6'], ['7'], ['8']]
-    smatrix = utils.partition_similarity_matrix(partition1, partition2, n_biggest_clusters=3)
+    # partition1 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
+    # # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
+    # partition2 = [['1', '2', '4'], ['3'], ['5'], ['6'], ['7'], ['8']]
+    a_cluster_lengths, b_cluster_lengths, smatrix = utils.partition_similarity_matrix(partition1, partition2, n_biggest_clusters=n_biggest_clusters, debug=False)
+    print a_cluster_lengths
+    print b_cluster_lengths
 
     # column_labels = list('ABCD')
     # row_labels = list('WXYZ')
     # data = np.random.rand(4,4)
     fig, ax = plt.subplots()
-    heatmap = ax.pcolor(numpy.array(smatrix), cmap=plt.cm.Blues)
+    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.95)
+    data = numpy.array(smatrix)
+    heatmap = ax.pcolor(data, cmap=plt.cm.Blues, vmin=0., vmax=1.)
+    cbar = plt.colorbar(heatmap)
     
-    # # put the major ticks at the middle of each cell
-    # ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
-    # ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
+    ticks = [n - 0.5 for n in range(1, n_biggest_clusters + 1, 2)]
+    # ticklabels = [str(int(n + 0.5)) for n in ticks]
+    plt.xticks(ticks, a_cluster_lengths)
+    plt.yticks(ticks, b_cluster_lengths)
+    plt.xlabel(legends.get(meth1, meth1) + ' cluster size')
+    plt.ylabel(legends.get(meth2, meth2) + ' cluster size')
+    # ax.set_xticks(numpy.arange(data.shape[0])+0.5, minor=False)
+    # ax.set_yticks(numpy.arange(data.shape[1])+0.5, minor=False)
+    ax.set_xlim(0, n_biggest_clusters)
+    ax.set_ylim(0, n_biggest_clusters)
     
     # # want a more natural, table-like display
     # ax.invert_yaxis()
@@ -1105,4 +1117,3 @@ def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2):
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
-    sys.exit()

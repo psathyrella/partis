@@ -1327,15 +1327,8 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
-def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters=10, debug=True):
+def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, debug=False):
     """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest """
-    # def find_uid_in_partition(uid, partition):
-    #     for iclust in range(len(partition)):
-    #         if uid in partition[iclust]:
-    #             return iclust
-    #     # raise Exception('couldn\'t find %s' % uid)
-    #     return None
-
     def intersection_size(cl_1, cl_2):
         isize = 0
         for uid in cl_1:
@@ -1343,40 +1336,25 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters=10,
                 isize += 1
         return isize
 
-    # def get_cluster_lists(master_p, sub_p):  # 1) find non-singleton clusters in <master_p> 2) find all clusters in <sub_p> that contain these ids
-    #     master_list, sub_list = [], []  # lists without singletons
-    #     for iclust in range(len(master_p)):
-    #         if len(master_p[iclust]) == 1:
-    #             continue
-    #         for uid in master_p[iclust]:
-    #             master_list.append(iclust)
-    #             sub_list.append(find_uid_in_partition(uid, sub_p))
-    #     print master_list
-    #     print sub_list
-    # get_cluster_lists(partition_a, partition_b)
-    # print ''
-    # get_cluster_lists(partition_b, partition_a)
-
+    a_clusters = sorted(partition_a, key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters
+    b_clusters = sorted(partition_b, key=len, reverse=True)[ : n_biggest_clusters]
     smatrix = []
-    for clust_a in sorted(partition_a, key=len, reverse=True)[ : n_biggest_clusters]:  # i.e. loop over the n biggest clusters
+    for clust_a in a_clusters:
         if debug:
             print clust_a
         smatrix.append([])
-        for clust_b in sorted(partition_b, key=len, reverse=True)[ : n_biggest_clusters]:  # apologies for the concise opacity
-            isize = float(intersection_size(clust_a, clust_b)) / (0.5 * (len(clust_a) + len(clust_b)))
-            # isize = intersection_size(clust_a, clust_b)
+        for clust_b in b_clusters:
+            # norm_factor = 1.  # don't normalize
+            norm_factor = 0.5 * (len(clust_a) + len(clust_b))  # mean size
+            # norm_factor = min(len(clust_a), len(clust_b))  # smaller size
+            intersection = intersection_size(clust_a, clust_b)
+            isize = float(intersection) / norm_factor
             smatrix[-1].append(isize)
             if debug:
-                print '    ', isize,
-                print '  ', clust_b
+                print '    %.2f  %5d   %5d %5d' % (isize, intersection, len(clust_a), len(clust_b))
 
-    # adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
-    # if debug:
-    #     print '       true clusters %d' % len(set(true_cluster_list))
-    #     print '   inferred clusters %d' % len(set(inferred_cluster_list))
-    #     print '         adjusted mi %.2f' % adj_mi
-    # return adj_mi
-    return smatrix
+    a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]
+    return a_cluster_lengths, b_cluster_lengths, smatrix
 
 # ----------------------------------------------------------------------------------------
 def mutual_information_to_true(partition, reco_info, debug=False):
