@@ -591,7 +591,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
         if '0.5' in meth1 or '0.5' in meth2:
             continue
         print meth1, meth2
-        plotting.plot_cluster_similarity_matrix(meth1, these_partitions[meth1], meth2, these_partitions[meth2])
+        plotting.plot_cluster_similarity_matrix(meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=(75 if args.data else 30))
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
@@ -1149,7 +1149,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(900)
+    time.sleep(900)
 
 # ----------------------------------------------------------------------------------------
 for datafname in files:

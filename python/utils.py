@@ -1336,8 +1336,18 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, de
                 isize += 1
         return isize
 
-    a_clusters = sorted(partition_a, key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters
-    b_clusters = sorted(partition_b, key=len, reverse=True)[ : n_biggest_clusters]
+    # n_biggest_clusters = 10
+    def sort_within_clusters(part):
+        for iclust in range(len(part)):
+            part[iclust] = sorted(part[iclust])
+
+    # a_clusters = sorted(partition_a, key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters
+    # b_clusters = sorted(partition_b, key=len, reverse=True)[ : n_biggest_clusters]
+    sort_within_clusters(partition_a)
+    sort_within_clusters(partition_b)
+    a_clusters = sorted(sorted(partition_a), key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters
+    b_clusters = sorted(sorted(partition_b), key=len, reverse=True)[ : n_biggest_clusters]
+
     smatrix = []
     for clust_a in a_clusters:
         if debug:
@@ -1349,9 +1359,11 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, de
             # norm_factor = min(len(clust_a), len(clust_b))  # smaller size
             intersection = intersection_size(clust_a, clust_b)
             isize = float(intersection) / norm_factor
-            smatrix[-1].append(isize)
             if debug:
                 print '    %.2f  %5d   %5d %5d' % (isize, intersection, len(clust_a), len(clust_b))
+            if isize == 0.:
+                isize = None
+            smatrix[-1].append(isize)
 
     a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]
     return a_cluster_lengths, b_cluster_lengths, smatrix

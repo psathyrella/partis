@@ -1075,43 +1075,38 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2, n_biggest_clusters=10):
+def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2, n_biggest_clusters):
     print meth1, meth2
     print '\n\n'
-    # partition1 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
+    # partition1 = [['4'], ['7', '8'], ['6', '5'], ['99', '3', '1']]
     # # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
-    # partition2 = [['1', '2', '4'], ['3'], ['5'], ['6'], ['7'], ['8']]
+    # partition2 = [['3'], ['5'], ['6'], ['7'], ['8'], ['99', '3', '4']]
     a_cluster_lengths, b_cluster_lengths, smatrix = utils.partition_similarity_matrix(partition1, partition2, n_biggest_clusters=n_biggest_clusters, debug=False)
     print a_cluster_lengths
     print b_cluster_lengths
 
-    # column_labels = list('ABCD')
-    # row_labels = list('WXYZ')
-    # data = np.random.rand(4,4)
     fig, ax = plt.subplots()
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.95)
     data = numpy.array(smatrix)
-    heatmap = ax.pcolor(data, cmap=plt.cm.Blues, vmin=0., vmax=1.)
+    cmap = plt.cm.Blues  #cm.get_cmap('jet')
+    cmap.set_under('w')
+    heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=1.)
     cbar = plt.colorbar(heatmap)
     
     ticks = [n - 0.5 for n in range(1, n_biggest_clusters + 1, 2)]
+    if n_biggest_clusters > 20:
+        modulo = 3
+        ticks = [ticks[it] for it in range(0, len(ticks), modulo)]
+        xticklabels = [b_cluster_lengths[it] for it in range(0, len(b_cluster_lengths), modulo)]
+        yticklabels = [a_cluster_lengths[it] for it in range(0, len(a_cluster_lengths), modulo)]
     # ticklabels = [str(int(n + 0.5)) for n in ticks]
-    plt.xticks(ticks, a_cluster_lengths)
-    plt.yticks(ticks, b_cluster_lengths)
-    plt.xlabel(legends.get(meth1, meth1) + ' cluster size')
-    plt.ylabel(legends.get(meth2, meth2) + ' cluster size')
-    # ax.set_xticks(numpy.arange(data.shape[0])+0.5, minor=False)
-    # ax.set_yticks(numpy.arange(data.shape[1])+0.5, minor=False)
+    plt.xticks(ticks, xticklabels)
+    plt.yticks(ticks, yticklabels)
+    plt.xlabel(legends.get(meth2, meth2) + ' cluster size')  # I don't know why it's reversed, it just is
+    plt.ylabel(legends.get(meth1, meth1) + ' cluster size')
     ax.set_xlim(0, n_biggest_clusters)
     ax.set_ylim(0, n_biggest_clusters)
     
-    # # want a more natural, table-like display
-    # ax.invert_yaxis()
-    # ax.xaxis.tick_top()
-    
-    # ax.set_xticklabels(row_labels, minor=False)
-    # ax.set_yticklabels(column_labels, minor=False)
-
     plotname = meth1 + '-' + meth2
     plotdir = os.getenv('www') + '/partis/tmp'
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
