@@ -169,6 +169,7 @@ class PartitionDriver(object):
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
+        # ----------------------------------------------------------------------------------------
         # run that shiznit
         while n_procs > 0:
             start = time.time()
@@ -390,6 +391,7 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
+        cmd_str += ' --dont-write-naive-hfracs'  # seems to be about the same speed whether you do or not... I guess I should check some more but, aw, screw it. Cache files are big enough as it is.
 
         if self.args.smc_particles > 1:
             os.environ['GSL_RNG_TYPE'] = 'ranlux'
@@ -479,12 +481,12 @@ class PartitionDriver(object):
                     out, err = procs[iproc].communicate()
                     utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
                     outfname = self.hmm_outfname.replace(self.args.workdir, workdirs[iproc])
-                    if os.path.exists(outfname):  # TODO also check cachefile, if necessary
+                    if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
                         procs[iproc] = None  # job succeeded
                     elif n_tries[iproc] > 5:
                         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
                     else:
-                        print '    rerunning proc %d' % iproc
+                        print '    rerunning proc %d (exited with %d)' % (iproc, procs[iproc].returncode)
                         procs[iproc] = self.execute_iproc(cmd_strs[iproc])
                         n_tries[iproc] += 1
                         time.sleep(0.1)
