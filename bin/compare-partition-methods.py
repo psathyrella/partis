@@ -45,7 +45,7 @@ parser.add_argument('--startstoplist')  # list of istartstops for comparisons
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
-parser.add_argument('--humans')
+parser.add_argument('--humans', default='A')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
@@ -578,8 +578,8 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     # # mixcr
     # parse_mixcr(these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info)
 
-    # # # then changeo
-    # # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
+    # # then changeo
+    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
     # for ptype in ['vsearch-', 'naive-hamming-', '']:
@@ -587,11 +587,11 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
     plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*6.01)
-    for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
-        if '0.5' in meth1 or '0.5' in meth2:
-            continue
-        print meth1, meth2
-        plotting.plot_cluster_similarity_matrix(meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=(75 if args.data else 30))
+    # for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
+    #     if '0.5' in meth1 or '0.5' in meth2:
+    #         continue
+    #     print meth1, meth2
+    #     plotting.plot_cluster_similarity_matrix(meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=(75 if args.data else 30))
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
@@ -642,8 +642,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, 
     these_vals['ccf_over'] = ccf_overs[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     if not args.data:
         expected_methods.insert(0, 'true')
     tmp_valdicts = {'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
@@ -667,6 +667,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, 
 
             if not args.data:
                 for valname in tmp_valdicts:
+                    if n_leaves == 1 and valname == 'adj_mi':
+                        continue
                     fname = subdir + '/' + leafmutstr(n_leaves, mut_mult) + '/' + valname+ '/' + method + '.csv'
                     if method not in tmp_valdicts[valname]:
                         tmp_valdicts[valname][method] = []
@@ -1149,7 +1151,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(900)
+    # time.sleep(900)
 
 # ----------------------------------------------------------------------------------------
 for datafname in files:
@@ -1189,6 +1191,8 @@ for datafname in files:
         import plotting
         write_all_plot_csvs(label)
     if 'compare-subsets' in args.actions:
+        from plotting import legends, colors, linewidths
+        import plotting
         compare_all_subsets(label)
 
     # break

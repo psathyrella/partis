@@ -849,7 +849,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            '0.1-true-singletons' : '10% random singletons',
            '0.1-true-reassign' : '10% random reassign',
            'mixcr' : 'MiXCR',
-           'adj_mi' : 'adjusted MI',
+           'adj_mi' : 'adjusted MI with true',
            'ccf_under' : 'fraction not under-merged',
            'ccf_over' : 'fraction not over-merged'
            }
@@ -867,7 +867,7 @@ colors = {'true' : '#006600',
           'mixcr' : '#7b68ee'
 }
 
-linewidths = {'true' : 10,
+linewidths = {'true' : 15,
               'partis' : 2,
               # 'vsearch-partition' : 6,
               'partition' : 2,
@@ -936,7 +936,9 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
             linestyle = '--'
         elif 'true' in name:
             linestyle = '--'
-            alpha = 0.5
+            alpha = 0.7
+        elif 'vollmers' in name:
+            alpha = 0.8
 
         # if 'v-' in name:
         #     linestyle = '-'
@@ -1009,7 +1011,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
         lx = 0.85
     legend = ax.legend(bbox_to_anchor=(lx, ly))
     # legend.get_frame().set_facecolor('white')
-    ax.set_xlim(3, 55)
+    # ax.set_xlim(3, 55)
     ymin = 0
     # if valname == 'ccf_over':
     #     ymin = 0.5
@@ -1037,7 +1039,7 @@ def mpl_init():
     # mpl.use('Agg')
     # import matplotlib.pyplot as plt
     # import seaborn as sns
-    # sns.set_style('ticks')
+    sns.set_style('ticks')
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
