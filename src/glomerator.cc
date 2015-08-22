@@ -624,7 +624,6 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
-
   double chosen_lratio;
   Query chosen_qmerge = ChooseMerge(path, rgen, &chosen_lratio);
   if(path->finished_)
