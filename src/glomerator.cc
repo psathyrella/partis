@@ -109,6 +109,8 @@ Glomerator::~Glomerator() {
 void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructor, so we just need to calculate them here
   for(auto &kv : seq_info_)
     GetNaiveSeq(kv.first);
+  ofs_.open(args_->outfile());  // a.t.m. I'm signalling that I finished ok by doing this
+  ofs_.close();
 }
 
 // ----------------------------------------------------------------------------------------
