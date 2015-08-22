@@ -486,7 +486,10 @@ class PartitionDriver(object):
                     elif n_tries[iproc] > 5:
                         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
                     else:
-                        print '    rerunning proc %d (exited with %d)' % (iproc, procs[iproc].returncode)
+                        print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+                        if not os.path.exists(outfname):
+                            print ', output %s d.n.e.' % outfname,
+                        print ')'
                         procs[iproc] = self.execute_iproc(cmd_strs[iproc])
                         n_tries[iproc] += 1
                         time.sleep(0.1)
