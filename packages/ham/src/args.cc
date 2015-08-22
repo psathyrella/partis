@@ -29,6 +29,7 @@ Args::Args(int argc, const char * argv[]):
   unphysical_insertions_arg_("", "unphysical-insertions", "", false),
   cache_naive_seqs_arg_("", "cache-naive-seqs", "cache all naive sequences", false),
   no_fwd_arg_("", "no-fwd", "don't calculate any forward probs ", false),
+  dont_write_naive_hfracs_arg_("", "dont-write-naive-hfracs", "i.e. don't cache 'em", false),
   str_headers_ {},
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   float_headers_ {"logweight"},
@@ -55,6 +56,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(chunk_cache_arg_);
     cmd.add(cache_naive_seqs_arg_);
     cmd.add(no_fwd_arg_);
+    cmd.add(dont_write_naive_hfracs_arg_);
     cmd.add(partition_arg_);
     cmd.add(truncate_seqs_arg_);
     cmd.add(rescale_emissions_arg_);

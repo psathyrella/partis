@@ -224,7 +224,7 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   if(naive_seqs_.count(query))
     ofs << naive_seqs_[query].undigitized();
   ofs << ",";
-  if(naive_hfracs_.count(query))
+  if(!args_->dont_write_naive_hfracs() && naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
   if(naive_seqs_.count(query))
@@ -255,13 +255,15 @@ void Glomerator::WriteCachedLogProbs() {
       WriteCacheLine(log_prob_ofs, kv.first);
   }
 
-  for(auto &kv : naive_hfracs_) {  // then write any queries for which we have naive hamming fractions, but no logprobs of naive seqs
-    if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))
-      continue;
-    if(naive_seqs_.count(kv.first) && !initial_naive_seqs_.count(kv.first))
-      continue;
-    if(!initial_naive_hfracs_.count(kv.first))
-      WriteCacheLine(log_prob_ofs, kv.first);
+  if(!args_->dont_write_naive_hfracs()) {
+    for(auto &kv : naive_hfracs_) {  // then write any queries for which we have naive hamming fractions, but no logprobs of naive seqs
+      if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))
+	continue;
+      if(naive_seqs_.count(kv.first) && !initial_naive_seqs_.count(kv.first))
+	continue;
+      if(!initial_naive_hfracs_.count(kv.first))
+	WriteCacheLine(log_prob_ofs, kv.first);
+    }
   }
 
   log_prob_ofs.close();
