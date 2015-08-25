@@ -18,6 +18,9 @@ Model::Model() :
 Model::~Model() {
   delete ending_;
   ending_ = nullptr;
+  for(auto &kv : states_by_name_)
+    delete kv.second;
+  delete track_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -80,22 +83,21 @@ void Model::Parse(string infname) {
 
   // then actually parse the info for each state
   for(size_t ist = 0; ist < state_names.size(); ++ist) {
-    State *st(new State);
+    State *state(new State);
     try {
-      st->Parse(config["states"][ist], state_names, track_);
+      state->Parse(config["states"][ist], state_names, track_);
     } catch(...) {
       cerr << "ERROR invalid specification for state '" << state_names[ist] << "' in " << infname << endl;
       throw;
     }
 
-    if(st->name() == "init") {
-      initial_ = st;
-      states_by_name_[st->name()] = st;
+    if(state->name() == "init") {
+      initial_ = state;
     } else {
       assert(states_.size() < STATE_MAX);
-      states_.push_back(st);
-      states_by_name_[st->name()] = st;
+      states_.push_back(state);
     }
+    states_by_name_[state->name()] = state;
   }
 
   Finalize(); // post process states and/to create an end state with only transitions-from
@@ -103,6 +105,7 @@ void Model::Parse(string infname) {
 
 // ----------------------------------------------------------------------------------------
 void Model::AddState(State* state) {
+  throw runtime_error("do I ever get here?");
   assert(states_.size() < STATE_MAX);
   states_.push_back(state);
   states_by_name_[state->name()] = state;

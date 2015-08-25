@@ -3,6 +3,7 @@ namespace ham {
 // ----------------------------------------------------------------------------------------
 ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob, double initial_logweight):
   finished_(false),
+  initial_path_index_(-1),
   max_log_prob_of_partition_(-INFINITY)
 {
   partitions_.push_back(initial_partition);
