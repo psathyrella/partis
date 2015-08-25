@@ -16,8 +16,12 @@ State::State() :
 
 // ----------------------------------------------------------------------------------------
 State::~State() {
+  for(size_t it=0; it<transitions_->size(); ++it)
+    delete (*transitions_)[it];
   delete transitions_;
   transitions_ = nullptr;
+  if(trans_to_end_ != nullptr)
+    delete trans_to_end_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -170,15 +174,15 @@ double State::end_transition_logprob() {
 // new vector.
 void State::ReorderTransitions(map<string, State*> &state_indices) {
   size_t n_states(state_indices.size());
-  vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states - 1, nullptr); // subtract 1 because initial state is kept separate
+  vector<Transition*> *fixed_transitions = new vector<Transition*>(n_states - 1, nullptr);  // subtract 1 because initial state is kept separate
 
   // find the proper place for the transition and put it in the correct position
   for(size_t i = 0; i < transitions_->size(); ++i) {  // reminder: transitions_ and fixed_transitions are not the same length
-    Transition* temp = (*transitions_)[i];
-    string to_state_name(temp->to_state_name());
+    Transition* tmp_trans = (*transitions_)[i];
+    string to_state_name(tmp_trans->to_state_name());
     assert(state_indices.count(to_state_name));
-    State *st(state_indices[to_state_name]);
-    (*fixed_transitions)[st->index()] = temp;
+    State *to_state(state_indices[to_state_name]);
+    (*fixed_transitions)[to_state->index()] = tmp_trans;
   }
 
   delete transitions_;
