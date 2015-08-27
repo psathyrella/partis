@@ -1077,7 +1077,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2, n_biggest_clusters):
+def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters):
     print meth1, meth2
     print '\n\n'
     # partition1 = [['4'], ['7', '8'], ['6', '5'], ['99', '3', '1']]
@@ -1096,12 +1096,13 @@ def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2, n_bigge
     cbar = plt.colorbar(heatmap)
     
     ticks = [n - 0.5 for n in range(1, n_biggest_clusters + 1, 2)]
+    xticklabels = [str(int(n + 0.5)) for n in ticks]
+    yticklabels = xticklabels
     if n_biggest_clusters > 20:
         modulo = 3
         ticks = [ticks[it] for it in range(0, len(ticks), modulo)]
         xticklabels = [b_cluster_lengths[it] for it in range(0, len(b_cluster_lengths), modulo)]
         yticklabels = [a_cluster_lengths[it] for it in range(0, len(a_cluster_lengths), modulo)]
-    # ticklabels = [str(int(n + 0.5)) for n in ticks]
     plt.xticks(ticks, xticklabels)
     plt.yticks(ticks, yticklabels)
     plt.xlabel(legends.get(meth2, meth2) + ' cluster size')  # I don't know why it's reversed, it just is
@@ -1109,8 +1110,8 @@ def plot_cluster_similarity_matrix(meth1, partition1, meth2, partition2, n_bigge
     ax.set_xlim(0, n_biggest_clusters)
     ax.set_ylim(0, n_biggest_clusters)
     
-    plotname = meth1 + '-' + meth2
-    plotdir = os.getenv('www') + '/partis/tmp'
+    if not os.path.exists(plotdir + '/plots'):
+        os.makedirs(plotdir + '/plots')
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])

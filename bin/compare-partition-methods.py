@@ -549,18 +549,22 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     these_ccfs = ccfs[n_leaves][mut_mult]
     these_partitions = partitions[n_leaves][mut_mult]
 
-    plotdir = os.getenv('www') + '/partis/clustering/' + label
+    plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
+    if args.subset is not None:
+        plotdir += '/subset-' + str(args.subset)
+    if args.istartstop is not None:
+        plotdir += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
     if args.data:
         seqfname = get_simfname(label, n_leaves, mut_mult).replace(leafmutstr(n_leaves, mut_mult), 'data')  # hackey hackey hackey
         simfbase = None
         csvdir = os.path.dirname(seqfname) + '/data'
-        plotfname = plotdir + '/plots/data.svg'
+        plotname = 'data'
         title = get_title(label, n_leaves, mut_mult)
     else:
         seqfname = get_simfname(label, n_leaves, mut_mult)
         simfbase = leafmutstr(n_leaves, mut_mult)
         csvdir = os.path.dirname(seqfname) + '/' + simfbase
-        plotfname = plotdir + '/plots/' + simfbase + '.svg'
+        plotname = simfbase
         title = get_title(label, n_leaves, mut_mult)
 
     input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
@@ -582,18 +586,18 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
-    # for ptype in ['vsearch-', 'naive-hamming-', '']:
-    for ptype in ['', 'naive-hamming-']:
+    for ptype in ['vsearch-', 'naive-hamming-', '']:
+    # for ptype in ['', 'naive-hamming-']:
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
-    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=n_leaves*6.01)
-    # for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
-    #     if '0.5' in meth1 or '0.5' in meth2:
-    #         continue
-    #     print meth1, meth2
-    #     plotting.plot_cluster_similarity_matrix(meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=(75 if args.data else 30))
-    check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-    check_call(['./bin/permissify-www', plotdir])
+    plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title, xmax=n_leaves*6.01)
+    for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
+        if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
+            continue
+        print meth1, meth2
+        n_biggest_clusters = 40  # if args.data else 30)
+        plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters)
+    # check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
 def convert_adj_mi_and_co_to_plottable(valdict, mut_mult_to_use):
