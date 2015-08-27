@@ -22,7 +22,7 @@ from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from hist import Hist
-import memory_profiler
+# import memory_profiler
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -39,9 +39,10 @@ class PartitionDriver(object):
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
                                                                self.args.n_max_queries, self.args.queries, self.args.reco_ids)
         self.sw_info = None
-        self.paths = None
-        self.smc_info = None
+        self.paths = []
+        self.smc_info = []
         self.bcrham_divvied_queries = None
+        self.n_likelihoods_calculated = []
 
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_max_calc_per_process = 300  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
@@ -146,11 +147,11 @@ class PartitionDriver(object):
         if self.args.smc_particles == 1:
             cp = ClusterPath(-1)
             cp.add_partition([[cl, ] for cl in self.input_info.keys()], logprob=0., n_procs=n_procs)
-            assert self.paths is None
+            assert len(self.paths) == 0
             self.paths.append(cp)
         else:
             initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
-            assert self.smc_info is None
+            assert len(self.smc_info) == 0
             self.smc_info.append([])
             for clusters in initial_divvied_queries:  # one set of <clusters> for each process
                 self.smc_info[-1].append([])
@@ -171,12 +172,20 @@ class PartitionDriver(object):
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
+        def print_sizes():
+            mnames = ['sw_info', 'paths', 'smc_info', 'bcrham_divvied_queries']
+            im = 0
+            for mvar in [self.sw_info, self.paths, self.smc_info, self.bcrham_divvied_queries]:
+                print 'size of', mnames[im], sys.getsizeof(mvar)
+                im += 1
+
         # ----------------------------------------------------------------------------------------
         # run that shiznit
         while n_procs > 0:
             start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
+            print_sizes()
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and not self.args.random_divvy))
             n_proc_list.append(n_procs)
 
@@ -437,6 +446,16 @@ class PartitionDriver(object):
 
 
     # ----------------------------------------------------------------------------------------
+    def get_n_calculated_per_process(self):
+        if self.n_likelihoods_calculated is None:
+            return
+        total = 0
+        for procinfo in self.n_likelihoods_calculated:
+            total += procinfo['vtb'] + procinfo['fwd']
+        print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
+        return float(total) / len(self.n_likelihoods_calculated)
+
+    # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
         print '    running'
         start = time.time()
@@ -465,11 +484,10 @@ class PartitionDriver(object):
 
             # start all the procs for the first time
             procs, n_tries, progress_strings = [], [], []
-            n_likelihoods_calculated = []
             for iproc in range(n_procs):
                 procs.append(self.execute_iproc(cmd_strs[iproc]))
                 n_tries.append(1)
-                n_likelihoods_calculated.append({})
+                self.n_likelihoods_calculated.append({})
 
             # ----------------------------------------------------------------------------------------
             def get_outfname(iproc):
@@ -477,16 +495,6 @@ class PartitionDriver(object):
             def get_progress_fname(iproc):
                 return get_outfname(iproc) + '.progress'
 
-            # ----------------------------------------------------------------------------------------
-            def get_n_calculated_per_process():
-                if n_likelihoods_calculated is None:
-                    return
-                total = 0
-                for procinfo in n_likelihoods_calculated:
-                    total += procinfo['vtb'] + procinfo['fwd']
-                print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(n_likelihoods_calculated))
-                return float(total) / len(n_likelihoods_calculated)
-        
             # ----------------------------------------------------------------------------------------
             def read_progress(iproc):
                 """ meh doesn't work very well """
@@ -505,7 +513,7 @@ class PartitionDriver(object):
                 # if os.path.exists(get_progress_fname(iproc)):
                 #     os.remove(get_progress_fname(iproc))
                 out, err = procs[iproc].communicate()
-                utils.process_out_err(out, err, extra_str=str(iproc), info=n_likelihoods_calculated[iproc])
+                utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
                 if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
                     procs[iproc] = None  # job succeeded
                 elif n_tries[iproc] > 5:
@@ -533,7 +541,7 @@ class PartitionDriver(object):
         print '      hmm run time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    @profile
+    # @profile
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, divvy_with_bcrham=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
