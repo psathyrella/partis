@@ -22,6 +22,7 @@ from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from hist import Hist
+import memory_profiler
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -37,20 +38,19 @@ class PartitionDriver(object):
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
                                                                self.args.n_max_queries, self.args.queries, self.args.reco_ids)
-
-        self.cached_results = None
-        self.bcrham_divvied_queries = None
-        self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
-        self.n_likelihoods_calculated = None
-        self.n_max_calc_per_process = 300
-
         self.sw_info = None
+        self.paths = None
+        self.smc_info = None
+        self.bcrham_divvied_queries = None
 
-        utils.prep_dir(self.args.workdir)
+        self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
+        self.n_max_calc_per_process = 300  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
+
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
 
+        utils.prep_dir(self.args.workdir)
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)
             if outdir != '' and not os.path.exists(outdir):
@@ -146,10 +146,12 @@ class PartitionDriver(object):
         if self.args.smc_particles == 1:
             cp = ClusterPath(-1)
             cp.add_partition([[cl, ] for cl in self.input_info.keys()], logprob=0., n_procs=n_procs)
-            self.paths = [cp, ]
+            assert self.paths is None
+            self.paths.append(cp)
         else:
             initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
-            self.smc_info = [[], ]
+            assert self.smc_info is None
+            self.smc_info.append([])
             for clusters in initial_divvied_queries:  # one set of <clusters> for each process
                 self.smc_info[-1].append([])
                 for iptl in range(self.args.smc_particles):
@@ -433,15 +435,6 @@ class PartitionDriver(object):
         proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
         return proc
 
-    # ----------------------------------------------------------------------------------------
-    def get_n_calculated_per_process(self):
-        if self.n_likelihoods_calculated is None:
-            return
-        total = 0
-        for procinfo in self.n_likelihoods_calculated:
-            total += procinfo['vtb'] + procinfo['fwd']
-        print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
-        return float(total) / len(self.n_likelihoods_calculated)
 
     # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
@@ -472,11 +465,11 @@ class PartitionDriver(object):
 
             # start all the procs for the first time
             procs, n_tries, progress_strings = [], [], []
-            self.n_likelihoods_calculated = []
+            n_likelihoods_calculated = []
             for iproc in range(n_procs):
                 procs.append(self.execute_iproc(cmd_strs[iproc]))
                 n_tries.append(1)
-                self.n_likelihoods_calculated.append({})
+                n_likelihoods_calculated.append({})
 
             # ----------------------------------------------------------------------------------------
             def get_outfname(iproc):
@@ -484,6 +477,16 @@ class PartitionDriver(object):
             def get_progress_fname(iproc):
                 return get_outfname(iproc) + '.progress'
 
+            # ----------------------------------------------------------------------------------------
+            def get_n_calculated_per_process():
+                if n_likelihoods_calculated is None:
+                    return
+                total = 0
+                for procinfo in n_likelihoods_calculated:
+                    total += procinfo['vtb'] + procinfo['fwd']
+                print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(n_likelihoods_calculated))
+                return float(total) / len(n_likelihoods_calculated)
+        
             # ----------------------------------------------------------------------------------------
             def read_progress(iproc):
                 """ meh doesn't work very well """
@@ -499,10 +502,10 @@ class PartitionDriver(object):
             # ----------------------------------------------------------------------------------------
             # deal with a process once it's finished (i.e. check if it failed, and restart if so)
             def finish_process(iproc):
-                if os.path.exists(get_progress_fname(iproc)):
-                    os.remove(get_progress_fname(iproc))
+                # if os.path.exists(get_progress_fname(iproc)):
+                #     os.remove(get_progress_fname(iproc))
                 out, err = procs[iproc].communicate()
-                utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
+                utils.process_out_err(out, err, extra_str=str(iproc), info=n_likelihoods_calculated[iproc])
                 if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
                     procs[iproc] = None  # job succeeded
                 elif n_tries[iproc] > 5:
@@ -530,6 +533,7 @@ class PartitionDriver(object):
         print '      hmm run time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
+    @profile
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, divvy_with_bcrham=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
@@ -619,9 +623,7 @@ class PartitionDriver(object):
             query = line[namekey]
             seqstr = line['padded'][seqkey] if 'padded' in line else line[seqkey]
             # NOTE cached naive seqs should all be the same length
-            if self.cached_results is not None and seqstr in self.cached_results and self.cached_results[seqstr]['naive_seq'] is not None:  # first try to used cached hmm results
-                naive_seqs[query] = self.cached_results[seqstr]['naive_seq']
-            elif len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
+            if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                naive_seqs[query] = get_query_from_sw(query)
             elif len(query.split(':')) > 1:
                 naive_seqs[query] = get_query_from_sw(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.

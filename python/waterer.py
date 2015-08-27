@@ -557,7 +557,8 @@ class Waterer(object):
 
         for region in utils.regions:
             if region not in best:
-                print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
+                if self.debug:
+                    print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
                 return
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
