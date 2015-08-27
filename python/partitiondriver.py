@@ -294,7 +294,7 @@ class PartitionDriver(object):
             check_call(cmd.split())
     
         elif self.args.naive_swarm:
-            clusterfname = self.args.workdir + '/vsearch-clusters.txt'
+            clusterfname = self.args.workdir + '/swarm-clusters.txt'
             cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
             cmd += ' -t 5'  # five threads TODO set this more intelligently
             # cmd += ' -f'
@@ -447,6 +447,7 @@ class PartitionDriver(object):
     def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
         print '    running'
         start = time.time()
+        sys.stdout.flush()
         if n_procs == 1:
             if total_naive_hamming_cluster_procs is not None:
                 cmd_str = cmd_str.replace('XXX', str(total_naive_hamming_cluster_procs))
@@ -454,6 +455,8 @@ class PartitionDriver(object):
             # sys.exit()
             check_call(cmd_str.split())
         else:
+
+            # initialize command strings and whatnot
             if total_naive_hamming_cluster_procs is not None:
                 n_leftover = total_naive_hamming_cluster_procs - (total_naive_hamming_cluster_procs / n_procs) * n_procs
             cmd_strs, workdirs = [], []
@@ -466,33 +469,62 @@ class PartitionDriver(object):
                         clusters_this_proc += 1
                         n_leftover -= 1
                     cmd_strs[-1] = cmd_strs[-1].replace('XXX', str(clusters_this_proc))
-                # print cmd_strs[-1]
-                # sys.exit()
-            procs, n_tries = [], []
+
+            # start all the procs for the first time
+            procs, n_tries, progress_strings = [], [], []
             self.n_likelihoods_calculated = []
             for iproc in range(n_procs):
                 procs.append(self.execute_iproc(cmd_strs[iproc]))
                 n_tries.append(1)
                 self.n_likelihoods_calculated.append({})
-            while procs.count(None) != len(procs):
+
+            # ----------------------------------------------------------------------------------------
+            def get_outfname(iproc):
+                return self.hmm_outfname.replace(self.args.workdir, workdirs[iproc])
+            def get_progress_fname(iproc):
+                return get_outfname(iproc) + '.progress'
+
+            # ----------------------------------------------------------------------------------------
+            def read_progress(iproc):
+                """ meh doesn't work very well """
+                if not os.path.exists(get_progress_fname(iproc)):
+                    return
+                with open(get_progress_fname(iproc)) as outfile:
+                    for line in outfile.readlines():
+                        line = line.strip()
+                        if line not in progress_strings:
+                            progress_strings.append(line)
+                            print line
+
+            # ----------------------------------------------------------------------------------------
+            # deal with a process once it's finished (i.e. check if it failed, and restart if so)
+            def finish_process(iproc):
+                if os.path.exists(get_progress_fname(iproc)):
+                    os.remove(get_progress_fname(iproc))
+                out, err = procs[iproc].communicate()
+                utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
+                if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
+                    procs[iproc] = None  # job succeeded
+                elif n_tries[iproc] > 5:
+                    raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
+                else:
+                    print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+                    if not os.path.exists(get_outfname()):
+                        print ', output %s d.n.e.' % get_outfname(),
+                    print ')'
+                    procs[iproc] = self.execute_iproc(cmd_strs[iproc])
+                    n_tries[iproc] += 1
+
+            # keep looping over the procs until they're all done
+            while procs.count(None) != len(procs):  # we set each proc to None when it finishes
                 for iproc in range(n_procs):
                     if procs[iproc] is None:
                         continue
-                    out, err = procs[iproc].communicate()
-                    utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
-                    outfname = self.hmm_outfname.replace(self.args.workdir, workdirs[iproc])
-                    if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
-                        procs[iproc] = None  # job succeeded
-                    elif n_tries[iproc] > 5:
-                        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
-                    else:
-                        print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-                        if not os.path.exists(outfname):
-                            print ', output %s d.n.e.' % outfname,
-                        print ')'
-                        procs[iproc] = self.execute_iproc(cmd_strs[iproc])
-                        n_tries[iproc] += 1
-                        time.sleep(0.1)
+                    # read_progress(iproc)
+                    if procs[iproc].poll() is not None:  # it's finished
+                        finish_process(iproc)
+                sys.stdout.flush()
+                time.sleep(1)
 
         sys.stdout.flush()
         print '      hmm run time: %.3f' % (time.time()-start)
@@ -512,7 +544,6 @@ class PartitionDriver(object):
         # if not naive_hamming_cluster:  # should already be there
         self.write_hmm_input(parameter_dir=parameter_in_dir)  # TODO don't keep rewriting it
 
-        # sys.stdout.flush()
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs)
         if n_procs > 10 and 'srun' not in cmd_str:
             print '   hacking in srun'
@@ -1031,7 +1062,8 @@ class PartitionDriver(object):
             assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
             padfo['seq'] = padleft * utils.ambiguous_bases[0] + seq + padright * utils.ambiguous_bases[0]
             if query in self.sw_info['indels']:
-                print '    also padding reversed sequence'
+                if debug:
+                    print '    also padding reversed sequence'
                 self.sw_info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.sw_info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
             padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
             padfo['cyst_position'] = swfo['cyst_position'] + padleft
