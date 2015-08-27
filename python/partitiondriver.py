@@ -42,7 +42,7 @@ class PartitionDriver(object):
         self.paths = []
         self.smc_info = []
         self.bcrham_divvied_queries = None
-        self.n_likelihoods_calculated = []
+        self.n_likelihoods_calculated = None
 
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_max_calc_per_process = 300  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
@@ -196,10 +196,20 @@ class PartitionDriver(object):
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
                 n_calcd_per_process = self.get_n_calculated_per_process()
                 if self.args.naive_hamming:
-                    factor = 2
+                    factor = 1.6  #2
                 else:
                     factor = 1.3
-                if self.args.naive_hamming or (n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]))):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
+
+                reduce_n_procs = False  # reduce the number of processes only if last time through we didn't have to do too many. Also, repeat the last few, i.e. 4 4 3 3 2 2 1
+                if self.args.naive_hamming:  # always reduce with naive_hamming
+                    reduce_n_procs = True
+                if n_calcd_per_process < self.n_max_calc_per_process:  # always reduce if we only calc'd a few the last time through
+                    reduce_n_procs = True
+                if n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]):  # also reduce if we aren't down to the last few procs, or if we already ran this number of procs twice
+                    reduce_n_procs = True
+
+                # if self.args.naive_hamming or (n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]))):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
+                if reduce_n_procs:
                     n_procs = int(n_procs / factor)
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
@@ -484,6 +494,7 @@ class PartitionDriver(object):
 
             # start all the procs for the first time
             procs, n_tries, progress_strings = [], [], []
+            self.n_likelihoods_calculated = []
             for iproc in range(n_procs):
                 procs.append(self.execute_iproc(cmd_strs[iproc]))
                 n_tries.append(1)
