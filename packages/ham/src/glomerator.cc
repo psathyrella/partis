@@ -35,8 +35,10 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   n_vtb_cached_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
-  n_hamming_merged_(0)
+  n_hamming_merged_(0),
+  progress_file_(fopen((args_->outfile() + ".progress").c_str(), "w"))
 {
+  time(&last_status_write_time_);
   ReadCachedLogProbs();
 
   Partition tmp_partition;
@@ -111,6 +113,7 @@ Glomerator::~Glomerator() {
   //   cout << "MEM " << tmpline << endl;
   // }
   // // ----------------------------------------------------------------------------------------
+  fclose(progress_file_);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -129,6 +132,7 @@ void Glomerator::Cluster() {
   ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]), initial_logweights_[0]);
   do {
     Merge(&cp);
+    WriteStatus(&cp);
   } while(!cp.finished_);
 
   vector<ClusterPath> paths{cp};
@@ -243,6 +247,19 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   if(errors_.count(query))
     ofs << errors_[query];
   ofs << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::WriteStatus(ClusterPath *path) {
+  time_t current_time;
+  time(&current_time);
+  if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
+    char buffer[200];
+    strftime(buffer, 200, "%b %d %T", localtime(&current_time));  // %H:%M
+    fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->partitions()[path->partitions().size()-1].size(), n_fwd_calculated_, n_vtb_calculated_);
+    fflush(progress_file_);
+    last_status_write_time_ = current_time;
+  }
 }
 
 // ----------------------------------------------------------------------------------------
