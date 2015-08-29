@@ -13,7 +13,7 @@ from subprocess import check_call, Popen, check_output
 import itertools
 from Bio import SeqIO
 sys.path.insert(1, './python')
-
+csv.field_size_limit(sys.maxsize)
 from humans import humans
 from hist import Hist
 import seqfileopener
@@ -579,15 +579,15 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     # then vollmers annotation (and true hists)
     parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
-    # # mixcr
-    # parse_mixcr(these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info)
+    # mixcr
+    parse_mixcr(these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info)
 
     # # then changeo
     # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
     for ptype in ['vsearch-', 'naive-hamming-', '']:
-    # for ptype in ['', 'naive-hamming-']:
+    # for ptype in ['vsearch-']:
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
     plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title, xmax=n_leaves*6.01)
@@ -596,7 +596,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
             continue
         print meth1, meth2
         n_biggest_clusters = 40  # if args.data else 30)
-        plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters)
+        plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(label, n_leaves, mut_mult))
     # check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
@@ -646,8 +646,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, 
     these_vals['ccf_over'] = ccf_overs[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     if not args.data:
         expected_methods.insert(0, 'true')
     tmp_valdicts = {'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
@@ -1130,7 +1130,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         print 'reducing n_procs %d --> %d' % (n_procs, 500)
         n_procs = 500
     n_proc_str = str(n_procs)
-    extras += ['--workdir', fsdir + '/_tmp/' + str(random.randint(0,99999))]
+    extras += ['--workdir', fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0,99999))]
     if n_procs > 10:
         n_fewer_procs = max(1, min(500, args.n_to_partition / 2000))
         n_proc_str += ':' + str(n_fewer_procs)

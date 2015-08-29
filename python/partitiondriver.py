@@ -23,6 +23,8 @@ from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from hist import Hist
 # import memory_profiler
+# from guppy import hpy
+# hp = hpy()
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -130,6 +132,8 @@ class PartitionDriver(object):
             cp.print_partitions(reco_info=self.reco_info, one_line=True, abbreviate=True, n_to_print=100)
             return
 
+        # utils.print_heapy('start', hp.heap())
+
         # run smith-waterman
         start = time.time()
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
@@ -172,21 +176,23 @@ class PartitionDriver(object):
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
-        def print_sizes():
-            mnames = ['sw_info', 'paths', 'smc_info', 'bcrham_divvied_queries']
-            im = 0
-            for mvar in [self.sw_info, self.paths, self.smc_info, self.bcrham_divvied_queries]:
-                print 'size of', mnames[im], sys.getsizeof(mvar)
-                im += 1
+        # def print_sizes():
+        #     mnames = ['sw_info', 'paths', 'smc_info', 'bcrham_divvied_queries']
+        #     im = 0
+        #     for mvar in [self.sw_info, self.paths, self.smc_info, self.bcrham_divvied_queries]:
+        #         print 'size of', mnames[im], sys.getsizeof(mvar)
+        #         im += 1
 
         # ----------------------------------------------------------------------------------------
         # run that shiznit
+        # utils.print_heapy('done with prelims', hp.heap())
         while n_procs > 0:
             start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            print_sizes()
+            # print_sizes()
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and not self.args.random_divvy))
+            # utils.print_heapy('after run step', hp.heap())
             n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-start)
@@ -195,18 +201,18 @@ class PartitionDriver(object):
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
                 n_calcd_per_process = self.get_n_calculated_per_process()
-                if self.args.naive_hamming:
-                    factor = 1.6  #2
-                else:
-                    factor = 1.3
+                # if self.args.naive_hamming:
+                #     factor = 1.6  #2
+                # else:
+                factor = 1.3
 
                 reduce_n_procs = False  # reduce the number of processes only if last time through we didn't have to do too many. Also, repeat the last few, i.e. 4 4 3 3 2 2 1
-                if self.args.naive_hamming:  # always reduce with naive_hamming
-                    reduce_n_procs = True
+                # if self.args.naive_hamming:  # always reduce with naive_hamming
+                #     reduce_n_procs = True
                 if n_calcd_per_process < self.n_max_calc_per_process:  # always reduce if we only calc'd a few the last time through
                     reduce_n_procs = True
-                if n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]):  # also reduce if we aren't down to the last few procs, or if we already ran this number of procs twice
-                    reduce_n_procs = True
+                # if n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]):  # also reduce if we aren't down to the last few procs, or if we already ran this number of procs twice
+                #     reduce_n_procs = True
 
                 # if self.args.naive_hamming or (n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]))):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
                 if reduce_n_procs:

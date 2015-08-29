@@ -44,7 +44,7 @@ if args.action == 'plot':
     timeinfo['mixcr'] =                   [7,     7,   8,    9,    9,   10,   10,   11,    13,  None,  None,    16,    20,    20]
     timeinfo['changeo'] =                 [4,     4,   4,    6, None,    7, None,    9,  None,  None,  None,  None,  None,  None]
     timeinfo['vsearch-partition'] =       [52,   53,  62,   70,  303,  408,  460,  498,   893,  None,  None,  2561, 11209, 11413]
-    timeinfo['naive-hamming-partition'] = [42,   52, 258,  138,  294,  277,  795, 2325, 13137,  None,  None,  None,  None,  None]
+    timeinfo['naive-hamming-partition'] = [42,   52, 258,  138,  294,  277,  795, 2325, 13137,  None, 23316,  None,  None,  None]
     timeinfo['partition'] =               [80,   87, 147,  544, 1005, 1191, 2644, 7165, 24248, 38904,  None,  None,  None,  None]
 
     plots = {}
@@ -60,7 +60,8 @@ if args.action == 'plot':
         elif 'true' in meth:
             linestyle = '--'
             alpha = 0.5
-        plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)
+        plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)  #, markersize=1000)
+        plots[meth] = ax.scatter(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)  #, markersize=1000)
     
     legend = ax.legend(loc='upper left')
     sns.despine(trim=True, bottom=True)
