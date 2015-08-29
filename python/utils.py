@@ -1464,3 +1464,17 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='se
                     break
                 outfile.write('>%s\n' % line[name_column])
                 outfile.write('%s\n' % line[seq_column])
+
+# ----------------------------------------------------------------------------------------
+def print_heapy(extrastr, heap):
+    'Partition of a set of 1511530 objects. Total size = 188854824 bytes.'
+    heapstr = heap.__str__()
+    total = None
+    for line in heapstr.split('\n'):
+        if 'Total size' in line:
+            total = int(line.split()[10])
+    if total is None:
+        print 'oops'
+        print heapstr
+        sys.exit()
+    print 'mem total %.3f MB    %s' % (float(total) / 1e6, extrastr)

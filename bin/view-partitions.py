@@ -22,6 +22,8 @@ cyst_positions = utils.read_cyst_positions(args.datadir)
 with open(args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
     tryp_reader = csv.reader(csv_file)
     tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
+
+reco_info = None
 if args.simfname is not None:
     input_info, reco_info = get_seqfile_info(args.simfname, args.is_data, germline_seqs, cyst_positions, tryp_positions)
 

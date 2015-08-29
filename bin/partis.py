@@ -91,7 +91,7 @@ parser.add_argument('--n-partitions-to-write', type=int, default=100, help='')
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
-
+print 'bcrham should ignore cached values that are for sequences it doesn\'t have'
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
@@ -152,7 +152,6 @@ def make_events(args, n_events, iproc, random_ints):
         # sys.stdout.flush()
         reco.combine(random_ints[ievt])
 
-# ----------------------------------------------------------------------------------------
 if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
         from treegenerator import TreeGenerator, Hist

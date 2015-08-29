@@ -1077,7 +1077,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters):
+def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title=''):
     print meth1, meth2
     print '\n\n'
     # partition1 = [['4'], ['7', '8'], ['6', '5'], ['99', '3', '1']]
@@ -1088,7 +1088,9 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     print b_cluster_lengths
 
     fig, ax = plt.subplots()
-    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.95)
+    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')
     data = numpy.array(smatrix)
     cmap = plt.cm.Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
@@ -1109,6 +1111,8 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.ylabel(legends.get(meth1, meth1) + ' cluster size')
     ax.set_xlim(0, n_biggest_clusters)
     ax.set_ylim(0, n_biggest_clusters)
+
+    plt.title(title)
     
     if not os.path.exists(plotdir + '/plots'):
         os.makedirs(plotdir + '/plots')
