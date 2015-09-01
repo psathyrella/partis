@@ -45,7 +45,7 @@ if args.action == 'plot':
     timeinfo['changeo'] =                 [4,     4,   4,    6, None,    7, None,    9,  None,  None,  None,  None,  None,  None]
     timeinfo['vsearch-partition'] =       [52,   53,  62,   70,  303,  408,  460,  498,   893,  None,  None,  2561, 11209, 11413]
     timeinfo['naive-hamming-partition'] = [42,   52, 258,  138,  294,  277,  795, 2325, 13137,  None, 23316,  None,  None,  None]
-    timeinfo['partition'] =               [80,   87, 147,  544, 1005, 1191, 2644, 7165, 24248, 38904,  None,  None,  None,  None]
+    timeinfo['partition'] =               [80,   87, 147,  544, 1005, 1191, 2644, 7165, 24248, 38904, 44530,  None,  None,  None]  # new 15k: 63965
 
     plots = {}
     for meth, vals in timeinfo.items():
@@ -79,7 +79,7 @@ if args.action == 'plot':
 # ----------------------------------------------------------------------------------------
 istart = 0
 # for n_queries in [100, 200, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000]:
-for n_queries in [15000]:  #[75000, 50000]:  #, 20000, 10000]:
+for n_queries in [10000]:  #[75000, 50000]:  #, 20000, 10000]:
     cmd = './bin/compare-partition-methods.py --actions ' + args.action
     istop = istart + n_queries
     # print '  %d queries from %d --> %d' % (n_queries, istart, istop)
@@ -97,7 +97,8 @@ for n_queries in [15000]:  #[75000, 50000]:  #, 20000, 10000]:
     # actually run stuff:
     cmd += ' --istartstop ' + str(istart) + ':' + str(istop)
     cmd += ' --data'
-    cmd += ' --humans A'
+    cmd += ' --humans 021-018'
+    cmd += ' --dataset stanford'
     # cmd += ' --overwrite'
     if args.action == 'run-mixcr':
         cmd += ' >' + logfname

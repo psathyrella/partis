@@ -967,7 +967,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
     ax.set_xscale('log')
-    # ax.set_yscale('log')
+    ax.set_yscale('log')
     potential_xticks = [1, 2, 3, 9, 30, 50, 100, 200]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])

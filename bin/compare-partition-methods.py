@@ -843,6 +843,7 @@ def get_seqfile(action, label, datafname, n_leaves=None, mut_mult=None):
 
     def slice_file(csv_infname, csv_outfname):  # not necessarily csv
         if os.path.exists(csv_outfname):
+            utils.csv_to_fasta(csv_outfname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
             print '      slicefile exists %s' % csv_outfname
             return
         print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
@@ -979,7 +980,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
-        n_procs = max(1, args.n_to_partition / 200)
+        n_procs = max(1, args.n_to_partition / 100)
     elif action == 'vsearch-partition':
         outfname = get_outputname()
         # outfname = '-vsearch-partition'.join(os.path.splitext(seqfname))

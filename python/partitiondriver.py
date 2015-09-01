@@ -47,7 +47,7 @@ class PartitionDriver(object):
         self.n_likelihoods_calculated = None
 
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
-        self.n_max_calc_per_process = 300  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
+        self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
@@ -537,7 +537,7 @@ class PartitionDriver(object):
                     raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
                 else:
                     print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-                    if not os.path.exists(get_outfname()):
+                    if not os.path.exists(get_outfname(iproc)):
                         print ', output %s d.n.e.' % get_outfname(),
                     print ')'
                     procs[iproc] = self.execute_iproc(cmd_strs[iproc])
@@ -823,7 +823,12 @@ class PartitionDriver(object):
                 glomerer = Glomerator(self.reco_info)
                 glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, calc_adj_mi=self.args.debug, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
-                # self.check_path(glomerer.paths[0])
+                # self.check_path(glomerer.paths[0])  # really slow on larger partitions
+                # print 'BEFORE %d' % len(self.paths)
+                if self.args.kill_old_paths and len(self.paths) > 0:
+                    assert len(self.paths) == 1  # er, I think
+                    self.paths = []  # should explicitly free memory
+                # print 'AFTER %d' % len(self.paths)
                 self.paths.append(glomerer.paths[0])
         else:
             self.merge_subprocess_files(self.hmm_outfname, n_procs)

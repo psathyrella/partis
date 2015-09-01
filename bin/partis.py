@@ -45,6 +45,7 @@ parser.add_argument('--no-indels', action='store_true', help='don\'t account for
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--random-divvy', action='store_true')
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
+parser.add_argument('--kill-old-paths', action='store_true', default=True)
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -85,13 +86,13 @@ parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k
 parser.add_argument('--smc-particles', type=int, default=1, help='Number of particles (clustering paths) to simulate with SMC')
 parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step.')
 parser.add_argument('--match-mismatch', default='5:1', help='match:mismatch scores for smith-waterman.')
-parser.add_argument('--max-logprob-drop', type=float, default=250., help='stop glomerating when the total logprob has dropped by this much')
+parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parser.add_argument('--n-partitions-to-write', type=int, default=100, help='')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
-print 'bcrham should ignore cached values that are for sequences it doesn\'t have'
+print 'bcrham should ignore cached values that are for sequences it doesnt have'
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
 parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
