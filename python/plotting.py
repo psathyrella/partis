@@ -5,6 +5,7 @@ import seaborn as sns
 sns.set_style('ticks')
 
 import math
+from scipy.interpolate import interp1d
 import os
 import glob
 import sys
@@ -838,6 +839,23 @@ def make_mean_hist(hists, debug=False):
     return meanhist
 
 # ----------------------------------------------------------------------------------------
+def interpolate_values(xvals, yvals):
+    """ Replace any instances of None in <yvals> which have non-Non values on both sides with a linear interpolation """
+    xvals_no_none, yvals_no_none = [], []
+    for ip in range(len(yvals)):
+        if yvals[ip] is not None:
+            xvals_no_none.append(xvals[ip])
+            yvals_no_none.append(yvals[ip])
+
+    fcn = interp1d(xvals_no_none, yvals_no_none)
+    for ip in range(len(yvals)):
+        if yvals[ip] is None:
+            try:
+                yvals[ip] = int(fcn([xvals[ip], ])[0])
+            except ValueError:
+                pass
+
+# ----------------------------------------------------------------------------------------
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'partition partis' : 'full partis',
            'partition' : 'full partis',
@@ -924,6 +942,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
     # dark red '#A52A2A',
     plots = {}
+    scplots = {}
     for name, hist in hists.items():
         if 'vollmers' in name:
             if '0.7' in name or '0.8' in name or '0.95' in name or '0.5' in name:
@@ -949,7 +968,9 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
 
         # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
         hist.normalize()
-        plots[name] = ax.plot(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        # ax.bar and ax.scatter also suck
+        # scplots[name] = ax.scatter(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
 
     legend = ax.legend()
     sns.despine(trim=True, bottom=True)
@@ -959,9 +980,9 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     # axes = plt.gca()
     # ylimits = axes.get_ylim()
     # xmin, xmax = 0.3, 1.02
-    # plt.xlim(xmin, xmax)
     if xmax is not None:
         ax.set_xlim(1, xmax)
+    plt.ylim(1e-5, 1)
     plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
@@ -975,6 +996,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
     plt.savefig(outfname)
+    sys.exit()
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
@@ -1001,7 +1023,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     
     # legend = ax.legend(loc='center left')
     if valname == 'adj_mi':
-        lx = 0.5
+        lx = 0.85
         if mut_mult == 1:
             ly = 0.85
         else:

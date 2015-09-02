@@ -65,7 +65,7 @@ class ClusterPath(object):
             for line in reader:
                 partition = [cl.split(':') for cl in line['clusters'].split(';')]
                 logweight = float(line['logweight']) if 'logweight' in line else None
-                adj_mi = float(line['adj_mi']) if 'adj_mi' in line else None
+                adj_mi = None if 'adj_mi' not in line or line['adj_mi'] == '' else float(line['adj_mi']) 
                 self.add_partition(partition, float(line['logprob']), int(line['n_procs']), logweight=logweight, adj_mi=adj_mi)
 
     # ----------------------------------------------------------------------------------------
