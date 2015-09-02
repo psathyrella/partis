@@ -30,9 +30,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   vtb_dph_("viterbi", args_, gl, hmms),
   fwd_dph_("forward", args_, gl, hmms),
   i_initial_partition_(0),
-  n_fwd_cached_(0),
   n_fwd_calculated_(0),
-  n_vtb_cached_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
   n_hamming_merged_(0),
@@ -98,8 +96,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  // cout << "        cached vtb " << n_vtb_cached_ << "/" << (n_vtb_cached_ + n_vtb_calculated_)
-  //      << "    fwd " << n_fwd_cached_ << "/" << (n_fwd_cached_ + n_fwd_calculated_) << endl;
   cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming merged " << n_hamming_merged_
        << "    naive hfracs " << n_hfrac_calculated_
        << endl;
@@ -372,7 +368,6 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
 void Glomerator::GetNaiveSeq(string queries) {
   // <queries> is colon-separated list of query names
   if(naive_seqs_.count(queries)) {  // already did it (note that it's ok to cache naive seqs even when we're truncating, since each sequence, when part of a given group of sequence, always has the same length [it's different for forward because each key is compared in the likelihood ratio to many other keys, and each time its sequences can potentially have a different length]. In other words the difference is because we only calculate the naive sequence for sets of sequences that we've already merged.)
-    ++n_vtb_cached_;
     return;
   }
   ++n_vtb_calculated_;
@@ -401,7 +396,6 @@ void Glomerator::GetNaiveSeq(string queries) {
 void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
   // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name)) {  // already did it (see note in GetNaiveSeq above)
-    ++n_fwd_cached_;
     return;
   }
   ++n_fwd_calculated_;

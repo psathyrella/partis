@@ -103,7 +103,7 @@ private:
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 
-  int n_fwd_cached_, n_fwd_calculated_, n_vtb_cached_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
+  int n_fwd_calculated_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
 
   time_t last_status_write_time_;  // last time that we wrote our progress to a file
   FILE *progress_file_;
