@@ -365,11 +365,18 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::GetNaiveSeq(string queries) {
+void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   // <queries> is colon-separated list of query names
   if(naive_seqs_.count(queries)) {  // already did it (note that it's ok to cache naive seqs even when we're truncating, since each sequence, when part of a given group of sequence, always has the same length [it's different for forward because each key is compared in the likelihood ratio to many other keys, and each time its sequences can potentially have a different length]. In other words the difference is because we only calculate the naive sequence for sets of sequences that we've already merged.)
     return;
   }
+
+  if(parents != nullptr && naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
+    // cout << "     parents " << parents->first << " and " << parents->second << "  have same naive seq" << endl;
+    naive_seqs_[queries] = naive_seqs_[parents->first];
+    return;
+  }
+
   ++n_vtb_calculated_;
 
   Result result(kbinfo_[queries]);
@@ -554,7 +561,7 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
   Query min_hamming_merge;
   int imax(-1);
   vector<pair<double, Query> > potential_merges;
-  int n_total_pairs(0), n_skipped_hamming(0), n_inf_factors(0);
+  int n_total_pairs(0), n_skipped_hamming(0), n_small_lratios(0), n_inf_factors(0);
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
@@ -574,8 +581,9 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	}
 	continue;
       }
-      if(min_hamming_fraction < INFINITY)  // if we have any potential hamming merges, that means we'll do those before we do any hmm tomfoolery
+      if(min_hamming_fraction < INFINITY) {  // if we have any potential hamming merges, that means we'll do those before we do any hmm tomfoolery
 	continue;
+      }
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
@@ -595,14 +603,20 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 
       // ----------------------------------------------------------------------------------------
       // this should really depend on the sample's mutation frequency as well
+      // TODO put this into a c.l. arg in partis.py
+      bool lratio_too_small(false);
       if(qmerged.seqs_.size() == 2 && lratio < 20.) {
-      	continue;
+      	lratio_too_small = true;
       } else if(qmerged.seqs_.size() == 3 && lratio < 15.) {
-      	continue;
+      	lratio_too_small = true;
       } else if(qmerged.seqs_.size() == 4 && lratio < 10.) {
-      	continue;
+      	lratio_too_small = true;
       } else if(qmerged.seqs_.size() == 5 && lratio < 5.) {
-      	continue;
+      	lratio_too_small = true;
+      }
+      if(lratio_too_small) {
+	++n_small_lratios;
+	continue;
       }
       // ----------------------------------------------------------------------------------------
 
@@ -636,7 +650,7 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
     else if(n_inf_factors == n_total_pairs)
       cout << "        stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
     else
-      cout << "        stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   total: " << n_total_pairs << endl;
+      cout << "        stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   small lratios: " << n_small_lratios << "   total: " << n_total_pairs << endl;
 
     path->finished_ = true;
     return Query();
@@ -668,7 +682,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     kbinfo_[chosen_qmerge.name_] = chosen_qmerge.kbounds_;
     mute_freqs_[chosen_qmerge.name_] = chosen_qmerge.mean_mute_freq_;
     only_genes_[chosen_qmerge.name_] = chosen_qmerge.only_genes_;
-    GetNaiveSeq(chosen_qmerge.name_);
+    GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
   }
 
   double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
