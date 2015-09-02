@@ -538,7 +538,7 @@ class PartitionDriver(object):
                 else:
                     print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
                     if not os.path.exists(get_outfname(iproc)):
-                        print ', output %s d.n.e.' % get_outfname(),
+                        print ', output %s d.n.e.' % get_outfname(iproc),
                     print ')'
                     procs[iproc] = self.execute_iproc(cmd_strs[iproc])
                     n_tries[iproc] += 1
