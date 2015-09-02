@@ -257,7 +257,18 @@ void Glomerator::WriteStatus(ClusterPath *path) {
   if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
     char buffer[200];
     strftime(buffer, 200, "%b %d %T", localtime(&current_time));  // %H:%M
-    fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->partitions()[path->partitions().size()-1].size(), n_fwd_calculated_, n_vtb_calculated_);
+    fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
+
+    vector<int> cluster_sizes;
+    for(auto &cluster : path->CurrentPartition())
+      cluster_sizes.push_back((int)cluster.size());
+    sort(cluster_sizes.begin(), cluster_sizes.end());
+    reverse(cluster_sizes.begin(), cluster_sizes.end());
+    fprintf(progress_file_, "          clusters: ");
+    for(size_t is=0; is<cluster_sizes.size(); ++is)
+      fprintf(progress_file_, " %d", cluster_sizes[is]);
+    fprintf(progress_file_, "\n");
+
     fflush(progress_file_);
     last_status_write_time_ = current_time;
   }
