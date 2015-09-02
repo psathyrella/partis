@@ -62,7 +62,7 @@ private:
   void WriteStatus(ClusterPath *path);  // write some progress info to file
   double NaiveHammingFraction(string key_a, string key_b);
   double HammingFraction(Sequence seq_a, Sequence seq_b);
-  void GetNaiveSeq(string key);
+  void GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   void GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
