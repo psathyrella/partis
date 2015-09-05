@@ -129,6 +129,7 @@ void Glomerator::Cluster() {
   ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]), initial_logweights_[0]);
   do {
     Merge(&cp);
+    // cout << ClusterSizeString(&cp) << endl;
     WriteStatus(&cp);
   } while(!cp.finished_);
 
@@ -247,6 +248,20 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
 }
 
 // ----------------------------------------------------------------------------------------
+string Glomerator::ClusterSizeString(ClusterPath *path) {
+  vector<int> cluster_sizes;
+  for(auto &cluster : path->CurrentPartition()) {
+    cluster_sizes.push_back((int)count(cluster.begin(), cluster.end(), ':') + 1);  // number of colons + 1
+  }
+  sort(cluster_sizes.begin(), cluster_sizes.end());
+  reverse(cluster_sizes.begin(), cluster_sizes.end());
+  string return_str("          clusters: ");
+  for(size_t is=0; is<cluster_sizes.size(); ++is)
+    return_str += " "  + to_string(cluster_sizes[is]);
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
 void Glomerator::WriteStatus(ClusterPath *path) {
   time_t current_time;
   time(&current_time);
@@ -255,15 +270,7 @@ void Glomerator::WriteStatus(ClusterPath *path) {
     strftime(buffer, 200, "%b %d %T", localtime(&current_time));  // %H:%M
     fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
 
-    vector<int> cluster_sizes;
-    for(auto &cluster : path->CurrentPartition())
-      cluster_sizes.push_back((int)cluster.size());
-    sort(cluster_sizes.begin(), cluster_sizes.end());
-    reverse(cluster_sizes.begin(), cluster_sizes.end());
-    fprintf(progress_file_, "          clusters: ");
-    for(size_t is=0; is<cluster_sizes.size(); ++is)
-      fprintf(progress_file_, " %d", cluster_sizes[is]);
-    fprintf(progress_file_, "\n");
+    fprintf(progress_file_, "%s\n", ClusterSizeString(path).c_str());
 
     fflush(progress_file_);
     last_status_write_time_ = current_time;
@@ -372,7 +379,7 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   }
 
   if(parents != nullptr && naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
-    // cout << "     parents " << parents->first << " and " << parents->second << "  have same naive seq" << endl;
+    cout << "     parents " << parents->first << " and " << parents->second << "  have same naive seq" << endl;
     naive_seqs_[queries] = naive_seqs_[parents->first];
     return;
   }
@@ -672,7 +679,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
   double chosen_lratio;
-  Query chosen_qmerge = ChooseMerge(path, rgen, &chosen_lratio);
+  Query chosen_qmerge = ChooseMerge(path, rgen, &chosen_lratio);  // NOTE chosen_lratio is not set if we hamming merge
   if(path->finished_)
     return;
 

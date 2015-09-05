@@ -6,6 +6,7 @@
 #include <vector>
 #include <iomanip>
 #include <ctime>
+#include <algorithm>
 
 #include "smctc.hh"
 #include "args.h"
@@ -59,6 +60,7 @@ private:
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
+  string ClusterSizeString(ClusterPath *path);
   void WriteStatus(ClusterPath *path);  // write some progress info to file
   double NaiveHammingFraction(string key_a, string key_b);
   double HammingFraction(Sequence seq_a, Sequence seq_b);
