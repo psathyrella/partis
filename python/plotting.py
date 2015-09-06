@@ -980,23 +980,28 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     # axes = plt.gca()
     # ylimits = axes.get_ylim()
     # xmin, xmax = 0.3, 1.02
-    if xmax is not None:
+    if xmax is None:
+        xmax = plt.gca().get_xlim()[1]
+    else:
         ax.set_xlim(1, xmax)
-    plt.ylim(1e-5, 1)
+    if 'stanford' in title:
+        ymin = 5e-4
+    else:
+        ymin = 5e-5
+    plt.ylim(ymin, 1)
     plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
     ax.set_xscale('log')
     ax.set_yscale('log')
-    potential_xticks = [1, 2, 3, 9, 30, 50, 100, 200]
+    potential_xticks = [1, 2, 3, 9, 30, 50, 100, 250]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
     plotdir = os.path.dirname(outfname)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
     plt.savefig(outfname)
-    sys.exit()
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):

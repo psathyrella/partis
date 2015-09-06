@@ -45,7 +45,7 @@ parser.add_argument('--startstoplist')  # list of istartstops for comparisons
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
-parser.add_argument('--humans', default='A')
+parser.add_argument('--humans', default=None)  #'A')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
 args = parser.parse_args()
@@ -590,7 +590,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     # for ptype in ['vsearch-']:
         parse_partis(ptype + 'partition', these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
-    plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title, xmax=n_leaves*6.01)
+    plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title)  #, xmax=n_leaves*6.01
     for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
         if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
             continue
@@ -980,7 +980,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
-        n_procs = max(1, args.n_to_partition / 100)
+        n_procs = max(1, args.n_to_partition / 200)
     elif action == 'vsearch-partition':
         outfname = get_outputname()
         # outfname = '-vsearch-partition'.join(os.path.splitext(seqfname))
@@ -1135,7 +1135,8 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     if n_procs > 10:
         n_fewer_procs = max(1, min(500, args.n_to_partition / 2000))
         n_proc_str += ':' + str(n_fewer_procs)
-        extras += ['--slurm']
+    extras += ['--slurm']
+    print 'slurm hackin compare-partitions!'
         
     extras += ['--n-procs', n_proc_str]
 
@@ -1156,7 +1157,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(900)
+    # time.sleep(30)  # 300sec = 5min
 
 # ----------------------------------------------------------------------------------------
 for datafname in files:

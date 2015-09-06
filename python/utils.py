@@ -1189,6 +1189,7 @@ def print_linsim_output(outstr):
 
 # ----------------------------------------------------------------------------------------
 def process_out_err(out, err, extra_str='0', info=None):
+    """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     print_str = ''
     for line in err.split('\n'):
         if 'srun: job' in line and 'queued and waiting for resources' in line:
@@ -1210,6 +1211,10 @@ def process_out_err(out, err, extra_str='0', info=None):
                 info['fwd'] = int(words[4])
             else:
                 print 'ERROR bad calculated line: %s' % line
+    # if info is not None and ('vtb' not in info or 'fwd' not in info):
+    #     print 'weird, didnt find anything for info:'
+    #     print 'out x', out, 'x'
+    #     print 'err x', err, 'x'
 
     print_str += out
 
