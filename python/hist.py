@@ -216,6 +216,15 @@ class Hist(object):
             return bin_centers
 
     # ----------------------------------------------------------------------------------------
+    def bin_contents_no_zeros(self, value):
+        """ replace any zeros with <value> """
+        bin_centers_no_zeros = list(self.bin_contents)
+        for ibin in range(len(bin_centers_no_zeros)):
+            if bin_centers_no_zeros[ibin] == 0.:
+                bin_centers_no_zeros[ibin] = value
+        return bin_centers_no_zeros
+
+    # ----------------------------------------------------------------------------------------
     def get_mean(self, ignore_overflows=False):
         if ignore_overflows:
             imin, imax = 1, self.n_bins + 1

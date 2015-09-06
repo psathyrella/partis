@@ -46,6 +46,7 @@ parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instea
 parser.add_argument('--random-divvy', action='store_true')
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
 parser.add_argument('--kill-old-paths', action='store_true', default=True)
+parser.add_argument('--naivety', default='M', choices=['M', 'N'])
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
