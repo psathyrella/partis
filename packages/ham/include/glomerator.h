@@ -60,6 +60,8 @@ private:
   void PrintPartition(Partition &clusters, string extrastr);
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
+  string ParentalString(pair<string, string> *parents);
+  int CountMembers(string namestr);
   string ClusterSizeString(ClusterPath *path);
   void WriteStatus(ClusterPath *path);  // write some progress info to file
   double NaiveHammingFraction(string key_a, string key_b);

@@ -248,10 +248,17 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
 }
 
 // ----------------------------------------------------------------------------------------
+// count the number of members in a cluster's colon-separated name string
+int Glomerator::CountMembers(string namestr) {
+  int n_colons = (int)count(namestr.begin(), namestr.end(), ':');
+  return n_colons + 1;
+}
+
+// ----------------------------------------------------------------------------------------
 string Glomerator::ClusterSizeString(ClusterPath *path) {
   vector<int> cluster_sizes;
   for(auto &cluster : path->CurrentPartition()) {
-    cluster_sizes.push_back((int)count(cluster.begin(), cluster.end(), ':') + 1);  // number of colons + 1
+    cluster_sizes.push_back(CountMembers(cluster));
   }
   sort(cluster_sizes.begin(), cluster_sizes.end());
   reverse(cluster_sizes.begin(), cluster_sizes.end());
@@ -372,16 +379,39 @@ double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
 }
 
 // ----------------------------------------------------------------------------------------
+string Glomerator::ParentalString(pair<string, string> *parents) {
+  if(CountMembers(parents->first) > 5 || CountMembers(parents->second) > 5) {
+    return to_string(CountMembers(parents->first)) + " and " + to_string(CountMembers(parents->second));
+  } else {
+    return parents->first + " and " + parents->second;
+  }
+}
+
+// ----------------------------------------------------------------------------------------
 void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   // <queries> is colon-separated list of query names
   if(naive_seqs_.count(queries)) {  // already did it (note that it's ok to cache naive seqs even when we're truncating, since each sequence, when part of a given group of sequence, always has the same length [it's different for forward because each key is compared in the likelihood ratio to many other keys, and each time its sequences can potentially have a different length]. In other words the difference is because we only calculate the naive sequence for sets of sequences that we've already merged.)
     return;
   }
 
-  if(parents != nullptr && naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
-    cout << "     parents " << parents->first << " and " << parents->second << "  have same naive seq" << endl;
-    naive_seqs_[queries] = naive_seqs_[parents->first];
-    return;
+  if(parents != nullptr) {
+    if(naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
+      cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
+      naive_seqs_[queries] = naive_seqs_[parents->first];
+      return;
+    }
+    double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (not that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
+    double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
+    if(size_ratio > max_factor) {
+      cout << "     first parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
+      naive_seqs_[queries] = naive_seqs_[parents->first];
+      return;
+    }
+    if(1. / size_ratio > max_factor) {
+      cout << "     second parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
+      naive_seqs_[queries] = naive_seqs_[parents->second];
+      return;
+    }
   }
 
   ++n_vtb_calculated_;
