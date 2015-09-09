@@ -9,7 +9,7 @@ import re
 from collections import OrderedDict
 import time
 import csv
-from subprocess import check_call, Popen, check_output
+from subprocess import check_call, Popen, check_output, PIPE
 import itertools
 from Bio import SeqIO
 sys.path.insert(1, './python')
@@ -18,6 +18,7 @@ from humans import humans
 from hist import Hist
 import seqfileopener
 import utils
+import baseutils
 # from clusterplot import ClusterPlot
 from clusterpath import ClusterPath
 from glomerator import Glomerator
@@ -46,8 +47,8 @@ parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
 parser.add_argument('--humans', default=None)  #'A')
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
-parser.add_argument('--actions', required=True)  #default=':'.join(all_actions))
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
+parser.add_argument('--actions', required=True, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
 args.actions = utils.get_arg_list(args.actions)
@@ -147,8 +148,8 @@ def get_simfname(label, n_leaves, mut_mult, no_subset=False):
     return get_outdirname(label, no_subset=no_subset) + '/' + leafmutstr(n_leaves, mut_mult) + '.csv'
 
 # ----------------------------------------------------------------------------------------
-def get_mixcr_outdir(label, n_leaves, mut_mult):
-    basedir = '/fh/fast/matsen_e/dralph/work/mixcr/' + label
+def get_program_workdir(program_name, label, n_leaves, mut_mult):
+    basedir = '/fh/fast/matsen_e/dralph/work/' + program_name + '/' + label
     if args.data:
         outdir = basedir + '/data'
     else:
@@ -1086,9 +1087,10 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             write_float_val(imgtdir + '-ccf_under.csv', ccfs[0], 'ccf_under')
             write_float_val(imgtdir + '-ccf_over.csv', ccfs[1], 'ccf_over')
         return
+    # ----------------------------------------------------------------------------------------
     elif action == 'run-mixcr':
         binary = '/home/dralph/work/mixcr/mixcr-1.2/mixcr'
-        mixcr_workdir = get_mixcr_outdir(label, n_leaves, mut_mult)
+        mixcr_workdir = get_program_workdir('mixcr', label, n_leaves, mut_mult)
         if not os.path.exists(mixcr_workdir):
             os.makedirs(mixcr_workdir)
 
@@ -1118,6 +1120,45 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         check_call(['cp', '-v', infname.replace('.fasta', '.txt'), outfname])
 
         return
+    # ----------------------------------------------------------------------------------------
+    elif action == 'run-igscueal':
+        igscueal_dir = '/home/dralph/work/IgSCUEAL'
+        outfname = os.path.splitext(seqfname)[0] + '-igscueal.tsv'
+        # if output_exists(outfname):
+        #     return
+        workdir = get_program_workdir('igscueal', label, n_leaves, mut_mult)
+
+        infname = workdir + '/' + os.path.basename(os.path.splitext(seqfname)[0] + '.fasta')
+
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+
+        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=10)  #args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
+        # write cfg file (.bf)
+        sed_cmd = 'sed'
+        replacements = [['igscueal_dir', igscueal_dir],
+                        ['input_fname', infname],
+                        ['results_fname', workdir + '/results.tsv'],
+                        ['rearrangement_fname', workdir + '/rearrangement.tsv'],
+                        ['tree_assignment_fname', workdir + '/tree_assignment.tsv']]
+        for pattern, replacement in replacements:
+            sed_cmd += ' -e \'s@xxx-' + pattern + '-xxx@' + replacement + '@\''
+        template_cfgfname = igscueal_dir + '/TopLevel/MPIScreenFASTA.bf'
+        cfgfname = workdir + '/cfg.bf'
+        sed_cmd += ' ' + template_cfgfname + ' >' + cfgfname
+        check_call(sed_cmd, shell=True)
+
+        cmd = 'salloc -N 3 mpirun -np 3 /home/dralph/work/hyphy/hyphy-master/HYPHYMPI ' + cfgfname
+        # cmd = 'grep --color=auto a'
+        # cmd = 'sleep 60'
+        proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
+        stdout, stderr = proc.communicate()
+        print 'out----\n', stdout, '\n-----'
+        print 'err----\n', stderr, '\n-----'
+        # time.sleep(30)
+        sys.exit()
+
+    # ----------------------------------------------------------------------------------------
     elif action == 'compare-sample-sizes':
         compare_sample_sizes(label, n_leaves, mut_mult)
         return
@@ -1140,7 +1181,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         
     extras += ['--n-procs', n_proc_str]
 
-    cmd += utils.get_extra_str(extras)
+    cmd += baseutils.get_extra_str(extras)
     print '   ' + cmd
     # return
     # check_call(cmd.split())
