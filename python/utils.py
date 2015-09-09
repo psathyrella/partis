@@ -40,13 +40,6 @@ def get_arg_list(arg, intify=False, floatify=False):  # make lists from args tha
         else:
             return arglist
 
-# ----------------------------------------------------------------------------------------
-def get_extra_str(extra_list):
-    if len(extra_list) == 0:
-        return ''
-    modified_list = [str(ex).replace(':', ',').replace('--', '__').replace(' ', '+') for ex in extra_list]
-    return ' --extra-args ' + ':'.join(modified_list)
-
 # # ----------------------------------------------------------------------------------------
 # hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
 # ----------------------------------------------------------------------------------------
