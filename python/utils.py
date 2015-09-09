@@ -587,7 +587,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             event_str_list.append(event_str)
     else:
         tmpline = dict(line)
-        if indelfo is not None:  # and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
+        if indelfo is not None and indelfo['reversed_seq'] != '':  # and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
             tmpline['seq'] = indelfo['reversed_seq']
             indelfo = None
             if 'indels' not in extra_str:
@@ -795,7 +795,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
 
     out_str_list.append('%s    %s' % (extra_str, final_seq))
     # and finally some extra info
-    out_str_list.append('   %4.2f mut' % (float(n_muted) / n_total))
+    out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
     # out_str_list.append(' %4.0f%%' % (100 * float(n_muted) / n_total))
     # if 'logprob' in line:
     #     out_str_list.append('  score: %s' % line['logprob'])

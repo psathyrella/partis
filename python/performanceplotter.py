@@ -54,10 +54,23 @@ class PerformancePlotter(object):
         true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
 
+        # assert False # read through this whole damn thing and make sure it's ok
+
+        print query_name
+        print 'true', true_naive_seq
+        print 'inf ', inferred_naive_seq
+        # print 'seq', line['seq']
+        # print 'ts ', true_line['seq']
+
+        # # remove N-padding
+        # ack! no! already doing that below...
+        # inferred_naive_seq = utils.remove_ambiguous_ends(inferred_naive_seq, line['fv_insertion'], line['jf_insertion'])
+
         left_hack_add_on = ''
         right_hack_add_on = ''
-        if len(true_line['seq']) > len(line['seq']):  # ihhhmmm doesn't report the bits of the sequence it erodes off the ends, so we have to add them back on
+        if len(true_line['seq']) > len(utils.remove_ambiguous_ends(line['seq'], line['fv_insertion'], line['jf_insertion'])):  # ihhhmmm doesn't report the bits of the sequence it erodes off the ends, so we have to add them back on
         # if len(true_naive_seq) > len(inferred_naive_seq):  # hm, now why did I use line['seq'] stuff before?
+            assert False
             start = true_line['seq'].find(line['seq'])
             assert start >= 0
             end = len(line['seq']) + start
@@ -71,6 +84,7 @@ class PerformancePlotter(object):
         # if restrict_to_region == '':
         #     print '  before', inferred_naive_seq
         if padfo is not None:  # remove N padding from the inferred sequence
+            print 'removing padfo %d %d' % (padfo['padleft'], padfo['padright'])
             inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
             if padfo['padright'] > 0:
                 inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]
