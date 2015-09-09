@@ -1230,6 +1230,7 @@ class PartitionDriver(object):
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
             # print 'randomizing input order'
             random_nsets = []
+            nsets = list(nsets)  # in case it's an itertools iterable thingamajiggyboodle
             while len(nsets) > 0:
                 irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
                 random_nsets.append(nsets[irand])
