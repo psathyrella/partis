@@ -56,9 +56,9 @@ class PerformancePlotter(object):
 
         # assert False # read through this whole damn thing and make sure it's ok
 
-        print query_name
-        print 'true', true_naive_seq
-        print 'inf ', inferred_naive_seq
+        # print query_name
+        # print 'true', true_naive_seq
+        # print 'inf ', inferred_naive_seq
         # print 'seq', line['seq']
         # print 'ts ', true_line['seq']
 
@@ -84,7 +84,6 @@ class PerformancePlotter(object):
         # if restrict_to_region == '':
         #     print '  before', inferred_naive_seq
         if padfo is not None:  # remove N padding from the inferred sequence
-            print 'removing padfo %d %d' % (padfo['padleft'], padfo['padright'])
             inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
             if padfo['padright'] > 0:
                 inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]

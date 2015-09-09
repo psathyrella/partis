@@ -1462,7 +1462,10 @@ class PartitionDriver(object):
                         if true_pcounter is not None:
                             true_pcounter.increment_mutation_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
-                            perfplotter.evaluate(self.reco_info[uid], hmminfo[uid], None if self.args.dont_pad_sequences else self.sw_info[uid]['padded'])
+                            if uid in self.sw_info['indels']:
+                                print '    skipping performance evaluation of %s because of indels' % uid  # I just have no idea how to handle naive hamming fraction when there's indels
+                            else:
+                                perfplotter.evaluate(self.reco_info[uid], hmminfo[uid], None if self.args.dont_pad_sequences else self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
         if pcounter is not None:
