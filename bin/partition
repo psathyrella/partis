@@ -6,6 +6,8 @@ from subprocess import check_call
 parser = argparse.ArgumentParser()
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname')
+parser.add_argument('--fast', action='store_true')
+parser.add_argument('--really-fast', action='store_true')
 args = parser.parse_args()
 if not os.path.exists(args.infname):
     raise Exception('input file \"%s\" does not exist' % args.infname)
@@ -25,6 +27,10 @@ run(cmd)
 
 # use the cached parameters to annotate the sequences in <args.infname>
 cmd = './bin/partis.py --action partition --seqfile ' + args.infname + ' --is-data --parameter-dir ' + os.getcwd() + '/_tmp/' + label + '/hmm --outfname ' + args.outfname
+if args.really_fast:
+    cmd += ' --naive-vsearch'
+elif args.fast:
+    cmd += ' --naive-hamming'
 run(cmd)
 
 print 'output written to %s' % args.outfname

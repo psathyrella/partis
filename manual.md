@@ -45,6 +45,8 @@ Note that now we're inside the container, we access the fasta file at the origin
 This command by default writes the output csv to the directory that `--infname` came from.
 There's also some example sequences you can run on in `test/example.fa`.
 Depending on your system, in about ten minutes a single process can probably annotate 5000 sequences or partition a few hundred -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
+You can also use the approximate naive or vsearch methods by adding the `--fast` or `--really-fast` options, respectively, to `./bin/partition`.
+The naive method is about a factor of ten faster than the full method, while the vsearch method is really reall really fast -- the only significant time will be finding the naive annotations, which scales linearly with the number of sequences so isn't an issue.
 
 To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
