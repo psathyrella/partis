@@ -1325,7 +1325,7 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
-def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, debug=False):
+def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_biggest_clusters, debug=False):
     """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest """
     def intersection_size(cl_1, cl_2):
         isize = 0
@@ -1347,9 +1347,11 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, de
     b_clusters = sorted(sorted(partition_b), key=len, reverse=True)[ : n_biggest_clusters]
 
     smatrix = []
+    pair_info = []  # list of full pair info (e.g. [0.8, ick)
+    max_pair_info = 5
     for clust_a in a_clusters:
-        if debug:
-            print clust_a
+        # if debug:
+        #     print clust_a
         smatrix.append([])
         for clust_b in b_clusters:
             # norm_factor = 1.  # don't normalize
@@ -1357,11 +1359,32 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, de
             # norm_factor = min(len(clust_a), len(clust_b))  # smaller size
             intersection = intersection_size(clust_a, clust_b)
             isize = float(intersection) / norm_factor
-            if debug:
-                print '    %.2f  %5d   %5d %5d' % (isize, intersection, len(clust_a), len(clust_b))
+            # if debug:
+            #     print '    %.2f  %5d   %5d %5d' % (isize, intersection, len(clust_a), len(clust_b))
             if isize == 0.:
                 isize = None
             smatrix[-1].append(isize)
+            if isize is not None:
+                if len(pair_info) < max_pair_info:
+                    pair_info.append([intersection, [clust_a, clust_b]])
+                    pair_info = sorted(pair_info, reverse=True)
+                elif intersection > pair_info[-1][0]:
+                    pair_info[-1] = [intersection, [clust_a, clust_b]]
+                    pair_info = sorted(pair_info, reverse=True)
+
+    if debug:
+        print 'intersection     a_rank  b_rank'
+        for it in pair_info:
+            print '%-4d  %3d %3d   %s  %s' % (it[0], a_clusters.index(it[1][0]), b_clusters.index(it[1][1]), ':'.join(it[1][0]), ':'.join(it[1][1]))
+
+    with open('erick/' + meth_a + '_' + meth_b + '.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, ['a_meth', 'b_meth', 'intersection', 'a_rank', 'b_rank', 'a_cluster', 'b_cluster'])
+        writer.writeheader()
+        for it in pair_info:
+            writer.writerow({'a_meth' : meth_a, 'b_meth' : meth_b,
+                             'intersection' : it[0],
+                             'a_rank' : a_clusters.index(it[1][0]), 'b_rank' : b_clusters.index(it[1][1]),
+                             'a_cluster' : ':'.join(it[1][0]), 'b_cluster' : ':'.join(it[1][1])})
 
     a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]
     return a_cluster_lengths, b_cluster_lengths, smatrix

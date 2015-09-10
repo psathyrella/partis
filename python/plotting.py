@@ -1104,15 +1104,17 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title=''):
-    print meth1, meth2
-    print '\n\n'
+def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
+    if debug:
+        print ''
+        print '%s    %s' % (meth1, meth2)
     # partition1 = [['4'], ['7', '8'], ['6', '5'], ['99', '3', '1']]
     # # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
     # partition2 = [['3'], ['5'], ['6'], ['7'], ['8'], ['99', '3', '4']]
-    a_cluster_lengths, b_cluster_lengths, smatrix = utils.partition_similarity_matrix(partition1, partition2, n_biggest_clusters=n_biggest_clusters, debug=False)
-    print a_cluster_lengths
-    print b_cluster_lengths
+    a_cluster_lengths, b_cluster_lengths, smatrix = utils.partition_similarity_matrix(meth1, meth2, partition1, partition2, n_biggest_clusters=n_biggest_clusters, debug=debug)
+    if debug:
+        print 'a_clusters: ', ' '.join([str(l) for l in a_cluster_lengths])
+        print 'b_clusters: ', ' '.join([str(l) for l in b_cluster_lengths])
 
     fig, ax = plt.subplots()
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)

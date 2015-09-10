@@ -82,7 +82,7 @@ istart = 0
 # for n_queries in [100, 200, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000]:
 # for n_queries in [7000, 10000, 20000, 50000]:
 # for n_queries in n_query_list:
-for n_queries in [1000]:
+for n_queries in [10000]:
     cmd = './bin/compare-partition-methods.py --actions ' + args.action
     istop = istart + n_queries
     # print '  %d queries from %d --> %d' % (n_queries, istart, istop)
@@ -103,7 +103,7 @@ for n_queries in [1000]:
     # actually run stuff:
     cmd += ' --istartstop ' + str(istart) + ':' + str(istop)
     cmd += ' --data'
-    # cmd += ' --humans A:B:C'  #021-050:021-055:021-057:021-059:021-060:021-061:021-063:021-068:021-071:021-081:021-084'
+    cmd += ' --humans 021-018'  #021-050:021-055:021-057:021-059:021-060:021-061:021-063:021-068:021-071:021-081:021-084'
     cmd += ' --dataset stanford'  #adaptive'
     # cmd += ' --overwrite'
 

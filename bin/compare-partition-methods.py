@@ -48,7 +48,7 @@ parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
 parser.add_argument('--humans', default=None)  #'A')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
-parser.add_argument('--actions', required=True, choices=all_actions)  #default=':'.join(all_actions))
+parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.only_run = utils.get_arg_list(args.only_run)
 args.actions = utils.get_arg_list(args.actions)
@@ -595,7 +595,6 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
         if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
             continue
-        print meth1, meth2
         n_biggest_clusters = 40  # if args.data else 30)
         plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(label, n_leaves, mut_mult))
     # check_call(['./bin/permissify-www', plotdir])
