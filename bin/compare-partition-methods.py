@@ -1132,7 +1132,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if not os.path.exists(workdir):
             os.makedirs(workdir)
 
-        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=10)  #args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
+        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=30)  #args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
         # write cfg file (.bf)
         sed_cmd = 'sed'
         replacements = [['igscueal_dir', igscueal_dir],
@@ -1147,14 +1147,40 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         sed_cmd += ' ' + template_cfgfname + ' >' + cfgfname
         check_call(sed_cmd, shell=True)
 
-        cmd = 'salloc -N 3 mpirun -np 3 /home/dralph/work/hyphy/hyphy-master/HYPHYMPI ' + cfgfname
-        # cmd = 'grep --color=auto a'
-        # cmd = 'sleep 60'
-        proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-        stdout, stderr = proc.communicate()
-        print 'out----\n', stdout, '\n-----'
-        print 'err----\n', stderr, '\n-----'
-        # time.sleep(30)
+        # cmd = 'salloc -N 3 mpirun -np 3 /home/dralph/work/hyphy/hyphy-master/HYPHYMPI ' + cfgfname
+        # srun --mpi=openmpi
+        cmd = 'srun --exclude=data/gizmod.txt mpirun -np 2 /home/dralph/work/hyphy/hyphy-master/HYPHYMPI ' + cfgfname
+
+        ntot = int(check_output(['wc', '-l', infname]).split()[0]) / 2
+        n_procs = 3  #max(1, int(float(ntot) / 10))
+        n_per_proc = int(float(ntot) / n_procs)  # NOTE ignores remainders, i.e. last few sequences
+        workdirs = []
+        start = time.time()
+        for iproc in range(n_procs):
+            workdirs.append(workdir + '/igs-' + str(iproc))
+            if not os.path.exists(workdirs[-1]):
+                os.makedirs(workdirs[-1])
+            check_call(['cp', cfgfname, workdirs[-1] + '/'])
+            check_call(['sed', '-i', 's@' + workdir + '@' + workdirs[-1] + '@', workdirs[-1] + '/' + os.path.basename(cfgfname)])
+
+            subinfname = workdirs[-1] + '/' + os.path.basename(infname)
+            istart = 2 * iproc * n_per_proc + 1  # NOTE sed indexing (one-indexed with inclusive bounds), and factor of two for fasta file
+            istop = istart + 2 * n_per_proc - 1
+            check_call('sed -n \'' + str(istart) + ',' + str(istop) + ' p\' ' + infname + '>' + subinfname, shell=True)
+
+            procs.append(Popen(cmd.replace(workdir, workdirs[-1]).split(), stdout=PIPE, stderr=PIPE))
+            # procs.append(Popen(['sleep', '10']))
+
+        while procs.count(None) < len(procs):
+            for iproc in range(n_procs):
+                if procs[iproc] is not None and procs[iproc].poll() is not None:  # it's finished
+                    stdout, stderr = procs[iproc].communicate()
+                    print '\nproc %d' % iproc
+                    print 'out----\n', stdout, '\n-----'
+                    print 'err----\n', stderr, '\n-----'
+                    procs[iproc] = None
+                time.sleep(0.1)
+        print '      igscueal time: %.3f' % (time.time()-start)
         sys.exit()
 
     # ----------------------------------------------------------------------------------------
