@@ -44,7 +44,7 @@ Whereas if you'd like to separate them into clonal families, run
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
 This command by default writes the output csv to the directory that `--infname` came from.
 There's also some example sequences you can run on in `test/example.fa`.
-Depending on your system, 5000 sequences will take perhaps ten minutes -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
+Depending on your system, in about ten minutes a single process can probably annotate 5000 sequences or partition a few hundred -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
 
 To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
