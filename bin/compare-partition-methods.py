@@ -1132,15 +1132,15 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if not os.path.exists(workdir):
             os.makedirs(workdir)
 
-        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=30)  #args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
+        utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
         # write cfg file (.bf)
         sed_cmd = 'sed'
-        replacements = [['igscueal_dir', igscueal_dir],
-                        ['input_fname', infname],
-                        ['results_fname', workdir + '/results.tsv'],
-                        ['rearrangement_fname', workdir + '/rearrangement.tsv'],
-                        ['tree_assignment_fname', workdir + '/tree_assignment.tsv']]
-        for pattern, replacement in replacements:
+        replacements = {'igscueal_dir' : igscueal_dir,
+                        'input_fname' : infname,
+                        'results_fname' : workdir + '/results.tsv',
+                        'rearrangement_fname' : workdir + '/rearrangement.tsv',
+                        'tree_assignment_fname' : workdir + '/tree_assignment.tsv'}
+        for pattern, replacement in replacements.items():
             sed_cmd += ' -e \'s@xxx-' + pattern + '-xxx@' + replacement + '@\''
         template_cfgfname = igscueal_dir + '/TopLevel/MPIScreenFASTA.bf'
         cfgfname = workdir + '/cfg.bf'
@@ -1152,7 +1152,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         cmd = 'srun --exclude=data/gizmod.txt mpirun -np 2 /home/dralph/work/hyphy/hyphy-master/HYPHYMPI ' + cfgfname
 
         ntot = int(check_output(['wc', '-l', infname]).split()[0]) / 2
-        n_procs = 3  #max(1, int(float(ntot) / 10))
+        n_procs = max(1, int(float(ntot) / 10))
         n_per_proc = int(float(ntot) / n_procs)  # NOTE ignores remainders, i.e. last few sequences
         workdirs = []
         start = time.time()
@@ -1160,6 +1160,12 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             workdirs.append(workdir + '/igs-' + str(iproc))
             if not os.path.exists(workdirs[-1]):
                 os.makedirs(workdirs[-1])
+
+            suboutfname = replacements['results_fname'].replace(workdir, workdirs[-1])
+            if os.path.exists(suboutfname) and os.stat(suboutfname).st_size != 0:
+                print '    %d already there (%s)' % (iproc, suboutfname)
+                continue
+
             check_call(['cp', cfgfname, workdirs[-1] + '/'])
             check_call(['sed', '-i', 's@' + workdir + '@' + workdirs[-1] + '@', workdirs[-1] + '/' + os.path.basename(cfgfname)])
 
@@ -1168,7 +1174,11 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             istop = istart + 2 * n_per_proc - 1
             check_call('sed -n \'' + str(istart) + ',' + str(istop) + ' p\' ' + infname + '>' + subinfname, shell=True)
 
+            print '     starting %d' % iproc
             procs.append(Popen(cmd.replace(workdir, workdirs[-1]).split(), stdout=PIPE, stderr=PIPE))
+            if len(procs) > 500:  # can't have more open files than something like this
+                print 'exiting... too many procs'
+                sys.exit(0)
             # procs.append(Popen(['sleep', '10']))
 
         while procs.count(None) < len(procs):
