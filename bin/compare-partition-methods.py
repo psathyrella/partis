@@ -257,7 +257,7 @@ def parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seq
                 write_float_val(outdir + '/ccf_over/' + os.path.basename(histfname), ccfs[1], 'ccf_over')
 
 # ----------------------------------------------------------------------------------------
-def parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, simfname, simfbase, outdir, reco_info, rebin=None):
+def parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfname, simfbase, outdir, reco_info, rebin=None):
     indir = get_changeo_outdir(label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
     if args.data:
         fbase = 'data'
@@ -286,6 +286,7 @@ def parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_c
     partition = [ids for ids in id_clusters.values()]
     these_hists['changeo'] = plotting.get_cluster_size_hist(partition, rebin=rebin)
     these_hists['changeo'].write(outdir + '/hists/changeo.csv')
+    these_partitions['changeo'] = partition
     if not args.data:
         adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
         check_call(['cp', adj_mi_fname, outdir + '/adj_mi/changeo.csv'])
@@ -583,8 +584,8 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
     # mixcr
     parse_mixcr(these_hists, these_adj_mis, these_ccfs, seqfname, csvdir, reco_info)
 
-    # # then changeo
-    # parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
+    # then changeo
+    parse_changeo(label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, simfbase, csvdir, reco_info, rebin=rebin)
 
     # partis stuff
     for ptype in ['vsearch-', 'naive-hamming-', '']:
@@ -646,8 +647,8 @@ def compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, 
     these_vals['ccf_over'] = ccf_overs[n_leaves][mut_mult]
 
     basedir = fsdir + '/' + label
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     if not args.data:
         expected_methods.insert(0, 'true')
     tmp_valdicts = {'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
@@ -1048,21 +1049,17 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         resultfname = imgtdir + changeorandomcrapstr
         if output_exists(resultfname):
             return
-        # if os.path.exists(resultfname):
-        #     print '                         changeo already finished (%s)' % resultfname
-        #     return
 
-        # check_call(['./bin/csv2fasta', seqfname])
         fastafname = os.path.splitext(seqfname)[0] + '.fasta'
         utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
         bindir = '/home/dralph/work/changeo/changeo'
         start = time.time()
-        # check_call(['mv', seqfname.replace('.csv', '.fa'), seqfname.replace('.csv', '.fasta')])
         cmd = bindir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + fastafname
         run(cmd)
         cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab -f FUNCTIONAL -u T'
         run(cmd)
-        cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
+        # cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
+        cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --model hs1f --norm len --act set --dist 0.2'
         run(cmd)
         print '        changeo time: %.3f' % (time.time()-start)
 
@@ -1161,9 +1158,15 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
             if not os.path.exists(workdirs[-1]):
                 os.makedirs(workdirs[-1])
 
+            if len(procs) - procs.count(None) > 500:  # can't have more open files than something like this
+                print '        too many procs (len %d    none %d)' % (len(procs), procs.count(None))
+                procs.append(None)
+                continue
+
             suboutfname = replacements['results_fname'].replace(workdir, workdirs[-1])
             if os.path.exists(suboutfname) and os.stat(suboutfname).st_size != 0:
                 print '    %d already there (%s)' % (iproc, suboutfname)
+                procs.append(None)
                 continue
 
             check_call(['cp', cfgfname, workdirs[-1] + '/'])
@@ -1176,9 +1179,6 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
 
             print '     starting %d' % iproc
             procs.append(Popen(cmd.replace(workdir, workdirs[-1]).split(), stdout=PIPE, stderr=PIPE))
-            if len(procs) > 500:  # can't have more open files than something like this
-                print 'exiting... too many procs'
-                sys.exit(0)
             # procs.append(Popen(['sleep', '10']))
 
         while procs.count(None) < len(procs):

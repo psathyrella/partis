@@ -1007,7 +1007,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     fig, ax = mpl_init()
     mpl.rcParams.update({
-        'legend.fontsize': 15,})
+        'legend.fontsize': 10,})
     plots = {}
     for meth, xyvals in plotvals.items():
         xvals = xyvals.keys()
@@ -1028,11 +1028,11 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     
     # legend = ax.legend(loc='center left')
     if valname == 'adj_mi':
-        lx = 0.85
+        lx = 0.8
         if mut_mult == 1:
-            ly = 0.85
+            ly = 0.58
         else:
-            ly = 0.62
+            ly = 0.6
     else:
         ly = 0.55
         lx = 0.85
@@ -1052,7 +1052,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     xticks = xvals
     xticklabels = [str(xt) for xt in xticks]
     plt.xticks(xticks, xticklabels)
-    yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt > ymin]
+    yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]
     yticklabels = [str(yt) for yt in yticks]
     plt.yticks(yticks, yticklabels)
     if not os.path.exists(plotdir + '/plots'):
