@@ -72,6 +72,9 @@ procs = []
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 
 # # ----------------------------------------------------------------------------------------
+# from clusterplot import ClusterPlot
+# import plotting
+# legends = {}
 # legends['v-true'] = 'true (V indels)'
 # legends['cdr3-true'] = 'true (CDR3 indels)'
 # legends['v-indels'] = 'full partis (V indels)'
@@ -84,25 +87,25 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('v-indels.csv', is_data=False)
 # v_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-# args.infnames = ['v-indels-partitions-new.csv', ]
-# v_cplot = ClusterPlot(args)
+# v_cpath = ClusterPath(-1)
+# v_cpath.readfile('v-indels-partitions-new.csv')
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('cdr3-indels.csv', is_data=False)
 # cdr3_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-# args.infnames = ['cdr3-indels-partitions-new.csv', ]
-# cdr3_cplot = ClusterPlot(args)
-# print 'v-indels: %f' % v_cplot.adj_mi_at_max_logprob
-# print 'cdr3-indels: %f' % cdr3_cplot.adj_mi_at_max_logprob
-# plotting.plot_cluster_size_hists(os.getenv('www') + '/partis/tmp/foo.svg',
+# cdr3_cpath = ClusterPath(-1)
+# cdr3_cpath.readfile('cdr3-indels-partitions-new.csv')
+# # print 'v-indels: %f' % v_cpath.adj_mi_at_max_logprob
+# # print 'cdr3-indels: %f' % cdr3_cplot.adj_mi_at_max_logprob
+# plotting.plot_cluster_size_hists(os.getenv('www') + '/partis/clustering/indel-performance.svg',
 #                                  OrderedDict([
 #                                      ['v-true', v_truehist],
-#                                      ['v-indels', v_cplot.tmp_cluster_size_hist],
+#                                      ['v-indels', plotting.get_cluster_size_hist(v_cpath.partitions[v_cpath.i_best])],
 #                                      ['cdr3-true', cdr3_truehist],
-#                                      ['cdr3-indels', cdr3_cplot.tmp_cluster_size_hist]
+#                                      ['cdr3-indels', plotting.get_cluster_size_hist(cdr3_cpath.partitions[cdr3_cpath.i_best])]
 #                                  ]),
 #                                  title='%d leaves, %dx mutation, indels' % (10, 1), xmax=10*3.01)
 # sys.exit()
-# # ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
 
 if args.dataset == 'stanford':
     datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
@@ -376,7 +379,7 @@ def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, pl
 
     if metric == 'logprob':
         nbins, xmin, xmax = 40, -55, 60
-        xlabel = 'log prob ratio'
+        xlabel = 'log likelihood ratio'
     elif metric == 'naive_hfrac':
         if args.zoom:
             nbins, xmin, xmax = 30, 0., 0.2
@@ -440,14 +443,17 @@ def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, pl
             h.normalize(include_overflows=not ignore, expect_empty=True)
             # print '    %20s %f' % (k, h.get_mean(ignore_overflows=ignore))  # NOTE ignoring overflows is kind of silly here!
     plots = {}
-    plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.5, linewidth=6)
-    plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='not', linewidth=7, alpha=0.5)
-    plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-    plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
+    plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=6)
+    plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=4)  #linewidth=7, alpha=0.5)
+    # plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+    # plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
     if args.logaxis:
         ax.set_yscale('log')
     delta = xmax - xmin
-    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel=xlabel, ylabel='frequency' if not args.dont_normalize else 'counts', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta])
+    leg_loc = None
+    if metric == 'naive_hfrac':
+        leg_loc = (0.5, 0.6)
+    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel=xlabel, ylabel='frequency' if not args.dont_normalize else 'counts', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
 
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info, metric):
@@ -523,6 +529,20 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info, metric
             one_quad_one_singleton.append((quads[iquad], singletons[ising]))
     make_a_distance_plot(metric, one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (quad + single)')
 
+    # print 'two pairs'
+    # two_pairs = []
+    # for ipair in range(len(pairs)):
+    #     for jpair in range(ipair + 1, len(pairs)):
+    #         two_pairs.append((pairs[ipair], pairs[jpair]))
+    # make_a_distance_plot(metric, two_pairs, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/two-pairs', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (pair + pair)')
+
+    # print 'two triplets'
+    # two_triplets = []
+    # for itriplet in range(len(triplets)):
+    #     for jtriplet in range(itriplet + 1, len(triplets)):
+    #         two_triplets.append((triplets[itriplet], triplets[jtriplet]))
+    # make_a_distance_plot(metric, two_triplets, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/two-triplets', plotname=plotname, plottitle=get_title(label, n_leaves, mut_mult) + ' (triplet + triplet)')
+
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(label):
     hists, adj_mis, ccfs, partitions = {}, {}, {}, {}
@@ -571,7 +591,7 @@ def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partit
 
     input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
-        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'logprob')  #'naive_hfrac')
+        make_distance_plots(label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'naive_hfrac')  #logprob')  #'')
         return
 
     rebin = None

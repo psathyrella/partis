@@ -859,15 +859,15 @@ def interpolate_values(xvals, yvals):
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'partition partis' : 'full partis',
            'partition' : 'full partis',
-           'naive-hamming-partition partis' : 'naive partis',
-           'naive-hamming-partition' : 'naive partis',
+           'naive-hamming-partition partis' : 'point partis',
+           'naive-hamming-partition' : 'point partis',
            'vsearch-partition partis' : 'vsearch partis',
            'vsearch-partition' : 'vsearch partis',
            'changeo' : 'Change-O',
            '0.1-true-singletons' : '10% random singletons',
            '0.1-true-reassign' : '10% random reassign',
            'mixcr' : 'MiXCR',
-           'adj_mi' : 'adjusted MI with true',
+           'adj_mi' : 'similarity to true partition',
            'ccf_under' : 'fraction not under-merged',
            'ccf_over' : 'fraction not over-merged'
            }
@@ -1084,8 +1084,8 @@ def mpl_init():
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None):
-    legend = ax.legend(loc=(0.04, 0.6))
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, leg_loc=(0.04, 0.6)):
+    legend = ax.legend(loc=leg_loc)
     sns.despine(trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
