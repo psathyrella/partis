@@ -12,6 +12,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--infname', default='kate-test.txt')  #s_1_1_2109_qseq-randomized.txt')
 parser.add_argument('--read', type=int, choices=[1, 2], required=True)
+parser.add_argument('--datadir', default='data/kate')  # where to get primer and "sample sheet"
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------

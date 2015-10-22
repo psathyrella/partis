@@ -11,6 +11,7 @@ import glob
 from collections import OrderedDict
 import csv
 from sklearn.metrics.cluster import adjusted_mutual_info_score
+import multiprocessing
 
 from opener import opener
 
@@ -1499,3 +1500,12 @@ def print_heapy(extrastr, heap):
         print heapstr
         sys.exit()
     print 'mem total %.3f MB    %s' % (float(total) / 1e6, extrastr)
+
+# ----------------------------------------------------------------------------------------
+def auto_slurm(n_procs):
+    """ Return true if we want to force slurm usage, e.g. if there's more processes than cores """
+    ncpu = multiprocessing.cpu_count()
+    if n_procs > ncpu:
+        print 'autoslurming'
+        return True
+    return False

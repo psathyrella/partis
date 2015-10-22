@@ -405,10 +405,10 @@ class PartitionDriver(object):
         return thold
 
     # ----------------------------------------------------------------------------------------
-    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, cache_naive_seqs):
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, cache_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
-        if self.args.slurm:
+        if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
         cmd_str += ' --chunk-cache '
@@ -573,10 +573,7 @@ class PartitionDriver(object):
         # if not naive_hamming_cluster:  # should already be there
         self.write_hmm_input(parameter_dir=parameter_in_dir)  # TODO don't keep rewriting it
 
-        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs)
-        if n_procs > 10 and 'srun' not in cmd_str:
-            print '   hacking in srun'
-            cmd_str = 'srun ' + cmd_str
+        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
         if cache_naive_seqs:
             print '      caching all naive sequences'
 

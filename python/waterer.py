@@ -172,7 +172,7 @@ class Waterer(object):
         if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
-        if self.args.slurm:
+        if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'
         match, mismatch = self.args.match_mismatch

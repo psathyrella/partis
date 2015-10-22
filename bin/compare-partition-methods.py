@@ -33,6 +33,7 @@ parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--lonely-leaves', action='store_true')
+parser.add_argument('--extra-label-str')
 parser.add_argument('--bak', action='store_true')
 parser.add_argument('--count-distances', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
@@ -57,6 +58,9 @@ args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 args.startstoplist = utils.get_arg_list(args.startstoplist)
 args.humans = utils.get_arg_list(args.humans)
+
+if 'cache-data-parameters' in args.actions:
+    args.data = True
 
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
@@ -901,7 +905,8 @@ def get_seqfile(action, label, datafname, n_leaves=None, mut_mult=None):
 
         seqfname = datafname
     else:
-        assert n_leaves is not None and mut_mult is not None
+        if not args.data:
+            assert n_leaves is not None and mut_mult is not None
         simfname = get_simfname(label, n_leaves, mut_mult, no_subset=True)
 
         if args.subset is not None:
@@ -953,7 +958,10 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
                 return False
             elif args.overwrite:
                 print '                      overwriting %s' % outfname
-                os.remove(outfname)
+                if os.path.isdir(outfname):
+                    raise Exception('output %s is a directory, rm it by hand' % outfname)
+                else:
+                    os.remove(outfname)
                 return False
             else:
                 print '                      output exists, skipping (%s)' % outfname
@@ -967,11 +975,13 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         else:
             return ('-' + action).join(os.path.splitext(seqfname))
 
+    n_procs, n_fewer_procs = 1, 1
     if action == 'cache-data-parameters':
         if output_exists(fsdir + '/' + label + '/data'):
             return
         extras += ['--n-max-queries', + args.n_data_to_cache]
         n_procs = max(1, args.n_data_to_cache / 500)
+        n_fewer_procs = min(500, args.n_data_to_cache / 2000)
     elif action == 'simulate':
         if output_exists(seqfname):
             return
@@ -995,6 +1005,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if args.count_distances:
             extras += ['--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1, 
         n_procs = max(1, args.n_to_partition / 100)
+        n_fewer_procs = min(500, args.n_to_partition / 2000)
     elif action == 'naive-hamming-partition':
         outfname = get_outputname()
         if output_exists(outfname):
@@ -1229,7 +1240,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     n_proc_str = str(n_procs)
     extras += ['--workdir', fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0,99999))]
     if n_procs > 10:
-        n_fewer_procs = max(1, min(500, args.n_to_partition / 2000))
+        n_fewer_procs = max(1, n_fewer_procs)
         n_proc_str += ':' + str(n_fewer_procs)
     extras += ['--slurm']
     print 'slurm hackin compare-partitions!'
@@ -1265,6 +1276,8 @@ for datafname in files:
         continue
     print 'run', human
     label = human
+    if args.extra_label_str is not None:
+        label += '-' + args.extra_label_str
     if args.bak:
         label += '.bak'
 
