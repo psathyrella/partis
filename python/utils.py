@@ -1182,8 +1182,18 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='0', info=None):
+def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
+    if subworkdir is not None:
+        def readfile(fname):
+            ftmp = open(fname)
+            fstr = ''.join(ftmp.readlines())
+            ftmp.close()
+            os.remove(fname)
+            return fstr
+        out = readfile(subworkdir + '/out')
+        err = readfile(subworkdir + '/err')
+
     print_str = ''
     for line in err.split('\n'):
         if 'srun: job' in line and 'queued and waiting for resources' in line:
@@ -1506,6 +1516,5 @@ def auto_slurm(n_procs):
     """ Return true if we want to force slurm usage, e.g. if there's more processes than cores """
     ncpu = multiprocessing.cpu_count()
     if n_procs > ncpu:
-        print 'autoslurming'
         return True
     return False

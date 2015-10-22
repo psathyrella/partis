@@ -1242,8 +1242,6 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
     if n_procs > 10:
         n_fewer_procs = max(1, n_fewer_procs)
         n_proc_str += ':' + str(n_fewer_procs)
-    extras += ['--slurm']
-    print 'slurm hackin compare-partitions!'
         
     extras += ['--n-procs', n_proc_str]
 

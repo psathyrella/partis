@@ -123,14 +123,20 @@ class Waterer(object):
             if not self.args.no_clean:
                 os.remove(self.args.workdir + '/' + base_infname)
         else:
+            def subworkdir(iproc):
+                return self.args.workdir + '/sw-' + str(iproc)
+
             procs = []
+            # start all the procs
             for iproc in range(n_procs):
-                cmd_str = self.get_vdjalign_cmd_str(self.args.workdir + '/sw-' + str(iproc), base_infname, base_outfname)
-                procs.append(Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE))
+                cmd_str = self.get_vdjalign_cmd_str(subworkdir(iproc), base_infname, base_outfname, n_procs=n_procs)
+                procs.append(Popen(cmd_str + ' 1>' + subworkdir(iproc) + '/out' + ' 2>' + subworkdir(iproc) + '/err', shell=True))
                 time.sleep(0.1)
+
+            # finish the procs
             for iproc in range(len(procs)):
-                out, err = procs[iproc].communicate()
-                utils.process_out_err(out, err, extra_str=str(iproc))
+                procs[iproc].communicate()
+                utils.process_out_err('', '', extra_str=str(iproc), subworkdir=subworkdir(iproc))
             if not self.args.no_clean:
                 for iproc in range(n_procs):
                     os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
@@ -161,7 +167,7 @@ class Waterer(object):
                     sub_infile.write(seq + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """

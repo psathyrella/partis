@@ -456,10 +456,9 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def execute_iproc(self, cmd_str):
-        proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
+    def execute_iproc(self, cmd_str, workdir):
+        proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
         return proc
-
 
     # ----------------------------------------------------------------------------------------
     def get_n_calculated_per_process(self):
@@ -502,7 +501,7 @@ class PartitionDriver(object):
             procs, n_tries, progress_strings = [], [], []
             self.n_likelihoods_calculated = []
             for iproc in range(n_procs):
-                procs.append(self.execute_iproc(cmd_strs[iproc]))
+                procs.append(self.execute_iproc(cmd_strs[iproc], workdir=workdirs[iproc]))
                 n_tries.append(1)
                 self.n_likelihoods_calculated.append({})
 
@@ -529,8 +528,8 @@ class PartitionDriver(object):
             def finish_process(iproc):
                 # if os.path.exists(get_progress_fname(iproc)):
                 #     os.remove(get_progress_fname(iproc))
-                out, err = procs[iproc].communicate()
-                utils.process_out_err(out, err, extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc])
+                procs[iproc].communicate()
+                utils.process_out_err('', '', extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc], subworkdir=workdirs[iproc])
                 if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
                     procs[iproc] = None  # job succeeded
                 elif n_tries[iproc] > 5:
@@ -540,13 +539,13 @@ class PartitionDriver(object):
                     if not os.path.exists(get_outfname(iproc)):
                         print ', output %s d.n.e.' % get_outfname(iproc),
                     print ')'
-                    procs[iproc] = self.execute_iproc(cmd_strs[iproc])
+                    procs[iproc] = self.execute_iproc(cmd_strs[iproc], workdir=workdirs[iproc])
                     n_tries[iproc] += 1
 
             # keep looping over the procs until they're all done
             while procs.count(None) != len(procs):  # we set each proc to None when it finishes
                 for iproc in range(n_procs):
-                    if procs[iproc] is None:
+                    if procs[iproc] is None:  # already finished
                         continue
                     # read_progress(iproc)
                     if procs[iproc].poll() is not None:  # it's finished
