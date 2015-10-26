@@ -86,7 +86,7 @@ class Waterer(object):
         n_tries = 0
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             self.write_vdjalign_input(base_infname, n_procs=self.args.n_fewer_procs)
-            self.execute_command(base_infname, base_outfname, self.args.n_fewer_procs)
+            self.execute_commands(base_infname, base_outfname, self.args.n_fewer_procs)
             self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
             n_tries += 1
             if n_tries > 2:
@@ -114,7 +114,7 @@ class Waterer(object):
                     self.true_pcounter.plot(self.args.plotdir + 'sw/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
     # ----------------------------------------------------------------------------------------
-    def execute_command(self, base_infname, base_outfname, n_procs):
+    def execute_commands(self, base_infname, base_outfname, n_procs):
         if n_procs == 1:
             cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
             proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
@@ -123,24 +123,57 @@ class Waterer(object):
             if not self.args.no_clean:
                 os.remove(self.args.workdir + '/' + base_infname)
         else:
-            def subworkdir(iproc):
-                return self.args.workdir + '/sw-' + str(iproc)
+            shell=True
 
-            procs = []
-            # start all the procs
+            cmd_strs, workdirs = [], []
             for iproc in range(n_procs):
-                cmd_str = self.get_vdjalign_cmd_str(subworkdir(iproc), base_infname, base_outfname, n_procs=n_procs)
-                procs.append(Popen(cmd_str + ' 1>' + subworkdir(iproc) + '/out' + ' 2>' + subworkdir(iproc) + '/err', shell=True))
+                workdirs.append(self.args.workdir + '/sw-' + str(iproc))
+                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, iproc, n_procs, shell))
+
+            # start all procs for the first time
+            procs, n_tries = [], []
+            for iproc in range(n_procs):
+                procs.append(Popen(cmd_strs[iproc], shell=shell))
+                n_tries.append(1)
                 time.sleep(0.1)
 
-            # finish the procs
-            for iproc in range(len(procs)):
+            # ----------------------------------------------------------------------------------------
+            def get_outfname(iproc):
+                return workdirs[iproc] + '/' + base_outfname
+
+            # ----------------------------------------------------------------------------------------
+            # deal with a process once it's finished (i.e. check if it failed, and restart if so)
+            def finish_process(iproc):
                 procs[iproc].communicate()
-                utils.process_out_err('', '', extra_str=str(iproc), subworkdir=subworkdir(iproc))
+                utils.process_out_err('', '', extra_str=str(iproc), subworkdir=workdirs[iproc])
+                if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):
+                    procs[iproc] = None  # job succeeded
+                elif n_tries[iproc] > 5:
+                    raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
+                else:
+                    print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+                    if not os.path.exists(get_outfname(iproc)):
+                        print ', output %s d.n.e.' % get_outfname(iproc),
+                    print ')'
+                    procs[iproc] = Popen(cmd_strs[iproc], shell=shell)
+                    n_tries[iproc] += 1
+
+            # keep looping over the procs until they're all done
+            while procs.count(None) != len(procs):  # we set each proc to None when it finishes
+                for iproc in range(n_procs):
+                    if procs[iproc] is None:  # already finished
+                        continue
+                    # read_progress(iproc)
+                    if procs[iproc].poll() is not None:  # it's finished
+                        finish_process(iproc)
+                sys.stdout.flush()
+                time.sleep(1)
+
             if not self.args.no_clean:
                 for iproc in range(n_procs):
-                    os.remove(self.args.workdir + '/sw-' + str(iproc) + '/' + base_infname)
+                    os.remove(workdirs[iproc] + '/' + base_infname)
 
+# ----------------------------------------------------------------------------------------
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
@@ -167,7 +200,7 @@ class Waterer(object):
                     sub_infile.write(seq + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, iproc=None, n_procs=None, shell=False):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
@@ -186,6 +219,9 @@ class Waterer(object):
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + self.args.datadir
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+
+        if shell:
+            cmd_str += ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err'
 
         return cmd_str
 
