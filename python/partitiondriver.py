@@ -1192,28 +1192,6 @@ class PartitionDriver(object):
         return combo
 
     # ----------------------------------------------------------------------------------------
-    def remove_sw_failures(self, query_names):
-        """ If any of the queries in <query_names> was unproductive, return an empty list (which will be skipped entirely), otherwise return the original name list """
-        unproductive, unknown = False, False
-
-        for qrn in query_names:
-            if qrn in self.sw_info['skipped_unproductive_queries']:
-                unproductive = True
-            if qrn in self.sw_info['skipped_unknown_queries']:
-                unknown = True
-        if unproductive or unknown:
-            return []
-
-        # otherwise they should be in self.sw_info, but doesn't hurt to check
-        return_names = []
-        for name in query_names:
-            if name in self.sw_info:
-                return_names.append(name)
-            else:
-                print '    %s not found in sw info' % ' '.join([qn for qn in query_names])
-        return return_names
-
-    # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
         csvfile = opener(mode)(fname)
         header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs', 'cyst_positions']  # NOTE logweight is for the whole partition
@@ -1224,17 +1202,24 @@ class PartitionDriver(object):
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
             random.shuffle(nsets)
 
-        for query_names in nsets:
-            non_failed_names = self.remove_sw_failures(query_names)
-            if len(non_failed_names) == 0:
+        sw_failures = self.sw_info['skipped_unproductive_queries'] + self.sw_info['skipped_unknown_queries']
+        for query_name_list in nsets:
+            # skip the whole nset if any query which it contains was skipped in the sw step
+            failed_sw = False
+            for query in query_name_list:
+                if query in sw_failures:
+                    failed_sw = True
+                    break
+            if failed_sw:
                 continue
-            combined_query = self.combine_queries(non_failed_names, parameter_dir, skipped_gene_matches=skipped_gene_matches)
+
+            combined_query = self.combine_queries(query_name_list, parameter_dir, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
                 'path_index' : path_index,
                 'logweight' : logweight,  # NOTE same for all lines with the same <path_index> (since they're all from the same partition)
-                'names' : ':'.join([qn for qn in non_failed_names]),
+                'names' : ':'.join([qn for qn in query_name_list]),
                 'k_v_min' : combined_query['k_v']['min'],
                 'k_v_max' : combined_query['k_v']['max'],
                 'k_d_min' : combined_query['k_d']['min'],
@@ -1243,7 +1228,7 @@ class PartitionDriver(object):
                 'seqs' : ':'.join(combined_query['seqs']),  # may be truncated, and thus not the same as those in <input_info> or <sw_info>
                 'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']]),  # a.t.m., not corrected for truncation
                 'cyst_positions' : ':'.join([str(cpos) for cpos in combined_query['cyst_positions']]),  # TODO should really use the hmm cpos if it's available
-                # 'cyst_positions' : ':'.join([str(self.sw_info[qn]['cyst_position']) for qn in non_failed_names])  # TODO should really use the hmm cpos if it's available
+                # 'cyst_positions' : ':'.join([str(self.sw_info[qn]['cyst_position']) for qn in query_name_list])  # TODO should really use the hmm cpos if it's available
             })
 
         csvfile.close()
@@ -1466,7 +1451,9 @@ class PartitionDriver(object):
 
         print '    processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
         if len(boundary_error_queries) > 0:
-            print '      %d boundary errors (%s)' % (len(boundary_error_queries), ', '.join(boundary_error_queries))
+            print '      %d boundary errors' % len(boundary_error_queries)
+            if self.args.debug:
+                print '                %s' % ', '.join(boundary_error_queries)
 
         if self.args.outfname is not None:
             outpath = self.args.outfname
