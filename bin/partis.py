@@ -66,7 +66,7 @@ parser.add_argument('--queries', help='Colon-separated list of query names to wh
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
-parser.add_argument('--n-best-events', type=int, default=3, help='Number of best events to print (i.e. n-best viterbi paths)')
+parser.add_argument('--n-best-events', type=int, default=1, help='Number of best events to print (i.e. n-best viterbi paths)')
 
 # simulation (see also gtr-fname)
 # NOTE see also mutation-multiplier, although that comes into play after the trees are generated
