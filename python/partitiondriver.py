@@ -1213,16 +1213,6 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
-    def randomize_nsets(self, nsets):
-        random_nsets = []
-        nsets = list(nsets)  # in case it's an itertools iterable thingamajiggyboodle
-        while len(nsets) > 0:
-            irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
-            random_nsets.append(nsets[irand])
-            nsets.remove(nsets[irand])
-        return random_nsets
-
-    # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
         csvfile = opener(mode)(fname)
         header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs', 'cyst_positions']  # NOTE logweight is for the whole partition
@@ -1231,7 +1221,7 @@ class PartitionDriver(object):
             writer.writeheader()
 
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
-            nsets = self.randomize_nsets(nsets)
+            random.shuffle(nsets)
 
         for query_names in nsets:
             non_failed_names = self.remove_sw_failures(query_names)

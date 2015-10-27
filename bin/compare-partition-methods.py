@@ -941,7 +941,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         real_action = 'partition'
     cmd = './bin/run-driver.py --label ' + label + ' --action ' + real_action
 
-    extras = ['--random-divvy']
+    extras = []
     seqfname = get_seqfile(action, label, datafname, n_leaves, mut_mult)
     if args.data:
         cmd += ' --datafname ' + seqfname + ' --is-data'
@@ -1001,7 +1001,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition]
+        extras += ['--random-divvy', '--n-max-queries', args.n_to_partition]
         if args.count_distances:
             extras += ['--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1, 
         n_procs = max(1, args.n_to_partition / 100)
@@ -1011,7 +1011,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
+        extras += ['--random-divvy', '--n-max-queries', args.n_to_partition, '--naive-hamming']  # TODO not actually sure if I want random-divvy here
         n_procs = max(1, args.n_to_partition / 200)
     elif action == 'vsearch-partition':
         outfname = get_outputname()
@@ -1019,7 +1019,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         if output_exists(outfname):
             return
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
+        extras += ['--random-divvy', '--n-max-queries', args.n_to_partition, '--naive-vsearch']  # TODO not actually sure if I want random-divvy here
         n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
     elif action == 'run-viterbi':
         outfname = get_outputname()
