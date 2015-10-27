@@ -41,7 +41,6 @@ class Waterer(object):
         self.info['queries'] = []
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
-        # self.info['skipped_indel_queries'] = []  # list of queries that had indels
         self.info['skipped_unknown_queries'] = []
         self.info['indels'] = {}
         if self.args.apply_choice_probs_in_sw:
@@ -58,9 +57,6 @@ class Waterer(object):
         self.outfile = None
         if self.args.outfname is not None:
             self.outfile = open(self.args.outfname, 'a')
-
-        self.n_unproductive = 0
-        self.n_total = 0
 
         print 'smith-waterman'
 
@@ -89,7 +85,7 @@ class Waterer(object):
             self.execute_commands(base_infname, base_outfname, self.args.n_fewer_procs)
             self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
             n_tries += 1
-            if n_tries > 2:
+            if n_tries > 3:
                 self.info['skipped_unknown_queries'] += self.remaining_queries
                 break
 
@@ -100,11 +96,13 @@ class Waterer(object):
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw/performance')
         # print '    sw time: %.3f' % (time.time()-start)
-        if self.n_unproductive > 0:
-            print '      unproductive skipped %d / %d = %.2f' % (self.n_unproductive, self.n_total, float(self.n_unproductive) / self.n_total)
-        # if len(self.info['skipped_indel_queries']) > 0:
-        #     print '      indels skipped %d / %d = %.2f' % (len(self.info['skipped_indel_queries']), self.n_total, float(len(self.info['skipped_indel_queries'])) / self.n_total)
-        if len(self.info['indels']) > 0:
+        n_unproductive = len(self.info['skipped_unproductive_queries'])
+        if n_unproductive > 0:
+            print '      unproductive skipped %d / %d = %.3f' % (n_unproductive, len(self.input_info), float(n_unproductive) / len(self.input_info))
+        n_unknown = len(self.info['skipped_unknown_queries'])
+        if n_unknown > 0:
+            print '      unknown skipped %d / %d = %.3f' % (n_unknown, len(self.input_info), float(n_unknown) / len(self.input_info))
+        if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
@@ -173,7 +171,6 @@ class Waterer(object):
                 for iproc in range(n_procs):
                     os.remove(workdirs[iproc] + '/' + base_infname)
 
-# ----------------------------------------------------------------------------------------
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
@@ -236,7 +233,6 @@ class Waterer(object):
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    self.n_total += 1
                     self.process_query(bam, list(reads))
                     n_processed += 1
 
@@ -247,14 +243,15 @@ class Waterer(object):
 
         print '    processed %d queries' % n_processed
 
-        if len(self.remaining_queries) > 0:
-            if self.new_indels > 0:  # if we skipped some events, and if none of those were because they were indels, then increase mismatch score
-                print '      skipped %d queries (%d indels), rerunning them' % (len(self.remaining_queries), self.new_indels)
+        if len(self.remaining_queries) > 0:  # if we skipped some seqs
+            if self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
+                print '      skipped %d indels, rerunning with indels reversed (skipped %d total seqs)' % (self.new_indels, len(self.remaining_queries), )
                 self.new_indels = 0
-            else:
+            elif self.new_indels == 0:
                 print '      skipped %d queries (%d indels), increasing mismatch score (%d --> %d) and rerunning them' % (len(self.remaining_queries), self.new_indels, self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
-                self.new_indels = 0
+            else:
+                assert False
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
@@ -628,8 +625,8 @@ class Waterer(object):
             if self.args.skip_unproductive:
                 if self.debug:
                     print '            ...skipping'
-                self.n_unproductive += 1
                 self.info['skipped_unproductive_queries'].append(query_name)
+                self.remaining_queries.remove(query_name)
                 return
 
         # best k_v, k_d:

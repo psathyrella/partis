@@ -1195,6 +1195,7 @@ class PartitionDriver(object):
     def remove_sw_failures(self, query_names):
         """ If any of the queries in <query_names> was unproductive, return an empty list (which will be skipped entirely), otherwise return the original name list """
         unproductive, unknown = False, False
+
         for qrn in query_names:
             if qrn in self.sw_info['skipped_unproductive_queries']:
                 unproductive = True
