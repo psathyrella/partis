@@ -1213,29 +1213,26 @@ class PartitionDriver(object):
         return return_names
 
     # ----------------------------------------------------------------------------------------
+    def randomize_nsets(self, nsets):
+        random_nsets = []
+        nsets = list(nsets)  # in case it's an itertools iterable thingamajiggyboodle
+        while len(nsets) > 0:
+            irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
+            random_nsets.append(nsets[irand])
+            nsets.remove(nsets[irand])
+        return random_nsets
+
+    # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
         csvfile = opener(mode)(fname)
         header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs', 'cyst_positions']  # NOTE logweight is for the whole partition
         writer = csv.DictWriter(csvfile, header, delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         if mode == 'w':
             writer.writeheader()
-        # start = time.time()
 
-        # for k in nsets:
-        #     print k
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
-            # print 'randomizing input order'
-            random_nsets = []
-            nsets = list(nsets)  # in case it's an itertools iterable thingamajiggyboodle
-            while len(nsets) > 0:
-                irand = random.randint(0, len(nsets) - 1)  # NOTE interval is inclusive
-                random_nsets.append(nsets[irand])
-                nsets.remove(nsets[irand])
-            nsets = random_nsets
-        # print '---'
-        # for k in nsets:
-        #     print k
-        
+            nsets = self.randomize_nsets(nsets)
+
         for query_names in nsets:
             non_failed_names = self.remove_sw_failures(query_names)
             if len(non_failed_names) == 0:
@@ -1259,7 +1256,6 @@ class PartitionDriver(object):
             })
 
         csvfile.close()
-        # print '        input write time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, parameter_dir):
