@@ -42,8 +42,8 @@ data_parameter_dir = 'test/regression/parameters/data/hmm'
 # then add the simple, few-sequence tests (using partis.py)
 cmd = './bin/partis.py'
 tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 3 --debug 1 ' + ' '.join(common_extras)
-tests['partition-data'] = cmd + ' --action partition --seqfile ' + datafname + ' --is-data --parameter-dir ' + data_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
-tests['partition-simu'] = cmd + ' --action partition --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
+tests['partition-data'] = cmd + ' --action partition --seqfile ' + datafname + ' --is-data --random-divvy --parameter-dir ' + data_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
+tests['partition-simu'] = cmd + ' --action partition --seqfile test/regression/parameters/simu.csv --random-divvy --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
 tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --debug 1 --n-max-queries 3 ' + ' '.join(common_extras)
 
 # ----------------------------------------------------------------------------------------
