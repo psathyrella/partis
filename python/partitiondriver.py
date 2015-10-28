@@ -885,36 +885,6 @@ class PartitionDriver(object):
                     os.rmdir(subworkdir)
 
     # ----------------------------------------------------------------------------------------
-    def get_pairs(self, preclusters=None):
-        """ Get all unique the pairs of sequences in input_info, skipping where preclustered out """
-        all_pairs = itertools.combinations(self.input_info.keys(), 2)
-        if preclusters == None:
-            print '    ?? lines (no preclustering)'  # % len(list(all_pairs)) NOTE I'm all paranoid the list conversion will be slow (although it doesn't seem to be a.t.m.)
-            return all_pairs
-        else:  # if we've already run preclustering, skip the pairs that we know aren't matches
-            preclustered_pairs = []
-            n_lines, n_preclustered, n_previously_preclustered, n_removable, n_singletons = 0, 0, 0, 0, 0
-            for a_name, b_name in all_pairs:
-                key = utils.get_key((a_name, b_name))
-                # NOTE shouldn't need this any more:
-                if a_name not in preclusters.query_clusters or b_name not in preclusters.query_clusters:  # singletons (i.e. they were already preclustered into their own group)
-                    n_singletons += 1
-                    continue
-                if key not in preclusters.pairscores:  # preclustered out in a previous preclustering step
-                    n_previously_preclustered += 1
-                    continue
-                if preclusters.query_clusters[a_name] != preclusters.query_clusters[b_name]:  # not in same cluster
-                    n_preclustered += 1
-                    continue
-                if preclusters.is_removable(preclusters.pairscores[key]):  # in same cluster, but score (link) is long. i.e. *this* pair is far apart, but other seqs to which they are linked are close to each other
-                    n_removable += 1
-                    continue
-                preclustered_pairs.append((a_name, b_name))
-                n_lines += 1
-            print '    %d lines (%d preclustered out, %d removable links, %d singletons, %d previously preclustered)' % (n_lines, n_preclustered, n_removable, n_singletons, n_previously_preclustered)
-            return preclustered_pairs
-
-    # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
         """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
         print '  writing hmms with info from %s' % parameter_dir
@@ -1308,49 +1278,6 @@ class PartitionDriver(object):
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
-
-    # ----------------------------------------------------------------------------------------
-    def get_bcrham_truncations(self, line):
-        chops = []
-        for iq in range(len(line['unique_ids'])):
-            # print line['unique_ids'][iq]
-            original_seq = self.input_info[line['unique_ids'][iq]]['seq']
-            bcrham_seq = line['seqs'][iq]
-            chopleft = original_seq.find(bcrham_seq)
-            assert chopleft >= 0 and chopleft <= len(original_seq)
-            chopright = len(original_seq) - len(bcrham_seq) - chopleft
-            assert chopright >= 0 and chopright <= len(original_seq)
-
-            chops.append({'left' : chopleft, 'right' : chopright})
-
-            # print '    ', line['v_5p_del'], line['j_3p_del']
-            # TODO this isn't right yet
-
-            truncated_seq = original_seq
-            if chopleft > 0:
-                truncated_seq = truncated_seq[chopleft : ]
-                # line['chopleft'] = chopleft
-                # if line['v_5p_del'] < chopleft:
-                #     print 'ERROR v_5p_del %d smaller than chopleft %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['v_5p_del'], chopleft)
-                # else:
-                #     line['v_5p_del'] -= chopleft
-                # line['seqs'][iq] = original_seq
-            if chopright > 0:
-                truncated_seq = truncated_seq[ : -chopright]
-                # line['chopright'] = chopright
-                # if line['j_3p_del'] < chopright:
-                #     print 'ERROR j_3p_del %d smaller than chopright %d, i.e. bcrham probably couldn\'t delete some things it wanted to' % (line['j_3p_del'], chopright)
-                # else:
-                #     line['j_3p_del'] -= chopright
-                # line['seqs'][iq] = original_seq
-            # print '    ', line['v_5p_del'], line['j_3p_del']
-
-            # print '    ', original_seq
-            # print '    ', bcrham_seq
-            # print '    ', truncated_seq
-            assert bcrham_seq == truncated_seq
-
-        return chops
 
     # ----------------------------------------------------------------------------------------
     def read_naive_hamming_clusters(self, n_procs):
