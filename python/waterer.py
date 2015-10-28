@@ -96,9 +96,9 @@ class Waterer(object):
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw/performance')
         # print '    sw time: %.3f' % (time.time()-start)
-        n_unproductive = len(self.info['skipped_unproductive_queries'])
-        if n_unproductive > 0:
-            print '      unproductive skipped %d / %d = %.3f' % (n_unproductive, len(self.input_info), float(n_unproductive) / len(self.input_info))
+        skipped_unproductive = len(self.info['skipped_unproductive_queries'])
+        if skipped_unproductive > 0:
+            print '      unproductive skipped %d / %d = %.3f' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info))
         n_unknown = len(self.info['skipped_unknown_queries'])
         if n_unknown > 0:
             print '      unknown skipped %d / %d = %.3f' % (n_unknown, len(self.input_info), float(n_unknown) / len(self.input_info))
@@ -370,7 +370,8 @@ class Waterer(object):
                         # self.info['skipped_indel_queries'].append(query_name)
                         # self.info[query_name] = {'indels'}
                     else:
-                        print '     multiple indels for %s' % query_name
+                        if self.debug:
+                            print '     ignoring subsequent indels for %s' % query_name
                     return
                 else:
                     continue
