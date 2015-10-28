@@ -111,8 +111,7 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + 'sw/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
-        if not self.args.dont_pad_sequences:
-            self.pad_seqs_to_same_length()  # adds padded info to self.info (returns if stuff has already been padded)
+        self.pad_seqs_to_same_length()  # adds padded info to self.info (returns if stuff has already been padded)
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):

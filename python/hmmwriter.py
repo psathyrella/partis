@@ -182,7 +182,6 @@ class HmmWriter(object):
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = 20
-        # self.allow_external_deletions = args.allow_external_deletions       # allow v left and j right deletions. I.e. if your reads extend beyond v or j boundaries
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
 
         self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
@@ -603,7 +602,7 @@ class HmmWriter(object):
 
         # then add transitions to the region's internal states
         total = 0.0
-        if not self.args.dont_pad_sequences and self.region == 'v':  # only add a transition to the zeroth internal state (no v_5p deletions)
+        if self.region == 'v':  # only add a transition to the zeroth internal state
             state.add_transition('%s_%d' % (self.saniname, 0), region_entry_prob)
             total += region_entry_prob
             self.smallest_entry_index = 0
@@ -664,7 +663,7 @@ class HmmWriter(object):
         if distance_to_end == 0:  # last state has to exit region
             return 1.0
 
-        if self.region == 'j' and not self.args.dont_pad_sequences:  # no j_3p deletions if we're padding with Ns
+        if self.region == 'j':
             return 0.0
 
         erosion = self.region + '_3p'

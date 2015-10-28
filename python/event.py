@@ -58,7 +58,7 @@ class RecombinationEvent(object):
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_cyst_tryp_positions(self, debug=False, total_length_from_right=-1):
+    def set_final_cyst_tryp_positions(self, debug=False):
         """ Set tryp position in the final, combined sequence. """
         self.final_cyst_position = self.local_cyst_position - self.effective_erosions['v_5p']
         self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position,
@@ -78,12 +78,8 @@ class RecombinationEvent(object):
             
         assert final_cdr3_length == int(self.cdr3_length)
 
-        assert total_length_from_right == -1  # deprecated (I think) now that I'm adding the mimic_data_read_length option
-        # if total_length_from_right >= 0:
-        #     self.effective_erosions['v_5p'] = len(self.recombined_seq) - total_length_from_right
-
     # ----------------------------------------------------------------------------------------
-    def write_event(self, outfile, total_length_from_right=0, irandom=None):
+    def write_event(self, outfile, irandom=None):
         """ 
         Write out all info to csv file.
         NOTE/RANT so, in calculating each sequence's unique id, we need to hash more than the information about the rearrangement
@@ -130,8 +126,6 @@ class RecombinationEvent(object):
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
                 row['seq'] = self.final_seqs[imute]
-                if total_length_from_right > 0:
-                    row['seq'] = row['seq'][len(row['seq'])-total_length_from_right : ]
                 unique_id = ''  # Hash to uniquely identify the sequence.
                 for column in row:
                     unique_id += str(row[column])
@@ -144,7 +138,7 @@ class RecombinationEvent(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def print_event(self, total_length_from_right=0):
+    def print_event(self):
         line = {}  # collect some information into a form that print_reco_event understands
         line['cdr3_length'] = self.cdr3_length
         for region in utils.regions:
@@ -166,8 +160,6 @@ class RecombinationEvent(object):
         utils.print_reco_event(self.germlines, line, indelfos=self.indelfo)
         # for imute in range(len(self.final_seqs)):
         #     line['seq'] = self.final_seqs[imute]
-        #     if total_length_from_right > 0:
-        #         line['seq'] = line['seq'][len(line['seq'])-total_length_from_right : ]
         #     line['indels'] = self.indelfo[imute]
         #     utils.print_reco_event(self.germlines, line, one_line=(imute!=0 and len(self.indelfo[imute]['indels']) == 0))
 

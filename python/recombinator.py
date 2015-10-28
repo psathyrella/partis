@@ -22,7 +22,7 @@ from event import RecombinationEvent
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, seed, sublabel=None, total_length_from_right=-1):
+    def __init__(self, args, seed, sublabel=None):
         self.args = args
 
         if sublabel == None:
@@ -37,7 +37,6 @@ class Recombinator(object):
             raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
 
         # parameters that control recombination, erosion, and whatnot
-        self.total_length_from_right = total_length_from_right  # measured from right edge of j, only write to file this much of the sequence (our read lengths are 130 by this def'n a.t.m.)
 
         self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
@@ -134,7 +133,7 @@ class Recombinator(object):
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
         try:
-            reco_event.set_final_cyst_tryp_positions(total_length_from_right=self.total_length_from_right, debug=self.args.debug)
+            reco_event.set_final_cyst_tryp_positions(debug=self.args.debug)
         except AssertionError:
             print 'ERROR bad conserved codons, what the hell?'
             return False
@@ -145,10 +144,10 @@ class Recombinator(object):
             reco_event.final_seqs.append(reco_event.recombined_seq)
 
         if self.args.debug:
-            reco_event.print_event(self.total_length_from_right)
+            reco_event.print_event()
 
         # write output to csv
-        reco_event.write_event(self.outfname, self.total_length_from_right, irandom=irandom)
+        reco_event.write_event(self.outfname, irandom=irandom)
 
         return True
 

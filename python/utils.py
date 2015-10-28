@@ -1227,21 +1227,27 @@ def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
         print print_str
 
 # ----------------------------------------------------------------------------------------
-def remove_ambiguous_ends(seq, fv_insertion, jf_insertion):
-    """ remove ambiguous bases from the left and right ends of <seq> """
-    i_seq_start, i_seq_end = None, None  # positions at which the "real" (non-ambiguous) sequence begins and [just after it] ends
+def find_first_non_ambiguous_base(seq):
+    """ return index of first non-ambiguous base """
     for ib in range(len(seq)):
         if seq[ib] not in ambiguous_bases:
-            i_seq_start = ib
-            break
-    for ib in range(len(seq) - 1, -1, -1):
-        if seq[ib] not in ambiguous_bases:
-            i_seq_end = ib + 1
-            break
+            return ib
+    assert False  # whole sequence was ambiguous... probably shouldn't get here
 
-    # print 'fv: %s  jf: %s ' % (fv_insertion, jf_insertion)
-    # print '    ', i_seq_start, i_seq_end
-    return fv_insertion + seq[i_seq_start: i_seq_end] + jf_insertion
+# ----------------------------------------------------------------------------------------
+def find_last_non_ambiguous_base_plus_one(seq):
+    for ib in range(len(seq) - 1, -1, -1):  # count backwards from the end
+        if seq[ib] not in ambiguous_bases:  # find first non-ambiguous base
+            return ib + 1  # add one for easy slicing
+
+    assert False  # whole sequence was ambiguous... probably shouldn't get here
+
+# ----------------------------------------------------------------------------------------
+def remove_ambiguous_ends(seq):
+    """ remove ambiguous bases from the left and right ends of <seq> """
+    i_seq_start = find_first_non_ambiguous_base(seq)
+    i_seq_end = find_last_non_ambiguous_base_plus_one(seq)
+    return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
 def get_true_clusters(ids, reco_info):

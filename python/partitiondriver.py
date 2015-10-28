@@ -305,7 +305,7 @@ class PartitionDriver(object):
             for query, naive_seq in naive_seqs.items():
                 if self.args.naive_swarm:
                     query += '_1'
-                    naive_seq = utils.remove_ambiguous_ends(naive_seq, '', '')
+                    naive_seq = utils.remove_ambiguous_ends(naive_seq)
                     naive_seq = naive_seq.replace('N', 'A')
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
@@ -629,11 +629,10 @@ class PartitionDriver(object):
         def get_query_from_sw(qry):
             assert qry in self.sw_info
             naive_seq = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[qry])
-            if not self.args.dont_pad_sequences:
-                padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
-                padright = self.sw_info[qry]['padded']['padright']
-                assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-                naive_seq = padleft * utils.ambiguous_bases[0] + naive_seq + padright * utils.ambiguous_bases[0]
+            padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
+            padright = self.sw_info[qry]['padded']['padright']
+            assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+            naive_seq = padleft * utils.ambiguous_bases[0] + naive_seq + padright * utils.ambiguous_bases[0]
             return naive_seq
 
         naive_seqs = {}
@@ -1033,7 +1032,6 @@ class PartitionDriver(object):
         for name in query_names:
             swfo = self.sw_info[name]
             if 'padded' in swfo:
-                assert not self.args.dont_pad_sequences
                 k_v = swfo['padded']['k_v']
                 seq = swfo['padded']['seq']
                 cpos = swfo['padded']['cyst_position']
@@ -1255,7 +1253,7 @@ class PartitionDriver(object):
                             if uid in self.sw_info['indels']:
                                 print '    skipping performance evaluation of %s because of indels' % uid  # I just have no idea how to handle naive hamming fraction when there's indels
                             else:
-                                perfplotter.evaluate(self.reco_info[uid], hmminfo[uid], None if self.args.dont_pad_sequences else self.sw_info[uid]['padded'])
+                                perfplotter.evaluate(self.reco_info[uid], hmminfo[uid], self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
         if pcounter is not None:
