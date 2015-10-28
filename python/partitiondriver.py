@@ -140,9 +140,6 @@ class PartitionDriver(object):
         waterer.run()
         print '        water time: %.3f' % (time.time()-start)
         self.sw_info = waterer.info
-        if not self.args.dont_pad_sequences:  # have to do this before we divvy... sigh TODO clean this up and only call it in one place
-            # TODO oh, duh, just do it in waterer
-            self.pad_seqs_to_same_length()  # adds padded info to sw_info
 
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
@@ -988,96 +985,6 @@ class PartitionDriver(object):
         return lengths
 
     # ----------------------------------------------------------------------------------------
-    def get_padding_parameters(self, debug=False):
-        all_v_matches, all_j_matches = set(), set()
-        for query in self.sw_info['queries']:
-            swfo = self.sw_info[query]
-            for match in swfo['all'].split(':'):
-                if utils.get_region(match) == 'v':
-                    all_v_matches.add(match)
-                elif utils.get_region(match) == 'j':
-                    all_j_matches.add(match)
-
-        maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}  #, 'fv_insertion_len' : None, 'jf_insertion_len' : None}
-        for query in self.sw_info['queries']:
-            fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
-            jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
-
-            for v_match in all_v_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
-                gl_cpos = self.cyst_positions[v_match]['cysteine-position'] + fvstuff
-                if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
-                    maxima['gl_cpos'] = gl_cpos
-
-            swfo = self.sw_info[query]
-            seq = swfo['seq']
-            cpos = swfo['cyst_position']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
-            for j_match in all_j_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
-                # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment
-                gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + jfstuff
-                if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
-                    maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
-
-            # if maxima['fv_insertion_len'] is None or len(swfo['fv_insertion']) > maxima['fv_insertion_len']:
-            #     maxima['fv_insertion_len'] = len(swfo['fv_insertion'])
-            # if maxima['jf_insertion_len'] is None or len(swfo['jf_insertion']) > maxima['jf_insertion_len']:
-            #     maxima['jf_insertion_len'] = len(swfo['jf_insertion'])
-
-        if debug:
-            print '    maxima:',
-            for k, v in maxima.items():
-                print '%s %d    ' % (k, v),
-            print ''
-        return maxima
-
-    # ----------------------------------------------------------------------------------------
-    def pad_seqs_to_same_length(self, debug=False):
-        """
-        Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
-        Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
-        """
-
-        maxima = self.get_padding_parameters(debug)
-
-        for query in self.sw_info['queries']:
-            swfo = self.sw_info[query]
-            if 'padded' in swfo:  # already added padded information (we're probably partitioning, and this is not the first step)
-                return
-            seq = swfo['seq']
-            cpos = swfo['cyst_position']
-            if cpos < 0 or cpos >= len(seq):
-                print 'hm now what do I want to do here?'
-            k_v = swfo['k_v']
-
-            # padleft = maxima['fv_insertion_len'] + maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
-            # padright = maxima['gl_cpos_to_j_end'] + maxima['jf_insertion_len'] - (len(seq) - cpos)
-            padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
-            padright = maxima['gl_cpos_to_j_end'] - (len(seq) - cpos)
-            if padleft < 0 or padright < 0:
-                raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
-
-            swfo['padded'] = {}
-            padfo = swfo['padded']  # shorthand
-            assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-            padfo['seq'] = padleft * utils.ambiguous_bases[0] + seq + padright * utils.ambiguous_bases[0]
-            if query in self.sw_info['indels']:
-                if debug:
-                    print '    also padding reversed sequence'
-                self.sw_info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.sw_info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
-            padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
-            padfo['cyst_position'] = swfo['cyst_position'] + padleft
-            padfo['padleft'] = padleft
-            padfo['padright'] = padright
-            if debug:
-                print '      pad %d %d   %s' % (padleft, padright, query)
-                print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']),
-                                                            k_v['min'], k_v['max'],
-                                                            padfo['k_v']['min'], padfo['k_v']['max'])
-
-        if debug:
-            for query in self.sw_info['queries']:
-                print '%20s %s' % (query, self.sw_info[query]['padded']['seq'])
-
-    # ----------------------------------------------------------------------------------------
     def truncate_seqs(self, seqinfo, kvinfo, cyst_positions, debug=False):
         """ 
         Truncate <seqinfo> to have the same length to the left and right of the conserved cysteine.
@@ -1198,10 +1105,6 @@ class PartitionDriver(object):
     def write_hmm_input(self, parameter_dir):
         """ Write input file for bcrham """
         print '    writing input'
-
-        # if (self.args.action == 'partition' or self.args.n_sets > 1) and not self.args.dont_pad_sequences:
-        if not self.args.dont_pad_sequences:
-            self.pad_seqs_to_same_length()  # adds padded info to sw_info (returns if stuff has already been padded)
 
         skipped_gene_matches = set()
 
