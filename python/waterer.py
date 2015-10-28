@@ -38,10 +38,10 @@ class Waterer(object):
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter(self.germline_seqs, 'sw')
         self.info = {}
-        self.info['queries'] = []
+        self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information. Note that [queries + skipped_unproductive_queries + skipped_unknown_queries] should be the list of input sequences.
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
-        self.info['skipped_unproductive_queries'] = []  # list of unproductive queries
-        self.info['skipped_unknown_queries'] = []
+        self.info['skipped_unproductive_queries'] = []  # unproductive queries that we skipped (i.e. empty if we didn't skip unproductive queries)
+        self.info['skipped_unknown_queries'] = []  # queries that failed a number of times
         self.info['indels'] = {}
         if self.args.apply_choice_probs_in_sw:
             if self.debug:

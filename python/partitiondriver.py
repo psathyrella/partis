@@ -150,7 +150,7 @@ class PartitionDriver(object):
         # add initial lists of paths
         if self.args.smc_particles == 1:
             cp = ClusterPath(-1)
-            cp.add_partition([[cl, ] for cl in self.input_info.keys()], logprob=0., n_procs=n_procs)
+            cp.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
             assert len(self.paths) == 0
             self.paths.append(cp)
         else:
@@ -165,8 +165,8 @@ class PartitionDriver(object):
                     self.smc_info[-1][-1].append(cp)
 
         # cache hmm naive seqs for each single query
-        if len(self.input_info) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            n_precache_procs = int(math.ceil(float(len(self.input_info)) / 100))
+        if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
+            n_precache_procs = int(math.ceil(float(len(self.sw_info['queries'])) / 100))
             if n_precache_procs > self.args.n_max_procs:
                 print '  naive precache procs too large %d, reducing to args.n_max_procs %d' % (n_precache_procs, self.args.n_max_procs)
                 n_precache_procs = self.args.n_max_procs
@@ -251,7 +251,7 @@ class PartitionDriver(object):
     def check_path(self, path):
         missing_ids = set()
         def check_partition(partition):
-            for uid in self.input_info:
+            for uid in self.input_info:  # maybe should switch this to self.sw_info['queries']
                 found = False
                 for cluster in partition:
                     if uid in cluster:
@@ -261,7 +261,7 @@ class PartitionDriver(object):
                     missing_ids.add(uid)
             for cluster in partition:
                 for uid in cluster:
-                    if uid not in self.input_info:
+                    if uid not in self.input_info:  # see comment a few lines back
                         missing_ids.add(uid)
 
         check_partition(path.partitions[path.i_best])
@@ -331,12 +331,12 @@ class PartitionDriver(object):
             # cmd += ' --gap-extension-penalty'
             tmpstart = time.time()
             total = 0.
-            for key in self.input_info:
+            for key in self.sw_info['queries']:
                 # padded sequence is here: self.sw_info[key]['padded']['seq']
                 # but this should be un-padded
-                seq = self.input_info[key]['seq']
+                seq = self.input_info[key]['seq']  # TODO hm, should this be from sw_info?
                 total += float(len(seq))
-            mean_length = total / len(self.input_info)
+            mean_length = total / len(self.input_info)  # TODO hm, should this be from sw_info?
             bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             differences = int(round(mean_length * bound))
             print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
@@ -1172,16 +1172,7 @@ class PartitionDriver(object):
         if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
             random.shuffle(nsets)
 
-        sw_failures = self.sw_info['skipped_unproductive_queries'] + self.sw_info['skipped_unknown_queries']
         for query_name_list in nsets:
-            # skip the whole nset if any query which it contains was skipped in the sw step
-            failed_sw = False
-            for query in query_name_list:
-                if query in sw_failures:
-                    failed_sw = True
-                    break
-            if failed_sw:
-                continue
 
             combined_query = self.combine_queries(query_name_list, parameter_dir, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
@@ -1236,13 +1227,13 @@ class PartitionDriver(object):
                 nsets = list(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])  #  list() is important since we modify <nsets>
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
-                    nsets = [[qn] for qn in self.input_info.keys()]
+                    nsets = [[qn] for qn in self.sw_info['queries']]
                 else:
                     if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
-                        nsets = itertools.combinations(self.input_info.keys(), self.args.n_sets)
-                    else:  # put the first n together, and the second group of n (note that self.input_info is an OrderedDict)
+                        nsets = itertools.combinations(self.sw_info['queries'], self.args.n_sets)
+                    else:  # put the first n together, and the second group of n (note that self.sw_info['queries'] is a list)
                         nsets = []
-                        keylist = self.input_info.keys()
+                        keylist = self.sw_info['queries']
                         this_set = []
                         for iquery in range(len(keylist)):
                             if iquery % self.args.n_sets == 0:  # every nth query, start a new group
