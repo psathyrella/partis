@@ -42,9 +42,11 @@ data_parameter_dir = 'test/regression/parameters/data/hmm'
 # then add the simple, few-sequence tests (using partis.py)
 cmd = './bin/partis.py'
 tests['single-point-estimate'] = cmd + ' --action run-viterbi --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 3 --debug 1 ' + ' '.join(common_extras)
+tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --debug 1 --n-max-queries 3 ' + ' '.join(common_extras)
 tests['partition-data'] = cmd + ' --action partition --seqfile ' + datafname + ' --is-data --random-divvy --parameter-dir ' + data_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
 tests['partition-simu'] = cmd + ' --action partition --seqfile test/regression/parameters/simu.csv --random-divvy --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
-tests['viterbi-pair'] = cmd + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile test/regression/parameters/simu.csv --parameter-dir ' + simu_parameter_dir + ' --debug 1 --n-max-queries 3 ' + ' '.join(common_extras)
+tests['naive-hamming-partition-simu'] = cmd + ' --action partition --naive-hamming --seqfile test/regression/parameters/simu.csv --random-divvy --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
+tests['vsearch-hamming-partition-simu'] = cmd + ' --action partition --naive-vsearch --seqfile test/regression/parameters/simu.csv --random-divvy --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
 
 # ----------------------------------------------------------------------------------------
 all_passed = 'test/_results/ALL.passed'
@@ -57,7 +59,7 @@ for path in individual_passed + [all_passed]:
 
 for name, test_cmd in tests.items():
     out = 'test/_results/%s.out' % name
-    Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])
+    Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])  # this is a woefully inadequate description of dependencies, but it's probably not worth trying to improve it
     if name in actions:
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name, out,
@@ -65,7 +67,6 @@ for name, test_cmd in tests.items():
     else:
         env.Command(out, cmd, test_cmd + ' --outfname $TARGET')
         # touch a sentinel `passed` file if we get what we expect
-        # NOTE [vdj]: regex is a hack. I can't figure out a.t.m. why the missing genes come up in a different order each time
         env.Command('test/_results/%s.passed' % name,
                 ['test/regression/%s.out' % name, out],
                 'diff -ub ${SOURCES[0]} ${SOURCES[1]} && touch $TARGET')  # ignore the lines telling you how long things took
