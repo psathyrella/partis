@@ -818,7 +818,7 @@ class PartitionDriver(object):
                 assert len(glomerer.paths) == 1
                 # self.check_path(glomerer.paths[0])  # really slow on larger partitions
                 # print 'BEFORE %d' % len(self.paths)
-                if self.args.kill_old_paths and len(self.paths) > 0:
+                if len(self.paths) > 0:
                     assert len(self.paths) == 1  # er, I think
                     self.paths = []  # should explicitly free memory
                 # print 'AFTER %d' % len(self.paths)

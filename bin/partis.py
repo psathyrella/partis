@@ -45,7 +45,6 @@ parser.add_argument('--no-indels', action='store_true', help='don\'t account for
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--random-divvy', action='store_true', default=False, help='Shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it can also be kinda slow
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
-parser.add_argument('--kill-old-paths', action='store_true', default=True)
 parser.add_argument('--naivety', default='M', choices=['M', 'N'])
 
 # input and output locations
