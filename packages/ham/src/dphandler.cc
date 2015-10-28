@@ -482,6 +482,8 @@ string DPHandler::GetInsertion(string side, vector<string> names) {
 
 // ----------------------------------------------------------------------------------------
 size_t DPHandler::GetErosionLength(string side, vector<string> names, string gene_name) {
+  // NOTE this does *not* count a bunch of Ns at the end as an erosion, that interpretation is made in partitiondriver.py
+
   string germline(gl_.seqs_[gene_name]);
 
   // first check if we eroded the entire sequence. If so we can't say how much was left and how much was right, so just (integer) divide by two (arbitrarily giving one side the odd base if necessary)
