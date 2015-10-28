@@ -503,6 +503,8 @@ class Waterer(object):
         self.info[query_name]['d_3p_del'] = len(self.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
         self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
+        self.info[query_name]['v_read_truncation'] = self.info[query_name]['v_5p_del']  # hmm needs to have these two things different, but for the sw we want them the same
+        self.info[query_name]['j_read_truncation'] = self.info[query_name]['j_3p_del']
 
         self.info[query_name]['fv_insertion'] = query_seq[ : all_query_bounds[best['v']][0]]
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]

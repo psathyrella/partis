@@ -46,6 +46,9 @@ def get_arg_list(arg, intify=False, floatify=False):  # make lists from args tha
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
+# NOTE since we now handle v_5p and j_3p deletions by padding with Ns, the hmm does *not* allow actual v_5p and j_3p deletions.
+# This means that while we write parameters for v_5p and j_3p deletions to the parameter dir, these are *not* used in making the
+# hmm yamels -- which is what we want, because we want to be able to read in short data reads but make full-length simulation.
 effective_erosions = ['v_5p', 'j_3p']
 boundaries = ['vd', 'dj']
 humans = ['A', 'B', 'C']
@@ -81,6 +84,11 @@ column_dependencies['fv_insertion'] = []
 column_dependencies['vd_insertion'] = ['d_gene']
 column_dependencies['dj_insertion'] = ['j_gene']
 column_dependencies['jf_insertion'] = []
+# NOTE these read start/end parameters are a hackey way of setting v_5p and j_3p deletions that aren't really deleted.
+# I.e. we pad sequences with Ns, so the hmm thinks there are no v_5p and j_3p deletions, but then later on we want to know
+# where these Ns started and ended.
+column_dependencies['v_read_truncation'] = ['v_gene']
+column_dependencies['j_read_truncation'] = ['j_gene']
 
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
@@ -475,6 +483,33 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     if not cyst_ok or not tryp_ok:
         if debug:
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
+
+# ----------------------------------------------------------------------------------------
+def convert_effective_erosions(line, seq):
+    """ 
+    Ham does not allow (well, no longer allow) v_5p and j_3p deletions -- we instead pad sequences with Ns.
+    This means that the info we get from ham always has these effective erosions set to zero, but for downstream
+    things we sometimes want to know where the reads stopped (e.g. if we want to mimic them in simulation).
+    Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
+    the hmm yaml files.
+    Note also that we have to specify <seq> since a.t.m. we're calculating this as a rearrangement-level parameter,
+    so we have to choose which of the sequences we want to calculate it on. Hopefully they mostly have similar
+    values.
+    """
+
+    assert line['v_5p_del'] == 0  # just to be safe
+    assert line['j_3p_del'] == 0
+
+    # trim off any Ns that extend beyond left end of v and right end of j
+    trimmed_seq = seq[len(line['fv_insertion']) : ]
+    if len(line['jf_insertion']) > 0:
+        trimmed_seq = trimmed_seq[ : -len(line['jf_insertion'])]
+
+    # reset the effective erosions
+    # line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
+    # line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
+    line['v_read_truncation'] = find_first_non_ambiguous_base(trimmed_seq)
+    line['j_read_truncation'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):

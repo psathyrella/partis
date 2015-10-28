@@ -1234,6 +1234,7 @@ class PartitionDriver(object):
                         print ''
                     self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
                 if line['nth_best'] == 0 and (line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+                    utils.convert_effective_erosions(line, line['seqs'][0])  # NOTE arbitrary choice of the first sequence (see note in function)
                     if pcounter is not None:
                         pcounter.increment_reco_params(line)
                     if true_pcounter is not None:
@@ -1242,6 +1243,8 @@ class PartitionDriver(object):
                     for iseq in range(len(ids)):
                         uid = ids[iseq]
                         hmminfo[uid] = dict(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+                        del hmminfo[uid]['unique_ids']
+                        del hmminfo[uid]['seqs']
                         hmminfo[uid]['seq'] = line['seqs'][iseq]
                         hmminfo[uid]['unique_id'] = uid
                         utils.add_match_info(self.germline_seqs, hmminfo[uid], self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
