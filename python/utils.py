@@ -105,6 +105,8 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     """ return the file name in which we store the information for <column>. Either pass in <column> and <deps> *or* <column_and_deps> """
     if column == 'all':
         return 'all-probs.csv'
+    if column_and_deps is None:
+        assert column is not None and deps is not None
     if column_and_deps == None:
         column_and_deps = [column]
         column_and_deps.extend(deps)

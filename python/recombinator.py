@@ -60,6 +60,8 @@ class Recombinator(object):
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
         self.insertion_content_probs = None
         self.read_insertion_content()
+        self.read_truncation_probs = None
+        self.read_read_truncation_info()
         if self.args.naivety == 'M':  # read shm info if non-naive is requested
             # NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
             with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -108,6 +110,44 @@ class Recombinator(object):
             assert utils.is_normed(self.insertion_content_probs[bound])
             # if self.args.debug:
             #     print '  insertion content for', bound, self.insertion_content_probs[bound]
+
+    # ----------------------------------------------------------------------------------------
+    def read_read_truncation_info(self):
+        # TODO this kinda duplicates the code in self.read_vdj_version_freqs, I should combine them
+        self.read_truncation_probs, totals = {}, {}
+        for region in ['v', 'j']:
+            self.read_truncation_probs[region], totals[region] = {}, {}
+            column_name = region + '_read_truncation'
+            truncfname = utils.get_parameter_fname(column_name, utils.column_dependencies[column_name])
+            assert utils.column_dependencies[column_name] == [region + '_gene']  # need to change some things in the loop if we change the deps
+            with opener('r')(self.args.parameter_dir + '/' + truncfname) as truncfile:
+                reader = csv.DictReader(truncfile)
+                for line in reader:
+                    if self.args.only_genes is not None:  # are we restricting ourselves to a subset of genes?
+                        if line[region + '_gene'] not in self.args.only_genes:
+                            continue
+                    if line[region + '_gene'] not in self.read_truncation_probs[region]:
+                        self.read_truncation_probs[region][line[region + '_gene']] = {}
+                        totals[region][line[region + '_gene']] = 0.0
+                    totals[region][line[region + '_gene']] += float(line['count'])
+                    self.read_truncation_probs[region][line[region + '_gene']][int(line[region + '_read_truncation'])] = float(line['count'])
+
+            # then normalize
+            for gene in self.read_truncation_probs[region]:
+                test_total = 0.0
+                for read_truncation in self.read_truncation_probs[region][gene]:
+                    self.read_truncation_probs[region][gene][read_truncation] /= totals[region][gene]
+                    test_total += self.read_truncation_probs[region][gene][read_truncation]
+                assert utils.is_normed(test_total, this_eps=1e-8)
+            assert len(self.version_freq_table) < 1e8  # if it gets *too* large, choose_vdj_combo() below isn't going to work because of numerical underflow. Note there's nothing special about 1e8, it's just that I'm pretty sure we're fine *up* to that point, and once we get beyond it we should think about doing things differently
+
+        # for region in ['v', 'j']:
+        #     print region
+        #     for gene in self.read_truncation_probs[region]:
+        #         print '%s   %.1f' % (gene, totals[region][gene])
+        #         for rt in self.read_truncation_probs[region][gene]:
+        #             print '    %3d %.3f' % (rt, self.read_truncation_probs[region][gene][rt])
+        # sys.exit()
 
     # ----------------------------------------------------------------------------------------
     def combine(self, irandom):
@@ -162,7 +202,7 @@ class Recombinator(object):
                 #
                 # if int(line['cdr3_length']) == -1:
                 #     continue  # couldn't find conserved codons when we were inferring things
-                if self.args.only_genes != None:  # are we restricting ourselves to a subset of genes?
+                if self.args.only_genes is not None:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.args.only_genes:
                         continue
                     if line['d_gene'] not in self.args.only_genes:
@@ -194,7 +234,7 @@ class Recombinator(object):
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug, dont_mimic_data_read_length=self.args.dont_mimic_data_read_length)
+                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)  # 
                 return
 
         assert False  # shouldn't fall through to here
@@ -252,9 +292,11 @@ class Recombinator(object):
             reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
         for erosion in utils.real_erosions:
             self.erode(erosion, reco_event)
-        if not self.args.dont_mimic_data_read_length:
-            for erosion in utils.effective_erosions:
-                self.erode(erosion, reco_event)
+        print '\n\nFIXME mimic shit\n\n'
+        print 'I may have to rethink this and just treat read truncations as effective erosions. or not.'
+        # if self.args.mimic_data_read_length:
+        #     for erosion in utils.effective_erosions:
+        #         self.erode(erosion, reco_event)
         for boundary in utils.boundaries:
             self.insert(boundary, reco_event)
 
@@ -442,11 +484,13 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
-        if self.args.debug:
+        if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
         for iseq in range(len(reco_event.final_seqs)):
             reco_event.indelfo.append({'reversed_seq' : '', 'indels' : []})
-            if numpy.random.uniform(0, 1) > self.args.indel_frequency:
+            if self.args.indel_frequency == 0.:  # no indels at all
+                continue
+            if numpy.random.uniform(0, 1) > self.args.indel_frequency:  # no indels for this sequence
                 if self.args.debug:
                     print '        0'
                 continue
@@ -458,6 +502,32 @@ class Recombinator(object):
             for _ in range(n_indels):
                 seq = self.add_single_indel(seq, reco_event)
             reco_event.final_seqs[iseq] = seq
+
+    # ----------------------------------------------------------------------------------------
+    def truncate_reads(self, reco_event):
+        if self.args.debug:
+            print '      truncating reads'
+
+        def choose_truncation(region):
+            iprob = numpy.random.uniform(0, 1)
+            sum_prob = 0.0
+            for truncation in self.read_truncation_probs[region][reco_event.genes[region]]:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
+                sum_prob += self.read_truncation_probs[region][reco_event.genes[region]][truncation]
+                if iprob < sum_prob:
+                    return truncation
+            assert False  # shouldn't fall through to here
+
+        v_5p_del = choose_truncation('v')
+        j_3p_del = choose_truncation('j')
+        if self.args.debug:
+            print '        v_5p %d' % v_5p_del
+            print '        j_3p %d' % j_3p_del
+        reco_event.effective_erosions['v_5p'] = v_5p_del
+        reco_event.effective_erosions['j_3p'] = j_3p_del
+        for iseq in range(len(reco_event.final_seqs)):
+            reco_event.final_seqs[iseq] = reco_event.final_seqs[iseq][v_5p_del : ]
+            if j_3p_del > 0:
+                reco_event.final_seqs[iseq] = reco_event.final_seqs[iseq][ : -j_3p_del]
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
@@ -497,7 +567,10 @@ class Recombinator(object):
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 
         assert not utils.are_conserved_codons_screwed_up(reco_event)
+
         self.add_shm_indels(reco_event)
+        if self.args.mimic_data_read_length:
+            self.truncate_reads(reco_event)
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):

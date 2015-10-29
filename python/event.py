@@ -30,7 +30,7 @@ class RecombinationEvent(object):
         self.original_tryp_word = ''
 
     # ----------------------------------------------------------------------------------------
-    def set_vdj_combo(self, vdj_combo_label, cyst_positions, tryp_positions, all_seqs, debug=False, dont_mimic_data_read_length=False):
+    def set_vdj_combo(self, vdj_combo_label, cyst_positions, tryp_positions, all_seqs, debug=False, mimic_data_read_length=False):
         """ Set the label which labels the gene/length choice (a tuple of strings) as well as it's constituent parts """
         self.vdj_combo_label = vdj_combo_label
         for region in utils.regions:
@@ -45,7 +45,8 @@ class RecombinationEvent(object):
         for erosion in utils.real_erosions:
             self.erosions[erosion] = int(vdj_combo_label[utils.index_keys[erosion + '_del']])
         for erosion in utils.effective_erosions:
-            if not dont_mimic_data_read_length:  # use v left and j right erosions from data?
+            if mimic_data_read_length:  # use v left and j right erosions from data?
+                # assert int(vdj_combo_label[utils.index_keys[erosion + '_del']]) == 0  # we're now handling this with the [vj]_read_truncation parameters, so we could only get here if we're using sw parameters, which would have non-zero effective erosions... and there's not really anything wrong with that, but I don't want to have two different ways to determine v left and j right truncation/erosion
                 self.effective_erosions[erosion] = int(vdj_combo_label[utils.index_keys[erosion + '_del']])
             else:  # otherwise ignore data, and keep the entire v and j genes
                 self.effective_erosions[erosion] = 0

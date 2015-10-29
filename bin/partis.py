@@ -32,7 +32,7 @@ parser.add_argument('--truncate-n-sets', action='store_true', help='If running o
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
 # parser.add_argument('--plot-all-best-events', action='store_true', help='Plot all of the <n-best-events>, i.e. sample from the posterior')
-parser.add_argument('--dont-mimic-data-read-length', action='store_true', help='Simulate events with the entire v, d, and j regions? (Otherwise we mimic the read length observed in data)')
+parser.add_argument('--mimic-data-read-length', action='store_true', help='trim V 5\' and D 3\' to mimic read lengths seen in data')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
