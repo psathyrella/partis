@@ -235,7 +235,7 @@ class Waterer(object):
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    self.process_query(bam, list(reads))
+                    self.process_query(bam.references, list(reads))
                     n_processed += 1
 
             if not self.args.no_clean:
@@ -327,7 +327,7 @@ class Waterer(object):
         return indelfo
 
     # ----------------------------------------------------------------------------------------
-    def process_query(self, bam, reads):
+    def process_query(self, references, reads):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
@@ -341,7 +341,7 @@ class Waterer(object):
         for read in reads:  # loop over the matches found for each query sequence
             # set this match's values
             read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
-            gene = bam.references[read.tid]
+            gene = references[read.tid]
             region = utils.get_region(gene)
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs
             score = raw_score
