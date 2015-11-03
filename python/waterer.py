@@ -25,7 +25,9 @@ class Waterer(object):
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
         self.input_info = input_info
-        self.remaining_queries = [query for query in self.input_info.keys()]  # we remove queries from this list when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
+        self.remaining_queries = set()  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
+        for query in self.input_info.keys():
+            self.remaining_queries.add(query)
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.reco_info = reco_info
@@ -86,7 +88,7 @@ class Waterer(object):
             self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
             n_tries += 1
             if n_tries > 3:
-                self.info['skipped_unknown_queries'] += self.remaining_queries
+                self.info['skipped_unknown_queries'] += list(self.remaining_queries)
                 break
 
         self.finalize()
@@ -177,26 +179,31 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname, n_procs):
-        queries_per_proc = float(len(self.remaining_queries)) / n_procs
+        n_remaining = len(self.remaining_queries)
+        queries_per_proc = float(n_remaining) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
         if n_procs == 1:  # double check for rounding problems or whatnot
-            assert n_queries_per_proc == len(self.remaining_queries)
+            assert n_queries_per_proc == n_remaining
         for iproc in range(n_procs):
             workdir = self.args.workdir
             if n_procs > 1:
                 workdir += '/sw-' + str(iproc)
                 utils.prep_dir(workdir)
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
-                for iquery in range(iproc*n_queries_per_proc, (iproc + 1)*n_queries_per_proc):
-                    if iquery >= len(self.remaining_queries):
+                iquery = 0
+                for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
+                    if iquery >= n_remaining:
                         break
-                    query_name = self.remaining_queries[iquery]
+                    if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
+                        iquery += 1
+                        continue
                     sub_infile.write('>' + query_name + ' NUKES\n')
 
                     seq = self.input_info[query_name]['seq']
                     if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     sub_infile.write(seq + '\n')
+                    iquery += 1
 
     # ----------------------------------------------------------------------------------------
     def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, iproc=None, n_procs=None, shell=False):
@@ -245,12 +252,13 @@ class Waterer(object):
 
         print '    processed %d queries' % n_processed
 
-        if len(self.remaining_queries) > 0:  # if we skipped some seqs
+        n_remaining = len(self.remaining_queries)
+        if n_remaining > 0:  # if we skipped some seqs
             if self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
-                print '      skipped %d indels, rerunning with indels reversed (skipped %d total seqs)' % (self.new_indels, len(self.remaining_queries), )
+                print '      skipped %d indels, rerunning with indels reversed (skipped %d total seqs)' % (self.new_indels, n_remaining, )
                 self.new_indels = 0
             elif self.new_indels == 0:
-                print '      skipped %d queries (%d indels), increasing mismatch score (%d --> %d) and rerunning them' % (len(self.remaining_queries), self.new_indels, self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
+                print '      skipped %d queries (%d indels), increasing mismatch score (%d --> %d) and rerunning them' % (n_remaining, self.new_indels, self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
             else:
                 assert False
