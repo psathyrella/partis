@@ -1282,12 +1282,24 @@ class PartitionDriver(object):
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
                 outpath = os.getcwd() + '/' + outpath
             shutil.copyfile(self.hmm_outfname, outpath)
+# ----------------------------------------------------------------------------------------
+            # TMPfastafile = open('naive-mature-pairs.fa', 'w')  # write sw mature/naive pairs for peter
+# ----------------------------------------------------------------------------------------
             with open(outpath) as outfile:
                 reader = csv.DictReader(outfile)
                 outfo = []
                 for line in reader:
                     outfo.append(line)
                     outfo[-1]['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
+
+# # ----------------------------------------------------------------------------------------
+#                     swline = self.sw_info[outfo[-1]['unique_ids']]
+#                     TMPfastafile.write('>%s_mature\n' % outfo[-1]['unique_ids'])
+#                     TMPfastafile.write(swline['seq'] + '\n')
+#                     TMPfastafile.write('>%s_naive\n' % outfo[-1]['unique_ids'])
+#                     TMPfastafile.write(utils.get_full_naive_seq(self.germline_seqs, swline) + '\n')
+# # ----------------------------------------------------------------------------------------
+
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, outfo[0].keys())
                 writer.writeheader()
