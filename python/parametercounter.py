@@ -51,7 +51,8 @@ class ParameterCounter(object):
         return tuple(index)
 
     # ----------------------------------------------------------------------------------------
-    def increment_mutation_params(self, info):
+    def increment_per_sequence_params(self, info):
+        """ increment parameters that differ for each sequence within the clonal family """
         self.mute_total += 1
         self.mutefreqer.increment(info)
         seq = info['seq']
@@ -62,8 +63,12 @@ class ParameterCounter(object):
                 continue
             self.counts['seq_content'][nuke] += 1
 
+        for region in ['v', 'j']:
+            self.
+
     # ----------------------------------------------------------------------------------------
-    def increment_reco_params(self, info):
+    def increment_per_family_params(self, info):
+        """ increment parameters that are the same for the entire clonal family """
         self.reco_total += 1
 
         all_index = self.get_index(info, utils.index_columns)
@@ -72,6 +77,8 @@ class ParameterCounter(object):
         self.counts['all'][all_index] += 1
 
         for deps in utils.column_dependency_tuples:
+            if '_read_truncation' in deps[0]:  # these are sequence-level
+                continue
             column = deps[0]
             index = self.get_index(info, deps)
             if index not in self.counts[column]:

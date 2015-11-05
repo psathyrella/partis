@@ -58,7 +58,7 @@ naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
-# NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. The allow query sequences that extend beyond the v or j regions
+# NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. They allow query sequences that extend beyond the v or j regions
 index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
 # not_used_for_simulation = ('fv_insertion', 'jf_insertion', 'v_5p_del')
 index_keys = {}
@@ -87,6 +87,7 @@ column_dependencies['jf_insertion'] = []
 # NOTE these read start/end parameters are a hackey way of setting v_5p and j_3p deletions that aren't really deleted.
 # I.e. we pad sequences with Ns, so the hmm thinks there are no v_5p and j_3p deletions, but then later on we want to know
 # where these Ns started and ended.
+# NOTE also that these have to be different to v_5p and j_3p, since the latter are rearrangement-level parameters, while read truncation must be able to vary between sequences within a rearrangement group (i.e. different reads can have different truncation but be clonally related)
 column_dependencies['v_read_truncation'] = ['v_gene']
 column_dependencies['j_read_truncation'] = ['j_gene']
 
@@ -487,9 +488,9 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
 # ----------------------------------------------------------------------------------------
-def convert_effective_erosions(line, seq):
+def set_read_truncation_values(line):
     """ 
-    Ham does not allow (well, no longer allow) v_5p and j_3p deletions -- we instead pad sequences with Ns.
+    Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
     things we sometimes want to know where the reads stopped (e.g. if we want to mimic them in simulation).
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
@@ -502,16 +503,18 @@ def convert_effective_erosions(line, seq):
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
 
-    # trim off any Ns that extend beyond left end of v and right end of j
-    trimmed_seq = seq[len(line['fv_insertion']) : ]
-    if len(line['jf_insertion']) > 0:
-        trimmed_seq = trimmed_seq[ : -len(line['jf_insertion'])]
+    line['v_read_truncations'] = []
+    line['j_read_truncations'] = []
+    for iseq in range(len(line['seqs'])):
+        seq = line['seqs'][iseq]
 
-    # reset the effective erosions
-    # line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
-    # line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
-    line['v_read_truncation'] = find_first_non_ambiguous_base(trimmed_seq)
-    line['j_read_truncation'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
+        # trim off any Ns that extend beyond left end of v and right end of j
+        trimmed_seq = seq[len(line['fv_insertion']) : ]
+        if len(line['jf_insertion']) > 0:
+            trimmed_seq = trimmed_seq[ : -len(line['jf_insertion'])]
+    
+        line['v_read_truncations'].append(find_first_non_ambiguous_base(trimmed_seq))
+        line['j_read_truncations'].append(len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):

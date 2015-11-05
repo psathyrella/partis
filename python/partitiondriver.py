@@ -1234,7 +1234,7 @@ class PartitionDriver(object):
                         print ''
                     self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
                 if line['nth_best'] == 0 and (line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
-                    utils.convert_effective_erosions(line, line['seqs'][0])  # NOTE arbitrary choice of the first sequence (see note in function)
+                    utils.set_read_truncation_values(line)
                     if pcounter is not None:
                         pcounter.increment_reco_params(line)
                     if true_pcounter is not None:
