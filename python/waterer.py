@@ -511,8 +511,6 @@ class Waterer(object):
         self.info[query_name]['d_3p_del'] = len(self.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
         self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
-        self.info[query_name]['v_read_truncation'] = self.info[query_name]['v_5p_del']  # hmm needs to have these two things different, but for the sw we want them the same
-        self.info[query_name]['j_read_truncation'] = self.info[query_name]['j_3p_del']
 
         self.info[query_name]['fv_insertion'] = query_seq[ : all_query_bounds[best['v']][0]]
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
@@ -532,11 +530,11 @@ class Waterer(object):
             utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
 
         if self.pcounter is not None:
-            self.pcounter.increment_reco_params(self.info[query_name])
-            self.pcounter.increment_mutation_params(self.info[query_name])
+            self.pcounter.increment_per_family_params(self.info[query_name])
+            self.pcounter.increment_per_sequence_params(self.info[query_name])
         if self.true_pcounter is not None:
-            self.true_pcounter.increment_reco_params(self.reco_info[query_name])
-            self.true_pcounter.increment_mutation_params(self.reco_info[query_name])
+            self.true_pcounter.increment_per_family_params(self.reco_info[query_name])
+            self.true_pcounter.increment_per_sequence_params(self.reco_info[query_name])
         if self.perfplotter is not None:
             if query_name in self.info['indels']:
                 print '    skipping performance evaluation of %s because of indels' % query_name  # I just have no idea how to handle naive hamming fraction when there's indels

@@ -63,9 +63,6 @@ class ParameterCounter(object):
                 continue
             self.counts['seq_content'][nuke] += 1
 
-        for region in ['v', 'j']:
-            self.
-
     # ----------------------------------------------------------------------------------------
     def increment_per_family_params(self, info):
         """ increment parameters that are the same for the entire clonal family """
@@ -77,8 +74,6 @@ class ParameterCounter(object):
         self.counts['all'][all_index] += 1
 
         for deps in utils.column_dependency_tuples:
-            if '_read_truncation' in deps[0]:  # these are sequence-level
-                continue
             column = deps[0]
             index = self.get_index(info, deps)
             if index not in self.counts[column]:

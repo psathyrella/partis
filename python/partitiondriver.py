@@ -11,6 +11,7 @@ csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv field
 import random
 from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE, check_output
+import copy
 
 import utils
 from opener import opener
@@ -1226,32 +1227,34 @@ class PartitionDriver(object):
                         assert len(line['errors']) == 0
 
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
+                line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
+                # utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)  # NOTE may want to do this after printing? not sure yet
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         print '      %s' % ':'.join(ids),
                         if not self.args.is_data:
                             print '   %d' % same_event,
                         print ''
-                    self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
+                    self.print_hmm_output(line_with_effective_erosions, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
+                    # self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
                 if line['nth_best'] == 0 and (line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
-                    utils.set_read_truncation_values(line)
                     if pcounter is not None:
-                        pcounter.increment_reco_params(line)
+                        pcounter.increment_per_family_params(line_with_effective_erosions)
                     if true_pcounter is not None:
-                        true_pcounter.increment_reco_params(self.reco_info[ids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                        true_pcounter.increment_per_family_params(self.reco_info[ids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                     n_events_processed += 1
                     for iseq in range(len(ids)):
                         uid = ids[iseq]
-                        hmminfo[uid] = dict(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+                        hmminfo[uid] = copy.deepcopy(line_with_effective_erosions)  # make a copy of the info, into which we'll insert the sequence-specific stuff
                         del hmminfo[uid]['unique_ids']
                         del hmminfo[uid]['seqs']
-                        hmminfo[uid]['seq'] = line['seqs'][iseq]
+                        hmminfo[uid]['seq'] = line_with_effective_erosions['seqs'][iseq]
                         hmminfo[uid]['unique_id'] = uid
                         utils.add_match_info(self.germline_seqs, hmminfo[uid], self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                         if pcounter is not None:
-                            pcounter.increment_mutation_params(hmminfo[uid])
+                            pcounter.increment_per_sequence_params(hmminfo[uid])
                         if true_pcounter is not None:
-                            true_pcounter.increment_mutation_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                            true_pcounter.increment_per_sequence_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
                             if uid in self.sw_info['indels']:
                                 print '    skipping performance evaluation of %s because of indels' % uid  # I just have no idea how to handle naive hamming fraction when there's indels
@@ -1337,7 +1340,7 @@ class PartitionDriver(object):
         out_str_list = []
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in utils.get_true_clusters(line['unique_ids'], self.reco_info).values():
-                synthetic_true_line = dict(self.reco_info[uids[0]])
+                synthetic_true_line = copy.deepcopy(self.reco_info[uids[0]])
                 synthetic_true_line['unique_ids'] = uids
                 synthetic_true_line['seqs'] = [self.reco_info[iid]['seq'] for iid in uids]
                 del synthetic_true_line['unique_id']

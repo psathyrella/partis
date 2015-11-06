@@ -12,6 +12,7 @@ from collections import OrderedDict
 import csv
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 import multiprocessing
+import copy
 
 from opener import opener
 
@@ -70,6 +71,7 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 # information plot in bcellap repo
 
 # key is parameter of interest, and associated list gives the parameters (other than itself) which are necessary to predict it
+# TODO am I even using these any more? I think I might just be using the all-probs file
 column_dependencies = {}
 column_dependencies['v_gene'] = [] # NOTE v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
 column_dependencies['v_5p_del'] = ['v_gene']
@@ -84,12 +86,6 @@ column_dependencies['fv_insertion'] = []
 column_dependencies['vd_insertion'] = ['d_gene']
 column_dependencies['dj_insertion'] = ['j_gene']
 column_dependencies['jf_insertion'] = []
-# NOTE these read start/end parameters are a hackey way of setting v_5p and j_3p deletions that aren't really deleted.
-# I.e. we pad sequences with Ns, so the hmm thinks there are no v_5p and j_3p deletions, but then later on we want to know
-# where these Ns started and ended.
-# NOTE also that these have to be different to v_5p and j_3p, since the latter are rearrangement-level parameters, while read truncation must be able to vary between sequences within a rearrangement group (i.e. different reads can have different truncation but be clonally related)
-column_dependencies['v_read_truncation'] = ['v_gene']
-column_dependencies['j_read_truncation'] = ['j_gene']
 
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
@@ -488,7 +484,7 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
 # ----------------------------------------------------------------------------------------
-def set_read_truncation_values(line):
+def reset_effective_erosions_and_effective_insertions(line, debug=False):
     """ 
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -503,18 +499,34 @@ def set_read_truncation_values(line):
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
 
-    line['v_read_truncations'] = []
-    line['j_read_truncations'] = []
-    for iseq in range(len(line['seqs'])):
-        seq = line['seqs'][iseq]
+    if debug:
+        print 'resetting effective erosions'
+        print '     %s' % line['seqs'][0]
 
-        # trim off any Ns that extend beyond left end of v and right end of j
-        trimmed_seq = seq[len(line['fv_insertion']) : ]
+    trimmed_seqs = []
+    for iseq in range(len(line['seqs'])):
+        trimmed_seq = line['seqs'][iseq][len(line['fv_insertion']) : ]
         if len(line['jf_insertion']) > 0:
             trimmed_seq = trimmed_seq[ : -len(line['jf_insertion'])]
-    
-        line['v_read_truncations'].append(find_first_non_ambiguous_base(trimmed_seq))
-        line['j_read_truncations'].append(len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
+        trimmed_seqs.append(trimmed_seq)
+
+    # arbitrarily use the zeroth sequence
+    trimmed_seq = trimmed_seqs[0]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
+    line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
+    line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
+    line['cyst_position'] -= line['v_5p_del'] + len(line['fv_insertion'])
+    line['tryp_position'] -= line['v_5p_del'] + len(line['fv_insertion'])
+
+    for iseq in range(len(line['seqs'])): # TODO note, though, that this trims *all* the seqs according to the read truncation from the zeroth sequence
+        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
+        if line['j_3p_del'] > 0:
+            line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
+
+    if debug:
+        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(line['fv_insertion']), line['v_5p_del'], line['j_3p_del'], len(line['jf_insertion']), line['seqs'][0])
+
+    line['fv_insertion'] = ''
+    line['jf_insertion'] = ''
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
@@ -564,6 +576,8 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
         assert end[chkreg] >= start[chkreg]
     # print end['j'], len(line['seq']), line['v_5p_del'], line['j_3p_del']
     if end['j'] != len(line['seq']):
+        for k, v in line.items():
+            print '%30s %s' % (k, v)
         raise Exception('end of j %d not equal to sequence length %d in %s' % (end['j'], len(line['seq']), line['unique_id']))
 
     return (start[return_reg], end[return_reg])
@@ -602,7 +616,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
     event_str_list = []
     if 'unique_ids' in line:
         for iseq in range(len(line['unique_ids'])):
-            tmpline = dict(line)
+            tmpline = copy.deepcopy(line)
             del tmpline['unique_ids']  # not that they'd cause any harm, but may as well be tidy
             del tmpline['seqs']
             tmpline['seq'] = line['seqs'][iseq]
@@ -618,6 +632,15 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
                 # #     extra_str += color('yellow', 'indels')
                 if indelfos[iseq] is not None and len(indelfos[iseq]['indels']) > 0:
                     tmpline['seq'] = indelfos[iseq]['reversed_seq']
+                    if find_first_non_ambiguous_base(tmpline['seq']) > 0:
+                        tmpline['seq'] = tmpline['seq'][find_first_non_ambiguous_base(tmpline['seq']) : ]
+                    if find_last_non_ambiguous_base_plus_one(tmpline['seq']) < len(tmpline['seq']):
+                        tmpline['seq'] = tmpline['seq'][ : find_last_non_ambiguous_base_plus_one(tmpline['seq'])]
+                    # if len(tmpline['fv_insertion']) + tmpline['v_5p_del'] == find_first_non_ambiguous_base(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
+                    #     tmpline['seq'] = tmpline['seq'][len(tmpline['fv_insertion']) + tmpline['v_5p_del'] : ]
+                    # if len(tmpline['jf_insertion']) + tmpline['j_3p_del'] == len(tmpline['seq']) - find_last_non_ambiguous_base_plus_one(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
+                    #     if tmpline['j_3p_del'] > 0:
+                    #         tmpline['seq'] = tmpline['seq'][ : -tmpline['j_3p_del']]
             else:
                 pass
                 # this_extra_str = ' %10s  %2s          %3s'  % ('', '', '')

@@ -28,7 +28,6 @@ parser.add_argument('--simfname')
 parser.add_argument('--outfname')
 parser.add_argument('--stashdir', default=fsdir + '/_output')
 parser.add_argument('--plotdir')
-parser.add_argument('--no-skip-unproductive', action='store_true')
 
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition', 'run-viterbi')
 default_actions = all_actions[ : -2]
@@ -55,8 +54,7 @@ if 'cache-data-parameters' in args.actions:
         raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))
     # cache parameters from data
     cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + ' --is-data' + common_args
-    if not args.no_skip_unproductive:
-         cmd_str += ' --skip-unproductive'
+    cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     if args.plotdir is not None:
         cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/params/data'

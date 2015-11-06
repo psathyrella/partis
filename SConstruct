@@ -21,7 +21,7 @@ stashdir = '_output'
 datafname = 'test/mishmash.csv'  #test/adaptive-A-250.tsv.bz2
 
 common_extras = ['--seed', '1', '--n-procs', '5']
-base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output --no-skip-unproductive'
+base_cmd = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir _output'
 
 actions = OrderedDict()
 # key is name, value is target (note that the target corresponds to a directory or file in <stashdir>
@@ -61,10 +61,14 @@ for name, test_cmd in tests.items():
     out = 'test/_results/%s.out' % name
     Depends(out, glob.glob('python/*.py') + ['packages/ham/bcrham',])  # this is a woefully inadequate description of dependencies, but it's probably not worth trying to improve it
     if name in actions:
+        # print test_cmd
+        # continue
         env.Command(out, cmd, test_cmd + ' && touch $TARGET')  # it's kind of silly to put partis.py as the SOURCE, but you've got to put *something*, and we've already got the deps covered...
         env.Command('test/_results/%s.passed' % name, out,
                     './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
     else:
+        # print test_cmd
+        # continue
         env.Command(out, cmd, test_cmd + ' --outfname $TARGET')
         # touch a sentinel `passed` file if we get what we expect
         env.Command('test/_results/%s.passed' % name,
