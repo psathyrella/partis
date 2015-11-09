@@ -1228,7 +1228,7 @@ class PartitionDriver(object):
 
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                # utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)  # NOTE may want to do this after printing? not sure yet
+                utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)  # NOTE may want to do this after printing? not sure yet
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         print '      %s' % ':'.join(ids),

@@ -151,7 +151,13 @@ def make_events(args, n_events, iproc, random_ints):
     for ievt in range(n_events):
         # print ievt,
         # sys.stdout.flush()
-        reco.combine(random_ints[ievt])
+        failed = True
+        itry = 0
+        while failed:
+            if itry > 0:
+                print 'try again: %d' % itry
+            failed = not reco.combine(random_ints[ievt] + itry)
+            itry += 1
 
 if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
