@@ -292,11 +292,9 @@ class Recombinator(object):
             reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
         for erosion in utils.real_erosions:
             self.erode(erosion, reco_event)
-        # print '\n\nTDOO mimic shit\n\n'
-        # print 'I may have to rethink this and just treat read truncations as effective erosions. or not.'
-        # # if self.args.mimic_data_read_length:
-        #     for erosion in utils.effective_erosions:
-        #         self.erode(erosion, reco_event)
+        if self.args.mimic_data_read_length:
+            for erosion in utils.effective_erosions:
+                self.erode(erosion, reco_event)
         for boundary in utils.boundaries:
             self.insert(boundary, reco_event)
 

@@ -46,7 +46,6 @@ class RecombinationEvent(object):
             self.erosions[erosion] = int(vdj_combo_label[utils.index_keys[erosion + '_del']])
         for erosion in utils.effective_erosions:
             if mimic_data_read_length:  # use v left and j right erosions from data?
-                # assert int(vdj_combo_label[utils.index_keys[erosion + '_del']]) == 0  # we're now handling this with the [vj]_read_truncation parameters, so we could only get here if we're using sw parameters, which would have non-zero effective erosions... and there's not really anything wrong with that, but I don't want to have two different ways to determine v left and j right truncation/erosion
                 self.effective_erosions[erosion] = int(vdj_combo_label[utils.index_keys[erosion + '_del']])
             else:  # otherwise ignore data, and keep the entire v and j genes
                 self.effective_erosions[erosion] = 0
