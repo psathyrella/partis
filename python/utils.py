@@ -491,9 +491,6 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     things we sometimes want to know where the reads stopped (e.g. if we want to mimic them in simulation).
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
     the hmm yaml files.
-    Note also that we have to specify <seq> since a.t.m. we're calculating this as a rearrangement-level parameter,
-    so we have to choose which of the sequences we want to calculate it on. Hopefully they mostly have similar
-    values.
     """
 
     assert line['v_5p_del'] == 0  # just to be safe
