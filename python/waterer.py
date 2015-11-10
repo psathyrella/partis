@@ -274,7 +274,9 @@ class Waterer(object):
                 tmpstr += '        %5d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
             print tmpstr,
-            assert n_to_rerun + self.new_indels == len(self.remaining_queries)
+            if n_to_rerun + self.new_indels != len(self.remaining_queries):
+                print n_to_rerun, self.new_indels, len(self.remaining_queries)
+                sys.exit()
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
                 print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
@@ -682,12 +684,15 @@ class Waterer(object):
                 if self.debug:
                     print '            ...rerunning'
                 queries_to_rerun['unproductive'].add(query_name)
+                return
             elif self.args.skip_unproductive:
                 if self.debug:
                     print '            ...skipping'
                 self.unproductive_queries.add(query_name)
                 self.remaining_queries.remove(query_name)
-            return
+                return
+            else:
+                pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
         # best k_v, k_d:
         k_v = all_query_bounds[best['v']][1]  # end of v match
