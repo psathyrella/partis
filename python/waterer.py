@@ -10,6 +10,7 @@ import operator
 import pysam
 import contextlib
 from subprocess import check_call, check_output, Popen, PIPE
+from collections import OrderedDict
 
 import utils
 from opener import opener
@@ -40,10 +41,8 @@ class Waterer(object):
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter(self.germline_seqs, 'sw')
         self.info = {}
-        self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information. Note that [queries + skipped_unproductive_queries + skipped_unknown_queries] should be the list of input sequences.
+        self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
-        self.info['skipped_unproductive_queries'] = []  # unproductive queries that we skipped (i.e. empty if we didn't skip unproductive queries)
-        self.info['skipped_unknown_queries'] = []  # queries that failed a number of times
         self.info['indels'] = {}
         if self.args.apply_choice_probs_in_sw:
             if self.debug:
@@ -59,6 +58,9 @@ class Waterer(object):
         self.outfile = None
         if self.args.outfname is not None:
             self.outfile = open(self.args.outfname, 'a')
+
+        self.nth_try = 1
+        self.unproductive_queries = set()
 
         print 'smith-waterman'
 
@@ -81,15 +83,13 @@ class Waterer(object):
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
 
-        n_tries = 0
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             self.write_vdjalign_input(base_infname, n_procs=self.args.n_fewer_procs)
             self.execute_commands(base_infname, base_outfname, self.args.n_fewer_procs)
             self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
-            n_tries += 1
-            if n_tries > 3:
-                self.info['skipped_unknown_queries'] += list(self.remaining_queries)
+            if self.nth_try > 3:
                 break
+            self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
 
         self.finalize()
 
@@ -98,14 +98,19 @@ class Waterer(object):
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw/performance')
         # print '    sw time: %.3f' % (time.time()-start)
-        skipped_unproductive = len(self.info['skipped_unproductive_queries'])
-        if skipped_unproductive > 0:
-            print '      unproductive skipped %d / %d = %.3f' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info))
-        n_unknown = len(self.info['skipped_unknown_queries'])
-        if n_unknown > 0:
-            print '      unknown skipped %d / %d = %.3f' % (n_unknown, len(self.input_info), float(n_unknown) / len(self.input_info))
+        print '      info for %d' % len(self.info['queries']),
+        skipped_unproductive = len(self.unproductive_queries)
+        n_unknown = len(self.remaining_queries)
+        if skipped_unproductive > 0 or n_unknown > 0:
+            print '     (skipped',
+            print '%d / %d = %.3f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+            if n_unknown > 0:
+                print '   %d / %d = %.3f unknown' % (n_unknown, len(self.input_info), float(n_unknown) / len(self.input_info)),
+            print ')',
+        print ''
         if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
+        assert len(self.info['queries']) + skipped_unproductive + n_unknown == len(self.input_info)
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
             if self.args.plotdir is not None:
@@ -233,6 +238,13 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
+        queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
+                                          # ...whereas <self.unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'failed-apport.']:
+            queries_to_rerun[reason] = set()
+            
+
+        self.new_indels = 0
         n_processed = 0
         for iproc in range(n_procs):
             workdir = self.args.workdir
@@ -242,7 +254,7 @@ class Waterer(object):
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    self.process_query(bam.references, list(reads))
+                    self.process_query(bam.references, list(reads), queries_to_rerun)
                     n_processed += 1
 
             if not self.args.no_clean:
@@ -250,18 +262,29 @@ class Waterer(object):
                 if n_procs > 1:  # still need the top-level workdir
                     os.rmdir(workdir)
 
-        print '    processed %d queries' % n_processed
-
-        n_remaining = len(self.remaining_queries)
-        if n_remaining > 0:  # if we skipped some seqs
-            if self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
-                print '      skipped %d indels, rerunning with indels reversed (skipped %d total seqs)' % (self.new_indels, n_remaining, )
-                self.new_indels = 0
-            elif self.new_indels == 0:
-                print '      skipped %d queries (%d indels), increasing mismatch score (%d --> %d) and rerunning them' % (n_remaining, self.new_indels, self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
+        if self.nth_try == 1:
+            print '      processed   remaining  new-indels       rerun: ' + '   '.join([reason for reason in queries_to_rerun])
+        print '      %5d' % n_processed,
+        if len(self.remaining_queries) > 0:
+            tmpstr = '       %5d' % len(self.remaining_queries)
+            tmpstr += '       %5d' % self.new_indels
+            tmpstr += '            '
+            n_to_rerun = 0
+            for reason in queries_to_rerun:
+                tmpstr += '        %5d' % len(queries_to_rerun[reason])
+                n_to_rerun += len(queries_to_rerun[reason])
+            print tmpstr,
+            assert n_to_rerun + self.new_indels == len(self.remaining_queries)
+            if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
+                print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
-            else:
+            elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
+                print '            rerunning for indels'
+                self.new_indels = 0
+            else:  # shouldn't get here
                 assert False
+        else:
+            print '        all done'
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
@@ -335,7 +358,7 @@ class Waterer(object):
         return indelfo
 
     # ----------------------------------------------------------------------------------------
-    def process_query(self, references, reads):
+    def process_query(self, references, reads, queries_to_rerun):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
@@ -370,19 +393,21 @@ class Waterer(object):
                     continue
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.args.gap_open_penalty>)
+                if self.args.no_indels:  # you can forbid indels on the command line
+                    continue
+                if self.nth_try < 2:  # we also forbid indels on the first try (we want to increase the mismatch score before we conclude it's "really" an indel)
+                    continue
                 if len(all_match_names[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
                     if query_name not in self.info['indels']:
                         self.info['indels'][query_name] = self.get_indel_info(query_name, read.cigarstring, query_seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
                         self.info['indels'][query_name]['reversed_seq'] = query_seq[ : qrbounds[0]] + self.info['indels'][query_name]['reversed_seq'] + query_seq[qrbounds[1] : ]
                         self.new_indels += 1
-                        # print ' query seq  %s' % query_seq
-                        # print 'indelfo seq %s' % self.info['indels'][query_name]['reversed_seq']
-                        # self.info['skipped_indel_queries'].append(query_name)
-                        # self.info[query_name] = {'indels'}
+                        # TODO this 'return' used to be after and indented from the else below, and that continue wasn't there. I should make sure this is how I want it
+                        return  # don't process this query any further -- since it's now in the indel info it'll get run next time through
                     else:
                         if self.debug:
                             print '     ignoring subsequent indels for %s' % query_name
-                    return
+                        continue  # hopefully there's a later match without indels
                 else:
                     continue
 
@@ -405,7 +430,7 @@ class Waterer(object):
 
         # if n_skipped_invalid_cpos > 0:
         #     print '      skipped %d invalid cpos values for %s' % (n_skipped_invalid_cpos, query_name)
-        self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds)
+        self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
@@ -544,7 +569,7 @@ class Waterer(object):
         self.remaining_queries.remove(query_name)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds):
+    def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
         if self.debug:
             print '%s' % query_name
 
@@ -558,7 +583,7 @@ class Waterer(object):
         codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         for region in utils.regions:
             n_matches[region] = len(all_match_names[region])
-            n_skipped = 0
+            n_genes_skipped = 0
             for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
@@ -572,7 +597,7 @@ class Waterer(object):
 
                 # only use a specified set of genes
                 if self.args.only_genes is not None and gene not in self.args.only_genes:
-                    n_skipped += 1
+                    n_genes_skipped += 1
                     continue
 
                 # add match to the list
@@ -605,21 +630,34 @@ class Waterer(object):
                     best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
                     best[region + '_score'] = score
 
-            if self.debug and n_skipped > 0:
-                print '%8s skipped %d %s genes' % ('', n_skipped, region)
+            if self.debug and n_genes_skipped > 0:
+                print '%8s skipped %d %s genes' % ('', n_genes_skipped, region)
 
         for region in utils.regions:
             if region not in best:
                 if self.debug:
                     print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
+                queries_to_rerun['no-match'].add(query_name)
                 return
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         try:
             self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
         except AssertionError:
-            print '%s: apportionment failed' % query_name
+            print '%s: apportionment failed' % query_name  # TODO figure out why this happens
+            queries_to_rerun['failed-apport.'].add(query_name)
             return
+
+        # check for suspiciously bad annotations
+        vd_insertion = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
+        dj_insertion = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+        max_insertion_length = 35
+        if self.nth_try < 2:
+            if len(vd_insertion) > max_insertion_length or len(dj_insertion) > max_insertion_length:
+                if self.debug:
+                    print '      suspiciously long insertion, rerunning'
+                queries_to_rerun['weird-annot.'].add(query_name)
+                return
 
         # check for unproductive rearrangements
         for region in utils.regions:
@@ -632,13 +670,24 @@ class Waterer(object):
         no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.debug)
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.debug:
-                print '       unproductive rearrangement in waterer codons_ok: %s   in_frame_cdr3: %s   no_stop_codon: %s' % (codons_ok, in_frame_cdr3, no_stop_codon)
-            if self.args.skip_unproductive:
+                print '       unproductive rearrangement:',
+                if not codons_ok:
+                    print '  bad codons',
+                if not in_frame_cdr3:
+                    print '  out of frame cdr3',
+                if not no_stop_codon:
+                    print '  stop codon'
+                print ''
+            if self.nth_try < 2:  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence)
+                if self.debug:
+                    print '            ...rerunning'
+                queries_to_rerun['unproductive'].add(query_name)
+            elif self.args.skip_unproductive:
                 if self.debug:
                     print '            ...skipping'
-                self.info['skipped_unproductive_queries'].append(query_name)
+                self.unproductive_queries.add(query_name)
                 self.remaining_queries.remove(query_name)
-                return
+            return
 
         # best k_v, k_d:
         k_v = all_query_bounds[best['v']][1]  # end of v match
