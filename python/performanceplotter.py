@@ -53,6 +53,8 @@ class PerformancePlotter(object):
 
         true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
+        if len(true_naive_seq) != len(inferred_naive_seq):
+            raise Exception('true and inferred sequences not the same length\n   %s\n   %s\n' % (true_naive_seq, inferred_naive_seq))
 
         # assert False # read through this whole damn thing and make sure it's ok
 
@@ -71,25 +73,29 @@ class PerformancePlotter(object):
         #     if debug:
         #         print '  adding to inferred naive seq'
 
-        # if restrict_to_region == '':
-        #     print '  before', inferred_naive_seq
         if padfo is not None:  # remove N padding from the inferred sequence
+            if debug:
+                print 'removing padfo'
+                print inferred_naive_seq
+            if inferred_naive_seq[padfo['padleft'] : ].count('N') != padfo['padleft']:
+                raise Exception('tried to remove non Ns!\n   %s\n   padleft %d\n' % (inferred_naive_seq, padfo['padleft']))
             inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
             if padfo['padright'] > 0:
+                if inferred_naive_seq[ : padfo['padright']].count('N') != padfo['padright']:
+                    raise Exception('tried to remove non Ns!\n   %s\n   padright %d\n' % (inferred_naive_seq, padfo['padright']))
                 inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]
-        # if restrict_to_region == '':
-        #     print '  after ', inferred_naive_seq
+            if debug:
+                print padfo['padleft'] * ' ' + inferred_naive_seq + padfo['padleft'] * ' '
 
         bounds = None
         if restrict_to_region != '':
             bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, self.germlines, true_line)  # get the bounds of this *true* region
+            if debug:
+                print 'restrict to %s' % restrict_to_region
+                utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True, extra_str='      ')
+                utils.color_mutants(true_naive_seq[bounds[0] : bounds[1]], inferred_naive_seq[bounds[0] : bounds[1]], print_result=True, extra_str='      ' + bounds[0]*' ')
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
-
-        if debug:
-            print restrict_to_region, 'region, bounds', bounds
-            print '  true ', true_naive_seq
-            print '  infer', inferred_naive_seq
 
         if len(true_naive_seq) != len(inferred_naive_seq):
             raise Exception('still not the same lengths for %s\n  %s\n  %s' % (query_name, true_naive_seq, inferred_naive_seq))

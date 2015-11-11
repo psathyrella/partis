@@ -571,6 +571,8 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
         assert start[chkreg] >= 0
         assert end[chkreg] >= 0
         assert end[chkreg] >= start[chkreg]
+        assert end[chkreg] <= len(line['seq'])
+    assert end['j'] == len(line['seq'])
     # print end['j'], len(line['seq']), line['v_5p_del'], line['j_3p_del']
     if end['j'] != len(line['seq']):
         for k, v in line.items():
