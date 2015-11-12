@@ -52,6 +52,7 @@ real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # hmm yamels -- which is what we want, because we want to be able to read in short data reads but make full-length simulation.
 effective_erosions = ['v_5p', 'j_3p']
 boundaries = ['vd', 'dj']
+effective_boundaries = ['fv', 'jf']
 humans = ['A', 'B', 'C']
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
@@ -484,7 +485,47 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
 # ----------------------------------------------------------------------------------------
-def reset_effective_erosions_and_effective_insertions(line, debug=False):
+def disambiguate_effective_insertions(bound, line, seq, debug=True):
+    # These are kinda weird names, but the distinction is important
+    # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
+    # This concept of insertion germline state is mostly relevant for simultaneous inference on several sequences, i.e. in ham we don't want to just say the inserted base was the base in the query sequence.
+    # But here, we're trimming off the effective insertions and we have to treat the inserted germline N to [ACGT] differently than we would an insertion which was "germline" [ACGT] which emitted an N,
+    # and also differently to a real germline [VDJ] state that emitted an N.
+    naive_insertion = line[bound + '_insertion']  # reminder: ham gets this from the last character in the insertion state name, e.g. 'insert_left_A' or 'insert_right_N'
+    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
+        mature_insertion = seq[ : len(line[bound + '_insertion'])]
+    elif bound == 'jf':
+        mature_insertion = seq[-len(line[bound + '_insertion']) : ]
+    else:
+        assert False
+    if naive_insertion == mature_insertion:
+        final_insertion = ''  # leave this bit as an insertion in the final <line>
+        insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
+        trimmed_seq = seq
+    else:
+        assert len(naive_insertion) == len(mature_insertion)
+        assert naive_insertion.count('N') == len(naive_insertion)  # should be e.g. naive: NNN   mature: ANN
+        if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
+            i_first_non_N = find_first_non_ambiguous_base(mature_insertion)
+            final_insertion = mature_insertion[i_first_non_N : ]
+            insertion_to_remove = mature_insertion[ : i_first_non_N]
+            trimmed_seq = seq[len(insertion_to_remove) : ]
+        elif bound == 'jf':
+            i_first_N = find_last_non_ambiguous_base_plus_one(mature_insertion)
+            final_insertion = mature_insertion[ : i_first_N]
+            insertion_to_remove = mature_insertion[i_first_N : ]
+            trimmed_seq = seq[ : -len(insertion_to_remove)]
+        else:
+            assert False
+        if debug:
+            print 'naive and mature %s insertions differ' % bound
+            color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
+            print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
+
+    return trimmed_seq, final_insertion, insertion_to_remove
+
+# ----------------------------------------------------------------------------------------
+def reset_effective_erosions_and_effective_insertions(line, debug=True):
     """ 
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -501,18 +542,27 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         print '     %s' % line['seqs'][0]
 
     trimmed_seqs = []
+    final_insertions, insertions_to_remove = [], []
     for iseq in range(len(line['seqs'])):
-        trimmed_seq = line['seqs'][iseq][len(line['fv_insertion']) : ]
-        if len(line['jf_insertion']) > 0:
-            trimmed_seq = trimmed_seq[ : -len(line['jf_insertion'])]
+        trimmed_seq = line['seqs'][iseq]
+        final_insertions.append({})
+        insertions_to_remove.append({})
+        for bound in effective_boundaries:
+            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq)
+            final_insertions[-1][bound] = final_insertion
+            insertions_to_remove[-1][bound] = insertion_to_remove
         trimmed_seqs.append(trimmed_seq)
 
     # arbitrarily use the zeroth sequence
     trimmed_seq = trimmed_seqs[0]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
+    final_fv_insertion = final_insertions[0]['fv']
+    final_jf_insertion = final_insertions[0]['jf']
+    fv_insertion_to_remove = insertions_to_remove[0]['fv']
+    jf_insertion_to_remove = insertions_to_remove[0]['jf']
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
-    line['cyst_position'] -= line['v_5p_del'] + len(line['fv_insertion'])
-    line['tryp_position'] -= line['v_5p_del'] + len(line['fv_insertion'])
+    line['cyst_position'] -= line['v_5p_del'] + len(fv_insertion_to_remove)
+    line['tryp_position'] -= line['v_5p_del'] + len(fv_insertion_to_remove)
 
     for iseq in range(len(line['seqs'])): # TODO note, though, that this trims *all* the seqs according to the read truncation from the zeroth sequence
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
@@ -520,10 +570,10 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
     if debug:
-        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(line['fv_insertion']), line['v_5p_del'], line['j_3p_del'], len(line['jf_insertion']), line['seqs'][0])
+        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
 
-    line['fv_insertion'] = ''
-    line['jf_insertion'] = ''
+    line['fv_insertion'] = final_fv_insertion
+    line['jf_insertion'] = final_jf_insertion
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
