@@ -73,17 +73,20 @@ class PerformancePlotter(object):
         #     if debug:
         #         print '  adding to inferred naive seq'
 
+
         if padfo is not None:  # remove N padding from the inferred sequence
             if debug:
                 print 'removing padfo'
                 print inferred_naive_seq
-            if inferred_naive_seq[padfo['padleft'] : ].count('N') != padfo['padleft']:
-                raise Exception('tried to remove non Ns!\n   %s\n   padleft %d\n' % (inferred_naive_seq, padfo['padleft']))
-            inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
+            if inferred_naive_seq[padfo['padleft'] : ].count('N') == padfo['padleft']:  # this fails to happen if reset_effective_erosions_and_effective_insertions already removed the Ns
+                inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
+            elif debug:  # NOTE if no debug, we just fall through, which isok
+                print 'tried to remove non Ns!\n   %s\n   padleft %d\n' % (inferred_naive_seq, padfo['padleft'])
             if padfo['padright'] > 0:
-                if inferred_naive_seq[ : padfo['padright']].count('N') != padfo['padright']:
-                    raise Exception('tried to remove non Ns!\n   %s\n   padright %d\n' % (inferred_naive_seq, padfo['padright']))
-                inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]
+                if inferred_naive_seq[ : padfo['padright']].count('N') == padfo['padright']:  # this fails to happen if reset_effective_erosions_and_effective_insertions already removed the Ns
+                    inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]
+                elif debug:  # NOTE if no debug, we just fall through, which isok
+                    print 'tried to remove non Ns!\n   %s\n   padright %d\n' % (inferred_naive_seq, padfo['padright'])
             if debug:
                 print padfo['padleft'] * ' ' + inferred_naive_seq + padfo['padleft'] * ' '
 
