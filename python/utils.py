@@ -495,7 +495,10 @@ def disambiguate_effective_insertions(bound, line, seq, debug=True):
     if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
         mature_insertion = seq[ : len(line[bound + '_insertion'])]
     elif bound == 'jf':
-        mature_insertion = seq[-len(line[bound + '_insertion']) : ]
+        if len(line[bound + '_insertion']) > 0:
+            mature_insertion = seq[-len(line[bound + '_insertion']) : ]
+        else:
+            mature_insertion = ''
     else:
         assert False
     if naive_insertion == mature_insertion:
@@ -503,7 +506,8 @@ def disambiguate_effective_insertions(bound, line, seq, debug=True):
         insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
         trimmed_seq = seq
     else:
-        assert len(naive_insertion) == len(mature_insertion)
+        if len(naive_insertion) != len(mature_insertion):
+            raise Exception('naive and mature insertions not the same length\n   %s\n   %s\n' % (naive_insertion, mature_insertion))
         assert naive_insertion.count('N') == len(naive_insertion)  # should be e.g. naive: NNN   mature: ANN
         if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
             i_first_non_N = find_first_non_ambiguous_base(mature_insertion)
@@ -514,7 +518,10 @@ def disambiguate_effective_insertions(bound, line, seq, debug=True):
             i_first_N = find_last_non_ambiguous_base_plus_one(mature_insertion)
             final_insertion = mature_insertion[ : i_first_N]
             insertion_to_remove = mature_insertion[i_first_N : ]
-            trimmed_seq = seq[ : -len(insertion_to_remove)]
+            if len(insertion_to_remove) > 0:
+                trimmed_seq = seq[ : -len(insertion_to_remove)]
+            else:
+                trimmed_seq = seq
         else:
             assert False
         if debug:
@@ -525,7 +532,7 @@ def disambiguate_effective_insertions(bound, line, seq, debug=True):
     return trimmed_seq, final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
-def reset_effective_erosions_and_effective_insertions(line, debug=True):
+def reset_effective_erosions_and_effective_insertions(line, debug=False):
     """ 
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
