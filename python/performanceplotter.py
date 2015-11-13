@@ -54,6 +54,16 @@ class PerformancePlotter(object):
         true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
         inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
         if len(true_naive_seq) != len(inferred_naive_seq):
+            print '%20s    true      inf' % ''
+            for k in true_line:
+                print '%20s   %s' % (k, true_line[k]),
+                if k in line:
+                    print '   %s' % line[k]
+                else:
+                    print '    NOPE'
+            for k in line:
+                if k not in true_line:
+                    print '  not in true line   %20s    %s' % (k, line[k])
             raise Exception('%s true and inferred sequences not the same length\n   %s\n   %s\n' % (line['unique_id'], true_naive_seq, inferred_naive_seq))
 
         # assert False # read through this whole damn thing and make sure it's ok

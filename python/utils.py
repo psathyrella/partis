@@ -485,7 +485,7 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
 # ----------------------------------------------------------------------------------------
-def disambiguate_effective_insertions(bound, line, seq, debug=True):
+def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
     # This concept of insertion germline state is mostly relevant for simultaneous inference on several sequences, i.e. in ham we don't want to just say the inserted base was the base in the query sequence.
@@ -501,10 +501,9 @@ def disambiguate_effective_insertions(bound, line, seq, debug=True):
             mature_insertion = ''
     else:
         assert False
-    if naive_insertion == mature_insertion:
+    if naive_insertion == mature_insertion:  # all is simple and hunky-dory: no insertion 'mutations'
         final_insertion = ''  # leave this bit as an insertion in the final <line>
         insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
-        trimmed_seq = seq
     else:
         if len(naive_insertion) != len(mature_insertion):
             raise Exception('naive and mature insertions not the same length\n   %s\n   %s\n' % (naive_insertion, mature_insertion))
@@ -513,21 +512,26 @@ def disambiguate_effective_insertions(bound, line, seq, debug=True):
             i_first_non_N = find_first_non_ambiguous_base(mature_insertion)
             final_insertion = mature_insertion[i_first_non_N : ]
             insertion_to_remove = mature_insertion[ : i_first_non_N]
-            trimmed_seq = seq[len(insertion_to_remove) : ]
         elif bound == 'jf':
             i_first_N = find_last_non_ambiguous_base_plus_one(mature_insertion)
             final_insertion = mature_insertion[ : i_first_N]
             insertion_to_remove = mature_insertion[i_first_N : ]
-            if len(insertion_to_remove) > 0:
-                trimmed_seq = seq[ : -len(insertion_to_remove)]
-            else:
-                trimmed_seq = seq
         else:
             assert False
-        if debug:
-            print 'naive and mature %s insertions differ' % bound
-            color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
-            print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
+        print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
+        color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
+        print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
+
+    # remove the insertion that we want to remove
+    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
+        trimmed_seq = seq[len(insertion_to_remove) : ]
+    elif bound == 'jf':
+        if len(insertion_to_remove) > 0:
+            trimmed_seq = seq[ : -len(insertion_to_remove)]
+        else:
+            trimmed_seq = seq
+    if debug:
+        print '    %s insertion   final %s   to_remove %s    trimmed_seq %s' % (bound, final_insertion, insertion_to_remove, trimmed_seq)
 
     return trimmed_seq, final_insertion, insertion_to_remove
 
@@ -548,6 +552,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         print 'resetting effective erosions'
         print '     %s' % line['seqs'][0]
 
+    # first remove effective (fv and jf) insertions
     trimmed_seqs = []
     final_insertions, insertions_to_remove = [], []
     for iseq in range(len(line['seqs'])):
@@ -555,7 +560,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         final_insertions.append({})
         insertions_to_remove.append({})
         for bound in effective_boundaries:
-            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq)
+            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq, line['unique_ids'][iseq], debug)
             final_insertions[-1][bound] = final_insertion
             insertions_to_remove[-1][bound] = insertion_to_remove
         trimmed_seqs.append(trimmed_seq)
