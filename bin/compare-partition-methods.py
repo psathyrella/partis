@@ -22,7 +22,7 @@ import baseutils
 # from clusterplot import ClusterPlot
 from clusterpath import ClusterPath
 from glomerator import Glomerator
-
+raise Exception('TODO check that changing around plotdirs and things in run-driver doesn\'t screw this script over')
 fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output'
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')

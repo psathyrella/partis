@@ -96,7 +96,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def finalize(self):
         if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw/performance')
+            self.perfplotter.plot(self.args.plotdir + '/sw')
         # print '    sw time: %.3f' % (time.time()-start)
         print '      info for %d' % len(self.info['queries']),
         skipped_unproductive = len(self.unproductive_queries)
@@ -116,7 +116,7 @@ class Waterer(object):
             if self.args.plotdir is not None:
                 self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
                 if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + 'sw/true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
 
         self.pad_seqs_to_same_length()  # adds padded info to self.info (returns if stuff has already been padded)
 
