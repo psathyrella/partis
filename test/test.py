@@ -1,13 +1,19 @@
 #!/usr/bin/env python
+import argparse
 import os
 import glob
 from collections import OrderedDict
-from subprocess import check_call
+from subprocess import check_call, check_output
 import sys
 sys.path.insert(1, './python')
 from baseutils import get_extra_str
 
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--plotdir')
+# args = parser.parse_args()
+
 stashdir = 'test/_new-results'
+referencedir = 'test/reference-results'
 datafname = 'test/mishmash.csv'
 # these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
 only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
@@ -15,18 +21,16 @@ only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:
 common_extras = ['--seed', '1', '--n-procs', '5', '--only-genes', only_genes]
 
 actions = OrderedDict()
-# key is name, value is target (note that the target corresponds to a directory or file in <stashdir>
-actions['cache-data-parameters'] = {'target' : 'data', 'extras' : []}
-actions['simulate'] = {'target' : 'simu.csv', 'extras' : ['--n-sim-events', '150']}
-actions['cache-simu-parameters'] = {'target' : 'simu', 'extras' : []}
-actions['plot-performance'] = {'target' : 'simu-performance', 'extras' : []}
+actions['cache-data-parameters'] = {'extras' : []}
+actions['simulate'] = {'extras' : ['--n-sim-events', '100', '--mimic-data-read-length']}
+actions['cache-simu-parameters'] = {'extras' : []}
+actions['plot-performance'] = {'extras' : []}
 
 tests = OrderedDict()
 # first add the tests that run over the framework (using run-driver.py)
+base_test_cmd = './bin/run-driver.py --label test'
 for action, config in actions.items():
-    tests[action] = './bin/run-driver.py --label test --datafname ' + datafname + ' --stashdir ' + stashdir + ' --action ' + action + get_extra_str(config['extras'] + common_extras)
-    # if action != 'simulate':
-    #     tests[action] += ' --plotdir ' + stashdir
+    tests[action] = base_test_cmd + ' --datafname ' + datafname + ' --stashdir ' + stashdir + ' --action ' + action + get_extra_str(config['extras'] + common_extras)
 
 # ----------------------------------------------------------------------------------------
         # env.Command('test/_results/%s.passed' % name, out,
@@ -45,18 +49,34 @@ script = './bin/partis.py'
 # tests['naive-hamming-partition-simu'] = script + ' --action partition --naive-hamming --seqfile test/regression/parameters/simu.csv --random-divvy --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
 # tests['vsearch-hamming-partition-simu'] = script + ' --action partition --naive-vsearch --seqfile test/regression/parameters/simu.csv --random-divvy --parameter-dir ' + simu_parameter_dir + ' --n-max-queries 30 --n-procs 5 --debug 1 ' + ' '.join(common_extras)
 
-# ----------------------------------------------------------------------------------------
-all_passed = 'test/_results/ALL.passed'
-individual_passed = ['test/_results/{}.passed'.format(name) for name in tests.keys()]
-
-for path in individual_passed + [all_passed]:
-    if os.path.exists(path):
-        print 'removing', path
-        os.remove(path)
-print 'TODO add plotting\n'
 for name, cmd_str in tests.items():
     print '%30s   %s' % (name, cmd_str)
-    check_call(cmd_str.split())
+    # check_call(cmd_str.split())
+
+# ----------------------------------------------------------------------------------------
+checks = OrderedDict()
+plotdirs = ['test/plots/data/sw', 'test/plots/data/hmm', 'test/plots/simu/hmm-true', 'test/plots/simu-performance/sw', 'test/plots/simu-performance/hmm']
+base_check_cmd = './bin/compare.py --dont-calculate-mean-info --graphify --linewidth 1 --markersizes 2:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414
+if os.getenv('www') is None:
+    www_dir = '_test-plots'
+else:
+    www_dir = os.getenv('www') + '/partis/test'
+# # if you want to do *all* the subdirs use this:
+# recursive_subdirs = []
+# for plotdir in plotdirs:
+#     find_plotdirs_cmd = 'find ' + referencedir + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
+#     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
+for plotdir in plotdirs:
+    plotdirstr = plotdir.replace(referencedir + '/', '')
+    check_cmd = base_check_cmd + ' --plotdirs '  + referencedir + '/' + plotdirstr + ':' + stashdir + '/' + plotdirstr
+    check_cmd += ' --outdir ' + www_dir + '/' + plotdirstr
+    check_call(check_cmd.split())
+check_call(['./bin/permissify-www', www_dir])
+
+# # ----------------------------------------------------------------------------------------
+# for name, cmd_str in tests.items():
+#     print '%30s   %s' % (name, cmd_str)
+#     check_call(cmd_str.split())
     # sys.exit()
 
     # out = 'test/_results/%s.out' % name
