@@ -396,7 +396,7 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 
   if(parents != nullptr) {
     if(naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
-      cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
+      // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
       naive_seqs_[queries] = naive_seqs_[parents->first];
       return;
     }
