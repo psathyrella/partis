@@ -113,6 +113,9 @@ class Waterer(object):
         assert len(self.info['queries']) + skipped_unproductive + n_unknown == len(self.input_info)
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
+            if self.true_pcounter is not None:
+                assert self.parameter_dir[-1] != '/'
+                self.true_pcounter.write(self.parameter_dir + '-true')
             if self.args.plotdir is not None:
                 self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
                 if self.true_pcounter is not None:

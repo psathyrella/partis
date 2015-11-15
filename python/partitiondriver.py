@@ -1267,7 +1267,8 @@ class PartitionDriver(object):
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if true_pcounter is not None:
-            true_pcounter.write(parameter_out_dir + '/hmm-true')
+            assert parameter_out_dir[-1] != '/'
+            true_pcounter.write(parameter_out_dir + '-true')
             if self.args.plotdir is not None:
                 true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if perfplotter is not None:
