@@ -189,7 +189,7 @@ class PartitionDriver(object):
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             # print_sizes()
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and not self.args.random_divvy))
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
             # utils.print_heapy('after run step', hp.heap())
             n_proc_list.append(n_procs)
 
@@ -255,7 +255,7 @@ class PartitionDriver(object):
                     if uid in cluster:
                         found = True
                         break
-                if not found and uid not in self.sw_info['skipped_unproductive_queries']:
+                if not found:
                     missing_ids.add(uid)
             for cluster in partition:
                 for uid in cluster:
@@ -713,7 +713,7 @@ class PartitionDriver(object):
 
         cluster_divvy = False
         if self.args.action == 'partition' and algorithm == 'forward':
-            if not self.args.random_divvy and not cache_naive_seqs and not bcrham_naive_hamming_cluster:
+            if self.args.no_random_divvy and not cache_naive_seqs and not bcrham_naive_hamming_cluster:
                 cluster_divvy = True
         # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')
         if cluster_divvy:  # cluster similar sequences together (otherwise just do it in order)
@@ -1075,7 +1075,7 @@ class PartitionDriver(object):
         if mode == 'w':
             writer.writeheader()
 
-        if self.args.random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
+        if not self.args.no_random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
             random.shuffle(nsets)
 
         for query_name_list in nsets:
