@@ -61,7 +61,7 @@ plotdirs = [ 'multi-partis/hmm/performance',
 plotdirs = [ base_plotdir + '/' + pd for pd in plotdirs ]
 names = 'partis@(k=5):partis@(k=1):ighutil:iHMMunealign:igblast:imgt'
 
-plot_cmd = './python/compare.py --plot-performance --no-errors --normalize --markersizes 0 --linestyles 2:1:1:1:1:1 --outdir ' + base_plotdir + '/all-vs-all' \
+plot_cmd = './bin/compare.py --plot-performance --no-errors --normalize --markersizes 0 --linestyles 2:1:1:1:1:1 --outdir ' + base_plotdir + '/all-vs-all' \
            + ' --graphify --plotdirs ' + ':'.join(plotdirs) + ' --names ' + names + ' --colors 810:634:596:418:798:869'
 print plot_cmd
 check_call(plot_cmd.split())

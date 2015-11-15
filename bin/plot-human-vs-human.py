@@ -40,7 +40,7 @@ for subdir in args.subdirs:
         
         names = [ human + '@' + s for s in subsets ]
 
-        cmd = './python/compare.py --no-errors --linewidth 1 --plotdirs ' + ':'.join(plotdirs) + ' --names ' + ':'.join(names) + ' --outdir ' + baseoutdir + '/' + subdir
+        cmd = './bin/compare.py --no-errors --linewidth 1 --plotdirs ' + ':'.join(plotdirs) + ' --names ' + ':'.join(names) + ' --outdir ' + baseoutdir + '/' + subdir
         final_plotdirs.append(baseoutdir + '/' + subdir)
         
         colorlist = [ colors[human] for _ in range(len(subsets)) ]
@@ -53,7 +53,7 @@ for subdir in args.subdirs:
         # print 'SKIPPING'
 
     # then make the human-comparison plots
-    final_cmd = './python/compare.py --dont-calculate-mean-info --colors ' + ':'.join([ colors[human] for human in humans[args.dataset] ]) \
+    final_cmd = './bin/compare.py --dont-calculate-mean-info --colors ' + ':'.join([ colors[human] for human in humans[args.dataset] ]) \
                 + ' --plotdirs ' + ':'.join(final_plotdirs) + ' --names ' + ':'.join(humans[args.dataset]) + ' --outdir ' + webdir + '/cf-data-' + args.dataset + '/' + subdir
     final_cmd += ' --graphify --linewidth 1'
     final_cmd += ' --scale-errors 1.414'
