@@ -99,6 +99,7 @@ parser.add_argument('--dont-allow-unphysical-insertions', action='store_true', h
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
 
 args = parser.parse_args()
+print 'TODO test removal of insertion base content'
 args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
