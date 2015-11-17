@@ -465,7 +465,8 @@ class PartitionDriver(object):
         total = 0
         for procinfo in self.n_likelihoods_calculated:
             total += procinfo['vtb'] + procinfo['fwd']
-        print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
+        if self.args.debug:
+            print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
         return float(total) / len(self.n_likelihoods_calculated)
 
     # ----------------------------------------------------------------------------------------

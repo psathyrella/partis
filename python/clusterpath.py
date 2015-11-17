@@ -69,7 +69,7 @@ class ClusterPath(object):
                 self.add_partition(partition, float(line['logprob']), int(line['n_procs']), logweight=logweight, adj_mi=adj_mi)
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', one_line=True, abbreviate=True):
+    def print_partition(self, ip, reco_info=None, extrastr='', one_line=True, abbreviate=True, smc_print=False):
         if one_line:
             if ip > 0:  # delta between this logprob and the previous one
                 delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -78,7 +78,7 @@ class ClusterPath(object):
             print '      %5s  %-12.2f%-7s   %-5d  %5d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip]), self.n_procs[ip]),
 
             # logweight (and inverse of number of potential parents)
-            if self.logweights[ip] is not None:
+            if self.logweights[ip] is not None and smc_print:
                 way_str, logweight_str = '', ''
                 expon = math.exp(self.logweights[ip])
                 n_ways = 0 if expon == 0. else 1. / expon
@@ -96,7 +96,7 @@ class ClusterPath(object):
                     else:
                         adj_mi_str = '%-8.0e' % self.adj_mis[ip]
                 print '      %8s   ' % (adj_mi_str),
-            if self.logweights[ip] is not None:
+            if self.logweights[ip] is not None and smc_print:
                 print '   %10s    %8s   ' % (way_str, logweight_str),
         else:
             print '  %5s partition   %-15.2f' % (extrastr, self.logprobs[ip]),
@@ -161,12 +161,12 @@ class ClusterPath(object):
         return parents
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', one_line=True, abbreviate=True, print_header=True, n_to_print=None):
+    def print_partitions(self, reco_info=None, extrastr='', one_line=True, abbreviate=True, print_header=True, n_to_print=None, smc_print=False):
         if print_header:
             print '    %7s %10s   %-7s %5s  %5s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None:
                 print ' %8s' % ('adj mi'),
-            if self.logweights[0] is not None:
+            if self.logweights[0] is not None and smc_print:
                 print '  %10s  %7s' % ('pot.parents', 'logweight'),
             print ''
 
@@ -176,7 +176,7 @@ class ClusterPath(object):
                 mark += '*'
             if ip == self.i_best_minus_x:
                 mark += '*'
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, one_line=one_line, abbreviate=abbreviate)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, one_line=one_line, abbreviate=abbreviate, smc_print=smc_print)
 
     # ----------------------------------------------------------------------------------------
     def set_synthetic_logweight_history(self, reco_info):
