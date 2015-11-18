@@ -19,40 +19,46 @@ label = 'test'
 # these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
 only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
 common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', only_genes]
-
-actions = OrderedDict()
-# actions['cache-data-parameters'] = {'extras' : ['--skip-unproductive']}
-# actions['simulate'] = {'extras' : ['--n-sim-events', '100', '--mimic-data-read-length']}
-# actions['cache-simu-parameters'] = {'extras' : []}
-# actions['plot-performance'] = {'extras' : []}
-
-tests = OrderedDict()
-# first add the tests that run over the framework (using run-driver.py)
-base_test_cmd = './bin/run-driver.py --label ' + label
-for action, config in actions.items():
-    tests[action] = base_test_cmd + ' --datafname ' + datafname + ' --stashdir ' + stashdir + ' --action ' + action + get_extra_str(config['extras'] + common_extras)
-
-
-# then add the simple, few-sequence tests (using partis.py)
 param_dir = stashdir + '/' + label  # change this to <referencedir> if you want to see if these results change without checking if parameter stashing has changed
-simfname = param_dir + '/simu.csv'
+ref_simfname = referencedir + '/' + label + '/simu.csv'
+new_simfname = param_dir + '/simu.csv'
 simu_param_dir = param_dir + '/parameters/simu/hmm'
 data_param_dir = param_dir + '/parameters/data/hmm'
-script = './bin/partis.py'
-tests['single-point-estimate'] = script + ' --action run-viterbi --seqfile ' + simfname + ' --parameter-dir ' + simu_param_dir + ' --n-max-queries 10 ' + ' '.join(common_extras)
-# tests['viterbi-pair'] = script + ' --action run-viterbi --n-sets 2 --all-combinations --seqfile ' + simfname + ' --parameter-dir ' + simu_param_dir + ' --n-max-queries 3 ' + ' '.join(common_extras)
-tests['partition-data'] = script + ' --action partition --seqfile ' + datafname + ' --is-data --skip-unproductive --parameter-dir ' + data_param_dir + ' --n-max-queries 100 ' + ' '.join(common_extras)
-tests['partition-simu'] = script + ' --action partition --seqfile ' + simfname + ' --parameter-dir ' + simu_param_dir + ' --n-max-queries 100 ' + ' '.join(common_extras)
-tests['naive-hamming-partition-simu'] = script + ' --action partition --naive-hamming --seqfile ' + simfname + ' --parameter-dir ' + simu_param_dir + ' --n-max-queries 100 ' + ' '.join(common_extras)
-tests['vsearch-hamming-partition-simu'] = script + ' --action partition --naive-vsearch --seqfile ' + simfname + ' --parameter-dir ' + simu_param_dir + ' --n-max-queries 100 ' + ' '.join(common_extras)
+run_driver = './bin/run-driver.py --label ' + label + ' --stashdir ' + stashdir
+partis = './bin/partis.py'
 
-for name, cmd_str in tests.items():
-    if name not in actions:
+tests = OrderedDict()
+n_partition_queries = '100'
+# tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', simu_param_dir, '--n-max-queries', n_partition_queries]}
+# tests['point-partition-ref-simu']   = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', ref_simfname, '--parameter-dir', simu_param_dir, '--n-max-queries', n_partition_queries]}
+# tests['vsearch-partition-ref-simu'] = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', ref_simfname, '--parameter-dir', simu_param_dir, '--n-max-queries', n_partition_queries]}
+
+tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
+tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 100, '--mimic-data-read-length']}
+tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
+
+tests['annotate-simu']  = {'bin' : run_driver, 'action' : 'plot-performance', 'extras' : []}
+tests['single-point-estimate']      = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', new_simfname, '--parameter-dir', simu_param_dir, '--n-max-queries', '10']}
+tests['partition-data']             = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', datafname, '--parameter-dir', data_param_dir, '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
+tests['partition-new-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', simu_param_dir, '--n-max-queries', n_partition_queries]}
+tests['point-partition-new-simu']   = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', simu_param_dir, '--naive-hamming', '--n-max-queries', n_partition_queries]}
+tests['vsearch-partition-new-simu'] = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', simu_param_dir, '--naive-vsearch', '--n-max-queries', n_partition_queries]}
+for name, info in tests.items():
+    action = info['action'] if 'action' in info else name
+    cmd_str = info['bin'] + ' --action ' + action
+    if info['bin'] == partis:
+        cmd_str += ' ' + ' '.join(info['extras'] + common_extras)
         cmd_str += ' --outfname ' + stashdir + '/' + name + '.csv'
+    else:
+        cmd_str += get_extra_str(info['extras'] + common_extras)
+        if action == 'cache-data-parameters':
+            cmd_str += ' --datafname ' + datafname
     print 'TEST %30s   %s' % (name, cmd_str)
     check_call(cmd_str.split())
 sys.exit()
+
 # ----------------------------------------------------------------------------------------
+# make some comparison plots
 checks = OrderedDict()
 plotdirs = ['test/plots/data/sw', 'test/plots/data/hmm', 'test/plots/simu/hmm-true', 'test/plots/simu-performance/sw', 'test/plots/simu-performance/hmm']
 base_check_cmd = './bin/compare.py --dont-calculate-mean-info --graphify --linewidth 1 --markersizes 2:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414
