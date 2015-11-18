@@ -1531,6 +1531,27 @@ def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_bigg
     return a_cluster_lengths, b_cluster_lengths, smatrix
 
 # ----------------------------------------------------------------------------------------
+def get_cluster_list_for_sklearn(part_a, part_b):
+    # NOTE this will be really slow for larger partitions
+    clusts_a, clusts_b = [], []
+    for iclust in range(len(part_a)):
+        for uid in part_a[iclust]:
+            clusts_a.append(iclust)
+            for jclust in range(len(part_b)):
+                if uid in part_b[jclust]:
+                    clusts_b.append(jclust)
+                    break
+            if len(clusts_a) != len(clusts_b):
+                raise Exception('missing uids in one partition: %s %s\n' % (clusts_a, clusts_b))
+
+    return clusts_a, clusts_b
+
+# ----------------------------------------------------------------------------------------
+def adjusted_mutual_information(partition_a, partition_b):
+    clusts_a, clusts_b = get_cluster_list_for_sklearn(partition_a, partition_b)
+    return adjusted_mutual_info_score(clusts_a, clusts_b)
+
+# ----------------------------------------------------------------------------------------
 def mutual_information_to_true(partition, reco_info, debug=False):
     """ adj mi to the true partition that we get from <reco_info> """
     true_cluster_list, inferred_cluster_list = [], []  # for a partition {cl_1 : [seq_a, seq_b], cl_2 : [seq_c]}, list is of form [cl_1, cl_1, cl_2]
