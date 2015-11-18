@@ -22,6 +22,7 @@ class ClusterPath(object):
         self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes
         self.i_best, self.i_best_minus_x = None, None
         # self.conservative_best_minus_ten_partition, self.conservative_max_minus_ten_logprob = None, None  # have to keep track of these *separately* since they don't necessarily occur in <self.partitions>, if this path is the result of merging a number of others
+        self.we_have_an_adj_mi = False  # did we read in at least one adj mi value from a file?
 
     def update_best_minus_x_partition(self):
         if math.isinf(self.logprobs[self.i_best]):  # if logprob is infinite, set best and best minus x to the latest one
@@ -65,7 +66,10 @@ class ClusterPath(object):
             for line in reader:
                 partition = [cl.split(':') for cl in line['clusters'].split(';')]
                 logweight = float(line['logweight']) if 'logweight' in line else None
-                adj_mi = None if 'adj_mi' not in line or line['adj_mi'] == '' else float(line['adj_mi']) 
+                adj_mi = None
+                if 'adj_mi' in line and line['adj_mi'] != '' and float(line['adj_mi']) != -1.:
+                    adj_mi = float(line['adj_mi'])
+                    self.we_have_an_adj_mi = True
                 self.add_partition(partition, float(line['logprob']), int(line['n_procs']), logweight=logweight, adj_mi=adj_mi)
 
     # ----------------------------------------------------------------------------------------
@@ -86,10 +90,10 @@ class ClusterPath(object):
                 logweight_str = '%8.3f' % self.logweights[ip]
 
             # adj mi
-            if reco_info is not None:
+            if reco_info is not None or self.we_have_an_adj_mi:
                 adj_mi_str = ''
                 if self.adj_mis[ip] is None:
-                    adj_mi_str = 'na'
+                    adj_mi_str = '   -    '
                 else:
                     if self.adj_mis[ip] > 1e-3:
                         adj_mi_str = '%-8.3f' % self.adj_mis[ip]
@@ -164,7 +168,7 @@ class ClusterPath(object):
     def print_partitions(self, reco_info=None, extrastr='', one_line=True, abbreviate=True, print_header=True, n_to_print=None, smc_print=False):
         if print_header:
             print '    %7s %10s   %-7s %5s  %5s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
-            if reco_info is not None:
+            if reco_info is not None or self.we_have_an_adj_mi:
                 print ' %8s' % ('adj mi'),
             if self.logweights[0] is not None and smc_print:
                 print '  %10s  %7s' % ('pot.parents', 'logweight'),
