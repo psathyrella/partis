@@ -10,7 +10,7 @@ import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import random
 from collections import OrderedDict
-from subprocess import Popen, check_call, PIPE, check_output
+from subprocess import Popen, check_call, PIPE, check_output, CalledProcessError
 import copy
 
 import utils
@@ -782,7 +782,12 @@ class PartitionDriver(object):
 
         cmd = 'cat ' + ' '.join([fn for fn in infnames if fn != outfname]) + ' | grep -v \'' + header + '\''
         cmd += ' >>' + outfname
-        check_call(cmd, shell=True)
+        try:
+            check_call(cmd, shell=True)
+        except CalledProcessError:
+            print 'nothing to merge into %s' % outfname
+            # raise Exception('only read headers from %s', ' '.join([fn for fn in infnames if fn != outfname]))
+
         if dereplicate:
             assert 'cache' not in outfname  # TODO remove me
             tmpfname = outfname + '.tmp'
@@ -790,7 +795,7 @@ class PartitionDriver(object):
             print 'grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname
             check_call('grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname, shell=True)
             check_call(['mv', '-v', tmpfname, outfname])
-        # check_call(['wc',  outfname])
+
         if not self.args.no_clean:
             for infname in infnames:
                 if infname != outfname:
