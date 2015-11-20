@@ -672,6 +672,8 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
   if(min_hamming_fraction < INFINITY) {  // if lower hamming fraction was set, then merge the best (nearest) pair of clusters
     ++n_hamming_merged_;
     *chosen_lratio = -INFINITY;  // er... or something
+    if(args_->debug())
+      printf("           naive hamming merge %.3f\n", min_hamming_fraction);
     return min_hamming_merge;
   }
 
@@ -739,7 +741,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
     printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
     string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
-    PrintPartition(new_partition, extrastr);
+    // PrintPartition(new_partition, extrastr);
   }
 }
 
