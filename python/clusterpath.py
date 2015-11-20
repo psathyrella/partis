@@ -73,7 +73,7 @@ class ClusterPath(object):
                 self.add_partition(partition, float(line['logprob']), int(line['n_procs']), logweight=logweight, adj_mi=adj_mi)
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', one_line=True, abbreviate=True, smc_print=False):
+    def print_partition(self, ip, reco_info=None, extrastr='', one_line=True, abbreviate=True, smc_print=False, calc_adj_mi=False):
         if one_line:
             if ip > 0:  # delta between this logprob and the previous one
                 delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -93,7 +93,11 @@ class ClusterPath(object):
             if reco_info is not None or self.we_have_an_adj_mi:
                 adj_mi_str = ''
                 if self.adj_mis[ip] is None:
-                    adj_mi_str = '   -    '
+                    if calc_adj_mi:
+                        assert reco_info is not None
+                        adj_mi_str = '%.3f' % utils.mutual_information_to_true(self.partitions[ip], reco_info)
+                    else:
+                        adj_mi_str = '   -    '
                 else:
                     if self.adj_mis[ip] > 1e-3:
                         adj_mi_str = '%-8.3f' % self.adj_mis[ip]
@@ -118,7 +122,7 @@ class ClusterPath(object):
             if abbreviate:
                 cluster_str = ':'.join(['o' for uid in cluster])
             else:
-                cluster_str = ':'.join([str(uid) for uid in cluster])
+                cluster_str = ':'.join(sorted([str(uid) for uid in cluster]))
             if not same_event:
                 cluster_str = utils.color('red', cluster_str)
             
@@ -165,7 +169,7 @@ class ClusterPath(object):
         return parents
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', one_line=True, abbreviate=True, print_header=True, n_to_print=None, smc_print=False):
+    def print_partitions(self, reco_info=None, extrastr='', one_line=True, abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_adj_mi=False):
         if print_header:
             print '    %7s %10s   %-7s %5s  %5s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_an_adj_mi:
@@ -180,7 +184,7 @@ class ClusterPath(object):
                 mark += '*'
             if ip == self.i_best_minus_x:
                 mark += '*'
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, one_line=one_line, abbreviate=abbreviate, smc_print=smc_print)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, one_line=one_line, abbreviate=abbreviate, smc_print=smc_print, calc_adj_mi=calc_adj_mi)
 
     # ----------------------------------------------------------------------------------------
     def set_synthetic_logweight_history(self, reco_info):
@@ -239,6 +243,7 @@ class ClusterPath(object):
             if not is_data:
                 if calc_adj_mi is None or self.adj_mis[ipart] != -1:  # if we don't want to write any adj mis, or if we already calculated it
                     row['adj_mi'] = self.adj_mis[ipart]
+                    row['ccf_under'], row['ccf_over'] = utils.correct_cluster_fractions(part, reco_info)
                 else:
                     if calc_adj_mi == 'best' and ipart == self.i_best:  # only calculate adj_mi for the best partition
                         row['adj_mi'] = utils.mutual_information_to_true(part, reco_info)

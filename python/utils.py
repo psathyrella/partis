@@ -1567,8 +1567,8 @@ def adjusted_mutual_information(partition_a, partition_b):
 # ----------------------------------------------------------------------------------------
 def mutual_information_to_true(partition, reco_info, debug=False):
     """ adj mi to the true partition that we get from <reco_info> """
-    for uid in reco_info:
-        find_uid_in_partition(uid, partition)
+    # for uid in reco_info:
+    #     find_uid_in_partition(uid, partition)
     true_cluster_list, inferred_cluster_list = [], []  # for a partition {cl_1 : [seq_a, seq_b], cl_2 : [seq_c]}, list is of form [cl_1, cl_1, cl_2]
     for iclust in range(len(partition)):
         for uid in partition[iclust]:

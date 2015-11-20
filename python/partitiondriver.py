@@ -222,11 +222,12 @@ class PartitionDriver(object):
         if self.args.smc_particles == 1:
             for path in self.paths:
                 self.check_path(path)
-            if self.args.debug:
-                print 'final'
-                for ipath in range(len(self.paths)):  # one path for each glomeration step
-                    self.paths[ipath].print_partitions(self.reco_info, one_line=True, print_header=(ipath==0))
-                    print ''
+            # if self.args.debug:
+            print 'final'
+            assert len(self.paths) == 1  # I think this is how it works... can't be bothered to check just now
+            ipath = 0
+            self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_adj_mi=True)
+            print ''
             if self.args.outfname is not None:
                 self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
         else:
@@ -276,7 +277,7 @@ class PartitionDriver(object):
             if self.args.smc_particles > 1:
                 headers += ['path_index', 'logweight']
             if not self.args.is_data:
-                headers += ['adj_mi', 'n_true_clusters', 'bad_clusters']
+                headers += ['adj_mi', 'n_true_clusters', 'bad_clusters', 'ccf_under', 'ccf_over']
             writer = csv.DictWriter(outfile, headers)
             writer.writeheader()
             true_partition = None if self.args.is_data else utils.get_true_partition(self.reco_info)
@@ -1301,6 +1302,10 @@ class PartitionDriver(object):
                 for line in reader:
                     outfo.append(line)
                     outfo[-1]['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
+                    if line['unique_ids'] in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
+                        outfo[-1]['indelfo'] = self.sw_info['indels'][line['unique_ids']]
+                    else:
+                        outfo[-1]['indelfo'] = {'reversed_seq': '', 'indels': []}
 
 # # ----------------------------------------------------------------------------------------
 #                     swline = self.sw_info[outfo[-1]['unique_ids']]
