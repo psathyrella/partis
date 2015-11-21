@@ -226,7 +226,7 @@ class PartitionDriver(object):
             print 'final'
             assert len(self.paths) == 1  # I think this is how it works... can't be bothered to check just now
             ipath = 0
-            self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_adj_mi=True)
+            self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_adj_mi=(len(self.input_info) < 500))
             print ''
             if self.args.outfname is not None:
                 self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]

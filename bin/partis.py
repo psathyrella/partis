@@ -100,8 +100,9 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 
 args = parser.parse_args()
 print 'TODO test removal of insertion base content'
-print 'TODO make final partition step (with one proc) not delete all the previous cached info when it finishes'
-print '\nTODO rewrite things so you can uncomment check in utils at mutual_information_to_true'
+print 'TODO make final partition step (with one proc) not delete all the previous cached info when it finishes (then add log probs and naive seqs to testing fwk)'
+print 'TODO rewrite things so you can uncomment check in utils at mutual_information_to_true'
+print 'TODO make sure you\'re only calculating adj mi (and ccf) in one spot, and only when you really want to [don\'t forget switch from -1. to None for default]'
 args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
