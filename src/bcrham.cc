@@ -26,6 +26,7 @@ Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
 // ----------------------------------------------------------------------------------------
 smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
   int initial_path_index(-1);
+  throw runtime_error("I think this is ok, but I just changed the default path index in clusterpath from -1 to 0, and it should be double checked that this doesn't screw up anything in this fcn.\n");
   double logweight;
   Partition initial_partition(stupid_global_glom->GetAnInitialPartition(initial_path_index, logweight));  // get the next initial partition (and increment the counter)
   double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
