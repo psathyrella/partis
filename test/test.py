@@ -54,7 +54,7 @@ datafname = 'test/mishmash.csv'  # some data from adaptive, chaim, and vollmers
 label = 'test'
 # these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
 only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
-common_extras = ['--seed', '10', '--n-procs', '10', '--only-genes', only_genes]
+common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', only_genes]
 param_dir = stashdir + '/' + label  # change this to <referencedir> if you want to see if these results change without checking if parameter stashing has changed
 ref_simfname = referencedir + '/' + label + '/simu.csv'
 new_simfname = param_dir + '/simu.csv'
