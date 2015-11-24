@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import argparse
+import numpy
 import os
 import csv
 import glob
+import math
 from collections import OrderedDict
 from subprocess import check_call, check_output
 import sys
@@ -13,17 +15,31 @@ from hist import Hist
 from clusterpath import ClusterPath
 
 # cps = []
-# for iseed in range(5):
+# adj_mis, ccf_unders, ccf_overs = [], [], []
+# for iseed in range(6):
 #     # print 'seed %d' % iseed
-#     cps.append(ClusterPath(-1))
-#     cps[-1].readfile('%d.csv' % iseed)
-#     cps[-1].print_partition(cps[-1].i_best)  #, abbreviate=False)
+#     cp = ClusterPath()
+#     cp.readfile('%d.csv' % iseed)
+#     cp.print_partition(cp.i_best)  #, abbreviate=False)
+#     adj_mis.append(cp.adj_mis[cp.i_best])
+#     ccf_unders.append(cp.ccfs[cp.i_best][0])
+#     ccf_overs.append(cp.ccfs[cp.i_best][1])
+#     cps.append(cp)
 
-# for iseed in range(len(cps)):
-#     icp = cps[iseed]
-#     for jseed in range(iseed, len(cps)):
-#         jcp = cps[jseed]
-#         print '  %d %d   %.3f' % (iseed, jseed, utils.adjusted_mutual_information(icp.partitions[icp.i_best], jcp.partitions[jcp.i_best]))
+# def print_mean_variance(vals):
+#     mean = numpy.average(vals)
+#     variance = numpy.average((vals - mean)**2)  #, weights=wgts)
+#     print 'mean %.2f   std dev %.3f   (%.1f%%)' % (mean, math.sqrt(variance), 100. * math.sqrt(variance) / mean)
+
+# # mean/var for six random seeds
+# print_mean_variance(adj_mis)     # mean 0.61   std dev 0.053   (8.7%)
+# print_mean_variance(ccf_unders)  # mean 0.74   std dev 0.026   (3.5%)
+# print_mean_variance(ccf_overs)   # mean 0.90   std dev 0.015   (1.7%)
+# # for iseed in range(len(cps)):
+# #     icp = cps[iseed]
+# #     for jseed in range(iseed, len(cps)):
+# #         jcp = cps[jseed]
+# #         print '  %d %d   %.3f' % (iseed, jseed, utils.adjusted_mutual_information(icp.partitions[icp.i_best], jcp.partitions[jcp.i_best]))
 
 # sys.exit()
 
@@ -150,9 +166,9 @@ eps_vals['v_gene_correct'] = 0.001
 eps_vals['d_gene_correct'] = 0.001
 eps_vals['j_gene_correct'] = 0.001
 eps_vals['mean_hamming']   = 0.001
-eps_vals['adj_mi']         = 0.2
-eps_vals['ccf_under']      = 0.1
-eps_vals['ccf_over']       = 0.1
+eps_vals['adj_mi']         = 0.2  # these three are roughly two sigma
+eps_vals['ccf_under']      = 0.08
+eps_vals['ccf_over']       = 0.05
 print 'comparing to reference file'
 with open(referencedir + '/performance-info.csv') as perf_file:
     reader = csv.DictReader(perf_file)

@@ -128,9 +128,9 @@ class PartitionDriver(object):
             raise Exception('parameter dir %s d.n.e.' % self.args.parameter_dir)
 
         if self.args.print_partitions:
-            cp = ClusterPath(-1)
+            cp = ClusterPath()
             cp.readfile(self.args.outfname)
-            cp.print_partitions(reco_info=self.reco_info, one_line=True, abbreviate=True, n_to_print=100)
+            cp.print_partitions(reco_info=self.reco_info, abbreviate=True, n_to_print=100)
             return
 
         # utils.print_heapy('start', hp.heap())
@@ -147,7 +147,7 @@ class PartitionDriver(object):
 
         # add initial lists of paths
         if self.args.smc_particles == 1:
-            cp = ClusterPath(-1)
+            cp = ClusterPath()
             cp.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
             assert len(self.paths) == 0
             self.paths.append(cp)
@@ -158,7 +158,7 @@ class PartitionDriver(object):
             for clusters in initial_divvied_queries:  # one set of <clusters> for each process
                 self.smc_info[-1].append([])
                 for iptl in range(self.args.smc_particles):
-                    cp = ClusterPath(-1)
+                    cp = ClusterPath()
                     cp.add_partition([[cl, ] for cl in clusters], logprob=0., n_procs=n_procs)
                     self.smc_info[-1][-1].append(cp)
 
@@ -273,7 +273,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, outfname, paths):
         with opener('w')(outfname) as outfile:
-            headers = ['logprob', 'n_clusters', 'n_procs', 'clusters']
+            headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
             if self.args.smc_particles > 1:
                 headers += ['path_index', 'logweight']
             if not self.args.is_data:
@@ -365,7 +365,7 @@ class PartitionDriver(object):
         adj_mi = -1
         if not self.args.is_data:
             adj_mi = utils.mutual_information_to_true(partition, self.reco_info, debug=True)
-        cp = ClusterPath(-1)
+        cp = ClusterPath()
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi)
         if self.args.outfname is not None:
             self.write_partitions(self.args.outfname, [cp, ])
@@ -1324,7 +1324,7 @@ class PartitionDriver(object):
         if self.args.annotation_clustering == 'vollmers':
             if self.args.outfname is not None:
                 outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
-                headers = ['n_clusters', 'threshold', 'clusters']  #, 'true_clusters']
+                headers = ['n_clusters', 'threshold', 'partition']  #, 'true_clusters']
                 if not self.args.is_data:
                     headers += ['adj_mi', ]  #, 'n_true_clusters']
                 writer = csv.DictWriter(outfile, headers)
@@ -1334,7 +1334,7 @@ class PartitionDriver(object):
                 adj_mi, partition = annotationclustering.vollmers(hmminfo, threshold=thresh, reco_info=self.reco_info)
                 n_clusters = len(partition)
                 if self.args.outfname is not None:
-                    row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'clusters' : utils.get_str_from_partition(partition)}
+                    row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
                     if not self.args.is_data:
                         row['adj_mi'] = adj_mi
                         # row['n_true_clusters'] = len(utils.get_true_partition(self.reco_info))

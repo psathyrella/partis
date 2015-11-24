@@ -91,12 +91,12 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('v-indels.csv', is_data=False)
 # v_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-# v_cpath = ClusterPath(-1)
+# v_cpath = ClusterPath()
 # v_cpath.readfile('v-indels-partitions-new.csv')
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('cdr3-indels.csv', is_data=False)
 # cdr3_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
-# cdr3_cpath = ClusterPath(-1)
+# cdr3_cpath = ClusterPath()
 # cdr3_cpath.readfile('cdr3-indels-partitions-new.csv')
 # # print 'v-indels: %f' % v_cpath.adj_mi_at_max_logprob
 # # print 'cdr3-indels: %f' % cdr3_cplot.adj_mi_at_max_logprob
@@ -238,7 +238,7 @@ def parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seq
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
         for line in vreader:
-            partition = utils.get_partition_from_str(line['clusters'])
+            partition = utils.get_partition_from_str(line['partition'])
             these_partitions['vollmers-' + line['threshold']] = partition
             vhist = plotting.get_cluster_size_hist(partition, rebin=rebin)
             histfname = outdir + '/hists/vollmers-'  + line['threshold'] + '.csv'
@@ -249,7 +249,7 @@ def parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seq
                 print '    %s: %f' % ('vollmers-' + line['threshold'], float(line['adj_mi']))
                 write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
 
-                vollmers_clusters = [cl.split(':') for cl in line['clusters'].split(';')]
+                vollmers_clusters = [cl.split(':') for cl in line['partition'].split(';')]
                 all_ids = [val for cluster in vollmers_clusters for val in cluster]
                 true_partition = utils.get_true_clusters(all_ids, reco_info).values()
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
@@ -335,7 +335,7 @@ def parse_mixcr(these_hists, these_adj_mis, these_ccfs, seqfname, outdir, reco_i
 
 # ----------------------------------------------------------------------------------------
 def parse_partis(action, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, outdir, reco_info, rebin=None):
-    cpath = ClusterPath(-1)
+    cpath = ClusterPath()
     cpath.readfile(seqfname.replace('.csv', '-' + action + '.csv'))
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
     these_partitions[action + ' partis'] = cpath.partitions[cpath.i_best]
@@ -838,7 +838,7 @@ def compare_sample_sizes(label, n_leaves, mut_mult):
                 csvfname = dirname + '/data' + '-' + action + '.csv'
             else:
                 csvfname = dirname + '/' + leafmutstr(n_leaves, mut_mult) + '-' + action + '.csv'
-            cpath = ClusterPath(-1)
+            cpath = ClusterPath()
             cpath.readfile(csvfname)
             if not args.data:  # why the hell was this "not" missing?
                 adj_mis[meth][nseqs] = cpath.adj_mis[cpath.i_best]
