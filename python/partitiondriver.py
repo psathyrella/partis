@@ -362,11 +362,14 @@ class PartitionDriver(object):
                     uid = uid[:-2]
                 id_clusters[cluster_id].append(uid)
         partition = id_clusters.values()
-        adj_mi = -1
+        adj_mi = None
+        ccfs = [None, None]
+        print 'TODO don\'t always calculate this'
         if not self.args.is_data:
             adj_mi = utils.mutual_information_to_true(partition, self.reco_info, debug=True)
+            ccfs = utils.correct_cluster_fractions(partition, self.reco_info)
         cp = ClusterPath()
-        cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi)
+        cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
         if self.args.outfname is not None:
             self.write_partitions(self.args.outfname, [cp, ])
 
