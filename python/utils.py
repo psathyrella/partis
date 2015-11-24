@@ -10,6 +10,7 @@ import math
 import glob
 from collections import OrderedDict
 import csv
+from subprocess import check_output, CalledProcessError
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 import multiprocessing
 import copy
@@ -1583,7 +1584,12 @@ def print_heapy(extrastr, heap):
 # ----------------------------------------------------------------------------------------
 def auto_slurm(n_procs):
     """ Return true if we want to force slurm usage, e.g. if there's more processes than cores """
+    try:
+        check_output(['which', 'srun'])
+        slurm_exists = True
+    except CalledProcessError:
+        slurm_exists = False
     ncpu = multiprocessing.cpu_count()
-    if n_procs > ncpu:
+    if slurm_exists and n_procs > ncpu:
         return True
     return False
