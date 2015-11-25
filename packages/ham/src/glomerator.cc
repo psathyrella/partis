@@ -322,11 +322,14 @@ void Glomerator::WriteCachedLogProbs() {
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
-  ofs_ << "path_index,initial_path_index,partition,logprob,logweight" << endl;
+  if(paths.size() > 0)
+    ofs_ << "path_index,initial_path_index,";
+  ofs_ << "partition,logprob,logweight" << endl;
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
-      ofs_ << ipath << "," << cp.initial_path_index_ << ",";
+      if(paths.size() > 0)
+	ofs_ << ipath << "," << cp.initial_path_index_ << ",";
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
