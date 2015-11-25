@@ -12,57 +12,57 @@ class ClusterPath(object):
         self.initial_path_index = initial_path_index  # NOTE this is set to None if it's nonsensical, e.g. if we're merging several paths with different indices
 
         # NOTE make *damn* sure if you add another list here that you also take care of it in remove_first_partition()
-        self.n_lists = 6  # just to make sure you don't forget
-        self.partitions = []
+        self.partitions = []  # it would of course be damn nice to glomph these into a class at some point
         self.logprobs = []
-        self.logweights = []
-        self.adj_mis = []
-        self.ccfs = []
         self.n_procs = []
+        self.adj_mis = []
+        self.ccfs = []  # pair of floats (not just a float) for each partition
+        self.logweights = []
+        self.n_lists = 6  # just to make sure you don't forget
 
-        self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes
+        self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes (note that this should really depend on the number of sequences)
         self.i_best, self.i_best_minus_x = None, None
-        # self.conservative_best_minus_ten_partition, self.conservative_max_minus_ten_logprob = None, None  # have to keep track of these *separately* since they don't necessarily occur in <self.partitions>, if this path is the result of merging a number of others
         self.we_have_an_adj_mi = False  # did we read in at least one adj mi value from a file?
 
+    # ----------------------------------------------------------------------------------------
     def update_best_minus_x_partition(self):
         if math.isinf(self.logprobs[self.i_best]):  # if logprob is infinite, set best and best minus x to the latest one
             self.i_best_minus_x = self.i_best
             return
-        for ip in range(len(self.partitions)):  # they should be in order of increasing logprob
-            if self.logprobs[ip] > self.logprobs[self.i_best] - self.best_minus and self.n_procs[ip] == self.n_procs[self.i_best]:  # TODO is this exactly what I want to do with n_procs?
+        for ip in range(len(self.partitions)):  # they should be in order of increasing logprob (at least within a give number of procs)
+            if self.n_procs[ip] != self.n_procs[self.i_best]:  # only consider partitions with the same number of procs (e.g. if best partition is for 1 proc, we want the best-minus-x to also be for 1 proc)
+                continue
+            if self.logprobs[ip] > self.logprobs[self.i_best] - self.best_minus:  # pick the first one that is above threshold
                 self.i_best_minus_x = ip
-                # self.conservative_best_minus_ten_partition = self.partitions[self.i_best_minus_ten]  # override later if necessary
-                # self.conservative_max_minus_ten_logprob = self.logprobs[self.i_best_minus_ten]
                 break
 
+    # ----------------------------------------------------------------------------------------
     def add_partition(self, partition, logprob, n_procs, logweight=None, adj_mi=None, ccfs=[None, None]):
-        # # don't add it if it's the same as the last partition
-        # UPDATE we can get in trouble if we don't add duplicates, because they can have different numbers of procs... the duplicates don't really matter, anyway, as for most purposes I ignore partitions with greater than 1 proc
-        # if len(self.partitions) > 0 and len(partition) == len(self.partitions[-1]) and logprob == self.logprobs[-1]:
-        #     print 'NOT ADDING with n_procs %d --> %d' % (self.n_procs[-1], n_procs)
-        #     return
+        # NOTE you typically want to allow duplicate (in terms of log prob) partitions, since they can have different n procs
         self.partitions.append(partition)
         self.logprobs.append(logprob)
+        self.n_procs.append(n_procs)
         self.logweights.append(logweight)
         self.adj_mis.append(adj_mi)
         if len(ccfs) != 2:
             raise Exception('tried to add partition with ccfs of length %d (%s)' % (len(ccfs), ccfs))
         self.ccfs.append(ccfs)
-        self.n_procs.append(n_procs)
-        if math.isinf(logprob) or self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best]:  # if we haven't set i_best yet, or if this partition is more likely than i_best, or if i_best is set for a larger number of procs
+        # set this as the best partition if 1) we haven't set i_best yet 2) this partition is more likely than i_best 3) i_best is set for a larger number of procs or 4) logprob is infinite (i.e. it's probably point/vsearch partis)
+        # NOTE we always treat the most recent partition with infinite logprob as the best
+        if self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best] or math.isinf(logprob):
             self.i_best = len(self.partitions) - 1
         self.update_best_minus_x_partition()
 
     def remove_first_partition(self):
         # NOTE after you do this, none of the 'best' shit is any good any more
-        assert self.n_lists == 6  # make sure we didn't add another list and forget to put it in here
+        # NOTE also that this is only used for smc
         self.partitions.pop(0)
         self.logprobs.pop(0)
-        self.logweights.pop(0)
+        self.n_procs.pop(0)
         self.adj_mis.pop(0)
         self.ccfs.pop(0)
-        self.n_procs.pop(0)
+        self.logweights.pop(0)
+        assert self.n_lists == 6  # make sure we didn't add another list and forget to put it in here
 
     # ----------------------------------------------------------------------------------------
     def readfile(self, fname):
@@ -84,10 +84,6 @@ class ClusterPath(object):
             ccfs = [None, None]
             if 'ccf_under' in line and 'ccf_over' in line and line['ccf_under'] != '' and line['ccf_over'] != '':
                 ccfs = [float(line['ccf_under']), float(line['ccf_over'])]
-            # TODO figure out whether I need this isinf crap still (I think you get inf from ham if it gets no valid path)
-            # if line['logprob'] == '-inf' or math.isinf(logprob):  # should either both be true or neither be true
-            #     assert math.isinf(logprob)
-            #     assert line['logprob'] == '-inf'
             self.add_partition(partition, float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), adj_mi=adj_mi, ccfs=ccfs)
 
     # ----------------------------------------------------------------------------------------
@@ -129,7 +125,7 @@ class ClusterPath(object):
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:
             delta_str = ''
-        print '      %5s  %-12.2f%-7s   %-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip]), self.n_procs[ip]),
+        print '      %s  %-12.2f%-7s   %-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip]), self.n_procs[ip]),
 
         # logweight (and inverse of number of potential parents)
         if self.logweights[ip] is not None and smc_print:
@@ -165,7 +161,28 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def get_partition_subset(self, n_partitions):
+    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_adj_mi=False):
+        if print_header:
+            print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
+            if reco_info is not None or self.we_have_an_adj_mi:
+                print ' %5s' % ('adj mi'),
+                print ' %5s %5s' % ('ccf under', 'over'),
+            if self.logweights[0] is not None and smc_print:
+                print '  %10s  %7s' % ('pot.parents', 'logweight'),
+            print ''
+
+        for ip in self.get_surrounding_partitions(n_partitions=n_to_print):
+            mark = '      '
+            if ip == self.i_best:
+                mark = 'best  '
+            if ip == self.i_best_minus_x:
+                mark = mark[:-2] + '* '
+            if mark.count(' ') < len(mark):
+                mark = utils.color('yellow', mark)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print, calc_adj_mi=calc_adj_mi)
+
+    # ----------------------------------------------------------------------------------------
+    def get_surrounding_partitions(self, n_partitions):
         """ return a list of partition indices centered on <self.i_best> of length <n_partitions> """
         if n_partitions is None:  # print all partitions
             ilist = range(len(self.partitions))
@@ -197,25 +214,6 @@ class ClusterPath(object):
         return parents
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_adj_mi=False):
-        if print_header:
-            print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'partition', 'n_procs'),
-            if reco_info is not None or self.we_have_an_adj_mi:
-                print ' %5s' % ('adj mi'),
-                print ' %5s %5s' % ('ccf under', 'over'),
-            if self.logweights[0] is not None and smc_print:
-                print '  %10s  %7s' % ('pot.parents', 'logweight'),
-            print ''
-
-        for ip in self.get_partition_subset(n_partitions=n_to_print):
-            mark = ''
-            if ip == self.i_best:
-                mark += '*'
-            if ip == self.i_best_minus_x:
-                mark += '*'
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print, calc_adj_mi=calc_adj_mi)
-
-    # ----------------------------------------------------------------------------------------
     def set_synthetic_logweight_history(self, reco_info):
         # TODO switch clusterpath.cc back to using these
         def potential_n_parents(partition):
@@ -237,7 +235,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index, n_to_write=None, calc_adj_mi=None):
-        for ipart in self.get_partition_subset(n_partitions=n_to_write):
+        for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''
             bad_clusters = []  # inferred clusters that aren't really all from the same event

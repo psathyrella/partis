@@ -153,7 +153,6 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, calc_adj_mi, previous_info=None, debug=False):
-         # 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit EDIT nevermind, that seems to be a result of smc (presumably it was choosing very unlikely merges)'
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
         # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
