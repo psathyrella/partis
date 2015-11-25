@@ -226,7 +226,7 @@ class PartitionDriver(object):
             print 'final'
             assert len(self.paths) == 1  # I think this is how it works... can't be bothered to check just now
             ipath = 0
-            self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_adj_mi=(len(self.input_info) < 500))
+            self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
             print ''
             if self.args.outfname is not None:
                 self.write_clusterpaths(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
@@ -283,7 +283,7 @@ class PartitionDriver(object):
             writer.writeheader()
             true_partition = None if self.args.is_data else utils.get_true_partition(self.reco_info)
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer, headers, self.reco_info, true_partition, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_adj_mi='best')
+                paths[ipath].write_partitions(writer, headers, self.reco_info, true_partition, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):  # TODO change name of function if you switch to just swarm
@@ -824,7 +824,7 @@ class PartitionDriver(object):
                 if len(self.paths) > 1:
                     previous_info = self.paths[-1]
                 glomerer = Glomerator(self.reco_info)
-                glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, calc_adj_mi=self.args.debug, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+                glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
                 # self.check_path(glomerer.paths[0])  # really slow on larger partitions
                 # print 'BEFORE %d' % len(self.paths)
@@ -871,7 +871,7 @@ class PartitionDriver(object):
             if len(self.smc_info) > 2:
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
             glomerer = Glomerator(self.reco_info)
-            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, calc_adj_mi=self.args.debug, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
             self.smc_info[-1].append(paths)
 
             # ack? self.glomclusters.append(glomerer)

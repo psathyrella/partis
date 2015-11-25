@@ -53,6 +53,7 @@ class ClusterPath(object):
             self.i_best = len(self.partitions) - 1
         self.update_best_minus_x_partition()
 
+    # ----------------------------------------------------------------------------------------
     def remove_first_partition(self):
         # NOTE after you do this, none of the 'best' shit is any good any more
         # NOTE also that this is only used for smc
@@ -87,16 +88,27 @@ class ClusterPath(object):
             self.add_partition(partition, float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), adj_mi=adj_mi, ccfs=ccfs)
 
     # ----------------------------------------------------------------------------------------
-    def get_adj_mi_str(self, ip, reco_info=None, calc_adj_mi=False):
+    def calculate_missing_values(self, reco_info, only_ip=None):
+        for ip in range(len(self.partitions)):
+            if only_ip is not None and ip != only_ip:
+                continue
+
+            if self.adj_mis[ip] is not None:  # already have it/them
+                assert self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None
+                continue
+
+            true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])
+            self.adj_mis[ip] = utils.adjusted_mutual_information(self.partitions[ip], true_partition)
+            assert self.ccfs[ip] == [None, None]
+            self.ccfs[ip] = utils.correct_cluster_fractions(self.partitions[ip], reco_info)
+            self.we_have_an_adj_mi = True
+
+    # ----------------------------------------------------------------------------------------
+    def get_adj_mi_str(self, ip):
         adj_mi_str = ''
-        if calc_adj_mi or self.we_have_an_adj_mi:
+        if self.we_have_an_adj_mi:
             if self.adj_mis[ip] is None:
-                if calc_adj_mi:
-                    assert reco_info is not None
-                    true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])
-                    adj_mi_str = '%-5.3f' % utils.adjusted_mutual_information(self.partitions[ip], true_partition)   # NOTE this calculates them but doesn't store them in self.adj_mis
-                else:
-                    adj_mi_str = '   -    '
+                adj_mi_str = '   -    '
             else:
                 if self.adj_mis[ip] > 1e-3:
                     adj_mi_str = '%-5.3f' % self.adj_mis[ip]
@@ -106,22 +118,18 @@ class ClusterPath(object):
         return '     %5s   ' % (adj_mi_str)
 
     # ----------------------------------------------------------------------------------------
-    def get_ccf_str(self, ip, reco_info=None, calc_adj_mi=False):
+    def get_ccf_str(self, ip):
         ccf_str = ''
-        if calc_adj_mi or self.we_have_an_adj_mi:
+        if self.we_have_an_adj_mi:
             if self.ccfs[ip] == [None, None]:  # NOTE if you set a ccf with a tuple instead of a list this'll fail. So don't do that.
-                if calc_adj_mi:
-                    assert reco_info is not None
-                    ccf_str = ' %5.2f %5.2f    ' % utils.correct_cluster_fractions(self.partitions[ip], reco_info)  # NOTE this calculates them but doesn't store them in self.ccfs
-                else:
-                    ccf_str = '   -  -    '
+                ccf_str = '   -  -    '
             else:
                 ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
 
         return ccf_str
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False, calc_adj_mi=False):
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False):
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:
@@ -136,8 +144,8 @@ class ClusterPath(object):
             way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
             logweight_str = '%8.3f' % self.logweights[ip]
 
-        print self.get_adj_mi_str(ip, reco_info, calc_adj_mi),
-        print self.get_ccf_str(ip, reco_info, calc_adj_mi),
+        print self.get_adj_mi_str(ip),
+        print self.get_ccf_str(ip),
 
         if self.logweights[ip] is not None and smc_print:
             print '   %10s    %8s   ' % (way_str, logweight_str),
@@ -162,7 +170,11 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_adj_mi=False):
+    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_missing_values='none'):
+        assert calc_missing_values in ['none', 'all', 'best']
+        if reco_info is not None and calc_missing_values == 'all':
+            self.calculate_missing_values(reco_info)
+
         if print_header:
             print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_an_adj_mi:
@@ -173,6 +185,8 @@ class ClusterPath(object):
             print ''
 
         for ip in self.get_surrounding_partitions(n_partitions=n_to_print):
+            if reco_info is not None and calc_missing_values == 'best' and ip == self.i_best:
+                self.calculate_missing_values(reco_info, only_ip=ip)
             mark = '      '
             if ip == self.i_best:
                 mark = 'best  '
@@ -180,7 +194,7 @@ class ClusterPath(object):
                 mark = mark[:-2] + '* '
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print, calc_adj_mi=calc_adj_mi)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print)
 
     # ----------------------------------------------------------------------------------------
     def get_surrounding_partitions(self, n_partitions):
@@ -235,7 +249,7 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, headers, reco_info, true_partition, path_index=None, n_to_write=None, calc_adj_mi=None):
+    def write_partitions(self, writer, headers, reco_info, true_partition, path_index=None, n_to_write=None, calc_missing_values='none'):
 
         # ----------------------------------------------------------------------------------------
         def get_bad_clusters(part):
@@ -260,6 +274,10 @@ class ClusterPath(object):
 
             return bad_clusters
 
+        assert calc_missing_values in ['none', 'all', 'best']
+        if reco_info is not None and calc_missing_values == 'all':
+            self.calculate_missing_values(reco_info)
+
         # ----------------------------------------------------------------------------------------
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
@@ -274,17 +292,11 @@ class ClusterPath(object):
                    'n_procs' : self.n_procs[ipart],
                    'partition' : cluster_str}
             if 'adj_mi' in headers:
+                if reco_info is not None and calc_missing_values == 'best' and ipart == self.i_best:
+                    self.calculate_missing_values(reco_info, only_ip=ipart)
                 if self.adj_mis[ipart] is not None:  # we already calculated it
                     row['adj_mi'] = self.adj_mis[ipart]
                     row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]  # for now assume we calculated the ccfs if we did adj mi
-                else:
-                    if calc_adj_mi is None:  # don't calculate anything new
-                        pass
-                    elif calc_adj_mi == 'all' or (calc_adj_mi == 'best' and ipart == self.i_best):
-                        row['adj_mi'] = utils.adjusted_mutual_information(part, true_partition)
-                        row['ccf_under'], row['ccf_over'] = utils.correct_cluster_fractions(part, reco_info)
-                    elif calc_adj_mi != 'all' and calc_adj_mi != 'best':
-                        raise Exception('calc_adj_mi must be among [None, \'best\', \'all\'] (got %s)' % calc_adj_mi)
             if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = len(true_partition)
             if 'bad_clusters' in headers:

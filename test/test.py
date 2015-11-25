@@ -69,10 +69,12 @@ partis = './bin/partis.py'
 tests = OrderedDict()
 n_partition_queries = '250'
 ref_simu_param_dir = simu_param_dir.replace(stashdir, referencedir)
+ref_data_param_dir = data_param_dir.replace(stashdir, referencedir)
 print 'TODO kick all the stdout to a file'
 # first test performance on the previous simulation, with the previous parameter values
 tests['annotate-ref-simu']          = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--plotdir', param_dir + '/plots/ref-simu-performance', '--plot-performance']}
 tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
+# tests['partition-ref-data']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', datafname, '--parameter-dir', ref_data_param_dir, '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
 tests['point-partition-ref-simu']   = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
 tests['vsearch-partition-ref-simu'] = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
 
@@ -179,12 +181,12 @@ with open(referencedir + '/performance-info.csv') as perf_file:
     for name, new_val in perf_info.items():
         ref_val = float(line[name])
         val_type = name.split('-')[-1]
-        print '  %-28s %-20s       %-5.3f --> %-5.3f' % (name.replace('-' + val_type, ''), val_type, ref_val, new_val),
+        print '  %-28s %-15s       %-5.3f' % (name.replace('-' + val_type, ''), val_type, ref_val),
         fractional_change = (new_val - ref_val) / ref_val  # NOTE not the abs value yet
         if abs(fractional_change) > eps_vals[val_type]:
-            print utils.color('red', ' (%+.3f)' % fractional_change),
+            print '--> %-5.3f %s' % (new_val, utils.color('red', '(%+.3f)' % fractional_change)),
         elif abs(fractional_change) > tiny_eps:
-            print utils.color('yellow', ' (%+.3f)' % fractional_change),
+            print '--> %-5.3f %s' % (new_val, utils.color('yellow', '(%+.3f)' % fractional_change)),
         else:
             pass  #print '  same ',
         print ''
