@@ -229,7 +229,7 @@ class PartitionDriver(object):
             self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_adj_mi=(len(self.input_info) < 500))
             print ''
             if self.args.outfname is not None:
-                self.write_partitions(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
+                self.write_clusterpaths(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
@@ -240,7 +240,7 @@ class PartitionDriver(object):
                     path = final_paths[ipath]
                     path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
             if self.args.outfname is not None:
-                self.write_partitions(self.args.outfname, final_paths)
+                self.write_clusterpaths(self.args.outfname, final_paths)
 
         if self.args.debug and not self.args.is_data:
             tmpglom = Glomerator(self.reco_info)
@@ -271,18 +271,19 @@ class PartitionDriver(object):
             print 'WARNING not found in merged partitions: ' + ' '.join(missing_ids)
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, outfname, paths):
+    def write_clusterpaths(self, outfname, paths):
         with opener('w')(outfname) as outfile:
             headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
             if self.args.smc_particles > 1:
                 headers += ['path_index', 'logweight']
             if not self.args.is_data:
-                headers += ['adj_mi', 'n_true_clusters', 'bad_clusters', 'ccf_under', 'ccf_over']
+                headers += ['n_true_clusters', 'adj_mi', 'ccf_under', 'ccf_over']
+            # headers += 'bad_clusters'  # can also write the clusters that aren't perfect
             writer = csv.DictWriter(outfile, headers)
             writer.writeheader()
             true_partition = None if self.args.is_data else utils.get_true_partition(self.reco_info)
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer, self.args.is_data, self.reco_info, true_partition, self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_adj_mi='best')
+                paths[ipath].write_partitions(writer, headers, self.reco_info, true_partition, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_adj_mi='best')
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):  # TODO change name of function if you switch to just swarm
@@ -364,14 +365,13 @@ class PartitionDriver(object):
         partition = id_clusters.values()
         adj_mi = None
         ccfs = [None, None]
-        print 'TODO don\'t always calculate this'
-        if not self.args.is_data:
+        if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
             adj_mi = utils.mutual_information_to_true(partition, self.reco_info, debug=True)
             ccfs = utils.correct_cluster_fractions(partition, self.reco_info)
         cp = ClusterPath()
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
         if self.args.outfname is not None:
-            self.write_partitions(self.args.outfname, [cp, ])
+            self.write_clusterpaths(self.args.outfname, [cp, ])
 
         if not self.args.no_clean:
             os.remove(fastafname)

@@ -234,50 +234,62 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, is_data, reco_info, true_partition, smc_particles, path_index, n_to_write=None, calc_adj_mi=None):
+    def write_partitions(self, writer, headers, reco_info, true_partition, path_index=None, n_to_write=None, calc_adj_mi=None):
+
+        # ----------------------------------------------------------------------------------------
+        def get_bad_clusters(part):
+            bad_clusters = []  # inferred clusters that aren't really all from the same event
+            for ic in range(len(part)):
+                same_event = utils.from_same_event(True, reco_info, part[ic])  # are all the sequences from the same event?
+                entire_cluster = True  # ... and if so, are they the entire true cluster?
+                if same_event:
+                    reco_id = reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
+                    true_cluster = true_partition[reco_id]
+                    for uid in true_cluster:
+                        if uid not in part[ic]:
+                            entire_cluster = False
+                            break
+                else:
+                    entire_cluster = False
+                if not same_event or not entire_cluster:
+                    bad_clusters.append(':'.join(part[ic]))
+
+            if len(bad_clusters) > 25:
+                bad_clusters = ['too', 'long']
+
+            return bad_clusters
+
+        # ----------------------------------------------------------------------------------------
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''
-            bad_clusters = []  # inferred clusters that aren't really all from the same event
             for ic in range(len(part)):
                 if ic > 0:
                     cluster_str += ';'
                 cluster_str += ':'.join(part[ic])
-                if not is_data:
-                    same_event = utils.from_same_event(is_data, reco_info, part[ic])  # are all the sequences from the same event?
-                    entire_cluster = True  # ... and if so, are they the entire true cluster?
-                    if same_event:
-                        reco_id = reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
-                        true_cluster = true_partition[reco_id]
-                        for uid in true_cluster:
-                            if uid not in part[ic]:
-                                entire_cluster = False
-                                break
-                    else:
-                        entire_cluster = False
-                    if not same_event or not entire_cluster:
-                        bad_clusters.append(':'.join(part[ic]))
 
-            if len(bad_clusters) > 25:
-                bad_clusters = ['too', 'long']
             row = {'logprob' : self.logprobs[ipart],
                    'n_clusters' : len(part),
                    'n_procs' : self.n_procs[ipart],
                    'partition' : cluster_str}
-            if smc_particles > 1:
-                row['path_index'] = path_index
-                row['logweight'] = self.logweights[ipart]
-            if not is_data:
-                if calc_adj_mi is None or self.adj_mis[ipart] is not None:  # if we don't want to write any adj mis, or if we already calculated it
+            if 'adj_mi' in headers:
+                if self.adj_mis[ipart] is not None:  # we already calculated it
                     row['adj_mi'] = self.adj_mis[ipart]
-                    row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]
+                    row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]  # for now assume we calculated the ccfs if we did adj mi
                 else:
-                    if calc_adj_mi == 'best' and ipart == self.i_best:  # only calculate adj_mi for the best partition
+                    if calc_adj_mi is None:  # don't calculate anything new
+                        pass
+                    elif calc_adj_mi == 'all' or (calc_adj_mi == 'best' and ipart == self.i_best):
                         row['adj_mi'] = utils.mutual_information_to_true(part, reco_info)
                         row['ccf_under'], row['ccf_over'] = utils.correct_cluster_fractions(part, reco_info)
-                    else:
-                        row['adj_mi'] = self.adj_mis[ipart]
-                        row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]
+                    elif calc_adj_mi != 'all' and calc_adj_mi != 'best':
+                        raise Exception('calc_adj_mi must be among [None, \'best\', \'all\'] (got %s)' % calc_adj_mi)
+            if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = len(true_partition)
-                row['bad_clusters'] = ';'.join(bad_clusters)
+            if 'bad_clusters' in headers:
+                row['bad_clusters'] = ';'.join(get_bad_clusters(part))
+            if 'path_index' in headers:
+                row['path_index'] = path_index
+                row['logweight'] = self.logweights[ipart]
+
             writer.writerow(row)
