@@ -1375,33 +1375,22 @@ def remove_ambiguous_ends(seq):
     return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
-def get_true_clusters(ids, reco_info):
+def get_true_partition(reco_info, ids=None):
     """ 
-    Group <ids> into their true clonal families.
-    Returns dict of form {cluster_id : [uid, uid, uid]}
+    Group ids into their true clonal families.
+    If <ids> is specified, only do those, otherwise do all of the ones in <reco_info>.
     """
-    clusters = {}
-    for uid in ids:
-        rid = reco_info[uid]['reco_id']
-        if rid not in clusters:
-            clusters[rid] = []
-        clusters[rid].append(uid)
-
-    return clusters
-
-# ----------------------------------------------------------------------------------------
-def get_true_partition(reco_info):
-    """ 
-    Group *all* ids in <reco_info> into their true clonal families.
-    Returns dict of form {cluster_id : [uid, uid, uid]}
-    """
+    if ids is None:
+        id_list = reco_info.keys()
+    else:
+        id_list = ids
     true_partition = {}
-    for uid in reco_info:
+    for uid in id_list:
         rid = reco_info[uid]['reco_id']
         if rid not in true_partition:
             true_partition[rid] = []
         true_partition[rid].append(uid)
-    return true_partition
+    return true_partition.values()
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_str(partition_str):
@@ -1434,9 +1423,9 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
     for cluster in partition:
         uids += cluster
 
-    true_clusters = get_true_clusters(uids, reco_info).values()
+    true_partition = get_true_partition(reco_info, ids=uids)  # modified without testing
     n_under_merged, n_over_merged = 0, 0
-    for trueclust in true_clusters:
+    for trueclust in true_partition:
         if debug:
             print ''
             print '  ', trueclust
@@ -1460,8 +1449,8 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
         if over_merged:
             n_over_merged += 1
 
-    under_frac = float(n_under_merged) / len(true_clusters)
-    over_frac = float(n_over_merged) / len(true_clusters)
+    under_frac = float(n_under_merged) / len(true_partition)
+    over_frac = float(n_over_merged) / len(true_partition)
     if debug:
         print '  under %.2f   over %.2f' % (under_frac, over_frac)
     return (1. - under_frac, 1. - over_frac)
@@ -1543,7 +1532,18 @@ def find_uid_in_partition(uid, partition):
     return iclust
 
 # ----------------------------------------------------------------------------------------
+def check_intersection_and_complement(part_a, part_b):
+    """ make sure two partitions have identical uid lists """
+    for cluster in part_a:
+        for uid in cluster:
+            find_uid_in_partition(uid, part_b)
+    for cluster in part_b:  # NOTE we could avoid looping over some of these if we were so inclined
+        for uid in cluster:
+            find_uid_in_partition(uid, part_a)
+
+# ----------------------------------------------------------------------------------------
 def get_cluster_list_for_sklearn(part_a, part_b):
+    # convert from partition format {cl_1 : [seq_a, seq_b], cl_2 : [seq_c]} to [cl_1, cl_1, cl_2]
     # NOTE this will be really slow for larger partitions
 
     # first make sure that <part_a> has every uid in <part_b> (the converse is checked below)
@@ -1564,23 +1564,6 @@ def get_cluster_list_for_sklearn(part_a, part_b):
 def adjusted_mutual_information(partition_a, partition_b):
     clusts_a, clusts_b = get_cluster_list_for_sklearn(partition_a, partition_b)
     return adjusted_mutual_info_score(clusts_a, clusts_b)
-
-# ----------------------------------------------------------------------------------------
-def mutual_information_to_true(partition, reco_info, debug=False):
-    """ adj mi to the true partition that we get from <reco_info> """
-    # for uid in reco_info:
-    #     find_uid_in_partition(uid, partition)
-    true_cluster_list, inferred_cluster_list = [], []  # for a partition {cl_1 : [seq_a, seq_b], cl_2 : [seq_c]}, list is of form [cl_1, cl_1, cl_2]
-    for iclust in range(len(partition)):
-        for uid in partition[iclust]:
-            true_cluster_list.append(reco_info[uid]['reco_id'])
-            inferred_cluster_list.append(iclust)
-    adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
-    if debug:
-        print '       true clusters %d' % len(set(true_cluster_list))
-        print '   inferred clusters %d' % len(set(inferred_cluster_list))
-        print '         adjusted mi %.2f' % adj_mi
-    return adj_mi
 
 # ----------------------------------------------------------------------------------------
 def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t', debug=False):

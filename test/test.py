@@ -14,18 +14,21 @@ import utils
 from hist import Hist
 from clusterpath import ClusterPath
 
+# cp = ClusterPath()
+# cp.readfile('tmp.csv')
+# cp.print_partitions()
+# sys.exit()
 # cps = []
 # adj_mis, ccf_unders, ccf_overs = [], [], []
 # for iseed in range(6):
 #     # print 'seed %d' % iseed
 #     cp = ClusterPath()
 #     cp.readfile('%d.csv' % iseed)
-#     cp.print_partition(cp.i_best)  #, abbreviate=False)
+#     cp.print_partitions()  #(cp.i_best)  #, abbreviate=False)
 #     adj_mis.append(cp.adj_mis[cp.i_best])
 #     ccf_unders.append(cp.ccfs[cp.i_best][0])
 #     ccf_overs.append(cp.ccfs[cp.i_best][1])
 #     cps.append(cp)
-
 # def print_mean_variance(vals):
 #     mean = numpy.average(vals)
 #     variance = numpy.average((vals - mean)**2)  #, weights=wgts)

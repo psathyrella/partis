@@ -93,7 +93,8 @@ class ClusterPath(object):
             if self.adj_mis[ip] is None:
                 if calc_adj_mi:
                     assert reco_info is not None
-                    adj_mi_str = '%-5.3f' % utils.mutual_information_to_true(self.partitions[ip], reco_info)  # NOTE this calculates them but doesn't store them in self.adj_mis
+                    true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])
+                    adj_mi_str = '%-5.3f' % utils.adjusted_mutual_information(self.partitions[ip], true_partition)   # NOTE this calculates them but doesn't store them in self.adj_mis
                 else:
                     adj_mi_str = '   -    '
             else:
@@ -280,7 +281,7 @@ class ClusterPath(object):
                     if calc_adj_mi is None:  # don't calculate anything new
                         pass
                     elif calc_adj_mi == 'all' or (calc_adj_mi == 'best' and ipart == self.i_best):
-                        row['adj_mi'] = utils.mutual_information_to_true(part, reco_info)
+                        row['adj_mi'] = utils.adjusted_mutual_information(part, true_partition)
                         row['ccf_under'], row['ccf_over'] = utils.correct_cluster_fractions(part, reco_info)
                     elif calc_adj_mi != 'all' and calc_adj_mi != 'best':
                         raise Exception('calc_adj_mi must be among [None, \'best\', \'all\'] (got %s)' % calc_adj_mi)

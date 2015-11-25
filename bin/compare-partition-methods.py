@@ -90,12 +90,12 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 # args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('v-indels.csv', is_data=False)
-# v_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
+# v_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info))
 # v_cpath = ClusterPath()
 # v_cpath.readfile('v-indels-partitions-new.csv')
 
 # input_info, reco_info = seqfileopener.get_seqfile_info('cdr3-indels.csv', is_data=False)
-# cdr3_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info).values())
+# cdr3_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info))
 # cdr3_cpath = ClusterPath()
 # cdr3_cpath.readfile('cdr3-indels-partitions-new.csv')
 # # print 'v-indels: %f' % v_cpath.adj_mi_at_max_logprob
@@ -250,8 +250,8 @@ def parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seq
                 write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
 
                 vollmers_clusters = [cl.split(':') for cl in line['partition'].split(';')]
-                all_ids = [val for cluster in vollmers_clusters for val in cluster]
-                true_partition = utils.get_true_clusters(all_ids, reco_info).values()
+                true_partition = utils.get_true_partition(reco_info)  # modified without testing
+                utils.check_intersection_and_complement(vollmers_clusters, true_partition)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
                 these_partitions['true'] = true_partition
                 truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
@@ -741,12 +741,12 @@ def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type)
             istart = irep * nseqs
             istop = istart + nseqs
             uids = uid_list[istart : istop]
-            true_partition = utils.get_true_clusters(uids, reco_info).values()
+            true_partition = utils.get_true_partition(reco_info, ids=uids)  # modified without testing
             n_misassigned = int(misassign_fraction * nseqs)
             new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type=error_type)
             # new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='singletons')
             new_partitions[nseqs] = new_partition
-    return {nseqs : utils.mutual_information_to_true(new_partitions[nseqs], reco_info) for nseqs in nseq_list}
+    return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}  # modified without testing
 
 # ----------------------------------------------------------------------------------------
 def make_adj_mi_vs_sample_size_plot(label, n_leaves, mut_mult, nseq_list, adj_mis):
@@ -1109,7 +1109,7 @@ def execute(action, label, datafname, n_leaves=None, mut_mult=None):
         partition = [ids for ids in id_clusters.values()]
         # these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
         if not args.data:
-            write_float_val(imgtdir + '-adj_mi.csv', utils.mutual_information_to_true(partition, reco_info, debug=True), 'adj_mi')
+            write_float_val(imgtdir + '-adj_mi.csv', utils.adjusted_mutual_information(partition, utils.true_partition(reco_info)), 'adj_mi')
             ccfs = utils.correct_cluster_fractions(partition, reco_info)
             write_float_val(imgtdir + '-ccf_under.csv', ccfs[0], 'ccf_under')
             write_float_val(imgtdir + '-ccf_over.csv', ccfs[1], 'ccf_over')

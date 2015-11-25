@@ -116,7 +116,7 @@ class Glomerator(object):
         print '  true partition'
         print '   clonal?   ids'
         true_partition = utils.get_true_partition(self.reco_info)
-        for cluster in true_partition.values():
+        for cluster in true_partition:
             same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
             if same_event is None:
                 same_event = -1
@@ -222,8 +222,8 @@ class Glomerator(object):
                         global_partition.append(list(cluster))
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
                 global_adj_mi = None
-                if calc_adj_mi:
-                    global_adj_mi = utils.mutual_information_to_true(global_partition, self.reco_info, debug=False) if self.reco_info is not None else -1
+                if calc_adj_mi and self.reco_info is not None:
+                    global_adj_mi = utils.adjusted_mutual_information(global_partition, utils.get_true_partition(self.reco_info))
                 self.paths[ipath].add_partition(global_partition, global_logprob, n_procs=len(fileinfos), logweight=0., adj_mi=global_adj_mi)  # don't know the logweight yet (or maybe at all!)
 
             while not last_one():

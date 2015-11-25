@@ -366,7 +366,7 @@ class PartitionDriver(object):
         adj_mi = None
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
-            adj_mi = utils.mutual_information_to_true(partition, self.reco_info, debug=True)
+            adj_mi = utils.adjusted_mutual_information(partition, utils.get_true_partition(self.reco_info))
             ccfs = utils.correct_cluster_fractions(partition, self.reco_info)
         cp = ClusterPath()
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
@@ -1327,9 +1327,9 @@ class PartitionDriver(object):
         if self.args.annotation_clustering == 'vollmers':
             if self.args.outfname is not None:
                 outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
-                headers = ['n_clusters', 'threshold', 'partition']  #, 'true_clusters']
+                headers = ['n_clusters', 'threshold', 'partition']
                 if not self.args.is_data:
-                    headers += ['adj_mi', ]  #, 'n_true_clusters']
+                    headers += ['adj_mi', ]
                 writer = csv.DictWriter(outfile, headers)
                 writer.writeheader()
 
@@ -1340,9 +1340,6 @@ class PartitionDriver(object):
                     row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
                     if not self.args.is_data:
                         row['adj_mi'] = adj_mi
-                        # row['n_true_clusters'] = len(utils.get_true_partition(self.reco_info))
-                        # true_partition = [cl for cl in utils.get_true_partition(self.reco_info).values()]
-                        # row['true_clusters'] = utils.get_str_from_partition(true_partition)
                     writer.writerow(row)
             if self.args.outfname is not None:
                 outfile.close()
@@ -1354,7 +1351,7 @@ class PartitionDriver(object):
     def print_hmm_output(self, line, print_true=False):
         out_str_list = []
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            for uids in utils.get_true_clusters(line['unique_ids'], self.reco_info).values():
+            for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):
                 synthetic_true_line = copy.deepcopy(self.reco_info[uids[0]])
                 synthetic_true_line['unique_ids'] = uids
                 synthetic_true_line['seqs'] = [self.reco_info[iid]['seq'] for iid in uids]
