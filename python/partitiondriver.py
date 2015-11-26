@@ -317,7 +317,6 @@ class PartitionDriver(object):
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-            # print cmd
             check_call(cmd.split())
     
         elif self.args.naive_swarm:
@@ -343,7 +342,6 @@ class PartitionDriver(object):
             print '      swarm average time: %.3f' % (time.time()-tmpstart)
             cmd += ' --differences ' + str(differences)
             cmd += ' --uclust-file ' + clusterfname
-            print cmd
             check_call(cmd.split())
         else:
             assert False
@@ -420,7 +418,9 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        cmd_str += ' --dont-write-naive-hfracs'  # seems to be about the same speed whether you do or not... I guess I should check some more but, aw, screw it. Cache files are big enough as it is.
+        # cmd_str += ' --cache-naive-hfracs'  # seems to be about the same speed whether you do or not... I guess I should check some more but, aw, screw it. Cache files are big enough as it is.
+        if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
+            cmd_str += ' --only-cache-new-vals'
 
         if self.args.smc_particles > 1:
             os.environ['GSL_RNG_TYPE'] = 'ranlux'
@@ -504,6 +504,7 @@ class PartitionDriver(object):
             procs, n_tries, progress_strings = [], [], []
             self.n_likelihoods_calculated = []
             for iproc in range(n_procs):
+                # print cmd_strs[iproc]
                 procs.append(self.execute_iproc(cmd_strs[iproc], workdir=workdirs[iproc]))
                 n_tries.append(1)
                 self.n_likelihoods_calculated.append({})
