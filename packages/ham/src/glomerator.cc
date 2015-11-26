@@ -227,7 +227,6 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 }
 
 // ----------------------------------------------------------------------------------------
-  // void Glomerator::WriteCacheLine(ofstream &ofs, string query, string logprob, string naive_seq, string naive_hfrac, string cpos, string errors) {
 void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   ofs << query << ",";
   if(log_probs_.count(query))
@@ -236,7 +235,7 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   if(naive_seqs_.count(query))
     ofs << naive_seqs_[query].undigitized();
   ofs << ",";
-  if(!args_->dont_write_naive_hfracs() && naive_hfracs_.count(query))
+  if(args_->cache_naive_hfracs() && naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
   if(naive_seqs_.count(query))
@@ -292,28 +291,28 @@ void Glomerator::WriteCachedLogProbs() {
   log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,cyst_position,errors" << endl;
 
   log_prob_ofs << setprecision(20);
-  for(auto &kv : log_probs_) {  // first write everything for which we have log probs
-    if(!initial_log_probs_.count(kv.first))  // as long as we didn't have it to start with
-      WriteCacheLine(log_prob_ofs, kv.first);
-  }
 
-  for(auto &kv : naive_seqs_) {  // then write the queries for which we have naive seqs but not logprobs
-    if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))  // already wrote it
+  set<string> keys_to_cache;
+  for(auto &kv : log_probs_) {
+    if(args_->only_cache_new_vals() && initial_log_probs_.count(kv.first))  // don't cache it if we had it in the initial cache file (this is just an optimization)
       continue;
-    if(!initial_naive_seqs_.count(kv.first))
-      WriteCacheLine(log_prob_ofs, kv.first);
+    keys_to_cache.insert(kv.first);
   }
-
-  if(!args_->dont_write_naive_hfracs()) {
-    for(auto &kv : naive_hfracs_) {  // then write any queries for which we have naive hamming fractions, but no logprobs of naive seqs
-      if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))
+  for(auto &kv : naive_seqs_) {
+    if(args_->only_cache_new_vals() && initial_naive_seqs_.count(kv.first))  // note that if we had an initial log prob, but not an initial naive seq, we *do* want to write it (if we calculated the naive seq)
+      continue;
+    keys_to_cache.insert(kv.first);
+  }
+  if(args_->cache_naive_hfracs()) {
+    for(auto &kv : naive_hfracs_) {
+      if(args_->only_cache_new_vals() && initial_naive_hfracs_.count(kv.first))
 	continue;
-      if(naive_seqs_.count(kv.first) && !initial_naive_seqs_.count(kv.first))
-	continue;
-      if(!initial_naive_hfracs_.count(kv.first))
-	WriteCacheLine(log_prob_ofs, kv.first);
+      keys_to_cache.insert(kv.first);
     }
   }
+
+  for(auto &key : keys_to_cache)
+    WriteCacheLine(log_prob_ofs, key);
 
   log_prob_ofs.close();
 }
