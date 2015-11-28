@@ -454,8 +454,6 @@ class PartitionDriver(object):
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(naive_hamming_hi)
         if self.args.truncate_n_sets:
             cmd_str += ' --truncate-seqs'
-        if not self.args.dont_allow_unphysical_insertions:
-            cmd_str += ' --unphysical-insertions'
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
 

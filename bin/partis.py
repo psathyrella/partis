@@ -94,7 +94,6 @@ parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='Fil
 
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
-parser.add_argument('--dont-allow-unphysical-insertions', action='store_true', help='dont allow insertions on left side of v and right side of j.')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
 
 args = parser.parse_args()
