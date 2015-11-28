@@ -136,8 +136,6 @@ class PartitionDriver(object):
             cp.print_partitions(reco_info=self.reco_info, abbreviate=True, n_to_print=100)
             return
 
-        # utils.print_heapy('start', hp.heap())
-
         # run smith-waterman
         start = time.time()
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
@@ -177,23 +175,13 @@ class PartitionDriver(object):
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
-        # def print_sizes():
-        #     mnames = ['sw_info', 'paths', 'smc_info', 'bcrham_divvied_queries']
-        #     im = 0
-        #     for mvar in [self.sw_info, self.paths, self.smc_info, self.bcrham_divvied_queries]:
-        #         print 'size of', mnames[im], sys.getsizeof(mvar)
-        #         im += 1
-
         # ----------------------------------------------------------------------------------------
         # run that shiznit
-        # utils.print_heapy('done with prelims', hp.heap())
         while n_procs > 0:
             start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            # print_sizes()
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
-            # utils.print_heapy('after run step', hp.heap())
             n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-start)
@@ -202,20 +190,12 @@ class PartitionDriver(object):
 
             if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
                 n_calcd_per_process = self.get_n_calculated_per_process()
-                # if self.args.naive_hamming:
-                #     factor = 1.6  #2
-                # else:
                 factor = 1.3
 
-                reduce_n_procs = False  # reduce the number of processes only if last time through we didn't have to do too many. Also, repeat the last few, i.e. 4 4 3 3 2 2 1
-                # if self.args.naive_hamming:  # always reduce with naive_hamming
-                #     reduce_n_procs = True
+                reduce_n_procs = False
                 if n_calcd_per_process < self.n_max_calc_per_process:  # always reduce if we only calc'd a few the last time through
                     reduce_n_procs = True
-                # if n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]):  # also reduce if we aren't down to the last few procs, or if we already ran this number of procs twice
-                #     reduce_n_procs = True
 
-                # if self.args.naive_hamming or (n_calcd_per_process < self.n_max_calc_per_process and (n_procs > 4 or (len(n_proc_list) > 1 and n_proc_list[-1] == n_proc_list[-2]))):  # reduce the number of processes only if last time through we didn't have to do too many. Also, make sure to repeat the last few, i.e. 4 4 3 3 2 2 1
                 if reduce_n_procs:
                     n_procs = int(n_procs / factor)
             else:
@@ -225,7 +205,6 @@ class PartitionDriver(object):
         if self.args.smc_particles == 1:
             for path in self.paths:
                 self.check_path(path)
-            # if self.args.debug:
             print 'final'
             assert len(self.paths) == 1  # I think this is how it works... can't be bothered to check just now
             ipath = 0
@@ -452,8 +431,6 @@ class PartitionDriver(object):
                 print '       naive hamming bounds: %.3f %.3f' % (naive_hamming_lo, naive_hamming_hi)
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(naive_hamming_lo)
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(naive_hamming_hi)
-        if self.args.truncate_n_sets:
-            cmd_str += ' --truncate-seqs'
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
 
@@ -669,11 +646,6 @@ class PartitionDriver(object):
 
         print 'no bcrham divvies, divvying with python glomerator'
         naive_seqs = self.get_naive_seqs(info, namekey, seqkey)
-
-        if self.args.truncate_n_sets:
-            assert False  # deprecated and broken
-            # print '  truncate in divvy'
-            # self.truncate_seqs(naive_seqs, kvinfo=None, cyst_positions=cyst_positions)
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
@@ -969,63 +941,9 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def get_truncation_parameters(self, seqinfo, cyst_positions, extra_info=None, debug=False):
-        # kinda obscurely written 'cause I generalized it to work with padding, then switched over to another function
-        # find min length [over sequences in <seqinfo>] to left and right of the cysteine positions
-        typelist = ['left', 'right']
-        if extra_info is not None:
-            typelist += ['v_5p_del', 'j_3p_del']
-        lengths = {'min' : {t : None for t in typelist},
-                   'max' : {t : None for t in typelist}}
-        for query, seq in seqinfo.items():
-            cpos = cyst_positions[query]
-            if cpos < 0 or cpos >= len(seq):
-                raise Exception('cpos %d invalid for %s (%s)' % (cpos, query, seq))
-            thislen = {'left' : cpos, 'right' : len(seq) - cpos}  # NOTE right-hand one includes <cpos>, i.e. dleft + dright = len(seq)
-            if extra_info is not None:
-                thislen['v_5p_del'] = extra_info[query]['v_5p_del']
-                thislen['j_3p_del'] = extra_info[query]['j_3p_del']
-            for tp in typelist:
-                if lengths['min'][tp] is None or delta[tp] < lengths['min'][tp]:
-                    lengths['min'][tp] = delta[tp]
-                if lengths['max'][tp] is None or delta[tp] > lengths['max'][tp]:
-                    lengths['max'][tp] = delta[tp]
-            if debug:
-                print '        %d %d  (%d, %d - %d)   %s' % (dleft, dright, cpos, len(seq), cpos, query)
-
-        return lengths
-
-    # ----------------------------------------------------------------------------------------
-    def truncate_seqs(self, seqinfo, kvinfo, cyst_positions, debug=False):
-        """ 
-        Truncate <seqinfo> to have the same length to the left and right of the conserved cysteine.
-        """
-
-        lengths = self.get_truncation_parameters(seqinfo, cyst_positions, debug)
-
-        # truncate all the sequences to these lengths
-        for query, seq in seqinfo.items():
-            cpos = cyst_positions[query]
-            istart = cpos - lengths['min']['left']
-            istop = cpos + lengths['min']['right']
-            chopleft = istart
-            chopright = len(seq) - istop
-            if debug:
-                print '      chop %d %d   %s' % (chopleft, chopright, query)
-                print '     %d --> %d (%d-%d --> %d-%d)      %s' % (len(seq), len(seq[istart : istop]),
-                                                                    -1 if kvinfo is None else kvinfo[query]['min'], -1 if kvinfo is None else kvinfo[query]['max'],
-                                                                    -1 if kvinfo is None else (kvinfo[query]['min'] - chopleft), -1 if kvinfo is None else (kvinfo[query]['max'] - chopleft),
-                                                                    query)
-            seqinfo[query] = seq[istart : istop]
-            if kvinfo is not None:
-                kvinfo[query]['min'] -= chopleft
-                kvinfo[query]['max'] -= chopleft
-
-    # ----------------------------------------------------------------------------------------
     def combine_queries(self, query_names, parameter_dir, skipped_gene_matches=None):
         """ 
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
-        Also truncates sequences.
         """
 
         combo = {
@@ -1039,7 +957,6 @@ class PartitionDriver(object):
 
         # TODO this whole thing probably ought to use cached hmm info if it's available
         # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
-        # TODO/NOTE this is the mutation rate *before* truncation
 
         for name in query_names:
             swfo = self.sw_info[name]
@@ -1103,8 +1020,8 @@ class PartitionDriver(object):
                 'k_d_min' : combined_query['k_d']['min'],
                 'k_d_max' : combined_query['k_d']['max'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
-                'seqs' : ':'.join(combined_query['seqs']),  # may be truncated, and thus not the same as those in <input_info> or <sw_info>
-                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']]),  # a.t.m., not corrected for truncation
+                'seqs' : ':'.join(combined_query['seqs']),
+                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']]),
                 'cyst_positions' : ':'.join([str(cpos) for cpos in combined_query['cyst_positions']]),  # TODO should really use the hmm cpos if it's available
                 # 'cyst_positions' : ':'.join([str(self.sw_info[qn]['cyst_position']) for qn in query_name_list])  # TODO should really use the hmm cpos if it's available
             })

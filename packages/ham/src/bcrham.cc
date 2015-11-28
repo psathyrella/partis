@@ -149,8 +149,10 @@ int main(int argc, const char * argv[]) {
     double mean_mute_freq(avgVector(mute_freqs));
 
     vector<KBounds> kbvector(qry_seqs.size(), kbounds);
-    if(args.truncate_seqs())
+    if(args.truncate_seqs()) {
+      assert(0);
       TruncateSeqs(qry_seqs, kbvector);
+    }
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.size(), result);  // only used for forward if n_seqs > 1

@@ -1138,22 +1138,6 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
 
 
 # ----------------------------------------------------------------------------------------
-def get_hamming_distances(pairs):
-    return_info = []
-    for info in pairs:
-        seq_a = info['seq_a']
-        seq_b = info['seq_b']
-        if True:  #self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-            min_length = min(len(seq_a), len(seq_b))
-            seq_a = seq_a[-min_length : ]
-            seq_b = seq_b[-min_length : ]
-            chopped_off_left_sides = True
-        mutation_frac = hamming_fraction(seq_a, seq_b)
-        return_info.append({'id_a':info['id_a'], 'id_b':info['id_b'], 'logprob':mutation_frac})
-
-    return return_info
-
-# ----------------------------------------------------------------------------------------
 def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False):
     assert len(seq1) == len(seq2)
     if len(seq1) == 0:

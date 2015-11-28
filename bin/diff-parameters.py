@@ -14,10 +14,10 @@ import yaml
 from subprocess import check_output
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plotting')
-sys.argv.append('-b')
-parser.add_argument('--arg1', required=True)
-parser.add_argument('--arg2', required=True)
+# parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plotting')
+# sys.argv.append('-b')
+parser.add_argument('arg1')
+parser.add_argument('arg2')
 parser.add_argument('--keep-going', action='store_true', help='Don\'t fail on differences, instead just keep on chugging')
 parser.add_argument('--precision', type=int, default=9, help='number of digits after the decimal place to keep when comparing floating point numbers')
 args = parser.parse_args()

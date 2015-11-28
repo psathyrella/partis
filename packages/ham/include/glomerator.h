@@ -100,7 +100,7 @@ private:
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice
   // these all include cached info from previous runs
   map<string, double> log_probs_;  
-  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a give cluster
+  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster
   map<string, Sequence> naive_seqs_;
   map<string, string> errors_;
   map<string, double> naive_hamming_fractions_;

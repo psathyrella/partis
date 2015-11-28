@@ -27,7 +27,6 @@ parser.add_argument('--all-combinations', action='store_true', help='Run algorit
 parser.add_argument('--is-data', action='store_true', help='True if not simulation')
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
-parser.add_argument('--truncate-n-sets', action='store_true', help='If running on <n-sets> sequences, truncate such that they all have the same length to the left and right of the conserved cysteine')
 # parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
@@ -116,8 +115,6 @@ if os.path.exists(args.workdir):
 # elif os.path.exists(args.workdir):
 #     print '\nWARNING workdir %s already exists\n' % args.workdir
 
-
-assert not args.truncate_n_sets  # disabled and deprecated (I'm breaking it to make N padding easier to implement)
 if args.plot_performance:
     assert not args.is_data
     assert args.plotdir is not None
