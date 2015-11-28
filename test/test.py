@@ -70,10 +70,11 @@ tests = OrderedDict()
 n_partition_queries = '250'
 ref_simu_param_dir = simu_param_dir.replace(stashdir, referencedir)
 ref_data_param_dir = data_param_dir.replace(stashdir, referencedir)
+cachefname = stashdir + '/hmm_cached_info.csv'
 print 'TODO kick all the stdout to a file'
 # first test performance on the previous simulation, with the previous parameter values
 tests['annotate-ref-simu']          = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--plotdir', param_dir + '/plots/ref-simu-performance', '--plot-performance']}
-tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
+tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries, '--persistent-cachefname', cachefname]}
 # tests['partition-ref-data']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', datafname, '--parameter-dir', ref_data_param_dir, '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
 tests['point-partition-ref-simu']   = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
 tests['vsearch-partition-ref-simu'] = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
@@ -103,6 +104,8 @@ for name, info in tests.items():
         cmd_str += get_extra_str(info['extras'] + common_extras)
         if action == 'cache-data-parameters':
             cmd_str += ' --datafname ' + datafname
+    if cachefname in cmd_str and os.path.exists(cachefname):
+        check_call(['rm', '-v', cachefname]) 
     print 'TEST %30s   %s' % (name, cmd_str)
     check_call(cmd_str.split())
 # sys.exit()
@@ -110,6 +113,8 @@ for name, info in tests.items():
 # ----------------------------------------------------------------------------------------
 # collect summary performance info from a few places
 print 'reading performance info'
+
+# ----------------------------------------------------------------------------------------
 
 # pull in the annotation info
 perf_info = OrderedDict()
@@ -197,6 +202,33 @@ with open(stashdir + '/performance-info.csv', 'w') as perf_file:
     writer = csv.DictWriter(perf_file, perf_info.keys())
     writer.writeheader()
     writer.writerow(perf_info)
+
+# ----------------------------------------------------------------------------------------
+# read partition cache file TODO move this after the other stuff
+print '\npartition cache file'
+refcache = csv.DictReader(open(referencedir + '/' + os.path.basename(cachefname)))
+newcache = csv.DictReader(open(cachefname))
+hammings, delta_logprobs = [], []
+n_big_hammings, n_big_delta_logprobs = 0, 0
+hamming_eps = 0.
+logprob_eps = 1e-5
+for refline in refcache:
+    newline = newcache.next()  # I may end up needing to handle different orders
+    # print refline['unique_ids'], newline['unique_ids']
+    if refline['naive_seq'] != '':
+        hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
+        if hamming_fraction > hamming_eps:
+            n_big_hammings += 1
+            hammings.append(hamming_fraction)
+    if refline['logprob'] != '':
+        delta_logprob = abs(float(refline['logprob']) - float(newline['logprob']))
+        if delta_logprob > logprob_eps:
+            n_big_delta_logprobs += 1
+            delta_logprobs.append(delta_logprob)
+
+print '              fraction different     mean difference among differents'
+print '  naive seqs     %d / %d                      %.3f' % (n_big_hammings, len(hammings), numpy.average(hammings) if len(hammings) > 0 else 0.)
+print '  log probs      %d / %d                      %.3f' % (n_big_delta_logprobs, len(delta_logprobs), numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
 
 # ----------------------------------------------------------------------------------------
 # make a bunch of comparison plots
