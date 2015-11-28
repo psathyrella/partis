@@ -414,7 +414,8 @@ class PartitionDriver(object):
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
-        cmd_str += ' --n_best_events ' + str(self.args.n_best_events)
+        if self.args.n_best_events is not None:
+            cmd_str += ' --n_best_events ' + str(int(self.args.n_best_events))
         cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
