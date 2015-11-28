@@ -483,8 +483,8 @@ class PartitionDriver(object):
         if n_procs == 1:
             if total_naive_hamming_cluster_procs is not None:
                 cmd_str = cmd_str.replace('XXX', str(total_naive_hamming_cluster_procs))
-            print cmd_str
-            sys.exit()
+            # print cmd_str
+            # sys.exit()
             check_call(cmd_str.split())
         else:
 
