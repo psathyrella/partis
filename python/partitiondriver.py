@@ -416,8 +416,9 @@ class PartitionDriver(object):
         cmd_str += ' --algorithm ' + algorithm
         if self.args.n_best_events is not None:
             cmd_str += ' --n_best_events ' + str(int(self.args.n_best_events))
-        cmd_str += ' --debug ' + str(self.args.debug)
-        cmd_str += ' --hmmdir ' + parameter_dir + '/hmms'
+        if self.args.debug > 0:
+            cmd_str += ' --debug ' + str(self.args.debug)
+        cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
         cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
@@ -484,8 +485,8 @@ class PartitionDriver(object):
         if n_procs == 1:
             if total_naive_hamming_cluster_procs is not None:
                 cmd_str = cmd_str.replace('XXX', str(total_naive_hamming_cluster_procs))
-            # print cmd_str
-            # sys.exit()
+            print cmd_str
+            sys.exit()
             check_call(cmd_str.split())
         else:
 
