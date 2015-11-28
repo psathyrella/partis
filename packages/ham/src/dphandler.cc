@@ -183,7 +183,7 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
     paths_[gene] = map<vector<string>, TracebackPath*>();
   }
   origin = "scratch";
-  if(args_->chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
+  if(!args_->no_chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto &kv : trellisi_[gene]) {
       vector<string> cached_query_strs(kv.first);
       if(cached_query_strs.size() != query_strs.size())

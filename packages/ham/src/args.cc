@@ -22,7 +22,7 @@ Args::Args(int argc, const char * argv[]):
   n_best_events_arg_("", "n_best_events", "number of candidate recombination events to write to file", true, -1, "int"),
   smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
   naive_hamming_cluster_arg_("", "naive-hamming-cluster", "cluster sequences using naive hamming distance", false, 0, "int"),
-  chunk_cache_arg_("", "chunk-cache", "perform chunk caching?", false),
+  no_chunk_cache_arg_("", "no-chunk-cache", "don't perform chunk caching?", false),
   partition_arg_("", "partition", "", false),
   truncate_seqs_arg_("", "truncate-seqs", "truncate sequences to the same length on either side of the conserved cysteine. NOTE this disables caching, so do *not* turn it on unless you really have different-length sequences", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
@@ -54,7 +54,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(n_best_events_arg_);
     cmd.add(smc_particles_arg_);
     cmd.add(naive_hamming_cluster_arg_);
-    cmd.add(chunk_cache_arg_);
+    cmd.add(no_chunk_cache_arg_);
     cmd.add(cache_naive_seqs_arg_);
     cmd.add(no_fwd_arg_);
     cmd.add(cache_naive_hfracs_arg_);
