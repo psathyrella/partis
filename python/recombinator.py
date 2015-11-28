@@ -92,20 +92,17 @@ class Recombinator(object):
         self.insertion_content_probs = {}
         for bound in utils.boundaries:
             self.insertion_content_probs[bound] = {}
-            if self.args.insertion_base_content:
-                with opener('r')(self.args.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
-                    reader = csv.DictReader(icfile)
-                    total = 0
-                    for line in reader:
-                        self.insertion_content_probs[bound][line[bound + '_insertion_content']] = int(line['count'])
-                        total += int(line['count'])
-                    for nuke in utils.nukes:
-                        if nuke not in self.insertion_content_probs[bound]:
-                            print '    %s not in insertion content probs, adding with zero' % nuke
-                            self.insertion_content_probs[bound][nuke] = 0
-                        self.insertion_content_probs[bound][nuke] /= float(total)
-            else:
-                self.insertion_content_probs[bound] = {n : 0.25 for n in utils.nukes}
+            with opener('r')(self.args.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
+                reader = csv.DictReader(icfile)
+                total = 0
+                for line in reader:
+                    self.insertion_content_probs[bound][line[bound + '_insertion_content']] = int(line['count'])
+                    total += int(line['count'])
+                for nuke in utils.nukes:
+                    if nuke not in self.insertion_content_probs[bound]:
+                        print '    %s not in insertion content probs, adding with zero' % nuke
+                        self.insertion_content_probs[bound][nuke] = 0
+                    self.insertion_content_probs[bound][nuke] /= float(total)
 
             assert utils.is_normed(self.insertion_content_probs[bound])
             # if self.args.debug:

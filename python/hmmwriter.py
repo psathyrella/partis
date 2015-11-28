@@ -449,7 +449,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, insertion):
         self.insertion_content_probs[insertion] = {}
-        if self.args.insertion_base_content and insertion in utils.boundaries:  # just return uniform probs for fv and jf insertions
+        if insertion in utils.boundaries:  # just return uniform probs for fv and jf insertions
             with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
