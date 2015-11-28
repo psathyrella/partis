@@ -71,7 +71,8 @@ n_partition_queries = '250'
 ref_simu_param_dir = simu_param_dir.replace(stashdir, referencedir)
 ref_data_param_dir = data_param_dir.replace(stashdir, referencedir)
 cachefname = stashdir + '/hmm_cached_info.csv'
-print 'TODO kick all the stdout to a file'
+logfname = stashdir + '/test.log'
+open(logfname, 'w').close()
 # first test performance on the previous simulation, with the previous parameter values
 tests['annotate-ref-simu']          = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--plotdir', param_dir + '/plots/ref-simu-performance', '--plot-performance']}
 tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries, '--persistent-cachefname', cachefname]}
@@ -106,15 +107,17 @@ for name, info in tests.items():
             cmd_str += ' --datafname ' + datafname
     if cachefname in cmd_str and os.path.exists(cachefname):
         check_call(['rm', '-v', cachefname]) 
-    print 'TEST %30s   %s' % (name, cmd_str)
-    check_call(cmd_str.split())
+    logstr = 'TEST %30s   %s' % (name, cmd_str)
+    print logstr
+    logfile = open(logfname, 'a')
+    logfile.write(logstr + '\n')
+    logfile.close()
+    check_call(cmd_str + ' >>' + logfname, shell=True)
 # sys.exit()
 
 # ----------------------------------------------------------------------------------------
 # collect summary performance info from a few places
 print 'reading performance info'
-
-# ----------------------------------------------------------------------------------------
 
 # pull in the annotation info
 perf_info = OrderedDict()
