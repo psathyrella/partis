@@ -60,8 +60,11 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-        if self.args.persistent_cachefname is not None and os.path.exists(self.args.persistent_cachefname):
-            check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
+        if self.args.persistent_cachefname is not None:
+            if os.path.exists(self.args.persistent_cachefname):  # if it exists, copy it to workdir
+                check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
+            else:  # otherwise create it with just headers
+                pass  # hm, maybe do it in ham
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -794,11 +797,9 @@ class PartitionDriver(object):
             # raise Exception('only read headers from %s', ' '.join([fn for fn in infnames if fn != outfname]))
 
         if dereplicate:
-            assert 'cache' not in outfname  # TODO remove me
             tmpfname = outfname + '.tmp'
-            check_call('echo ' + header + ' >' + tmpfname)
-            print 'grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname
-            check_call('grep -v \'' + header + '\'' + outfname + ' | sort | uniq >' + tmpfname, shell=True)
+            check_call('echo ' + header + ' >' + tmpfname, shell=True)
+            check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)
             check_call(['mv', '-v', tmpfname, outfname])
 
         if not self.args.no_clean:
