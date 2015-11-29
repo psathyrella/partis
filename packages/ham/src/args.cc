@@ -12,6 +12,7 @@ Args::Args(int argc, const char * argv[]):
   datadir_arg_("", "datadir", "directory in which to look for non-sample-specific data (eg human germline seqs)", true, "", "string"),
   infile_arg_("", "infile", "input (whitespace-separated) file", true, "", "string"),
   outfile_arg_("", "outfile", "output csv file", true, "", "string"),
+  annotationfile_arg_("", "annotationfile", "if specified, write annotations for each cluster to here", false, "", "string"),
   cachefile_arg_("", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
@@ -44,6 +45,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(datadir_arg_);
     cmd.add(infile_arg_);
     cmd.add(outfile_arg_);
+    cmd.add(annotationfile_arg_);
     cmd.add(cachefile_arg_);
     cmd.add(hamming_fraction_bound_lo_arg_);
     cmd.add(hamming_fraction_bound_hi_arg_);
