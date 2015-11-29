@@ -80,7 +80,7 @@ tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',  
 tests['point-partition-ref-simu']   = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
 tests['vsearch-partition-ref-simu'] = {'bin' : partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries]}
 
-# # then infer new parameters, and make new simulation
+# then infer new parameters, and make new simulation
 # tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
 # tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
 # tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}

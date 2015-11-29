@@ -23,9 +23,6 @@ from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from hist import Hist
-# import memory_profiler
-# from guppy import hpy
-# hp = hpy()
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -53,6 +50,7 @@ class PartitionDriver(object):
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
+        self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')  # TODO won't work in parallel
 
         utils.prep_dir(self.args.workdir)
         if self.args.outfname is not None:
@@ -208,10 +206,16 @@ class PartitionDriver(object):
             print 'final'
             assert len(self.paths) == 1  # I think this is how it works... can't be bothered to check just now
             ipath = 0
-            self.paths[ipath].print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+            best_path = self.paths[ipath]
+            best_path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
             print ''
+            if self.args.print_cluster_annotations:
+                annotations = self.read_annotation_output(self.annotation_fname)
+                for cluster in best_path.partitions[best_path.i_best]:
+                    uids = ':'.join(cluster)
+                    utils.print_reco_event(self.germline_seqs, annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
             if self.args.outfname is not None:
-                self.write_clusterpaths(self.args.outfname, [self.paths[-1], ])  # [last agglomeration step]
+                self.write_clusterpaths(self.args.outfname, [path, ])  # [last agglomeration step]
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
@@ -411,6 +415,8 @@ class PartitionDriver(object):
             cmd_str += ' --smc-particles ' + str(self.args.smc_particles)
         if self.args.rescale_emissions:
             cmd_str += ' --rescale-emissions'
+        if self.args.print_cluster_annotations:
+            cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.args.action == 'partition':
             cmd_str += ' --cachefile ' + self.hmm_cachefname
             if self.args.naive_hamming:
@@ -799,12 +805,9 @@ class PartitionDriver(object):
                 glomerer = Glomerator(self.reco_info)
                 glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
-                # self.check_path(glomerer.paths[0])  # really slow on larger partitions
-                # print 'BEFORE %d' % len(self.paths)
                 if len(self.paths) > 0:
                     assert len(self.paths) == 1  # er, I think
                     self.paths = []  # should explicitly free memory
-                # print 'AFTER %d' % len(self.paths)
                 self.paths.append(glomerer.paths[0])
         else:
             self.merge_subprocess_files(self.hmm_outfname, n_procs)
@@ -1095,7 +1098,7 @@ class PartitionDriver(object):
         #     self.read_cachefile(self.hmm_cachefname)
 
         if self.args.action != 'partition':
-            self.read_annotation_output(algorithm, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+            self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
@@ -1122,7 +1125,7 @@ class PartitionDriver(object):
         print '      ', ' '.join([str(len(cl)) for cl in self.bcrham_divvied_queries])
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, algorithm, count_parameters=False, parameter_out_dir=None):
+    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
 
@@ -1133,8 +1136,8 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter(self.germline_seqs, 'hmm') if self.args.plot_performance else None
 
         n_seqs_processed, n_events_processed = 0, 0
-        hmminfo = {}
-        with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
+        annotations = {}
+        with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             boundary_error_queries = []
             for line in reader:
@@ -1153,10 +1156,10 @@ class PartitionDriver(object):
                         boundary_error_queries.append(':'.join([uid for uid in ids]))
                     else:
                         assert len(line['errors']) == 0
-
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                 utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)  # NOTE may want to do this after printing? not sure yet
+                annotations[':'.join(line['unique_ids'])] = line  # TODO oh, man, you need to not have both <line> and <line_with_effective_erosions>
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         print '      %s' % ':'.join(ids),
@@ -1173,21 +1176,21 @@ class PartitionDriver(object):
                     n_events_processed += 1
                     for iseq in range(len(ids)):
                         uid = ids[iseq]
-                        hmminfo[uid] = copy.deepcopy(line_with_effective_erosions)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-                        del hmminfo[uid]['unique_ids']
-                        del hmminfo[uid]['seqs']
-                        hmminfo[uid]['seq'] = line_with_effective_erosions['seqs'][iseq]
-                        hmminfo[uid]['unique_id'] = uid
-                        utils.add_match_info(self.germline_seqs, hmminfo[uid], self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+                        hmminfo = copy.deepcopy(line_with_effective_erosions)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+                        del hmminfo['unique_ids']
+                        del hmminfo['seqs']
+                        hmminfo['seq'] = line_with_effective_erosions['seqs'][iseq]
+                        hmminfo['unique_id'] = uid
+                        utils.add_match_info(self.germline_seqs, hmminfo, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
                         if pcounter is not None:
-                            pcounter.increment_per_sequence_params(hmminfo[uid])
+                            pcounter.increment_per_sequence_params(hmminfo)
                         if true_pcounter is not None:
                             true_pcounter.increment_per_sequence_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                         if perfplotter is not None:
                             if uid in self.sw_info['indels']:
                                 print '    skipping performance evaluation of %s because of indels' % uid  # I just have no idea how to handle naive hamming fraction when there's indels
                             else:
-                                perfplotter.evaluate(self.reco_info[uid], hmminfo[uid], self.sw_info[uid]['padded'])
+                                perfplotter.evaluate(self.reco_info[uid], hmminfo, self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
         if pcounter is not None:
@@ -1263,7 +1266,9 @@ class PartitionDriver(object):
                 outfile.close()
 
         if not self.args.no_clean:
-            os.remove(self.hmm_outfname)
+            os.remove(annotation_fname)
+
+        return annotations
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
