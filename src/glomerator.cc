@@ -2,27 +2,6 @@
 
 namespace ham {
 
-
-// ----------------------------------------------------------------------------------------
-string SeqStr(vector<Sequence> &seqs, string delimiter) {
-  string seq_str;
-  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
-    if(iseq > 0) seq_str += delimiter;
-    seq_str += seqs[iseq].undigitized();
-  }
-  return seq_str;
-}
-
-// ----------------------------------------------------------------------------------------
-string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
-  string name_str;
-  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
-    if(iseq > 0) name_str += delimiter;
-    name_str += seqs[iseq].name();
-  }
-  return name_str;
-}
-
 // ----------------------------------------------------------------------------------------
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args *args, Track *track) :
   track_(track),
@@ -135,6 +114,8 @@ void Glomerator::Cluster() {
 
   vector<ClusterPath> paths{cp};
   WritePartitions(paths);
+  if(args_->annotationfile() != "")
+    WriteAnnotations(paths);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -345,6 +326,28 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 }
 
 // ----------------------------------------------------------------------------------------
+void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
+  ofstream annotation_ofs;
+  annotation_ofs.open(args_->annotationfile());
+  StreamHeader(annotation_ofs, "viterbi");
+
+  assert(paths.size() == 1);  // would need to update this for smc
+  int ipath(0);
+  ClusterPath cp(paths[ipath]);
+  for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {  // we don't work out which is the best partition until later (in the python), so darn, I guess I'll just write annotations for all the partitions
+    for(auto &cluster : cp.partitions()[ipart]) {
+      if(events_[cluster].genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
+	cout << "WTF " << cluster << " x" << events_[cluster].naive_seq_ << "x" << endl;
+	assert(0);
+      }
+      vector<RecoEvent> event_list({events_[cluster]});
+      StreamOutput(annotation_ofs, "viterbi", 1, event_list, seq_info_[cluster], 0., "");
+    }
+  }
+  annotation_ofs.close();
+}
+
+// ----------------------------------------------------------------------------------------
 double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
   // NOTE since the cache is index by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
   string joint_key = JoinNames(seq_a.name(), seq_b.name());
@@ -400,6 +403,7 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     if(naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
       // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
       naive_seqs_[queries] = naive_seqs_[parents->first];
+      events_[queries] = events_[parents->first];
       return;
     }
     double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (not that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
@@ -407,11 +411,13 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     if(size_ratio > max_factor) {
       cout << "     first parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
       naive_seqs_[queries] = naive_seqs_[parents->first];
+      events_[queries] = events_[parents->first];
       return;
     }
     if(1. / size_ratio > max_factor) {
       cout << "     second parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
       naive_seqs_[queries] = naive_seqs_[parents->second];
+      events_[queries] = events_[parents->second];
       return;
     }
   }
@@ -431,8 +437,8 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 
   if(result.events_.size() < 1)
     throw runtime_error("ERROR no events for " + queries + "\n");
-
   naive_seqs_[queries] = Sequence(track_, queries, result.events_[0].naive_seq_, result.events_[0].cyst_position_);
+  events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 }

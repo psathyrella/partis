@@ -565,4 +565,70 @@ void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector, bool debug)
   }
 }
 
+// ----------------------------------------------------------------------------------------
+void StreamHeader(ofstream &ofs, string algorithm) {
+  if(algorithm == "viterbi")
+    ofs << "nth_best,unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,errors" << endl;
+  else if(algorithm == "forward")
+    ofs << "unique_ids,logprob,errors" << endl;
+  else
+    throw runtime_error("bad algorithm " + algorithm);
+}
+
+// ----------------------------------------------------------------------------------------
+void StreamOutput(ofstream &ofs, string algorithm, size_t n_max, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors) {
+  if(algorithm == "viterbi") {
+    for(size_t ievt = 0; ievt < n_max; ++ievt) {
+      RecoEvent *event = &events[ievt];
+      string second_seq_name, second_seq;
+      ofs  // be very, very careful to change this *and* the csv header above at the same time
+	<< ievt
+	<< "," << SeqNameStr(seqs, ":")
+	<< "," << event->genes_["v"]
+	<< "," << event->genes_["d"]
+	<< "," << event->genes_["j"]
+	<< "," << event->insertions_["fv"]
+	<< "," << event->insertions_["vd"]
+	<< "," << event->insertions_["dj"]
+	<< "," << event->insertions_["jf"]
+	<< "," << event->deletions_["v_5p"]
+	<< "," << event->deletions_["v_3p"]
+	<< "," << event->deletions_["d_5p"]
+	<< "," << event->deletions_["d_3p"]
+	<< "," << event->deletions_["j_5p"]
+	<< "," << event->deletions_["j_3p"]
+	<< "," << event->score_
+	<< "," << SeqStr(seqs, ":")
+	<< "," << errors
+	<< endl;
+    }
+  } else {
+    ofs
+      << SeqNameStr(seqs, ":")
+      << "," << total_score
+      << "," << errors
+      << endl;
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+string SeqStr(vector<Sequence> &seqs, string delimiter) {
+  string seq_str;
+  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
+    if(iseq > 0) seq_str += delimiter;
+    seq_str += seqs[iseq].undigitized();
+  }
+  return seq_str;
+}
+
+// ----------------------------------------------------------------------------------------
+string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
+  string name_str;
+  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
+    if(iseq > 0) name_str += delimiter;
+    name_str += seqs[iseq].name();
+  }
+  return name_str;
+}
+
 }
