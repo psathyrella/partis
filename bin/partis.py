@@ -27,7 +27,6 @@ parser.add_argument('--all-combinations', action='store_true', help='Run algorit
 parser.add_argument('--is-data', action='store_true', help='True if not simulation')
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
-parser.add_argument('--truncate-n-sets', action='store_true', help='If running on <n-sets> sequences, truncate such that they all have the same length to the left and right of the conserved cysteine')
 # parser.add_argument('--naivety', default='M', choices=['N', 'M'], help='Naive or mature sequences?')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
@@ -42,9 +41,10 @@ parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
-parser.add_argument('--random-divvy', action='store_true', default=False, help='Shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it can also be kinda slow
+parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
 parser.add_argument('--naivety', default='M', choices=['M', 'N'])
+parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -64,7 +64,7 @@ parser.add_argument('--queries', help='Colon-separated list of query names to wh
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
-parser.add_argument('--n-best-events', type=int, default=1, help='Number of best events to print (i.e. n-best viterbi paths)')
+parser.add_argument('--n-best-events', default=None, help='Number of best events to print (i.e. n-best viterbi paths). Default is set in bcrham.')
 
 # simulation (see also gtr-fname)
 # NOTE see also mutation-multiplier, although that comes into play after the trees are generated
@@ -94,8 +94,6 @@ parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='Fil
 
 # uncommon arguments
 parser.add_argument('--apply-choice_probs_in_sw', action='store_true', help='Apply gene choice probs in Smith-Waterman step. Probably not a good idea (see comments in waterer.py).')
-parser.add_argument('--insertion-base-content', default=True, action='store_true',help='Account for non-uniform base content in insertions. Slows us down by a factor around five and gives no performance benefit.')
-parser.add_argument('--dont-allow-unphysical-insertions', action='store_true', help='dont allow insertions on left side of v and right side of j.')
 parser.add_argument('--joint-emission', action='store_true', help='Use information about both sequences when writing pair emission probabilities?')
 
 args = parser.parse_args()
@@ -118,8 +116,6 @@ if os.path.exists(args.workdir):
 # elif os.path.exists(args.workdir):
 #     print '\nWARNING workdir %s already exists\n' % args.workdir
 
-
-assert not args.truncate_n_sets  # disabled and deprecated (I'm breaking it to make N padding easier to implement)
 if args.plot_performance:
     assert not args.is_data
     assert args.plotdir is not None
@@ -151,7 +147,13 @@ def make_events(args, n_events, iproc, random_ints):
     for ievt in range(n_events):
         # print ievt,
         # sys.stdout.flush()
-        reco.combine(random_ints[ievt])
+        failed = True
+        itry = 0
+        while failed:
+            if itry > 0:
+                print 'try again: %d' % itry
+            failed = not reco.combine(random_ints[ievt] + itry)
+            itry += 1
 
 if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
@@ -167,8 +169,6 @@ else:
     start = time.time()
     from partitiondriver import PartitionDriver
     random.seed(args.seed)
-    if args.action == 'partition' and not args.random_divvy:
-        raise Exception('--random-divvy option is required when partitioning')
     args.queries = utils.get_arg_list(args.queries)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)

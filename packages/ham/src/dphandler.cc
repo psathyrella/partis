@@ -183,7 +183,7 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
     paths_[gene] = map<vector<string>, TracebackPath*>();
   }
   origin = "scratch";
-  if(args_->chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
+  if(!args_->no_chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto &kv : trellisi_[gene]) {
       vector<string> cached_query_strs(kv.first);
       if(cached_query_strs.size() != query_strs.size())
@@ -372,17 +372,10 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
-    size_t igene(0), n_short_v(0), n_long_erosions(0);
+    size_t igene(0), n_long_erosions(0);
     for(auto & gene : only_genes[region]) {
       igene++;
 
-      if(!args_->unphysical_insertions()) {  // only applies if v has no insertions
-	if(region == "v" && query_strs[0].size() > gl_.seqs_[gene].size()) { // query sequence too long for this v version to make any sense (ds and js have inserts so this doesn't affect them)
-	  if(args_->debug() == 2) cout << "                     " << gene << " too short" << endl;
-	  n_short_v++;
-	  continue;
-	}
-      }
       if(query_strs[0].size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
         n_long_erosions++;
 
@@ -422,7 +415,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
     if((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
       if(args_->debug() == 2) {
         cout << "                  found no gene for " << region << " so skip"
-             << " (" << n_short_v << "/" << igene << " v germlines too short, " << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
+             << " (" << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
       }
       return;
     }

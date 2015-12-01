@@ -196,14 +196,12 @@ class HmmWriter(object):
         # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
         self.insertions = []
         if self.region == 'v':
-            if not self.args.dont_allow_unphysical_insertions:
-                self.insertions.append('fv')
+            self.insertions.append('fv')
         elif self.region == 'd':
             self.insertions.append('vd')
         elif self.region == 'j':
             self.insertions.append('dj')
-            if not self.args.dont_allow_unphysical_insertions:
-                self.insertions.append('jf')
+            self.insertions.append('jf')
 
         self.erosion_probs = {}
         self.insertion_probs = {}
@@ -253,7 +251,7 @@ class HmmWriter(object):
         for inuke in range(self.smallest_entry_index, len(self.germline_seq)):
             self.add_internal_state(inuke)
         # and finally right side insertions
-        if self.region == 'j' and not self.args.dont_allow_unphysical_insertions:
+        if self.region == 'j':
             self.add_righthand_insert_state(insertion='jf')
 
     # ----------------------------------------------------------------------------------------
@@ -449,7 +447,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, insertion):
         self.insertion_content_probs[insertion] = {}
-        if self.args.insertion_base_content and insertion in utils.boundaries:  # just return uniform probs for fv and jf insertions
+        if insertion in utils.boundaries:  # just return uniform probs for fv and jf insertions
             with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
@@ -627,7 +625,7 @@ class HmmWriter(object):
     def add_region_exit_transitions(self, state, exit_probability):  # <exit_probability> is the prob of skipping the remainder of the internal states (of eroding up to here) [it's just 1.0 if <state> is an insert state]
         """ add transitions from <state> to righthand insert and end states (<state> can be internal or a righthand insert). """
         insertion = ''
-        if self.region == 'j' and not self.args.dont_allow_unphysical_insertions:
+        if self.region == 'j':
             insertion = 'jf'
 
         if 'insert' in state.name:

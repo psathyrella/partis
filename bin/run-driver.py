@@ -21,12 +21,12 @@ if os.getenv('USER') is None:  # if we're in docker
 else:
     fsdir = '/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev'
 parser.add_argument('--label', required=True)  # label for this test run. e.g. results are written to dirs with this name
+parser.add_argument('--stashdir', required=True)  #default=fsdir + '/_output')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
 parser.add_argument('--is-data', action='store_true')
 parser.add_argument('--simfname')
 parser.add_argument('--outfname')
-parser.add_argument('--stashdir', default=fsdir + '/_output')
 parser.add_argument('--plotdir')
 
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition', 'run-viterbi')
@@ -37,6 +37,8 @@ parser.add_argument('--actions', default=':'.join(default_actions), choices=all_
 args = parser.parse_args()
 args.extra_args = utils.get_arg_list(args.extra_args)
 args.actions = utils.get_arg_list(args.actions)
+if args.plotdir is None:
+    args.plotdir = args.stashdir + '/' + args.label + '/plots'
 # assert '--n-procs' not in args.extra_args
 
 cmd = './bin/partis.py'
@@ -47,7 +49,7 @@ if args.extra_args is not None:
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace(',', ':').replace('+', ' ')
 if args.simfname is None:
     args.simfname = args.stashdir + '/' + args.label + '/simu.csv'
-param_dir = args.stashdir + '/' + args.label
+param_dir = args.stashdir + '/' + args.label + '/parameters'
 
 if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):
@@ -57,7 +59,7 @@ if 'cache-data-parameters' in args.actions:
     cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     if args.plotdir is not None:
-        cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label + '/params/data'
+        cmd_str += ' --plotdir ' + args.plotdir + '/data'
     run_command(cmd_str)
 
 if 'simulate' in args.actions:
@@ -66,20 +68,19 @@ if 'simulate' in args.actions:
     cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
     run_command(cmd_str)
 
-sim_param_dir = os.path.basename(args.simfname).replace('.csv', '')  # 'sim', if simfname is just 'simu.csv'
+sim_name = os.path.basename(args.simfname).replace('.csv', '')  # 'sim', if simfname is just 'simu.csv'
 if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
     cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir
+    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_name
     if args.plotdir is not None:
-        cmd_str += ' --plotdir ' + args.plotdir + '/' + args.label +  '/params/' + sim_param_dir
+        cmd_str += ' --plotdir ' + args.plotdir + '/' + sim_name
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_param_dir + '/hmm'
-    perf_plotdir = '_plots' if args.plotdir is None else args.plotdir
-    cmd_str += ' --plotdir ' + perf_plotdir + '/' + args.label + '/' + sim_param_dir + '-performance'
+    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_name + '/hmm'
+    cmd_str += ' --plotdir ' + args.plotdir + '/' + sim_name + '-performance'
     run_command(cmd_str)
 
 if 'partition' in args.actions or 'run-viterbi' in args.actions:
@@ -95,7 +96,7 @@ if 'partition' in args.actions or 'run-viterbi' in args.actions:
             args.outfname =  param_dir + '/data-' + action + '.csv'
     else:
         seqfile = args.simfname
-        pdir = param_dir + '/' + sim_param_dir + '/hmm'
+        pdir = param_dir + '/' + sim_name + '/hmm'
         if args.outfname is None:
             args.outfname = args.simfname.replace('.csv', '-' + action + '.csv')
     cmd_str += ' --seqfile ' + seqfile

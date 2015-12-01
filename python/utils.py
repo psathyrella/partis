@@ -53,6 +53,7 @@ real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # hmm yamels -- which is what we want, because we want to be able to read in short data reads but make full-length simulation.
 effective_erosions = ['v_5p', 'j_3p']
 boundaries = ['vd', 'dj']
+effective_boundaries = ['fv', 'jf']
 humans = ['A', 'B', 'C']
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
@@ -485,6 +486,57 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
 # ----------------------------------------------------------------------------------------
+def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
+    # These are kinda weird names, but the distinction is important
+    # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
+    # This concept of insertion germline state is mostly relevant for simultaneous inference on several sequences, i.e. in ham we don't want to just say the inserted base was the base in the query sequence.
+    # But here, we're trimming off the effective insertions and we have to treat the inserted germline N to [ACGT] differently than we would an insertion which was "germline" [ACGT] which emitted an N,
+    # and also differently to a real germline [VDJ] state that emitted an N.
+    naive_insertion = line[bound + '_insertion']  # reminder: ham gets this from the last character in the insertion state name, e.g. 'insert_left_A' or 'insert_right_N'
+    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
+        mature_insertion = seq[ : len(line[bound + '_insertion'])]
+    elif bound == 'jf':
+        if len(line[bound + '_insertion']) > 0:
+            mature_insertion = seq[-len(line[bound + '_insertion']) : ]
+        else:
+            mature_insertion = ''
+    else:
+        assert False
+    if naive_insertion == mature_insertion:  # all is simple and hunky-dory: no insertion 'mutations'
+        final_insertion = ''  # leave this bit as an insertion in the final <line>
+        insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
+    else:
+        if len(naive_insertion) != len(mature_insertion):
+            raise Exception('naive and mature insertions not the same length\n   %s\n   %s\n' % (naive_insertion, mature_insertion))
+        assert naive_insertion.count('N') == len(naive_insertion)  # should be e.g. naive: NNN   mature: ANN
+        if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
+            i_first_non_N = find_first_non_ambiguous_base(mature_insertion)
+            final_insertion = mature_insertion[i_first_non_N : ]
+            insertion_to_remove = mature_insertion[ : i_first_non_N]
+        elif bound == 'jf':
+            i_first_N = find_last_non_ambiguous_base_plus_one(mature_insertion)
+            final_insertion = mature_insertion[ : i_first_N]
+            insertion_to_remove = mature_insertion[i_first_N : ]
+        else:
+            assert False
+        print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
+        color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
+        print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
+
+    # remove the insertion that we want to remove
+    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
+        trimmed_seq = seq[len(insertion_to_remove) : ]
+    elif bound == 'jf':
+        if len(insertion_to_remove) > 0:
+            trimmed_seq = seq[ : -len(insertion_to_remove)]
+        else:
+            trimmed_seq = seq
+    if debug:
+        print '    %s insertion   final %s   to_remove %s    trimmed_seq %s' % (bound, final_insertion, insertion_to_remove, trimmed_seq)
+
+    return trimmed_seq, final_insertion, insertion_to_remove
+
+# ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(line, debug=False):
     """ 
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
@@ -492,9 +544,6 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     things we sometimes want to know where the reads stopped (e.g. if we want to mimic them in simulation).
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
     the hmm yaml files.
-    Note also that we have to specify <seq> since a.t.m. we're calculating this as a rearrangement-level parameter,
-    so we have to choose which of the sequences we want to calculate it on. Hopefully they mostly have similar
-    values.
     """
 
     assert line['v_5p_del'] == 0  # just to be safe
@@ -504,19 +553,29 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         print 'resetting effective erosions'
         print '     %s' % line['seqs'][0]
 
+    # first remove effective (fv and jf) insertions
     trimmed_seqs = []
+    final_insertions, insertions_to_remove = [], []
     for iseq in range(len(line['seqs'])):
-        trimmed_seq = line['seqs'][iseq][len(line['fv_insertion']) : ]
-        if len(line['jf_insertion']) > 0:
-            trimmed_seq = trimmed_seq[ : -len(line['jf_insertion'])]
+        trimmed_seq = line['seqs'][iseq]
+        final_insertions.append({})
+        insertions_to_remove.append({})
+        for bound in effective_boundaries:
+            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq, line['unique_ids'][iseq], debug)
+            final_insertions[-1][bound] = final_insertion
+            insertions_to_remove[-1][bound] = insertion_to_remove
         trimmed_seqs.append(trimmed_seq)
 
     # arbitrarily use the zeroth sequence
     trimmed_seq = trimmed_seqs[0]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
+    final_fv_insertion = final_insertions[0]['fv']
+    final_jf_insertion = final_insertions[0]['jf']
+    fv_insertion_to_remove = insertions_to_remove[0]['fv']
+    jf_insertion_to_remove = insertions_to_remove[0]['jf']
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
-    line['cyst_position'] -= line['v_5p_del'] + len(line['fv_insertion'])
-    line['tryp_position'] -= line['v_5p_del'] + len(line['fv_insertion'])
+    line['cyst_position'] -= line['v_5p_del'] + len(fv_insertion_to_remove)
+    line['tryp_position'] -= line['v_5p_del'] + len(fv_insertion_to_remove)
 
     for iseq in range(len(line['seqs'])): # TODO note, though, that this trims *all* the seqs according to the read truncation from the zeroth sequence
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
@@ -524,10 +583,10 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
     if debug:
-        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(line['fv_insertion']), line['v_5p_del'], line['j_3p_del'], len(line['jf_insertion']), line['seqs'][0])
+        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
 
-    line['fv_insertion'] = ''
-    line['jf_insertion'] = ''
+    line['fv_insertion'] = final_fv_insertion
+    line['jf_insertion'] = final_jf_insertion
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
@@ -575,6 +634,8 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
         assert start[chkreg] >= 0
         assert end[chkreg] >= 0
         assert end[chkreg] >= start[chkreg]
+        assert end[chkreg] <= len(line['seq'])
+    assert end['j'] == len(line['seq'])
     # print end['j'], len(line['seq']), line['v_5p_del'], line['j_3p_del']
     if end['j'] != len(line['seq']):
         for k, v in line.items():
@@ -1077,22 +1138,6 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
 
 
 # ----------------------------------------------------------------------------------------
-def get_hamming_distances(pairs):
-    return_info = []
-    for info in pairs:
-        seq_a = info['seq_a']
-        seq_b = info['seq_b']
-        if True:  #self.args.truncate_pairs:  # chop off the left side of the longer one if they're not the same length
-            min_length = min(len(seq_a), len(seq_b))
-            seq_a = seq_a[-min_length : ]
-            seq_b = seq_b[-min_length : ]
-            chopped_off_left_sides = True
-        mutation_frac = hamming_fraction(seq_a, seq_b)
-        return_info.append({'id_a':info['id_a'], 'id_b':info['id_b'], 'logprob':mutation_frac})
-
-    return return_info
-
-# ----------------------------------------------------------------------------------------
 def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False):
     assert len(seq1) == len(seq2)
     if len(seq1) == 0:
@@ -1314,33 +1359,22 @@ def remove_ambiguous_ends(seq):
     return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
-def get_true_clusters(ids, reco_info):
+def get_true_partition(reco_info, ids=None):
     """ 
-    Group <ids> into their true clonal families.
-    Returns dict of form {cluster_id : [uid, uid, uid]}
+    Group ids into their true clonal families.
+    If <ids> is specified, only do those, otherwise do all of the ones in <reco_info>.
     """
-    clusters = {}
-    for uid in ids:
-        rid = reco_info[uid]['reco_id']
-        if rid not in clusters:
-            clusters[rid] = []
-        clusters[rid].append(uid)
-
-    return clusters
-
-# ----------------------------------------------------------------------------------------
-def get_true_partition(reco_info):
-    """ 
-    Group *all* ids in <reco_info> into their true clonal families.
-    Returns dict of form {cluster_id : [uid, uid, uid]}
-    """
+    if ids is None:
+        id_list = reco_info.keys()
+    else:
+        id_list = ids
     true_partition = {}
-    for uid in reco_info:
+    for uid in id_list:
         rid = reco_info[uid]['reco_id']
         if rid not in true_partition:
             true_partition[rid] = []
         true_partition[rid].append(uid)
-    return true_partition
+    return true_partition.values()
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_str(partition_str):
@@ -1373,9 +1407,9 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
     for cluster in partition:
         uids += cluster
 
-    true_clusters = get_true_clusters(uids, reco_info).values()
+    true_partition = get_true_partition(reco_info, ids=uids)  # modified without testing
     n_under_merged, n_over_merged = 0, 0
-    for trueclust in true_clusters:
+    for trueclust in true_partition:
         if debug:
             print ''
             print '  ', trueclust
@@ -1399,8 +1433,8 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
         if over_merged:
             n_over_merged += 1
 
-    under_frac = float(n_under_merged) / len(true_clusters)
-    over_frac = float(n_over_merged) / len(true_clusters)
+    under_frac = float(n_under_merged) / len(true_partition)
+    over_frac = float(n_over_merged) / len(true_partition)
     if debug:
         print '  under %.2f   over %.2f' % (under_frac, over_frac)
     return (1. - under_frac, 1. - over_frac)
@@ -1471,19 +1505,49 @@ def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_bigg
     return a_cluster_lengths, b_cluster_lengths, smatrix
 
 # ----------------------------------------------------------------------------------------
-def mutual_information_to_true(partition, reco_info, debug=False):
-    """ adj mi to the true partition that we get from <reco_info> """
-    true_cluster_list, inferred_cluster_list = [], []  # for a partition {cl_1 : [seq_a, seq_b], cl_2 : [seq_c]}, list is of form [cl_1, cl_1, cl_2]
+def find_uid_in_partition(uid, partition):
+    found = False
     for iclust in range(len(partition)):
-        for uid in partition[iclust]:
-            true_cluster_list.append(reco_info[uid]['reco_id'])
-            inferred_cluster_list.append(iclust)
-    adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
-    if debug:
-        print '       true clusters %d' % len(set(true_cluster_list))
-        print '   inferred clusters %d' % len(set(inferred_cluster_list))
-        print '         adjusted mi %.2f' % adj_mi
-    return adj_mi
+        if uid in partition[iclust]:
+            found = True
+            break
+    if not found:
+        raise Exception('couldn\'t find %s in %s\n' % (uid, partition))
+    return iclust
+
+# ----------------------------------------------------------------------------------------
+def check_intersection_and_complement(part_a, part_b):
+    """ make sure two partitions have identical uid lists """
+    for cluster in part_a:
+        for uid in cluster:
+            find_uid_in_partition(uid, part_b)
+    for cluster in part_b:  # NOTE we could avoid looping over some of these if we were so inclined
+        for uid in cluster:
+            find_uid_in_partition(uid, part_a)
+
+# ----------------------------------------------------------------------------------------
+def get_cluster_list_for_sklearn(part_a, part_b):
+    # convert from partition format {cl_1 : [seq_a, seq_b], cl_2 : [seq_c]} to [cl_1, cl_1, cl_2]
+    # NOTE this will be really slow for larger partitions
+
+    # first make sure that <part_a> has every uid in <part_b> (the converse is checked below)
+    for jclust in range(len(part_b)):
+        for uid in part_b[jclust]:
+            find_uid_in_partition(uid, part_a)  # raises exception if not found
+
+    # then make the cluster lists
+    clusts_a, clusts_b = [], []
+    for iclust in range(len(part_a)):
+        for uid in part_a[iclust]:
+            clusts_a.append(iclust)
+            clusts_b.append(find_uid_in_partition(uid, part_b))
+
+    return clusts_a, clusts_b
+
+# ----------------------------------------------------------------------------------------
+def adjusted_mutual_information(partition_a, partition_b):
+    clusts_a, clusts_b = get_cluster_list_for_sklearn(partition_a, partition_b)
+    return adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
 def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t', debug=False):

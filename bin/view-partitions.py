@@ -27,6 +27,6 @@ reco_info = None
 if args.simfname is not None:
     input_info, reco_info = get_seqfile_info(args.simfname, args.is_data, germline_seqs, cyst_positions, tryp_positions)
 
-cp = ClusterPath(-1)
+cp = ClusterPath()
 cp.readfile(args.infname)
-cp.print_partitions(one_line=True, abbreviate=(not args.dont_abbreviate), n_to_print=args.n_to_print, reco_info=reco_info)
+cp.print_partitions(abbreviate=(not args.dont_abbreviate), n_to_print=args.n_to_print, reco_info=reco_info)

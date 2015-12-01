@@ -3,7 +3,7 @@ namespace ham {
 // ----------------------------------------------------------------------------------------
 ClusterPath::ClusterPath(Partition initial_partition, double initial_logprob, double initial_logweight):
   finished_(false),
-  initial_path_index_(-1),
+  initial_path_index_(0),  // NOTE changing default from -1 to 0... which I think is ok, but it may screw something up
   max_log_prob_of_partition_(-INFINITY)
 {
   partitions_.push_back(initial_partition);

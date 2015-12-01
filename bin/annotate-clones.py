@@ -26,7 +26,7 @@ def run_cluster(cl, iclust=None):
     check_call(cmd.split())
     # Popen(cmd + ' >_tmp/' + str(iclust) + '.csv', shell=True)
 
-cp = ClusterPath(-1)
+cp = ClusterPath()
 cp.readfile(args.infname)
 
 print '---> annotations for clusters in best partition:'

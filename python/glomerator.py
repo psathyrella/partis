@@ -116,38 +116,31 @@ class Glomerator(object):
         print '  true partition'
         print '   clonal?   ids'
         true_partition = utils.get_true_partition(self.reco_info)
-        for cluster in true_partition.values():
+        for cluster in true_partition:
             same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
             if same_event is None:
                 same_event = -1
             print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
 
     # ----------------------------------------------------------------------------------------
-    def read_file_info(self, infname, n_paths, calc_adj_mi):
+    def read_file_info(self, infname, n_paths):
         paths = [None for _ in range(n_paths)]
+        lines_list = [[] for _ in range(n_paths)]
         with opener('r')(infname) as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['partition'] == '':
                     raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more FLW
                 uids = []
-                for cluster in line['partition'].split(';'):
-                    uids.append([unique_id for unique_id in cluster.split(':')])
                 path_index = int(line['path_index'])
-                if paths[path_index] is None:
-                    paths[path_index] = ClusterPath(int(line['initial_path_index']))
+                if paths[path_index] is None:  # is this the first line for this path?
+                    paths[path_index] = ClusterPath(int(line['initial_path_index']))  # NOTE I may have screwed up the initial_path_index/path_index distinction here... it's been too long since I wrote the smc stuff and I'm not sure
                 else:
                     assert paths[path_index].initial_path_index == int(line['initial_path_index'])
-                n_procs = int(line['n_procs']) if 'n_procs' in line else 1
-                logweight = float(line['logweight']) if 'logweight' in line else None
-                adj_mi = -1
-                if calc_adj_mi:
-                    adj_mi = utils.mutual_information_to_true(uids, self.reco_info, debug=False) if self.reco_info is not None else -1
-                logprob = float(line['logprob'])
-                if line['logprob'] == '-inf' or math.isinf(logprob):  # should either both be true or neither be true
-                    assert math.isinf(logprob)
-                    assert line['logprob'] == '-inf'
-                paths[path_index].add_partition(uids, logprob, n_procs=n_procs, logweight=logweight, adj_mi=adj_mi)
+                lines_list[path_index].append(line)
+
+        for path_index in range(n_paths):
+            paths[path_index].readlines(lines_list[path_index])
 
         for cp in paths:
             if cp is None:
@@ -159,8 +152,7 @@ class Glomerator(object):
         return paths
 
     # ----------------------------------------------------------------------------------------
-    def merge_fileinfos(self, fileinfos, smc_particles, calc_adj_mi, previous_info=None, debug=False):
-         # 'TODO not doing the combined conservative thing any more seems to have knocked down performance a bit EDIT nevermind, that seems to be a result of smc (presumably it was choosing very unlikely merges)'
+    def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
         self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
         # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
@@ -176,7 +168,7 @@ class Glomerator(object):
                     if debug:
                         print '  ipath', ipath
                         print '    before'
-                        fileinfos[ifile][ipath].print_partitions(self.reco_info, one_line=True)
+                        fileinfos[ifile][ipath].print_partitions(self.reco_info)
                     initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
                     previous_path = previous_info[ifile][initial_path_index]
                     current_path = fileinfos[ifile][ipath]
@@ -192,7 +184,7 @@ class Glomerator(object):
                     fileinfos[ifile][ipath].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                     if debug:
                         print '    after'
-                        fileinfos[ifile][ipath].print_partitions(self.reco_info, one_line=True)
+                        fileinfos[ifile][ipath].print_partitions(self.reco_info)
 
         # do the actual process-merging
         for ipath in range(smc_particles):
@@ -200,7 +192,7 @@ class Glomerator(object):
             if debug:
                 print 'merge path %d from %d processes:' % (ipath, len(fileinfos))
                 for ifile in range(len(fileinfos)):
-                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)), one_line=True)
+                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)))
                     print ''
 
             # merge all the steps in each path
@@ -229,10 +221,7 @@ class Glomerator(object):
                     for cluster in fileinfos[ifile][ipath].partitions[0]:
                         global_partition.append(list(cluster))
                     global_logprob += fileinfos[ifile][ipath].logprobs[0]
-                global_adj_mi = -1
-                if calc_adj_mi:
-                    global_adj_mi = utils.mutual_information_to_true(global_partition, self.reco_info, debug=False) if self.reco_info is not None else -1
-                self.paths[ipath].add_partition(global_partition, global_logprob, n_procs=len(fileinfos), logweight=0., adj_mi=global_adj_mi)  # don't know the logweight yet (or maybe at all!)
+                self.paths[ipath].add_partition(global_partition, global_logprob, n_procs=len(fileinfos), logweight=0.)  # don't know the logweight yet (or maybe at all!)
 
             while not last_one():
                 add_next_global_partition()
@@ -244,7 +233,7 @@ class Glomerator(object):
                 self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
                 print '  merged path:'
-                self.paths[ipath].print_partitions(self.reco_info, one_line=True)
+                self.paths[ipath].print_partitions(self.reco_info)
             else:
                 print '  merged path %d with %d glomeration steps and %d final clusters' % (ipath, len(self.paths[ipath].partitions), len(self.paths[ipath].partitions[-1]))
 
@@ -259,7 +248,7 @@ class Glomerator(object):
                 if debug:
                     print '    before'
                     assert len(self.paths) == 1  # in case gremlins sneak in and add some between lines of code
-                    self.paths[0].print_partitions(self.reco_info, one_line=True)
+                    self.paths[0].print_partitions(self.reco_info)
                 # initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
                 previous_path = previous_info
                 current_path = self.paths[0]
@@ -275,16 +264,16 @@ class Glomerator(object):
                 # self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                 if debug:
                     print '    after'
-                    self.paths[0].print_partitions(self.reco_info, one_line=True)
+                    self.paths[0].print_partitions(self.reco_info)
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, calc_adj_mi=False, debug=False):
+    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         start = time.time()
         fileinfos = []
         for fname in infnames:
-            fileinfos.append(self.read_file_info(fname, smc_particles, calc_adj_mi))
-        self.merge_fileinfos(fileinfos, smc_particles, calc_adj_mi, previous_info=previous_info, debug=debug)
+            fileinfos.append(self.read_file_info(fname, smc_particles))
+        self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
         print '        read cached glomeration time: %.3f' % (time.time()-start)
 
         return self.paths

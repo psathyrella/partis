@@ -26,6 +26,7 @@ Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
 // ----------------------------------------------------------------------------------------
 smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
   int initial_path_index(-1);
+  throw runtime_error("I think this is ok, but I just changed the default path index in clusterpath from -1 to 0, and it should be double checked that this doesn't screw up anything in this fcn.\n");
   double logweight;
   Partition initial_partition(stupid_global_glom->GetAnInitialPartition(initial_path_index, logweight));  // get the next initial partition (and increment the counter)
   double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
@@ -64,7 +65,6 @@ vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors);
 void print_forward_scores(double numerator, vector<double> single_scores, double lratio);
 
 // ----------------------------------------------------------------------------------------
@@ -132,10 +132,7 @@ int main(int argc, const char * argv[]) {
   ofs.open(args.outfile());
   if(!ofs.is_open())
     throw runtime_error("ERROR --outfile (" + args.outfile() + ") d.n.e.\n");
-  if(args.algorithm() == "viterbi")
-    ofs << "nth_best,unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,errors" << endl;
-  else if(args.algorithm() == "forward")
-    ofs << "unique_ids,logprob,errors" << endl;
+  StreamHeader(ofs, args.algorithm());
 
   // not partitioning
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
@@ -148,8 +145,10 @@ int main(int argc, const char * argv[]) {
     double mean_mute_freq(avgVector(mute_freqs));
 
     vector<KBounds> kbvector(qry_seqs.size(), kbounds);
-    if(args.truncate_seqs())
+    if(args.truncate_seqs()) {
+      assert(0);
       TruncateSeqs(qry_seqs, kbvector);
+    }
 
     Result result(kbounds);
     vector<Result> denom_results(qry_seqs.size(), result);  // only used for forward if n_seqs > 1
@@ -199,49 +198,13 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args, result.events_, qry_seqs, lratio, errors);
+    StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, lratio, errors);
   }
 
   ofs.close();
   return 0;
 }
 
-// ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, Args &args, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors) {
-  if(args.algorithm() == "viterbi") {
-    size_t n_max = min(size_t(args.n_best_events()), events.size());
-    for(size_t ievt = 0; ievt < n_max; ++ievt) {
-      RecoEvent *event = &events[ievt];
-      string second_seq_name, second_seq;
-      ofs  // be very, very careful to change this *and* the csv header above at the same time
-	<< ievt
-	<< "," << SeqNameStr(seqs, ":")
-	<< "," << event->genes_["v"]
-	<< "," << event->genes_["d"]
-	<< "," << event->genes_["j"]
-	<< "," << event->insertions_["fv"]
-	<< "," << event->insertions_["vd"]
-	<< "," << event->insertions_["dj"]
-	<< "," << event->insertions_["jf"]
-	<< "," << event->deletions_["v_5p"]
-	<< "," << event->deletions_["v_3p"]
-	<< "," << event->deletions_["d_5p"]
-	<< "," << event->deletions_["d_3p"]
-	<< "," << event->deletions_["j_5p"]
-	<< "," << event->deletions_["j_3p"]
-	<< "," << event->score_
-	<< "," << SeqStr(seqs, ":")
-	<< "," << errors
-	<< endl;
-}
-  } else {
-    ofs
-        << SeqNameStr(seqs, ":")
-        << "," << total_score
-        << "," << errors
-        << endl;
-  }
-}
 // ----------------------------------------------------------------------------------------
 void print_forward_scores(double numerator, vector<double> single_scores, double lratio) {
   printf("   %8.3f = ", lratio);

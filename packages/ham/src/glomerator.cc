@@ -2,27 +2,6 @@
 
 namespace ham {
 
-
-// ----------------------------------------------------------------------------------------
-string SeqStr(vector<Sequence> &seqs, string delimiter) {
-  string seq_str;
-  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
-    if(iseq > 0) seq_str += delimiter;
-    seq_str += seqs[iseq].undigitized();
-  }
-  return seq_str;
-}
-
-// ----------------------------------------------------------------------------------------
-string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
-  string name_str;
-  for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
-    if(iseq > 0) name_str += delimiter;
-    name_str += seqs[iseq].name();
-  }
-  return name_str;
-}
-
 // ----------------------------------------------------------------------------------------
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args *args, Track *track) :
   track_(track),
@@ -135,6 +114,8 @@ void Glomerator::Cluster() {
 
   vector<ClusterPath> paths{cp};
   WritePartitions(paths);
+  if(args_->annotationfile() != "")
+    WriteAnnotations(paths);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -227,7 +208,6 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 }
 
 // ----------------------------------------------------------------------------------------
-  // void Glomerator::WriteCacheLine(ofstream &ofs, string query, string logprob, string naive_seq, string naive_hfrac, string cpos, string errors) {
 void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   ofs << query << ",";
   if(log_probs_.count(query))
@@ -236,7 +216,7 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   if(naive_seqs_.count(query))
     ofs << naive_seqs_[query].undigitized();
   ofs << ",";
-  if(!args_->dont_write_naive_hfracs() && naive_hfracs_.count(query))
+  if(args_->cache_naive_hfracs() && naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
   if(naive_seqs_.count(query))
@@ -292,28 +272,28 @@ void Glomerator::WriteCachedLogProbs() {
   log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,cyst_position,errors" << endl;
 
   log_prob_ofs << setprecision(20);
-  for(auto &kv : log_probs_) {  // first write everything for which we have log probs
-    if(!initial_log_probs_.count(kv.first))  // as long as we didn't have it to start with
-      WriteCacheLine(log_prob_ofs, kv.first);
-  }
 
-  for(auto &kv : naive_seqs_) {  // then write the queries for which we have naive seqs but not logprobs
-    if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))  // already wrote it
+  set<string> keys_to_cache;
+  for(auto &kv : log_probs_) {
+    if(args_->only_cache_new_vals() && initial_log_probs_.count(kv.first))  // don't cache it if we had it in the initial cache file (this is just an optimization)
       continue;
-    if(!initial_naive_seqs_.count(kv.first))
-      WriteCacheLine(log_prob_ofs, kv.first);
+    keys_to_cache.insert(kv.first);
   }
-
-  if(!args_->dont_write_naive_hfracs()) {
-    for(auto &kv : naive_hfracs_) {  // then write any queries for which we have naive hamming fractions, but no logprobs of naive seqs
-      if(log_probs_.count(kv.first) && !initial_log_probs_.count(kv.first))
+  for(auto &kv : naive_seqs_) {
+    if(args_->only_cache_new_vals() && initial_naive_seqs_.count(kv.first))  // note that if we had an initial log prob, but not an initial naive seq, we *do* want to write it (if we calculated the naive seq)
+      continue;
+    keys_to_cache.insert(kv.first);
+  }
+  if(args_->cache_naive_hfracs()) {
+    for(auto &kv : naive_hfracs_) {
+      if(args_->only_cache_new_vals() && initial_naive_hfracs_.count(kv.first))
 	continue;
-      if(naive_seqs_.count(kv.first) && !initial_naive_seqs_.count(kv.first))
-	continue;
-      if(!initial_naive_hfracs_.count(kv.first))
-	WriteCacheLine(log_prob_ofs, kv.first);
+      keys_to_cache.insert(kv.first);
     }
   }
+
+  for(auto &key : keys_to_cache)
+    WriteCacheLine(log_prob_ofs, key);
 
   log_prob_ofs.close();
 }
@@ -322,11 +302,14 @@ void Glomerator::WriteCachedLogProbs() {
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
-  ofs_ << "path_index,initial_path_index,partition,logprob,logweight" << endl;
+  if(paths.size() > 0)
+    ofs_ << "path_index,initial_path_index,";
+  ofs_ << "partition,logprob,logweight" << endl;
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
-      ofs_ << ipath << "," << cp.initial_path_index_ << ",";
+      if(paths.size() > 0)
+	ofs_ << ipath << "," << cp.initial_path_index_ << ",";
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
@@ -340,6 +323,28 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
     ++ipath;
   }
   ofs_.close();
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
+  ofstream annotation_ofs;
+  annotation_ofs.open(args_->annotationfile());
+  StreamHeader(annotation_ofs, "viterbi");
+
+  assert(paths.size() == 1);  // would need to update this for smc
+  int ipath(0);
+  ClusterPath cp(paths[ipath]);
+  for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {  // we don't work out which is the best partition until later (in the python), so darn, I guess I'll just write annotations for all the partitions
+    for(auto &cluster : cp.partitions()[ipart]) {
+      if(events_[cluster].genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
+	cout << "WTF " << cluster << " x" << events_[cluster].naive_seq_ << "x" << endl;
+	assert(0);
+      }
+      vector<RecoEvent> event_list({events_[cluster]});
+      StreamOutput(annotation_ofs, "viterbi", 1, event_list, seq_info_[cluster], 0., "");
+    }
+  }
+  annotation_ofs.close();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -396,8 +401,9 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 
   if(parents != nullptr) {
     if(naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
-      cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
+      // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
       naive_seqs_[queries] = naive_seqs_[parents->first];
+      events_[queries] = events_[parents->first];
       return;
     }
     double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (not that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
@@ -405,11 +411,13 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     if(size_ratio > max_factor) {
       cout << "     first parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
       naive_seqs_[queries] = naive_seqs_[parents->first];
+      events_[queries] = events_[parents->first];
       return;
     }
     if(1. / size_ratio > max_factor) {
       cout << "     second parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
       naive_seqs_[queries] = naive_seqs_[parents->second];
+      events_[queries] = events_[parents->second];
       return;
     }
   }
@@ -429,8 +437,8 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 
   if(result.events_.size() < 1)
     throw runtime_error("ERROR no events for " + queries + "\n");
-
   naive_seqs_[queries] = Sequence(track_, queries, result.events_[0].naive_seq_, result.events_[0].cyst_position_);
+  events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 }
@@ -672,6 +680,8 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
   if(min_hamming_fraction < INFINITY) {  // if lower hamming fraction was set, then merge the best (nearest) pair of clusters
     ++n_hamming_merged_;
     *chosen_lratio = -INFINITY;  // er... or something
+    if(args_->debug())
+      printf("           naive hamming merge %.3f\n", min_hamming_fraction);
     return min_hamming_merge;
   }
 
@@ -739,7 +749,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
       printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
     printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
     string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
-    PrintPartition(new_partition, extrastr);
+    // PrintPartition(new_partition, extrastr);
   }
 }
 

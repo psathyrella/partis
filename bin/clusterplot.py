@@ -44,7 +44,7 @@ class ClusterPlot(object):
                     self.logprobs[ipath].append(float(line['logprob']))
                     self.n_clusters[ipath].append(int(line['n_clusters']))
                     self.adj_mis[ipath].append(float(line.get('adj_mi', -1)))
-                    # partition = get_partition_from_str(line['clusters'])  # TODO this is really wasteful to do this for every partition
+                    # partition = get_partition_from_str(line['partition'])  # TODO this is really wasteful to do this for every partition
                     # self.clusters[ipath].append(partition)
                     # self.correct_cluster_fractions[ipath].append(correct_cluster_fractions(partition, reco_info))
                     self.logweights[ipath].append(float(line.get('logweight', 1)))

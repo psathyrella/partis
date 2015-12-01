@@ -19,9 +19,6 @@ namespace ham {
 
 typedef pair<vector<string>, vector<string> > ClusterPair;
 
-string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
-string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
-
 // ----------------------------------------------------------------------------------------
 class Query {
 public:
@@ -54,6 +51,7 @@ public:
   Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
 
   void WritePartitions(vector<ClusterPath> &paths);
+  void WriteAnnotations(vector<ClusterPath> &paths);
 private:
   void ReadCachedLogProbs();
   void GetSoloLogProb(string key);
@@ -77,7 +75,6 @@ private:
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
-  // input info
   Track *track_;
   Args *args_;
   DPHandler vtb_dph_, fwd_dph_;
@@ -97,11 +94,12 @@ private:
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
   // NOTE they keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
-  // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice
-  // these all include cached info from previous runs
+  // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
+  // These all include cached info from previous runs
   map<string, double> log_probs_;  
-  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a give cluster
+  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster
   map<string, Sequence> naive_seqs_;
+  map<string, RecoEvent> events_;  // annotations corresponding to the naive seqs. NOTE keeping it separate, at least for now, since I only want the full annotations for the final partition, but I need naive seqs for loads and loads of groups of sequences
   map<string, string> errors_;
   map<string, double> naive_hamming_fractions_;
 
