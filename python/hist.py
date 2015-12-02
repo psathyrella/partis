@@ -7,7 +7,7 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, xtitle=None, ytitle=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle = '', ''
 
@@ -114,6 +114,19 @@ class Hist(object):
     def fill(self, value, weight=1.0):
         """ fill bin corresponding to <value> with <weight> """
         self.fill_ibin(self.find_bin(value), weight)
+
+    # ----------------------------------------------------------------------------------------
+    def get_maximum(self, xbounds=None):
+        # NOTE includes under/overflows by default
+        ibin_start = 0 if xbounds is None else self.find_bin(xbounds[0])
+        ibin_end = self.n_bins + 2 if xbounds is None else self.find_bin(xbounds[1])
+        ymax = None
+        for ibin in range(ibin_start, ibin_end):
+            if ymax is None or self.bin_contents[ibin] > ymax:
+                ymax = self.bin_contents[ibin]
+
+        assert ymax is not None
+        return ymax
 
     # ----------------------------------------------------------------------------------------
     def get_bounds(self, include_overflows=False):
@@ -255,7 +268,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label='', alpha=1., linewidth=2, linestyle='-'):
+    def mpl_plot(self, ax, ignore_overflows=False, label='', color='black', alpha=1., linewidth=2, linestyle='-'):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             print '   integral is zero in hist::mpl_plot'
             return None
@@ -265,4 +278,6 @@ class Hist(object):
         else:
             xvals = self.get_bin_centers()
             yvals = self.bin_contents
-        return ax.plot(xvals, yvals, label=label, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
+        # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
+        # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
+        return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)

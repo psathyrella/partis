@@ -158,6 +158,8 @@ class ParameterCounter(object):
             plotting.draw(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
 
         self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        print 'LEAVING'
+        sys.exit()
 
         if has_root:
             check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])

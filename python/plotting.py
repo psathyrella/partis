@@ -495,6 +495,204 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.' + imagetype)
 
 # ----------------------------------------------------------------------------------------
+def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
+                 figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
+                 linewidths=None, plottitle='', csv_fname=None):
+    # , stats=None, 
+    #      shift_overflows=False, , rebin=None, ,
+    #      , imagetype='svg', xtitle=None, ytitle=None,
+    #       draw_str=None, , , markersizes=None, no_labels=False,
+    #      graphify=False, translegend=(0.0, 0.0)):
+    print 'TODO <errors> doesn\'t do anything yet'
+    print 'TODO sort out plottitle/plotname difference'
+    assert os.path.exists(plotdir)
+
+    fig, ax = mpl_init(figsize=figsize)
+
+    hists = [hist,]
+    if more_hists is not None:
+        hists = hists + more_hists
+
+    xmin, xmax, ymax = None, None, None
+    ih = 0
+    for htmp in hists:
+        if scale_errors is not None:
+            factor = float(scale_errors[0]) if len(scale_errors) == 1 else float(scale_errors[ih])
+            for ibin in range(htmp.n_bins+2):
+                htmp.errors[ibin] *= factor
+
+        if normalize:  # NOTE removed <normalization_bounds> option, hopefully I'm not using it any more
+            htmp.normalize()
+        if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
+            ymax = htmp.get_maximum(xbounds=bounds)
+        if xmin is None or htmp.xmin < xmin:  # overridden by <bounds> below
+            xmin = htmp.xmin
+        if xmax is None or htmp.xmax > xmax:
+            xmax = htmp.xmax
+
+        ih += 1
+
+    if bounds is not None:
+        xmin, xmax = bounds
+
+    # if cwidth is not None:
+    #     gStyle.SetTitleOffset(0.99*gStyle.GetTitleOffset('y'), 'y')
+
+    assert not shift_overflows  # TODO move this into Hist
+    # if shift_overflows:
+    #     for htmp in hists:
+    #         if htmp == None:
+    #             continue
+    #         underflows, overflows = 0.0, 0.0
+    #         first_shown_bin, last_shown_bin = -1, -1
+    #         for ib in range(0, htmp.GetXaxis().GetNbins()+2):
+    #             if htmp.GetXaxis().GetBinCenter(ib) <= xmin:
+    #                 underflows += htmp.GetBinContent(ib)
+    #                 htmp.SetBinContent(ib, 0.0)
+    #             elif first_shown_bin == -1:
+    #                 first_shown_bin = ib
+    #             else:
+    #                 break
+    #         for ib in reversed(range(0, htmp.GetXaxis().GetNbins()+2)):
+    #             if htmp.GetXaxis().GetBinCenter(ib) >= xmax:
+    #                 overflows += htmp.GetBinContent(ib)
+    #                 htmp.SetBinContent(ib, 0.0)
+    #             elif last_shown_bin == -1:
+    #                 last_shown_bin = ib
+    #             else:
+    #                 break
+
+    #         if 'd_hamming' in plotname:
+    #             print htmp.GetTitle()
+    #             print '  underflow', underflows, htmp.GetBinContent(first_shown_bin)
+    #             print '  overflow', overflows, htmp.GetBinContent(last_shown_bin)
+    #             print '  first', htmp.GetXaxis().GetBinCenter(first_shown_bin)
+    #             print '  last', htmp.GetXaxis().GetBinCenter(last_shown_bin)
+    #         htmp.SetBinContent(first_shown_bin, underflows + htmp.GetBinContent(first_shown_bin))
+    #         htmp.SetBinContent(last_shown_bin, overflows + htmp.GetBinContent(last_shown_bin))
+
+    if colors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
+        assert len(hists) < 5
+        colors = ('royalblue', 'darkred', 'green', 'darkorange')
+    else:
+        assert len(hists) <= len(colors)
+    if linestyles is None:
+        linestyles = ['-' for _ in range(len(hists))]
+    else:
+        assert len(hists) <= len(linestyles)
+
+    # # legends
+    # x0, y0, x1, y1 = 0.57+translegend[0], 0.66+translegend[1], 0.99+translegend[0], 0.88+translegend[1]
+    # if len(hists) < 5:
+    #     leg = TLegend(x0, y0, x1, y1)
+    # else:
+    #     leg = TLegend(x0, y0-0.05, x1, y1)
+    # leg.SetFillColor(0)
+    # leg.SetFillStyle(0)
+    # leg.SetBorderSize(0)
+
+    # draw
+    graphify=False
+    if graphify:
+        raise Exception('waaaaaaaa!')
+        graphs = []
+        for ih in range(len(hists)):
+            htmp = hists[ih]
+            n_bins = hists[ih].GetNbinsX()
+            xvals, yvals, xerrs, yerrs = array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)])
+            for ib in range(1, n_bins+1):  # NOTE ignoring overflows
+                xvals[ib-1] = hists[ih].GetXaxis().GetBinCenter(ib)
+                xerrs[ib-1] = 0.0
+                yvals[ib-1] = hists[ih].GetBinContent(ib)
+                yerrs[ib-1] = hists[ih].GetBinError(ib) if errors else 0.0
+            gr = TGraphErrors(n_bins, xvals, yvals, xerrs, yerrs)
+
+            if markersizes is not None:
+                imark = ih if len(markersizes) > 1 else 0
+                gr.SetMarkerSize(markersizes[imark])
+            gr.SetMarkerColor(colors[ih])
+            if linewidths is None:
+                if ih < 6:  # and len(hists) < 5:
+                    gr.SetLineWidth(6-ih)
+            else:
+                ilw = ih if len(linewidths) > 1 else 0
+                gr.SetLineWidth(linewidths[ilw])
+            gr.SetLineColor(colors[ih])
+            # if int(linewidth) == 1:
+            #     gr.SetLineColorAlpha(colors[ih], 0.4)
+            gr.SetLineStyle(linestyles[ih])
+
+            if draw_str is None:
+                draw_str = 'lpz'
+            if hists[ih].Integral() != 0.0:
+                gr.Draw(draw_str + ' same')
+
+                statstr = ''
+                if stats is not None:
+                    if 'rms' in stats:
+                        statstr += ' (%.2f)' % htmp.GetRMS()
+                    if 'mean' in stats:
+                        statstr += ' (%.2f)' % htmp.GetMean()
+                    if '0-bin' in stats:
+                        statstr += ' (%.2f)' % htmp.GetBinContent(1)
+
+                leg.AddEntry(gr, hists[ih].GetTitle() + ' ' + statstr, 'pl')
+
+            graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
+    else:
+        for ih in range(len(hists)):
+            htmp = hists[ih]
+
+            # assert stats is None
+            # if stats is not None:
+            #     if 'rms' in stats:
+            #         htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
+            #     if 'mean' in stats:
+            #         htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
+            #     if '0-bin' in stats:
+            #         htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
+            # if markersizes is not None:
+            #     imark = ih if len(markersizes) > 1 else 0
+            #     htmp.SetMarkerSize(markersizes[imark])
+            linewidth = 2
+            # if linewidths is None and ih < 6 and len(hists) > 1:
+            #     linewidth = 6-ih
+            # else:
+            #     ilw = ih if len(linewidths) > 1 else 0
+            #     linewidth = linewidths[ilw]
+            htmp.mpl_plot(ax, label=plottitle, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True)
+
+    if xline is not None:
+        print 'TODO fix xline'
+    assert yline is None
+    # if xline is not None:
+    #     # if xline < hframe.GetXaxis().GetXmin() or xline > hframe.GetXaxis().GetXmax():  # make sure we got valid a x position for the line
+    #     #     print 'WARNING plotting x line at %f out of bounds (%f, %f)' % (float(xmin), hframe.GetXaxis().GetXmin(), hframe.GetXaxis().GetXmax())
+    #     # xl = TLine(xline, hframe.GetYaxis().GetXmin(), xline, 0.5*ymax)
+    #     xl = TLine(xline, -0.1*ymax, xline, 0.5*ymax)
+    #     xl.SetLineStyle(2)
+    #     xl.Draw()
+    # if yline is not None:
+    #     # if yline < hframe.GetYaxis().GetXmin() or xline > hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
+    #     #     print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
+    #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
+    #     yl.Draw()
+
+    mpl_finish(ax, plotdir, plotname, title=plotname, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log)
+
+    if not os.path.exists(plotdir + '/plots'):
+        raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')
+
+    if write_csv:
+        assert more_hists is None
+        if csv_fname is None:
+            hist.write(plotdir + '/plots/' + plotname + '.csv')
+        else:
+            hist.write(csv_fname)
+    # TODO is mpl_finish writing to the same file as this was?
+    # cvn.SaveAs(plotdir + '/plots/' + plotname + '.' + imagetype)
+
+# ----------------------------------------------------------------------------------------
 def get_hists_from_dir(dirname, histname, string_to_ignore=None):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
@@ -1059,7 +1257,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     plt.savefig(plotdir + '/plots/' + plotname)
 
 # ----------------------------------------------------------------------------------------
-def mpl_init():
+def mpl_init(figsize=None):
     # import matplotlib as mpl
     # mpl.use('Agg')
     # import matplotlib.pyplot as plt
@@ -1075,30 +1273,37 @@ def mpl_init():
         'ytick.labelsize': fsize,
         'axes.labelsize': fsize
     })
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=figsize)
     fig.tight_layout()
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
 
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, leg_loc=(0.04, 0.6)):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', htmlify=False):
     legend = ax.legend(loc=leg_loc)
     sns.despine(trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    # ax.set_xscale('log')
+    if 'x' in log:
+        ax.set_xscale('log')
+    if 'y' in log:
+        ax.set_yscale('log')
     if xbounds is not None:
         plt.xlim(xbounds[0], xbounds[1])
-    # plt.ylim(0, 1.08)
+    if ybounds is not None:
+        plt.ylim(ybounds[0], ybounds[1])
     # potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
     # xticks = [xt for xt in potential_xticks if xt < xmax]
     # plt.xticks(xticks, [str(xt) for xt in xticks])
     plt.title(title)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir + '/plots')
+
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
-    check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
+
+    if htmlify:
+        check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
