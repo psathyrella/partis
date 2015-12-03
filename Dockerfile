@@ -12,8 +12,6 @@ RUN apt-get install -y \
     libgsl0ldbl \
     libgsl0-dev \
     libncurses5-dev \
-    libroot-bindings-python-dev \
-    libroot-graf2d-postscript5.34 \
     libxml2-dev \
     libxslt1-dev \
     python-scipy \
