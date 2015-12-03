@@ -8,6 +8,7 @@ sys.path.insert(1, './python')
 import utils
 import plotting
 from humans import humans, colors, all_subdirs
+raise Exception('needs to be tested since root removal')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
@@ -57,5 +58,5 @@ for subdir in args.subdirs:
     if 'mute-freqs/v' in subdir or 'mute-freqs/d' in subdir or 'mute-freqs/j' in subdir:
         markersizes = ' '.join(markersizes).replace('1', '0').split()  # switch data marker sizes to zero
 
-    cmd += ' --graphify --linewidths ' + ':'.join(linewidths) + ' --markersizes ' + ':'.join(markersizes)
+    cmd += ' --linewidths ' + ':'.join(linewidths) + ' --markersizes ' + ':'.join(markersizes)
     check_call(cmd.split(' '))
