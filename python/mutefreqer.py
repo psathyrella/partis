@@ -181,9 +181,9 @@ class MuteFreqer(object):
         utils.prep_dir(TMPplotdir + '/plots', multilings=('*.csv', '*.svg'))
         for region in utils.regions:
             utils.prep_dir(plotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
-            utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
+            # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
             utils.prep_dir(TMPplotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
-            utils.prep_dir(TMPplotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
+            # utils.prep_dir(TMPplotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
         for gene in self.counts:
             counts, plotting_info = self.counts[gene], self.plotting_info[gene]
@@ -201,13 +201,16 @@ class MuteFreqer(object):
                 root_hist.SetBinError(root_hist.FindBin(position), err)
             # plotfname = plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
             xline = None
+            figsize = [3, 3]
             if utils.get_region(gene) == 'v' and cyst_positions is not None:
                 xline = cyst_positions[gene]['cysteine-position']
+                figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j' and tryp_positions is not None:
                 xline = int(tryp_positions[gene])
-            plotting.draw_no_root(genehist, 'int', plotdir=TMPplotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline)  #, cwidth=4000, cheight=1000)
+                figsize[0] *= 2
+            plotting.draw_no_root(genehist, 'int', plotdir=TMPplotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
             plotting.draw(root_hist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, draw_str='e')  #, cwidth=4000, cheight=1000)
-            paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
+            # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
         # for region in utils.regions:
         #     utils.prep_dir(plotdir + '/' + region + '/tmp/plots', multilings=('*.csv', '*.svg'))
@@ -218,16 +221,19 @@ class MuteFreqer(object):
 
         # make mean mute freq hists
         hist = plotting.make_hist_from_my_hist_class(self.mean_rates['all'], 'all-mean-freq')
+        plotting.draw_no_root(self.mean_rates['all'], 'float', plotname='all-mean-freq', plotdir=TMPplotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         plotting.draw(hist, 'float', plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         for region in utils.regions:
             hist = plotting.make_hist_from_my_hist_class(self.mean_rates[region], region+'-mean-freq')
+            plotting.draw_no_root(self.mean_rates[region], 'float', plotname=region+'-mean-freq', plotdir=TMPplotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
             plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+        check_call(['./bin/makeHtml', TMPplotdir, '3', 'null', 'svg'])
 
         # then write html file and fix permissiions
         for region in utils.regions:
             check_call(['./bin/makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
-            check_call(['./bin/makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
+            # check_call(['./bin/makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
         check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
 
     # ----------------------------------------------------------------------------------------

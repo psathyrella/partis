@@ -497,14 +497,15 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
 # ----------------------------------------------------------------------------------------
 def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
-                 linewidths=None, plottitle='', csv_fname=None):
-    # , stats=None, 
+                 linewidths=None, plottitle='', csv_fname=None, stats=None):
+    # , , 
     #      shift_overflows=False, , rebin=None, ,
     #      , imagetype='svg', xtitle=None, ytitle=None,
     #       draw_str=None, , , markersizes=None, no_labels=False,
     #      graphify=False, translegend=(0.0, 0.0)):
     print 'TODO <errors> doesn\'t do anything yet'
     print 'TODO sort out plottitle/plotname difference'
+    print 'TODO stats doesn\'t do anything'
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
@@ -1275,7 +1276,7 @@ def mpl_init(figsize=None):
     })
     fig, ax = plt.subplots(figsize=figsize)
     fig.tight_layout()
-    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.92)
 
     return fig, ax
 
@@ -1301,9 +1302,10 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         os.makedirs(plotdir + '/plots')
 
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
+    plt.close()
 
-    if htmlify:
-        check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
+    # if htmlify:
+    #     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------

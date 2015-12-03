@@ -1,7 +1,7 @@
 import os
 import csv
 import operator
-from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
+# from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import utils
 from opener import opener
@@ -70,56 +70,57 @@ def read_mute_info(indir, this_gene, approved_genes=None):  # NOTE this would pr
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions):
-    nuke_colors = {'A':kRed+1, 'C':kBlue-7, 'G':kOrange-3, 'T':kGreen+2}
+    raise Exception('needs translation from root to mpl')
+    # nuke_colors = {'A':kRed+1, 'C':kBlue-7, 'G':kOrange-3, 'T':kGreen+2}
 
-    ibin = 0
-    drawn_name_texts, lines, vlines, texts = {}, {}, {}, {}
-    for info in positions:
-        posname = info['name']
+    # ibin = 0
+    # drawn_name_texts, lines, vlines, texts = {}, {}, {}, {}
+    # for info in positions:
+    #     posname = info['name']
 
-        # make label below bin
-        drawn_name_texts[posname] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
-        drawn_name_texts[posname].SetBorderSize(0)
-        drawn_name_texts[posname].SetFillColor(0)
-        drawn_name_texts[posname].SetFillStyle(0)
-        drawn_name_texts[posname].AddText(-0.5 + ibin, -0.075, simplify_state_name(posname))
+    #     # make label below bin
+    #     drawn_name_texts[posname] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
+    #     drawn_name_texts[posname].SetBorderSize(0)
+    #     drawn_name_texts[posname].SetFillColor(0)
+    #     drawn_name_texts[posname].SetFillStyle(0)
+    #     drawn_name_texts[posname].AddText(-0.5 + ibin, -0.075, simplify_state_name(posname))
 
-        total = 0.0
-        lines[posname], vlines[posname], texts[posname] = [], [], []
-        for nuke, prob in sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
-            # horizontal line at height total+prob
-            lines[posname].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
-            lines[posname][-1].SetLineWidth(6)
+    #     total = 0.0
+    #     lines[posname], vlines[posname], texts[posname] = [], [], []
+    #     for nuke, prob in sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
+    #         # horizontal line at height total+prob
+    #         lines[posname].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
+    #         lines[posname][-1].SetLineWidth(6)
 
-            # vertical line from total to total+prob
-            vlines[posname].append(TLine(ibin, total, ibin, total + prob))
-            vlines[posname][-1].SetLineWidth(6)
-            vlines[posname][-1].SetLineColor(nuke_colors[nuke])
+    #         # vertical line from total to total+prob
+    #         vlines[posname].append(TLine(ibin, total, ibin, total + prob))
+    #         vlines[posname][-1].SetLineWidth(6)
+    #         vlines[posname][-1].SetLineColor(nuke_colors[nuke])
 
-            # write [ACGT] at midpoint between total and total+prob
-            midpoint = 0.5*(prob + 2*total)
-            texts[posname].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
-            texts[posname][-1].AddText(-0.5 + ibin, midpoint, nuke)
-            texts[posname][-1].SetBorderSize(0)
-            texts[posname][-1].SetFillColor(0)
-            texts[posname][-1].SetFillStyle(0)
+    #         # write [ACGT] at midpoint between total and total+prob
+    #         midpoint = 0.5*(prob + 2*total)
+    #         texts[posname].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
+    #         texts[posname][-1].AddText(-0.5 + ibin, midpoint, nuke)
+    #         texts[posname][-1].SetBorderSize(0)
+    #         texts[posname][-1].SetFillColor(0)
+    #         texts[posname][-1].SetFillStyle(0)
 
-            total += prob
+    #         total += prob
 
-        ibin += 1
+    #     ibin += 1
 
-    cvn = TCanvas('cvn-2', '', 1000, 300)
-    n_bins = ibin
-    hframe = TH1D(gene_name + '-emission-frame', utils.unsanitize_name(gene_name), n_bins, -0.5, n_bins - 0.5)
-    hframe.SetNdivisions(202, 'y')
-    hframe.SetNdivisions(0, 'x')
-    hframe.Draw()
+    # cvn = TCanvas('cvn-2', '', 1000, 300)
+    # n_bins = ibin
+    # hframe = TH1D(gene_name + '-emission-frame', utils.unsanitize_name(gene_name), n_bins, -0.5, n_bins - 0.5)
+    # hframe.SetNdivisions(202, 'y')
+    # hframe.SetNdivisions(0, 'x')
+    # hframe.Draw()
 
-    for state_name in lines.keys():
-        drawn_name_texts[state_name].Draw()
-        for itrans in range(len(lines[state_name])):
-            # lines[state_name][itrans].Draw()  # hm, maybe don't need the horizontal lines any more
-            vlines[state_name][itrans].Draw()
-            # texts[state_name][itrans].Draw()  # don't label the bases at the moment, you can tell by the color just fine
+    # for state_name in lines.keys():
+    #     drawn_name_texts[state_name].Draw()
+    #     for itrans in range(len(lines[state_name])):
+    #         # lines[state_name][itrans].Draw()  # hm, maybe don't need the horizontal lines any more
+    #         vlines[state_name][itrans].Draw()
+    #         # texts[state_name][itrans].Draw()  # don't label the bases at the moment, you can tell by the color just fine
 
-    cvn.SaveAs(plotdir + '/plots/' + gene_name + '.png')
+    # cvn.SaveAs(plotdir + '/plots/' + gene_name + '.png')
