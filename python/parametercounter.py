@@ -148,13 +148,13 @@ class ParameterCounter(object):
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
-                    plotting.draw_no_root(hist, var_type, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True)
+                    plotting.draw_no_root(hist, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True)
                 check_call(['./bin/makeHtml', thisplotdir, '3', 'null', 'svg'])
                 check_call(['./bin/permissify-www', thisplotdir])  # NOTE this should really permissify starting a few directories higher up
 
             plotname = column
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
-            plotting.draw_no_root(hist, var_type, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
+            plotting.draw_no_root(hist, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True)
 
         self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 

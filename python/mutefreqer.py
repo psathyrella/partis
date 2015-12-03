@@ -183,13 +183,13 @@ class MuteFreqer(object):
             elif utils.get_region(gene) == 'j' and tryp_positions is not None:
                 xline = int(tryp_positions[gene])
                 figsize[0] *= 2
-            plotting.draw_no_root(genehist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
+            plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
         # make mean mute freq hists
-        plotting.draw_no_root(self.mean_rates['all'], 'float', plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
+        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], 'float', plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
+            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
 
         # then write html file and fix permissiions
         check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])

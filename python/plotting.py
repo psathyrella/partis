@@ -490,7 +490,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
     cvn.SaveAs(plotdir + '/plots/' + plotname + '.' + imagetype)
 
 # ----------------------------------------------------------------------------------------
-def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
+def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
                  linewidths=None, plottitle='', csv_fname=None, stats=''):
     # , , 
@@ -499,7 +499,6 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     #       draw_str=None, , , markersizes=None, no_labels=False,
     #      graphify=False, translegend=(0.0, 0.0)):
     print 'TODO sort out plottitle/plotname difference'
-    print 'TODO remove var_type'
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
