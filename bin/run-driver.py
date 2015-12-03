@@ -56,7 +56,7 @@ if 'cache-data-parameters' in args.actions:
         raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))
     # cache parameters from data
     cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + ' --is-data' + common_args
-    cmd_str += ' --skip-unproductive'
+    # cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     if args.plotdir is not None:
         cmd_str += ' --plotdir ' + args.plotdir + '/data'
