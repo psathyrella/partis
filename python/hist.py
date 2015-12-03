@@ -7,9 +7,9 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, xtitle=None, ytitle=None):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, xtitle='', ytitle='', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
-        self.xtitle, self.ytitle = '', ''
+        self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
         if fname is None:
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
@@ -268,7 +268,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label='', color='black', alpha=1., linewidth=2, linestyle='-'):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-'):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             print '   integral is zero in hist::mpl_plot'
             return None
@@ -280,4 +280,4 @@ class Hist(object):
             yvals = self.bin_contents
         # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
         # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
-        return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
+        return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)

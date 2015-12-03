@@ -497,7 +497,7 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
 # ----------------------------------------------------------------------------------------
 def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
-                 linewidths=None, plottitle='', csv_fname=None, stats=None):
+                 linewidths=None, plottitle='', csv_fname=None, stats=''):
     # , , 
     #      shift_overflows=False, , rebin=None, ,
     #      , imagetype='svg', xtitle=None, ytitle=None,
@@ -505,7 +505,6 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     #      graphify=False, translegend=(0.0, 0.0)):
     print 'TODO <errors> doesn\'t do anything yet'
     print 'TODO sort out plottitle/plotname difference'
-    print 'TODO stats doesn\'t do anything'
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
@@ -592,76 +591,27 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     # leg.SetFillStyle(0)
     # leg.SetBorderSize(0)
 
-    # draw
-    graphify=False
-    if graphify:
-        raise Exception('waaaaaaaa!')
-        graphs = []
-        for ih in range(len(hists)):
-            htmp = hists[ih]
-            n_bins = hists[ih].GetNbinsX()
-            xvals, yvals, xerrs, yerrs = array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)]), array('f', [0 for i in range(n_bins)])
-            for ib in range(1, n_bins+1):  # NOTE ignoring overflows
-                xvals[ib-1] = hists[ih].GetXaxis().GetBinCenter(ib)
-                xerrs[ib-1] = 0.0
-                yvals[ib-1] = hists[ih].GetBinContent(ib)
-                yerrs[ib-1] = hists[ih].GetBinError(ib) if errors else 0.0
-            gr = TGraphErrors(n_bins, xvals, yvals, xerrs, yerrs)
+    # leg.AddEntry(gr, hists[ih].GetTitle() + ' ' + statstr, 'pl')
 
-            if markersizes is not None:
-                imark = ih if len(markersizes) > 1 else 0
-                gr.SetMarkerSize(markersizes[imark])
-            gr.SetMarkerColor(colors[ih])
-            if linewidths is None:
-                if ih < 6:  # and len(hists) < 5:
-                    gr.SetLineWidth(6-ih)
-            else:
-                ilw = ih if len(linewidths) > 1 else 0
-                gr.SetLineWidth(linewidths[ilw])
-            gr.SetLineColor(colors[ih])
-            # if int(linewidth) == 1:
-            #     gr.SetLineColorAlpha(colors[ih], 0.4)
-            gr.SetLineStyle(linestyles[ih])
+    for ih in range(len(hists)):
+        htmp = hists[ih]
 
-            if draw_str is None:
-                draw_str = 'lpz'
-            if hists[ih].Integral() != 0.0:
-                gr.Draw(draw_str + ' same')
-
-                statstr = ''
-                if stats is not None:
-                    if 'rms' in stats:
-                        statstr += ' (%.2f)' % htmp.GetRMS()
-                    if 'mean' in stats:
-                        statstr += ' (%.2f)' % htmp.GetMean()
-                    if '0-bin' in stats:
-                        statstr += ' (%.2f)' % htmp.GetBinContent(1)
-
-                leg.AddEntry(gr, hists[ih].GetTitle() + ' ' + statstr, 'pl')
-
-            graphs.append(gr)  # yes, you really do have to do this to keep root from giving you only one graph
-    else:
-        for ih in range(len(hists)):
-            htmp = hists[ih]
-
-            # assert stats is None
-            # if stats is not None:
-            #     if 'rms' in stats:
-            #         htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
-            #     if 'mean' in stats:
-            #         htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetMean()))
-            #     if '0-bin' in stats:
-            #         htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetBinContent(1)))
-            # if markersizes is not None:
-            #     imark = ih if len(markersizes) > 1 else 0
-            #     htmp.SetMarkerSize(markersizes[imark])
-            linewidth = 2
-            # if linewidths is None and ih < 6 and len(hists) > 1:
-            #     linewidth = 6-ih
-            # else:
-            #     ilw = ih if len(linewidths) > 1 else 0
-            #     linewidth = linewidths[ilw]
-            htmp.mpl_plot(ax, label=plottitle, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True)
+        # if 'rms' in stats:
+        #     htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
+        if 'mean' in stats:
+            htmp.title += ' (%.2f)' % htmp.get_mean()
+        if '0-bin' in stats:
+            htmp.title += ' (%.2f)' % htmp.bin_contents[1]
+        # if markersizes is not None:
+        #     imark = ih if len(markersizes) > 1 else 0
+        #     htmp.SetMarkerSize(markersizes[imark])
+        linewidth = 2
+        # if linewidths is None and ih < 6 and len(hists) > 1:
+        #     linewidth = 6-ih
+        # else:
+        #     ilw = ih if len(linewidths) > 1 else 0
+        #     linewidth = linewidths[ilw]
+        htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True)
 
     if xline is not None:
         print 'TODO fix xline'
@@ -679,7 +629,7 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
     #     yl.Draw()
 
-    mpl_finish(ax, plotdir, plotname, title=plotname, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log)
+    mpl_finish(ax, plotdir, plotname, title=plotname, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log, leg_loc=(0.75, 0.8))
 
     if not os.path.exists(plotdir + '/plots'):
         raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')

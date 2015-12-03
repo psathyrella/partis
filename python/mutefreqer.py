@@ -176,30 +176,20 @@ class MuteFreqer(object):
             self.finalize()
 
         plotdir = base_plotdir + '/mute-freqs'
-        TMPplotdir = plotdir.replace('mute-freqs', 'TMP/mute-freqs')  # TODO remove this
         utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
-        utils.prep_dir(TMPplotdir + '/plots', multilings=('*.csv', '*.svg'))
         for region in utils.regions:
             utils.prep_dir(plotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
-            utils.prep_dir(TMPplotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
-            # utils.prep_dir(TMPplotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
         for gene in self.counts:
             counts, plotting_info = self.counts[gene], self.plotting_info[gene]
             sorted_positions = sorted(counts)
-            genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='fixme', ytitle='fixme')
-            root_hist = TH1D('hist_' + utils.sanitize_name(gene), '',
-                             sorted_positions[-1] - sorted_positions[0] + 1,
-                             sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5)
+            genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='fixme', ytitle='fixme')  #, title=utils.sanitize_name(gene))
             for position in sorted_positions:
-                root_hist.SetBinContent(root_hist.FindBin(position), counts[position]['freq'])
                 hi_diff = abs(counts[position]['freq'] - counts[position]['freq_hi_err'])
                 lo_diff = abs(counts[position]['freq'] - counts[position]['freq_lo_err'])
                 err = 0.5*(hi_diff + lo_diff)
                 genehist.set_ibin(genehist.find_bin(position), counts[position]['freq'], error=err)
-                root_hist.SetBinError(root_hist.FindBin(position), err)
-            # plotfname = plotdir + '/' + utils.get_region(gene) + '/plots/' + utils.sanitize_name(gene) + '.svg'
             xline = None
             figsize = [3, 3]
             if utils.get_region(gene) == 'v' and cyst_positions is not None:
@@ -208,8 +198,7 @@ class MuteFreqer(object):
             elif utils.get_region(gene) == 'j' and tryp_positions is not None:
                 xline = int(tryp_positions[gene])
                 figsize[0] *= 2
-            plotting.draw_no_root(genehist, 'int', plotdir=TMPplotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
-            plotting.draw(root_hist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, draw_str='e')  #, cwidth=4000, cheight=1000)
+            plotting.draw_no_root(genehist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
         # for region in utils.regions:
@@ -220,17 +209,12 @@ class MuteFreqer(object):
         #         plotting.draw(roothist, 'int', plotdir=plotdir + '/' + utils.get_region(gene) + '/tmp', plotname=utils.sanitize_name(gene) + '_' + str(position), errors=True, write_csv=True)  #, cwidth=4000, cheight=1000)
 
         # make mean mute freq hists
-        hist = plotting.make_hist_from_my_hist_class(self.mean_rates['all'], 'all-mean-freq')
-        plotting.draw_no_root(self.mean_rates['all'], 'float', plotname='all-mean-freq', plotdir=TMPplotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
-        plotting.draw(hist, 'float', plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
+        plotting.draw_no_root(self.mean_rates['all'], 'float', plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
         for region in utils.regions:
-            hist = plotting.make_hist_from_my_hist_class(self.mean_rates[region], region+'-mean-freq')
-            plotting.draw_no_root(self.mean_rates[region], 'float', plotname=region+'-mean-freq', plotdir=TMPplotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
-            plotting.draw(hist, 'float', plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
-        check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-        check_call(['./bin/makeHtml', TMPplotdir, '3', 'null', 'svg'])
+            plotting.draw_no_root(self.mean_rates[region], 'float', plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
 
         # then write html file and fix permissiions
+        check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
         for region in utils.regions:
             check_call(['./bin/makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
             # check_call(['./bin/makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
