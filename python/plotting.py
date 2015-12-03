@@ -492,13 +492,12 @@ def draw(hist, var_type, log='', plotdir=None, plotname='foop', more_hists=None,
 # ----------------------------------------------------------------------------------------
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
-                 linewidths=None, plottitle='', csv_fname=None, stats=''):
+                 linewidths=None, plottitle=None, csv_fname=None, stats=''):
     # , , 
     #      rebin=None, ,
     #      , imagetype='svg', xtitle=None, ytitle=None,
     #       draw_str=None, , , markersizes=None, no_labels=False,
     #      graphify=False, translegend=(0.0, 0.0)):
-    print 'TODO sort out plottitle/plotname difference'
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
@@ -575,12 +574,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     else:
         assert len(hists) <= len(linestyles)
 
-    xticks, xticklabels = None, None
     for ih in range(len(hists)):
         htmp = hists[ih]
-        if htmp.bin_labels.count('') != len(htmp.bin_labels):
-            xticks = htmp.get_bin_centers()
-            xticklabels = htmp.bin_labels
         # if 'rms' in stats:
         #     htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
         if 'mean' in stats:
@@ -608,7 +603,11 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
     #     yl.Draw()
 
-    mpl_finish(ax, plotdir, plotname, title=plotname, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log, leg_loc=(0.75, 0.8), xticks=xticks, xticklabels=xticklabels)
+    xticks, xticklabels = None, None
+    if hist.bin_labels.count('') != len(hist.bin_labels):
+        xticks = hist.get_bin_centers()
+        xticklabels = hist.bin_labels
+    mpl_finish(ax, plotdir, plotname, title=plotname if plottitle is None else plottitle, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log, leg_loc=(0.75, 0.8), xticks=xticks, xticklabels=xticklabels)
 
     if not os.path.exists(plotdir + '/plots'):
         raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')
@@ -724,6 +723,7 @@ def add_gene_calls_vs_mute_freq_plots(args, hists, rebin=1.):
 
 # ----------------------------------------------------------------------------------------
 def compare_directories(args, xtitle='', use_hard_bounds=''):
+    print 'TODO move to a different file'
     """ 
     Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
