@@ -11,7 +11,6 @@ from humans import humans, colors, all_subdirs
 raise Exception('needs to be tested since root removal')
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--subdirs', default='all', help='Which variable categories?')
 parser.add_argument('--dataset', choices=('adaptive', 'stanford', 'both'), default='adaptive')
 args = parser.parse_args()

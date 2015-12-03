@@ -282,7 +282,6 @@ class IhhhmmmParser(object):
 # ----------------------------------------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
     parser.add_argument('--n-queries', type=int, default=-1)
     parser.add_argument('--queries')
     parser.add_argument('--plotdir', required=True)

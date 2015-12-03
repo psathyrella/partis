@@ -8,8 +8,6 @@ import operator
 import yaml
 import sys
 from subprocess import check_call
-sys.argv.append('-b')  # root just loves its stupid little splashes
-from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import plotting
 import paramutils
@@ -26,6 +24,7 @@ def find_state_number(name):
 # ----------------------------------------------------------------------------------------
 class ModelPlotter(object):
     def __init__(self, args, base_plotdir, skip_boring_states=''):
+        raise Exception('needs to be converted off root')
         self.base_plotdir = base_plotdir
         self.skip_boring_states = skip_boring_states
         plot_types = ('transitions', 'emissions')
@@ -138,7 +137,6 @@ class ModelPlotter(object):
     # # ----------------------------------------------------------------------------------------
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--hmmdir')
 parser.add_argument('--infiles')
 args = parser.parse_args()

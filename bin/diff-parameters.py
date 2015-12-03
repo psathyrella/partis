@@ -14,8 +14,6 @@ import yaml
 from subprocess import check_output
 
 parser = argparse.ArgumentParser()
-# parser.add_argument('-b', action='store_true', help='Passed on to ROOT when plotting')
-# sys.argv.append('-b')
 parser.add_argument('arg1')
 parser.add_argument('arg2')
 parser.add_argument('--keep-going', action='store_true', help='Don\'t fail on differences, instead just keep on chugging')

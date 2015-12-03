@@ -1,7 +1,6 @@
 import os
 import csv
 import operator
-# from ROOT import TH1D, TCanvas, kRed, gROOT, TLine, TLegend, kBlue, kGreen, TPaveText, TStyle, kViolet, kOrange
 
 import utils
 from opener import opener

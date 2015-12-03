@@ -29,7 +29,7 @@ class Hist(object):
             assert self.xmax == xbins[-1]
 
         dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
-        for ib in range(self.n_bins + 2):  # using ROOT conventions: zero is underflow and last bin is overflow
+        for ib in range(self.n_bins + 2):  # using root conventions: zero is underflow and last bin is overflow
             self.bin_labels.append('')
             if xbins is None:  # uniform binning
                 self.low_edges.append(self.xmin + (ib-1)*dx)  # subtract one from ib so underflow bin has upper edge xmin. NOTE this also means that <low_edges[-1]> is the lower edge of the overflow

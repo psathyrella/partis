@@ -11,7 +11,6 @@ import utils
 from opener import opener
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', action='store_true')  # passed on to ROOT when plotting
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--plotdirs', required=True)
 parser.add_argument('--names', required=True)
