@@ -112,11 +112,7 @@ def make_bool_hist(n_true, n_false, hist_label):
     set_bin(n_true, n_true + n_false, 1, 'right')
     set_bin(n_false, n_true + n_false, 2, 'wrong')
 
-    roothist = make_hist_from_my_hist_class(hist, hist_label)
-    roothist.GetXaxis().SetNdivisions(0)
-    roothist.GetXaxis().SetLabelSize(0.1)
-
-    return roothist
+    return hist
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
@@ -502,8 +498,8 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     #      , imagetype='svg', xtitle=None, ytitle=None,
     #       draw_str=None, , , markersizes=None, no_labels=False,
     #      graphify=False, translegend=(0.0, 0.0)):
-    print 'TODO <errors> doesn\'t do anything yet'
     print 'TODO sort out plottitle/plotname difference'
+    print 'TODO remove var_type'
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
@@ -580,9 +576,12 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     else:
         assert len(hists) <= len(linestyles)
 
+    xticks, xticklabels = None, None
     for ih in range(len(hists)):
         htmp = hists[ih]
-
+        if htmp.bin_labels.count('') != len(htmp.bin_labels):
+            xticks = htmp.get_bin_centers()
+            xticklabels = htmp.bin_labels
         # if 'rms' in stats:
         #     htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
         if 'mean' in stats:
@@ -610,7 +609,7 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
     #     yl.Draw()
 
-    mpl_finish(ax, plotdir, plotname, title=plotname, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log, leg_loc=(0.75, 0.8))
+    mpl_finish(ax, plotdir, plotname, title=plotname, xlabel=hist.xtitle, ylabel=hist.ytitle, xbounds=[xmin, xmax], ybounds=[-0.03*ymax, 1.15*ymax], log=log, leg_loc=(0.75, 0.8), xticks=xticks, xticklabels=xticklabels)
 
     if not os.path.exists(plotdir + '/plots'):
         raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')
@@ -1210,7 +1209,7 @@ def mpl_init(figsize=None):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', htmlify=False):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', htmlify=False, xticks=None, xticklabels=None):
     legend = ax.legend(loc=leg_loc)
     sns.despine(trim=True, bottom=True)
     plt.xlabel(xlabel)
@@ -1223,9 +1222,10 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None:
         plt.ylim(ybounds[0], ybounds[1])
-    # potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
-    # xticks = [xt for xt in potential_xticks if xt < xmax]
-    # plt.xticks(xticks, [str(xt) for xt in xticks])
+    if xticks is not None:
+        plt.xticks(xticks)
+    if xticklabels is not None:
+        ax.set_xticklabels(xticklabels)
     plt.title(title)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir + '/plots')

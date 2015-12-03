@@ -6,8 +6,6 @@ from hist import Hist
 from subprocess import check_call
 import fraction_uncertainty
 
-assert plotting.check_root()
-
 # Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
 bool_columns = ('v_gene', 'd_gene', 'j_gene')
 
@@ -207,19 +205,18 @@ class PerformancePlotter(object):
                 errs = fraction_uncertainty.err(right, right+wrong)
                 print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), errs[0], errs[1])
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
-                plotting.draw(hist, 'bool', plotname=column, plotdir=plotdir, write_csv=True)
+                plotting.draw_no_root(hist, 'bool', plotname=column, plotdir=plotdir, write_csv=True, stats='0-bin')
             else:
                 # TODO this is dumb... I should make the integer-valued ones histograms as well
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=True)
                 log = ''
-                if column.find('hamming_to_true_naive') >= 0:
-                    hist.GetXaxis().SetTitle('hamming distance')
+                if column.find('hamming_to_true_naive') >= 0:  # TODO why doesn't this just use the config dicts in plotheaders or wherever?
+                    hist.title = 'hamming distance'
                 else:
-                    hist.GetXaxis().SetTitle('inferred - true')
-                plotting.draw(hist, 'int', plotname=column, plotdir=plotdir, write_csv=True, log=log)
+                    hist.title = 'inferred - true'
+                plotting.draw_no_root(hist, 'int', plotname=column, plotdir=plotdir, write_csv=True, log=log)
         for column in self.hists:
-            hist = plotting.make_hist_from_my_hist_class(self.hists[column], column)
-            plotting.draw(hist, 'float', plotname=column, plotdir=plotdir, write_csv=True, log=log)
-        
+            plotting.draw_no_root(self.hists[column], 'float', plotname=column, plotdir=plotdir, write_csv=True, log=log)
+
         check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
         check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
