@@ -264,8 +264,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0
             markersize = markersizes[imark]
-        if linewidths is None and ih < 6 and len(hists) > 1:
-            linewidth = 6-ih
+        linewidth = None
+        if linewidths is None:
+            if ih < 6 and len(hists) > 1:
+                linewidth = 6-ih
         else:
             ilw = ih if len(linewidths) > 1 else 0
             linewidth = linewidths[ilw]

@@ -13,7 +13,7 @@ import tempfile
 from subprocess import check_call
 from Bio import Phylo
 from opener import opener
-import plotting
+from hist import Hist
 import utils
 
 
@@ -61,21 +61,22 @@ class TreeGenerator(object):
             infname = mute_freq_dir + '/' + mtype + '-mean-mute-freqs.csv'
             self.branch_lengths[mtype] = {}
             self.branch_lengths[mtype]['lengths'], self.branch_lengths[mtype]['probs'] = [], []
-            mutehist = plotting.make_hist_from_bin_entry_file(infname, mtype+'-mute-freqs')
-            self.branch_lengths[mtype]['mean'] = mutehist.GetMean()
+            mutehist = Hist(fname=infname)
+            self.branch_lengths[mtype]['mean'] = mutehist.get_mean()
 
             # if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
             #     print 'WARNING nonzero under/overflow bins read from %s' % infname
-
+            mutehist.normalize(include_overflows=False)  # if it was written with overflows included, it'll need to be renormalized
             check_sum = 0.0
-            for ibin in range(1, mutehist.GetNbinsX()+1):  # ignore under/overflow bins
-                freq = mutehist.GetBinCenter(ibin)
+            for ibin in range(1, mutehist.n_bins + 1):  # ignore under/overflow bins
+                freq = mutehist.get_bin_centers()[ibin]
                 branch_length = float(freq)
-                prob = mutehist.GetBinContent(ibin)
+                prob = mutehist.bin_contents[ibin]
                 self.branch_lengths[mtype]['lengths'].append(branch_length)
                 self.branch_lengths[mtype]['probs'].append(prob)
                 check_sum += self.branch_lengths[mtype]['probs'][-1]
-            assert utils.is_normed(check_sum)
+            if not utils.is_normed(check_sum):
+                raise Exception('not normalized %f' % check_sum)
 
         if self.args.debug:
             print '  mean branch lengths'

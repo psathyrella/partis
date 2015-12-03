@@ -73,7 +73,7 @@ ref_data_param_dir = data_param_dir.replace(stashdir, referencedir)
 cachefname = stashdir + '/hmm_cached_info.csv'
 logfname = stashdir + '/test.log'
 open(logfname, 'w').close()
-# # first test performance on the previous simulation, with the previous parameter values
+# first test performance on the previous simulation, with the previous parameter values
 # tests['annotate-ref-simu']          = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--plotdir', param_dir + '/plots/ref-simu-performance', '--plot-performance']}
 # tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries, '--persistent-cachefname', cachefname]}
 # # tests['partition-ref-data']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', datafname, '--parameter-dir', ref_data_param_dir, '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
@@ -82,8 +82,8 @@ open(logfname, 'w').close()
 
 # then infer new parameters, and make new simulation
 tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
-# tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
-# tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
+tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
+tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
 
 # # then test performance on the new simulation, with the new parameter values
 # tests['annotate-new-simu']          = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', new_simfname, '--parameter-dir', simu_param_dir, '--plotdir', param_dir + '/plots/new-simu-performance', '--plot-performance']}
@@ -113,7 +113,7 @@ for name, info in tests.items():
     logfile.write(logstr + '\n')
     logfile.close()
     check_call(cmd_str + ' >>' + logfname, shell=True)
-sys.exit()
+# sys.exit()
 
 # ----------------------------------------------------------------------------------------
 # collect summary performance info from a few places

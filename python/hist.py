@@ -286,13 +286,16 @@ class Hist(object):
         # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
         # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
         # return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
-        kwargs = {'label' : label if label is not None else self.title,
-                  'color' : color,
+        kwargs = {'color' : color,
                   'alpha' : alpha,
                   'linewidth' : linewidth,
                   'linestyle' : linestyle,
                   'marker' : '.',
                   'markersize' : 13 if markersize is None else markersize}
+        if label is not None:
+            kwargs['label'] = label
+        elif self.title != '':
+            kwargs['label'] = self.title
         if errors:
             kwargs['yerr'] = yerrs
             return ax.errorbar(xvals, yvals, **kwargs)  #, fmt='-o')
