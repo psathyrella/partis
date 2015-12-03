@@ -146,12 +146,11 @@ class Hist(object):
         return sum_value
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=False, expect_empty=False):
+    def normalize(self, include_overflows=True, expect_empty=False):
         sum_value = self.integral(include_overflows)
         imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
             return
-        # make sure there's not too much stuff in the under/overflows
         if sum_value == 0.0:
             if not expect_empty:
                 print 'WARNING sum zero in Hist::normalize()'
@@ -256,6 +255,10 @@ class Hist(object):
             return 0.
 
     # ----------------------------------------------------------------------------------------
+    def rebin(self, factor):
+        print 'TODO implement Hist::rebin()'
+
+    # ----------------------------------------------------------------------------------------
     def __str__(self):
         str_list = []
         for ib in range(len(self.low_edges)):
@@ -268,7 +271,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-'):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-', markersize=None, errors=True):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             print '   integral is zero in hist::mpl_plot'
             return None
@@ -283,4 +286,15 @@ class Hist(object):
         # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
         # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
         # return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
-        return ax.errorbar(xvals, yvals, yerr=yerrs, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)  #, fmt='-o')
+        kwargs = {'label' : label if label is not None else self.title,
+                  'color' : color,
+                  'alpha' : alpha,
+                  'linewidth' : linewidth,
+                  'linestyle' : linestyle,
+                  'marker' : '.',
+                  'markersize' : 13 if markersize is None else markersize}
+        if errors:
+            kwargs['yerr'] = yerrs
+            return ax.errorbar(xvals, yvals, **kwargs)  #, fmt='-o')
+        else:
+            return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')

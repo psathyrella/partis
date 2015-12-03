@@ -53,7 +53,7 @@ for subdir in args.subdirs:
         # print 'SKIPPING'
 
     # then make the human-comparison plots
-    final_cmd = './bin/compare.py --dont-calculate-mean-info --colors ' + ':'.join([ colors[human] for human in humans[args.dataset] ]) \
+    final_cmd = './bin/compare.py --colors ' + ':'.join([ colors[human] for human in humans[args.dataset] ]) \
                 + ' --plotdirs ' + ':'.join(final_plotdirs) + ' --names ' + ':'.join(humans[args.dataset]) + ' --outdir ' + webdir + '/cf-data-' + args.dataset + '/' + subdir
     final_cmd += ' --graphify --linewidth 1'
     final_cmd += ' --scale-errors 1.414'

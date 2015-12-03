@@ -42,7 +42,7 @@ for subdir in args.subdirs:
         scale_errors += ['1.414', '2.24']
         strings_to_ignore += ['_mean-bins', '']
 
-    cmd = './bin/compare.py --dont-calculate-mean-info --colors ' + ':'.join(colorlist)
+    cmd = './bin/compare.py --colors ' + ':'.join(colorlist)
     cmd += ' --linestyles ' + ':'.join(linestyles)
     cmd += ' --plotdirs ' + ':'.join(plotdirs)
     cmd += ' --names ' + ':'.join(names)

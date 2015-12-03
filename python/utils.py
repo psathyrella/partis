@@ -31,17 +31,20 @@ def is_normed(probs, this_eps=eps):
         return math.fabs(probs - 1.0) < this_eps
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, floatify=False):  # make lists from args that are passed as strings of colon-separated values
-    if arg == None:
-        return arg
+def get_arg_list(arg, intify=False, floatify=False, translation=None):  # make lists from args that are passed as strings of colon-separated values
+    if arg is None:
+        return None
     else:
         arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
         if intify:
-            return [int(x) for x in arglist]
+            arglist = [int(x) for x in arglist]
         elif floatify:
-            return [float(x) for x in arglist]
-        else:
-            return arglist
+            arglist = [float(x) for x in arglist]
+        if translation is not None:
+            for ia in range(len(arglist)):
+                if arglist[ia] in translation:
+                    arglist[ia] = translation[arglist[ia]]
+        return arglist
 
 # # ----------------------------------------------------------------------------------------
 # hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
