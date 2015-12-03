@@ -6,9 +6,6 @@ from subprocess import check_call
 import csv
 
 import plotting
-has_root = plotting.has_root
-if has_root:
-    from ROOT import TCanvas, TH1D, TLine, kRed
 
 import utils
 import fraction_uncertainty
@@ -26,8 +23,6 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region] = Hist(n_bins, xmin, xmax)
         self.finalized = False
-
-        # self.tmpcounts = {}  # for making per-position plots of sequence mutation frequency vs. each position's mutation frequency. Conclusion: they're pretty much linear, as hoped/expected.
         
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -44,9 +39,7 @@ class MuteFreqer(object):
             # per-gene per-position
             if info[region + '_gene'] not in self.counts:
                 self.counts[info[region + '_gene']] = {}
-                # self.tmpcounts[info[region + '_gene']] = {}
             mute_counts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
-            # tmpmute_counts = self.tmpcounts[info[region + '_gene']]  # temporary variable to avoid long dict access
             germline_seq = info[region + '_gl_seq']
             query_seq = info[region + '_qr_seq']
             assert len(germline_seq) == len(query_seq)
@@ -122,10 +115,6 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region].normalize()
 
-        # for gene in self.tmpcounts:
-        #     for position in self.tmpcounts[gene]:
-        #         self.tmpcounts[gene][position]['muted'].divide_by(self.tmpcounts[gene][position]['total'], debug=False)
-
         self.finalized = True
 
     # ----------------------------------------------------------------------------------------
@@ -166,10 +155,6 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
-        # for gene in self.tmpcounts:
-        #     for position in self.tmpcounts[gene]:
-        #         self.tmpcounts[gene][position]['muted'].divide_by(self.tmpcounts[gene][position]['total'])
-
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None):
         if not self.finalized:
@@ -200,13 +185,6 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, 'int', plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
-
-        # for region in utils.regions:
-        #     utils.prep_dir(plotdir + '/' + region + '/tmp/plots', multilings=('*.csv', '*.svg'))
-        # for gene in self.tmpcounts:
-        #     for position in self.tmpcounts[gene]:
-        #         roothist = plotting.make_hist_from_my_hist_class(self.tmpcounts[gene][position]['muted'], gene + '_' + str(position))
-        #         plotting.draw(roothist, 'int', plotdir=plotdir + '/' + utils.get_region(gene) + '/tmp', plotname=utils.sanitize_name(gene) + '_' + str(position), errors=True, write_csv=True)  #, cwidth=4000, cheight=1000)
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], 'float', plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)

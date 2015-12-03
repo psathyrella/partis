@@ -275,9 +275,12 @@ class Hist(object):
         if ignore_overflows:
             xvals = self.get_bin_centers()[1:-1]
             yvals = self.bin_contents[1:-1]
+            yerrs = self.errors[1:-1]
         else:
             xvals = self.get_bin_centers()
             yvals = self.bin_contents
+            yerrs = self.errors
         # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
         # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
-        return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
+        # return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
+        return ax.errorbar(xvals, yvals, yerr=yerrs, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)  #, fmt='-o')

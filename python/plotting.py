@@ -126,7 +126,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
 
     if len(values) == 0:
         print 'WARNING no values for %s in make_hist' % hist_label
-        return TH1D(hist_label, '', 1, 0, 1)
+        return Hist(1, 0, 1)
 
     bin_labels = sorted(values)
     if not sort and var_type == 'string':  # for strings, sort so most common value is to left side
@@ -169,8 +169,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
     else:
         hist.ytitle = 'counts'
     
-    roothist = make_hist_from_my_hist_class(hist, hist_label)
-    return roothist
+    return hist
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_my_hist_class(myhist, name):
@@ -499,7 +498,7 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
                  linewidths=None, plottitle='', csv_fname=None, stats=''):
     # , , 
-    #      shift_overflows=False, , rebin=None, ,
+    #      rebin=None, ,
     #      , imagetype='svg', xtitle=None, ytitle=None,
     #       draw_str=None, , , markersizes=None, no_labels=False,
     #      graphify=False, translegend=(0.0, 0.0)):
@@ -581,18 +580,6 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
     else:
         assert len(hists) <= len(linestyles)
 
-    # # legends
-    # x0, y0, x1, y1 = 0.57+translegend[0], 0.66+translegend[1], 0.99+translegend[0], 0.88+translegend[1]
-    # if len(hists) < 5:
-    #     leg = TLegend(x0, y0, x1, y1)
-    # else:
-    #     leg = TLegend(x0, y0-0.05, x1, y1)
-    # leg.SetFillColor(0)
-    # leg.SetFillStyle(0)
-    # leg.SetBorderSize(0)
-
-    # leg.AddEntry(gr, hists[ih].GetTitle() + ' ' + statstr, 'pl')
-
     for ih in range(len(hists)):
         htmp = hists[ih]
 
@@ -614,15 +601,9 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
         htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True)
 
     if xline is not None:
-        print 'TODO fix xline'
-    assert yline is None
-    # if xline is not None:
-    #     # if xline < hframe.GetXaxis().GetXmin() or xline > hframe.GetXaxis().GetXmax():  # make sure we got valid a x position for the line
-    #     #     print 'WARNING plotting x line at %f out of bounds (%f, %f)' % (float(xmin), hframe.GetXaxis().GetXmin(), hframe.GetXaxis().GetXmax())
-    #     # xl = TLine(xline, hframe.GetYaxis().GetXmin(), xline, 0.5*ymax)
-    #     xl = TLine(xline, -0.1*ymax, xline, 0.5*ymax)
-    #     xl.SetLineStyle(2)
-    #     xl.Draw()
+        ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
+    if yline is not None:
+        print 'TODO fix y line'
     # if yline is not None:
     #     # if yline < hframe.GetYaxis().GetXmin() or xline > hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
     #     #     print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
@@ -640,8 +621,6 @@ def draw_no_root(hist, var_type, log='', plotdir=None, plotname='foop', more_his
             hist.write(plotdir + '/plots/' + plotname + '.csv')
         else:
             hist.write(csv_fname)
-    # TODO is mpl_finish writing to the same file as this was?
-    # cvn.SaveAs(plotdir + '/plots/' + plotname + '.' + imagetype)
 
 # ----------------------------------------------------------------------------------------
 def get_hists_from_dir(dirname, histname, string_to_ignore=None):
