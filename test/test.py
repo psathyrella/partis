@@ -209,20 +209,41 @@ with open(stashdir + '/performance-info.csv', 'w') as perf_file:
 # ----------------------------------------------------------------------------------------
 # read partition cache file TODO move this after the other stuff
 print '\npartition cache file'
-refcache = csv.DictReader(open(referencedir + '/' + os.path.basename(cachefname)))
-newcache = csv.DictReader(open(cachefname))
+
+def readcache(fname):
+    cache = {}
+    with open(fname) as cachefile:
+        reader = csv.DictReader(cachefile)
+        for line in reader:
+            cache[line['unique_ids']] = {'naive_seq' : line['naive_seq'], 'logprob' : float(line['logprob'])}
+    return cache
+
+refcache = readcache(referencedir + '/' + os.path.basename(cachefname))
+newcache = readcache(cachefname)
+
+# work out intersection and complement
+refkeys = set(refcache.keys())
+newkeys = set(newcache.keys())
+if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
+    print '  %d in ref but not in new cache' % len(refkeys - newkeys)
+    print '  %d in new but not in ref cache' % len(newkeys - refkeys)
+    print '  %d cached uids in common' % len(refkeys & newkeys)
+
 hammings, delta_logprobs = [], []
-n_big_hammings, n_big_delta_logprobs = 0, 0
+n_different_length, n_big_hammings, n_big_delta_logprobs = 0, 0, 0
 hamming_eps = 0.
 logprob_eps = 1e-5
-for refline in refcache:
-    newline = newcache.next()  # I may end up needing to handle different orders
-    # print refline['unique_ids'], newline['unique_ids']
+for uids in refkeys & newkeys:
+    refline = refcache[uids]
+    newline = newcache[uids]
     if refline['naive_seq'] != '':
-        hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
-        if hamming_fraction > hamming_eps:
-            n_big_hammings += 1
-            hammings.append(hamming_fraction)
+        if len(refline['naive_seq']) == len(newline['naive_seq']):
+            hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
+            if hamming_fraction > hamming_eps:
+                n_big_hammings += 1
+                hammings.append(hamming_fraction)
+        else:
+            n_different_length += 1
     if refline['logprob'] != '':
         delta_logprob = abs(float(refline['logprob']) - float(newline['logprob']))
         if delta_logprob > logprob_eps:
@@ -230,8 +251,10 @@ for refline in refcache:
             delta_logprobs.append(delta_logprob)
 
 print '              fraction different     mean difference among differents'
-print '  naive seqs     %d / %d                      %.3f' % (n_big_hammings, len(hammings), numpy.average(hammings) if len(hammings) > 0 else 0.)
+print '  naive seqs     %d / %d                      %.3f' % (n_big_hammings, len(hammings) + n_different_length, numpy.average(hammings) if len(hammings) > 0 else 0.)
 print '  log probs      %d / %d                      %.3f' % (n_big_delta_logprobs, len(delta_logprobs), numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
+if n_different_length > 0:
+    print '    %d different length' % n_different_length
 
 # ----------------------------------------------------------------------------------------
 # make a bunch of comparison plots
