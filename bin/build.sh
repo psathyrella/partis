@@ -23,5 +23,5 @@ echo -e "\n--> building ham"
 cd $basedir/packages/ham/ && scons bcrham
 cd $basedir/
 
-echo -e "\n--> scons test"
-scons test
+echo -e "\n--> test"
+./test/test/py
