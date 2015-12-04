@@ -24,4 +24,4 @@ cd $basedir/packages/ham/ && scons bcrham
 cd $basedir/
 
 echo -e "\n--> test"
-./test/test.py
+./test/test.py --quick

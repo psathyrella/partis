@@ -73,8 +73,11 @@ ref_simu_param_dir = simu_param_dir.replace(stashdir, referencedir)
 ref_data_param_dir = data_param_dir.replace(stashdir, referencedir)
 cachefname = stashdir + '/hmm_cached_info.csv'
 logfname = stashdir + '/test.log'
+if not os.path.exists(stashdir):
+    os.makedirs(stashdir)
 open(logfname, 'w').close()
 # first test performance on the previous simulation, with the previous parameter values
+quick_tests = ['annotate-ref-simu']
 tests['annotate-ref-simu']          = {'bin' : partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--plotdir', param_dir + '/plots/ref-simu-performance', '--plot-performance']}
 tests['partition-ref-simu']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', ref_simfname, '--parameter-dir', ref_simu_param_dir, '--n-max-queries', n_partition_queries, '--persistent-cachefname', cachefname]}
 # tests['partition-ref-data']         = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', datafname, '--parameter-dir', ref_data_param_dir, '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
@@ -97,7 +100,7 @@ tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
 for name, info in tests.items():
     if args.dont_run:
         continue
-    if args.quick and name != 'annotate-ref-simu':
+    if args.quick and name not in quick_tests:
         continue
     action = info['action'] if 'action' in info else name
     cmd_str = info['bin'] + ' --action ' + action
@@ -159,6 +162,8 @@ for simtype in ['ref']:  #, 'new']:
 print 'partitioning'
 print '    adj mi   ccf under/over        test                    description'
 for ptest in [k for k in tests.keys() if 'partition' in k]:
+    if args.quick and ptest not in quick_tests:
+        continue
     cp = ClusterPath(-1)
     cp.readfile(stashdir + '/' + ptest + '.csv')
     # cp.print_partition(cp.i_best)
