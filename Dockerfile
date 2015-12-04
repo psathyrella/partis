@@ -34,4 +34,4 @@ RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstud
 
 COPY . /partis
 WORKDIR /partis
-CMD ./bin/build.sh && export $PWD/packages/samtools && scons test
+CMD ./bin/build.sh && export $PWD/packages/samtools && ./test/test.py --quick

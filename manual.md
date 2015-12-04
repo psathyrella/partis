@@ -32,7 +32,7 @@ export PATH=$PATH:$PWD/packages/samtools
 Depending on your setup, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
 
-Now you can run individual partis commands (described below), poke around in the code, or run the scons targets `test` or `validate`.
+Now you can run individual partis commands (described below) and poke around in the code.
 If you just want to annotate a set of BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
 
 ```./bin/annotate --infname /host/path/to/yourseqs.fa```.
@@ -52,7 +52,7 @@ To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
 
 ###### Docker tips
 Docker containers and images are kinda-sorta like virtual machines, only different, so a few things:
-  - We use `docker run` above: this creates a new container from (instance of ) the partis image
+  - We use `docker run` above: this creates a new container from (i.e. instance of) the partis image
   - If you exit (ctrl-d or `exit`) and then do `docker run` again, that'll create a new container. But most of the time you want to reattach to the one you made before.
     - to reattach to the same container:
       - run `docker ps -a` (lists all running and stopped containers) to get the right container ID

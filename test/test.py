@@ -49,6 +49,7 @@ from clusterpath import ClusterPath
 parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run the tests, presumably so you can just check the results ')
 parser.add_argument('--dont-plot', action='store_true', help='don\'t make all the comparison plots')
+parser.add_argument('--quick', action='store_true')
 args = parser.parse_args()
 
 stashdir = 'test/_new-results'
@@ -95,6 +96,8 @@ tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
 # tests['vsearch-partition-new-simu'] = {'bin' : partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', simu_param_dir, '--naive-vsearch', '--n-max-queries', n_partition_queries]}
 for name, info in tests.items():
     if args.dont_run:
+        continue
+    if args.quick and name != 'annotate-ref-simu':
         continue
     action = info['action'] if 'action' in info else name
     cmd_str = info['bin'] + ' --action ' + action
