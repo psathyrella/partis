@@ -70,7 +70,6 @@ You'll need to have recent versions of the following (to see which versions, fol
   - scons
   - pip
   - java 7 (for ighutil)
-  - ROOT
   - python packages
     - pysam
     - pyyaml
