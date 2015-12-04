@@ -216,6 +216,8 @@ with open(stashdir + '/performance-info.csv', 'w') as perf_file:
 
 # ----------------------------------------------------------------------------------------
 # read partition cache file TODO move this after the other stuff
+if args.quick:
+    sys.exit(0)  # TODO clean this up
 print '\npartition cache file'
 
 def readcache(fname):

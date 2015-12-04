@@ -175,6 +175,12 @@ Now, partis writes a lot of temporary files to a working directory, which is by 
 If you're running with slurm, though, you need the working directory to be a network mount everybody can see, so if you're slurming you'll need to set `--workdir` to something visible by your batch nodes.
 A suitable choice on our system is `_tmp/$RANDOM`.
 
+#### Testing
+
+The script `test/test.py` runs quite a few things and compares their outputs to reference values.
+At the moment normal installation (e.g. described above) just runs a quick annotation test to make sure things are installed correctly (`--quick` option).
+You can, however, run all the others if you like, although they're mainly designed to make sure code modifications haven't broken anything.
+
 #### Higher Abstractions
 
 The script `bin/run-driver.py` can help to automate some of these steps.
