@@ -30,6 +30,7 @@ class PartitionDriver(object):
     def __init__(self, args):
         self.args = args
         self.germline_seqs = utils.read_germlines(self.args.datadir)
+        self.aligned_v_genes = utils.read_germlines(self.args.datadir, only_region='v', aligned=True)
         self.cyst_positions = utils.read_cyst_positions(self.args.datadir)
         with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
             tryp_reader = csv.reader(csv_file)
@@ -1159,6 +1160,8 @@ class PartitionDriver(object):
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                 utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)  # NOTE may want to do this after printing? not sure yet
+                # NOTE I'm return <line> (i.e. without effective insertions) 'cause it looks nicer when you annotate the clonal families. Until I change my mind again.
+                line['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
                 annotations[':'.join(line['unique_ids'])] = line  # TODO oh, man, you need to not have both <line> and <line_with_effective_erosions>
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
@@ -1216,34 +1219,20 @@ class PartitionDriver(object):
             outpath = self.args.outfname
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
                 outpath = os.getcwd() + '/' + outpath
-            shutil.copyfile(self.hmm_outfname, outpath)
-# ----------------------------------------------------------------------------------------
-            # TMPfastafile = open('naive-mature-pairs.fa', 'w')  # write sw mature/naive pairs for peter
-# ----------------------------------------------------------------------------------------
-            with open(outpath) as outfile:
-                reader = csv.DictReader(outfile)
-                outfo = []
-                for line in reader:
-                    outfo.append(line)
-                    outfo[-1]['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
-                    if line['unique_ids'] in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
-                        outfo[-1]['indelfo'] = self.sw_info['indels'][line['unique_ids']]
-                    else:
-                        outfo[-1]['indelfo'] = {'reversed_seq': '', 'indels': []}
-
-# # ----------------------------------------------------------------------------------------
-#                     swline = self.sw_info[outfo[-1]['unique_ids']]
-#                     TMPfastafile.write('>%s_mature\n' % outfo[-1]['unique_ids'])
-#                     TMPfastafile.write(swline['seq'] + '\n')
-#                     TMPfastafile.write('>%s_naive\n' % outfo[-1]['unique_ids'])
-#                     TMPfastafile.write(utils.get_full_naive_seq(self.germline_seqs, swline) + '\n')
-# # ----------------------------------------------------------------------------------------
-
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indels']
+            outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
             with open(outpath, 'w') as outfile:
-                writer = csv.DictWriter(outfile, outfo[0].keys())
+                writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
                 writer.writeheader()
-                for line in outfo:
-                    writer.writerow(line)
+                for uids, line in annotations.items():
+                    outline = {k : line[k] for k in outheader if k != 'indels'}
+                    if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
+                        outline['indelfo'] = self.sw_info['indels'][uids]
+                    else:
+                        outline['indelfo'] = {'reversed_seq': '', 'indels': []}
+                    if self.args.presto_output:
+                        outline = utils.convert_to_presto(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, outline)
+                    writer.writerow(outline)
 
         if self.args.annotation_clustering == 'vollmers':
             if self.args.outfname is not None:

@@ -43,6 +43,7 @@ parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuff
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
 parser.add_argument('--naivety', default='M', choices=['M', 'N'])
 parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
+parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

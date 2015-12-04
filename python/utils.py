@@ -95,6 +95,16 @@ column_dependencies['jf_insertion'] = []
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
 
+presto_headers = {
+    'unique_id' : 'SEQUENCE_ID',
+    'v_gene' : 'V_CALL',
+    'd_gene' : 'D_CALL',
+    'j_gene' : 'J_CALL',
+    'seq' : 'SEQUENCE_IMGT',
+    'cdr3_length' : 'JUNCTION_LENGTH'
+}
+
+
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
 column_dependency_tuples = []
@@ -964,12 +974,16 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir):
-    """ <remove_fp> sometimes j names have a redundant _F or _P appended to their name. Set to True to remove this """
+def read_germlines(data_dir, only_region=None, aligned=False):
     germlines = {}
     for region in regions:
+        if only_region is not None and region != only_region:
+            continue
+        fname = data_dir + '/igh' + region + '.fasta'
+        if aligned:
+            fname = fname.replace('.fasta', '-aligned.fasta')
         germlines[region] = OrderedDict()
-        for seq_record in SeqIO.parse(data_dir + '/igh'+region+'.fasta', "fasta"):
+        for seq_record in SeqIO.parse(fname, 'fasta'):
             gene_name = seq_record.name
             seq_str = str(seq_record.seq)
             germlines[region][gene_name] = seq_str
@@ -1660,3 +1674,42 @@ def auto_slurm(n_procs):
     if slurm_exists and n_procs > ncpu:
         return True
     return False
+
+# ----------------------------------------------------------------------------------------
+def align_v_genes(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, presto_line):
+    """ add dots according to the imgt gapping scheme """
+    add_match_info(germlines, line, cyst_positions, tryp_positions)
+    v_qr_seq = line['v_qr_seq']
+    v_gl_seq = line['v_gl_seq']
+    aligned_v_gl_seq = aligned_v_genes['v'][line['v_gene']]
+    assert len(v_qr_seq) == len(v_gl_seq)
+    if len(aligned_v_gl_seq) - aligned_v_gl_seq.count('.')!= len(v_gl_seq) + line['v_3p_del']:
+        raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + '.' * aligned_v_gl_seq.count('.'), line['v_3p_del']))
+    for ibase in range(len(aligned_v_gl_seq) - line['v_3p_del']):
+        if aligned_v_gl_seq[ibase] == '.':
+            v_qr_seq = v_qr_seq[ : ibase] + '.' + v_qr_seq[ibase : ]
+            v_gl_seq = v_gl_seq[ : ibase] + '.' + v_gl_seq[ibase : ]
+        else:
+            if v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
+                raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
+    if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq) - line['v_3p_del']:
+        raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
+    presto_line[presto_headers['seq']] = v_qr_seq  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
+
+# ----------------------------------------------------------------------------------------
+def convert_to_presto(germlines, cyst_positions, tryp_positions, aligned_v_genes, line):
+    """ convert <line> to presto csv format """
+    if len(line['unique_ids']) > 1:
+        print line['unique_ids']
+        raise Exception('multiple seqs not handled in convert_to_presto')
+    else:
+        line['unique_id'] = line['unique_ids'][0]
+        line['seq'] = line['seqs'][0]
+        del line['unique_ids']
+        del line['seqs']
+    presto_line = {}
+    for head, phead in presto_headers.items():
+        presto_line[phead] = line[head]
+    align_v_genes(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, presto_line)
+
+    return presto_line
