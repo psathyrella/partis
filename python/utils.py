@@ -147,16 +147,14 @@ def read_cyst_positions(datadir):
     return cyst_positions
 
 # ----------------------------------------------------------------------------------------
-def from_same_event(is_data, reco_info, query_names):
-    if is_data:
-        return None
+def from_same_event(reco_info, query_names):
     if len(query_names) > 1:
         reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
         for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
             if reco_id != reco_info[query_names[iq]]['reco_id']:
                 return False
         return True
-    else:
+    else:  # one or zero sequences
         return True
 
 # ----------------------------------------------------------------------------------------
@@ -1202,6 +1200,7 @@ def split_key(key):
 # ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildling=None, multilings=None):
     """ make <dirname> if it d.n.e., and if shell glob <wildling> is specified, remove existing files which are thereby matched """
+    assert dirname is not None  # would typically happen if <dirname> is from a command line argument
     if os.path.exists(dirname):
         if wildling is not None:
             for fname in glob.glob(dirname + '/' + wildling):

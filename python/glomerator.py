@@ -117,10 +117,8 @@ class Glomerator(object):
         print '   clonal?   ids'
         true_partition = utils.get_true_partition(self.reco_info)
         for cluster in true_partition:
-            same_event = utils.from_same_event(self.reco_info is None, self.reco_info, cluster)
-            if same_event is None:
-                same_event = -1
-            print '     %d    %s' % (int(same_event), ':'.join([str(uid) for uid in cluster]))
+            print '     %d    %s' % (utils.from_same_event(self.reco_info, cluster),
+                                     ':'.join([str(uid) for uid in clusters]))
 
     # ----------------------------------------------------------------------------------------
     def read_file_info(self, infname, n_paths):

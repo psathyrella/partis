@@ -1130,31 +1130,26 @@ class PartitionDriver(object):
         """ Read bcrham annotation output """
         print '    read output'
 
-        if count_parameters:
-            assert parameter_out_dir is not None
         pcounter = ParameterCounter(self.germline_seqs) if count_parameters else None
         true_pcounter = ParameterCounter(self.germline_seqs) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter(self.germline_seqs, 'hmm') if self.args.plot_performance else None
 
         n_seqs_processed, n_events_processed = 0, 0
         annotations = {}
+        boundary_error_queries = []
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
-            boundary_error_queries = []
             for line in reader:
                 utils.process_input_line(line,
                                          splitargs=('unique_ids', 'seqs'),
                                          int_columns=('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
                                          float_columns=('logprob'))
-                ids = line['unique_ids']
-                same_event = utils.from_same_event(self.args.is_data, self.reco_info, ids)
-                if same_event is None:
-                    same_event = -1
+                uids = line['unique_ids']
 
                 # check for errors
-                if line['nth_best'] == 0:  # if this is the first line for this set of ids (i.e. the best viterbi path or only forward score)
+                if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
                     if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
-                        boundary_error_queries.append(':'.join([uid for uid in ids]))
+                        boundary_error_queries.append(':'.join([uid for uid in uids]))
                     else:
                         assert len(line['errors']) == 0
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
@@ -1165,9 +1160,9 @@ class PartitionDriver(object):
                 annotations[':'.join(line['unique_ids'])] = line  # TODO oh, man, you need to not have both <line> and <line_with_effective_erosions>. Then again, really not sure what else to do.
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
-                        print '      %s' % ':'.join(ids),
+                        print '      %s' % ':'.join(uids),
                         if not self.args.is_data:
-                            print '   %d' % same_event,
+                            print '   %d' % utils.from_same_event(self.reco_info, uids),
                         print ''
                     self.print_hmm_output(line_with_effective_erosions, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
                     # self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
@@ -1175,10 +1170,10 @@ class PartitionDriver(object):
                     if pcounter is not None:
                         pcounter.increment_per_family_params(line_with_effective_erosions)
                     if true_pcounter is not None:
-                        true_pcounter.increment_per_family_params(self.reco_info[ids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                        true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                     n_events_processed += 1
-                    for iseq in range(len(ids)):
-                        uid = ids[iseq]
+                    for iseq in range(len(uids)):
+                        uid = uids[iseq]
                         hmminfo = copy.deepcopy(line_with_effective_erosions)  # make a copy of the info, into which we'll insert the sequence-specific stuff
                         del hmminfo['unique_ids']
                         del hmminfo['seqs']
@@ -1196,17 +1191,16 @@ class PartitionDriver(object):
                                 perfplotter.evaluate(self.reco_info[uid], hmminfo, self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
+        # parameter and performance writing/plotting
         if pcounter is not None:
             pcounter.write(parameter_out_dir)
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if true_pcounter is not None:
-            assert parameter_out_dir[-1] != '/'
             true_pcounter.write(parameter_out_dir + '-true')
             if self.args.plotdir is not None:
                 true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
         if perfplotter is not None:
-            assert self.args.plotdir is not None
             perfplotter.plot(self.args.plotdir + '/hmm')
 
         print '    processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
@@ -1215,6 +1209,7 @@ class PartitionDriver(object):
             if self.args.debug:
                 print '                %s' % ', '.join(boundary_error_queries)
 
+        # write output file
         if self.args.outfname is not None:
             outpath = self.args.outfname
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line

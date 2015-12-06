@@ -395,7 +395,7 @@ def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, pl
     bigvals, smallvals = {}, {}
     for key_a, key_b in combinations:  # <key_[ab]> is colon-separated string (not a list of keys)
         a_ids, b_ids = key_a.split(':'), key_b.split(':')
-        if not utils.from_same_event(args.data, reco_info, a_ids) or not utils.from_same_event(args.data, reco_info, b_ids):  # skip clusters that were erroneously merged -- i.e., in effect, assume the previous step didn't screw up at all
+        if not utils.from_same_event(reco_info, a_ids) or not utils.from_same_event(reco_info, b_ids):  # skip clusters that were erroneously merged -- i.e., in effect, assume the previous step didn't screw up at all
             raise Exception('woop')
             continue
         jk = get_joint_key(key_a, key_b)
@@ -415,7 +415,7 @@ def make_a_distance_plot(metric, combinations, reco_info, cachevals, plotdir, pl
         else:
             assert False
 
-        if utils.from_same_event(args.data, reco_info, a_ids + b_ids):
+        if utils.from_same_event(reco_info, a_ids + b_ids):
             hists['all-clones'].fill(mval)
             for key in (key_a, key_b):
                 if key not in bigvals:
@@ -478,7 +478,7 @@ def make_distance_plots(label, n_leaves, mut_mult, cachefname, reco_info, metric
 
             unique_ids = line['unique_ids'].split(':')
 
-            if not utils.from_same_event(args.data, reco_info, unique_ids):  # 
+            if not utils.from_same_event(reco_info, unique_ids):
                 continue
 
             if len(unique_ids) == 1:

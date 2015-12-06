@@ -152,15 +152,12 @@ class ClusterPath(object):
 
         # clusters
         for cluster in self.partitions[ip]:
-            same_event = utils.from_same_event(reco_info is None, reco_info, cluster)
-            if same_event is None:
-                same_event = -1
-
             if abbreviate:
                 cluster_str = ':'.join(['o' for uid in cluster])
             else:
                 cluster_str = ':'.join(sorted([str(uid) for uid in cluster]))
-            if not same_event:
+
+            if reco_info is not None and not utils.from_same_event(reco_info, cluster):
                 cluster_str = utils.color('red', cluster_str)
             
             if abbreviate:
@@ -255,7 +252,7 @@ class ClusterPath(object):
         def get_bad_clusters(part):
             bad_clusters = []  # inferred clusters that aren't really all from the same event
             for ic in range(len(part)):
-                same_event = utils.from_same_event(True, reco_info, part[ic])  # are all the sequences from the same event?
+                same_event = utils.from_same_event(reco_info, part[ic])  # are all the sequences from the same event?
                 entire_cluster = True  # ... and if so, are they the entire true cluster?
                 if same_event:
                     reco_id = reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one

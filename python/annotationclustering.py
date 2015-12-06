@@ -228,12 +228,16 @@ class SingleLinkClusterer(object):
             a_name = line['id_a']
             b_name = line['id_b']
             score = float(line['logprob'])
-            from_same_event = -1 if (reco_info == None or a_name not in reco_info or b_name not in reco_info) else reco_info[a_name]['reco_id'] == reco_info[b_name]['reco_id']
-            dbg_str_list = ['%22s %22s   %8.3f   %d' % (a_name, b_name, score, from_same_event), ]
+            dbg_str_list = ['%22s %22s   %8.3f' % (a_name, b_name, score), ]
+            if reco_info is None:
+                dbg_str_list[-1] += '   %s' % ('-')
+            else:
+                from_same_event = utils.from_same_event(reco_info, [a_name, b_name])
+                dbg_str_list[-1] += '   %d' % (from_same_event)
             self.incorporate_into_clusters(a_name, b_name, score, dbg_str_list)
             self.pairscores[(utils.get_key((a_name, b_name)))] = score
             self.plotscores['all'].append(score)
-            if reco_info != None:
+            if reco_info is not None:
                 if from_same_event:
                     self.plotscores['same'].append(score)
                 else:
