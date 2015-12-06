@@ -95,6 +95,7 @@ column_dependencies['jf_insertion'] = []
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
 
+# definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
 presto_headers = {
     'unique_id' : 'SEQUENCE_ID',
     'v_gene' : 'V_CALL',

@@ -1159,10 +1159,10 @@ class PartitionDriver(object):
                         assert len(line['errors']) == 0
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
                 line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)  # NOTE may want to do this after printing? not sure yet
+                utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)
                 # NOTE I'm return <line> (i.e. without effective insertions) 'cause it looks nicer when you annotate the clonal families. Until I change my mind again.
                 line['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
-                annotations[':'.join(line['unique_ids'])] = line  # TODO oh, man, you need to not have both <line> and <line_with_effective_erosions>
+                annotations[':'.join(line['unique_ids'])] = line  # TODO oh, man, you need to not have both <line> and <line_with_effective_erosions>. Then again, really not sure what else to do.
                 if self.args.debug:
                     if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         print '      %s' % ':'.join(ids),
