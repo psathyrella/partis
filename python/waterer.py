@@ -100,17 +100,21 @@ class Waterer(object):
         # print '    sw time: %.3f' % (time.time()-start)
         print '      info for %d' % len(self.info['queries']),
         skipped_unproductive = len(self.unproductive_queries)
-        n_unknown = len(self.remaining_queries)
-        if skipped_unproductive > 0 or n_unknown > 0:
+        n_remaining = len(self.remaining_queries)
+        if skipped_unproductive > 0 or n_remaining > 0:
             print '     (skipped',
             print '%d / %d = %.3f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
-            if n_unknown > 0:
-                print '   %d / %d = %.3f unknown' % (n_unknown, len(self.input_info), float(n_unknown) / len(self.input_info)),
+            if n_remaining > 0:
+                print '   %d / %d = %.3f unknown' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
             print ')',
         print ''
         if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
-        assert len(self.info['queries']) + skipped_unproductive + n_unknown == len(self.input_info)
+        assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
+        if self.debug and n_remaining > 0:
+            print 'true annotations for remaining events:'
+            for qry in self.remaining_queries:
+                utils.print_reco_event(self.germline_seqs, self.reco_info[qry], extra_str='      ', label='true:')  #, indelfo=self.reco_info[query_name]['indels'])
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
             if self.true_pcounter is not None:
@@ -125,8 +129,14 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
+        # rewrite input germline sets if only_genes was specified
+        datadir = self.args.datadir
+        if self.args.only_genes is not None:
+            datadir = self.args.workdir + '/germline-sets'
+            rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, datadir, self.args.only_genes)
+
         if n_procs == 1:
-            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname)
+            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname, datadir)
             proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             utils.process_out_err(out, err)
@@ -138,7 +148,7 @@ class Waterer(object):
             cmd_strs, workdirs = [], []
             for iproc in range(n_procs):
                 workdirs.append(self.args.workdir + '/sw-' + str(iproc))
-                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, iproc, n_procs, shell))
+                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, datadir, iproc, n_procs, shell))
 
             # start all procs for the first time
             procs, n_tries = [], []
@@ -183,6 +193,11 @@ class Waterer(object):
                 for iproc in range(n_procs):
                     os.remove(workdirs[iproc] + '/' + base_infname)
 
+        if self.args.only_genes is not None:  # this'll rewrite them for each time through, which is ok and probably preferable
+            for fname in rewritten_files:
+                os.remove(fname)
+            os.rmdir(datadir)
+
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
@@ -214,7 +229,7 @@ class Waterer(object):
                     iquery += 1
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, iproc=None, n_procs=None, shell=False):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, iproc=None, n_procs=None, shell=False):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
@@ -231,7 +246,7 @@ class Waterer(object):
         match, mismatch = self.args.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
-        cmd_str += ' --vdj-dir ' + self.args.datadir
+        cmd_str += ' --vdj-dir ' + datadir  # NOTE not necessarily <self.args.datadir>
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
 
         if shell:
@@ -589,6 +604,7 @@ class Waterer(object):
         for region in utils.regions:
             n_matches[region] = len(all_match_names[region])
             n_genes_skipped = 0
+            skipped_genes = []
             for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
@@ -603,6 +619,7 @@ class Waterer(object):
                 # only use a specified set of genes
                 if self.args.only_genes is not None and gene not in self.args.only_genes:
                     n_genes_skipped += 1
+                    skipped_genes.append(gene)
                     continue
 
                 # add match to the list
@@ -637,6 +654,7 @@ class Waterer(object):
 
             if self.debug and n_genes_skipped > 0:
                 print '%8s skipped %d %s genes' % ('', n_genes_skipped, region)
+                print ''.join([utils.color_gene(g) for g in skipped_genes])
 
         for region in utils.regions:
             if region not in best:

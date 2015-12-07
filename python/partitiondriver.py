@@ -403,7 +403,7 @@ class PartitionDriver(object):
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
-        cmd_str += ' --datadir ' + os.getcwd() + '/' + self.args.datadir
+        cmd_str += ' --datadir ' + self.args.datadir  # NOTE waterer is using a rewritten datadir in the workdir if <only_genes> is specified... maybe I should switch this as well?
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         # cmd_str += ' --cache-naive-hfracs'  # seems to be about the same speed whether you do or not... I guess I should check some more but, aw, screw it. Cache files are big enough as it is.

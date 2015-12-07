@@ -13,6 +13,7 @@ import csv
 from subprocess import check_output, CalledProcessError
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 import multiprocessing
+import shutil
 import copy
 
 from opener import opener
@@ -145,6 +146,42 @@ def read_cyst_positions(datadir):
                 writer.writerow({'gene' : gene, 'cyst_start' : cyst_positions[gene]['cysteine-position']})
 
     return cyst_positions
+
+# ----------------------------------------------------------------------------------------
+def rewrite_germline_fasta(input_dir, output_dir, only_genes):
+    """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
+    print 'rewriting germlines from %s to %s' % (input_dir, output_dir)
+    input_germlines = read_germlines(input_dir)
+    input_aligned_v_genes = read_germlines(input_dir, only_region='v', aligned=True)
+    expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    def write_gl_file(fname, region, igls):
+        expected_files.append(fname)
+        with open(fname, 'w') as outfile:
+            for gene in igls[region]:
+                if gene not in only_genes:
+                    continue
+                outfile.write('>' + gene + '\n')
+                outfile.write(igls[region][gene] + '\n')
+
+    for region in regions:
+        write_gl_file(output_dir + '/igh' + region + '.fasta', region, input_germlines)
+    write_gl_file(output_dir + '/ighv-aligned.fasta', 'v', input_aligned_v_genes)
+
+    for fname in ['v-meta.json', 'v-meta.csv', 'j_tryp.csv']:
+        expected_files.append(output_dir + '/' + fname)
+        shutil.copyfile(input_dir + '/' + fname, output_dir + '/' + fname)
+
+    # make sure there weren't any files lingering in the output dir when we started
+    final_file_list = glob.glob(output_dir + '/*')
+    for fname in final_file_list:
+        if fname not in expected_files:
+            raise Exception('unexpected file %s (expected %s)' % (fname, ' '.join(expected_files)))
+
+    return expected_files  # return the rewritten files so they can be deleted if desired
 
 # ----------------------------------------------------------------------------------------
 def from_same_event(reco_info, query_names):
