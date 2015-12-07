@@ -1214,18 +1214,22 @@ class PartitionDriver(object):
             outpath = self.args.outfname
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
                 outpath = os.getcwd() + '/' + outpath
-            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indels']
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfo']
             outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
                 writer.writeheader()
                 for uids, line in annotations.items():
-                    outline = {k : line[k] for k in outheader if k != 'indels'}
+                    outline = {k : line[k] for k in outheader if k != 'indelfo'}
                     if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
                         outline['indelfo'] = self.sw_info['indels'][uids]
                     else:
                         outline['indelfo'] = {'reversed_seq': '', 'indels': []}
                     if self.args.presto_output:
+                        if uids in self.sw_info['indels']:
+                            raise Exception('passing indel info to presto requires some more thought')
+                        else:
+                            del outline['indelfo']
                         outline = utils.convert_to_presto(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, outline)
                     writer.writerow(outline)
 
