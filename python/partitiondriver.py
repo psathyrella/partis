@@ -1153,7 +1153,9 @@ class PartitionDriver(object):
                     else:
                         assert len(line['errors']) == 0
                 utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
+                utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, line)  # NOTE could really put this into the cdr3 info fcn
                 line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
+                # utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, line_with_effective_erosions)  # NOTE could really put this into the cdr3 info fcn
                 utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)
                 # NOTE I'm return <line> (i.e. without effective insertions) 'cause it looks nicer when you annotate the clonal families. Until I change my mind again.
                 line['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
@@ -1174,12 +1176,7 @@ class PartitionDriver(object):
                     n_events_processed += 1
                     for iseq in range(len(uids)):
                         uid = uids[iseq]
-                        hmminfo = copy.deepcopy(line_with_effective_erosions)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-                        del hmminfo['unique_ids']
-                        del hmminfo['seqs']
-                        hmminfo['seq'] = line_with_effective_erosions['seqs'][iseq]
-                        hmminfo['unique_id'] = uid
-                        utils.add_match_info(self.germline_seqs, hmminfo, self.cyst_positions, self.tryp_positions, debug=(self.args.debug > 0))
+                        hmminfo = utils.synthesize_single_seq_line(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, line_with_effective_erosions, iseq)
                         if pcounter is not None:
                             pcounter.increment_per_sequence_params(hmminfo)
                         if true_pcounter is not None:
@@ -1214,7 +1211,7 @@ class PartitionDriver(object):
             outpath = self.args.outfname
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
                 outpath = os.getcwd() + '/' + outpath
-            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfo']
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned-seqs', 'naive_seq', 'indelfo']
             outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
@@ -1230,7 +1227,7 @@ class PartitionDriver(object):
                             raise Exception('passing indel info to presto requires some more thought')
                         else:
                             del outline['indelfo']
-                        outline = utils.convert_to_presto(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, outline)
+                        outline = utils.convert_to_presto(outline)
                     writer.writerow(outline)
 
         if self.args.annotation_clustering == 'vollmers':

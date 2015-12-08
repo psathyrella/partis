@@ -102,7 +102,7 @@ presto_headers = {
     'v_gene' : 'V_CALL',
     'd_gene' : 'D_CALL',
     'j_gene' : 'J_CALL',
-    'seq' : 'SEQUENCE_IMGT',
+    'aligned-seq' : 'SEQUENCE_IMGT',
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
@@ -1713,40 +1713,59 @@ def auto_slurm(n_procs):
     return False
 
 # ----------------------------------------------------------------------------------------
-def align_v_genes(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, presto_line):
-    """ add dots according to the imgt gapping scheme """
-    add_match_info(germlines, line, cyst_positions, tryp_positions)
-    v_qr_seq = line['v_qr_seq']
-    v_gl_seq = line['v_gl_seq']
-    aligned_v_gl_seq = aligned_v_genes['v'][line['v_gene']]
-    assert len(v_qr_seq) == len(v_gl_seq)
-    if len(aligned_v_gl_seq) - aligned_v_gl_seq.count('.')!= len(v_gl_seq) + line['v_3p_del']:
-        raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + '.' * aligned_v_gl_seq.count('.'), line['v_3p_del']))
-    for ibase in range(len(aligned_v_gl_seq) - line['v_3p_del']):
-        if aligned_v_gl_seq[ibase] == '.':
-            v_qr_seq = v_qr_seq[ : ibase] + '.' + v_qr_seq[ibase : ]
-            v_gl_seq = v_gl_seq[ : ibase] + '.' + v_gl_seq[ibase : ]
-        else:
-            if v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
-                raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
-    if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq) - line['v_3p_del']:
-        raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
-    presto_line[presto_headers['seq']] = v_qr_seq  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
+def synthesize_single_seq_line(germline_seqs, cyst_positions, tryp_positions, aligned_v_genes, line, iseq):
+    hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+    del hmminfo['unique_ids']
+    del hmminfo['seqs']
+    hmminfo['seq'] = line['seqs'][iseq]
+    hmminfo['unique_id'] = line['unique_ids'][iseq]
+    if 'aligned-seqs' in hmminfo:
+        del hmminfo['aligned-seqs']
+        hmminfo['aligned-seq'] = line['aligned-seqs'][iseq]
+    add_match_info(germline_seqs, hmminfo, cyst_positions, tryp_positions)
+    return hmminfo
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto(germlines, cyst_positions, tryp_positions, aligned_v_genes, line):
+def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes, line):
+    """ add dots according to the imgt gapping scheme """
+    aligned_v_seqs = []
+    for iseq in range(len(line['seqs'])):
+        hmminfo = synthesize_single_seq_line(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, iseq)
+        add_match_info(germlines, hmminfo, cyst_positions, tryp_positions)
+        v_qr_seq = hmminfo['v_qr_seq']
+        v_gl_seq = hmminfo['v_gl_seq']
+        aligned_v_gl_seq = aligned_v_genes['v'][hmminfo['v_gene']]
+        assert len(v_qr_seq) == len(v_gl_seq)
+        if len(aligned_v_gl_seq) - aligned_v_gl_seq.count('.')!= len(v_gl_seq) + hmminfo['v_3p_del']:
+            raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + '.' * aligned_v_gl_seq.count('.'), hmminfo['v_3p_del']))
+        for ibase in range(len(aligned_v_gl_seq) - hmminfo['v_3p_del']):
+            if aligned_v_gl_seq[ibase] == '.':
+                v_qr_seq = v_qr_seq[ : ibase] + '.' + v_qr_seq[ibase : ]
+                v_gl_seq = v_gl_seq[ : ibase] + '.' + v_gl_seq[ibase : ]
+            else:
+                if v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
+                    raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
+        if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq) - hmminfo['v_3p_del']:
+            raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
+        aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
+    line['aligned-seqs'] = aligned_v_seqs
+
+# ----------------------------------------------------------------------------------------
+def convert_to_presto(line):
     """ convert <line> to presto csv format """
     if len(line['unique_ids']) > 1:
         print line['unique_ids']
         raise Exception('multiple seqs not handled in convert_to_presto')
-    else:
-        line['unique_id'] = line['unique_ids'][0]
-        line['seq'] = line['seqs'][0]
-        del line['unique_ids']
-        del line['seqs']
+
+    line['unique_id'] = line['unique_ids'][0]  # NOTE duplicates code in synthesize_single_seq_line()
+    line['seq'] = line['seqs'][0]
+    line['aligned-seq'] = line['aligned-seqs'][0]
+    del line['unique_ids']
+    del line['seqs']
+    del line['aligned-seqs']
+
     presto_line = {}
     for head, phead in presto_headers.items():
         presto_line[phead] = line[head]
-    align_v_genes(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, presto_line)
 
     return presto_line
