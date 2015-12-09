@@ -35,7 +35,6 @@ parser.add_argument('--annotation-clustering-thresholds', help='colon-separated 
 parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
-print 'TODO make sure no-indels works'
 print 'TODO combine self.germlines, aligned v genes, and the conserved codon info'
 print 'TODO figure out how to make distinction between line and line_with_effective_erosions'
 print 'use utils.synthesize_single_seq_line() everywhere possible'

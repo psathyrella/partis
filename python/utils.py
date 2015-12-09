@@ -106,6 +106,8 @@ presto_headers = {
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
+# these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
+test_only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
 
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
@@ -568,9 +570,10 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
             insertion_to_remove = mature_insertion[i_first_N : ]
         else:
             assert False
-        print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
-        color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
-        print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
+        if debug:
+            print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
+            color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
+            print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
 
     # remove the insertion that we want to remove
     if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
@@ -1736,7 +1739,9 @@ def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes,
         v_gl_seq = hmminfo['v_gl_seq']
         aligned_v_gl_seq = aligned_v_genes['v'][hmminfo['v_gene']]
         assert len(v_qr_seq) == len(v_gl_seq)
-        if len(aligned_v_gl_seq) - aligned_v_gl_seq.count('.')!= len(v_gl_seq) + hmminfo['v_3p_del']:
+        if hmminfo['v_5p_del']:
+            raise Exception('nonzero v_5p_del in %s' % hmminfo['unique_id'])
+        if len(aligned_v_gl_seq) != len(v_gl_seq) + hmminfo['v_3p_del'] + aligned_v_gl_seq.count('.'):
             raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + '.' * aligned_v_gl_seq.count('.'), hmminfo['v_3p_del']))
         for ibase in range(len(aligned_v_gl_seq) - hmminfo['v_3p_del']):
             if aligned_v_gl_seq[ibase] == '.':

@@ -25,6 +25,8 @@ class Waterer(object):
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
+        self.max_insertion_length = 35  # if vdjalign reports an insertion longer than this, rerun the query (typically with different match/mismatch ratio)
+
         self.input_info = input_info
         self.remaining_queries = set()  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         for query in self.input_info.keys():
@@ -108,6 +110,8 @@ class Waterer(object):
                 print '   %d / %d = %.3f unknown' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
             print ')',
         print ''
+        if n_remaining > 0:
+            print '   %s %d missing annotations' % (utils.color('red', 'warning'), n_remaining)
         if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
         assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
@@ -674,9 +678,8 @@ class Waterer(object):
         # check for suspiciously bad annotations
         vd_insertion = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
         dj_insertion = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
-        max_insertion_length = 35
         if self.nth_try < 2:
-            if len(vd_insertion) > max_insertion_length or len(dj_insertion) > max_insertion_length:
+            if len(vd_insertion) > self.max_insertion_length or len(dj_insertion) > self.max_insertion_length:
                 if self.debug:
                     print '      suspiciously long insertion, rerunning'
                 queries_to_rerun['weird-annot.'].add(query_name)
