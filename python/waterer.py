@@ -494,40 +494,43 @@ class Waterer(object):
             l_gene = best[l_reg]
             r_gene = best[r_reg]
             overlap = qrbounds[l_gene][1] - qrbounds[r_gene][0]
-            if overlap > 0:
-                l_length = qrbounds[l_gene][1] - qrbounds[l_gene][0]
-                r_length = qrbounds[r_gene][1] - qrbounds[r_gene][0]
-                l_portion, r_portion = 0, 0
-                while l_portion + r_portion < overlap:
-                    if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                        print '      ERROR both lengths went to zero'
-                        assert False
-                    elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
-                        if (l_portion + r_portion) % 2 == 0:
-                            l_portion += 1  # give one base to the left
-                            l_length -= 1
-                        else:
-                            r_portion += 1  # and one to the right
-                            r_length -= 1
-                    elif l_length > 1:
-                        l_portion += 1
+
+            if overlap <= 0:
+                continue
+
+            l_length = qrbounds[l_gene][1] - qrbounds[l_gene][0]  # initial length of lefthand gene match
+            r_length = qrbounds[r_gene][1] - qrbounds[r_gene][0]  # and same for the righthand one
+            l_portion, r_portion = 0, 0  # portion of the initial overlap that we give to each side
+            while l_portion + r_portion < overlap:
+                if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
+                    print '      ERROR both lengths went to zero'
+                    assert False
+                elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
+                    if (l_portion + r_portion) % 2 == 0:
+                        l_portion += 1  # give one base to the left
                         l_length -= 1
-                    elif r_length > 1:
-                        r_portion += 1
+                    else:
+                        r_portion += 1  # and one to the right
                         r_length -= 1
+                elif l_length > 1:
+                    l_portion += 1
+                    l_length -= 1
+                elif r_length > 1:
+                    r_portion += 1
+                    r_length -= 1
 
-                if self.debug:
-                    print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
-                assert l_portion + r_portion == overlap
-                qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
-                glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
-                qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
-                glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
+            if self.debug:
+                print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+            assert l_portion + r_portion == overlap
+            qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
+            glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
+            qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
+            glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
 
-                best[l_reg + '_gl_seq'] = self.germline_seqs[l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
-                best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
-                best[r_reg + '_gl_seq'] = self.germline_seqs[r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
-                best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
+            best[l_reg + '_gl_seq'] = self.germline_seqs[l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
+            best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
+            best[r_reg + '_gl_seq'] = self.germline_seqs[r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
+            best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
 
     # ----------------------------------------------------------------------------------------
     def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions):
