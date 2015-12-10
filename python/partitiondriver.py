@@ -1192,13 +1192,13 @@ class PartitionDriver(object):
         if pcounter is not None:
             pcounter.write(parameter_out_dir)
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions, only_csv=self.args.only_csv_plots)
         if true_pcounter is not None:
             true_pcounter.write(parameter_out_dir + '-true')
             if self.args.plotdir is not None:
-                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions)
+                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions, only_csv=self.args.only_csv_plots)
         if perfplotter is not None:
-            perfplotter.plot(self.args.plotdir + '/hmm')
+            perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
         print '    processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
         if len(boundary_error_queries) > 0:

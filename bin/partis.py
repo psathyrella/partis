@@ -44,6 +44,7 @@ parser.add_argument('--naive-hamming', action='store_true', help='agglomerate pu
 parser.add_argument('--naivety', default='M', choices=['M', 'N'])
 parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
+parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

@@ -156,7 +156,7 @@ class MuteFreqer(object):
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None):
+    def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
         if not self.finalized:
             self.finalize()
 
@@ -183,13 +183,13 @@ class MuteFreqer(object):
             elif utils.get_region(gene) == 'j' and tryp_positions is not None:
                 xline = int(tryp_positions[gene])
                 figsize[0] *= 2
-            plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize)  #, cwidth=4000, cheight=1000)
+            plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
         # make mean mute freq hists
-        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
+        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
         for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True)
+            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
 
         # then write html file and fix permissiions
         check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])

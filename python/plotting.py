@@ -178,7 +178,7 @@ def add_bin_labels_not_in_all_hists(hists):
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
-                 xtitle=None, ytitle=None, markersizes=None, no_labels=False):
+                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False):
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
@@ -291,17 +291,19 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if hist.bin_labels.count('') != len(hist.bin_labels):
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
-    mpl_finish(ax, plotdir, plotname,
-               title=plotname if plottitle is None else plottitle,
-               xlabel=hist.xtitle if xtitle is None else xtitle,
-               ylabel=hist.ytitle if ytitle is None else ytitle,
-               xbounds=[xmin, xmax],
-               ybounds=[-0.03*ymax, 1.15*ymax],
-               leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
-               log=log, xticks=xticks, xticklabels=xticklabels)
 
     if not os.path.exists(plotdir + '/plots'):
         raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')
+
+    if not only_csv:
+        mpl_finish(ax, plotdir, plotname,
+                   title=plotname if plottitle is None else plottitle,
+                   xlabel=hist.xtitle if xtitle is None else xtitle,
+                   ylabel=hist.ytitle if ytitle is None else ytitle,
+                   xbounds=[xmin, xmax],
+                   ybounds=[-0.03*ymax, 1.15*ymax],
+                   leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
+                   log=log, xticks=xticks, xticklabels=xticklabels)
 
     if write_csv:
         assert more_hists is None
