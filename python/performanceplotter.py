@@ -218,5 +218,6 @@ class PerformancePlotter(object):
         for column in self.hists:
             plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
 
-        check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-        check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+        if not only_csv:
+            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+            check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up

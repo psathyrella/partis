@@ -562,8 +562,9 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                     'normalized-means':':'.join([str(nm) for nm in all_normalized_means[ivar]])
                 })
 
-    check_call(['./bin/permissify-www', args.outdir])  # NOTE this should really permissify starting a few directories higher up
-    check_call(['./bin/makeHtml', args.outdir, '3', 'null', 'svg'])
+    if not args.only_csv_plots:
+        check_call(['./bin/permissify-www', args.outdir])  # NOTE this should really permissify starting a few directories higher up
+        check_call(['./bin/makeHtml', args.outdir, '3', 'null', 'svg'])
 
 # ----------------------------------------------------------------------------------------
 def make_mean_plots(plotdir, subdirs, outdir):
