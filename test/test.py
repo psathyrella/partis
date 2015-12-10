@@ -5,8 +5,9 @@ import os
 import csv
 import glob
 import math
+import shutil
 from collections import OrderedDict
-from subprocess import check_call, check_output
+from subprocess import Popen, PIPE, check_call, check_output
 import sys
 sys.path.insert(1, './python')
 from baseutils import get_extra_str
@@ -61,7 +62,7 @@ class Tester(object):
         simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt + '/hmm' for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
-        self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', utils.test_only_genes]
+        self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', utils.test_only_genes, '--only-csv-plots']
 
         # check against reference csv file
         self.tiny_eps = 1e-4
@@ -75,71 +76,58 @@ class Tester(object):
         self.eps_vals['ccf_over']       = 0.08
 
         n_partition_queries = '250'
-        self.cachefnames = { st : st + '-partition-cache.csv' for st in self.stypes }
         self.logfname = self.dirs['new'] + '/test.log'
-        open(self.logfname, 'w').close()
+        self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
         self.quick_tests = ['annotate-ref-simu']
+        self.production_tests = ['cache-data-parameters', 'simulate', 'cache-simu-parameters']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
 
         self.tests = OrderedDict()
 
-        def add_inference_tests(stype):  # if stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[stype], '--parameter-dir', param_dirs[stype]['simu'], '--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + stype + '-simu-performance', '--plot-performance']}
-            self.tests['partition-' + stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[stype], '--parameter-dir', param_dirs[stype]['simu'], '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[stype]]}
-            # self.tests['partition-' + stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[stype]['data'], '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
-            self.tests['point-partition-' + stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[stype], '--parameter-dir', param_dirs[stype]['simu'], '--n-max-queries', n_partition_queries]}
-            self.tests['vsearch-partition-' + stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[stype], '--parameter-dir', param_dirs[stype]['simu'], '--n-max-queries', n_partition_queries]}
+        def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
+            self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_stype + '-simu-performance', '--plot-performance']}
+            self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]}
+            # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
+            self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
+
 
         add_inference_tests('ref')
+        self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
+        self.tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
+        self.tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
+        add_inference_tests('new')
 
-        # # then infer new parameters, and make new simulation
-        # self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
-        # self.tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
-        # self.tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
-
-        # # then test performance on the new simulation, with the new parameter values
-        # self.tests['annotate-new-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', new_simfname, '--parameter-dir', param_dirs['new']['simu'], '--plotdir', self.dirs['new'] + '/' + self.label + '/plots/new-simu-performance', '--plot-performance']}
-        # # self.tests['annotate-new-simu']  = {'bin' : run_driver, 'action' : 'plot-performance', 'extras' : []}
-        # # self.tests['single-point-estimate']      = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', new_simfname, '--parameter-dir', param_dirs['new']['simu'], '--n-max-queries', '10']}
-        # self.tests['partition-data']             = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs['new']['data'], '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
-        # self.tests['partition-new-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', param_dirs['new']['simu'], '--n-max-queries', n_partition_queries]}
-        # self.tests['point-partition-new-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', param_dirs['new']['simu'], '--naive-hamming', '--n-max-queries', n_partition_queries]}
-        # self.tests['vsearch-partition-new-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', new_simfname, '--parameter-dir', param_dirs['new']['simu'], '--naive-vsearch', '--n-max-queries', n_partition_queries]}
-
-        self.perf_info = { stype : OrderedDict() for stype in self.stypes }
+        self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
         if not args.dont_run:
             self.run(args)
+        print 'reading performance info'
         for version_stype in self.stypes:
             self.read_performance_info(version_stype)
         self.compare_performance()
-        self.compare_partition_cachefiles(input_stype='ref')  # TODO do this for new input_stype as well
-
-    # ----------------------------------------------------------------------------------------
-    def bust_cache(self):
-        # NOTE this removes output corresponding to tests that aren't necessarily in <self.tests>
-
-        # first remove (very, very gingerly) whole reference dir
-        dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs['ref'] + '/*')])
-        expected_content = set([k + '.csv' for k in self.tests.keys()] + [os.path.basename(self.logfname), self.label])
-        for input_stype in ['ref']:  # TODO do this for new input_stype as well
-            expected_content.add(self.cachefnames[input_stype])
-        if len(dir_content - expected_content) > 0 or len(expected_content - dir_content) > 0:
-            if len(dir_content - expected_content) > 0:
-                print 'in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content)))
-            if len(expected_content - dir_content) > 0:
-                print 'expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content)))
-            raise Exception('unexpected or missing content in reference dir')
+        self.compare_production_results()
+        if not args.quick:  # TODO clean this up
+            for input_stype in self.stypes:
+                self.compare_partition_cachefiles(input_stype=input_stype)
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
+        open(self.logfname, 'w').close()
+
         for name, info in self.tests.items():
             if args.quick and name not in self.quick_tests:
                 continue
-            input_stype = 'ref' if '-ref-' in name else 'new'
-            assert '-' + input_stype + '-' in name
+
+            input_stype = None
+            if name not in self.production_tests:
+                input_stype = 'ref' if '-ref-' in name else 'new'
+                assert '-' + input_stype + '-' in name
+                if name == 'partition-' + input_stype + '-simu' and os.path.exists(self.dirs['new'] + '/' + self.cachefnames[input_stype]):
+                    check_call(['rm', '-v', self.dirs['new'] + '/' + self.cachefnames[input_stype]])
+
             action = info['action'] if 'action' in info else name
             cmd_str = info['bin'] + ' --action ' + action
             if info['bin'] == self.partis:
@@ -149,8 +137,6 @@ class Tester(object):
                 cmd_str += get_extra_str(info['extras'] + self.common_extras)
                 if action == 'cache-data-parameters':
                     cmd_str += ' --datafname ' + self.datafname
-            if self.cachefnames[input_stype] in cmd_str and os.path.exists(self.dirs['new'] + '/' + self.cachefnames[input_stype]):
-                check_call(['rm', '-v', self.dirs['new'] + '/' + self.cachefnames[input_stype]])
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
             logfile = open(self.logfname, 'a')
@@ -159,16 +145,57 @@ class Tester(object):
             check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
 
     # ----------------------------------------------------------------------------------------
+    def remove_reference_results(self, expected_content):
+        print '  remove ref files'
+        dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs['ref'] + '/*')])
+        if len(dir_content - expected_content) > 0 or len(expected_content - dir_content) > 0:
+            if len(dir_content - expected_content) > 0:
+                print 'in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content)))
+            if len(expected_content - dir_content) > 0:
+                print 'expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content)))
+            raise Exception('unexpected or missing content in reference dir')
+        for fname in [self.dirs['ref'] + '/' + ec for ec in expected_content]:
+            print '    rm %s' % fname
+            if os.path.isdir(fname):
+                shutil.rmtree(fname)
+            else:
+                os.remove(fname)
+
+    # ----------------------------------------------------------------------------------------
+    def bust_cache(self):
+        test_outputs = [k + '.csv' for k in self.tests.keys() if k not in self.production_tests]
+        expected_content = set(test_outputs + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
+
+        # remove (very, very gingerly) whole reference dir
+        self.remove_reference_results(expected_content)
+
+        # copy over parameters, simulation, and plots
+        # NOTE in the ref dir, the ref in new input_stype files are always identical, since we'd always make sure we actually pass the tests before committing
+        print '  copy new files to ref'
+        for fname in expected_content:
+            source_fname = self.dirs['new'] + '/' + fname
+            if '-ref-' in fname:  # these correspond to stuff run on the old reference simulation and parameters, so we no longer need it
+                os.remove(source_fname)
+                continue
+
+            if '-new-' in fname:  # whereas the stuff that's on the new simulation and parameters replaces both the ref and new stuff
+                print '    cp %s   -->  %s/ (new --> ref)' % (fname, self.dirs['ref'])
+                shutil.copy(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
+            print '    mv %s   -->  %s/' % (fname, self.dirs['ref'])
+            shutil.move(source_fname, self.dirs['ref'] + '/')
+
+    # ----------------------------------------------------------------------------------------
     # collect summary performance info from a few places in stashdir
     def read_performance_info(self, version_stype):
-        for input_stype in ['ref']:  #, 'new']
+        for input_stype in self.stypes:
             self.read_annotation_performance(version_stype, input_stype)
             self.read_partition_performance(version_stype, input_stype)
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_performance(self, version_stype, input_stype):
+    def read_annotation_performance(self, version_stype, input_stype, debug=False):
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
-        print '  version %s input %s annotation' % (version_stype, input_stype)
+        if debug:
+            print '  version %s input %s annotation' % (version_stype, input_stype)
 
         def read_performance_file(fname, column, only_ibin=None):
             values = []
@@ -188,24 +215,28 @@ class Tester(object):
 
         perfdir = self.dirs[version_stype] + '/' + self.label + '/plots/' + input_stype + '-simu-performance'
         for method in ['sw', 'hmm']:
-            print '   ', method
+            if debug:
+                print '   ', method
 
             # fraction of genes correct
             for region in utils.regions:
                 fraction_correct = read_performance_file(perfdir + '/' + method + '/plots/' + region + '_gene.csv', 'contents', only_ibin=1)
-                print '      %s %.3f' % (region, fraction_correct)
+                if debug:
+                    print '      %s %.3f' % (region, fraction_correct)
                 self.perf_info[version_stype][input_stype + '-' + method + '-' + region + '_gene_correct'] = fraction_correct
 
             # hamming fraction
             hamming_hist = Hist(fname=perfdir + '/' + method + '/plots/hamming_to_true_naive.csv')
-            print '      mean hamming %.2f' % hamming_hist.get_mean()
+            if debug:
+                print '      mean hamming %.2f' % hamming_hist.get_mean()
             self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
 
     # ----------------------------------------------------------------------------------------
-    def read_partition_performance(self, version_stype, input_stype):
+    def read_partition_performance(self, version_stype, input_stype, debug=False):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
-        print '  version %s input %s partitioning' % (version_stype, input_stype)
-        print '    adj mi   ccf under/over        test                    description'
+        if debug:
+            print '  version %s input %s partitioning' % (version_stype, input_stype)
+            print '    adj mi   ccf under/over        test                    description'
         for ptest in [k for k in self.tests.keys() if 'partition' in k and input_stype in k]:
             if args.quick and ptest not in self.quick_tests:
                 continue
@@ -216,11 +247,13 @@ class Tester(object):
                 ref_cp = ClusterPath(-1)
                 ref_cp.readfile(self.dirs['xxxref'] + '/' + ptest + '.csv')
                 self.perf_info['xxx'][ptest] = utils.adjusted_mutual_information(cp.partitions[cp.i_best], ref_cp.partitions[ref_cp.i_best])  # adj mi between the reference and the new data partitions
-                print '    %5.2f   %-28s   to reference partition' % (self.perf_info['xxx'][ptest], ptest)
+                if debug:
+                    print '    %5.2f   %-28s   to reference partition' % (self.perf_info['xxx'][ptest], ptest)
             else:
                 self.perf_info[version_stype][ptest + '-adj_mi'] = cp.adj_mis[cp.i_best]  # adj mi to true partition
                 self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'] = cp.ccfs[cp.i_best]
-                print '    %5.2f    %5.2f %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-adj_mi'], self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'], ptest)
+                if debug:
+                    print '    %5.2f    %5.2f %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-adj_mi'], self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'], ptest)
 
     # ----------------------------------------------------------------------------------------
     def compare_performance(self):
@@ -230,8 +263,8 @@ class Tester(object):
         refkeys = set(self.perf_info['ref'].keys())
         newkeys = set(self.perf_info['new'].keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
-            print '  %d in ref but not in new info' % len(refkeys - newkeys)
-            print '  %d in new but not in ref info' % len(newkeys - refkeys)
+            print '  %d keys only in ref' % len(refkeys - newkeys)
+            print '  %d keys only in new' % len(newkeys - refkeys)
             print '  %d in common' % len(refkeys & newkeys)
             raise Exception('')
 
@@ -250,9 +283,24 @@ class Tester(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
+    def compare_production_results(self):
+        print 'diffing production results'
+        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu']:
+            cmd = '  diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
+            print cmd
+            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
+            out, err = proc.communicate()
+            if proc.returncode != 0:
+                outlines = [ l for l in out.split('\n') if 'differ' in l ]
+                n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
+                print utils.color('red', '    %d / %d files differ' % (len(outlines), n_total_files))
+                if err != '':
+                    print err
+
+    # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
-        print '\npartition cache file'
+        print '%s partition cache file' % input_stype
 
         def readcache(fname):
             cache = {}
@@ -269,11 +317,13 @@ class Tester(object):
         refkeys = set(refcache.keys())
         newkeys = set(newcache.keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
-            print '  %d in ref but not in new cache' % len(refkeys - newkeys)
-            print '  %d in new but not in ref cache' % len(newkeys - refkeys)
-            print '  %d cached uids in common' % len(refkeys & newkeys)
+            if len(refkeys - newkeys) > 0:
+                print utils.color('red', '  %d only in ref' % len(refkeys - newkeys))
+            if len(newkeys - refkeys) > 0:
+                print utils.color('red', '  %d only in new' % len(newkeys - refkeys))
+            print '  %d in common' % len(refkeys & newkeys)
         else:
-            print '  all keys in new and ref cache are the same'
+            print '    identical keys in new and ref cache'
 
         hammings, delta_logprobs = [], []
         n_different_length, n_big_hammings, n_big_delta_logprobs = 0, 0, 0
@@ -296,11 +346,11 @@ class Tester(object):
                     n_big_delta_logprobs += 1
                     delta_logprobs.append(delta_logprob)
 
-        print '              fraction different     mean difference among differents'
-        print '  naive seqs     %d / %d                      %.3f' % (n_big_hammings, len(hammings) + n_different_length, numpy.average(hammings) if len(hammings) > 0 else 0.)
-        print '  log probs      %d / %d                      %.3f' % (n_big_delta_logprobs, len(delta_logprobs), numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
+        print '                fraction different     mean difference among differents'
+        print '    naive seqs     %d / %d                      %.3f   (hamming fraction)' % (n_big_hammings, len(hammings) + n_different_length, numpy.average(hammings) if len(hammings) > 0 else 0.)
+        print '    log probs      %d / %d                      %.3f' % (n_big_delta_logprobs, len(delta_logprobs), numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
         if n_different_length > 0:
-            print '    %d different length' % n_different_length
+            print '      %d different length' % n_different_length
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -309,7 +359,6 @@ parser.add_argument('--dont-plot', action='store_true', help='don\'t make all th
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 args = parser.parse_args()
-print 'TODO add in cache-bust option'
 
 tester = Tester()
 if args.bust_cache:
