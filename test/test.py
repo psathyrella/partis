@@ -15,38 +15,6 @@ import utils
 from hist import Hist
 from clusterpath import ClusterPath
 
-def get_typical_variances():
-    raise Exception('needs updating to work as a function')
-    # cp = ClusterPath()
-    # cp.readfile('tmp.csv')
-    # cp.print_partitions()
-    # sys.exit()
-    # cps = []
-    # adj_mis, ccf_unders, ccf_overs = [], [], []
-    # for iseed in range(6):
-    #     # print 'seed %d' % iseed
-    #     cp = ClusterPath()
-    #     cp.readfile('%d.csv' % iseed)
-    #     cp.print_partitions()  #(cp.i_best)  #, abbreviate=False)
-    #     adj_mis.append(cp.adj_mis[cp.i_best])
-    #     ccf_unders.append(cp.ccfs[cp.i_best][0])
-    #     ccf_overs.append(cp.ccfs[cp.i_best][1])
-    #     cps.append(cp)
-    # def print_mean_variance(vals):
-    #     mean = numpy.average(vals)
-    #     variance = numpy.average((vals - mean)**2)  #, weights=wgts)
-    #     print 'mean %.2f   std dev %.3f   (%.1f%%)' % (mean, math.sqrt(variance), 100. * math.sqrt(variance) / mean)
-
-    # # mean/var for six random seeds
-    # print_mean_variance(adj_mis)     # mean 0.61   std dev 0.053   (8.7%)
-    # print_mean_variance(ccf_unders)  # mean 0.74   std dev 0.026   (3.5%)
-    # print_mean_variance(ccf_overs)   # mean 0.90   std dev 0.015   (1.7%)
-    # # for iseed in range(len(cps)):
-    # #     icp = cps[iseed]
-    # #     for jseed in range(iseed, len(cps)):
-    # #         jcp = cps[jseed]
-    # #         print '  %d %d   %.3f' % (iseed, jseed, utils.adjusted_mutual_information(icp.partitions[icp.i_best], jcp.partitions[jcp.i_best]))
-
 # ----------------------------------------------------------------------------------------
 class Tester(object):
     # ----------------------------------------------------------------------------------------
@@ -67,10 +35,10 @@ class Tester(object):
         # check against reference csv file
         self.tiny_eps = 1e-4
         self.eps_vals = {}  # fractional difference which we allow for each test type (these were generated with the code in get_typical_variances() above)
-        self.eps_vals['v_gene_correct'] = 0.001  # hm, actually, I think I just made the annotation ones up
-        self.eps_vals['d_gene_correct'] = 0.001
-        self.eps_vals['j_gene_correct'] = 0.001
-        self.eps_vals['mean_hamming']   = 0.001
+        self.eps_vals['v_gene_correct'] = 0.02  # hm, actually, I think I just made the annotation ones up
+        self.eps_vals['d_gene_correct'] = 0.02
+        self.eps_vals['j_gene_correct'] = 0.02
+        self.eps_vals['mean_hamming']   = 0.1
         self.eps_vals['adj_mi']         = 0.2  # the three partitioning ones are roughly two sigma
         self.eps_vals['ccf_under']      = 0.08
         self.eps_vals['ccf_over']       = 0.08
@@ -91,7 +59,6 @@ class Tester(object):
             self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
 
-
         add_inference_tests('ref')
         self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
         self.tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
@@ -109,8 +76,8 @@ class Tester(object):
             self.read_performance_info(version_stype)
         self.compare_performance()
         self.compare_production_results()
-        if not args.quick:  # TODO clean this up
-            for input_stype in self.stypes:
+        for input_stype in self.stypes:
+            if 'partition-' + input_stype + '-simu' in self.tests:
                 self.compare_partition_cachefiles(input_stype=input_stype)
 
     # ----------------------------------------------------------------------------------------
@@ -323,9 +290,10 @@ class Tester(object):
                 print utils.color('red', '  %d only in new' % len(newkeys - refkeys))
             print '  %d in common' % len(refkeys & newkeys)
         else:
-            print '    identical keys in new and ref cache'
+            print '    %d identical keys in new and ref cache' % len(refkeys)
 
         hammings, delta_logprobs = [], []
+        n_hammings, n_delta_logprobs = 0, 0
         n_different_length, n_big_hammings, n_big_delta_logprobs = 0, 0, 0
         hamming_eps = 0.
         logprob_eps = 1e-5
@@ -333,6 +301,7 @@ class Tester(object):
             refline = refcache[uids]
             newline = newcache[uids]
             if refline['naive_seq'] != '':
+                n_hammings += 1
                 if len(refline['naive_seq']) == len(newline['naive_seq']):
                     hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
                     if hamming_fraction > hamming_eps:
@@ -341,16 +310,28 @@ class Tester(object):
                 else:
                     n_different_length += 1
             if refline['logprob'] != '':
+                n_delta_logprobs += 1
                 delta_logprob = abs(float(refline['logprob']) - float(newline['logprob']))
                 if delta_logprob > logprob_eps:
                     n_big_delta_logprobs += 1
                     delta_logprobs.append(delta_logprob)
 
+        diff_hfracs_str = '%d / %d' % (n_big_hammings, n_hammings)
+        mean_hfrac_str = '%.3f' % (numpy.average(hammings) if len(hammings) > 0 else 0.)
+        if n_big_hammings > 0:
+            diff_hfracs_str = utils.color('red', diff_hfracs_str)
+            mean_hfrac_str = utils.color('red', mean_hfrac_str)
+
+        diff_logprob_str = '%d / %d' % (n_big_delta_logprobs, n_delta_logprobs)
+        mean_logprob_str = '%.6f' % (numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
+        if n_big_delta_logprobs > 0:
+            diff_logprob_str = utils.color('red', diff_logprob_str)
+            mean_logprob_str = utils.color('red', mean_logprob_str)
         print '                fraction different     mean difference among differents'
-        print '    naive seqs     %d / %d                      %.3f   (hamming fraction)' % (n_big_hammings, len(hammings) + n_different_length, numpy.average(hammings) if len(hammings) > 0 else 0.)
-        print '    log probs      %d / %d                      %.3f' % (n_big_delta_logprobs, len(delta_logprobs), numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
+        print '    naive seqs     %s                      %s   (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
+        print '    log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
         if n_different_length > 0:
-            print '      %d different length' % n_different_length
+            print utils.color('red', '      %d different length' % n_different_length)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -392,3 +373,37 @@ check_call(['./bin/permissify-www', www_dir])
 
 #     env.Command('test/_results/%s.passed' % name, out,
 #                 './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
+
+
+def get_typical_variances():
+    raise Exception('needs updating to work as a function')
+    # cp = ClusterPath()
+    # cp.readfile('tmp.csv')
+    # cp.print_partitions()
+    # sys.exit()
+    # cps = []
+    # adj_mis, ccf_unders, ccf_overs = [], [], []
+    # for iseed in range(6):
+    #     # print 'seed %d' % iseed
+    #     cp = ClusterPath()
+    #     cp.readfile('%d.csv' % iseed)
+    #     cp.print_partitions()  #(cp.i_best)  #, abbreviate=False)
+    #     adj_mis.append(cp.adj_mis[cp.i_best])
+    #     ccf_unders.append(cp.ccfs[cp.i_best][0])
+    #     ccf_overs.append(cp.ccfs[cp.i_best][1])
+    #     cps.append(cp)
+    # def print_mean_variance(vals):
+    #     mean = numpy.average(vals)
+    #     variance = numpy.average((vals - mean)**2)  #, weights=wgts)
+    #     print 'mean %.2f   std dev %.3f   (%.1f%%)' % (mean, math.sqrt(variance), 100. * math.sqrt(variance) / mean)
+
+    # # mean/var for six random seeds
+    # print_mean_variance(adj_mis)     # mean 0.61   std dev 0.053   (8.7%)
+    # print_mean_variance(ccf_unders)  # mean 0.74   std dev 0.026   (3.5%)
+    # print_mean_variance(ccf_overs)   # mean 0.90   std dev 0.015   (1.7%)
+    # # for iseed in range(len(cps)):
+    # #     icp = cps[iseed]
+    # #     for jseed in range(iseed, len(cps)):
+    # #         jcp = cps[jseed]
+    # #         print '  %d %d   %.3f' % (iseed, jseed, utils.adjusted_mutual_information(icp.partitions[icp.i_best], jcp.partitions[jcp.i_best]))
+
