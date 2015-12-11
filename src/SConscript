@@ -2,7 +2,7 @@ import os
 import sys
 import glob
 
-env = Environment()
+env = Environment(ENV=os.environ)
 env.Append(CPPFLAGS =  ['-Ofast', '-Wall', '-std=c++0x'])  # '-pg', '-g', 
 env.Append(LINKFLAGS = ['-Ofast', '-std=c++0x'])           # '-pg', '-g', 
 # build_dir = os.getcwd()  # should be packages/ham/_build
