@@ -1,8 +1,8 @@
 echo -e "\n--> running $0"
 set -eu
 
-if grep -v '/$' /proc/1/cgroup>/dev/null; then
-    basedir=/partis  # if we're in docker
+if [ -f /.dockerinit ]; then  # if we're in docker
+    basedir=/partis
 else
     basedir=$PWD
 fi

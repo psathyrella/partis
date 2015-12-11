@@ -2,7 +2,7 @@ import os
 import glob
 import sys
 
-env = Environment()
+env = Environment(ENV=os.environ)
 env.Append(CPPFLAGS = ['-Wall', '-Ofast', '-g'])
 env.Append(CPPPATH = ['../../include'])
 
