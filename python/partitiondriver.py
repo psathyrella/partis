@@ -29,27 +29,27 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
-        self.germline_seqs = utils.read_germlines(self.args.datadir)
-        self.aligned_v_genes = utils.read_germlines(self.args.datadir, only_region='v', aligned=True)
+        self.glfo = {}
+        self.glfo['seqs'] = utils.read_germlines(self.args.datadir)
+        self.glfo['aligned-v-genes'] = utils.read_germlines(self.args.datadir, only_region='v', aligned=True)
 # ----------------------------------------------------------------------------------------
-        # vgenes = self.aligned_v_genes['v'].keys()
+        # vgenes = self.glfo['aligned-v-genes']['v'].keys()
         # for iv in range(len(vgenes)):
         #     for jv in range(iv + 1, len(vgenes)):
-        #         s1, s2 = [self.aligned_v_genes['v'][vgenes[index]] for index in [iv, jv]]
+        #         s1, s2 = [self.glfo['aligned-v-genes']['v'][vgenes[index]] for index in [iv, jv]]
         #         utils.color_mutants(s1, s2, print_result=True)
         #         fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
         #         print '%.0f / %d = %.3f' % (fraction * length, length, fraction)
         #         sys.exit()
         # sys.exit()
 # ----------------------------------------------------------------------------------------
-        self.cyst_positions = utils.read_cyst_positions(self.args.datadir)
+        self.glfo['cyst-positions'] = utils.read_cyst_positions(self.args.datadir)
         with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
             tryp_reader = csv.reader(csv_file)
-            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
+            self.glfo['tryp-positions'] = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         if self.args.seqfile is not None:
-            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.germline_seqs, self.cyst_positions, self.tryp_positions,
-                                                               self.args.n_max_queries, self.args.queries, self.args.reco_ids)
+            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids)
         self.sw_info = None
         self.paths = []
         self.smc_info = []
@@ -103,7 +103,7 @@ class PartitionDriver(object):
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         sw_parameter_dir = self.args.parameter_dir + '/sw'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=sw_parameter_dir, write_parameters=True)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo['seqs'], parameter_dir=sw_parameter_dir, write_parameters=True)
         waterer.run()
         self.sw_info = waterer.info
         self.write_hmms(sw_parameter_dir)
@@ -116,7 +116,7 @@ class PartitionDriver(object):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo['seqs'], parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
         self.sw_info = waterer.info
@@ -148,7 +148,7 @@ class PartitionDriver(object):
 
         # run smith-waterman
         start = time.time()
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.germline_seqs, parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo['seqs'], parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
         print '        water time: %.3f' % (time.time()-start)
         self.sw_info = waterer.info
@@ -225,7 +225,7 @@ class PartitionDriver(object):
                 annotations = self.read_annotation_output(self.annotation_fname)
                 for cluster in best_path.partitions[best_path.i_best]:
                     uids = ':'.join(cluster)
-                    utils.print_reco_event(self.germline_seqs, annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
+                    utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
             if self.args.outfname is not None:
                 self.write_clusterpaths(self.args.outfname, [path, ])  # [last agglomeration step]
         else:
@@ -632,7 +632,7 @@ class PartitionDriver(object):
     def get_naive_seqs(self, info, namekey, seqkey):
         def get_query_from_sw(qry):
             assert qry in self.sw_info
-            naive_seq = utils.get_full_naive_seq(self.germline_seqs, self.sw_info[qry])
+            naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.sw_info[qry])
             padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
             padright = self.sw_info[qry]['padded']['padright']
             assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
@@ -893,7 +893,7 @@ class PartitionDriver(object):
         #     print 'only-gene s argument not specified, writing hmms using sw matches'
         #     gene_list = []
         #     for region in utils.regions:
-        #         for gene in self.germline_seqs[region]:
+        #         for gene in self.glfo['seqs'][region]:
         #             if gene in self.sw_info['all_best_matches']:
         #                 gene_list.append(gene)
 
@@ -901,7 +901,7 @@ class PartitionDriver(object):
         #     print 'just do them all'
         #     gene_list = []
         #     for region in utils.regions:
-        #         gene_list += list(self.germline_seqs[region].keys())
+        #         gene_list += list(self.glfo['seqs'][region].keys())
 
         if self.args.only_genes is None:  # make a list of all the genes for which we have counts in <parameter_dir> (a.tm., this is all the genes that appeared as a best match at least once)
             gene_list = []
@@ -916,9 +916,7 @@ class PartitionDriver(object):
         for gene in gene_list:
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety,
-                               self.germline_seqs, self.args,
-                               self.cyst_positions, self.tryp_positions)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
             writer.write()
 
         # print '    time to write hmms: %.3f' % (time.time()-start)
@@ -985,7 +983,7 @@ class PartitionDriver(object):
                 cpos = swfo['cyst_position']
             k_d = swfo['k_d']  # don't need to adjust k_d for padding
             combo['seqs'].append(seq)
-            combo['mute-freqs'].append(utils.get_mutation_rate(self.germline_seqs, swfo))
+            combo['mute-freqs'].append(utils.get_mutation_rate(self.glfo['seqs'], swfo))
             combo['cyst_positions'].append(cpos)  # TODO use cached hmm values instead of SW
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
@@ -1141,9 +1139,9 @@ class PartitionDriver(object):
         """ Read bcrham annotation output """
         print '    read output'
 
-        pcounter = ParameterCounter(self.germline_seqs) if count_parameters else None
-        true_pcounter = ParameterCounter(self.germline_seqs) if (count_parameters and not self.args.is_data) else None
-        perfplotter = PerformancePlotter(self.germline_seqs, 'hmm') if self.args.plot_performance else None
+        pcounter = ParameterCounter(self.glfo['seqs']) if count_parameters else None
+        true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None
+        perfplotter = PerformancePlotter(self.glfo['seqs'], 'hmm') if self.args.plot_performance else None
 
         n_seqs_processed, n_events_processed = 0, 0
         padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()
@@ -1165,13 +1163,13 @@ class PartitionDriver(object):
                         assert len(padded_line['errors']) == 0
 
                 # fill in some implicit information
-                utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, padded_line)
-                utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, padded_line)
+                utils.add_cdr3_info(self.glfo, padded_line)
+                utils.add_v_alignments(self.glfo, padded_line)
 
                 # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                 eroded_line = copy.deepcopy(padded_line)
                 utils.reset_effective_erosions_and_effective_insertions(eroded_line)
-                utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, eroded_line)
+                utils.add_v_alignments(self.glfo, eroded_line)
 
                 padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
                 eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
@@ -1191,7 +1189,7 @@ class PartitionDriver(object):
                         true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                     n_events_processed += 1
                     for iseq in range(len(uids)):
-                        singlefo = utils.synthesize_single_seq_line(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, eroded_line, iseq)
+                        singlefo = utils.synthesize_single_seq_line(self.glfo, eroded_line, iseq)
                         if pcounter is not None:
                             pcounter.increment_per_sequence_params(singlefo)
                         if true_pcounter is not None:
@@ -1207,11 +1205,11 @@ class PartitionDriver(object):
         if pcounter is not None:
             pcounter.write(parameter_out_dir)
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions, only_csv=self.args.only_csv_plots)
+                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
         if true_pcounter is not None:
             true_pcounter.write(parameter_out_dir + '-true')
             if self.args.plotdir is not None:
-                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions, only_csv=self.args.only_csv_plots)
+                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
@@ -1242,7 +1240,7 @@ class PartitionDriver(object):
                             raise Exception('passing indel info to presto requires some more thought')
                         else:
                             del outline['indelfo']
-                        outline = utils.convert_to_presto(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_seqs, outline)
+                        outline = utils.convert_to_presto(self.glfo, outline)
                     writer.writerow(outline)
 
         if self.args.annotation_clustering == 'vollmers':
@@ -1283,10 +1281,10 @@ class PartitionDriver(object):
                 del synthetic_true_line['seq']
                 # del synthetic_true_line['indels']
                 indelfos = [self.reco_info[iid]['indels'] for iid in uids]
-                event_str = utils.print_reco_event(self.germline_seqs, synthetic_true_line, extra_str='    ', return_string=True, label='true:', indelfos=indelfos)
+                event_str = utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', return_string=True, label='true:', indelfos=indelfos)
                 out_str_list.append(event_str)
 
-        event_str = utils.print_reco_event(self.germline_seqs, line, extra_str='    ', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
+        event_str = utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
         out_str_list.append(event_str)
 
         print ''.join(out_str_list),

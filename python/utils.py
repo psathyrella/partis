@@ -102,9 +102,23 @@ presto_headers = {
     'v_gene' : 'V_CALL',
     'd_gene' : 'D_CALL',
     'j_gene' : 'J_CALL',
-    'aligned-seq' : 'SEQUENCE_IMGT',
+    'aligned_v_seq' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit?
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
+
+# ----------------------------------------------------------------------------------------
+def convert_to_presto(glfo, line):
+    """ convert <line> to presto csv format """
+    if len(line['unique_ids']) > 1:
+        print line['unique_ids']
+        raise Exception('multiple seqs not handled in convert_to_presto')
+
+    single_info = synthesize_single_seq_line(glfo, line, iseq=0)
+    presto_line = {}
+    for head, phead in presto_headers.items():
+        presto_line[phead] = single_info[head]
+
+    return presto_line
 
 # these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
 test_only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
@@ -495,7 +509,7 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     return query_pos
 
 # ----------------------------------------------------------------------------------------
-def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
+def add_cdr3_info(glfo, line, debug=False):
     """
     Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.
     If info is already there, make sure it's the same as what we calculate here
@@ -504,7 +518,7 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+    get_reco_event_seqs(glfo['seqs'], line, original_seqs, lengths, eroded_seqs)
 
     # if len(line['fv_insertion']) > 0:
     #     print line
@@ -512,10 +526,10 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
     #     print line
 
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
-    eroded_gl_cpos = cyst_positions[line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
+    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     # if debug:
-    #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (cyst_positions[line['v_gene']]['cysteine-position'], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
-    eroded_gl_tpos = int(tryp_positions[line['j_gene']]) - int(line['j_5p_del'])
+    #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (glfo['cyst-positions'][line['v_gene']]['cysteine-position'], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
+    eroded_gl_tpos = int(glfo['tryp-positions'][line['j_gene']]) - int(line['j_5p_del'])
     values = {}
     values['cyst_position'] = eroded_gl_cpos
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
@@ -536,7 +550,7 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
         if debug:
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
-    line['naive_seq'] = get_full_naive_seq(germlines, line)
+    line['naive_seq'] = get_full_naive_seq(glfo['seqs'], line)
 
 # ----------------------------------------------------------------------------------------
 def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
@@ -708,7 +722,7 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
     return (start[return_reg], end[return_reg])
 
 # ----------------------------------------------------------------------------------------
-def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False):
+def add_match_info(glfo, line, debug=False):
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
 
@@ -717,8 +731,8 @@ def add_match_info(germlines, line, cyst_positions, tryp_positions, debug=False)
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=debug)  # add cyst and tryp positions, and cdr3 length
+    get_reco_event_seqs(glfo['seqs'], line, original_seqs, lengths, eroded_seqs)
+    add_cdr3_info(glfo, line, debug=debug)  # add cyst and tryp positions, and cdr3 length
 
     # add the <eroded_seqs> to <line> so we can find them later
     for region in regions:
@@ -1734,29 +1748,29 @@ def auto_slurm(n_procs):
     return False
 
 # ----------------------------------------------------------------------------------------
-def synthesize_single_seq_line(germline_seqs, cyst_positions, tryp_positions, aligned_v_genes, line, iseq):
+def synthesize_single_seq_line(glfo, line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
     hmminfo['seq'] = line['seqs'][iseq]
     hmminfo['unique_id'] = line['unique_ids'][iseq]
     del hmminfo['unique_ids']
     del hmminfo['seqs']
-    if 'aligned-seqs' in hmminfo:
-        hmminfo['aligned-seq'] = line['aligned-seqs'][iseq]
-        del hmminfo['aligned-seqs']
-    add_match_info(germline_seqs, hmminfo, cyst_positions, tryp_positions)
+    if 'aligned_v_seqs' in hmminfo:
+        hmminfo['aligned_v_seq'] = line['aligned_v_seqs'][iseq]
+        del hmminfo['aligned_v_seqs']
+    add_match_info(glfo, hmminfo)
     return hmminfo
 
 # ----------------------------------------------------------------------------------------
-def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, debug=False):
+def add_v_alignments(glfo, line, debug=False):
     """ add dots according to the imgt gapping scheme """
     aligned_v_seqs = []
     for iseq in range(len(line['seqs'])):
-        hmminfo = synthesize_single_seq_line(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, iseq)
+        hmminfo = synthesize_single_seq_line(glfo, line, iseq)
 
         v_qr_seq = hmminfo['v_qr_seq']
         v_gl_seq = hmminfo['v_gl_seq']
-        aligned_v_gl_seq = aligned_v_genes['v'][hmminfo['v_gene']]
+        aligned_v_gl_seq = glfo['aligned-v-genes']['v'][hmminfo['v_gene']]
         assert len(v_qr_seq) == len(v_gl_seq)
 
         if debug:
@@ -1790,17 +1804,3 @@ def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes,
         aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
     line['aligned_v_seqs'] = aligned_v_seqs
-
-# ----------------------------------------------------------------------------------------
-def convert_to_presto(germlines, cyst_positions, tryp_positions, line):
-    """ convert <line> to presto csv format """
-    if len(line['unique_ids']) > 1:
-        print line['unique_ids']
-        raise Exception('multiple seqs not handled in convert_to_presto')
-
-    single_info = synthesize_single_seq_line(germlines, cyst_positions, tryp_positions, line, iseq=0)
-    presto_line = {}
-    for head, phead in presto_headers.items():
-        presto_line[phead] = single_info[head]
-
-    return presto_line

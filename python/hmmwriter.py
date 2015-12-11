@@ -168,15 +168,15 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, naivety, germline_seqs, args, cyst_positions, tryp_positions):
+    def __init__(self, base_indir, outdir, gene_name, naivety, glfo, args):
         self.region = utils.get_region(gene_name)
         self.raw_name = gene_name  # i.e. unsanitized
-        self.germline_seqs = germline_seqs  # all germline alleles
+        self.germline_seqs = glfo['seqs']  # all germline alleles
         self.germline_seq = self.germline_seqs[self.region][gene_name]  # germline sequence for this hmm
         self.indir = base_indir
         self.args = args
-        self.cyst_positions = cyst_positions
-        self.tryp_positions = tryp_positions
+        self.cyst_positions = glfo['cyst-positions']
+        self.tryp_positions = glfo['tryp-positions']
 
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
