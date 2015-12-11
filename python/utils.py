@@ -1735,14 +1735,15 @@ def auto_slurm(n_procs):
 
 # ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(germline_seqs, cyst_positions, tryp_positions, aligned_v_genes, line, iseq):
+    """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    del hmminfo['unique_ids']
-    del hmminfo['seqs']
     hmminfo['seq'] = line['seqs'][iseq]
     hmminfo['unique_id'] = line['unique_ids'][iseq]
+    del hmminfo['unique_ids']
+    del hmminfo['seqs']
     if 'aligned-seqs' in hmminfo:
-        del hmminfo['aligned-seqs']
         hmminfo['aligned-seq'] = line['aligned-seqs'][iseq]
+        del hmminfo['aligned-seqs']
     add_match_info(germline_seqs, hmminfo, cyst_positions, tryp_positions)
     return hmminfo
 
@@ -1752,7 +1753,6 @@ def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes,
     aligned_v_seqs = []
     for iseq in range(len(line['seqs'])):
         hmminfo = synthesize_single_seq_line(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, iseq)
-        add_match_info(germlines, hmminfo, cyst_positions, tryp_positions)
 
         v_qr_seq = hmminfo['v_qr_seq']
         v_gl_seq = hmminfo['v_gl_seq']
@@ -1792,21 +1792,15 @@ def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes,
     line['aligned_v_seqs'] = aligned_v_seqs
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto(line):
+def convert_to_presto(germlines, cyst_positions, tryp_positions, line):
     """ convert <line> to presto csv format """
     if len(line['unique_ids']) > 1:
         print line['unique_ids']
         raise Exception('multiple seqs not handled in convert_to_presto')
 
-    line['unique_id'] = line['unique_ids'][0]  # NOTE duplicates code in synthesize_single_seq_line()
-    line['seq'] = line['seqs'][0]
-    line['aligned-seq'] = line['aligned-seqs'][0]
-    del line['unique_ids']
-    del line['seqs']
-    del line['aligned-seqs']
-
+    single_info = synthesize_single_seq_line(germlines, cyst_positions, tryp_positions, line, iseq=0)
     presto_line = {}
     for head, phead in presto_headers.items():
-        presto_line[phead] = line[head]
+        presto_line[phead] = single_info[head]
 
     return presto_line

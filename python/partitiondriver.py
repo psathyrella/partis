@@ -1191,17 +1191,16 @@ class PartitionDriver(object):
                         true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                     n_events_processed += 1
                     for iseq in range(len(uids)):
-                        uid = uids[iseq]
-                        hmminfo = utils.synthesize_single_seq_line(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, eroded_line, iseq)
+                        singlefo = utils.synthesize_single_seq_line(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, eroded_line, iseq)
                         if pcounter is not None:
-                            pcounter.increment_per_sequence_params(hmminfo)
+                            pcounter.increment_per_sequence_params(singlefo)
                         if true_pcounter is not None:
-                            true_pcounter.increment_per_sequence_params(self.reco_info[uid])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                            true_pcounter.increment_per_sequence_params(self.reco_info[uids[iseq]])
                         if perfplotter is not None:
-                            if uid in self.sw_info['indels']:
-                                print '    skipping performance evaluation of %s because of indels' % uid  # I just have no idea how to handle naive hamming fraction when there's indels
+                            if uids[iseq] in self.sw_info['indels']:
+                                print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
                             else:
-                                perfplotter.evaluate(self.reco_info[uid], hmminfo, self.sw_info[uid]['padded'])
+                                perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uid]['padded'])
                         n_seqs_processed += 1
 
         # parameter and performance writing/plotting
@@ -1243,7 +1242,7 @@ class PartitionDriver(object):
                             raise Exception('passing indel info to presto requires some more thought')
                         else:
                             del outline['indelfo']
-                        outline = utils.convert_to_presto(outline)
+                        outline = utils.convert_to_presto(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_seqs, outline)
                     writer.writerow(outline)
 
         if self.args.annotation_clustering == 'vollmers':
@@ -1256,6 +1255,7 @@ class PartitionDriver(object):
                 writer.writeheader()
 
             for thresh in self.args.annotation_clustering_thresholds:
+                raise Exception('what the hell is <hmminfo> suppose to be here? Must have accidentally moved this')
                 adj_mi, partition = annotationclustering.vollmers(hmminfo, threshold=thresh, reco_info=self.reco_info)
                 n_clusters = len(partition)
                 if self.args.outfname is not None:
