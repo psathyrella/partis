@@ -1192,19 +1192,26 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
 
-
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False):
+def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False, extra_bases=None):
     assert len(seq1) == len(seq2)
     if len(seq1) == 0:
-        return 0.
+        if return_len_excluding_ambig:
+            return 0., 0
+        else:
+            return 0.
 
     alphabet = nukes + ambiguous_bases
+
+    if extra_bases is not None:
+        alphabet += extra_bases
+
+    for ch in seq1 + seq2:  # check that all characters are in the expected alphabet
+        if ch not in alphabet:
+            raise Exception('unexpected character \'%s\' not among %s in hamming_fraction() with input:\n  %s\n  %s' % (ch, alphabet, seq1, seq2))
+
     distance, len_excluding_ambig = 0, 0
     for ch1, ch2 in zip(seq1, seq2):
-        if alphabet is not None:  # check that both characters are in the expected alphabet
-            if ch1 not in alphabet or ch2 not in alphabet:
-                raise Exception('unexpected character (%s or %s) not among %s in hamming_fraction()' % (ch1, ch2, alphabet))
         if ch1 in ambiguous_bases or ch2 in ambiguous_bases:
             continue
 
@@ -1218,7 +1225,7 @@ def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False):
     if return_len_excluding_ambig:
         return fraction, len_excluding_ambig
     else:
-        return  fraction
+        return fraction
 
 # ----------------------------------------------------------------------------------------
 def get_key(names):
