@@ -37,7 +37,7 @@ parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
 print 'TODO combine self.germlines, aligned v genes, and the conserved codon info'
 print 'TODO figure out how to make distinction between line and line_with_effective_erosions'
-print 'use utils.synthesize_single_seq_line() everywhere possible'
+print 'TODO use utils.synthesize_single_seq_line() everywhere possible'
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')

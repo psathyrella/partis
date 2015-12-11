@@ -536,6 +536,8 @@ def add_cdr3_info(germlines, cyst_positions, tryp_positions, line, debug=False):
         if debug:
             print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
 
+    line['naive_seq'] = get_full_naive_seq(germlines, line)
+
 # ----------------------------------------------------------------------------------------
 def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     # These are kinda weird names, but the distinction is important
@@ -619,6 +621,8 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         trimmed_seqs.append(trimmed_seq)
 
     # arbitrarily use the zeroth sequence
+    if len(trimmed_seqs) > 1:
+        print 'TODO don\'t just use the zeroth sequence'
     trimmed_seq = trimmed_seqs[0]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
     final_fv_insertion = final_insertions[0]['fv']
     final_jf_insertion = final_insertions[0]['jf']
@@ -633,6 +637,13 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
+
+    if 'naive_seq' in line:
+        line['naive_seq'] = line['naive_seq'][len(fv_insertion_to_remove) : len(line['naive_seq']) - len(jf_insertion_to_remove)]
+        line['naive_seq'] = line['naive_seq'][line['v_5p_del'] : len(line['naive_seq']) - line['j_3p_del']]
+        if len(line['naive_seq']) != len(line['seqs'][0]):
+            raise Exception('didn\'t trim naive seq to proper length:\n  %s\n  %s' % (line['naive_seq'], line['seqs'][0]))
+        # color_mutants(line['naive_seq'], line['seqs'][0], print_result=True)
 
     if debug:
         print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
@@ -1736,31 +1747,49 @@ def synthesize_single_seq_line(germline_seqs, cyst_positions, tryp_positions, al
     return hmminfo
 
 # ----------------------------------------------------------------------------------------
-def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes, line):
+def add_v_alignments(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, debug=False):
     """ add dots according to the imgt gapping scheme """
     aligned_v_seqs = []
     for iseq in range(len(line['seqs'])):
         hmminfo = synthesize_single_seq_line(germlines, cyst_positions, tryp_positions, aligned_v_genes, line, iseq)
         add_match_info(germlines, hmminfo, cyst_positions, tryp_positions)
+
         v_qr_seq = hmminfo['v_qr_seq']
         v_gl_seq = hmminfo['v_gl_seq']
         aligned_v_gl_seq = aligned_v_genes['v'][hmminfo['v_gene']]
         assert len(v_qr_seq) == len(v_gl_seq)
-        if hmminfo['v_5p_del']:
-            raise Exception('nonzero v_5p_del in %s' % hmminfo['unique_id'])
-        if len(aligned_v_gl_seq) != len(v_gl_seq) + hmminfo['v_3p_del'] + aligned_v_gl_seq.count('.'):
+
+        if debug:
+            print 'before alignment'
+            print '   qr   ', v_qr_seq
+            print '   gl   ', v_gl_seq
+            print '   al gl', aligned_v_gl_seq
+
+        if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + hmminfo['v_3p_del'] + aligned_v_gl_seq.count('.'):
             raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + '.' * aligned_v_gl_seq.count('.'), hmminfo['v_3p_del']))
-        for ibase in range(len(aligned_v_gl_seq) - hmminfo['v_3p_del']):
+
+        v_qr_seq = 'N' * line['v_5p_del'] + v_qr_seq + 'N' * line['v_3p_del']
+        v_gl_seq = 'N' * line['v_5p_del'] + v_gl_seq + 'N' * line['v_3p_del']
+
+        for ibase in range(len(aligned_v_gl_seq)):
             if aligned_v_gl_seq[ibase] == '.':
                 v_qr_seq = v_qr_seq[ : ibase] + '.' + v_qr_seq[ibase : ]
                 v_gl_seq = v_gl_seq[ : ibase] + '.' + v_gl_seq[ibase : ]
             else:
-                if v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
+                if v_gl_seq[ibase] != 'N' and v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
                     raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
-        if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq) - hmminfo['v_3p_del']:
+
+        if debug:
+            print 'after alignment'
+            print '   qr   ', v_qr_seq
+            print '   gl   ', v_gl_seq
+            print '   al gl', aligned_v_gl_seq
+
+        if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq):
             raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
         aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
-    line['aligned-seqs'] = aligned_v_seqs
+
+    line['aligned_v_seqs'] = aligned_v_seqs
 
 # ----------------------------------------------------------------------------------------
 def convert_to_presto(line):

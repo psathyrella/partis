@@ -31,6 +31,17 @@ class PartitionDriver(object):
         self.args = args
         self.germline_seqs = utils.read_germlines(self.args.datadir)
         self.aligned_v_genes = utils.read_germlines(self.args.datadir, only_region='v', aligned=True)
+# ----------------------------------------------------------------------------------------
+        # vgenes = self.aligned_v_genes['v'].keys()
+        # for iv in range(len(vgenes)):
+        #     for jv in range(iv + 1, len(vgenes)):
+        #         s1, s2 = [self.aligned_v_genes['v'][vgenes[index]] for index in [iv, jv]]
+        #         utils.color_mutants(s1, s2, print_result=True)
+        #         fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
+        #         print '%.0f / %d = %.3f' % (fraction * length, length, fraction)
+        #         sys.exit()
+        # sys.exit()
+# ----------------------------------------------------------------------------------------
         self.cyst_positions = utils.read_cyst_positions(self.args.datadir)
         with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
             tryp_reader = csv.reader(csv_file)
@@ -1135,48 +1146,53 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter(self.germline_seqs, 'hmm') if self.args.plot_performance else None
 
         n_seqs_processed, n_events_processed = 0, 0
-        annotations = {}
+        padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()
         boundary_error_queries = []
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
-            for line in reader:
-                utils.process_input_line(line,
+            for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
+                utils.process_input_line(padded_line,
                                          splitargs=('unique_ids', 'seqs'),
                                          int_columns=('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
                                          float_columns=('logprob'))
-                uids = line['unique_ids']
+                uids = padded_line['unique_ids']
 
                 # check for errors
-                if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
-                    if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
+                if padded_line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
+                    if padded_line['errors'] is not None and 'boundary' in padded_line['errors'].split(':'):
                         boundary_error_queries.append(':'.join([uid for uid in uids]))
                     else:
-                        assert len(line['errors']) == 0
-                utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, line)
-                utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, line)  # NOTE could really put this into the cdr3 info fcn
-                line_with_effective_erosions = copy.deepcopy(line)  # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                # utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, line_with_effective_erosions)  # NOTE could really put this into the cdr3 info fcn
-                utils.reset_effective_erosions_and_effective_insertions(line_with_effective_erosions)
-                # NOTE I'm return <line> (i.e. without effective insertions) 'cause it looks nicer when you annotate the clonal families. Until I change my mind again.
-                line['naive_seq'] = utils.get_full_naive_seq(self.germline_seqs, line)
-                annotations[':'.join(line['unique_ids'])] = line  # TODO oh, man, you need to not have both <line> and <line_with_effective_erosions>. Then again, really not sure what else to do.
+                        assert len(padded_line['errors']) == 0
+
+                # fill in some implicit information
+                utils.add_cdr3_info(self.germline_seqs, self.cyst_positions, self.tryp_positions, padded_line)
+                utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, padded_line)
+
+                # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
+                eroded_line = copy.deepcopy(padded_line)
+                utils.reset_effective_erosions_and_effective_insertions(eroded_line)
+                utils.add_v_alignments(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, eroded_line)
+
+                padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
+                eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
+
                 if self.args.debug:
-                    if line['nth_best'] == 0:  # if this is the first line (i.e. the best viterbi path) for this query (or query pair), print the true event
+                    if padded_line['nth_best'] == 0:  # if this is the first padded_line (i.e. the best viterbi path) for this query (or query pair), print the true event
                         print '      %s' % ':'.join(uids),
                         if not self.args.is_data:
                             print '   %d' % utils.from_same_event(self.reco_info, uids),
                         print ''
-                    self.print_hmm_output(line_with_effective_erosions, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
-                    # self.print_hmm_output(line, print_true=(line['nth_best']==0))  #, perfplotter=perfplotter)
-                if line['nth_best'] == 0 and (line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+                    self.print_hmm_output(eroded_line, print_true=(eroded_line['nth_best']==0))
+                    # self.print_hmm_output(padded_line, print_true=(padded_line['nth_best']==0))
+                if padded_line['nth_best'] == 0 and (padded_line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
                     if pcounter is not None:
-                        pcounter.increment_per_family_params(line_with_effective_erosions)
+                        pcounter.increment_per_family_params(eroded_line)
                     if true_pcounter is not None:
                         true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
                     n_events_processed += 1
                     for iseq in range(len(uids)):
                         uid = uids[iseq]
-                        hmminfo = utils.synthesize_single_seq_line(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, line_with_effective_erosions, iseq)
+                        hmminfo = utils.synthesize_single_seq_line(self.germline_seqs, self.cyst_positions, self.tryp_positions, self.aligned_v_genes, eroded_line, iseq)
                         if pcounter is not None:
                             pcounter.increment_per_sequence_params(hmminfo)
                         if true_pcounter is not None:
@@ -1211,12 +1227,12 @@ class PartitionDriver(object):
             outpath = self.args.outfname
             if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
                 outpath = os.getcwd() + '/' + outpath
-            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned-seqs', 'naive_seq', 'indelfo']
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'naive_seq', 'indelfo']
             outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
                 writer.writeheader()
-                for uids, line in annotations.items():
+                for uids, line in eroded_annotations.items():
                     outline = {k : line[k] for k in outheader if k != 'indelfo'}
                     if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
                         outline['indelfo'] = self.sw_info['indels'][uids]
@@ -1253,7 +1269,7 @@ class PartitionDriver(object):
         if not self.args.no_clean:
             os.remove(annotation_fname)
 
-        return annotations
+        return eroded_annotations
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
