@@ -106,51 +106,54 @@ if args.smc_particles != 1:
     raise Exception('sequential monte carlo is not supported at this juncture.')
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
-    # default_workdir = 
     args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999))
 if os.path.exists(args.workdir):
     raise Exception('workdir %s already exists' % args.workdir)
-# elif os.path.exists(args.workdir):
-#     print '\nWARNING workdir %s already exists\n' % args.workdir
 
 if args.plot_performance:
-    assert not args.is_data
-    assert args.plotdir is not None
+    if args.plotdir is None:
+        raise Exception('can\'t plot performance unless --plotdir is specified')
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
+    if args.outfname is None:
+        raise Exception('have to specify --outfname for simulation')
+    if not os.path.exists(args.parameter_dir):
+        raise Exception('parameter dir %s d.n.e.' % args.parameter_dir)
+    if not args.n_sim_events > 0:
+        raise Exception('--n-sim-events has to be a positivie number')
+    if args.slurm:
+        raise Exception('simulator parallelization does not handle slurm')
+
+    def make_events(n_events, iproc, random_ints):
+        assert n_events > 0
+        # NOTE all the different seeds! this sucks but is necessary
+        reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc))
+        for ievt in range(n_events):
+            # print ievt,
+            # sys.stdout.flush()
+            failed = True
+            itry = 0
+            while failed:
+                if itry > 0:
+                    print 'try again: %d' % itry
+                failed = not reco.combine(random_ints[ievt] + itry)
+                itry += 1
+
     print 'simulating'
-    assert args.parameter_dir != None and args.outfname != None
-    assert args.n_sim_events > 0
     random.seed(args.seed)
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
     all_random_ints = []
     for iproc in range(args.n_procs):  # have to generate these all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
         all_random_ints.append([random.randint(0, sys.maxint) for i in range(n_per_proc)])
     for iproc in range(args.n_procs):
-        proc = Process(target=make_events, args=(args, n_per_proc, iproc, all_random_ints[iproc]))
+        proc = Process(target=make_events, args=(n_per_proc, iproc, all_random_ints[iproc]))
         proc.start()
     while len(active_children()) > 0:
         # print ' wait %s' % len(active_children()),
         sys.stdout.flush()
         time.sleep(1)
     utils.merge_csvs(args.outfname, [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)], cleanup=(not args.no_clean))
-
-# ----------------------------------------------------------------------------------------
-def make_events(args, n_events, iproc, random_ints):
-    assert n_events > 0
-    # NOTE all the different seeds! this sucks but is necessary
-    reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc))
-    for ievt in range(n_events):
-        # print ievt,
-        # sys.stdout.flush()
-        failed = True
-        itry = 0
-        while failed:
-            if itry > 0:
-                print 'try again: %d' % itry
-            failed = not reco.combine(random_ints[ievt] + itry)
-            itry += 1
 
 if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
