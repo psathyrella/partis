@@ -485,7 +485,7 @@ class Waterer(object):
             self.outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best):
+    def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best, debug=False):
         # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
         """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions """
         for region_pairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
@@ -498,10 +498,17 @@ class Waterer(object):
             if overlap <= 0:
                 continue
 
+            if debug:
+                print '%s%s  %s  %s  %d' % (l_reg, r_reg, l_gene, r_gene, overlap)
+
             l_length = qrbounds[l_gene][1] - qrbounds[l_gene][0]  # initial length of lefthand gene match
             r_length = qrbounds[r_gene][1] - qrbounds[r_gene][0]  # and same for the righthand one
             l_portion, r_portion = 0, 0  # portion of the initial overlap that we give to each side
+            if debug:
+                print '    lengths        portions     '
             while l_portion + r_portion < overlap:
+                if debug:
+                    print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
                 if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
                     print '      ERROR both lengths went to zero'
                     assert False
@@ -519,8 +526,9 @@ class Waterer(object):
                     r_portion += 1
                     r_length -= 1
 
-            if self.debug:
-                print '      WARNING %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+            if debug:
+                print '  %4d %4d    %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
+                print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
             assert l_portion + r_portion == overlap
             qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
             glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
