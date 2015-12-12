@@ -9,7 +9,6 @@ sys.path.insert(1, './python')
 
 import utils
 # merged data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2
-print 'TODO fix utils.shift_overlapping_boundaries()'
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--sw-debug', type=int, default=0, choices=[0, 1, 2], help='debug level for smith-waterman')

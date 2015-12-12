@@ -107,7 +107,7 @@ class Waterer(object):
             print '     (skipped',
             print '%d / %d = %.3f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
             if n_remaining > 0:
-                print '   %d / %d = %.3f unknown' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
+                print '   %d / %d = %.3f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
             print ')',
         print ''
         if n_remaining > 0:
@@ -262,7 +262,7 @@ class Waterer(object):
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'failed-apport.']:
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds']:
             queries_to_rerun[reason] = set()
             
 
@@ -485,18 +485,42 @@ class Waterer(object):
             self.outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def shift_overlapping_boundaries(self, qrbounds, glbounds, query_name, query_seq, best, debug=False):
-        # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
-        """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions """
-        for region_pairs in ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'}):
-            l_reg = region_pairs['left']
-            r_reg = region_pairs['right']
+    def check_boundaries(self, region_pairs, qrbounds, glbounds, query_name, query_seq, best):
+        # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
+        status = 'ok'
+        for rpair in region_pairs:
+            l_reg = rpair['left']
+            r_reg = rpair['right']
             l_gene = best[l_reg]
             r_gene = best[r_reg]
             overlap = qrbounds[l_gene][1] - qrbounds[r_gene][0]
 
-            if overlap <= 0:
+            if overlap > 0:  # set to 'overlap' if either boundary is overlapped
+                status = 'overlap'
+
+            available_space = qrbounds[r_gene][1] - qrbounds[l_gene][0]
+            if overlap > available_space:
+                return 'nonsense'  # return 'nonsense' immediately if either boundary make no sense -- we'll presumably either toss the query or rerun with different match/mismatch
+
+        return status
+
+    # ----------------------------------------------------------------------------------------
+    def shift_overlapping_boundaries(self, region_pairs, qrbounds, glbounds, query_name, query_seq, best, debug=False):
+        # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
+        """ s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions """
+        for rpair in region_pairs:
+            l_reg = rpair['left']
+            r_reg = rpair['right']
+            l_gene = best[l_reg]
+            r_gene = best[r_reg]
+            overlap = qrbounds[l_gene][1] - qrbounds[r_gene][0]
+
+            if overlap <= 0:  # nothing to do, they're already consistent
                 continue
+
+            available_space = qrbounds[r_gene][1] - qrbounds[l_gene][0]
+            if overlap > available_space:
+                raise Exception('overlap %d bigger than available space %d between %s and %s' % (overlap, available_space, l_reg, r_reg))
 
             if debug:
                 print '%s%s  %s  %s  %d' % (l_reg, r_reg, l_gene, r_gene, overlap)
@@ -510,8 +534,7 @@ class Waterer(object):
                 if debug:
                     print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
                 if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                    print '      ERROR both lengths went to zero'
-                    assert False
+                    raise Exception('both lengths went to zero for %s: %s %s' % (query_name, qrbounds[l_gene], qrbounds[r_gene]))
                 elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
                     if (l_portion + r_portion) % 2 == 0:
                         l_portion += 1  # give one base to the left
@@ -679,12 +702,15 @@ class Waterer(object):
                 return
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
-        try:
-            self.shift_overlapping_boundaries(all_query_bounds, all_germline_bounds, query_name, query_seq, best)
-        except AssertionError:
-            print '%s: apportionment failed' % query_name  # TODO figure out why this happens
-            queries_to_rerun['failed-apport.'].add(query_name)
+        region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
+        overlap_status = self.check_boundaries(region_pairs, all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+        if overlap_status == 'overlap':
+            self.shift_overlapping_boundaries(region_pairs, all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+        elif overlap_status == 'nonsense':
+            queries_to_rerun['nonsense-bounds'].add(query_name)
             return
+        else:
+            assert overlap_status == 'ok'
 
         # check for suspiciously bad annotations
         vd_insertion = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
