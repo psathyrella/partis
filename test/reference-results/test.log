@@ -1,0 +1,1322 @@
+TEST              annotate-ref-simu   ./bin/partis.py --action run-viterbi --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --plotdir test/_new-results/test/plots/ref-simu-performance --plot-performance --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/annotate-ref-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/415001/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+       1001          580           0                      509           56           15            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/415001/germline-sets
+        580            3           2                        0            1            0            0             rerunning for indels
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/415001/germline-sets
+    skipping performance evaluation of -564037955984549742 because of indels
+    skipping performance evaluation of -4982993841260129372 because of indels
+          3            1           0                        0            1            0            0             increasing mismatch score (2 --> 3) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/415001/germline-sets
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+          1         all done
+  v_gene
+    correct up to allele:  952 / 999  = 0.9530 (-0.946, +0.959)
+  d_gene
+    correct up to allele:  803 / 999  = 0.8038 (-0.791, +0.815)
+  j_gene
+    correct up to allele:  892 / 999  = 0.8929 (-0.883, +0.902)
+      info for 1001 
+hmm
+    writing input
+    running
+      hmm run time: 19.148
+    time to merge csv files: 0.024
+    read output
+    skipping performance evaluation of -4982993841260129372 because of indels
+    skipping performance evaluation of -564037955984549742 because of indels
+  v_gene
+    correct up to allele:  949 / 999  = 0.9499 (-0.942, +0.956)
+  d_gene
+    correct up to allele:  851 / 999  = 0.8519 (-0.840, +0.862)
+  j_gene
+    correct up to allele:  930 / 999  = 0.9309 (-0.922, +0.938)
+    processed 1001 sequences (1001 events)
+      total time: 49.087
+TEST             partition-ref-simu   ./bin/partis.py --action partition --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --n-max-queries 250 --persistent-cachefname test/_new-results/cache-ref-partition.csv --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/partition-ref-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/288719/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+        250          156           0                      146            5            5            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/288719/germline-sets
+        156         all done
+      info for 250 
+        water time: 9.032
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+        calculated   vtb 84    fwd 84   hamming merged 0    naive hfracs 0
+
+      --> proc 1
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+      --> proc 2
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+      hmm run time: 30.061
+    time to merge csv files: 0.014
+--> 250 clusters with 10 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 1
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -8525.35 --> -8542.28
+        time 1.65418
+        calculated   vtb 1    fwd 3   hamming merged 3    naive hfracs 300
+
+      --> proc 0
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -7648.85 --> -7694.97
+        time 6.41123
+        calculated   vtb 6    fwd 21   hamming merged 3    naive hfracs 400
+
+      --> proc 5
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 255   small lratios: 21   total: 276
+        time 6.17478
+        calculated   vtb 1    fwd 27   hamming merged 1    naive hfracs 323
+
+      --> proc 7
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 181   small lratios: 9   total: 190
+        time 7.20357
+        calculated   vtb 4    fwd 18   hamming merged 2    naive hfracs 382
+
+      --> proc 8
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 218   small lratios: 13   total: 231
+        time 7.59656
+        calculated   vtb 1    fwd 26   hamming merged 2    naive hfracs 321
+
+      --> proc 3
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 178   small lratios: 12   total: 190
+        time 8.59338
+        calculated   vtb 5    fwd 26   hamming merged 3    naive hfracs 405
+
+      --> proc 9
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -8411.95 --> -8443.87
+        time 8.60535
+        calculated   vtb 2    fwd 17   hamming merged 3    naive hfracs 322
+
+      --> proc 4
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 196   small lratios: 14   total: 210
+        time 9.01874
+        calculated   vtb 4    fwd 31   hamming merged 4    naive hfracs 386
+
+      --> proc 6
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -7426.65 --> -7456.55
+        time 9.88928
+        calculated   vtb 1    fwd 26   hamming merged 5    naive hfracs 300
+
+      --> proc 2
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 200   small lratios: 10   total: 210
+        time 11.3834
+        calculated   vtb 4    fwd 26   hamming merged 1    naive hfracs 386
+
+      hmm run time: 13.096
+    time to merge csv files: 0.015
+  merged path 0 with 41 glomeration steps and 210 final clusters
+        read cached glomeration time: 0.019
+      partition step time: 13.675
+--> 215 clusters with 7 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 3
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -11777.1 --> -11795.8
+        time 3.01978
+        calculated   vtb 1    fwd 11   hamming merged 3    naive hfracs 465
+
+      --> proc 4
+        read 471 cached logprobs and 290 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 318   small lratios: 7   total: 325
+        time 5.85376
+        calculated   vtb 4    fwd 18   hamming merged 4    naive hfracs 571
+
+      --> proc 5
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -10452.3 --> -10485.3
+        time 6.87515
+        calculated   vtb 2    fwd 19   hamming merged 3    naive hfracs 462
+
+      --> proc 6
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -10524.2 --> -10535.5
+        time 5.94112
+        calculated   vtb 2    fwd 13   hamming merged 6    naive hfracs 459
+
+      --> proc 2
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -11867.3 --> -11934.2
+        time 7.37122
+        calculated   vtb 2    fwd 25   hamming merged 4    naive hfracs 492
+
+      --> proc 0
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -11452.9 --> -11510.1
+        time 8.04952
+        calculated   vtb 4    fwd 16   hamming merged 2    naive hfracs 546
+
+      --> proc 1
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -12186.5 --> -12204.5
+        time 19.9588
+        calculated   vtb 3    fwd 41   hamming merged 6    naive hfracs 516
+
+      hmm run time: 21.088
+    time to merge csv files: 0.031
+  merged path 0 with 33 glomeration steps and 183 final clusters
+        read cached glomeration time: 0.014
+      partition step time: 21.617
+--> 191 clusters with 5 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 3
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -16315.1 --> -16326.5
+        time 1.88363
+        calculated   vtb 0    fwd 3   hamming merged 4    naive hfracs 703
+
+      --> proc 1
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -14718.1 --> -14753.6
+        time 2.97374
+        calculated   vtb 1    fwd 4   hamming merged 4    naive hfracs 703
+
+      --> proc 0
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -16922.2 --> -16930.4
+        time 6.30451
+        calculated   vtb 1    fwd 9   hamming merged 4    naive hfracs 741
+
+      --> proc 4
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -17060.1 --> -17072.2
+        time 9.01168
+        calculated   vtb 3    fwd 30   hamming merged 3    naive hfracs 774
+
+      --> proc 2
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -14275.2 --> -14285
+        time 18.725
+        calculated   vtb 8    fwd 69   hamming merged 2    naive hfracs 934
+
+      hmm run time: 20.066
+    time to merge csv files: 0.014
+  merged path 0 with 24 glomeration steps and 168 final clusters
+        read cached glomeration time: 0.010
+      partition step time: 20.935
+--> 181 clusters with 3 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 2
+        read 729 cached logprobs and 344 naive seqs
+        stopping after drop -29532.3 --> -29540.5
+        time 3.07249
+        calculated   vtb 0    fwd 5   hamming merged 3    naive hfracs 1770
+
+      --> proc 1
+        read 729 cached logprobs and 344 naive seqs
+        stopping after drop -25407.4 --> -25447.9
+        time 7.30361
+        calculated   vtb 6    fwd 22   hamming merged 8    naive hfracs 2040
+
+      --> proc 0
+        read 729 cached logprobs and 344 naive seqs
+        stopping after drop -24084.4 --> -24100
+        time 11.3284
+        calculated   vtb 2    fwd 33   hamming merged 6    naive hfracs 1885
+
+      hmm run time: 13.037
+    time to merge csv files: 0.019
+  merged path 0 with 18 glomeration steps and 164 final clusters
+        read cached glomeration time: 0.013
+      partition step time: 13.461
+--> 167 clusters with 2 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 1
+        read 789 cached logprobs and 360 naive seqs
+        stopping after drop -40017 --> -40177
+        time 9.47945
+        calculated   vtb 6    fwd 30   hamming merged 8    naive hfracs 3788
+
+      --> proc 0
+        read 789 cached logprobs and 360 naive seqs
+        stopping after drop -38529.3 --> -38604.5
+        time 31.8554
+        calculated   vtb 3    fwd 68   hamming merged 11    naive hfracs 3633
+
+      hmm run time: 33.055
+    time to merge csv files: 0.015
+  merged path 0 with 20 glomeration steps and 148 final clusters
+        read cached glomeration time: 0.011
+      partition step time: 33.462
+--> 151 clusters with 1 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+        read 887 cached logprobs and 379 naive seqs
+        stopping after drop -78323.7 --> -78362.5
+        time 4.30767
+        calculated   vtb 3    fwd 10   hamming merged 7    naive hfracs 11614
+‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
+      hmm run time: 4.430
+  merged path 0 with 8 glomeration steps and 144 final clusters
+        read cached glomeration time: 0.006
+      partition step time: 4.798
+final
+               logprob   delta   clusters  n_procs  adj mi  ccf under  over 
+              -78565.92             151       1      0.585      0.70  0.81      o  o:o  o  o  o  o  o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o  o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78535.23   30.7      150       1      0.595      0.71  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o  o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78484.06   51.2      149       1      0.601      0.71  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o:o  o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78454.68   29.4      148       1      0.606      0.72  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78416.30   38.4      147       1      0.612      0.73  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78354.88   61.4      146       1      0.624      0.74  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+      [93mbest* [0m  -78323.67   31.2      145       1      0.629      0.75  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o:o  o:o:o  o  o  o  o:o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78362.46   -38.8     144       1      0.629      0.75  0.81      o  [91mo:o:o:o:o[0m  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o:o  o:o:o  o  o  o  o:o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+
+    time to merge csv files: 0.068
+      total time: 149.288
+TEST       point-partition-ref-simu   ./bin/partis.py --action partition --naive-hamming --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --n-max-queries 250 --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/point-partition-ref-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/232080/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+        250          156           0                      146            5            5            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/232080/germline-sets
+        156         all done
+      info for 250 
+        water time: 7.047
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+        calculated   vtb 84    fwd 0   hamming merged 0    naive hfracs 0
+
+      --> proc 1
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 0   hamming merged 0    naive hfracs 0
+
+      --> proc 2
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 0   hamming merged 0    naive hfracs 0
+
+      hmm run time: 17.043
+    time to merge csv files: 0.032
+--> 250 clusters with 10 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 120 / 120 hamming distances greater than 0.0323065
+        time 1.99313
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 448
+
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 105 / 105 hamming distances greater than 0.0323065
+        time 1.88901
+        calculated   vtb 8    fwd 0   hamming merged 10    naive hfracs 440
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 190 / 190 hamming distances greater than 0.0323065
+        time 1.9928
+        calculated   vtb 5    fwd 0   hamming merged 5    naive hfracs 405
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 153 / 153 hamming distances greater than 0.0323065
+        time 1.89028
+        calculated   vtb 7    fwd 0   hamming merged 7    naive hfracs 440
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 136 / 136 hamming distances greater than 0.0323065
+        time 1.99938
+        calculated   vtb 8    fwd 0   hamming merged 8    naive hfracs 456
+
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 136 / 136 hamming distances greater than 0.0323065
+        time 1.5024
+        calculated   vtb 4    fwd 0   hamming merged 8    naive hfracs 370
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 153 / 153 hamming distances greater than 0.0323065
+        time 1.55329
+        calculated   vtb 5    fwd 0   hamming merged 7    naive hfracs 395
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 136 / 136 hamming distances greater than 0.0323065
+        time 2.6862
+        calculated   vtb 8    fwd 0   hamming merged 8    naive hfracs 456
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 120 / 120 hamming distances greater than 0.0323065
+        time 2.24385
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 448
+
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 120 / 120 hamming distances greater than 0.0323065
+        time 3.05751
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 448
+
+      hmm run time: 5.089
+    time to merge csv files: 0.014
+  merged path 0 with 81 glomeration steps and 170 final clusters
+        read cached glomeration time: 0.029
+      partition step time: 5.608
+--> 170 clusters with 7 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 0
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0323065
+        time 0.863775
+        calculated   vtb 1    fwd 0   hamming merged 2    naive hfracs 322
+
+      --> proc 6
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0323065
+        time 0.045567
+        calculated   vtb 0    fwd 0   hamming merged 1    naive hfracs 276
+
+      --> proc 1
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0323065
+        time 1.83141
+        calculated   vtb 3    fwd 0   hamming merged 3    naive hfracs 366
+
+      --> proc 2
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0323065
+        time 1.12594
+        calculated   vtb 2    fwd 0   hamming merged 3    naive hfracs 317
+
+      --> proc 3
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0323065
+        time 1.06351
+        calculated   vtb 2    fwd 0   hamming merged 2    naive hfracs 319
+
+      --> proc 4
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 171 / 171 hamming distances greater than 0.0323065
+        time 1.6044
+        calculated   vtb 3    fwd 0   hamming merged 5    naive hfracs 333
+
+      --> proc 5
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 190 / 190 hamming distances greater than 0.0323065
+        time 1.38007
+        calculated   vtb 2    fwd 0   hamming merged 4    naive hfracs 315
+
+      hmm run time: 3.063
+    time to merge csv files: 0.014
+  merged path 0 with 21 glomeration steps and 150 final clusters
+        read cached glomeration time: 0.007
+      partition step time: 3.473
+--> 150 clusters with 5 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 1
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 351 / 351 hamming distances greater than 0.0323065
+        time 1.67522
+        calculated   vtb 2    fwd 0   hamming merged 3    naive hfracs 488
+
+      --> proc 3
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 378 / 378 hamming distances greater than 0.0323065
+        time 1.05008
+        calculated   vtb 1    fwd 0   hamming merged 2    naive hfracs 462
+
+      --> proc 4
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 351 / 351 hamming distances greater than 0.0323065
+        time 1.60554
+        calculated   vtb 3    fwd 0   hamming merged 3    naive hfracs 516
+
+      --> proc 0
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 325 / 325 hamming distances greater than 0.0323065
+        time 3.08987
+        calculated   vtb 4    fwd 0   hamming merged 4    naive hfracs 541
+
+      --> proc 2
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 276 / 276 hamming distances greater than 0.0323065
+        time 2.98781
+        calculated   vtb 5    fwd 0   hamming merged 6    naive hfracs 560
+
+      hmm run time: 5.049
+    time to merge csv files: 0.014
+  merged path 0 with 19 glomeration steps and 132 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 5.569
+--> 132 clusters with 3 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 1
+        read 0 cached logprobs and 368 naive seqs
+        stop with all 666 / 666 hamming distances greater than 0.0323065
+        time 1.92111
+        calculated   vtb 4    fwd 0   hamming merged 7    naive hfracs 1096
+
+      --> proc 2
+        read 0 cached logprobs and 368 naive seqs
+        stop with all 741 / 741 hamming distances greater than 0.0323065
+        time 1.65318
+        calculated   vtb 4    fwd 0   hamming merged 5    naive hfracs 1104
+
+      --> proc 0
+        read 0 cached logprobs and 368 naive seqs
+        stop with all 703 / 703 hamming distances greater than 0.0323065
+        time 2.48328
+        calculated   vtb 4    fwd 0   hamming merged 6    naive hfracs 1100
+
+      hmm run time: 4.030
+    time to merge csv files: 0.014
+  merged path 0 with 19 glomeration steps and 114 final clusters
+        read cached glomeration time: 0.006
+      partition step time: 4.531
+--> 114 clusters with 2 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 0
+        read 0 cached logprobs and 386 naive seqs
+        stop with all 1128 / 1128 hamming distances greater than 0.0323065
+        time 2.49166
+        calculated   vtb 7    fwd 0   hamming merged 9    naive hfracs 1946
+
+      --> proc 1
+        read 0 cached logprobs and 386 naive seqs
+        stop with all 1128 / 1128 hamming distances greater than 0.0323065
+        time 4.74284
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 2000
+
+      hmm run time: 6.024
+    time to merge csv files: 0.014
+  merged path 0 with 19 glomeration steps and 96 final clusters
+        read cached glomeration time: 0.007
+      partition step time: 6.485
+--> 96 clusters with 1 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+        read 0 cached logprobs and 404 naive seqs
+     first parent much larger 31 and 1  =  31
+        stop with all 3403 / 3403 hamming distances greater than 0.0323065
+        time 7.43122
+        calculated   vtb 9    fwd 0   hamming merged 13    naive hfracs 5343
+      hmm run time: 7.547
+  merged path 0 with 14 glomeration steps and 83 final clusters
+        read cached glomeration time: 0.002
+      partition step time: 7.953
+final
+               logprob   delta   clusters  n_procs  adj mi  ccf under  over 
+              -inf                  96        1      0.421      0.77  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o  o:o  o  o  o  o  o  o:o  o  o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o:o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       95        1      0.424      0.78  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o  o:o  o  o  o  o  o  o:o  o  o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o:o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       94        1      0.426      0.79  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       93        1      0.428      0.80  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       92        1      0.431      0.81  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       91        1      0.454      0.87  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       90        1      0.449      0.91  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  o  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       89        1      0.448      0.91  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       88        1      0.450      0.92  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       87        1      0.452      0.92  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       86        1      0.453      0.93  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+              -inf        nan       85        1      0.455      0.93  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o:o:o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+              -inf        nan       84        1      0.456      0.94  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o:o:o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+      [93mbest* [0m  -inf        nan       83        1      0.454      0.95  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o:o:o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+
+      total time: 60.120
+TEST     vsearch-partition-ref-simu   ./bin/partis.py --action partition --naive-vsearch --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --n-max-queries 250 --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/vsearch-partition-ref-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/708106/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+        250          156           0                      146            5            5            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/708106/germline-sets
+        156         all done
+      info for 250 
+        water time: 8.068
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+        calculated   vtb 84    fwd 84   hamming merged 0    naive hfracs 0
+
+      --> proc 1
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+      --> proc 2
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+Reading file /tmp/dralph/hmms/708106/simu.fasta 0%  Reading file /tmp/dralph/hmms/708106/simu.fasta 0%  Reading file /tmp/dralph/hmms/708106/simu.fasta 1%  Reading file /tmp/dralph/hmms/708106/simu.fasta 2%  Reading file /tmp/dralph/hmms/708106/simu.fasta 3%  Reading file /tmp/dralph/hmms/708106/simu.fasta 4%  Reading file /tmp/dralph/hmms/708106/simu.fasta 4%  Reading file /tmp/dralph/hmms/708106/simu.fasta 5%  Reading file /tmp/dralph/hmms/708106/simu.fasta 6%  Reading file /tmp/dralph/hmms/708106/simu.fasta 7%  Reading file /tmp/dralph/hmms/708106/simu.fasta 8%  Reading file /tmp/dralph/hmms/708106/simu.fasta 8%  Reading file /tmp/dralph/hmms/708106/simu.fasta 9%  Reading file /tmp/dralph/hmms/708106/simu.fasta 10%  Reading file /tmp/dralph/hmms/708106/simu.fasta 11%  Reading file /tmp/dralph/hmms/708106/simu.fasta 12%  Reading file /tmp/dralph/hmms/708106/simu.fasta 12%  Reading file /tmp/dralph/hmms/708106/simu.fasta 13%  Reading file /tmp/dralph/hmms/708106/simu.fasta 14%  Reading file /tmp/dralph/hmms/708106/simu.fasta 15%  Reading file /tmp/dralph/hmms/708106/simu.fasta 16%  Reading file /tmp/dralph/hmms/708106/simu.fasta 16%  Reading file /tmp/dralph/hmms/708106/simu.fasta 17%  Reading file /tmp/dralph/hmms/708106/simu.fasta 18%  Reading file /tmp/dralph/hmms/708106/simu.fasta 19%  Reading file /tmp/dralph/hmms/708106/simu.fasta 20%  Reading file /tmp/dralph/hmms/708106/simu.fasta 20%  Reading file /tmp/dralph/hmms/708106/simu.fasta 21%  Reading file /tmp/dralph/hmms/708106/simu.fasta 22%  Reading file /tmp/dralph/hmms/708106/simu.fasta 23%  Reading file /tmp/dralph/hmms/708106/simu.fasta 24%  Reading file /tmp/dralph/hmms/708106/simu.fasta 24%  Reading file /tmp/dralph/hmms/708106/simu.fasta 25%  Reading file /tmp/dralph/hmms/708106/simu.fasta 26%  Reading file /tmp/dralph/hmms/708106/simu.fasta 27%  Reading file /tmp/dralph/hmms/708106/simu.fasta 28%  Reading file /tmp/dralph/hmms/708106/simu.fasta 28%  Reading file /tmp/dralph/hmms/708106/simu.fasta 29%  Reading file /tmp/dralph/hmms/708106/simu.fasta 30%  Reading file /tmp/dralph/hmms/708106/simu.fasta 31%  Reading file /tmp/dralph/hmms/708106/simu.fasta 32%  Reading file /tmp/dralph/hmms/708106/simu.fasta 32%  Reading file /tmp/dralph/hmms/708106/simu.fasta 33%  Reading file /tmp/dralph/hmms/708106/simu.fasta 34%  Reading file /tmp/dralph/hmms/708106/simu.fasta 35%  Reading file /tmp/dralph/hmms/708106/simu.fasta 36%  Reading file /tmp/dralph/hmms/708106/simu.fasta 36%  Reading file /tmp/dralph/hmms/708106/simu.fasta 37%  Reading file /tmp/dralph/hmms/708106/simu.fasta 38%  Reading file /tmp/dralph/hmms/708106/simu.fasta 39%  Reading file /tmp/dralph/hmms/708106/simu.fasta 40%  Reading file /tmp/dralph/hmms/708106/simu.fasta 40%  Reading file /tmp/dralph/hmms/708106/simu.fasta 41%  Reading file /tmp/dralph/hmms/708106/simu.fasta 42%  Reading file /tmp/dralph/hmms/708106/simu.fasta 43%  Reading file /tmp/dralph/hmms/708106/simu.fasta 44%  Reading file /tmp/dralph/hmms/708106/simu.fasta 44%  Reading file /tmp/dralph/hmms/708106/simu.fasta 45%  Reading file /tmp/dralph/hmms/708106/simu.fasta 46%  Reading file /tmp/dralph/hmms/708106/simu.fasta 47%  Reading file /tmp/dralph/hmms/708106/simu.fasta 48%  Reading file /tmp/dralph/hmms/708106/simu.fasta 48%  Reading file /tmp/dralph/hmms/708106/simu.fasta 49%  Reading file /tmp/dralph/hmms/708106/simu.fasta 50%  Reading file /tmp/dralph/hmms/708106/simu.fasta 51%  Reading file /tmp/dralph/hmms/708106/simu.fasta 52%  Reading file /tmp/dralph/hmms/708106/simu.fasta 52%  Reading file /tmp/dralph/hmms/708106/simu.fasta 53%  Reading file /tmp/dralph/hmms/708106/simu.fasta 54%  Reading file /tmp/dralph/hmms/708106/simu.fasta 55%  Reading file /tmp/dralph/hmms/708106/simu.fasta 56%  Reading file /tmp/dralph/hmms/708106/simu.fasta 56%  Reading file /tmp/dralph/hmms/708106/simu.fasta 57%  Reading file /tmp/dralph/hmms/708106/simu.fasta 58%  Reading file /tmp/dralph/hmms/708106/simu.fasta 59%  Reading file /tmp/dralph/hmms/708106/simu.fasta 60%  Reading file /tmp/dralph/hmms/708106/simu.fasta 60%  Reading file /tmp/dralph/hmms/708106/simu.fasta 61%  Reading file /tmp/dralph/hmms/708106/simu.fasta 62%  Reading file /tmp/dralph/hmms/708106/simu.fasta 63%  Reading file /tmp/dralph/hmms/708106/simu.fasta 64%  Reading file /tmp/dralph/hmms/708106/simu.fasta 64%  Reading file /tmp/dralph/hmms/708106/simu.fasta 65%  Reading file /tmp/dralph/hmms/708106/simu.fasta 66%  Reading file /tmp/dralph/hmms/708106/simu.fasta 67%  Reading file /tmp/dralph/hmms/708106/simu.fasta 68%  Reading file /tmp/dralph/hmms/708106/simu.fasta 68%  Reading file /tmp/dralph/hmms/708106/simu.fasta 69%  Reading file /tmp/dralph/hmms/708106/simu.fasta 70%  Reading file /tmp/dralph/hmms/708106/simu.fasta 71%  Reading file /tmp/dralph/hmms/708106/simu.fasta 72%  Reading file /tmp/dralph/hmms/708106/simu.fasta 72%  Reading file /tmp/dralph/hmms/708106/simu.fasta 73%  Reading file /tmp/dralph/hmms/708106/simu.fasta 74%  Reading file /tmp/dralph/hmms/708106/simu.fasta 75%  Reading file /tmp/dralph/hmms/708106/simu.fasta 76%  Reading file /tmp/dralph/hmms/708106/simu.fasta 76%  Reading file /tmp/dralph/hmms/708106/simu.fasta 77%  Reading file /tmp/dralph/hmms/708106/simu.fasta 78%  Reading file /tmp/dralph/hmms/708106/simu.fasta 79%  Reading file /tmp/dralph/hmms/708106/simu.fasta 80%  Reading file /tmp/dralph/hmms/708106/simu.fasta 80%  Reading file /tmp/dralph/hmms/708106/simu.fasta 81%  Reading file /tmp/dralph/hmms/708106/simu.fasta 82%  Reading file /tmp/dralph/hmms/708106/simu.fasta 83%  Reading file /tmp/dralph/hmms/708106/simu.fasta 84%  Reading file /tmp/dralph/hmms/708106/simu.fasta 84%  Reading file /tmp/dralph/hmms/708106/simu.fasta 85%  Reading file /tmp/dralph/hmms/708106/simu.fasta 86%  Reading file /tmp/dralph/hmms/708106/simu.fasta 87%  Reading file /tmp/dralph/hmms/708106/simu.fasta 88%  Reading file /tmp/dralph/hmms/708106/simu.fasta 88%  Reading file /tmp/dralph/hmms/708106/simu.fasta 89%  Reading file /tmp/dralph/hmms/708106/simu.fasta 90%  Reading file /tmp/dralph/hmms/708106/simu.fasta 91%  Reading file /tmp/dralph/hmms/708106/simu.fasta 92%  Reading file /tmp/dralph/hmms/708106/simu.fasta 92%  Reading file /tmp/dralph/hmms/708106/simu.fasta 93%  Reading file /tmp/dralph/hmms/708106/simu.fasta 94%  Reading file /tmp/dralph/hmms/708106/simu.fasta 95%  Reading file /tmp/dralph/hmms/708106/simu.fasta 96%  Reading file /tmp/dralph/hmms/708106/simu.fasta 96%  Reading file /tmp/dralph/hmms/708106/simu.fasta 97%  Reading file /tmp/dralph/hmms/708106/simu.fasta 98%  Reading file /tmp/dralph/hmms/708106/simu.fasta 99%  Reading file /tmp/dralph/hmms/708106/simu.fasta 100%  Reading file /tmp/dralph/hmms/708106/simu.fasta 100%
+101500 nt in 250 seqs, min 406, max 406, avg 406
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
+Clustering 0%  Clustering 6%  Clustering 13%  Clustering 19%  Clustering 26%  Clustering 32%  Clustering 38%  Clustering 45%  Clustering 51%  Clustering 58%  Clustering 64%  Clustering 70%  Clustering 77%  Clustering 83%  Clustering 90%  Clustering 96%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
+Clusters: 108 Size min 1, max 18, avg 2.3
+Singletons: 58, 23.2% of seqs, 53.7% of clusters
+vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
+https://github.com/torognes/vsearch
+
+      hmm run time: 29.060
+    time to merge csv files: 0.019
+      vsearch/swarm time: 1.929
+      total time: 40.772
+TEST          cache-data-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results --action cache-data-parameters --extra-args __skip-unproductive:__seed:1:__n-procs:10:__only-genes:IGHV4-61*08,IGHV3-48*01,IGHV5-51*02,IGHV3-69-1*02,IGHV1/OR15-1*04,IGHV3-66*03,IGHV3-23D*01,IGHV3-71*03,IGHV1-2*04,IGHV1-2*02,IGHD3-16*02,IGHD2-2*03,IGHD2-8*01,IGHD3-22*01,IGHD6-13*01,IGHD4-17*01,IGHD6-19*01,IGHD3-10*01,IGHD2-15*01,IGHD2-21*02,IGHJ5*02,IGHJ3*02,IGHJ2*01,IGHJ1*01,IGHJ6*03,IGHJ4*02:__only-csv-plots --datafname test/mishmash.csv
+RUN ./bin/partis.py --action cache-parameters --seqfile test/mishmash.csv --is-data --skip-unproductive --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --parameter-dir test/_new-results/test/parameters/data --plotdir test/_new-results/test/plots/data
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/199819/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+       2359          743           0                      169          544           30            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/199819/germline-sets
+        743          483         478                        0            5            0            0             rerunning for indels
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/199819/germline-sets
+        483            6           0                        0            6            0            0             increasing mismatch score (2 --> 3) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/199819/germline-sets
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+          6            2           0                        0            2            0            0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 2165      (skipped 192 / 2359 = 0.081 unproductive    2 / 2359 = 0.001 unknown ) 
+   [91mwarning[0m 2 missing annotations
+    writing parameters
+  plotting parameters
+  writing hmms with info from test/_new-results/test/parameters/data/sw
+hmm
+    writing input
+    running
+      hmm run time: 44.261
+    time to merge csv files: 0.040
+    read output
+    writing parameters
+  plotting parameters
+    processed 2165 sequences (2165 events)
+      3 boundary errors
+  writing hmms with info from test/_new-results/test/parameters/data/hmm
+      total time: 116.585
+TEST                       simulate   ./bin/run-driver.py --label test --stashdir test/_new-results --action simulate --extra-args __n-sim-events:500:__n-leaves:2:__mimic-data-read-length:__seed:1:__n-procs:10:__only-genes:IGHV4-61*08,IGHV3-48*01,IGHV5-51*02,IGHV3-69-1*02,IGHV1/OR15-1*04,IGHV3-66*03,IGHV3-23D*01,IGHV3-71*03,IGHV1-2*04,IGHV1-2*02,IGHD3-16*02,IGHD2-2*03,IGHD2-8*01,IGHD3-22*01,IGHD6-13*01,IGHD4-17*01,IGHD6-19*01,IGHD3-10*01,IGHD2-15*01,IGHD2-21*02,IGHJ5*02,IGHJ3*02,IGHJ2*01,IGHJ1*01,IGHJ6*03,IGHJ4*02:__only-csv-plots
+RUN ./bin/partis.py --action simulate --outfname test/_new-results/test/simu.csv --n-sim-events 500 --n-leaves 2 --mimic-data-read-length --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --parameter-dir test/_new-results/test/parameters/data/hmm
+TODO fix utils.shift_overlapping_boundaries()
+simulating
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+WARNING under/overflows in Hist::normalize()
+TEST          cache-simu-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results --action cache-simu-parameters --extra-args __seed:1:__n-procs:10:__only-genes:IGHV4-61*08,IGHV3-48*01,IGHV5-51*02,IGHV3-69-1*02,IGHV1/OR15-1*04,IGHV3-66*03,IGHV3-23D*01,IGHV3-71*03,IGHV1-2*04,IGHV1-2*02,IGHD3-16*02,IGHD2-2*03,IGHD2-8*01,IGHD3-22*01,IGHD6-13*01,IGHD4-17*01,IGHD6-19*01,IGHD3-10*01,IGHD2-15*01,IGHD2-21*02,IGHJ5*02,IGHJ3*02,IGHJ2*01,IGHJ1*01,IGHJ6*03,IGHJ4*02:__only-csv-plots
+RUN ./bin/partis.py --action cache-parameters --seqfile test/_new-results/test/simu.csv --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --parameter-dir test/_new-results/test/parameters/simu --plotdir test/_new-results/test/plots/simu
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/710282/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+       1001          580           0                      509           56           15            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/710282/germline-sets
+        580            3           2                        0            1            0            0             rerunning for indels
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/710282/germline-sets
+          3            1           0                        0            1            0            0             increasing mismatch score (2 --> 3) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/710282/germline-sets
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+          1         all done
+      info for 1001 
+    writing parameters
+    writing parameters
+  plotting parameters
+  plotting parameters
+  writing hmms with info from test/_new-results/test/parameters/simu/sw
+hmm
+    writing input
+    running
+      hmm run time: 19.363
+    time to merge csv files: 0.042
+    read output
+    writing parameters
+  plotting parameters
+    writing parameters
+  plotting parameters
+    processed 1001 sequences (1001 events)
+  writing hmms with info from test/_new-results/test/parameters/simu/hmm
+      total time: 103.206
+TEST              annotate-new-simu   ./bin/partis.py --action run-viterbi --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --plotdir test/_new-results/test/plots/new-simu-performance --plot-performance --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/annotate-new-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/904130/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+       1001          580           0                      509           56           15            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/904130/germline-sets
+        580            3           2                        0            1            0            0             rerunning for indels
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/904130/germline-sets
+    skipping performance evaluation of -564037955984549742 because of indels
+    skipping performance evaluation of -4982993841260129372 because of indels
+          3            1           0                        0            1            0            0             increasing mismatch score (2 --> 3) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/904130/germline-sets
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+          1         all done
+  v_gene
+    correct up to allele:  952 / 999  = 0.9530 (-0.946, +0.959)
+  d_gene
+    correct up to allele:  803 / 999  = 0.8038 (-0.791, +0.815)
+  j_gene
+    correct up to allele:  892 / 999  = 0.8929 (-0.883, +0.902)
+      info for 1001 
+hmm
+    writing input
+    running
+      hmm run time: 19.164
+    time to merge csv files: 0.025
+    read output
+    skipping performance evaluation of -4982993841260129372 because of indels
+    skipping performance evaluation of -564037955984549742 because of indels
+  v_gene
+    correct up to allele:  949 / 999  = 0.9499 (-0.942, +0.956)
+  d_gene
+    correct up to allele:  851 / 999  = 0.8519 (-0.840, +0.862)
+  j_gene
+    correct up to allele:  930 / 999  = 0.9309 (-0.922, +0.938)
+    processed 1001 sequences (1001 events)
+      total time: 49.326
+TEST             partition-new-simu   ./bin/partis.py --action partition --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --n-max-queries 250 --persistent-cachefname test/_new-results/cache-new-partition.csv --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/partition-new-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/492475/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+        250          156           0                      146            5            5            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/492475/germline-sets
+        156         all done
+      info for 250 
+        water time: 7.038
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 1
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+      --> proc 0
+        cachefile d.n.e.
+        calculated   vtb 84    fwd 84   hamming merged 0    naive hfracs 0
+
+      --> proc 2
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+      hmm run time: 29.056
+    time to merge csv files: 0.021
+--> 250 clusters with 10 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 1
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -8525.35 --> -8542.28
+        time 2.04881
+        calculated   vtb 1    fwd 3   hamming merged 3    naive hfracs 300
+
+      --> proc 5
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 255   small lratios: 21   total: 276
+        time 5.64068
+        calculated   vtb 1    fwd 27   hamming merged 1    naive hfracs 323
+
+      --> proc 0
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -7648.85 --> -7694.97
+        time 6.84436
+        calculated   vtb 6    fwd 21   hamming merged 3    naive hfracs 400
+
+      --> proc 7
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 181   small lratios: 9   total: 190
+        time 7.23546
+        calculated   vtb 4    fwd 18   hamming merged 2    naive hfracs 382
+
+      --> proc 3
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 178   small lratios: 12   total: 190
+        time 8.08062
+        calculated   vtb 5    fwd 26   hamming merged 3    naive hfracs 405
+
+      --> proc 4
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 196   small lratios: 14   total: 210
+        time 8.91463
+        calculated   vtb 4    fwd 31   hamming merged 4    naive hfracs 386
+
+      --> proc 8
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 218   small lratios: 13   total: 231
+        time 8.02089
+        calculated   vtb 1    fwd 26   hamming merged 2    naive hfracs 321
+
+      --> proc 9
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -8411.95 --> -8443.87
+        time 8.33998
+        calculated   vtb 2    fwd 17   hamming merged 3    naive hfracs 322
+
+      --> proc 6
+        read 250 cached logprobs and 250 naive seqs
+        stopping after drop -7426.65 --> -7456.55
+        time 9.64444
+        calculated   vtb 1    fwd 26   hamming merged 5    naive hfracs 300
+
+      --> proc 2
+        read 250 cached logprobs and 250 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 200   small lratios: 10   total: 210
+        time 11.4401
+        calculated   vtb 4    fwd 26   hamming merged 1    naive hfracs 386
+
+      hmm run time: 13.102
+    time to merge csv files: 0.016
+  merged path 0 with 41 glomeration steps and 210 final clusters
+        read cached glomeration time: 0.019
+      partition step time: 13.771
+--> 215 clusters with 7 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 3
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -11777.1 --> -11795.8
+        time 3.07587
+        calculated   vtb 1    fwd 11   hamming merged 3    naive hfracs 465
+
+      --> proc 4
+        read 471 cached logprobs and 290 naive seqs
+        stop for some reason or other with -inf: 0   ham skip: 318   small lratios: 7   total: 325
+        time 5.81766
+        calculated   vtb 4    fwd 18   hamming merged 4    naive hfracs 571
+
+      --> proc 5
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -10452.3 --> -10485.3
+        time 6.91902
+        calculated   vtb 2    fwd 19   hamming merged 3    naive hfracs 462
+
+      --> proc 6
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -10524.2 --> -10535.5
+        time 5.9785
+        calculated   vtb 2    fwd 13   hamming merged 6    naive hfracs 459
+
+      --> proc 2
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -11867.3 --> -11934.2
+        time 7.30316
+        calculated   vtb 2    fwd 25   hamming merged 4    naive hfracs 492
+
+      --> proc 0
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -11452.9 --> -11510.1
+        time 8.11707
+        calculated   vtb 4    fwd 16   hamming merged 2    naive hfracs 546
+
+      --> proc 1
+        read 471 cached logprobs and 290 naive seqs
+        stopping after drop -12186.5 --> -12204.5
+        time 20.057
+        calculated   vtb 3    fwd 41   hamming merged 6    naive hfracs 516
+
+      hmm run time: 22.093
+    time to merge csv files: 0.017
+  merged path 0 with 33 glomeration steps and 183 final clusters
+        read cached glomeration time: 0.013
+      partition step time: 22.682
+--> 191 clusters with 5 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 3
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -16315.1 --> -16326.5
+        time 1.68376
+        calculated   vtb 0    fwd 3   hamming merged 4    naive hfracs 703
+
+      --> proc 1
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -14718.1 --> -14753.6
+        time 2.65236
+        calculated   vtb 1    fwd 4   hamming merged 4    naive hfracs 703
+
+      --> proc 0
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -16922.2 --> -16930.4
+        time 5.72614
+        calculated   vtb 1    fwd 9   hamming merged 4    naive hfracs 741
+
+      --> proc 4
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -17060.1 --> -17072.2
+        time 8.8213
+        calculated   vtb 3    fwd 30   hamming merged 3    naive hfracs 774
+
+      --> proc 2
+        read 614 cached logprobs and 322 naive seqs
+        stopping after drop -14275.2 --> -14285
+        time 18.6119
+        calculated   vtb 8    fwd 69   hamming merged 2    naive hfracs 934
+
+      hmm run time: 20.063
+    time to merge csv files: 0.016
+  merged path 0 with 24 glomeration steps and 168 final clusters
+        read cached glomeration time: 0.009
+      partition step time: 20.623
+--> 181 clusters with 3 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 2
+        read 729 cached logprobs and 344 naive seqs
+        stopping after drop -29532.3 --> -29540.5
+        time 3.18169
+        calculated   vtb 0    fwd 5   hamming merged 3    naive hfracs 1770
+
+      --> proc 1
+        read 729 cached logprobs and 344 naive seqs
+        stopping after drop -25407.4 --> -25447.9
+        time 7.54133
+        calculated   vtb 6    fwd 22   hamming merged 8    naive hfracs 2040
+
+      --> proc 0
+        read 729 cached logprobs and 344 naive seqs
+        stopping after drop -24084.4 --> -24100
+        time 14.4241
+        calculated   vtb 2    fwd 33   hamming merged 6    naive hfracs 1885
+
+      hmm run time: 16.045
+    time to merge csv files: 0.033
+  merged path 0 with 18 glomeration steps and 164 final clusters
+        read cached glomeration time: 0.013
+      partition step time: 16.649
+--> 167 clusters with 2 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+      --> proc 1
+        read 789 cached logprobs and 360 naive seqs
+        stopping after drop -40017 --> -40177
+        time 10.0734
+        calculated   vtb 6    fwd 30   hamming merged 8    naive hfracs 3788
+
+      --> proc 0
+        read 789 cached logprobs and 360 naive seqs
+        stopping after drop -38529.3 --> -38604.5
+        time 30.5549
+        calculated   vtb 3    fwd 68   hamming merged 11    naive hfracs 3633
+
+      hmm run time: 32.052
+    time to merge csv files: 0.014
+  merged path 0 with 20 glomeration steps and 148 final clusters
+        read cached glomeration time: 0.012
+      partition step time: 32.545
+--> 151 clusters with 1 procs
+hmm
+    writing input
+       naive hamming bounds: 0.010 0.062
+    running
+        read 887 cached logprobs and 379 naive seqs
+        stopping after drop -78323.7 --> -78362.5
+        time 4.01698
+        calculated   vtb 3    fwd 10   hamming merged 7    naive hfracs 11614
+‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
+      hmm run time: 4.125
+  merged path 0 with 8 glomeration steps and 144 final clusters
+        read cached glomeration time: 0.002
+      partition step time: 4.453
+final
+               logprob   delta   clusters  n_procs  adj mi  ccf under  over 
+              -78565.92             151       1      0.585      0.70  0.81      o  o:o  o  o  o  o  o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o  o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78535.23   30.7      150       1      0.595      0.71  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o  o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78484.06   51.2      149       1      0.601      0.71  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o:o  o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78454.68   29.4      148       1      0.606      0.72  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78416.30   38.4      147       1      0.612      0.73  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78354.88   61.4      146       1      0.624      0.74  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o  o:o:o  o  o  o  o:o  o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+      [93mbest* [0m  -78323.67   31.2      145       1      0.629      0.75  0.81      o  o:o  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o:o  o:o:o  o  o  o  o:o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -78362.46   -38.8     144       1      0.629      0.75  0.81      o  [91mo:o:o:o:o[0m  o  o  o  o  o:o:o:o:o  o  o:o  o  o:o:o:o:o:o:o  o:o  o:o  o:o  o:o:o:o:o:o:o:o:o:o  o  o:o  [91mo:o:o:o:o[0m  o:o:o  o  o  o  o:o  o:o:o  o  o:o  o  o:o  o:o  [91mo:o:o:o:o:o[0m  o  o:o  o  o:o  o  o:o  [91mo:o[0m  o  o:o  o:o  o:o  o  o:o  o  o  [91mo:o:o:o[0m  o  o  o  o  o  o  o:o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o:o  o  o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o  o:o  o  o:o:o  [91mo:o:o[0m  o  o  o  o:o  o:o  o:o:o  o  o:o  o  o  o  o:o  o:o:o  o  o  o  o:o  o:o  o  o  o:o:o  o  o  o  o  o:o  o  o  o:o  o:o  o  o  o  o  [91mo:o[0m  o  o  o  o  o  o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+
+    time to merge csv files: 0.054
+      total time: 149.131
+TEST       point-partition-new-simu   ./bin/partis.py --action partition --naive-hamming --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --n-max-queries 250 --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/point-partition-new-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/293175/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+        250          156           0                      146            5            5            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/293175/germline-sets
+        156         all done
+      info for 250 
+        water time: 8.048
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+        calculated   vtb 84    fwd 0   hamming merged 0    naive hfracs 0
+
+      --> proc 1
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 0   hamming merged 0    naive hfracs 0
+
+      --> proc 2
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 0   hamming merged 0    naive hfracs 0
+
+      hmm run time: 17.044
+    time to merge csv files: 0.020
+--> 250 clusters with 10 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 136 / 136 hamming distances greater than 0.0323065
+        time 1.65419
+        calculated   vtb 4    fwd 0   hamming merged 8    naive hfracs 370
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 153 / 153 hamming distances greater than 0.0323065
+        time 1.70398
+        calculated   vtb 5    fwd 0   hamming merged 7    naive hfracs 395
+
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 120 / 120 hamming distances greater than 0.0323065
+        time 2.20295
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 448
+
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 105 / 105 hamming distances greater than 0.0323065
+        time 2.06588
+        calculated   vtb 8    fwd 0   hamming merged 10    naive hfracs 440
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 190 / 190 hamming distances greater than 0.0323065
+        time 2.16251
+        calculated   vtb 5    fwd 0   hamming merged 5    naive hfracs 405
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 153 / 153 hamming distances greater than 0.0323065
+        time 2.07872
+        calculated   vtb 7    fwd 0   hamming merged 7    naive hfracs 440
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 136 / 136 hamming distances greater than 0.0323065
+        time 2.47424
+        calculated   vtb 8    fwd 0   hamming merged 8    naive hfracs 456
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 136 / 136 hamming distances greater than 0.0323065
+        time 2.17168
+        calculated   vtb 8    fwd 0   hamming merged 8    naive hfracs 456
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 120 / 120 hamming distances greater than 0.0323065
+        time 2.37336
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 448
+
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 120 / 120 hamming distances greater than 0.0323065
+        time 3.22155
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 448
+
+      hmm run time: 5.091
+    time to merge csv files: 0.014
+  merged path 0 with 81 glomeration steps and 170 final clusters
+        read cached glomeration time: 0.028
+      partition step time: 5.650
+--> 170 clusters with 7 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 0
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0323065
+        time 1.00863
+        calculated   vtb 1    fwd 0   hamming merged 2    naive hfracs 322
+
+      --> proc 6
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0323065
+        time 0.043555
+        calculated   vtb 0    fwd 0   hamming merged 1    naive hfracs 276
+
+      --> proc 1
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0323065
+        time 1.96735
+        calculated   vtb 3    fwd 0   hamming merged 3    naive hfracs 366
+
+      --> proc 2
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0323065
+        time 1.26251
+        calculated   vtb 2    fwd 0   hamming merged 3    naive hfracs 317
+
+      --> proc 3
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0323065
+        time 1.22606
+        calculated   vtb 2    fwd 0   hamming merged 2    naive hfracs 319
+
+      --> proc 4
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 171 / 171 hamming distances greater than 0.0323065
+        time 1.7777
+        calculated   vtb 3    fwd 0   hamming merged 5    naive hfracs 333
+
+      --> proc 5
+        read 0 cached logprobs and 330 naive seqs
+        stop with all 190 / 190 hamming distances greater than 0.0323065
+        time 1.5224
+        calculated   vtb 2    fwd 0   hamming merged 4    naive hfracs 315
+
+      hmm run time: 3.062
+    time to merge csv files: 0.014
+  merged path 0 with 21 glomeration steps and 150 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 3.520
+--> 150 clusters with 5 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 3
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 378 / 378 hamming distances greater than 0.0323065
+        time 0.879867
+        calculated   vtb 1    fwd 0   hamming merged 2    naive hfracs 462
+
+      --> proc 1
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 351 / 351 hamming distances greater than 0.0323065
+        time 1.29508
+        calculated   vtb 2    fwd 0   hamming merged 3    naive hfracs 488
+
+      --> proc 4
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 351 / 351 hamming distances greater than 0.0323065
+        time 1.18676
+        calculated   vtb 3    fwd 0   hamming merged 3    naive hfracs 516
+
+      --> proc 0
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 325 / 325 hamming distances greater than 0.0323065
+        time 3.00407
+        calculated   vtb 4    fwd 0   hamming merged 4    naive hfracs 541
+
+      --> proc 2
+        read 0 cached logprobs and 350 naive seqs
+        stop with all 276 / 276 hamming distances greater than 0.0323065
+        time 2.61065
+        calculated   vtb 5    fwd 0   hamming merged 6    naive hfracs 560
+
+      hmm run time: 4.052
+    time to merge csv files: 0.014
+  merged path 0 with 19 glomeration steps and 132 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 4.513
+--> 132 clusters with 3 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 2
+        read 0 cached logprobs and 368 naive seqs
+        stop with all 741 / 741 hamming distances greater than 0.0323065
+        time 1.59621
+        calculated   vtb 4    fwd 0   hamming merged 5    naive hfracs 1104
+
+      --> proc 1
+        read 0 cached logprobs and 368 naive seqs
+        stop with all 666 / 666 hamming distances greater than 0.0323065
+        time 2.08241
+        calculated   vtb 4    fwd 0   hamming merged 7    naive hfracs 1096
+
+      --> proc 0
+        read 0 cached logprobs and 368 naive seqs
+        stop with all 703 / 703 hamming distances greater than 0.0323065
+        time 3.1132
+        calculated   vtb 4    fwd 0   hamming merged 6    naive hfracs 1100
+
+      hmm run time: 5.035
+    time to merge csv files: 0.017
+  merged path 0 with 19 glomeration steps and 114 final clusters
+        read cached glomeration time: 0.009
+      partition step time: 5.477
+--> 114 clusters with 2 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+      --> proc 0
+        read 0 cached logprobs and 386 naive seqs
+        stop with all 1128 / 1128 hamming distances greater than 0.0323065
+        time 2.19966
+        calculated   vtb 7    fwd 0   hamming merged 9    naive hfracs 1946
+
+      --> proc 1
+        read 0 cached logprobs and 386 naive seqs
+        stop with all 1128 / 1128 hamming distances greater than 0.0323065
+        time 4.41259
+        calculated   vtb 8    fwd 0   hamming merged 9    naive hfracs 2000
+
+      hmm run time: 6.025
+    time to merge csv files: 0.014
+  merged path 0 with 19 glomeration steps and 96 final clusters
+        read cached glomeration time: 0.010
+      partition step time: 6.435
+--> 96 clusters with 1 procs
+hmm
+    writing input
+       naive hamming bounds: 0.032 0.032
+    running
+        read 0 cached logprobs and 404 naive seqs
+     first parent much larger 31 and 1  =  31
+        stop with all 3403 / 3403 hamming distances greater than 0.0323065
+        time 5.80494
+        calculated   vtb 9    fwd 0   hamming merged 13    naive hfracs 5343
+      hmm run time: 5.907
+  merged path 0 with 14 glomeration steps and 83 final clusters
+        read cached glomeration time: 0.003
+      partition step time: 6.280
+final
+               logprob   delta   clusters  n_procs  adj mi  ccf under  over 
+              -inf                  96        1      0.421      0.77  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o  o:o  o  o  o  o  o  o:o  o  o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o:o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       95        1      0.424      0.78  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o  o:o  o  o  o  o  o  o:o  o  o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o:o  o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       94        1      0.426      0.79  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       93        1      0.428      0.80  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       92        1      0.431      0.81  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       91        1      0.454      0.87  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o[0m  o:o  o  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       90        1      0.449      0.91  0.56      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  o  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       89        1      0.448      0.91  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o  o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       88        1      0.450      0.92  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       87        1      0.452      0.92  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o  o 
+              -inf        nan       86        1      0.453      0.93  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o:o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+              -inf        nan       85        1      0.455      0.93  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o:o:o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o:o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+              -inf        nan       84        1      0.456      0.94  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o:o:o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+      [93mbest* [0m  -inf        nan       83        1      0.454      0.95  0.54      [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o:o[0m  o  o:o  o  o  [91mo:o[0m  o:o  [91mo:o[0m  o:o:o  o:o  o  o:o:o:o  o:o:o:o  o:o:o:o:o:o:o:o  o  o:o:o  [91mo:o:o:o[0m  [91mo:o:o:o:o:o:o:o:o:o:o[0m  o:o:o  o:o:o:o:o  o:o:o:o  o:o:o  o:o  o:o:o:o  o  o:o  o  o:o  o:o  o:o  o  o  o  o  o  [91mo:o:o:o:o[0m  o  o:o:o  o:o:o  [91mo:o:o[0m  o  o  o:o:o:o  o:o:o:o  o:o  o:o  o  o  o  o  o  o:o  o:o  o:o:o  o:o  o  o  o:o  [91mo:o[0m  o:o  o  o  [91mo:o[0m  o:o:o  o  o  o  o  o  o  o  o  o:o  o:o  o  o  o  o  o  o  o  o 
+
+      total time: 59.285
+TEST     vsearch-partition-new-simu   ./bin/partis.py --action partition --naive-vsearch --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --n-max-queries 250 --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/vsearch-partition-new-simu.csv
+TODO fix utils.shift_overlapping_boundaries()
+smith-waterman
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/681083/germline-sets
+      processed   remaining  new-indels       rerun: unproductive   no-match   weird-annot.   failed-apport.
+        250          156           0                      146            5            5            0             increasing mismatch score (1 --> 2) and rerunning them
+rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/681083/germline-sets
+        156         all done
+      info for 250 
+        water time: 7.018
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 1
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+      --> proc 0
+        cachefile d.n.e.
+        calculated   vtb 84    fwd 84   hamming merged 0    naive hfracs 0
+
+      --> proc 2
+        cachefile d.n.e.
+        calculated   vtb 83    fwd 83   hamming merged 0    naive hfracs 0
+
+Reading file /tmp/dralph/hmms/681083/simu.fasta 0%  Reading file /tmp/dralph/hmms/681083/simu.fasta 0%  Reading file /tmp/dralph/hmms/681083/simu.fasta 1%  Reading file /tmp/dralph/hmms/681083/simu.fasta 2%  Reading file /tmp/dralph/hmms/681083/simu.fasta 3%  Reading file /tmp/dralph/hmms/681083/simu.fasta 4%  Reading file /tmp/dralph/hmms/681083/simu.fasta 4%  Reading file /tmp/dralph/hmms/681083/simu.fasta 5%  Reading file /tmp/dralph/hmms/681083/simu.fasta 6%  Reading file /tmp/dralph/hmms/681083/simu.fasta 7%  Reading file /tmp/dralph/hmms/681083/simu.fasta 8%  Reading file /tmp/dralph/hmms/681083/simu.fasta 8%  Reading file /tmp/dralph/hmms/681083/simu.fasta 9%  Reading file /tmp/dralph/hmms/681083/simu.fasta 10%  Reading file /tmp/dralph/hmms/681083/simu.fasta 11%  Reading file /tmp/dralph/hmms/681083/simu.fasta 12%  Reading file /tmp/dralph/hmms/681083/simu.fasta 12%  Reading file /tmp/dralph/hmms/681083/simu.fasta 13%  Reading file /tmp/dralph/hmms/681083/simu.fasta 14%  Reading file /tmp/dralph/hmms/681083/simu.fasta 15%  Reading file /tmp/dralph/hmms/681083/simu.fasta 16%  Reading file /tmp/dralph/hmms/681083/simu.fasta 16%  Reading file /tmp/dralph/hmms/681083/simu.fasta 17%  Reading file /tmp/dralph/hmms/681083/simu.fasta 18%  Reading file /tmp/dralph/hmms/681083/simu.fasta 19%  Reading file /tmp/dralph/hmms/681083/simu.fasta 20%  Reading file /tmp/dralph/hmms/681083/simu.fasta 20%  Reading file /tmp/dralph/hmms/681083/simu.fasta 21%  Reading file /tmp/dralph/hmms/681083/simu.fasta 22%  Reading file /tmp/dralph/hmms/681083/simu.fasta 23%  Reading file /tmp/dralph/hmms/681083/simu.fasta 24%  Reading file /tmp/dralph/hmms/681083/simu.fasta 24%  Reading file /tmp/dralph/hmms/681083/simu.fasta 25%  Reading file /tmp/dralph/hmms/681083/simu.fasta 26%  Reading file /tmp/dralph/hmms/681083/simu.fasta 27%  Reading file /tmp/dralph/hmms/681083/simu.fasta 28%  Reading file /tmp/dralph/hmms/681083/simu.fasta 28%  Reading file /tmp/dralph/hmms/681083/simu.fasta 29%  Reading file /tmp/dralph/hmms/681083/simu.fasta 30%  Reading file /tmp/dralph/hmms/681083/simu.fasta 31%  Reading file /tmp/dralph/hmms/681083/simu.fasta 32%  Reading file /tmp/dralph/hmms/681083/simu.fasta 32%  Reading file /tmp/dralph/hmms/681083/simu.fasta 33%  Reading file /tmp/dralph/hmms/681083/simu.fasta 34%  Reading file /tmp/dralph/hmms/681083/simu.fasta 35%  Reading file /tmp/dralph/hmms/681083/simu.fasta 36%  Reading file /tmp/dralph/hmms/681083/simu.fasta 36%  Reading file /tmp/dralph/hmms/681083/simu.fasta 37%  Reading file /tmp/dralph/hmms/681083/simu.fasta 38%  Reading file /tmp/dralph/hmms/681083/simu.fasta 39%  Reading file /tmp/dralph/hmms/681083/simu.fasta 40%  Reading file /tmp/dralph/hmms/681083/simu.fasta 40%  Reading file /tmp/dralph/hmms/681083/simu.fasta 41%  Reading file /tmp/dralph/hmms/681083/simu.fasta 42%  Reading file /tmp/dralph/hmms/681083/simu.fasta 43%  Reading file /tmp/dralph/hmms/681083/simu.fasta 44%  Reading file /tmp/dralph/hmms/681083/simu.fasta 44%  Reading file /tmp/dralph/hmms/681083/simu.fasta 45%  Reading file /tmp/dralph/hmms/681083/simu.fasta 46%  Reading file /tmp/dralph/hmms/681083/simu.fasta 47%  Reading file /tmp/dralph/hmms/681083/simu.fasta 48%  Reading file /tmp/dralph/hmms/681083/simu.fasta 48%  Reading file /tmp/dralph/hmms/681083/simu.fasta 49%  Reading file /tmp/dralph/hmms/681083/simu.fasta 50%  Reading file /tmp/dralph/hmms/681083/simu.fasta 51%  Reading file /tmp/dralph/hmms/681083/simu.fasta 52%  Reading file /tmp/dralph/hmms/681083/simu.fasta 52%  Reading file /tmp/dralph/hmms/681083/simu.fasta 53%  Reading file /tmp/dralph/hmms/681083/simu.fasta 54%  Reading file /tmp/dralph/hmms/681083/simu.fasta 55%  Reading file /tmp/dralph/hmms/681083/simu.fasta 56%  Reading file /tmp/dralph/hmms/681083/simu.fasta 56%  Reading file /tmp/dralph/hmms/681083/simu.fasta 57%  Reading file /tmp/dralph/hmms/681083/simu.fasta 58%  Reading file /tmp/dralph/hmms/681083/simu.fasta 59%  Reading file /tmp/dralph/hmms/681083/simu.fasta 60%  Reading file /tmp/dralph/hmms/681083/simu.fasta 60%  Reading file /tmp/dralph/hmms/681083/simu.fasta 61%  Reading file /tmp/dralph/hmms/681083/simu.fasta 62%  Reading file /tmp/dralph/hmms/681083/simu.fasta 63%  Reading file /tmp/dralph/hmms/681083/simu.fasta 64%  Reading file /tmp/dralph/hmms/681083/simu.fasta 64%  Reading file /tmp/dralph/hmms/681083/simu.fasta 65%  Reading file /tmp/dralph/hmms/681083/simu.fasta 66%  Reading file /tmp/dralph/hmms/681083/simu.fasta 67%  Reading file /tmp/dralph/hmms/681083/simu.fasta 68%  Reading file /tmp/dralph/hmms/681083/simu.fasta 68%  Reading file /tmp/dralph/hmms/681083/simu.fasta 69%  Reading file /tmp/dralph/hmms/681083/simu.fasta 70%  Reading file /tmp/dralph/hmms/681083/simu.fasta 71%  Reading file /tmp/dralph/hmms/681083/simu.fasta 72%  Reading file /tmp/dralph/hmms/681083/simu.fasta 72%  Reading file /tmp/dralph/hmms/681083/simu.fasta 73%  Reading file /tmp/dralph/hmms/681083/simu.fasta 74%  Reading file /tmp/dralph/hmms/681083/simu.fasta 75%  Reading file /tmp/dralph/hmms/681083/simu.fasta 76%  Reading file /tmp/dralph/hmms/681083/simu.fasta 76%  Reading file /tmp/dralph/hmms/681083/simu.fasta 77%  Reading file /tmp/dralph/hmms/681083/simu.fasta 78%  Reading file /tmp/dralph/hmms/681083/simu.fasta 79%  Reading file /tmp/dralph/hmms/681083/simu.fasta 80%  Reading file /tmp/dralph/hmms/681083/simu.fasta 80%  Reading file /tmp/dralph/hmms/681083/simu.fasta 81%  Reading file /tmp/dralph/hmms/681083/simu.fasta 82%  Reading file /tmp/dralph/hmms/681083/simu.fasta 83%  Reading file /tmp/dralph/hmms/681083/simu.fasta 84%  Reading file /tmp/dralph/hmms/681083/simu.fasta 84%  Reading file /tmp/dralph/hmms/681083/simu.fasta 85%  Reading file /tmp/dralph/hmms/681083/simu.fasta 86%  Reading file /tmp/dralph/hmms/681083/simu.fasta 87%  Reading file /tmp/dralph/hmms/681083/simu.fasta 88%  Reading file /tmp/dralph/hmms/681083/simu.fasta 88%  Reading file /tmp/dralph/hmms/681083/simu.fasta 89%  Reading file /tmp/dralph/hmms/681083/simu.fasta 90%  Reading file /tmp/dralph/hmms/681083/simu.fasta 91%  Reading file /tmp/dralph/hmms/681083/simu.fasta 92%  Reading file /tmp/dralph/hmms/681083/simu.fasta 92%  Reading file /tmp/dralph/hmms/681083/simu.fasta 93%  Reading file /tmp/dralph/hmms/681083/simu.fasta 94%  Reading file /tmp/dralph/hmms/681083/simu.fasta 95%  Reading file /tmp/dralph/hmms/681083/simu.fasta 96%  Reading file /tmp/dralph/hmms/681083/simu.fasta 96%  Reading file /tmp/dralph/hmms/681083/simu.fasta 97%  Reading file /tmp/dralph/hmms/681083/simu.fasta 98%  Reading file /tmp/dralph/hmms/681083/simu.fasta 99%  Reading file /tmp/dralph/hmms/681083/simu.fasta 100%  Reading file /tmp/dralph/hmms/681083/simu.fasta 100%
+101500 nt in 250 seqs, min 406, max 406, avg 406
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
+Clustering 0%  Clustering 6%  Clustering 13%  Clustering 19%  Clustering 26%  Clustering 32%  Clustering 38%  Clustering 45%  Clustering 51%  Clustering 58%  Clustering 64%  Clustering 70%  Clustering 77%  Clustering 83%  Clustering 90%  Clustering 96%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
+Clusters: 108 Size min 1, max 18, avg 2.3
+Singletons: 58, 23.2% of seqs, 53.7% of clusters
+vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
+https://github.com/torognes/vsearch
+
+      hmm run time: 30.057
+    time to merge csv files: 0.020
+      vsearch/swarm time: 2.016
+      total time: 40.479
