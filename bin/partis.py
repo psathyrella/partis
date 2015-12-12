@@ -9,7 +9,7 @@ sys.path.insert(1, './python')
 
 import utils
 # merged data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2
-
+print 'TODO fix utils.shift_overlapping_boundaries()'
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--sw-debug', type=int, default=0, choices=[0, 1, 2], help='debug level for smith-waterman')
@@ -100,7 +100,7 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 
 if args.slurm and '/tmp' in args.workdir:
-    raise Exception('ERROR it appears that <workdir> isn\'t set to something visible to all slurm nodes')
+    raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
 if args.smc_particles != 1:
     raise Exception('sequential monte carlo is not supported at this juncture.')
