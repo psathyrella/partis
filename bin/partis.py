@@ -106,7 +106,7 @@ if args.smc_particles != 1:
     raise Exception('sequential monte carlo is not supported at this juncture.')
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
-    args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 99999))
+    args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
 if os.path.exists(args.workdir):
     raise Exception('workdir %s already exists' % args.workdir)
 
