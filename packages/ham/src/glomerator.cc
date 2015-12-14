@@ -436,7 +436,7 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   } while(!stop);
 
   if(result.events_.size() < 1)
-    throw runtime_error("ERROR no events for " + queries + "\n");
+    throw runtime_error("no events for queries " + queries + "\n");
   naive_seqs_[queries] = Sequence(track_, queries, result.events_[0].naive_seq_, result.events_[0].cyst_position_);
   events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition
   if(result.boundary_error())

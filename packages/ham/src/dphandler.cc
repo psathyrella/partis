@@ -120,7 +120,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 
   // return if no valid path
   if(best_kset.v == 0) {
-    cout << "ERROR no valid paths for " << seqs.name_str() << endl;
+    cout << "no valid paths for query " << seqs.name_str() << endl;
     result.no_path_ = true;
     return result;
   }
