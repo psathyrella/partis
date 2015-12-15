@@ -15,7 +15,6 @@ import utils
 import plotting
 
 # ----------------------------------------------------------------------------------------
-plotdir = os.getenv('www') + '/tmp'
 datadir = 'data/imgt'
 glfo = {}
 glfo['seqs'] = utils.read_germlines(datadir)
@@ -28,8 +27,53 @@ for vg in vgenes:
         pversions[pv] = []
     pversions[pv].append(vg)
 
+# remove primary versions that only have one gene
+for pv in pversions:
+    if len(pversions[pv]) == 1:
+        print 'removing single-gene pv %s' % pv
+        del pversions[pv]
+
 # ----------------------------------------------------------------------------------------
-def getmatrix(genelist):
+def indel_difference_fraction(seq1, seq2):
+    """ fraction of positions in the aligned sequences <seq1> <seq2> which are dots in exactly one of them """
+    if len(seq1) != len(seq2):
+        raise Exception('sequences different length:\n  %s\n  %s' % (seq1, seq2))
+
+    n_differences = 0
+    for ich in range(len(seq1)):
+        ch1 = seq1[ich]
+        ch2 = seq2[ich]
+        if ch1 == '.' and ch2 != '.' or  ch2 == '.' and ch1 != '.':
+            n_differences += 1
+
+    return float(n_differences) / len(seq1)
+
+# ----------------------------------------------------------------------------------------
+def substitution_difference_fraction(seq1, seq2):
+    """ fraction of positions in the aligned sequences <seq1> <seq2> (excluding positions which are dots in either or both sequences) which are different bases """
+    if len(seq1) != len(seq2):
+        raise Exception('sequences different length:\n  %s\n  %s' % (seq1, seq2))
+
+    n_substitutions, n_total = 0, 0
+    for ich in range(len(seq1)):
+        ch1 = seq1[ich]
+        ch2 = seq2[ich]
+        if ch1 == '.' or ch2 == '.':
+            continue
+
+        n_total += 1
+        if ch1 != ch2:
+            n_substitutions += 1
+
+    return float(n_substitutions) / n_total
+
+# s1 = 'a.cdx.'
+# s2 = 'a.cd..'
+# utils.color_mutants(s1, s2, print_result=True)
+# print substitution_difference_fraction(s1, s2)
+# sys.exit()
+# ----------------------------------------------------------------------------------------
+def getmatrix(genelist, difftype):
     smatrix = [[] for _ in range(len(genelist))]
     for iv in range(len(genelist)):
         for jv in range(len(genelist)):
@@ -38,15 +82,21 @@ def getmatrix(genelist):
                 continue
             s1, s2 = [glfo['aligned-v-genes']['v'][genelist[index]] for index in [iv, jv]]
             # utils.color_mutants(s1, s2, print_result=True)
-            fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
-            distance = int(fraction * length)
-            # print '%3.0f / %3d = %5.3f   %s   %s' % (fraction * length, length, fraction, utils.color_gene(vgenes[iv]), utils.color_gene(vgenes[jv]))
+            if difftype == 'hamming':
+                fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
+                # print '%3.0f / %3d = %5.3f   %s   %s' % (fraction * length, length, fraction, utils.color_gene(vgenes[iv]), utils.color_gene(vgenes[jv]))
+            elif difftype == 'indels':
+                fraction = indel_difference_fraction(s1, s2)
+            elif difftype == 'subs':
+                fraction = substitution_difference_fraction(s1, s2)
+            else:
+                raise Exception('unexpected difftype %s' % difftype)
             smatrix[iv].append(fraction)
     return smatrix
 
 # ----------------------------------------------------------------------------------------
-def plotheatmap(genelist, plotname, title=''):
-    smatrix = getmatrix(genelist)
+def plotheatmap(genelist, plotdir, plotname, difftype, title=''):
+    smatrix = getmatrix(genelist, difftype)
     assert len(smatrix) == len(smatrix[0])  # uh, I think I need this to be true
     fig, ax = plotting.mpl_init(fontsize=7)  #plt.subplots()
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
@@ -82,11 +132,21 @@ def plotheatmap(genelist, plotname, title=''):
     plt.close()
 
 # ----------------------------------------------------------------------------------------
+baseplotdir = os.getenv('www') + '/tmp'
 vgenes = vgenes[ : 5]
-for pv in pversions:
-    print pv
-    plotheatmap(pversions[pv], utils.sanitize_name(pv), pv)
-    # sys.exit()
+for difftype in ['indels', 'subs']:
+    # # individual primary version plots
+    # for pv in pversions:
+    #     print pv
+    #     plotheatmap(pversions[pv], baseplotdir + '/' + difftype, utils.sanitize_name(pv), difftype, title='primary version \"' + pv + '\"')
+    # check_call(['./bin/makeHtml', baseplotdir + '/' + difftype, '2', 'foop', 'svg'])
 
-check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
-check_call(['./bin/permissify-www', plotdir])
+    # plots comparing two different primary versions
+    pvlist = pversions.keys()
+    for ipv in range(len(pvlist)):
+        for jpv in range(ipv + 1, len(pvlist)):
+            print pvlist[ipv], pvlist[jpv]
+        # plotheatmap(pversions[pv], baseplotdir + '/' + difftype, utils.sanitize_name(pv), difftype, title='primary version \"' + pv + '\"')
+
+
+check_call(['./bin/permissify-www', baseplotdir])
