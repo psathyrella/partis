@@ -1061,20 +1061,6 @@ def maturity_to_naivety(maturity):
     else:
         assert False
 
-# # ----------------------------------------------------------------------------------------
-# def split_gene_name(name):
-#     """
-#     split name into region, version, allele, etc.
-#     e.g. IGHD7-27*01 --> {'region':'d', 'version':7, 'subversion':27, 'allele':1}
-#     """
-#     return_vals = {}
-#     return_vals['region'] = get_region(name)
-#     assert name.count('-') == 1
-#     return_vals['version'] = name[4 : name.find('-')]
-    
-#     assert name.count('*') == 1
-    
-
 # ----------------------------------------------------------------------------------------
 def are_alleles(gene1, gene2):
     return primary_version(gene1) == primary_version(gene2) and sub_version(gene1) == sub_version(gene2)
