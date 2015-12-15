@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 # sns.set_style('ticks')
 import numpy
 from subprocess import check_call
+import itertools
 from collections import OrderedDict
 
 import utils
@@ -16,6 +17,10 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 datadir = 'data/imgt'
+xtitles = {
+    'indels' : 'fraction of positions indel\'d',
+    'subs' : 'substitution fraction'
+}
 glfo = {}
 glfo['seqs'] = utils.read_germlines(datadir)
 glfo['aligned-v-genes'] = utils.read_germlines(datadir, only_region='v', aligned=True)
@@ -73,7 +78,8 @@ def substitution_difference_fraction(seq1, seq2):
 # print substitution_difference_fraction(s1, s2)
 # sys.exit()
 # ----------------------------------------------------------------------------------------
-def getmatrix(genelist, difftype):
+def get_gene_pair_matrix(genelist, difftype):
+    """ return matrix comparing all pairs of genes in <genelist> """
     smatrix = [[] for _ in range(len(genelist))]
     for iv in range(len(genelist)):
         for jv in range(len(genelist)):
@@ -84,7 +90,6 @@ def getmatrix(genelist, difftype):
             # utils.color_mutants(s1, s2, print_result=True)
             if difftype == 'hamming':
                 fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
-                # print '%3.0f / %3d = %5.3f   %s   %s' % (fraction * length, length, fraction, utils.color_gene(vgenes[iv]), utils.color_gene(vgenes[jv]))
             elif difftype == 'indels':
                 fraction = indel_difference_fraction(s1, s2)
             elif difftype == 'subs':
@@ -95,20 +100,73 @@ def getmatrix(genelist, difftype):
     return smatrix
 
 # ----------------------------------------------------------------------------------------
-def plotheatmap(genelist, plotdir, plotname, difftype, title=''):
-    smatrix = getmatrix(genelist, difftype)
+def get_gene_set_mean_matrix(genesets, difftype):
+    """ return matrix comparing the sets of genes in <genenames>, i.e. each entry is the average over all pairs of sequences in set 1 and set 2. """
+    setnames, genenames = genesets.keys(), genesets.values()
+    n_sets = len(genenames)
+    smatrix = [[] for _ in range(n_sets)]
+    for iv in range(n_sets):
+        for jv in range(n_sets):
+            # if setnames[iv] != '3/OR15' or setnames[jv] != '4/OR15':
+            #     smatrix[iv].append(0.)
+            #     continue
+            if jv < iv + 1:
+                smatrix[iv].append(0.)
+                continue
+            # print '  %s %s' % (setnames[iv], setnames[jv])
+            seqs1 = [glfo['aligned-v-genes']['v'][g] for g in genenames[iv]]
+            seqs2 = [glfo['aligned-v-genes']['v'][g] for g in genenames[jv]]
+
+            total, nfractions = 0., 0
+            for is1 in range(len(seqs1)):
+                # print '   ', utils.color_gene(genenames[iv][is1])
+                for is2 in range(len(seqs2)):
+                    # print '     ', utils.color_gene(genenames[jv][is2]),
+                    s1 = seqs1[is1]
+                    s2 = seqs2[is2]
+                    # utils.color_mutants(s1, s2, print_result=True, extra_str='    ')
+                    if difftype == 'hamming':
+                        fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
+                    elif difftype == 'indels':
+                        fraction = indel_difference_fraction(s1, s2)
+                    elif difftype == 'subs':
+                        fraction = substitution_difference_fraction(s1, s2)
+                    else:
+                        raise Exception('unexpected difftype %s' % difftype)
+                    # print '      %.3f' % fraction
+                    total += fraction
+                    nfractions += 1
+            meanfraction = 0. if nfractions == 0 else float(total) / nfractions
+            # print '   mean %.3f' % meanfraction
+            smatrix[iv].append(meanfraction)
+
+    return smatrix
+
+# ----------------------------------------------------------------------------------------
+def plotheatmap(plotdir, plotname, difftype, genelist=None, genesets=None, title='', xtitle=''):
+    assert genelist is None or genesets is None
+    if genelist is not None:
+        smatrix = get_gene_pair_matrix(genelist, difftype)
+        xticklabels = [utils.summarize_gene_name(g) for g in genelist]
+    elif genesets is not None:
+        smatrix = get_gene_set_mean_matrix(genesets, difftype)
+        xticklabels = [sn for sn in genesets.keys()]
+    else:
+        raise Exception('no gene list specified')
     assert len(smatrix) == len(smatrix[0])  # uh, I think I need this to be true
-    fig, ax = plotting.mpl_init(fontsize=7)  #plt.subplots()
+    fig, ax = plotting.mpl_init()
+    plt.tick_params(axis='both', which='major', labelsize=7)
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
     data = numpy.array(smatrix)
     cmap = plt.cm.Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=numpy.amax(smatrix))
-    cbar = plt.colorbar(heatmap)
+    heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=0.5)  #vmax=numpy.amax(smatrix))
+    cbar = plt.colorbar(heatmap, shrink=0.9, pad=0.01)
+    cbar.set_label(xtitle, rotation=270, labelpad=30)
+    cbar.ax.tick_params(labelsize=10) 
 
-    xticklabels = [utils.summarize_gene_name(g) for g in genelist]
     ticks = [n - 0.5 for n in range(1, len(xticklabels) + 1, 1)]
     # xticklabels = [str(int(n + 0.5)) for n in ticks]
     yticklabels = xticklabels
@@ -133,20 +191,19 @@ def plotheatmap(genelist, plotdir, plotname, difftype, title=''):
 
 # ----------------------------------------------------------------------------------------
 baseplotdir = os.getenv('www') + '/tmp'
-vgenes = vgenes[ : 5]
 for difftype in ['indels', 'subs']:
-    # # individual primary version plots
-    # for pv in pversions:
-    #     print pv
-    #     plotheatmap(pversions[pv], baseplotdir + '/' + difftype, utils.sanitize_name(pv), difftype, title='primary version \"' + pv + '\"')
-    # check_call(['./bin/makeHtml', baseplotdir + '/' + difftype, '2', 'foop', 'svg'])
+    print difftype
+    # individual primary version plots
+    for pv in pversions:
+        print '   ', pv
+        plotheatmap(baseplotdir + '/' + difftype, utils.sanitize_name(pv), difftype, genelist=pversions[pv], title='primary version \"' + pv + '\"', xtitle=xtitles[difftype])
 
     # plots comparing two different primary versions
-    pvlist = pversions.keys()
-    for ipv in range(len(pvlist)):
-        for jpv in range(ipv + 1, len(pvlist)):
-            print pvlist[ipv], pvlist[jpv]
-        # plotheatmap(pversions[pv], baseplotdir + '/' + difftype, utils.sanitize_name(pv), difftype, title='primary version \"' + pv + '\"')
+    plotheatmap(baseplotdir + '/' + difftype,
+                'compare-pvs',
+                difftype,
+                genesets=pversions, title='compare means over pairs of primary versions', xtitle=xtitles[difftype])
 
+    check_call(['./bin/makeHtml', baseplotdir + '/' + difftype, '2', 'foop', 'svg'])
 
 check_call(['./bin/permissify-www', baseplotdir])
