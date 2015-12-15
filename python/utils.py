@@ -252,30 +252,21 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     return return_str
 
 # ----------------------------------------------------------------------------------------
+def summarize_gene_name(gene):
+    region = get_region(gene)
+    primary_version, sub_version, allele = split_gene(gene)
+    return ' '.join([region, primary_version, sub_version, allele])
+
+# ----------------------------------------------------------------------------------------
 def color_gene(gene):
     """ color gene name (and remove extra characters), eg IGHV3-h*01 --> v3-h1 """
-    return_str = gene[:3] + color('bold', color('red', gene[3]))
-    n_version = gene[4 : gene.find('-')]
-    n_subversion = gene[gene.find('-')+1 : gene.find('*')]
-    if get_region(gene) == 'j':
-        n_version = gene[4 : gene.find('*')]
-        n_subversion = ''
-        return_str += color('purple', n_version)
-    else:
-        return_str += color('purple', n_version) + '-' + color('purple', n_subversion)
+    region = get_region(gene)
+    primary_version, sub_version, allele = split_gene(gene)
 
-    if gene.find('*') != -1:
-        allele_end = gene.find('_')
-        if allele_end < 0:
-            allele_end = len(gene)
-        allele = gene[gene.find('*')+1 : allele_end]
-        return_str += '*' + color('yellow', allele)
-        if '_' in gene:  # _F or _P in j gene names
-            return_str += gene[gene.find('_') :]
-
-    # now remove extra characters
-    return_str = return_str.replace('IGH','').lower()
-    return_str = return_str.replace('*','')
+    return_str =  color('red', region) + color('purple', primary_version)
+    if region != 'j':
+        return_str += '-' + color('purple', sub_version)
+    return_str += color('yellow', allele)
     return return_str
 
 #----------------------------------------------------------------------------------------
@@ -1054,16 +1045,13 @@ def read_germlines(data_dir, only_region=None, aligned=False):
     return germlines
 
 # ----------------------------------------------------------------------------------------
-def get_region(gene_name):
+def get_region(gene):
     """ return v, d, or j of gene"""
-    try:
-        assert 'IGH' in gene_name
-        region = gene_name[3:4].lower()
-        assert region in regions
-        return region
-    except:
-        print 'ERROR faulty gene name %s ' % gene_name
-        assert False
+    region = gene[3:4].lower()
+    if 'IGH' not in gene or region not in regions:
+        raise Exception('faulty gene name %s' % gene)
+    return region
+
 # ----------------------------------------------------------------------------------------
 def maturity_to_naivety(maturity):
     if maturity == 'memory':
@@ -1089,28 +1077,58 @@ def maturity_to_naivety(maturity):
 
 # ----------------------------------------------------------------------------------------
 def are_alleles(gene1, gene2):
-    """
-    Return true if gene1 and gene2 are alleles of the same gene version.
-    Assumes they're alleles if everything left of the asterisk is the same, and everything more than two to the right of the asterisk is the same.
-    """
-    # gene1 = apply_renaming_scheme(gene1)
-    # gene2 = apply_renaming_scheme(gene2)
+    return primary_version(gene1) == primary_version(gene2) and sub_version(gene1) == sub_version(gene2)
 
-    left_str_1 = gene1[0 : gene1.find('*')]
-    left_str_2 = gene2[0 : gene1.find('*')]
-    right_str_1 = gene1[gene1.find('*')+3 :]
-    right_str_2 = gene2[gene1.find('*')+3 :]
-    return left_str_1 == left_str_2 and right_str_1 == right_str_2
+# ----------------------------------------------------------------------------------------
+def split_gene(gene):
+    """ returns (primary version, sub version, allele) """
+    # make sure IGH[VDJ] is at the start, and - and * are as expected
+    if gene[:4] != 'IGH' + get_region(gene).upper():
+        raise Exception('unexpected string in gene name %s' % gene)
+    if '*' not in gene:
+        raise Exception('no \'*\' found in %s' % gene)
+
+    if get_region(gene) == 'j':  # js don't have sub versions
+        primary_version = gene[4 : gene.find('*')]  # the bit between the IGH[VDJ] and the star
+        sub_version = None
+        allele = gene[gene.find('*') + 1 : ]  # the bit after the star
+        if gene != 'IGH' + get_region(gene).upper() + primary_version + '*' + allele:
+            raise Exception('could build gene name %s from %s %s' % (gene, primary_version, allele))
+    else:
+        if '-' not in gene:
+            raise Exception('no \'-\' found in %s' % gene)
+        if gene.find('-') >= gene.find('*'):
+            raise Exception('found \'*\' before \'-\' in %s' % gene)
+        primary_version = gene[4 : gene.find('-')]  # the bit between the IGH[VDJ] and the first dash (sometimes there's a second dash as well)
+        sub_version = gene[gene.find('-') + 1 : gene.find('*')]  # the bit between the first dash and the star
+        allele = gene[gene.find('*') + 1 : ]  # the bit after the star
+        if gene != 'IGH' + get_region(gene).upper() + primary_version + '-' + sub_version + '*' + allele:
+            raise Exception('could build gene name %s from %s %s %s' % (gene, primary_version, sub_version, allele))
+
+    return primary_version, sub_version, allele
+
+# ----------------------------------------------------------------------------------------
+def primary_version(gene):
+    return split_gene(gene)[0]
+
+# ----------------------------------------------------------------------------------------
+def sub_version(gene):
+    return split_gene(gene)[1]
+
+# ----------------------------------------------------------------------------------------
+def allele(gene):
+    return split_gene(gene)[2]
 
 # ----------------------------------------------------------------------------------------
 def are_same_primary_version(gene1, gene2):
     """
     Return true if the bit up to the dash is the same.
-    There's probably a real name for that bit.
     """
-    str_1 = gene1[0 : gene1.find('-')]
-    str_2 = gene2[0 : gene2.find('-')]
-    return str_1 == str_2
+    if get_region(gene1) != get_region(gene2):
+        return False
+    if primary_version(gene1) != primary_version(gene2):
+        return False
+    return True
 
 # ----------------------------------------------------------------------------------------
 def read_overall_gene_probs(indir, only_gene='', normalize=True):

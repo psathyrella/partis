@@ -32,17 +32,6 @@ class PartitionDriver(object):
         self.glfo = {}
         self.glfo['seqs'] = utils.read_germlines(self.args.datadir)
         self.glfo['aligned-v-genes'] = utils.read_germlines(self.args.datadir, only_region='v', aligned=True)
-# ----------------------------------------------------------------------------------------
-        # vgenes = self.glfo['aligned-v-genes']['v'].keys()
-        # for iv in range(len(vgenes)):
-        #     for jv in range(iv + 1, len(vgenes)):
-        #         s1, s2 = [self.glfo['aligned-v-genes']['v'][vgenes[index]] for index in [iv, jv]]
-        #         utils.color_mutants(s1, s2, print_result=True)
-        #         fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
-        #         print '%.0f / %d = %.3f' % (fraction * length, length, fraction)
-        #         sys.exit()
-        # sys.exit()
-# ----------------------------------------------------------------------------------------
         self.glfo['cyst-positions'] = utils.read_cyst_positions(self.args.datadir)
         with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
             tryp_reader = csv.reader(csv_file)

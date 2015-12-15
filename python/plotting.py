@@ -876,9 +876,9 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     plt.savefig(plotdir + '/plots/' + plotname)
 
 # ----------------------------------------------------------------------------------------
-def mpl_init(figsize=None):
+def mpl_init(figsize=None, fontsize=20):
     sns.set_style('ticks')
-    fsize = 20
+    fsize = fontsize
     mpl.rcParams.update({
         # 'legend.fontweight': 900,
         'legend.fontsize': fsize,
