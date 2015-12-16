@@ -77,7 +77,8 @@ class ClusterPath(object):
         for line in lines:
             if 'path_index' in line and int(line['path_index']) != self.initial_path_index:  # if <lines> contains more than one path_index, that means they represent more than one path, so you need to use glomerator, not just one ClusterPath
                 raise Exception('path index in lines %d doesn\'t match my initial path index %d' % (int(line['path_index']), self.initial_path_index))
-            partition = [cluster_str.split(':') for cluster_str in line['partition'].split(';')]
+            partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
+            partition = [cluster_str.split(':') for cluster_str in partitionstr.split(';')]
             adj_mi = None
             if 'adj_mi' in line and line['adj_mi'] != '' and float(line['adj_mi']) != -1.:
                 adj_mi = float(line['adj_mi'])

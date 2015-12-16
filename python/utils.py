@@ -1585,14 +1585,14 @@ def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_bigg
         for it in pair_info:
             print '%-4d  %3d %3d   %s  %s' % (it[0], a_clusters.index(it[1][0]), b_clusters.index(it[1][1]), ':'.join(it[1][0]), ':'.join(it[1][1]))
 
-    with open('erick/' + meth_a + '_' + meth_b + '.csv', 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, ['a_meth', 'b_meth', 'intersection', 'a_rank', 'b_rank', 'a_cluster', 'b_cluster'])
-        writer.writeheader()
-        for it in pair_info:
-            writer.writerow({'a_meth' : meth_a, 'b_meth' : meth_b,
-                             'intersection' : it[0],
-                             'a_rank' : a_clusters.index(it[1][0]), 'b_rank' : b_clusters.index(it[1][1]),
-                             'a_cluster' : ':'.join(it[1][0]), 'b_cluster' : ':'.join(it[1][1])})
+    # with open('erick/' + meth_a + '_' + meth_b + '.csv', 'w') as csvfile:
+    #     writer = csv.DictWriter(csvfile, ['a_meth', 'b_meth', 'intersection', 'a_rank', 'b_rank', 'a_cluster', 'b_cluster'])
+    #     writer.writeheader()
+    #     for it in pair_info:
+    #         writer.writerow({'a_meth' : meth_a, 'b_meth' : meth_b,
+    #                          'intersection' : it[0],
+    #                          'a_rank' : a_clusters.index(it[1][0]), 'b_rank' : b_clusters.index(it[1][1]),
+    #                          'a_cluster' : ':'.join(it[1][0]), 'b_cluster' : ':'.join(it[1][1])})
 
     a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]
     return a_cluster_lengths, b_cluster_lengths, smatrix

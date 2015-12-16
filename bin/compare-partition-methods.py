@@ -12,11 +12,9 @@ import compareutils
 
 
 # ----------------------------------------------------------------------------------------
-print 'TODO check that changing around plotdirs and things in run-driver doesn\'t screw this script over'
 parser = argparse.ArgumentParser()
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
 parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
-parser.add_argument('--only-run')  # colon-separated list of human,subset pairs to run, e.g. A,3:C,8
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
@@ -40,7 +38,6 @@ parser.add_argument('--humans', default=None)  #'A')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
-args.only_run = utils.get_arg_list(args.only_run)
 args.actions = utils.get_arg_list(args.actions)
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
@@ -55,9 +52,10 @@ assert args.subset is None or args.istartstop is None  # dosn't make sense to se
 
 if args.subset is not None:
     if 'write-plots' not in args.actions:
-        assert args.n_subsets == 10
+        assert args.n_subsets == 10  # for all the subset plots, I split into ten subsets, then ended up only using the first thre of 'em, so you have to set n_subsets to 10 if you're running methods, but then to 3 when you're writing plots
     args.n_to_partition = 1300
 if args.istartstop is not None:
+    assert False  # I think I'm not actually using the istartstop stuff for anything... maybe? in any case I moved all the results to a bak/ subdir of args.fsdir
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
 
 # ----------------------------------------------------------------------------------------
@@ -114,21 +112,17 @@ for datafname in files:
         human = os.path.basename(datafname).replace('_Lineages.fasta', '')
     elif args.dataset == 'adaptive':
         human = re.findall('[ABC]', datafname)[0]
+
     if args.humans is not None and human not in args.humans:
         continue
-    print 'run', human
+
     label = human
     if args.extra_label_str is not None:
         label += '-' + args.extra_label_str
     if args.bak:
         label += '.bak'
 
-    if args.only_run is not None and human not in args.only_run:
-        continue
-
-    performance_fname = args.fsdir + '/' + label + '/partition-performance.csv'
-    performance_file_header = ['method', 'mut_mult', 'n_leaves', 'adj_mi', 'n_clusters', 'n_true_clusters']
-
+    print 'run', human
     n_leaves, mut_mult = None, None  # values if we're runing on data
     for action in args.actions:
         if action == 'write-plots' or action == 'compare-subsets':

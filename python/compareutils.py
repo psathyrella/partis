@@ -113,7 +113,8 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
         for line in vreader:
-            partition = utils.get_partition_from_str(line['partition'])
+            partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
+            partition = utils.get_partition_from_str(partitionstr)
             these_partitions['vollmers-' + line['threshold']] = partition
             vhist = plotting.get_cluster_size_hist(partition, rebin=rebin)
             histfname = outdir + '/hists/vollmers-'  + line['threshold'] + '.csv'
@@ -124,7 +125,7 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
                 print '    %s: %f' % ('vollmers-' + line['threshold'], float(line['adj_mi']))
                 write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
 
-                vollmers_clusters = [cl.split(':') for cl in line['partition'].split(';')]
+                vollmers_clusters = [cl.split(':') for cl in partitionstr.split(';')]
                 true_partition = utils.get_true_partition(reco_info)  # modified without testing
                 utils.check_intersection_and_complement(vollmers_clusters, true_partition)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
@@ -1022,11 +1023,12 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def execute(args, action, datafname, label, n_leaves, mut_mult):
-    cmd = './bin/run-driver.py --label ' + label + ' --action'
+    cmd = './bin/run-driver.py --label ' + label + ' --action '
     if 'partition' in action:
         cmd += ' partition'
     else:
         cmd += ' ' + action
+    cmd += ' --stashdir ' + args.fsdir + ' --old-style-dir-structure'
 
     extras = []
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
@@ -1113,7 +1115,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult):
     else:
         raise Exception('bad action %s' % action)
 
-    cmd += ' --plotdir ' + os.getenv('www') + '/partis'
+    # cmd += ' --plotdir ' + os.getenv('www') + '/partis'
     if n_procs > 500:
         print 'reducing n_procs %d --> %d' % (n_procs, 500)
         n_procs = 500

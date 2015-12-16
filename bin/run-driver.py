@@ -25,6 +25,7 @@ parser.add_argument('--stashdir', required=True)  #default=fsdir + '/_output')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
 parser.add_argument('--is-data', action='store_true')
+parser.add_argument('--old-style-dir-structure', action='store_true')
 parser.add_argument('--simfname')
 parser.add_argument('--outfname')
 parser.add_argument('--plotdir')
@@ -49,7 +50,10 @@ if args.extra_args is not None:
     common_args += ' ' + ' '.join(args.extra_args).replace('__', '--').replace(',', ':').replace('+', ' ')
 if args.simfname is None:
     args.simfname = args.stashdir + '/' + args.label + '/simu.csv'
-param_dir = args.stashdir + '/' + args.label + '/parameters'
+if args.old_style_dir_structure:  # oh, backwards compatibility, you're such a craven old bitch
+    param_dir = args.stashdir + '/' + args.label
+else:
+    param_dir = args.stashdir + '/' + args.label + '/parameters'
 
 if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):
