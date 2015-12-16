@@ -209,30 +209,6 @@ def generate_incorrect_partition(true_partition, n_misassigned, error_type, debu
     return new_partition
 
 # ----------------------------------------------------------------------------------------
-def write_latex_table(adj_mis):
-    for mut_mult in args.mutation_multipliers:
-        for n_leaves in args.n_leaf_list:
-            if n_leaves == args.n_leaf_list[0]:
-                print '\\textbf{multiplier} & \\textbf{program}  ',
-            print ' & %d  ' % n_leaves,
-        print '\\\\'
-        print '\\hline'
-        iname = 0
-        for name in adj_mis[args.n_leaf_list[0]][args.mutation_multipliers[0]]:
-            if name == 'vollmers-0.5':
-                continue
-            if iname == 0:
-                print '\\multirow{3}{*}{$\\times %d$} & ' % mut_mult,
-            else:
-                print '& ',
-            print '%25s' % legends.get(name, name),
-            iname += 1
-            for n_leaves in args.n_leaf_list:
-                val, err = adj_mis[n_leaves][mut_mult][name]
-                print '  &    %5.2f $\\pm$ %.2f' % (val, err),
-            print '\\\\'
-
-# ----------------------------------------------------------------------------------------
 def parse_vollmers(these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, outdir, reco_info, rebin=None):
     vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
     with open(vollmers_fname) as vfile:
@@ -555,9 +531,6 @@ def write_all_plot_csvs(label):
             print n_leaves, mut_mult
             write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions)
 
-    # if not args.data and not args.count_distances:
-    #     write_latex_table(adj_mis)
-
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions):
     if n_leaves not in hists:
@@ -642,7 +615,6 @@ def compare_all_subsets(label):
             compare_each_subsets(label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, ccf_overs)
 
     if not args.data:
-    #     write_latex_table(adj_mis)
         for mut_mult in args.mutation_multipliers:
             plotvals = convert_adj_mi_and_co_to_plottable(adj_mis, mut_mult)
             plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'adj_mi')
