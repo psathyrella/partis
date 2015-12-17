@@ -483,7 +483,7 @@ class Waterer(object):
             self.outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def check_boundaries(self, region_pairs, qrbounds, glbounds, query_name, query_seq, best, debug=True):
+    def check_boundaries(self, region_pairs, qrbounds, glbounds, query_name, query_seq, best, debug=False):
         # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
         status = 'ok'
         for rpair in region_pairs:
@@ -745,7 +745,8 @@ class Waterer(object):
                 if not no_stop_codon:
                     print '  stop codon'
                 print ''
-            if self.nth_try < 2:  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence)
+
+            if self.nth_try < 2 and (not codons_ok or not in_frame_cdr3):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
                     print '            ...rerunning'
                 queries_to_rerun['unproductive'].add(query_name)

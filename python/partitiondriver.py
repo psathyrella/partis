@@ -547,13 +547,16 @@ class PartitionDriver(object):
         print '      hmm run time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    # @profile
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, divvy_with_bcrham=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
         """
         print 'hmm'
+        if len(self.sw_info['queries']) == 0:
+            print '  %s no input queries for hmm' % utils.color('red', 'warning')
+            return
+
         if n_procs is None:
             n_procs = self.args.n_procs
         if n_procs < 1 or n_procs > 9999:
