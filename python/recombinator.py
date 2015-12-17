@@ -34,7 +34,7 @@ class Recombinator(object):
 
         utils.prep_dir(self.workdir)
         if not os.path.exists(self.args.parameter_dir):
-            raise Exception('ERROR ' + self.args.parameter_dir + ' d.n.e')
+            raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
 
         # parameters that control recombination, erosion, and whatnot
 

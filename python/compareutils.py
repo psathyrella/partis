@@ -110,9 +110,11 @@ def generate_incorrect_partition(true_partition, n_misassigned, error_type, debu
 # ----------------------------------------------------------------------------------------
 def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, outdir, reco_info, rebin=None):
     vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
+    n_lines = 0
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
         for line in vreader:
+            n_lines += 1
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = utils.get_partition_from_str(partitionstr)
             these_partitions['vollmers-' + line['threshold']] = partition
@@ -138,6 +140,8 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
                 print '    %s: %.2f %.2f' % ('vollmers-' + line['threshold'], ccfs[0], ccfs[1])
                 write_float_val(outdir + '/ccf_under/' + os.path.basename(histfname), ccfs[0], 'ccf_under')
                 write_float_val(outdir + '/ccf_over/' + os.path.basename(histfname), ccfs[1], 'ccf_over')
+    if n_lines < 1:
+        raise Exception('zero partition lines read from %s' % vollmers_fname)
 
 # ----------------------------------------------------------------------------------------
 def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfbase, outdir, rebin=None):
@@ -474,14 +478,14 @@ def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, 
     # if n_leaves > 10:
     #     rebin = 2
 
-    # then vollmers annotation (and true hists)
+    # vollmers annotation (and true hists)
     parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
-    # mixcr
-    parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, csvdir)
+    if not args.no_mixcr:
+        parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, csvdir)
 
-    # then changeo
-    parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfbase, csvdir, rebin=rebin)
+    if not args.no_changeo:
+        parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfbase, csvdir, rebin=rebin)
 
     # partis stuff
     for ptype in ['vsearch-', 'naive-hamming-', '']:
@@ -510,7 +514,9 @@ def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
 def compare_all_subsets(args, label):
     hists, adj_mis, ccf_unders, ccf_overs = {}, {}, {}, {}
     for n_leaves in args.n_leaf_list:
+        print '%d leaves' % n_leaves
         for mut_mult in args.mutation_multipliers:
+            print '  %.1f mutation' % mut_mult
             compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, ccf_overs)
 
     if not args.data:
@@ -542,8 +548,12 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
     these_vals['ccf_over'] = ccf_overs[n_leaves][mut_mult]
 
     basedir = args.fsdir + '/' + label
+    # all of 'em:
     expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    if args.no_mixcr:
+        expected_methods.remove('mixcr')
+    if args.no_changeo:
+        expected_methods.remove('changeo')
     if not args.data:
         expected_methods.insert(0, 'true')
     tmp_valdicts = {'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
@@ -591,7 +601,7 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
 
     if not args.data:
         for valname in tmp_valdicts:
-            print valname
+            print '   ', valname
             # plotting.plot_adj_mi_and_co(tmp_valdicts[valname])
             for meth, vals in tmp_valdicts[valname].items():
                 mean = numpy.mean(vals)
@@ -599,7 +609,7 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
                     continue
                 std = numpy.std(vals)
                 these_vals[valname][meth] = (mean, std)
-                print '  %30s %.3f +/- %.3f' % (meth, mean, std)
+                print '        %30s %.3f +/- %.3f' % (meth, mean, std)
 
 # ----------------------------------------------------------------------------------------
 def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
@@ -1066,6 +1076,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult):
         if output_exists(args, seqfname.replace('.csv', '')):
             return
         n_procs = 20
+        n_fewer_procs = min(500, args.n_sim_seqs / 2000)
     elif action == 'partition':
         outfname = get_outputname()
         if output_exists(args, outfname):

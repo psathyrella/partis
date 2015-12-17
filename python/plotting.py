@@ -580,32 +580,30 @@ def make_mean_plots(plotdir, subdirs, outdir):
                 nmvals = [ float(nm) for nm in line['normalized-means'].split(':') ]
                 normalized_means += nmvals
 
-    import matplotlib
-    matplotlib.use('Agg')
-    from matplotlib import pyplot
-
     # ----------------------------------------------------------------------------------------
     # first make hexbin plot
-    pyplot.subplot(111)
-    pyplot.hexbin(meanlist, variancelist, gridsize=20, cmap=matplotlib.cm.gist_yarg, bins=None)
-    # pyplot.axis([0, 5, 0, 2])
-    pyplot.xlabel('mean')
-    pyplot.ylabel('variance')
+    plt.subplot(111)
+    plt.hexbin(meanlist, variancelist, gridsize=20, cmap=matplotlib.cm.gist_yarg, bins=None)
+    # plt.axis([0, 5, 0, 2])
+    plt.xlabel('mean')
+    plt.ylabel('variance')
 
-    cb = pyplot.colorbar()
+    cb = plt.colorbar()
     cb.set_label('mean value')
     utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
-    pyplot.savefig(outdir + '/plots/hexmeans.png')
-    pyplot.clf()
+    plt.savefig(outdir + '/plots/hexmeans.png')
+    plt.close()
+    plt.clf()
 
     # ----------------------------------------------------------------------------------------
     # then make normalized mean plot
-    n, bins, patches = pyplot.hist(normalized_means, 50)
-    pyplot.xlabel(r'$(x_i - \mu) / \sigma_i$')
-    pyplot.title(r'$\sigma=' + str(math.sqrt(numpy.var(normalized_means))) + '$')
-    # pyplot.axis([-10, 10, 0, 220])
+    n, bins, patches = plt.hist(normalized_means, 50)
+    plt.xlabel(r'$(x_i - \mu) / \sigma_i$')
+    plt.title(r'$\sigma=' + str(math.sqrt(numpy.var(normalized_means))) + '$')
+    # plt.axis([-10, 10, 0, 220])
 
-    pyplot.savefig(outdir + '/plots/means.png')
+    plt.savefig(outdir + '/plots/means.png')
+    plt.close()
 
 
     check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
@@ -817,6 +815,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
     plt.savefig(outfname)
+    plt.close()
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
@@ -874,6 +873,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
         os.makedirs(plotdir + '/plots')
     plotname =  valname + '-%d-mutation.svg' % mut_mult
     plt.savefig(plotdir + '/plots/' + plotname)
+    plt.close()
 
 # ----------------------------------------------------------------------------------------
 def mpl_init(figsize=None, fontsize=20):
@@ -966,5 +966,6 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     if not os.path.exists(plotdir + '/plots'):
         os.makedirs(plotdir + '/plots')
     plt.savefig(plotdir + '/plots/' + plotname + '.svg')
+    plt.close()
     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
