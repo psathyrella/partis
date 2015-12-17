@@ -288,17 +288,17 @@ class Waterer(object):
             print '      processed   remaining  new-indels       rerun: ' + '   '.join([reason for reason in queries_to_rerun])
         print '      %5d' % n_processed,
         if len(self.remaining_queries) > 0:
-            tmpstr = '       %5d' % len(self.remaining_queries)
-            tmpstr += '       %5d' % self.new_indels
-            tmpstr += '            '
+            printstr = '       %5d' % len(self.remaining_queries)
+            printstr += '       %5d' % self.new_indels
+            printstr += '            '
             n_to_rerun = 0
             for reason in queries_to_rerun:
-                tmpstr += '        %5d' % len(queries_to_rerun[reason])
+                printstr += '        %5d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
-            print tmpstr,
+            print printstr,
             if n_to_rerun + self.new_indels != len(self.remaining_queries):
                 print n_to_rerun, self.new_indels, len(self.remaining_queries)
-                sys.exit()
+                raise Exception('I\'m an exception!')
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
                 print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
@@ -458,8 +458,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
-        if self.debug < 2:
-            return
         out_str_list = []
         buff_str = (20 - len(gene)) * ' '
         tmp_val = score
@@ -485,7 +483,7 @@ class Waterer(object):
             self.outfile.write(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
-    def check_boundaries(self, region_pairs, qrbounds, glbounds, query_name, query_seq, best):
+    def check_boundaries(self, region_pairs, qrbounds, glbounds, query_name, query_seq, best, debug=True):
         # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
         status = 'ok'
         for rpair in region_pairs:
@@ -494,14 +492,19 @@ class Waterer(object):
             l_gene = best[l_reg]
             r_gene = best[r_reg]
             overlap = qrbounds[l_gene][1] - qrbounds[r_gene][0]
+            available_space = qrbounds[r_gene][1] - qrbounds[l_gene][0]
+
+            if debug:
+                print '  %s %s    overlap %d    available space %d' % (l_reg, r_reg, overlap, available_space)
 
             if overlap > 0:  # set to 'overlap' if either boundary is overlapped
                 status = 'overlap'
 
-            available_space = qrbounds[r_gene][1] - qrbounds[l_gene][0]
             if overlap > available_space:
-                return 'nonsense'  # return 'nonsense' immediately if either boundary make no sense -- we'll presumably either toss the query or rerun with different match/mismatch
+                status = 'nonsense'  # return 'nonsense' immediately if either boundary makes no sense -- we'll presumably either toss the query or rerun with different match/mismatch
+                break
 
+        print '  overlap status: %s' % status
         return status
 
     # ----------------------------------------------------------------------------------------
@@ -629,7 +632,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
         if self.debug:
-            print '%s' % query_name
+            print query_name
 
         best, match_names, n_matches = {}, {}, {}
         n_used = {'v':0, 'd':0, 'j':0}
@@ -664,7 +667,8 @@ class Waterer(object):
                 n_used[region] += 1
                 match_names[region].append(gene)
 
-                self.print_match(region, gene, query_seq, score, glbounds, qrbounds, -1, warnings, skipping=False)
+                if self.debug >= 2:
+                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, -1, warnings, skipping=False)
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
                 if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):  # neurotic double check (um, I think) EDIT hey this totally saved my ass
