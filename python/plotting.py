@@ -852,18 +852,28 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
         lx = 0.85
     legend = ax.legend(bbox_to_anchor=(lx, ly))
     # legend.get_frame().set_facecolor('white')
-    # ax.set_xlim(3, 55)
     ymin = 0
     # if valname == 'ccf_over':
     #     ymin = 0.5
     ax.set_ylim(ymin, 1)
-    sns.despine(trim=True, bottom=True)
+    sns.despine()  #trim=True, bottom=True)
     # sns.set_style('ticks')
     plt.title('%dx mutation' % mut_mult)
     plt.xlabel('mean N leaves')
     plt.ylabel(legends[valname])
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.78, top=0.95)
+    ax.set_xscale('log')
     xticks = xvals
+
+    # put an 'n/a' in the n_leaves=1 column for adj_mi
+    # if 1. not in xticks:
+    #     xticks = [1, ] + xticks
+    #     x1 = 1.
+    #     ax.text(x1 - 0.25, 0.5, 'n/a', color='green', fontsize=25)
+    #     ax.plot([x1, x1], [0.05, 0.4], color='green', linewidth=3)
+    #     ax.plot([x1, x1], [0.6, 0.97], color='green', linewidth=3)
+    # ax.set_xlim(xticks[0] - 0.4, xticks[-1])
+
     xticklabels = [str(xt) for xt in xticks]
     plt.xticks(xticks, xticklabels)
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]

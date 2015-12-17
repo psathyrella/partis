@@ -4,6 +4,7 @@ import argparse
 import sys
 import re
 import csv
+from subprocess import Popen
 sys.path.insert(1, './python')
 csv.field_size_limit(sys.maxsize)
 from humans import humans
@@ -109,6 +110,7 @@ elif args.dataset == 'adaptive':
     files = [args.fsdir.replace('_output', 'data') + '/' + args.dataset + '/' + human + '/shuffled.csv' for human in humans[args.dataset]]
 
 # ----------------------------------------------------------------------------------------
+procs = []
 for datafname in files:
     if args.dataset == 'stanford':
         human = os.path.basename(datafname).replace('_Lineages.fasta', '')
@@ -131,13 +133,13 @@ for datafname in files:
             continue
         print '      ----> ', action
         if action == 'cache-data-parameters':
-            compareutils.execute(args, action, datafname, label, n_leaves, mut_mult)
+            compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
             continue
         for n_leaves in args.n_leaf_list:
             print '  ----> ', n_leaves, ' leaves'
             for mut_mult in args.mutation_multipliers:
                 print '         ----> mutate', mut_mult
-                compareutils.execute(args, action, datafname, label, n_leaves, mut_mult)
+                compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
                 # sys.exit()
 
     if 'write-plots' in args.actions:
@@ -146,3 +148,6 @@ for datafname in files:
         compareutils.compare_all_subsets(args, label)
 
     # break
+
+exit_codes = [p.wait() for p in procs]
+print 'exit ', exit_codes

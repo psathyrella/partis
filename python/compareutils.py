@@ -1032,7 +1032,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
     return seqfname
 
 # ----------------------------------------------------------------------------------------
-def execute(args, action, datafname, label, n_leaves, mut_mult):
+def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
     cmd = './bin/run-driver.py --label ' + label + ' --action '
     if 'partition' in action:
         cmd += ' partition'
@@ -1154,6 +1154,6 @@ def execute(args, action, datafname, label, n_leaves, mut_mult):
     if not os.path.exists(os.path.dirname(logbase)):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
-    # procs.append(proc)
+    procs.append(proc)
     # time.sleep(30)  # 300sec = 5min
 
