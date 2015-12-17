@@ -131,14 +131,14 @@ for datafname in files:
     for action in args.actions:
         if action == 'write-plots' or action == 'compare-subsets':
             continue
-        print '      ----> ', action
+        print '  ----> ', action
         if action == 'cache-data-parameters':
             compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
             continue
         for n_leaves in args.n_leaf_list:
-            print '  ----> ', n_leaves, ' leaves'
+            print '    ----> ', n_leaves, ' leaves'
             for mut_mult in args.mutation_multipliers:
-                print '         ----> mutate', mut_mult
+                print '        ----> mutate', mut_mult
                 compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
                 # sys.exit()
 

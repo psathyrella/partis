@@ -128,7 +128,7 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
                 write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
 
                 vollmers_clusters = [cl.split(':') for cl in partitionstr.split(';')]
-                true_partition = utils.get_true_partition(reco_info)  # modified without testing
+                true_partition = utils.get_true_partition(reco_info)
                 utils.check_intersection_and_complement(vollmers_clusters, true_partition)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
                 these_partitions['true'] = true_partition
@@ -622,12 +622,12 @@ def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type)
             istart = irep * nseqs
             istop = istart + nseqs
             uids = uid_list[istart : istop]
-            true_partition = utils.get_true_partition(reco_info, ids=uids)  # modified without testing
+            true_partition = utils.get_true_partition(reco_info, ids=uids)
             n_misassigned = int(misassign_fraction * nseqs)
             new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type=error_type)
             # new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='singletons')
             new_partitions[nseqs] = new_partition
-    return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}  # modified without testing
+    return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 
 # ----------------------------------------------------------------------------------------
 def make_adj_mi_vs_sample_size_plot(args, label, n_leaves, mut_mult, nseq_list, adj_mis):
