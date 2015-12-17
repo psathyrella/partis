@@ -202,17 +202,15 @@ class PartitionDriver(object):
 
         # deal with final partition
         if self.args.smc_particles == 1:
-            for path in self.paths:
-                self.check_path(path)
-            print 'final'
-            assert len(self.paths) == 1  # I think this is how it works... can't be bothered to check just now
+            assert len(self.paths) == 1
             ipath = 0
-            best_path = self.paths[ipath]
-            best_path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
-            print ''
+            path = self.paths[ipath]
+            self.check_partition(path.partitions[path.i_best])
+            print 'final'
+            path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
             if self.args.print_cluster_annotations:
                 annotations = self.read_annotation_output(self.annotation_fname)
-                for cluster in best_path.partitions[best_path.i_best]:
+                for cluster in path.partitions[path.i_best]:
                     uids = ':'.join(cluster)
                     utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
             if self.args.outfname is not None:
@@ -221,7 +219,7 @@ class PartitionDriver(object):
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
             for path in final_paths:
-                self.check_path(path)
+                self.check_partition(path.partitions[path.i_best])
             if self.args.debug:
                 for ipath in range(self.args.smc_particles):
                     path = final_paths[ipath]
@@ -234,28 +232,18 @@ class PartitionDriver(object):
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
-    def check_path(self, path):
+    def check_partition(self, partition):
+        found_ids = set([uid for cluster in partition for uid in cluster])
         missing_ids = set()
-        def check_partition(partition):
-            for uid in self.input_info:  # maybe should switch this to self.sw_info['queries']
-                found = False
-                for cluster in partition:
-                    if uid in cluster:
-                        found = True
-                        break
-                if not found:
-                    missing_ids.add(uid)
-            for cluster in partition:
-                for uid in cluster:
-                    if uid not in self.input_info:  # see comment a few lines back
-                        missing_ids.add(uid)
-
-        check_partition(path.partitions[path.i_best])
-        # for ipart in range(len(path.partitions)):
-        #     check_partition(path.partitions[ipart])
-
+        for uid in self.input_info:  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
+            if uid not in found_ids:
+                missing_ids.add(uid)
         if len(missing_ids) > 0:
-            print 'WARNING not found in merged partitions: ' + ' '.join(missing_ids)
+            warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
+            if self.args.is_data:
+                print '  ' + utils.color('red', 'warning') + ' ' + warnstr
+            else:
+                raise Exception(warnstr)
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths):
@@ -304,7 +292,18 @@ class PartitionDriver(object):
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-            check_call(cmd.split())
+            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
+            out, err = proc.communicate()
+            exit_code = proc.wait()
+            joinstr = '\n    '
+            if out != '':
+                print '  out:'
+                print '    ' + joinstr.join(out.replace('\r', '').split('\n'))
+            if err != '':
+                print '  err:'
+                print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
+            if exit_code != 0:
+                raise Exception('vsearch failed with exit code %d' % exit_code)
     
         elif self.args.naive_swarm:
             clusterfname = self.args.workdir + '/swarm-clusters.txt'
@@ -348,6 +347,7 @@ class PartitionDriver(object):
                     uid = uid[:-2]
                 id_clusters[cluster_id].append(uid)
         partition = id_clusters.values()
+        self.check_partition(partition)
         adj_mi = None
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
@@ -1232,7 +1232,11 @@ class PartitionDriver(object):
                         outline = utils.convert_to_presto(self.glfo, outline)
                     writer.writerow(outline)
 
-        if self.args.annotation_clustering == 'vollmers':
+        if self.args.annotation_clustering is not None:
+            if self.args.annotation_clustering != 'vollmers':
+                raise Exception('we only handle \'vollmers\' (vj cdr3 0.x) annotation clustering at the moment')
+
+            # initialize output file
             if self.args.outfname is not None:
                 outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
                 headers = ['n_clusters', 'threshold', 'partition']
@@ -1241,20 +1245,24 @@ class PartitionDriver(object):
                 writer = csv.DictWriter(outfile, headers)
                 writer.writeheader()
 
+            # have to copy info to new dict to get d_qr_seq and whatnot
             annotations_for_vollmers = OrderedDict()
             for uids, line in eroded_annotations.items():
                 if len(line['seqs']) > 1:
                     raise Exception('can\'t handle multiple seqs')
                 annotations_for_vollmers[uids] = utils.synthesize_single_seq_line(self.glfo, line, iseq)
 
+            # perform annotation clustering for each threshold and write to file
             for thresh in self.args.annotation_clustering_thresholds:
                 adj_mi, partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
+                self.check_partition(partition)
                 n_clusters = len(partition)
                 if self.args.outfname is not None:
                     row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
                     if not self.args.is_data:
                         row['adj_mi'] = adj_mi
                     writer.writerow(row)
+
             if self.args.outfname is not None:
                 outfile.close()
 
