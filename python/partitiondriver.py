@@ -1241,9 +1241,14 @@ class PartitionDriver(object):
                 writer = csv.DictWriter(outfile, headers)
                 writer.writeheader()
 
+            annotations_for_vollmers = OrderedDict()
+            for uids, line in eroded_annotations.items():
+                if len(line['seqs']) > 1:
+                    raise Exception('can\'t handle multiple seqs')
+                annotations_for_vollmers[uids] = utils.synthesize_single_seq_line(self.glfo, line, iseq)
+
             for thresh in self.args.annotation_clustering_thresholds:
-                raise Exception('what the hell is <hmminfo> suppose to be here? Must have accidentally moved this')
-                adj_mi, partition = annotationclustering.vollmers(hmminfo, threshold=thresh, reco_info=self.reco_info)
+                adj_mi, partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
                 n_clusters = len(partition)
                 if self.args.outfname is not None:
                     row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}

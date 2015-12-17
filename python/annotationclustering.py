@@ -91,6 +91,7 @@ def vollmers(info, threshold, reco_info=None, debug=False):
             if debug:
                 print '    running again (%d --> %d)' % (last_size, len(id_clusters[clid]))
 
+    # ----------------------------------------------------------------------------------------
     # the business
     unclustered_seqs = info.keys()
     last_cluster_id = 0
