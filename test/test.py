@@ -25,6 +25,7 @@ class Tester(object):
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
         self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/_new-results'}
+        self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
         simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
@@ -53,7 +54,7 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_stype + '-simu-performance', '--plot-performance']}
+            self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
             self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]}
             # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries]}
             self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
@@ -131,7 +132,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
         test_outputs = [k + '.csv' for k in self.tests.keys() if k not in self.production_tests]
-        expected_content = set(test_outputs + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
+        expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
 
         # remove (very, very gingerly) whole reference dir
         self.remove_reference_results(expected_content)
@@ -142,12 +143,18 @@ class Tester(object):
         for fname in expected_content:
             source_fname = self.dirs['new'] + '/' + fname
             if '-ref-' in fname:  # these correspond to stuff run on the old reference simulation and parameters, so we no longer need it
-                os.remove(source_fname)
+                if os.path.isdir(source_fname):
+                    shutil.rmtree(source_fname)
+                else:
+                    os.remove(source_fname)
                 continue
 
             if '-new-' in fname:  # whereas the stuff that's on the new simulation and parameters replaces both the ref and new stuff
                 print '    cp %s   -->  %s/ (new --> ref)' % (fname, self.dirs['ref'])
-                shutil.copy(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
+                if os.path.isdir(source_fname):
+                    shutil.copytree(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
+                else:
+                    shutil.copy(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
             print '    mv %s   -->  %s/' % (fname, self.dirs['ref'])
             shutil.move(source_fname, self.dirs['ref'] + '/')
 
@@ -180,7 +187,7 @@ class Tester(object):
             else:
                 return values
 
-        perfdir = self.dirs[version_stype] + '/' + self.label + '/plots/' + input_stype + '-simu-performance'
+        perfdir = self.dirs[version_stype] + '/' + self.perfdirs[input_stype]
         for method in ['sw', 'hmm']:
             if debug:
                 print '   ', method
@@ -316,19 +323,19 @@ class Tester(object):
                     n_big_delta_logprobs += 1
                     delta_logprobs.append(delta_logprob)
 
-        diff_hfracs_str = '%d / %d' % (n_big_hammings, n_hammings)
+        diff_hfracs_str = '%3d / %4d' % (n_big_hammings, n_hammings)
         mean_hfrac_str = '%.3f' % (numpy.average(hammings) if len(hammings) > 0 else 0.)
         if n_big_hammings > 0:
             diff_hfracs_str = utils.color('red', diff_hfracs_str)
             mean_hfrac_str = utils.color('red', mean_hfrac_str)
 
-        diff_logprob_str = '%d / %d' % (n_big_delta_logprobs, n_delta_logprobs)
+        diff_logprob_str = '%3d / %4d' % (n_big_delta_logprobs, n_delta_logprobs)
         mean_logprob_str = '%.6f' % (numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
         if n_big_delta_logprobs > 0:
             diff_logprob_str = utils.color('red', diff_logprob_str)
             mean_logprob_str = utils.color('red', mean_logprob_str)
         print '                fraction different     mean difference among differents'
-        print '    naive seqs     %s                      %s   (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
+        print '    naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
         print '    log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
         if n_different_length > 0:
             print utils.color('red', '      %d different length' % n_different_length)
@@ -351,7 +358,7 @@ else:
 # make a bunch of comparison plots
 print 'skipping plots for the moment'
 sys.exit()
-plotdirs = ['test/plots/data/sw', 'test/plots/data/hmm', 'test/plots/simu/hmm-true', 'test/plots/ref-simu-performance/sw', 'test/plots/ref-simu-performance/hmm']
+plotdirs = ['test/plots/data/sw', 'test/plots/data/hmm', 'test/plots/simu/hmm-true', self.perfdirs['ref'] + '/sw', self.perfdirs['ref'] + '/hmm']
 base_check_cmd = './bin/compare.py --dont-calculate-mean-info --graphify --linewidth 1 --markersizes 2:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414
 if os.getenv('www') is None:
     www_dir = '_test-plots'
