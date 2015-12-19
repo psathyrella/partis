@@ -504,7 +504,8 @@ class Waterer(object):
                 status = 'nonsense'  # return 'nonsense' immediately if either boundary makes no sense -- we'll presumably either toss the query or rerun with different match/mismatch
                 break
 
-        print '  overlap status: %s' % status
+        if debug:
+            print '  overlap status: %s' % status
         return status
 
     # ----------------------------------------------------------------------------------------
