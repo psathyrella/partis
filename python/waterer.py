@@ -111,7 +111,10 @@ class Waterer(object):
             print ')',
         print ''
         if n_remaining > 0:
-            print '   %s %d missing annotations' % (utils.color('red', 'warning'), n_remaining)
+            printstr = '   %s %d missing annotations' % (utils.color('red', 'warning'), n_remaining)
+            if n_remaining < 15:
+                printstr += ' (' + ':'.join(self.remaining_queries) + ')'
+            print printstr
         if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
         assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
