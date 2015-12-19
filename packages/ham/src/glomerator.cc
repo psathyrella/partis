@@ -406,16 +406,16 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
       events_[queries] = events_[parents->first];
       return;
     }
-    double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (not that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
+    double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (note that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
     double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
     if(size_ratio > max_factor) {
-      cout << "     first parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
+      cout << "     first parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
       naive_seqs_[queries] = naive_seqs_[parents->first];
       events_[queries] = events_[parents->first];
       return;
     }
     if(1. / size_ratio > max_factor) {
-      cout << "     second parent much larger " << ParentalString(parents) << "  =  " << size_ratio << endl;
+      cout << "     second parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
       naive_seqs_[queries] = naive_seqs_[parents->second];
       events_[queries] = events_[parents->second];
       return;
