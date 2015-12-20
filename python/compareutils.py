@@ -129,7 +129,8 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
 
                 vollmers_clusters = [cl.split(':') for cl in partitionstr.split(';')]
                 true_partition = utils.get_true_partition(reco_info)
-                utils.check_intersection_and_complement(vollmers_clusters, true_partition)
+                print 'not checking intersection!'
+                # utils.check_intersection_and_complement(vollmers_clusters, true_partition)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
                 these_partitions['true'] = true_partition
                 truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
