@@ -288,15 +288,15 @@ class Waterer(object):
                     os.rmdir(workdir)
 
         if self.nth_try == 1:
-            print '      processed   remaining  new-indels       rerun: ' + '   '.join([reason for reason in queries_to_rerun])
-        print '      %5d' % n_processed,
+            print '        processed       remaining      new-indels          rerun: ' + '      '.join([reason for reason in queries_to_rerun])
+        print '      %8d' % n_processed,
         if len(self.remaining_queries) > 0:
-            printstr = '       %5d' % len(self.remaining_queries)
-            printstr += '       %5d' % self.new_indels
+            printstr = '       %8d' % len(self.remaining_queries)
+            printstr += '       %8d' % self.new_indels
             printstr += '            '
             n_to_rerun = 0
             for reason in queries_to_rerun:
-                printstr += '        %5d' % len(queries_to_rerun[reason])
+                printstr += '        %8d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
             print printstr,
             if n_to_rerun + self.new_indels != len(self.remaining_queries):
