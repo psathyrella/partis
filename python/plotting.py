@@ -716,7 +716,7 @@ linewidths = {'true' : 15,
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outfname, hists, title, xmax=None):
+def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
 
     fsize = 20
     mpl.rcParams.update({
@@ -806,8 +806,10 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None):
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
-    ax.set_xscale('log')
-    # ax.set_yscale('log')
+    if 'x' in log:
+        ax.set_xscale('log')
+    if 'y' in log:
+        ax.set_yscale('log')
     potential_xticks = [1, 2, 3, 9, 30, 50, 100, 250]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
@@ -875,6 +877,8 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     # ax.set_xlim(xticks[0] - 0.4, xticks[-1])
 
     xticklabels = [str(xt) for xt in xticks]
+    if 100 in xticklabels and 200 in xticklabels:
+        xticklabels.remove(100)
     plt.xticks(xticks, xticklabels)
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]
     yticklabels = [str(yt) for yt in yticks]

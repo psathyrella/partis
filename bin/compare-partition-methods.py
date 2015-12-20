@@ -131,7 +131,7 @@ for datafname in files:
     for action in args.actions:
         if action == 'write-plots' or action == 'compare-subsets':
             continue
-        print '  ----> ', action
+        print ' ', action
         if action == 'cache-data-parameters':
             compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
             continue

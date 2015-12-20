@@ -492,13 +492,16 @@ def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, 
     # for ptype in ['vsearch-']:
         parse_partis(args, ptype + 'partition', these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
 
-    plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title)  #, xmax=n_leaves*6.01
-    for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
-        if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
-            continue
-        n_biggest_clusters = 40  # if args.data else 30)
-        plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
-    # check_call(['./bin/permissify-www', plotdir])
+    log = 'xy'
+    if not args.data and n_leaves <= 10:
+        log = 'x'
+    plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title, log=log)  #, xmax=n_leaves*6.01
+    # for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
+    #     if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
+    #         continue
+    #     n_biggest_clusters = 40  # if args.data else 30)
+    #     plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
+    # # check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
 def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
@@ -587,6 +590,7 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
         these_hists[method] = plotting.make_mean_hist(method_hists)
 
     plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
+    log = 'xy'
     if args.data:
         title = get_title(args, label, n_leaves, mut_mult)
         plotfname = plotdir + '/plots/data.svg'
@@ -595,7 +599,9 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
         title = get_title(args, label, n_leaves, mut_mult)
         plotfname = plotdir + '/plots/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
         xmax = n_leaves*6.01
-    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=xmax)
+        if n_leaves <= 10:
+            log = 'x'
+    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=xmax, log=log)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
@@ -734,6 +740,7 @@ def compare_sample_sizes(args, label, n_leaves, mut_mult):
     for meth in expected_methods:
         mean_hists[meth] = plotting.make_mean_hist(hists[meth])
     plotdir = os.getenv('www') + '/partis/clustering/' + label
+    log = 'xy'
     if args.data:
         plotfname = plotdir + '/plots/data.svg'
         title = get_title(args, label, n_leaves, mut_mult)
@@ -743,7 +750,9 @@ def compare_sample_sizes(args, label, n_leaves, mut_mult):
         plotfname = plotdir + '/plots/' + simfbase + '.svg'
         title = get_title(args, label, n_leaves, mut_mult)
         xmax = n_leaves*3.01
-    plotting.plot_cluster_size_hists(plotfname, mean_hists, title=title, xmax=xmax)
+        if n_leaves <= 10:
+            log = 'x'
+    plotting.plot_cluster_size_hists(plotfname, mean_hists, title=title, xmax=xmax, log=log)
 
 # ----------------------------------------------------------------------------------------
 def output_exists(args, outfname):
