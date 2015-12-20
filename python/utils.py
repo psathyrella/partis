@@ -61,6 +61,7 @@ effective_boundaries = ['fv', 'jf']
 humans = ['A', 'B', 'C']
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
+gap_chars = ['.', '-']
 naivities = ['M', 'N']
 conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
@@ -1771,6 +1772,10 @@ def synthesize_single_seq_line(glfo, line, iseq):
 # ----------------------------------------------------------------------------------------
 def add_v_alignments(glfo, line, debug=False):
     """ add dots according to the imgt gapping scheme """
+
+    def n_gaps(seq):
+        return sum([seq.count(gc) for gc in gap_chars])
+
     aligned_v_seqs = []
     for iseq in range(len(line['seqs'])):
         hmminfo = synthesize_single_seq_line(glfo, line, iseq)
@@ -1786,16 +1791,16 @@ def add_v_alignments(glfo, line, debug=False):
             print '   gl   ', v_gl_seq
             print '   al gl', aligned_v_gl_seq
 
-        if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + hmminfo['v_3p_del'] + aligned_v_gl_seq.count('.'):
-            raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + '.' * aligned_v_gl_seq.count('.'), hmminfo['v_3p_del']))
+        if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + hmminfo['v_3p_del'] + n_gaps(aligned_v_gl_seq):
+            raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + gap_chars[0] * n_gaps(aligned_v_gl_seq), hmminfo['v_3p_del']))
 
         v_qr_seq = 'N' * line['v_5p_del'] + v_qr_seq + 'N' * line['v_3p_del']
         v_gl_seq = 'N' * line['v_5p_del'] + v_gl_seq + 'N' * line['v_3p_del']
 
         for ibase in range(len(aligned_v_gl_seq)):
-            if aligned_v_gl_seq[ibase] == '.':
-                v_qr_seq = v_qr_seq[ : ibase] + '.' + v_qr_seq[ibase : ]
-                v_gl_seq = v_gl_seq[ : ibase] + '.' + v_gl_seq[ibase : ]
+            if aligned_v_gl_seq[ibase] in gap_chars:
+                v_qr_seq = v_qr_seq[ : ibase] + gap_chars[0] + v_qr_seq[ibase : ]
+                v_gl_seq = v_gl_seq[ : ibase] + gap_chars[0] + v_gl_seq[ibase : ]
             else:
                 if v_gl_seq[ibase] != 'N' and v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
                     raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
