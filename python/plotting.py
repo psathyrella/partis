@@ -619,12 +619,14 @@ def get_cluster_size_hist(partition, rebin=None):
     hist = Hist(nbins, 0.5, max(sizes) + 0.5)
     for sz in sizes:
         hist.fill(sz)
+    # hist.all_data = sizes
     return hist
 
 # ----------------------------------------------------------------------------------------
 def make_mean_hist(hists, debug=False):
     """ return the hist with bin contents the mean over <hists> of each bin """
     binvals = {}
+    # all_data = None
     for hist in hists:
         if debug:
             print '    sub',
@@ -635,10 +637,17 @@ def make_mean_hist(hists, debug=False):
             binvals[low_edge] += hist.bin_contents[ib]
             if debug:
                 print '   ', low_edge, hist.bin_contents[ib],
+        if all_data is not None and hist.all_data is None:
+            raise Exception('tried to average hists with and without all_data set')
+        if hist.all_data is not None:
+            if all_data is None:
+                all_data = []
+            all_data += hist.all_data
         if debug:
             print ''
     binlist = sorted(binvals.keys())
     meanhist = Hist(len(binlist) - 2, binlist[1], binlist[-1], binlist[1 : -1])
+    meanhist.all_data = all_data
     if debug:
         print '   mean',
     for ib in range(len(binlist)):
@@ -756,18 +765,19 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     # dark red '#A52A2A',
     plots = {}
     scplots = {}
+    tmpmax, n_queries = None, None
     for name, hist in hists.items():
         if 'vollmers' in name:
             if '0.7' in name or '0.8' in name or '0.95' in name or '0.5' in name:
                 continue
-        linestyle = '-'
+        linestyle = 'solid'  #'-'
         alpha = 1.
         if 'vsearch' in name:
-            linestyle = '-.'
+            linestyle = 'dashdot'  #'-.'
         elif 'naive-hamming-partition' in name:
-            linestyle = '--'
+            linestyle = 'dashed'  #'--'
         elif 'true' in name:
-            linestyle = '--'
+            linestyle = 'dashed'  #'--'
             alpha = 0.7
         elif 'vollmers' in name:
             alpha = 0.8
@@ -779,29 +789,37 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         #     linestyle = '--'
         #     # alpha = 0.5
 
-        # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
-        hist.normalize()
-        plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        # other (old) possibility:
         # ax.bar and ax.scatter also suck
+        # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
         # scplots[name] = ax.scatter(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
 
+        # was using this:
+        hist.normalize()
+        plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+
+        # # or maybe try a hist?
+        # if n_queries is None:
+        #     n_queries = sum(hist.all_data)
+        # if tmpmax is None or max(hist.all_data) > tmpmax:
+        #     tmpmax = max(hist.all_data)
+        # plots[name] = ax.hist(hist.all_data, bins=[0.5, 1.5, 2.5, 3.5, 5.5, 10, 25, 50, 80, 110, 200, 350, 500, 1000], histtype='step', normed=True, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+
+
     legend = ax.legend()
-    sns.despine(trim=True, bottom=True)
-    # ax = fig.gca()
-    # print ax.lines
-    
-    # axes = plt.gca()
-    # ylimits = axes.get_ylim()
-    # xmin, xmax = 0.3, 1.02
+    sns.despine()  #trim=True, bottom=True)
+
+    xmax = tmpmax
     if xmax is None:
         xmax = plt.gca().get_xlim()[1]
     else:
-        ax.set_xlim(1, xmax)
-    if 'stanford' in title:
-        ymin = 5e-4
-    else:
-        ymin = 5e-5
-    plt.ylim(ymin, 1)
+        ax.set_xlim(0.75, xmax)
+
+    # if 'stanford' in title:
+    #     ymin = 5e-4
+    # else:
+    #     ymin = 5e-5
+    # plt.ylim(ymin, 1)
     plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
@@ -810,7 +828,9 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         ax.set_xscale('log')
     if 'y' in log:
         ax.set_yscale('log')
-    potential_xticks = [1, 2, 3, 9, 30, 50, 100, 250]
+        if n_queries is not None:
+            plt.ylim(1./n_queries, 1)
+    potential_xticks = [1, 2, 3, 9, 30, 100, 250, 500, 750, 1200]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
     plotdir = os.path.dirname(outfname)
@@ -858,6 +878,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     # if valname == 'ccf_over':
     #     ymin = 0.5
     ax.set_ylim(ymin, 1)
+    ax.set_xlim(xvals[0], xvals[-1])
     sns.despine()  #trim=True, bottom=True)
     # sns.set_style('ticks')
     plt.title('%dx mutation' % mut_mult)
