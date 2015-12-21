@@ -54,15 +54,38 @@ def align_new_genes(old_aligned_genes, genes_without_alignments, all_new_genes):
     os.remove(all_fname)
 
 # ----------------------------------------------------------------------------------------
-def find_cyst_conversion_factor(known_cyst_positions, align_new_genes):
-
-# ----------------------------------------------------------------------------------------
 def write_cyst_file(known_cyst_positions):
-    unaligned_genes = utils.read_germlines(args.dirname, only_region='v')
-    aligned_genes = utils.read_germlines(args.dirname, only_region='v', aligned=True)
-    cyst_positions = {}
+    unaligned_genes = utils.read_germlines(args.dirname, only_region='v')['v']
+    aligned_genes = utils.read_germlines(args.dirname, only_region='v', aligned=True)['v']
+
+    common_gene = None  # we need to find at least one gene that's in the old and the new sets, so we know how to convert cyst positions
+    for gene, info in known_cyst_positions.items():
+        if gene in aligned_genes:
+            common_gene = gene
+            break
+    if common_gene is None:
+        raise Exception('couldn\'t find any genes in common between %s and %s, so can\'t write new cyst position file' % (args.reference, args.dirname + '/' + aligned_fname))
+
+    aligned_seq = aligned_genes[common_gene]
+    seq = unaligned_genes[common_gene]
+    cpos = known_cyst_positions[common_gene]['cysteine-position']
+    utils.check_conserved_cysteine(seq, cpos)
+    cpos_in_alignment = cpos
+    ipos = 0  # position in unaligned sequence
+    n_dots_passed = 0  # number of gapped positions in the aligned sequences that we pass before getting to cpos (i.e. while ipos < cpos)
+    while ipos < cpos:
+        if aligned_seq[ipos + n_dots_passed] in utils.gap_chars:
+            cpos_in_alignment += 1
+            n_dots_passed += 1
+        else:
+            ipos += 1
+    utils.check_conserved_cysteine(aligned_seq, cpos_in_alignment)
+    displacement = cpos_in_alignment - cpos
+    print '  cpos displacement: %d' % displacement
+    cyst_positions = []
     for gene, seq in unaligned_genes.items():
         
+        cyst_positions.append({'gene' : gene, 'cyst_start' : cpos})
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -78,9 +101,6 @@ unaligned_fname = 'ighv.fasta'
 aligned_fname = 'ighv-aligned.fasta'
 
 # ----------------------------------------------------------------------------------------
-# clean_dir()
-# shutil.copyfile(args.ighv_fname, args.dirname + '/' + unaligned_fname)
-
 # figure out which v genes we need to align
 old_aligned_genes = utils.read_germlines(args.reference_dir, only_region='v', aligned=True)
 all_new_genes = utils.read_germlines(args.dirname, only_region='v')  # all genes in ighv_fname, not just the new ones
@@ -89,9 +109,10 @@ for gene in all_new_genes['v']:
     if gene not in old_aligned_genes['v']:
         genes_without_alignments[gene] = all_new_genes['v'][gene]
 
+# clean_dir()
+# shutil.copyfile(args.ighv_fname, args.dirname + '/' + unaligned_fname)
 # if len(genes_without_alignments) > 0:
 #     align_new_genes(old_aligned_genes['v'], genes_without_alignments, all_new_genes['v'])
-
 # for fname in files_to_copy:
 #     shutil.copyfile(args.reference_dir + '/' + fname, args.dirname + '/' + fname)
 
