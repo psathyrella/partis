@@ -57,8 +57,8 @@ if args.subset is not None:
     if 'write-plots' not in args.actions:
         assert args.n_subsets == 10  # for all the subset plots, I split into ten subsets, then ended up only using the first thre of 'em, so you have to set n_subsets to 10 if you're running methods, but then to 3 when you're writing plots
     args.n_to_partition = 1300
-if args.istartstop is not None:
-    assert False  # I think I'm not actually using the istartstop stuff for anything... maybe? in any case I moved all the results to a bak/ subdir of args.fsdir
+if args.istartstop is not None: 
+    # assert False  # I think I'm not actually using the istartstop stuff for anything... maybe? in any case I moved all the results to a bak/ subdir of args.fsdir
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
 
 # ----------------------------------------------------------------------------------------
