@@ -31,7 +31,7 @@ parser.add_argument('--n-data-to-cache', type=int, default=50000)
 parser.add_argument('--n-sim-seqs', type=int, default=10000)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
-parser.add_argument('--startstoplist')  # list of istartstops for comparisons
+parser.add_argument('--istartstoplist')  # list of istartstops for comparisons
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
@@ -39,14 +39,14 @@ parser.add_argument('--humans', default=None)  #'A')
 parser.add_argument('--no-mixcr', action='store_true')
 parser.add_argument('--no-changeo', action='store_true')
 parser.add_argument('--no-similarity-matrices', action='store_true')
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-subsets', 'compare-istartstops']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
-args.startstoplist = utils.get_arg_list(args.startstoplist)
+args.istartstoplist = utils.get_arg_list(args.istartstoplist)
 args.humans = utils.get_arg_list(args.humans)
 
 if 'cache-data-parameters' in args.actions:
@@ -59,7 +59,6 @@ if args.subset is not None:
         assert args.n_subsets == 10  # for all the subset plots, I split into ten subsets, then ended up only using the first thre of 'em, so you have to set n_subsets to 10 if you're running methods, but then to 3 when you're writing plots
     args.n_to_partition = 1300
 if args.istartstop is not None: 
-    # assert False  # I think I'm not actually using the istartstop stuff for anything... maybe? in any case I moved all the results to a bak/ subdir of args.fsdir
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
 
 # ----------------------------------------------------------------------------------------
@@ -130,7 +129,7 @@ for datafname in files:
     print 'run', human
     n_leaves, mut_mult = None, None  # values if we're runing on data
     for action in args.actions:
-        if action == 'write-plots' or action == 'compare-subsets':
+        if action == 'write-plots' or action == 'compare-subsets' or action == 'compare-istarstops':
             continue
         print ' ', action
         if action == 'cache-data-parameters':
@@ -146,7 +145,9 @@ for datafname in files:
     if 'write-plots' in args.actions:
         compareutils.write_all_plot_csvs(args, label)
     if 'compare-subsets' in args.actions:
-        compareutils.compare_all_subsets(args, label)
+        compareutils.compare_subsets(args, label)
+    if 'compare-istartstops' in args.actions:
+        compareutils.compare_istartstops(args, label)
 
     # break
 
