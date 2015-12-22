@@ -32,6 +32,7 @@ parser.add_argument('--n-sim-seqs', type=int, default=10000)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
 parser.add_argument('--istartstoplist')  # list of istartstops for comparisons
+parser.add_argument('--plot-mean-of-subsets', action='store_true')
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--logaxis', action='store_true')
 parser.add_argument('--zoom', action='store_true')
@@ -39,7 +40,7 @@ parser.add_argument('--humans', default=None)  #'A')
 parser.add_argument('--no-mixcr', action='store_true')
 parser.add_argument('--no-changeo', action='store_true')
 parser.add_argument('--no-similarity-matrices', action='store_true')
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-subsets', 'compare-istartstops']
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
@@ -47,6 +48,12 @@ args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 args.istartstoplist = utils.get_arg_list(args.istartstoplist)
+if args.istartstoplist is not None:
+    for jstartstop in range(len(args.istartstoplist)):
+        istartstopstr = args.istartstoplist[jstartstop]
+        istart, istop = [int(i) for i in istartstopstr.split(',')]
+        args.istartstoplist[jstartstop] = [istart, istop]
+
 args.humans = utils.get_arg_list(args.humans)
 
 if 'cache-data-parameters' in args.actions:
@@ -146,10 +153,9 @@ for datafname in files:
         compareutils.write_all_plot_csvs(args, label)
     if 'compare-subsets' in args.actions:
         compareutils.compare_subsets(args, label)
-    if 'compare-istartstops' in args.actions:
-        compareutils.compare_istartstops(args, label)
 
     # break
 
-exit_codes = [p.wait() for p in procs]
-print 'exit ', exit_codes
+if len(procs) > 0:
+    exit_codes = [p.wait() for p in procs]
+    print 'exit ', exit_codes
