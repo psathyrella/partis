@@ -147,29 +147,12 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def read_cyst_positions(datadir):
-    import json
-    jsonfname = datadir + '/v-meta.json'
-    csvfname = datadir + '/v-meta.csv'
-    with opener('r')(jsonfname) as json_file:
-        cyst_positions = json.load(json_file)
-    if not os.path.exists(csvfname) or os.path.getmtime(csvfname) < os.path.getmtime(jsonfname):  # if csv hasn't been made, or if it's older than the json file
-        print 'rewriting v-meta csv'
-        # remake csv file
-        with opener('w')(csvfname) as csv_file:
-            writer = csv.DictWriter(csv_file, ('gene', 'cyst_start'))
-            writer.writeheader()
-            for gene in cyst_positions:
-                writer.writerow({'gene' : gene, 'cyst_start' : cyst_positions[gene]['cysteine-position']})
-
-    return cyst_positions
-
-# ----------------------------------------------------------------------------------------
 def rewrite_germline_fasta(input_dir, output_dir, only_genes):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print 'rewriting germlines from %s to %s' % (input_dir, output_dir)
-    input_germlines = read_germlines(input_dir)
-    input_aligned_v_genes = read_germlines(input_dir, only_region='v', aligned=True)
+    glfo = read_germline_set(input_dir)
+    input_germlines = glfo['seqs']
+    input_aligned_v_genes = glfo['aligned-v-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
 
     if not os.path.exists(output_dir):
@@ -188,7 +171,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes):
         write_gl_file(output_dir + '/igh' + region + '.fasta', region, input_germlines)
     write_gl_file(output_dir + '/ighv-aligned.fasta', 'v', input_aligned_v_genes)
 
-    for fname in ['v-meta.json', 'v-meta.csv', 'j_tryp.csv']:
+    for fname in ['cyst-positions.csv', 'tryp-positions.csv']:
         expected_files.append(output_dir + '/' + fname)
         shutil.copyfile(input_dir + '/' + fname, output_dir + '/' + fname)
 
@@ -484,9 +467,9 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     """
     # NOTE see add_cdr3_info -- they do similar things, but start from different information
     if region == 'v':
-        gl_pos = cyst_positions[gene]['cysteine-position']  # germline cysteine position
+        gl_pos = cyst_positions[gene]  # germline cysteine position
     elif region == 'j':
-        gl_pos = int(tryp_positions[gene])
+        gl_pos = tryp_positions[gene]
     else:  # return -1 for d
         return -1
 
@@ -518,10 +501,10 @@ def add_cdr3_info(glfo, line, debug=False):
     #     print line
 
     # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
-    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']]['cysteine-position']  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
+    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']]  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     # if debug:
-    #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (glfo['cyst-positions'][line['v_gene']]['cysteine-position'], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
-    eroded_gl_tpos = int(glfo['tryp-positions'][line['j_gene']]) - int(line['j_5p_del'])
+    #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (glfo['cyst-positions'][line['v_gene']], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
+    eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - int(line['j_5p_del'])
     values = {}
     values['cyst_position'] = eroded_gl_cpos
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
@@ -1033,20 +1016,40 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germlines(data_dir, only_region=None, aligned=False):
-    germlines = {}
+def read_germline_set(datadir):
+    glfo = {}
+    glfo['seqs'] = read_germline_seqs(datadir)
+    glfo['aligned-v-genes'] = read_germline_seqs(datadir, only_region='v', aligned=True)
+    for codon in ['cyst', 'tryp']:
+        glfo[codon + '-positions'] = read_codon_positions(datadir + '/' + codon + '-positions.csv')
+    return glfo
+
+#----------------------------------------------------------------------------------------
+def read_germline_seqs(datadir, only_region=None, aligned=False):
+    glseqs = {}
     for region in regions:
         if only_region is not None and region != only_region:
             continue
-        fname = data_dir + '/igh' + region + '.fasta'
+        fname = datadir + '/igh' + region + '.fasta'
         if aligned:
             fname = fname.replace('.fasta', '-aligned.fasta')
-        germlines[region] = OrderedDict()
+        glseqs[region] = OrderedDict()
         for seq_record in SeqIO.parse(fname, 'fasta'):
             gene_name = seq_record.name
             seq_str = str(seq_record.seq).upper()
-            germlines[region][gene_name] = seq_str
-    return germlines
+            glseqs[region][gene_name] = seq_str
+    return glseqs
+
+# ----------------------------------------------------------------------------------------
+def read_codon_positions(csvfname):
+    positions = {}
+    with open(csvfname) as csvfile:
+        reader = csv.DictReader(csvfile)
+        for line in reader:
+            if line['istart'] == '':  # I don't know how these got in the file, but they should probably be removed
+                continue
+            positions[line['gene']] = int(line['istart'])
+    return positions
 
 # ----------------------------------------------------------------------------------------
 def get_region(gene):

@@ -29,13 +29,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
-        self.glfo = {}
-        self.glfo['seqs'] = utils.read_germlines(self.args.datadir)
-        self.glfo['aligned-v-genes'] = utils.read_germlines(self.args.datadir, only_region='v', aligned=True)
-        self.glfo['cyst-positions'] = utils.read_cyst_positions(self.args.datadir)
-        with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region
-            tryp_reader = csv.reader(csv_file)
-            self.glfo['tryp-positions'] = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
+        self.glfo = utils.read_germline_set(self.args.datadir)
 
         if self.args.seqfile is not None:
             self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids)
@@ -92,7 +86,7 @@ class PartitionDriver(object):
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         sw_parameter_dir = self.args.parameter_dir + '/sw'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo['seqs'], parameter_dir=sw_parameter_dir, write_parameters=True)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=sw_parameter_dir, write_parameters=True)
         waterer.run()
         self.sw_info = waterer.info
         self.write_hmms(sw_parameter_dir)
@@ -105,7 +99,7 @@ class PartitionDriver(object):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         if not os.path.exists(self.args.parameter_dir):
             raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo['seqs'], parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
 
         self.sw_info = waterer.info
@@ -137,7 +131,7 @@ class PartitionDriver(object):
 
         # run smith-waterman
         start = time.time()
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo['seqs'], parameter_dir=self.args.parameter_dir, write_parameters=False)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
         print '        water time: %.3f' % (time.time()-start)
         self.sw_info = waterer.info

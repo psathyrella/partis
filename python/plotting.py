@@ -528,10 +528,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                     translegend = (0.15, -0.02)
                 xline = None
                 if utils.get_region(gene) == 'v' and args.cyst_positions is not None:
-                    xline = args.cyst_positions[gene]['cysteine-position']
-                    # normalization_bounds = (int(cyst_positions[gene]['cysteine-position']) - 70, None)
+                    xline = args.cyst_positions[gene]
+                    # normalization_bounds = (int(cyst_positions[gene]) - 70, None)
                 elif utils.get_region(gene) == 'j' and args.tryp_positions is not None:
-                    xline = int(args.tryp_positions[gene])
+                    xline = args.tryp_positions[gene]
                     # normalization_bounds = (None, int(tryp_positions[gene]) + 5)
             else:
                 ilastdash = simplevarname.rfind('-')

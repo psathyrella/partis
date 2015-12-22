@@ -30,15 +30,15 @@ class RecombinationEvent(object):
         self.original_tryp_word = ''
 
     # ----------------------------------------------------------------------------------------
-    def set_vdj_combo(self, vdj_combo_label, cyst_positions, tryp_positions, all_seqs, debug=False, mimic_data_read_length=False):
+    def set_vdj_combo(self, vdj_combo_label, glfo, debug=False, mimic_data_read_length=False):
         """ Set the label which labels the gene/length choice (a tuple of strings) as well as it's constituent parts """
         self.vdj_combo_label = vdj_combo_label
         for region in utils.regions:
             self.genes[region] = vdj_combo_label[utils.index_keys[region + '_gene']]
-            self.original_seqs[region] = all_seqs[region][self.genes[region]]
+            self.original_seqs[region] = glfo['seqs'][region][self.genes[region]]
             self.original_seqs[region] = self.original_seqs[region].replace('N', utils.int_to_nucleotide(random.randint(0, 3)))  # replace any Ns with a random nuke (a.t.m. use the same nuke for all Ns in a given seq)
-        self.local_cyst_position = cyst_positions[self.genes['v']]['cysteine-position']  # cyst position in uneroded v
-        self.local_tryp_position = int(tryp_positions[self.genes['j']])  # tryp position within j only
+        self.local_cyst_position = glfo['cyst-positions'][self.genes['v']]  # cyst position in uneroded v
+        self.local_tryp_position = glfo['tryp-positions'][self.genes['j']]  # tryp position within j only
         self.cdr3_length = int(vdj_combo_label[utils.index_keys['cdr3_length']])
         for boundary in utils.boundaries:
             self.insertion_lengths[boundary] = int(vdj_combo_label[utils.index_keys[boundary + '_insertion']])

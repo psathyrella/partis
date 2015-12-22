@@ -478,11 +478,11 @@ class HmmWriter(object):
         else:  # but for fv and jf, use the relative germline allele lengths
             lengths = []
             if insertion == 'fv':  # use the mean difference between other V gene cdr3 positions and ours (or zero, if its negative, i.e. if this V gene is really long)
-                our_cpos = self.cyst_positions[self.raw_name]['cysteine-position']  # cpos of this hmm's gene
+                our_cpos = self.cyst_positions[self.raw_name]  # cpos of this hmm's gene
                 if debug:
                     print '  %15s  cpos  delta_cpos' % ''
                 for gene in self.germline_seqs['v']:
-                    cpos = self.cyst_positions[gene]['cysteine-position']
+                    cpos = self.cyst_positions[gene]
                     delta_cpos = cpos - our_cpos
                     if delta_cpos < 0:  # count shorter genes as zeros in the averaging
                         lengths.append(0)
@@ -491,12 +491,12 @@ class HmmWriter(object):
                     if debug:
                         print '  %15s %3d %3d   %3d' % (gene, cpos, delta_cpos, lengths[-1])
             elif insertion == 'jf':
-                our_tpos_to_end = len(self.germline_seq) - int(self.tryp_positions[self.raw_name])  # tpos of this hmm's gene
+                our_tpos_to_end = len(self.germline_seq) - self.tryp_positions[self.raw_name]  # tpos of this hmm's gene
                 if debug:
-                    print '  our tpos to end: %d - %d = %d' % (len(self.germline_seq), int(self.tryp_positions[self.raw_name]), len(self.germline_seq) - int(self.tryp_positions[self.raw_name]))
+                    print '  our tpos to end: %d - %d = %d' % (len(self.germline_seq), self.tryp_positions[self.raw_name], len(self.germline_seq) - self.tryp_positions[self.raw_name])
                     print '  %15s  tpos-to-end  delta' % ''
                 for gene in self.germline_seqs['j']:
-                    tpos_to_end = len(self.germline_seqs['j'][gene]) - int(self.tryp_positions[gene])
+                    tpos_to_end = len(self.germline_seqs['j'][gene]) - self.tryp_positions[gene]
                     delta_tpos_to_end = tpos_to_end - our_tpos_to_end
                     if delta_tpos_to_end < 0:  # count shorter genes as zeros in the averaging
                         lengths.append(0)

@@ -178,10 +178,10 @@ class MuteFreqer(object):
             xline = None
             figsize = [3, 3]
             if utils.get_region(gene) == 'v' and cyst_positions is not None:
-                xline = cyst_positions[gene]['cysteine-position']
+                xline = cyst_positions[gene]
                 figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j' and tryp_positions is not None:
-                xline = int(tryp_positions[gene])
+                xline = tryp_positions[gene]
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl

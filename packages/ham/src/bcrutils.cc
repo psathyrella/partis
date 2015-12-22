@@ -139,7 +139,7 @@ GermLines::GermLines(string input_dir):
   vector<string> header;
 
   // get cyst info
-  string infname(input_dir + "/v-meta.csv");
+  string infname(input_dir + "/cyst-positions.csv");
   ifs.open(infname);
   if(!ifs.is_open())
     throw runtime_error("input file " + infname + " d.n.e.");
@@ -148,7 +148,7 @@ GermLines::GermLines(string input_dir):
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   header = (SplitString(line, ","));
   assert(header[0] == "gene");
-  assert(header[1] == "cyst_start");
+  assert(header[1] == "istart");
   // get info
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
@@ -159,7 +159,7 @@ GermLines::GermLines(string input_dir):
   ifs.close();
 
   // get tryp info
-  infname = input_dir + "/j_tryp.csv";
+  infname = input_dir + "/tryp-positions.csv";
   ifs.open(infname);
   if(!ifs.is_open())
     throw runtime_error("input file " + infname + " d.n.e.");
@@ -168,7 +168,7 @@ GermLines::GermLines(string input_dir):
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   header = SplitString(line, ",");
   assert(header[0] == "gene");
-  assert(header[1] == "tryp_start");
+  assert(header[1] == "istart");
   // get info
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());

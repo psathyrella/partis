@@ -38,7 +38,6 @@ class Recombinator(object):
 
         # parameters that control recombination, erosion, and whatnot
 
-        self.all_seqs = {}  # all the Vs, all the Ds...
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
         self.mute_models = {}
@@ -49,12 +48,7 @@ class Recombinator(object):
                 self.mute_models[region][model] = {}
 
         # first read info that doesn't depend on which person we're looking at
-        self.all_seqs = utils.read_germlines(self.args.datadir)
-        with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
-            self.cyst_positions = json.load(json_file)
-        with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
-            tryp_reader = csv.reader(csv_file)
-            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
+        self.glfo = utils.read_germline_set(self.args.datadir)
 
         # then read stuff that's specific to each person
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
@@ -118,7 +112,7 @@ class Recombinator(object):
         numpy.random.seed(irandom)
         random.seed(irandom)
 
-        reco_event = RecombinationEvent(self.all_seqs)
+        reco_event = RecombinationEvent(self.glfo['seqs'])
         self.choose_vdj_combo(reco_event)
         self.erode_and_insert(reco_event)
         if self.args.debug:
@@ -191,7 +185,7 @@ class Recombinator(object):
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice, self.cyst_positions, self.tryp_positions, self.all_seqs, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)  # 
+                reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)  # 
                 return
 
         assert False  # shouldn't fall through to here
