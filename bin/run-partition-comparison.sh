@@ -13,13 +13,16 @@ leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans A"  # 100:200:50
 # ./bin/compare-partition-methods.py --actions compare-subsets --n-subsets 3 $leaf_mut_hum --no-mixcr --no-changeo  # 
 # ./bin/compare-partition-methods.py --actions compare-subsets --humans A --n-subsets 3 --n-leaf-list 25 --mutation-multipliers 1 --no-mixcr --no-changeo  # :500
 
-# for istartstop in 0:100 100:600 600:1350 1350:2350 2350:3850 3850:5850 5850:8850 8850:12850 12850:17850 17850:25350; do  # see code below to generate these
-for istartstop in 17850:25350; do
-    ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --istartstop $istartstop $leaf_mut_hum &
-    # sleep 600
-    # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --no-mixcr --no-changeo $leaf_mut_hum
-    # break
-done
+startstoplist="0:100 100:600 600:1350 1350:2350 2350:3850 3850:5850 5850:8850 8850:12850 12850:17850 17850:25350"
+startstopstr=`echo $startstoplist | sed -e 's/:/,/g' -e 's/ /:/g'`
+# for istartstop in $startstoplist; do  # see code below to generate these
+# # for istartstop in 17850:25350; do
+#     # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --istartstop $istartstop $leaf_mut_hum &
+#     # sleep 600
+#     # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop --no-mixcr --no-changeo $leaf_mut_hum
+#     # break
+# done
+./bin/compare-partition-methods.py --actions compare-subsets --startstoplist $startstopstr $leaf_mut_hum --no-mixcr --no-changeo
 
 # istart=0
 # for s in 100 500 750 1000 1500 2000 3000 4000 5000 7500; do

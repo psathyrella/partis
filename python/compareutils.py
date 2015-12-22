@@ -124,7 +124,6 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
             these_hists['vollmers-' + line['threshold']] = vhist
             if not args.data:
                 these_adj_mis['vollmers-' + line['threshold']] = float(line['adj_mi'])
-                print '    %s: %f' % ('vollmers-' + line['threshold'], float(line['adj_mi']))
                 write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
 
                 vollmers_clusters = [cl.split(':') for cl in partitionstr.split(';')]
@@ -138,7 +137,6 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
 
                 ccfs = utils.correct_cluster_fractions(vollmers_clusters, reco_info)
                 these_ccfs['vollmers-' + line['threshold']] = ccfs
-                print '    %s: %.2f %.2f' % ('vollmers-' + line['threshold'], ccfs[0], ccfs[1])
                 write_float_val(outdir + '/ccf_under/' + os.path.basename(histfname), ccfs[0], 'ccf_under')
                 write_float_val(outdir + '/ccf_over/' + os.path.basename(histfname), ccfs[1], 'ccf_over')
     if n_lines < 1:
@@ -179,7 +177,6 @@ def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, t
         adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
         check_call(['cp', adj_mi_fname, outdir + '/adj_mi/changeo.csv'])
         these_adj_mis['changeo'] = read_float_val(adj_mi_fname, 'adj_mi')
-        print '    %s: %f' % ('changeo', these_adj_mis['changeo'])
 
         ccfs = []
         for etype in ['under', 'over']:
@@ -188,7 +185,6 @@ def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, t
             ccfs.append(read_float_val(ccf_fname, 'ccf_' + etype))
 
         these_ccfs['changeo'] = ccfs
-        print '    %s: %.2f %.2f' % ('changeo', these_ccfs['changeo'][0], these_ccfs['changeo'][1])
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, outdir):
@@ -224,7 +220,6 @@ def parse_partis(args, action, these_hists, these_adj_mis, these_ccfs, these_par
     these_hists[action + ' partis'] = hist
     if not args.data:
         these_adj_mis[action + ' partis'] = cpath.adj_mis[cpath.i_best]
-        print '    %s: %f' % (action + ' partis', cpath.adj_mis[cpath.i_best])
         write_float_val(outdir + '/adj_mi/' + action + '.csv', cpath.adj_mis[cpath.i_best], 'adj_mi')
 
         ccfs = utils.correct_cluster_fractions(cpath.partitions[cpath.i_best], reco_info)
@@ -497,12 +492,13 @@ def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, 
     if not args.data and n_leaves <= 10:
         log = 'x'
     plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title, log=log)  #, xmax=n_leaves*6.01
-    # for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
-    #     if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
-    #         continue
-    #     n_biggest_clusters = 40  # if args.data else 30)
-    #     plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
-    # # check_call(['./bin/permissify-www', plotdir])
+    if not args.no_similarity_matrices:  # they're kinda slow is all
+        for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
+            if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
+                continue
+            n_biggest_clusters = 40  # if args.data else 30)
+            plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
+        # check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
 def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):

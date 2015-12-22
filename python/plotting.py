@@ -626,7 +626,7 @@ def get_cluster_size_hist(partition, rebin=None):
 def make_mean_hist(hists, debug=False):
     """ return the hist with bin contents the mean over <hists> of each bin """
     binvals = {}
-    # all_data = None
+    all_data = None
     for hist in hists:
         if debug:
             print '    sub',
