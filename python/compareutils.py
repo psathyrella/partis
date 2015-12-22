@@ -432,6 +432,7 @@ def write_all_plot_csvs(args, label):
 
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions):
+    print 'TODO clean this up, too'
     if n_leaves not in hists:
         hists[n_leaves] = {}
         adj_mis[n_leaves] = {}
@@ -511,44 +512,36 @@ def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
     return plotvals
 
 # ----------------------------------------------------------------------------------------
-def compare_all_subsets(args, label):
-    hists, adj_mis, ccf_unders, ccf_overs = {}, {}, {}, {}
+def compare_subsets(args, label):
+    info = {'hists' : {}, 'adj_mi' : {}, 'ccf_under' : {}, 'ccf_over' : {}}
     for n_leaves in args.n_leaf_list:
         print '%d leaves' % n_leaves
         for mut_mult in args.mutation_multipliers:
             print '  %.1f mutation' % mut_mult
-            compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, ccf_overs)
+            compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info)
 
     if not args.data:
         for mut_mult in args.mutation_multipliers:
-            plotvals = convert_adj_mi_and_co_to_plottable(args, adj_mis, mut_mult)
-            plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'adj_mi')
-
-            plotvals = convert_adj_mi_and_co_to_plottable(args, ccf_unders, mut_mult)
-            plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'ccf_under')
-            plotvals = convert_adj_mi_and_co_to_plottable(args, ccf_overs, mut_mult)
-            plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, 'ccf_over')
+            for valname in [k for k in info if k != 'hists']:
+                plotvals = convert_adj_mi_and_co_to_plottable(args, info[k], mut_mult)
+                plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/subsets/' + label, k)
 
 # ----------------------------------------------------------------------------------------
-def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_unders, ccf_overs):
-    if n_leaves not in hists:
-        hists[n_leaves] = {}
-        adj_mis[n_leaves] = {}
-        ccf_unders[n_leaves] = {}
-        ccf_overs[n_leaves] = {}
-    if mut_mult not in hists[n_leaves]:
-        hists[n_leaves][mut_mult] = OrderedDict()
-        adj_mis[n_leaves][mut_mult] = OrderedDict()
-        ccf_unders[n_leaves][mut_mult] = OrderedDict()
-        ccf_overs[n_leaves][mut_mult] = OrderedDict()
-    these_hists = hists[n_leaves][mut_mult]
-    these_vals = {}
-    these_vals['adj_mi'] = adj_mis[n_leaves][mut_mult]
-    these_vals['ccf_under'] = ccf_unders[n_leaves][mut_mult]
-    these_vals['ccf_over'] = ccf_overs[n_leaves][mut_mult]
+def compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info):
+    for k in info:
+        if n_leaves not in info[k]:
+            info[k][n_leaves] = {}
+        if mut_mult not in info[k][n_leaves]:
+            info[k][n_leaves][mut_mult] = OrderedDict()
+    this_info = {k : info[k][n_leaves][mut_mult] for k in info}
+
+    def get_histfname(subdir, method):
+        if args.data:
+            return subdir + '/data/hists/' + method + '.csv'
+        else:
+            return subdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '/hists/' + method + '.csv'
 
     basedir = args.fsdir + '/' + label
-    # all of 'em:
     expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
     if args.no_mixcr:
         expected_methods.remove('mixcr')
@@ -556,35 +549,36 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
         expected_methods.remove('changeo')
     if not args.data:
         expected_methods.insert(0, 'true')
-    tmp_valdicts = {'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
-    for method in expected_methods:
-        method_hists = []
-        if args.n_subsets is not None:
-            subdirs = [basedir + '/subset-' + str(isub) for isub in range(args.n_subsets)]
-        elif args.startstoplist is not None:
-            subdirs = [basedir + '/istartstop-' + istartstop.replace(',', '-') for istartstop in args.startstoplist]
-        else:
-            assert False
-        for subdir in subdirs:
-            # hists
-            if args.data:
-                histfname = subdir + '/data/hists/' + method + '.csv'
-            else:
-                histfname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '/hists/' + method + '.csv'
-            method_hists.append(Hist(fname=histfname))
-            if method == 'true':
+
+    if args.n_subsets is not None:
+        subdirs = [basedir + '/subset-' + str(isub) for isub in range(args.n_subsets)]
+    elif args.istartstoplist is not None:
+        subdirs = [basedir + '/istartstop-' + istartstop.replace(',', '-') for istartstop in args.istartstoplist]
+    else:
+        assert False
+
+    per_subset_info = {'hists' : OrderedDict(), 'adj_mi' : OrderedDict(), 'ccf_under' : OrderedDict(), 'ccf_over' : OrderedDict()}
+    for valname in per_subset_info:
+        if n_leaves == 1 and valname == 'adj_mi':
+            continue
+        for method in expected_methods:
+            if valname != 'hists' and (args.data or method == 'true'):
                 continue
-
-            if not args.data:
-                for valname in tmp_valdicts:
-                    if n_leaves == 1 and valname == 'adj_mi':
-                        continue
+            if method not in per_subset_info[valname]:
+                per_subset_info[valname][method] = []
+            for subdir in subdirs:
+                if valname == 'hists':
+                    hist = Hist(fname=get_histfname(subdir, method))
+                    per_subset_info[valname][method].append(hist)
+                else:
                     fname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '/' + valname+ '/' + method + '.csv'
-                    if method not in tmp_valdicts[valname]:
-                        tmp_valdicts[valname][method] = []
-                    tmp_valdicts[valname][method].append(read_float_val(fname, valname))
+                    value = read_float_val(fname, valname)
+                    per_subset_info[valname][method].append(value)
 
-        these_hists[method] = plotting.make_mean_hist(method_hists)
+    for method in expected_methods:
+        this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
+
+#         nseqs = istop - istart
 
     plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
     log = 'xy'
@@ -598,20 +592,20 @@ def compare_each_subsets(args, label, n_leaves, mut_mult, hists, adj_mis, ccf_un
         xmax = n_leaves*6.01
         if n_leaves <= 10:
             log = 'x'
-    plotting.plot_cluster_size_hists(plotfname, these_hists, title=title, xmax=xmax, log=log)
+    plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
 
     if not args.data:
-        for valname in tmp_valdicts:
+        for valname in [k for k in per_subset_info if k != 'hists']:
             print '   ', valname
             # plotting.plot_adj_mi_and_co(tmp_valdicts[valname])
-            for meth, vals in tmp_valdicts[valname].items():
+            for meth, vals in per_subset_info[valname].items():
                 mean = numpy.mean(vals)
                 if mean == -1.:
                     continue
                 std = numpy.std(vals)
-                these_vals[valname][meth] = (mean, std)
+                this_info[valname][meth] = (mean, std)
                 print '        %30s %.3f +/- %.3f' % (meth, mean, std)
 
 # ----------------------------------------------------------------------------------------
@@ -632,124 +626,122 @@ def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type)
             new_partitions[nseqs] = new_partition
     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 
-# ----------------------------------------------------------------------------------------
-def make_adj_mi_vs_sample_size_plot(args, label, n_leaves, mut_mult, nseq_list, adj_mis):
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    sns.set_style('ticks')
-    fsize = 20
-    mpl.rcParams.update({
-        # 'font.size': fsize,
-        'legend.fontsize': fsize,
-        'axes.titlesize': fsize,
-        # 'axes.labelsize': fsize,
-        'xtick.labelsize': fsize,
-        'ytick.labelsize': fsize,
-        'axes.labelsize': fsize
-    })
-    fig, ax = plt.subplots()
-    fig.tight_layout()
-    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
+# # ----------------------------------------------------------------------------------------
+# def make_adj_mi_vs_sample_size_plot(args, label, n_leaves, mut_mult, nseq_list, adj_mis):
+#     import matplotlib as mpl
+#     mpl.use('Agg')
+#     import matplotlib.pyplot as plt
+#     import seaborn as sns
+#     sns.set_style('ticks')
+#     fsize = 20
+#     mpl.rcParams.update({
+#         # 'font.size': fsize,
+#         'legend.fontsize': fsize,
+#         'axes.titlesize': fsize,
+#         # 'axes.labelsize': fsize,
+#         'xtick.labelsize': fsize,
+#         'ytick.labelsize': fsize,
+#         'axes.labelsize': fsize
+#     })
+#     fig, ax = plt.subplots()
+#     fig.tight_layout()
+#     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
 
-    plots = {}
+#     plots = {}
 
-    colors = {'vsearch-partition' : '#008b8b',
-              'naive-hamming-partition' : '#ff8c00',
-              'partition' : '#cc0000',
-              '0.1-true-singletons' : '#006600',
-              '0.1-true-reassign' : '#32cd32'}
-    adj_mis['0.1-true-singletons'] = get_misassigned_adj_mis(get_simfname(args, label, n_leaves, mut_mult), 0.1, nseq_list, 'singletons')
-    adj_mis['0.1-true-reassign'] = get_misassigned_adj_mis(get_simfname(args, label, n_leaves, mut_mult), 0.1, nseq_list, 'reassign')
-    for meth in adj_mis:
-        linewidth = 2
-        linestyle = '-'
-        if 'true' in meth:
-            linewidth = 4
-            linestyle = '--'
-        plots[meth] = ax.plot(nseq_list, [adj_mis[meth][ns] for ns in nseq_list], linewidth=linewidth, label=plotting.legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=1)
-        if 'true' not in meth:
-            plt.scatter(nseq_list, [adj_mis[meth][ns] for ns in nseq_list], color=colors.get(meth, 'grey'), linestyle='-', alpha=1, s=[30 for _ in range(len(nseq_list))])
+#     colors = {'vsearch-partition' : '#008b8b',
+#               'naive-hamming-partition' : '#ff8c00',
+#               'partition' : '#cc0000',
+#               '0.1-true-singletons' : '#006600',
+#               '0.1-true-reassign' : '#32cd32'}
+#     adj_mis['0.1-true-singletons'] = get_misassigned_adj_mis(get_simfname(args, label, n_leaves, mut_mult), 0.1, nseq_list, 'singletons')
+#     adj_mis['0.1-true-reassign'] = get_misassigned_adj_mis(get_simfname(args, label, n_leaves, mut_mult), 0.1, nseq_list, 'reassign')
+#     for meth in adj_mis:
+#         linewidth = 2
+#         linestyle = '-'
+#         if 'true' in meth:
+#             linewidth = 4
+#             linestyle = '--'
+#         plots[meth] = ax.plot(nseq_list, [adj_mis[meth][ns] for ns in nseq_list], linewidth=linewidth, label=plotting.legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=1)
+#         if 'true' not in meth:
+#             plt.scatter(nseq_list, [adj_mis[meth][ns] for ns in nseq_list], color=colors.get(meth, 'grey'), linestyle='-', alpha=1, s=[30 for _ in range(len(nseq_list))])
 
-    legend = ax.legend(loc=(0.55, 0.1))
-    sns.despine(trim=True, bottom=True)
-    plt.title('%d leaves, %dx mutation' % (n_leaves, mut_mult))
-    plt.xlabel('sample size')
-    plt.ylabel('adjusted MI')
-    plt.subplots_adjust(bottom=0.14, left=0.14)
-    ax.set_xscale('log')
-    xmin, xmax = nseq_list[0], nseq_list[-1] + 10
-    plt.xlim(xmin, xmax)
-    plt.ylim(0, 1.08)
-    potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
-    xticks = [xt for xt in potential_xticks if xt < xmax]
-    plt.xticks(xticks, [str(xt) for xt in xticks])
-    plotdir = os.getenv('www') + '/partis/clustering/sample-sizes/' + label
-    outfname = plotdir + '/plots/sample-sizes.svg'
-    if not os.path.exists(plotdir + '/plots'):
-        os.makedirs(plotdir + '/plots')
-    plt.savefig(outfname)
-    check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-    check_call(['./bin/permissify-www', plotdir])
+#     legend = ax.legend(loc=(0.55, 0.1))
+#     sns.despine(trim=True, bottom=True)
+#     plt.title('%d leaves, %dx mutation' % (n_leaves, mut_mult))
+#     plt.xlabel('sample size')
+#     plt.ylabel('adjusted MI')
+#     plt.subplots_adjust(bottom=0.14, left=0.14)
+#     ax.set_xscale('log')
+#     xmin, xmax = nseq_list[0], nseq_list[-1] + 10
+#     plt.xlim(xmin, xmax)
+#     plt.ylim(0, 1.08)
+#     potential_xticks = [5, 10, 25, 50, 100, 300, 1000]
+#     xticks = [xt for xt in potential_xticks if xt < xmax]
+#     plt.xticks(xticks, [str(xt) for xt in xticks])
+#     plotdir = os.getenv('www') + '/partis/clustering/sample-sizes/' + label
+#     outfname = plotdir + '/plots/sample-sizes.svg'
+#     if not os.path.exists(plotdir + '/plots'):
+#         os.makedirs(plotdir + '/plots')
+#     plt.savefig(outfname)
+#     check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+#     check_call(['./bin/permissify-www', plotdir])
 
-    return
+#     return
 
-# ----------------------------------------------------------------------------------------
-def compare_sample_sizes(args, label, n_leaves, mut_mult):
-    """ see sample-size-partition.py """
-    raise Exception('It is possible that I may have broken this')
-    expected_methods = ['vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
-    # expected_methods = ['vollmers-0.9', 'partition']  # mostly so we can specify the order
-    basedir = args.fsdir + '/' + label
-    nseq_list = []
-    adj_mis, hists = OrderedDict(), OrderedDict()
-    for meth in expected_methods:
-        adj_mis[meth], hists = {}, {}
-    # for dirname in glob.glob(basedir + '/istartstop-*'):
-    #     dumstr, istart, istop = dirname.split('/')[-1].split('-')
-    #     istart, istop = int(istart), int(istop)
-    for istartstop in args.startstoplist:
-        istart, istop = [int(i) for i in istartstop.split(',')]
-        nseqs = istop - istart
-        dirname = basedir + '/istartstop-' + str(istart) + '-' + str(istop)
-        nseq_list.append(nseqs)
-        for meth in expected_methods:
-            action = meth
-            if 'vollmers' in meth:
-                action = 'run-viterbi'
-            if args.data:
-                csvfname = dirname + '/data' + '-' + action + '.csv'
-            else:
-                csvfname = dirname + '/' + leafmutstr(args, n_leaves, mut_mult) + '-' + action + '.csv'
-            cpath = ClusterPath()
-            cpath.readfile(csvfname)
-            if not args.data:  # why the hell was this "not" missing?
-                adj_mis[meth][nseqs] = cpath.adj_mis[cpath.i_best]
-            hists[meth][nseqs] = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
+# # ----------------------------------------------------------------------------------------
+# def compare_istartstops(args, label, n_leaves, mut_mult):
+#     expected_methods = ['vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+#     # expected_methods = ['vollmers-0.9', 'partition']  # mostly so we can specify the order
+#     basedir = args.fsdir + '/' + label
+#     nseq_list = []
+#     adj_mis, hists = OrderedDict(), OrderedDict()
+#     for meth in expected_methods:
+#         adj_mis[meth], hists = {}, {}
+#     # for dirname in glob.glob(basedir + '/istartstop-*'):
+#     #     dumstr, istart, istop = dirname.split('/')[-1].split('-')
+#     #     istart, istop = int(istart), int(istop)
+#     for istartstop in args.istartstoplist:
+#         istart, istop = [int(i) for i in istartstop.split(',')]
+#         nseqs = istop - istart
+#         dirname = basedir + '/istartstop-' + str(istart) + '-' + str(istop)
+#         nseq_list.append(nseqs)
+#         for meth in expected_methods:
+#             action = meth
+#             if 'vollmers' in meth:
+#                 action = 'run-viterbi'
+#             if args.data:
+#                 csvfname = dirname + '/data' + '-' + action + '.csv'
+#             else:
+#                 csvfname = dirname + '/' + leafmutstr(args, n_leaves, mut_mult) + '-' + action + '.csv'
+#             cpath = ClusterPath()
+#             cpath.readfile(csvfname)
+#             if not args.data:  # why the hell was this "not" missing?
+#                 adj_mis[meth][nseqs] = cpath.adj_mis[cpath.i_best]
+#             hists[meth][nseqs] = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
 
-    nseq_list.sort()
+#     nseq_list.sort()
 
-    if not args.data:
-        make_adj_mi_vs_sample_size_plot(args, label, n_leaves, mut_mult, nseq_list, adj_mis)
+#     if not args.data:
+#         make_adj_mi_vs_sample_size_plot(args, label, n_leaves, mut_mult, nseq_list, adj_mis)
 
-    mean_hists = OrderedDict()
-    for meth in expected_methods:
-        mean_hists[meth] = plotting.make_mean_hist(hists[meth])
-    plotdir = os.getenv('www') + '/partis/clustering/' + label
-    log = 'xy'
-    if args.data:
-        plotfname = plotdir + '/plots/data.svg'
-        title = get_title(args, label, n_leaves, mut_mult)
-        xmax = None
-    else:
-        raise Exception('what was simfbase supposed to be here?')
-        plotfname = plotdir + '/plots/' + simfbase + '.svg'
-        title = get_title(args, label, n_leaves, mut_mult)
-        xmax = n_leaves*3.01
-        if n_leaves <= 10:
-            log = 'x'
-    plotting.plot_cluster_size_hists(plotfname, mean_hists, title=title, xmax=xmax, log=log)
+#     # mean_hists = OrderedDict()
+#     # for meth in expected_methods:
+#     #     mean_hists[meth] = plotting.make_mean_hist(hists[meth])
+#     # plotdir = os.getenv('www') + '/partis/clustering/' + label
+#     # log = 'xy'
+#     # if args.data:
+#     #     plotfname = plotdir + '/plots/data.svg'
+#     #     title = get_title(args, label, n_leaves, mut_mult)
+#     #     xmax = None
+#     # else:
+#     #     raise Exception('what was simfbase supposed to be here?')
+#     #     plotfname = plotdir + '/plots/' + simfbase + '.svg'
+#     #     title = get_title(args, label, n_leaves, mut_mult)
+#     #     xmax = n_leaves*3.01
+#     #     if n_leaves <= 10:
+#     #         log = 'x'
+#     # plotting.plot_cluster_size_hists(plotfname, mean_hists, title=title, xmax=xmax, log=log)
 
 # ----------------------------------------------------------------------------------------
 def output_exists(args, outfname):
@@ -1124,11 +1116,6 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
     elif action == 'run-igscueal':
         run_igscueal(args, label, n_leaves, mut_mult, seqfname)
         return
-    elif action == 'compare-sample-sizes':
-        compare_sample_sizes(args, label, n_leaves, mut_mult)
-        return
-    elif action == 'compare-subsets':
-        assert False  # we shouldn't be calling execute() if we're comparing subsets
     else:
         raise Exception('bad action %s' % action)
 
