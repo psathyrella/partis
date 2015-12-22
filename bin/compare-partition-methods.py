@@ -38,6 +38,7 @@ parser.add_argument('--zoom', action='store_true')
 parser.add_argument('--humans', default=None)  #'A')
 parser.add_argument('--no-mixcr', action='store_true')
 parser.add_argument('--no-changeo', action='store_true')
+parser.add_argument('--no-similarity-matrices', action='store_true')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-sample-sizes', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
