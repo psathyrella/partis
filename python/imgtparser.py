@@ -107,7 +107,7 @@ class IMGTParser(object):
     def __init__(self, args):
         self.args = args
 
-        self.germline_seqs = utils.read_germlines(self.args.datadir)
+        self.germline_seqs = utils.read_germline_set(self.args.datadir)['seqs']
 
         perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'imgt')
 

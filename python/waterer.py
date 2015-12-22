@@ -20,7 +20,7 @@ from performanceplotter import PerformancePlotter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, germline_seqs, parameter_dir, write_parameters=False):
+    def __init__(self, args, input_info, reco_info, glfo, parameter_dir, write_parameters=False):
         self.parameter_dir = parameter_dir
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
@@ -34,14 +34,14 @@ class Waterer(object):
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.reco_info = reco_info
-        self.germline_seqs = germline_seqs
+        self.glfo = glfo
         self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
         if write_parameters:
-            self.pcounter = ParameterCounter(self.germline_seqs)
+            self.pcounter = ParameterCounter(self.glfo['seqs'])
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.germline_seqs)
+                self.true_pcounter = ParameterCounter(self.glfo['seqs'])
         if self.args.plot_performance:
-            self.perfplotter = PerformancePlotter(self.germline_seqs, 'sw')
+            self.perfplotter = PerformancePlotter(self.glfo['seqs'], 'sw')
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
@@ -50,12 +50,6 @@ class Waterer(object):
             if self.debug:
                 print '  reading gene choice probs from', parameter_dir
             self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
-
-        with opener('r')(self.args.datadir + '/v-meta.json') as json_file:  # get location of <begin> cysteine in each v region
-            self.cyst_positions = json.load(json_file)
-        with opener('r')(self.args.datadir + '/j_tryp.csv') as csv_file:  # get location of <end> tryptophan in each j region (TGG)
-            tryp_reader = csv.reader(csv_file)
-            self.tryp_positions = {row[0]:row[1] for row in tryp_reader}  # WARNING: this doesn't filter out the header line
 
         self.outfile = None
         if self.args.outfname is not None:
@@ -121,16 +115,16 @@ class Waterer(object):
         if self.debug and n_remaining > 0:
             print 'true annotations for remaining events:'
             for qry in self.remaining_queries:
-                utils.print_reco_event(self.germline_seqs, self.reco_info[qry], extra_str='      ', label='true:')  #, indelfo=self.reco_info[query_name]['indels'])
+                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')  #, indelfo=self.reco_info[query_name]['indels'])
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
             if self.true_pcounter is not None:
                 assert self.parameter_dir[-1] != '/'
                 self.true_pcounter.write(self.parameter_dir + '-true')
             if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions, only_csv=self.args.only_csv_plots)
+                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.cyst_positions, tryp_positions=self.tryp_positions, only_csv=self.args.only_csv_plots)
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
 
         self.pad_seqs_to_same_length()  # adds padded info to self.info (returns if stuff has already been padded)
 
@@ -412,9 +406,9 @@ class Waterer(object):
 
             # perform a few checks and see if we want to skip this match
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
-                cpos = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, 'v', gene, glbounds, qrbounds, assert_on_fail=False)
-                if not utils.check_conserved_cysteine(self.germline_seqs['v'][gene], self.cyst_positions[gene]['cysteine-position'], assert_on_fail=False):  # some of the damn cysteine positions in the json file were wrong, so now we check
-                    raise Exception('bad cysteine in %s: %d %s' % (gene, self.cyst_positions[gene]['cysteine-position'], self.germline_seqs['v'][gene]))
+                cpos = utils.get_conserved_codon_position(self.glfo['cyst-positions'], self.glfo['tryp-positions'], 'v', gene, glbounds, qrbounds, assert_on_fail=False)
+                if not utils.check_conserved_cysteine(self.glfo['seqs']['v'][gene], self.glfo['cyst-positions'][gene], assert_on_fail=False):  # some of the damn cysteine positions in the json file were wrong, so now we check
+                    raise Exception('bad cysteine in %s: %d %s' % (gene, self.glfo['cyst-positions'][gene], self.glfo['seqs']['v'][gene]))
                 if cpos < 0 or cpos >= len(query_seq):
                     n_skipped_invalid_cpos += 1
                     continue
@@ -426,7 +420,7 @@ class Waterer(object):
                     continue
                 if len(all_match_names[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
                     if query_name not in self.info['indels']:
-                        self.info['indels'][query_name] = self.get_indel_info(query_name, read.cigarstring, query_seq[qrbounds[0] : qrbounds[1]], self.germline_seqs[region][gene][glbounds[0] : glbounds[1]], gene)
+                        self.info['indels'][query_name] = self.get_indel_info(query_name, read.cigarstring, query_seq[qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
                         self.info['indels'][query_name]['reversed_seq'] = query_seq[ : qrbounds[0]] + self.info['indels'][query_name]['reversed_seq'] + query_seq[qrbounds[1] : ]
                         self.new_indels += 1
                         # TODO this 'return' used to be after and indented from the else below, and that continue wasn't there. I should make sure this is how I want it
@@ -442,11 +436,11 @@ class Waterer(object):
                 raise Exception('germline match (%d %d) not same length as query match (%d %d)' % (qrbounds[0], qrbounds[1], glbounds[0], glbounds[1]))
 
             assert qrbounds[1] <= len(query_seq)
-            if glbounds[1] > len(self.germline_seqs[region][gene]):
+            if glbounds[1] > len(self.glfo['seqs'][region][gene]):
                 print '  ', gene
-                print '  ', glbounds[1], len(self.germline_seqs[region][gene])
-                print '  ', self.germline_seqs[region][gene]
-            assert glbounds[1] <= len(self.germline_seqs[region][gene])
+                print '  ', glbounds[1], len(self.glfo['seqs'][region][gene])
+                print '  ', self.glfo['seqs'][region][gene]
+            assert glbounds[1] <= len(self.glfo['seqs'][region][gene])
             assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
 
             # and finally add this match's information
@@ -470,9 +464,9 @@ class Waterer(object):
             out_str_list.append('%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score))
         else:
             out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
-        out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]))
+        out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]))
         out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
-        out_str_list.append('   %s ' % (utils.color_mutants(self.germline_seqs[region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
+        out_str_list.append('   %s ' % (utils.color_mutants(self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
         if region != 'd':
             out_str_list.append('(%s %d)' % (utils.conserved_codon_names[region], codon_pos))
         if warnings[gene] != '':
@@ -570,9 +564,9 @@ class Waterer(object):
         qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
         glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
 
-        best[l_reg + '_gl_seq'] = self.germline_seqs[l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
+        best[l_reg + '_gl_seq'] = self.glfo['seqs'][l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
         best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
-        best[r_reg + '_gl_seq'] = self.germline_seqs[r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
+        best[r_reg + '_gl_seq'] = self.glfo['seqs'][r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
         best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
 
     # ----------------------------------------------------------------------------------------
@@ -601,11 +595,11 @@ class Waterer(object):
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
-        self.info[query_name]['v_3p_del'] = len(self.germline_seqs['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
+        self.info[query_name]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
         self.info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
-        self.info[query_name]['d_3p_del'] = len(self.germline_seqs['d'][best['d']]) - all_germline_bounds[best['d']][1]
+        self.info[query_name]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - all_germline_bounds[best['d']][1]
         self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
-        self.info[query_name]['j_3p_del'] = len(self.germline_seqs['j'][best['j']]) - all_germline_bounds[best['j']][1]
+        self.info[query_name]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - all_germline_bounds[best['j']][1]
 
         self.info[query_name]['fv_insertion'] = query_seq[ : all_query_bounds[best['v']][0]]
         self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
@@ -621,8 +615,8 @@ class Waterer(object):
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
         if self.debug:
             if not self.args.is_data:
-                utils.print_reco_event(self.germline_seqs, self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
-            utils.print_reco_event(self.germline_seqs, self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
+                utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
+            utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
 
         if self.pcounter is not None:
             self.pcounter.increment_per_family_params(self.info[query_name])
@@ -659,10 +653,10 @@ class Waterer(object):
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
                 assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up avove as well (in process_query), so in time I should remove them from here
-                assert glbounds[1] <= len(self.germline_seqs[region][gene])
+                assert glbounds[1] <= len(self.glfo['seqs'][region][gene])
                 assert qrbounds[0] >= 0
                 assert glbounds[0] >= 0
-                glmatchseq = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
+                glmatchseq = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
 
                 # TODO since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative
 
@@ -699,7 +693,7 @@ class Waterer(object):
                 # check consistency with best match (since the best match is excised in s-w code, and because ham is run with *one* k_v k_d set)
                 if region not in best:
                     best[region] = gene
-                    best[region + '_gl_seq'] = self.germline_seqs[region][gene][glbounds[0]:glbounds[1]]
+                    best[region + '_gl_seq'] = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
                     best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
                     best[region + '_score'] = score
 
@@ -738,7 +732,7 @@ class Waterer(object):
 
         # check for unproductive rearrangements
         for region in utils.regions:
-            codon_positions[region] = utils.get_conserved_codon_position(self.cyst_positions, self.tryp_positions, region, best[region], all_germline_bounds[best[region]], all_query_bounds[best[region]], assert_on_fail=False)  # position in the query sequence, that is
+            codon_positions[region] = utils.get_conserved_codon_position(self.glfo['cyst-positions'], self.glfo['tryp-positions'], region, best[region], all_germline_bounds[best[region]], all_query_bounds[best[region]], assert_on_fail=False)  # position in the query sequence, that is
         codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         in_frame_cdr3 = (cdr3_length % 3 == 0)
@@ -779,7 +773,7 @@ class Waterer(object):
                 print '  expanding k_d'
             k_d_max = max(8, k_d_max)
 
-        if 'IGHJ4*' in best['j'] and self.germline_seqs['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
+        if 'IGHJ4*' in best['j'] and self.glfo['seqs']['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
             if self.debug:
                 print '  doubly expanding k_d'
             if k_d_max-k_d_min < 8:
@@ -823,7 +817,7 @@ class Waterer(object):
             jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
 
             for v_match in all_v_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
-                gl_cpos = self.cyst_positions[v_match]['cysteine-position'] + fvstuff
+                gl_cpos = self.glfo['cyst-positions'][v_match] + fvstuff
                 if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
                     maxima['gl_cpos'] = gl_cpos
 

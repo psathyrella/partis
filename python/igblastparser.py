@@ -70,7 +70,7 @@ class IgblastParser(object):
     def __init__(self, args):
         self.args = args
 
-        self.germline_seqs = utils.read_germlines(self.args.datadir, remove_N_nukes=True)
+        self.germline_seqs = utils.read_germline_set(self.args.datadir, remove_N_nukes=True)['seqs']
 
         self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'igblast')
         self.n_total, self.n_partially_failed, self.n_skipped = 0, 0, 0
