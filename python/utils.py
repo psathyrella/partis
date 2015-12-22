@@ -1044,7 +1044,7 @@ def read_germlines(data_dir, only_region=None, aligned=False):
         germlines[region] = OrderedDict()
         for seq_record in SeqIO.parse(fname, 'fasta'):
             gene_name = seq_record.name
-            seq_str = str(seq_record.seq)
+            seq_str = str(seq_record.seq).upper()
             germlines[region][gene_name] = seq_str
     return germlines
 
@@ -1768,6 +1768,13 @@ def synthesize_single_seq_line(glfo, line, iseq):
         del hmminfo['aligned_v_seqs']
     add_match_info(glfo, hmminfo)
     return hmminfo
+
+# ----------------------------------------------------------------------------------------                    
+def count_gaps(seq, istop=None):
+    """ return number of gap characters up to, but not including <istop> """
+    if istop is not None:
+        seq = seq[ : istop]
+    return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
 def add_v_alignments(glfo, line, debug=False):
