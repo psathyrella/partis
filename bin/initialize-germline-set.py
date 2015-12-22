@@ -41,7 +41,7 @@ def align_new_genes(old_aligned_genes, genes_without_alignments, all_new_genes):
     check_call('mafft --merge ' + msa_table_fname + ' ' + all_fname + ' >' + args.dirname + '/' + aligned_fname, shell=True)  # options=  # "--localpair --maxiterate 1000"
 
     # then rewrite aligned file with only new genes, converting to upper case and dots for gaps
-    all_aligned_germlines = utils.read_germline_set(args.dirname, only_region='v', aligned=True)['seqs']
+    all_aligned_germlines = utils.read_germline_seqs(args.dirname, only_region='v', aligned=True)
     with open(args.dirname + '/' + aligned_fname, 'w') as tmpfile:
         for gene, seq in all_aligned_germlines['v'].items():
             if gene not in all_new_genes:
@@ -76,8 +76,8 @@ def get_cpos_in_alignment(aligned_seq, seq, cpos):
 
 # ----------------------------------------------------------------------------------------
 def write_cyst_file(known_cyst_positions):
-    unaligned_genes = utils.read_germline_set(args.dirname, only_region='v')['seqs']['v']
-    aligned_genes = utils.read_germline_set(args.dirname, only_region='v', aligned=True)['seqs']['v']
+    unaligned_genes = utils.read_germline_seqs(args.dirname, only_region='v')['v']
+    aligned_genes = utils.read_germline_seqs(args.dirname, only_region='v', aligned=True)['v']
 
     known_gene = None  # we need to find at least one gene that's in the old and the new sets, so we know how to convert cyst positions
     for gene, info in known_cyst_positions.items():
@@ -133,8 +133,8 @@ clean_dir()
 shutil.copyfile(args.ighv_fname, args.dirname + '/' + unaligned_fname)
 
 # figure out which v genes we need to align
-old_aligned_genes = utils.read_germline_set(args.reference_dir, only_region='v', aligned=True)['seqs']
-all_new_genes = utils.read_germline_set(args.dirname, only_region='v')['seqs']  # all genes in ighv_fname, not just the new ones
+old_aligned_genes = utils.read_germline_seqs(args.reference_dir, only_region='v', aligned=True)
+all_new_genes = utils.read_germline_seqs(args.dirname, only_region='v')  # all genes in ighv_fname, not just the new ones
 genes_without_alignments = {}
 for gene in all_new_genes['v']:
     if gene not in old_aligned_genes['v']:
@@ -145,5 +145,5 @@ if len(genes_without_alignments) > 0:
 for fname in files_to_copy:
     shutil.copyfile(args.reference_dir + '/' + fname, args.dirname + '/' + fname)
 
-known_cyst_positions = utils.read_cyst_positions(args.reference_dir)
+known_cyst_positions = utils.read_codon_positions(args.reference_dir + '/cyst-positions.csv')
 write_cyst_file(known_cyst_positions)
