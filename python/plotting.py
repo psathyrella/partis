@@ -840,7 +840,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
+def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
     fig, ax = mpl_init()
     mpl.rcParams.update({
         'legend.fontsize': 10,})
@@ -878,14 +878,13 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     # if valname == 'ccf_over':
     #     ymin = 0.5
     ax.set_ylim(ymin, 1)
-    ax.set_xlim(xvals[0], xvals[-1])
     sns.despine()  #trim=True, bottom=True)
-    # sns.set_style('ticks')
-    plt.title('%dx mutation' % mut_mult)
-    plt.xlabel('mean N leaves')
+    plt.title(title)
+    xtitle = 'mean N leaves' if xvar == 'n_leaves' else 'sample size'
+    plt.xlabel(xtitle)
     plt.ylabel(legends[valname])
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.78, top=0.95)
-    ax.set_xscale('log')
+
     xticks = xvals
 
     # put an 'n/a' in the n_leaves=1 column for adj_mi
@@ -897,10 +896,23 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname):
     #     ax.plot([x1, x1], [0.6, 0.97], color='green', linewidth=3)
     # ax.set_xlim(xticks[0] - 0.4, xticks[-1])
 
+    xticks = list(xvals)
+
+    if xvar == 'n_leaves':
+        ax.set_xscale('log')
+        if 100 in xticks and 200 in xticks:
+            xticks.remove(100)
+        ax.set_xlim(xvals[0], xvals[-1])
+    elif xvar == 'nseqs':
+        xticks = [xticks[i] for i in range(0, len(xticks), 2)]
+        if 750 in xticks:
+            xticks.remove(750)
+        xticks += xvals[-1:]
+        ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
+
     xticklabels = [str(xt) for xt in xticks]
-    if 100 in xticklabels and 200 in xticklabels:
-        xticklabels.remove(100)
     plt.xticks(xticks, xticklabels)
+
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]
     yticklabels = [str(yt) for yt in yticks]
     plt.yticks(yticks, yticklabels)
