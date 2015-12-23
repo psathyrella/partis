@@ -109,7 +109,7 @@ def generate_incorrect_partition(true_partition, n_misassigned, error_type, debu
     return new_partition
 
 # ----------------------------------------------------------------------------------------
-def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, outdir, reco_info, rebin=None):
+def parse_vollmers(args, info, seqfname, outdir, reco_info, rebin=None):
     vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
     n_lines = 0
     with open(vollmers_fname) as vfile:
@@ -118,13 +118,13 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
             n_lines += 1
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = utils.get_partition_from_str(partitionstr)
-            these_partitions['vollmers-' + line['threshold']] = partition
+            info['partitions']['vollmers-' + line['threshold']] = partition
             vhist = plotting.get_cluster_size_hist(partition, rebin=rebin)
             histfname = outdir + '/hists/vollmers-'  + line['threshold'] + '.csv'
             vhist.write(histfname)
-            these_hists['vollmers-' + line['threshold']] = vhist
+            info['hists']['vollmers-' + line['threshold']] = vhist
             if not args.data:
-                these_adj_mis['vollmers-' + line['threshold']] = float(line['adj_mi'])
+                info['adj_mi']['vollmers-' + line['threshold']] = float(line['adj_mi'])
                 write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
 
                 vollmers_clusters = [cl.split(':') for cl in partitionstr.split(';')]
@@ -132,19 +132,20 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
                 print 'not checking intersection!'
                 # utils.check_intersection_and_complement(vollmers_clusters, true_partition)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
-                these_partitions['true'] = true_partition
+                info['partitions']['true'] = true_partition
                 truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
-                these_hists['true'] = truehist
+                info['hists']['true'] = truehist
 
                 ccfs = utils.correct_cluster_fractions(vollmers_clusters, reco_info)
-                these_ccfs['vollmers-' + line['threshold']] = ccfs
+                info['ccf_under']['vollmers-' + line['threshold']] = ccfs[0]
+                info['ccf_over']['vollmers-' + line['threshold']] = ccfs[1]
                 write_float_val(outdir + '/ccf_under/' + os.path.basename(histfname), ccfs[0], 'ccf_under')
                 write_float_val(outdir + '/ccf_over/' + os.path.basename(histfname), ccfs[1], 'ccf_over')
     if n_lines < 1:
         raise Exception('zero partition lines read from %s' % vollmers_fname)
 
 # ----------------------------------------------------------------------------------------
-def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfbase, outdir, rebin=None):
+def parse_changeo(args, label, n_leaves, mut_mult, info, simfbase, outdir, rebin=None):
     raise Exception('rerun all the changeo stuff accounting for missing uids')
     indir = get_changeo_outdir(args, label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
     if args.data:
@@ -172,13 +173,13 @@ def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, t
             id_clusters[clid].append(uid)
 
     partition = [ids for ids in id_clusters.values()]
-    these_hists['changeo'] = plotting.get_cluster_size_hist(partition, rebin=rebin)
-    these_hists['changeo'].write(outdir + '/hists/changeo.csv')
-    these_partitions['changeo'] = partition
+    info['hists']['changeo'] = plotting.get_cluster_size_hist(partition, rebin=rebin)
+    info['hists']['changeo'].write(outdir + '/hists/changeo.csv')
+    info['partitions']['changeo'] = partition
     if not args.data:
         adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
         check_call(['cp', adj_mi_fname, outdir + '/adj_mi/changeo.csv'])
-        these_adj_mis['changeo'] = read_float_val(adj_mi_fname, 'adj_mi')
+        info['adj_mi']['changeo'] = read_float_val(adj_mi_fname, 'adj_mi')
 
         ccfs = []
         for etype in ['under', 'over']:
@@ -186,10 +187,11 @@ def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, t
             check_call(['cp', ccf_fname, outdir + '/ccf_' + etype + '/changeo.csv'])
             ccfs.append(read_float_val(ccf_fname, 'ccf_' + etype))
 
-        these_ccfs['changeo'] = ccfs
+        info['ccf_under']['changeo'] = ccfs[0]
+        info['ccf_over']['changeo'] = ccf[1]
 
 # ----------------------------------------------------------------------------------------
-def parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, outdir):
+def parse_mixcr(args, info, seqfname, outdir):
     raise Exception('rerun all the mixcr stuff accounting for missing uids')
     mixfname = seqfname.replace('.csv', '-mixcr.tsv')
     cluster_size_list = []  # put 'em in a list first so we know where to put the hist limits
@@ -204,29 +206,31 @@ def parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, outdir):
     mixhist = Hist(max_cluster_size, 0.5, max_cluster_size + 0.5)
     for csize in cluster_size_list:
         mixhist.fill(csize)
-    these_hists['mixcr'] = mixhist
+    info['hists']['mixcr'] = mixhist
     mixhist.write(outdir + '/hists/mixcr.csv')
     if not args.data:
-        these_adj_mis['mixcr'] = -1.
-        these_ccfs['mixcr'] = -1., -1.
+        info['adj_mi']['mixcr'] = -1.
+        info['ccf_under']['mixcr'] = -1.,
+        info['ccf_over']['mixcr'] = -1.
         write_float_val(outdir + '/adj_mi/mixcr.csv', -1., 'adj_mi')
         write_float_val(outdir + '/ccf_under/mixcr.csv', -1., 'ccf_under')
         write_float_val(outdir + '/ccf_over/mixcr.csv', -1., 'ccf_over')
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(args, action, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, outdir, reco_info, rebin=None):
+def parse_partis(args, action, info, seqfname, outdir, reco_info, rebin=None):
     cpath = ClusterPath()
     cpath.readfile(seqfname.replace('.csv', '-' + action + '.csv'))
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
-    these_partitions[action + ' partis'] = cpath.partitions[cpath.i_best]
+    info['partitions'][action + ' partis'] = cpath.partitions[cpath.i_best]
     hist.write(outdir + '/hists/' + action + '.csv')
-    these_hists[action + ' partis'] = hist
+    info['hists'][action + ' partis'] = hist
     if not args.data:
-        these_adj_mis[action + ' partis'] = cpath.adj_mis[cpath.i_best]
+        info['adj_mi'][action + ' partis'] = cpath.adj_mis[cpath.i_best]
         write_float_val(outdir + '/adj_mi/' + action + '.csv', cpath.adj_mis[cpath.i_best], 'adj_mi')
 
         ccfs = utils.correct_cluster_fractions(cpath.partitions[cpath.i_best], reco_info)
-        these_ccfs[action + ' partis'] = ccfs
+        info['ccf_under'][action + ' partis'] = ccfs[0]
+        info['ccf_over'][action + ' partis'] = ccfs[1]
         write_float_val(outdir + '/ccf_under/' + action + '.csv', ccfs[0], 'ccf_under')
         write_float_val(outdir + '/ccf_over/' + action + '.csv', ccfs[1], 'ccf_over')
 
@@ -428,31 +432,23 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(args, label):
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
-    hists, adj_mis, ccfs, partitions = {}, {}, {}, {}
+    info = {k : {} for k in metrics + ['hists', 'partitions']}
+    # hists, adj_mis, ccfs, partitions = {}, {}, {}, {}
     for n_leaves in args.n_leaf_list:
         for mut_mult in args.mutation_multipliers:
             print n_leaves, mut_mult
-            write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions)
+            write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info)
 
     check_call(['./bin/permissify-www', baseplotdir])
 
 # ----------------------------------------------------------------------------------------
-def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions):
-    print 'TODO clean this up, too'
-    if n_leaves not in hists:
-        hists[n_leaves] = {}
-        adj_mis[n_leaves] = {}
-        ccfs[n_leaves] = {}
-        partitions[n_leaves] = {}
-    if mut_mult not in hists[n_leaves]:
-        hists[n_leaves][mut_mult] = OrderedDict()
-        adj_mis[n_leaves][mut_mult] = OrderedDict()
-        ccfs[n_leaves][mut_mult] = OrderedDict()
-        partitions[n_leaves][mut_mult] = OrderedDict()
-    these_hists = hists[n_leaves][mut_mult]
-    these_adj_mis = adj_mis[n_leaves][mut_mult]
-    these_ccfs = ccfs[n_leaves][mut_mult]
-    these_partitions = partitions[n_leaves][mut_mult]
+def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
+    for k in info:
+        if n_leaves not in info[k]:
+            info[k][n_leaves] = {}
+        if mut_mult not in info[k][n_leaves]:
+            info[k][n_leaves][mut_mult] = OrderedDict()
+    this_info = {k : info[k][n_leaves][mut_mult] for k in info}
 
     plotdir = baseplotdir + '/subsets'
     if args.subset is not None:
@@ -483,29 +479,29 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, hists, ad
     #     rebin = 2
 
     # vollmers annotation (and true hists)
-    parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
+    parse_vollmers(args, this_info, seqfname, csvdir, reco_info, rebin=rebin)
 
     if not args.no_mixcr:
-        parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, csvdir)
+        parse_mixcr(args, this_info, seqfname, csvdir)
 
     if not args.no_changeo:
-        parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfbase, csvdir, rebin=rebin)
+        parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir, rebin=rebin)
 
     # partis stuff
     for ptype in ['vsearch-', 'naive-hamming-', '']:
     # for ptype in ['vsearch-']:
-        parse_partis(args, ptype + 'partition', these_hists, these_adj_mis, these_ccfs, these_partitions, seqfname, csvdir, reco_info, rebin=rebin)
+        parse_partis(args, ptype + 'partition', this_info, seqfname, csvdir, reco_info, rebin=rebin)
 
     log = 'xy'
     if not args.data and n_leaves <= 10:
         log = 'x'
-    plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', these_hists, title=title, log=log)  #, xmax=n_leaves*6.01
+    plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     if not args.no_similarity_matrices:  # they're kinda slow is all
-        for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
+        for meth1, meth2 in itertools.combinations(this_info['partitions'].keys(), 2):
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
                 continue
             n_biggest_clusters = 40  # if args.data else 30)
-            plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
+            plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
 def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
