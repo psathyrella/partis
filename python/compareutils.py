@@ -145,6 +145,7 @@ def parse_vollmers(args, these_hists, these_adj_mis, these_ccfs, these_partition
 
 # ----------------------------------------------------------------------------------------
 def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, these_ccfs, these_partitions, simfbase, outdir, rebin=None):
+    raise Exception('rerun all the changeo stuff accounting for missing uids')
     indir = get_changeo_outdir(args, label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
     if args.data:
         fbase = 'data'
@@ -189,6 +190,7 @@ def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, t
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, these_hists, these_adj_mis, these_ccfs, seqfname, outdir):
+    raise Exception('rerun all the mixcr stuff accounting for missing uids')
     mixfname = seqfname.replace('.csv', '-mixcr.tsv')
     cluster_size_list = []  # put 'em in a list first so we know where to put the hist limits
     max_cluster_size = 1
@@ -700,7 +702,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
     def run(cmdstr):
         print 'RUN %s' % cmdstr
-        check_call(cmdstr.split())
+        check_call(cmdstr.split(), env=os.environ)
 
     resultfname = imgtdir + changeorandomcrapstr
     if output_exists(args, resultfname):
@@ -708,11 +710,17 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
     fastafname = os.path.splitext(seqfname)[0] + '.fasta'
     utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
-    bindir = '/home/dralph/work/changeo/changeo'
+    bindir = '/home/dralph/work/changeo/changeo/bin'
+    os.environ['PYTHONPATH'] = bindir.replace('/bin', '')
     start = time.time()
-    cmd = bindir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + fastafname
+    cmd = bindir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + fastafname + ' --failed'
+    # cmd = bindir + '/MakeDb.py imgt -h'
     run(cmd)
-    cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab -f FUNCTIONAL -u T'
+    cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab'
+    if args.data:
+        cmd += ' -f FUNCTIONAL -u T'
+    else:  # on simulation we don't want to skip any (I'm not forbidding stop codons in simulation)
+        cmd += ' -f FUNCTIONAL -u T F'
     run(cmd)
     # cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
     cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --model hs1f --norm len --act set --dist 0.2'
@@ -734,7 +742,15 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     partition = [ids for ids in id_clusters.values()]
     # these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
     if not args.data:
-        write_float_val(imgtdir + '-adj_mi.csv', utils.adjusted_mutual_information(partition, utils.get_true_partition(reco_info)), 'adj_mi')
+        true_partition = utils.get_true_partition(reco_info)
+        subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
+        print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
+
+        partition_with_uids_added = utils.add_missing_uids_as_singletons_to_inferred_partition(utils.get_true_partition(reco_info), partition)
+        print 'added to inferred: %.3f' % utils.adjusted_mutual_information(true_partition, partition_with_uids_added)
+        assert False  # need to work out why changeo is filtering out so many seqs, and decide how to treat them if I can't fix it
+
+        write_float_val(imgtdir + '-adj_mi.csv', adj_mi, 'adj_mi')
         ccfs = utils.correct_cluster_fractions(partition, reco_info)
         write_float_val(imgtdir + '-ccf_under.csv', ccfs[0], 'ccf_under')
         write_float_val(imgtdir + '-ccf_over.csv', ccfs[1], 'ccf_over')

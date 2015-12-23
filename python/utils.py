@@ -1611,9 +1611,10 @@ def find_uid_in_partition(uid, partition):
         if uid in partition[iclust]:
             found = True
             break
-    if not found:
+    if found:
+        return iclust
+    else:
         raise Exception('couldn\'t find %s in %s\n' % (uid, partition))
-    return iclust
 
 # ----------------------------------------------------------------------------------------
 def check_intersection_and_complement(part_a, part_b):
@@ -1648,6 +1649,41 @@ def get_cluster_list_for_sklearn(part_a, part_b):
 def adjusted_mutual_information(partition_a, partition_b):
     clusts_a, clusts_b = get_cluster_list_for_sklearn(partition_a, partition_b)
     return adjusted_mutual_info_score(clusts_a, clusts_b)
+
+# ----------------------------------------------------------------------------------------
+def add_missing_uids_as_singletons_to_inferred_partition(true_partition, partition_with_missing_uids, debug=True):
+    """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <true_partition>) """
+    partition_with_uids_added = copy.deepcopy(partition_with_missing_uids)
+    missing_ids = []
+    for cluster in true_partition:
+        for uid in cluster:
+            try:
+                find_uid_in_partition(uid, partition_with_missing_uids)
+            except:
+                partition_with_uids_added.append([uid, ])
+                missing_ids.append(uid)
+    if debug:
+        print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in true_partition]), ' '.join(missing_ids))
+    return partition_with_uids_added
+
+# ----------------------------------------------------------------------------------------
+def remove_missing_uids_from_true_partition(true_partition, partition_with_missing_uids, debug=True):
+    """ return a copy of <true_partition> which has had any uids which do not occur in <partition_with_missing_uids> removed """
+    true_partition_with_uids_removed = []
+    missing_ids = []
+    for cluster in true_partition:
+        new_cluster = []
+        for uid in cluster:
+            try:
+                find_uid_in_partition(uid, partition_with_missing_uids)
+                new_cluster.append(uid)
+            except:
+                missing_ids.append(uid)
+        if len(new_cluster) > 0:
+            true_partition_with_uids_removed.append(new_cluster)
+    if debug:
+        print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in true_partition]), ' '.join(missing_ids))
+    return true_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------
 def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t', debug=False):

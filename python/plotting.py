@@ -877,7 +877,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
     ymin = 0
     # if valname == 'ccf_over':
     #     ymin = 0.5
-    ax.set_ylim(ymin, 1)
+    ax.set_ylim(ymin, 1.01)
     sns.despine()  #trim=True, bottom=True)
     plt.title(title)
     xtitle = 'mean N leaves' if xvar == 'n_leaves' else 'sample size'
@@ -904,10 +904,13 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
             xticks.remove(100)
         ax.set_xlim(xvals[0], xvals[-1])
     elif xvar == 'nseqs':
-        xticks = [xticks[i] for i in range(0, len(xticks), 2)]
-        if 750 in xticks:
-            xticks.remove(750)
-        xticks += xvals[-1:]
+        # xticks = [xticks[i] for i in range(0, len(xticks), 2)]
+        # if 750 in xticks:
+        #     xticks.remove(750)
+        # xticks += xvals[-1:]
+        # xticks = [100, 5000, 10000, 15000]
+        xticks = [100, 300, 1000, 3000, 15000]
+        ax.set_xscale('log')
         ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
 
     xticklabels = [str(xt) for xt in xticks]
