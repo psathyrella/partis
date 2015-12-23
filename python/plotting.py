@@ -9,6 +9,7 @@ from scipy.interpolate import interp1d
 import os
 import glob
 import sys
+import stat
 import copy
 import csv
 import numpy
@@ -909,7 +910,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
         #     xticks.remove(750)
         # xticks += xvals[-1:]
         # xticks = [100, 5000, 10000, 15000]
-        xticks = [100, 300, 1000, 3000, 15000]
+        xticks = [1000, 3000, 15000]
         ax.set_xscale('log')
         ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
 
@@ -919,10 +920,10 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]
     yticklabels = [str(yt) for yt in yticks]
     plt.yticks(yticks, yticklabels)
-    if not os.path.exists(plotdir + '/plots'):
-        os.makedirs(plotdir + '/plots')
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir)
     plotname =  valname + '-%d-mutation.svg' % mut_mult
-    plt.savefig(plotdir + '/plots/' + plotname)
+    plt.savefig(plotdir + '/' + plotname)
     plt.close()
 
 # ----------------------------------------------------------------------------------------
@@ -1019,3 +1020,38 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.close()
     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
     check_call(['./bin/permissify-www', plotdir])
+
+# ----------------------------------------------------------------------------------------
+def make_html(plotdir, n_columns=3, extension='svg'):
+    if plotdir[-1] == '/':  # remove trailings slash, if present
+        plotdir = plotdir[:-1]
+    if not os.path.exists(plotdir):
+        raise Exception('plotdir %s d.n.e.' % plotdir)
+    dirname = os.path.basename(plotdir)
+    lines = ['<!DOCTYPE html', 
+             '    PUBLIC "-//W3C//DTD HTML 3.2//EN">', 
+             '<html>', 
+             '<head><title>foop</title></head>', 
+             '<body bgcolor="000000">', 
+             '<h3 style="text-align:left; color:DD6600;">foop</h3>', 
+             '', 
+             '<table border="0" cellspacing="5" width="100%">', 
+             '<tr>']
+
+    fnames = glob.glob(plotdir + '/*.' + extension)
+    for ifn in range(len(fnames)):
+        fname = os.path.basename(fnames[ifn])
+        line = '<td width="25%"><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>"'
+        lines.append(line)
+        if ifn % n_columns == 0:
+            lines += ['</tr>', '<tr>']
+
+    lines += ['</tr>',
+              '</table>',
+              '</body>',
+              '</html>']
+
+    htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'  # more verbose than necessary
+    with open(htmlfname, 'w') as htmlfile:
+        htmlfile.write('\n'.join(lines))
+    check_call(['chmod', '664', htmlfname])
