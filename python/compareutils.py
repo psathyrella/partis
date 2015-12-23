@@ -158,7 +158,7 @@ def parse_changeo(args, label, n_leaves, mut_mult, these_hists, these_adj_mis, t
         infname = indir + '/' + changeorandomcrapstr
     if args.subset is not None:
         infname = infname.replace(changeorandomcrapstr, 'subset-' + str(args.subset) + changeorandomcrapstr)
-    if args.istartstop is not None:  # TODO not yet functional
+    if args.istartstop is not None:
         infname = infname.replace(changeorandomcrapstr, 'istartstop_' + '_'.join([str(i) for i in args.istartstop]) + changeorandomcrapstr)
 
     id_clusters = {}  # map from cluster id to list of seq ids
@@ -338,7 +338,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
     plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel=xlabel, ylabel='frequency' if not args.dont_normalize else 'counts', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
 
 # ----------------------------------------------------------------------------------------
-def make_distance_plots(args, label, n_leaves, mut_mult, cachefname, reco_info, metric):
+def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname, reco_info, metric):
     cachevals = {}
     singletons, pairs, triplets, quads = [], [], [], []
     with open(cachefname) as cachefile:
@@ -371,70 +371,73 @@ def make_distance_plots(args, label, n_leaves, mut_mult, cachefname, reco_info, 
             # if iline > 10:
             #     break
 
-    baseplotdir = os.getenv('www') + '/partis/clustering/' + label + '/distances'
+    plotdir = baseplotdir + '/distances'
     if args.dont_normalize:
-        baseplotdir += '/nope'
+        plotdir += '/nope'
     else:
-        baseplotdir += '/normalized'
+        plotdir += '/normalized'
     if args.logaxis:
-        baseplotdir += '/log'
+        plotdir += '/log'
     else:
-        baseplotdir += '/nope'
+        plotdir += '/nope'
     if args.zoom:
-        baseplotdir += '/zoom'
+        plotdir += '/zoom'
     else:
-        baseplotdir += '/nope'
+        plotdir += '/nope'
 
     plotname = leafmutstr(args, n_leaves, mut_mult)
 
     print 'singletons'
-    make_a_distance_plot(args, metric, itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/singletons', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (singletons)')
+    make_a_distance_plot(args, metric, itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/singletons', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (singletons)')
 
     print 'one pair one singleton'
     one_pair_one_singleton = []
     for ipair in range(len(pairs)):
         for ising in range(len(singletons)):
             one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
-    make_a_distance_plot(args, metric, one_pair_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-pair-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (pair + single)')
+    make_a_distance_plot(args, metric, one_pair_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-pair-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (pair + single)')
 
     print 'one triplet one singleton'
     one_triplet_one_singleton = []
     for itriplet in range(len(triplets)):
         for ising in range(len(singletons)):
             one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
-    make_a_distance_plot(args, metric, one_triplet_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-triplet-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triple + single)')
+    make_a_distance_plot(args, metric, one_triplet_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-triplet-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triple + single)')
 
     print 'one quad one singleton'
     one_quad_one_singleton = []
     for iquad in range(len(quads)):
         for ising in range(len(singletons)):
             one_quad_one_singleton.append((quads[iquad], singletons[ising]))
-    make_a_distance_plot(args, metric, one_quad_one_singleton, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (quad + single)')
+    make_a_distance_plot(args, metric, one_quad_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (quad + single)')
 
     # print 'two pairs'
     # two_pairs = []
     # for ipair in range(len(pairs)):
     #     for jpair in range(ipair + 1, len(pairs)):
     #         two_pairs.append((pairs[ipair], pairs[jpair]))
-    # make_a_distance_plot(args, metric, two_pairs, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/two-pairs', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (pair + pair)')
+    # make_a_distance_plot(args, metric, two_pairs, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/two-pairs', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (pair + pair)')
 
     # print 'two triplets'
     # two_triplets = []
     # for itriplet in range(len(triplets)):
     #     for jtriplet in range(itriplet + 1, len(triplets)):
     #         two_triplets.append((triplets[itriplet], triplets[jtriplet]))
-    # make_a_distance_plot(args, metric, two_triplets, reco_info, cachevals, plotdir=baseplotdir + '/' + metric + '/two-triplets', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triplet + triplet)')
+    # make_a_distance_plot(args, metric, two_triplets, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/two-triplets', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triplet + triplet)')
 
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(args, label):
+    baseplotdir = os.getenv('www') + '/partis/clustering/' + label
     hists, adj_mis, ccfs, partitions = {}, {}, {}, {}
     for n_leaves in args.n_leaf_list:
         for mut_mult in args.mutation_multipliers:
             print n_leaves, mut_mult
-            write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions)
+            write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions)
+
+    check_call(['./bin/permissify-www', baseplotdir])
 
 # ----------------------------------------------------------------------------------------
-def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions):
+def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, hists, adj_mis, ccfs, partitions):
     print 'TODO clean this up, too'
     if n_leaves not in hists:
         hists[n_leaves] = {}
@@ -451,11 +454,12 @@ def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, 
     these_ccfs = ccfs[n_leaves][mut_mult]
     these_partitions = partitions[n_leaves][mut_mult]
 
-    plotdir = os.getenv('www') + '/partis/clustering/subsets/' + label
+    plotdir = baseplotdir + '/subsets'
     if args.subset is not None:
         plotdir += '/subset-' + str(args.subset)
     if args.istartstop is not None:
         plotdir += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+
     if args.data:
         seqfname = get_simfname(args, label, n_leaves, mut_mult).replace(leafmutstr(args, n_leaves, mut_mult), 'data')  # hackey hackey hackey
         simfbase = None
@@ -471,7 +475,7 @@ def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, 
 
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
-        make_distance_plots(args, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'naive_hfrac')  #logprob')  #'')
+        make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'naive_hfrac')  #logprob')  #'')
         return
 
     rebin = None
@@ -495,14 +499,13 @@ def write_each_plot_csvs(args, label, n_leaves, mut_mult, hists, adj_mis, ccfs, 
     log = 'xy'
     if not args.data and n_leaves <= 10:
         log = 'x'
-    plotting.plot_cluster_size_hists(plotdir + '/' + plotname + '.svg', these_hists, title=title, log=log)  #, xmax=n_leaves*6.01
+    plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', these_hists, title=title, log=log)  #, xmax=n_leaves*6.01
     if not args.no_similarity_matrices:  # they're kinda slow is all
         for meth1, meth2 in itertools.combinations(these_partitions.keys(), 2):
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
                 continue
             n_biggest_clusters = 40  # if args.data else 30)
-            plotting.plot_cluster_similarity_matrix(plotdir + '/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
-        # check_call(['./bin/permissify-www', plotdir])
+            plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, these_partitions[meth1], meth2, these_partitions[meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
 def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
@@ -516,21 +519,24 @@ def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
 
 # ----------------------------------------------------------------------------------------
 def compare_subsets(args, label):
+    baseplotdir = os.getenv('www') + '/partis/clustering/' + label
     info = {k : {} for k in metrics + ['hists', ]}
     for n_leaves in args.n_leaf_list:
         print '%d leaves' % n_leaves
         for mut_mult in args.mutation_multipliers:
             print '  %.1f mutation' % mut_mult
-            compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info)
+            compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info)
 
     if not args.data and args.plot_mean_of_subsets:
         for mut_mult in args.mutation_multipliers:
             for metric in metrics:
                 plotvals = convert_adj_mi_and_co_to_plottable(args, info[metric], mut_mult)
-                plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/' + label + '/means-over-subsets/', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+                plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+
+    check_call(['./bin/permissify-www', baseplotdir])
 
 # ----------------------------------------------------------------------------------------
-def compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info):
+def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info):
     for k in info:
         if n_leaves not in info[k]:
             info[k][n_leaves] = {}
@@ -583,21 +589,20 @@ def compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info):
     if args.plot_mean_of_subsets:
         for method in expected_methods:
             this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
-        plotdir = os.getenv('www') + '/partis/clustering/' + label + '/subsets'
+        plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
         log = 'xy'
         if args.data:
             title = get_title(args, label, n_leaves, mut_mult)
-            plotfname = plotdir + '/plots/data.svg'
+            plotfname = plotdir + '/data.svg'
             xmax = 10
         else:
             title = get_title(args, label, n_leaves, mut_mult)
-            plotfname = plotdir + '/plots/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
+            plotfname = plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
             xmax = n_leaves*6.01
             if n_leaves <= 10:
                 log = 'x'
         plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
-        check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-        check_call(['./bin/permissify-www', plotdir])
+        # check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
 
     if not args.data:
         for metric in metrics:
@@ -606,7 +611,7 @@ def compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info):
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
                     plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(nseq_list, values)])
-                plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/', metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
+                plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics', metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
             for meth, vals in per_subset_info[metric].items():
                 mean = numpy.mean(vals)
                 if mean == -1.:
@@ -614,10 +619,6 @@ def compare_subsets_for_each_leafmut(args, label, n_leaves, mut_mult, info):
                 std = numpy.std(vals)
                 this_info[metric][meth] = (mean, std)
                 print '        %30s %.3f +/- %.3f' % (meth, mean, std)
-
-        print 'TODO fix this:'
-        # check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-        # check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
 def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
