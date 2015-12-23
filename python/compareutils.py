@@ -496,6 +496,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
     if not args.data and n_leaves <= 10:
         log = 'x'
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
+    plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
     if not args.no_similarity_matrices:  # they're kinda slow is all
         for meth1, meth2 in itertools.combinations(this_info['partitions'].keys(), 2):
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
@@ -598,7 +599,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
             if n_leaves <= 10:
                 log = 'x'
         plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
-        # check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+        plotting.make_html(plotdir)
 
     if not args.data:
         for metric in metrics:
