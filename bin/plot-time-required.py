@@ -18,14 +18,14 @@ fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
 human = 'A'
 
 timeinfo = OrderedDict()
-n_query_list =                        [  100,   200,   500,  1000,  1500,  2000,  3000,  5000,  7000, 10000, 12000, 15000, 20000, 50000, 75000, 100000]
-timeinfo['vollmers-0.9'] =            [   30,    34,    43,   385,   396,   217,   398,   534,  None,   635,  None,  None,  2247,  4153,  5590,   None]  #   30,    34,    43,   218,   396,   217,   398,   534,  None,   635,  None,  None,  2247,  4152,  5589]
-timeinfo['mixcr'] =                   [    7,     7,     8,     9,     9,    10,    10,    11,  None,    13,  None,  None,    16,    20,    20,   None]
-timeinfo['changeo'] =                 [    4,     4,     4,     6,  None,     7,  None,     9,  None,    15,  None,  None,  None,  None,  None,    457]
-timeinfo['vsearch-partition'] =       [   52,    53,    62,    70,   303,   408,   460,   498,  None,   893,  None,  None,  2561, 11209, 11413,   None]
-timeinfo['naive-hamming-partition'] = [   33,    39,   208,    93,   170,   216,   649,  1938,  None, 13137,  None, 23316,  None,  None,  None,   None]  #,42,     52,   258,   138,   294,   277,   795,  2325,  None, 13137,  None, 23316,  None,  None,  None]
-timeinfo['partition'] =               [   53,    67,   138,   217,  1026,  1623,  2847,  5419,  None, 24248, 38905, 44530,  None,  None,  None,   None]  #   80,    87,   147,   214,  1005,  1191,  2644,  7165,  None, 24248, 38904, 44530,  None,  None,  None]  # new 15k: 63965
-
+# NOTE edited some of these values for current code version Dec 22 2015
+n_query_list =                        [  100,   200,   500,  1000,  1500,  2000,  3000,  5000,  7000, 10000, 12000, 15000, 20000, 30000,  50000, 75000, 100000]
+timeinfo['vollmers-0.9'] =            [   30,    34,    43,   385,   396,   217,   398,   477,  None,  1241,  None,  1681,  2247,  None,   4153,  5590,   None]
+timeinfo['mixcr'] =                   [    7,     7,     8,     9,     9,    10,    10,    11,  None,    13,  None,  None,    16,  None,     20,    20,   None]
+timeinfo['changeo'] =                 [    4,     4,     4,     6,  None,     7,  None,     9,  None,    15,  None,  None,  None,  None,   None,  None,    457]
+timeinfo['vsearch-partition'] =       [   52,    53,    62,    70,   303,   408,   460,   477,  None,  1208,  None,  1586,  2561,  None,  11209, 11413,   None]
+timeinfo['naive-hamming-partition'] = [   33,    39,   208,    93,   170,   216,   649,   947,  None,  2372,  None,  4655,  None,  None,   None,  None,   None]
+timeinfo['partition'] =               [   53,    67,   138,   217,  1026,  1623,  2847,  3052,  None,  8228,  None, 11542, 21391, 31418,   None,  None,   None]
 if args.action == 'plot':
     import matplotlib as mpl
     mpl.use('Agg')
