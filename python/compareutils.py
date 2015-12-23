@@ -531,6 +531,7 @@ def compare_subsets(args, label):
                 plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
 
     check_call(['./bin/permissify-www', baseplotdir])
+    plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
 
 # ----------------------------------------------------------------------------------------
 def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info):
@@ -586,20 +587,20 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
     if args.plot_mean_of_subsets:
         for method in expected_methods:
             this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
-        plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
+        cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
         log = 'xy'
         if args.data:
             title = get_title(args, label, n_leaves, mut_mult)
-            plotfname = plotdir + '/data.svg'
+            plotfname = cluster_size_plotdir + '/data.svg'
             xmax = 10
         else:
             title = get_title(args, label, n_leaves, mut_mult)
-            plotfname = plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
+            plotfname = cluster_size_plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
             xmax = n_leaves*6.01
             if n_leaves <= 10:
                 log = 'x'
         plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
-        plotting.make_html(plotdir)
+        plotting.make_html(cluster_size_plotdir)
 
     if not args.data:
         for metric in metrics:
@@ -608,7 +609,9 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
                     plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(nseq_list, values)])
-                plotting.plot_adj_mi_and_co(plotvals, mut_mult, os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics', metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
+                metric_plotdir = os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics'
+                plotting.plot_adj_mi_and_co(plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
+                plotting.make_html(metric_plotdir)
             for meth, vals in per_subset_info[metric].items():
                 mean = numpy.mean(vals)
                 if mean == -1.:

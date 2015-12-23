@@ -910,7 +910,7 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
         #     xticks.remove(750)
         # xticks += xvals[-1:]
         # xticks = [100, 5000, 10000, 15000]
-        xticks = [1000, 3000, 15000]
+        xticks = [1000, 3000, 10000, 30000]
         ax.set_xscale('log')
         ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
 
@@ -1014,12 +1014,10 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
 
     plt.title(title)
     
-    if not os.path.exists(plotdir + '/plots'):
-        os.makedirs(plotdir + '/plots')
-    plt.savefig(plotdir + '/plots/' + plotname + '.svg')
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir)
+    plt.savefig(plotdir + '/' + plotname + '.svg')
     plt.close()
-    check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
-    check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
 def make_html(plotdir, n_columns=3, extension='svg'):
@@ -1038,7 +1036,7 @@ def make_html(plotdir, n_columns=3, extension='svg'):
              '<table border="0" cellspacing="5" width="100%">', 
              '<tr>']
 
-    fnames = glob.glob(plotdir + '/*.' + extension)
+    fnames = sorted(glob.glob(plotdir + '/*.' + extension))
     for ifn in range(len(fnames)):
         fname = os.path.basename(fnames[ifn])
         line = '<td width="25%"><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>"'
