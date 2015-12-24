@@ -300,8 +300,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
             h.normalize(include_overflows=not ignore, expect_empty=True)
             # print '    %20s %f' % (k, h.get_mean(ignore_overflows=ignore))  # NOTE ignoring overflows is kind of silly here!
     plots = {}
-    plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=6)
-    plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=4)  #linewidth=7, alpha=0.5)
+    plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
+    plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
     # plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
     # plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
     if args.logaxis:
@@ -311,6 +311,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
     if metric == 'naive_hfrac':
         leg_loc = (0.5, 0.6)
     plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel=xlabel, ylabel='frequency' if not args.dont_normalize else 'counts', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
+    plotting.make_html(plotdir)  # this'll overwrite itself a few times
 
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname, reco_info, metric):
@@ -386,6 +387,8 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
             one_quad_one_singleton.append((quads[iquad], singletons[ising]))
     make_a_distance_plot(args, metric, one_quad_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (quad + single)')
 
+
+
     # print 'two pairs'
     # two_pairs = []
     # for ipair in range(len(pairs)):
@@ -442,7 +445,8 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
 
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
-        make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, 'naive_hfrac')  #logprob')  #'')
+        for metric in ['logprob', 'naive_hfrac']:
+            make_distance_plots(args, plotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, metric)
         return
 
     rebin = None
@@ -968,7 +972,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition]
         if args.count_distances:
-            extras += ['--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1,
+            extras += ['--cache-naive-hfracs', '--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1,
         n_procs = max(1, args.n_to_partition / 100)
         n_fewer_procs = min(500, args.n_to_partition / 2000)
     elif action == 'naive-hamming-partition':

@@ -961,7 +961,7 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', htmlify=False, xticks=None, xticklabels=None):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None):
     legend = ax.legend(loc=leg_loc)
     sns.despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
@@ -980,14 +980,10 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         ax.set_xticklabels(xticklabels)
     plt.title(title)
     if not os.path.exists(plotdir):
-        os.makedirs(plotdir + '/plots')
+        os.makedirs(plotdir)
 
-    plt.savefig(plotdir + '/plots/' + plotname + '.svg')
+    plt.savefig(plotdir + '/' + plotname + '.svg')
     plt.close()
-
-    # if htmlify:
-    #     check_call(['./bin/makeHtml', plotdir, '2', 'foop', 'svg'])
-    check_call(['./bin/permissify-www', plotdir])
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
