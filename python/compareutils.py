@@ -80,33 +80,17 @@ def get_changeo_outdir(args, label, n_leaves, mut_mult):
     return imgtdir
 
 # ----------------------------------------------------------------------------------------
-def generate_incorrect_partition(true_partition, n_misassigned, error_type, debug=False):
-    new_partition = list(true_partition)
-    if debug:
-        print '  before', new_partition
-    for _ in range(n_misassigned):
-        iclust = random.randint(0, len(new_partition) - 1)  # choose a cluster from which to remove a sequence
-        iseq = random.randint(0, len(new_partition[iclust]) - 1)  # and choose the sequence to remove from this cluster
-        uid = new_partition[iclust][iseq]
-        new_partition[iclust].remove(uid)  # remove it
-        if [] in new_partition:
-            new_partition.remove([])
-        if error_type == 'singletons':  # put the sequence in a cluster by itself
-            new_partition.append([uid, ])
-            if debug:
-                print '    %s: %d --> singleton' % (uid, iclust)
-        elif error_type == 'reassign':  # choose a different cluster to add it to
-            inewclust = iclust
-            while inewclust == iclust:
-                inewclust = random.randint(0, len(new_partition) - 1)
-            new_partition[inewclust].append(uid)
-            if debug:
-                print '    %s: %d --> %d' % (uid, iclust, inewclust)
-        else:
-            raise Exception('%s not among %s' % (error_type, 'singletons, reassign'))
-    if debug:
-        print '  after', new_partition
-    return new_partition
+def deal_with_parse_results(info, outdir, vname, partition, hist, metrics=None, info_vname=None):
+    if info_vname is None:
+        info_vname = vname
+    if partition is not None:
+        info['partitions'][info_vname] = partition
+    info['hists'][info_vname] = hist
+    hist.write(outdir + '/hists/' + vname + '.csv')
+    if metrics is not None and vname != 'true':
+        for mname, val in metrics.items():
+            info[mname][info_vname] = val
+            write_float_val(outdir + '/' + mname + '/' + vname, val, mname)
 
 # ----------------------------------------------------------------------------------------
 def parse_vollmers(args, info, seqfname, outdir, reco_info, rebin=None):
@@ -118,29 +102,17 @@ def parse_vollmers(args, info, seqfname, outdir, reco_info, rebin=None):
             n_lines += 1
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = utils.get_partition_from_str(partitionstr)
-            info['partitions']['vollmers-' + line['threshold']] = partition
-            vhist = plotting.get_cluster_size_hist(partition, rebin=rebin)
-            histfname = outdir + '/hists/vollmers-'  + line['threshold'] + '.csv'
-            vhist.write(histfname)
-            info['hists']['vollmers-' + line['threshold']] = vhist
+            metrics = None
             if not args.data:
-                info['adj_mi']['vollmers-' + line['threshold']] = float(line['adj_mi'])
-                write_float_val(outdir + '/adj_mi/' + os.path.basename(histfname), float(line['adj_mi']), 'adj_mi')
-
-                vollmers_clusters = [cl.split(':') for cl in partitionstr.split(';')]
                 true_partition = utils.get_true_partition(reco_info)
-                print 'not checking intersection!'
-                # utils.check_intersection_and_complement(vollmers_clusters, true_partition)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
-                info['partitions']['true'] = true_partition
-                truehist.write(outdir + '/hists/true.csv')  # will overwite itself a few times
-                info['hists']['true'] = truehist
+                deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metrics=None)
+                utils.check_intersection_and_complement(partition, true_partition)
+                ccfs = utils.correct_cluster_fractions(partition, reco_info)
+                metrics = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
 
-                ccfs = utils.correct_cluster_fractions(vollmers_clusters, reco_info)
-                info['ccf_under']['vollmers-' + line['threshold']] = ccfs[0]
-                info['ccf_over']['vollmers-' + line['threshold']] = ccfs[1]
-                write_float_val(outdir + '/ccf_under/' + os.path.basename(histfname), ccfs[0], 'ccf_under')
-                write_float_val(outdir + '/ccf_over/' + os.path.basename(histfname), ccfs[1], 'ccf_over')
+            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition, rebin=rebin), metrics)
+
     if n_lines < 1:
         raise Exception('zero partition lines read from %s' % vollmers_fname)
 
@@ -173,22 +145,14 @@ def parse_changeo(args, label, n_leaves, mut_mult, info, simfbase, outdir, rebin
             id_clusters[clid].append(uid)
 
     partition = [ids for ids in id_clusters.values()]
-    info['hists']['changeo'] = plotting.get_cluster_size_hist(partition, rebin=rebin)
-    info['hists']['changeo'].write(outdir + '/hists/changeo.csv')
-    info['partitions']['changeo'] = partition
+    metrics = None
     if not args.data:
         adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
-        check_call(['cp', adj_mi_fname, outdir + '/adj_mi/changeo.csv'])
-        info['adj_mi']['changeo'] = read_float_val(adj_mi_fname, 'adj_mi')
-
-        ccfs = []
+        metrics = {'adj_mi' : read_float_val(adj_mi_fname, 'adj_mi')}
         for etype in ['under', 'over']:
             ccf_fname = infname.replace(changeorandomcrapstr, '-ccf_' + etype+ '.csv')
-            check_call(['cp', ccf_fname, outdir + '/ccf_' + etype + '/changeo.csv'])
-            ccfs.append(read_float_val(ccf_fname, 'ccf_' + etype))
-
-        info['ccf_under']['changeo'] = ccfs[0]
-        info['ccf_over']['changeo'] = ccf[1]
+            metrics['ccf_' + etype] = read_float_val(ccf_fname, 'ccf_' + etype)
+    deal_with_parse_results(info, outdir, 'changeo', partition, plotting.get_cluster_size_hist(partition, rebin=rebin), metrics)
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, info, seqfname, outdir):
@@ -206,33 +170,40 @@ def parse_mixcr(args, info, seqfname, outdir):
     mixhist = Hist(max_cluster_size, 0.5, max_cluster_size + 0.5)
     for csize in cluster_size_list:
         mixhist.fill(csize)
-    info['hists']['mixcr'] = mixhist
-    mixhist.write(outdir + '/hists/mixcr.csv')
-    if not args.data:
-        info['adj_mi']['mixcr'] = -1.
-        info['ccf_under']['mixcr'] = -1.,
-        info['ccf_over']['mixcr'] = -1.
-        write_float_val(outdir + '/adj_mi/mixcr.csv', -1., 'adj_mi')
-        write_float_val(outdir + '/ccf_under/mixcr.csv', -1., 'ccf_under')
-        write_float_val(outdir + '/ccf_over/mixcr.csv', -1., 'ccf_over')
+    deal_with_parse_results(info, outdir, 'mixcr', None, mixhist, None)
 
 # ----------------------------------------------------------------------------------------
 def parse_partis(args, action, info, seqfname, outdir, reco_info, rebin=None):
     cpath = ClusterPath()
     cpath.readfile(seqfname.replace('.csv', '-' + action + '.csv'))
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
-    info['partitions'][action + ' partis'] = cpath.partitions[cpath.i_best]
-    hist.write(outdir + '/hists/' + action + '.csv')
-    info['hists'][action + ' partis'] = hist
+    partition = cpath.partitions[cpath.i_best]
+    vname = action
+    info_vname = vname + ' partis'  # arg, shouldn't have done it that way
+    metrics = None
     if not args.data:
-        info['adj_mi'][action + ' partis'] = cpath.adj_mis[cpath.i_best]
-        write_float_val(outdir + '/adj_mi/' + action + '.csv', cpath.adj_mis[cpath.i_best], 'adj_mi')
-
         ccfs = utils.correct_cluster_fractions(cpath.partitions[cpath.i_best], reco_info)
-        info['ccf_under'][action + ' partis'] = ccfs[0]
-        info['ccf_over'][action + ' partis'] = ccfs[1]
-        write_float_val(outdir + '/ccf_under/' + action + '.csv', ccfs[0], 'ccf_under')
-        write_float_val(outdir + '/ccf_over/' + action + '.csv', ccfs[1], 'ccf_over')
+        metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
+    deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
+
+# ----------------------------------------------------------------------------------------
+def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, rebin=None):
+    print 'TODO this is slow for large samples, don\'t rerun it unless you need to'
+    for misfrac in [0.1, 0.9]:
+        for mistype in ['singletons', 'reassign']:
+            vname = 'misassign-%.2f-%s' % (misfrac, mistype)
+            new_partition = utils.generate_incorrect_partition(info['partitions']['true'], misfrac, mistype)
+            info['partitions'][vname] = new_partition
+            info['adj_mi'][vname] = utils.adjusted_mutual_information(info['partitions']['true'], new_partition)
+            write_float_val(outdir + '/adj_mi/' + vname + '.csv', info['adj_mi'][vname], 'adj_mi')
+            ccfs = utils.correct_cluster_fractions(new_partition, reco_info)
+            info['ccf_under'][vname] = ccfs[0]
+            info['ccf_over'][vname] = ccfs[1]
+            write_float_val(outdir + '/ccf_under/' + vname + '.csv', ccfs[0], 'ccf_under')
+            write_float_val(outdir + '/ccf_over/' + vname + '.csv', ccfs[1], 'ccf_over')
+            hist = plotting.get_cluster_size_hist(new_partition, rebin=rebin)
+            hist.write(outdir + '/hists/' + vname + '.csv')
+            info['hists'][vname] = hist
 
 # ----------------------------------------------------------------------------------------
 def write_float_val(fname, val, valname):
@@ -481,16 +452,18 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
     # vollmers annotation (and true hists)
     parse_vollmers(args, this_info, seqfname, csvdir, reco_info, rebin=rebin)
 
+    if not args.data:
+        add_synthetic_partition_info(args, this_info, seqfname, csvdir, reco_info, rebin=rebin)
+
     if not args.no_mixcr:
         parse_mixcr(args, this_info, seqfname, csvdir)
 
     if not args.no_changeo:
         parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir, rebin=rebin)
 
-    # partis stuff
-    for ptype in ['vsearch-', 'naive-hamming-', '']:
-    # for ptype in ['vsearch-']:
-        parse_partis(args, ptype + 'partition', this_info, seqfname, csvdir, reco_info, rebin=rebin)
+    # # partis stuff
+    # for ptype in ['vsearch-', 'naive-hamming-', '']:
+    #     parse_partis(args, ptype + 'partition', this_info, seqfname, csvdir, reco_info, rebin=rebin)
 
     log = 'xy'
     if not args.data and n_leaves <= 10:
@@ -549,7 +522,12 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
             return subdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '/hists/' + method + '.csv'
 
     basedir = args.fsdir + '/' + label
-    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # mostly so we can specify the order
+    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
+    for misfrac in [0.1, 0.9]:
+        for mistype in ['singletons', 'reassign']:
+            vname = 'misassign-%.2f-%s' % (misfrac, mistype)
+            expected_methods.append(vname)
+
     if args.no_mixcr:
         expected_methods.remove('mixcr')
     if args.no_changeo:
@@ -632,9 +610,8 @@ def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type)
             istop = istart + nseqs
             uids = uid_list[istart : istop]
             true_partition = utils.get_true_partition(reco_info, ids=uids)
-            n_misassigned = int(misassign_fraction * nseqs)
-            new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type=error_type)
-            # new_partition = generate_incorrect_partition(true_partition, n_misassigned, error_type='singletons')
+            new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type=error_type)
+            # new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type='singletons')
             new_partitions[nseqs] = new_partition
     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 

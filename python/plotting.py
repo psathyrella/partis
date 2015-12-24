@@ -687,8 +687,12 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'vsearch-partition partis' : 'vsearch partis',
            'vsearch-partition' : 'vsearch partis',
            'changeo' : 'Change-O',
-           '0.1-true-singletons' : '10% random singletons',
-           '0.1-true-reassign' : '10% random reassign',
+           # '0.1-true-singletons' : '10% random singletons',
+           # '0.1-true-reassign' : '10% random reassign',
+           'misassign-0.10-singletons' : '10% assigned\n  to singleton',
+           'misassign-0.90-singletons' : '90% assigned\n  to singleton',
+           'misassign-0.10-reassign' : '10% reassigned',
+           'misassign-0.90-reassign' : '90% reassigned',
            'mixcr' : 'MiXCR',
            'adj_mi' : 'similarity to true partition',
            'ccf_under' : 'fraction not under-merged',
@@ -705,7 +709,11 @@ colors = {'true' : '#006600',
           'vollmers-0.5' : '#3333ff',
           'vollmers-0.9' : 'grey',
           'changeo' :  '#3399ff',
-          'mixcr' : '#7b68ee'
+          'mixcr' : '#7b68ee',
+          'misassign-0.10-singletons' : '#4e8975',
+          'misassign-0.10-reassign' : '#4e8975',
+          'misassign-0.90-singletons' : '#1e90ff',
+          'misassign-0.90-reassign' : '#1e90ff'
 }
 
 linewidths = {'true' : 15,
@@ -715,8 +723,12 @@ linewidths = {'true' : 15,
               'vollmers-0.5' : 4,
               'vollmers-0.9' : 8,
               'changeo' : 3,
-              'mixcr' : 6
-              }
+              'mixcr' : 6,
+              'misassign-0.10-singletons' : 4,
+              'misassign-0.90-singletons' : 4,
+              'misassign-0.10-reassign' : 2,
+              'misassign-0.90-reassign' : 2
+}
 
 # linewidths['v-true'] = 10
 # linewidths['cdr3-true'] = 10
@@ -861,30 +873,33 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
         elif 'true' in meth:
             linestyle = '--'
             alpha = 0.5
+        elif '-singletons' in meth:
+            alpha = 0.75
+            linestyle = '--'
+
         plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha, fmt='-o')
     
     # legend = ax.legend(loc='center left')
-    if valname == 'adj_mi':
-        lx = 0.8
-        if mut_mult == 1:
-            ly = 0.58
-        else:
-            ly = 0.6
-    else:
-        ly = 0.55
-        lx = 0.85
+    # if valname == 'adj_mi':
+    #     lx = 0.8
+    #     if mut_mult == 1:
+    #         ly = 0.58
+    #     else:
+    #         ly = 0.6
+    # else:
+    #     ly = 0.55
+    #     lx = 0.85
+    lx, ly = 1.35, 0.5
     legend = ax.legend(bbox_to_anchor=(lx, ly))
     # legend.get_frame().set_facecolor('white')
-    ymin = 0
-    # if valname == 'ccf_over':
-    #     ymin = 0.5
+    ymin = -0.01
     ax.set_ylim(ymin, 1.01)
     sns.despine()  #trim=True, bottom=True)
     plt.title(title)
     xtitle = 'mean N leaves' if xvar == 'n_leaves' else 'sample size'
     plt.xlabel(xtitle)
     plt.ylabel(legends[valname])
-    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.78, top=0.95)
+    plt.gcf().subplots_adjust(bottom=0.14, left=0.12, right=0.75, top=0.95)
 
     xticks = xvals
 

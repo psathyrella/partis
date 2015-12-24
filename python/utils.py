@@ -4,6 +4,7 @@ require member variables. """
 import sys
 import os
 import ast
+import random
 import ast
 import re
 import math
@@ -1684,6 +1685,42 @@ def remove_missing_uids_from_true_partition(true_partition, partition_with_missi
     if debug:
         print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in true_partition]), ' '.join(missing_ids))
     return true_partition_with_uids_removed
+
+# ----------------------------------------------------------------------------------------
+def generate_incorrect_partition(true_partition, misassign_fraction, error_type, debug=False):
+    """ 
+    Generate an incorrect partition from <true_partition>.
+    We accomplish this by removing <n_misassigned> seqs at random from their proper cluster, and putting each in either a
+    cluster chosen at random from the non-proper clusters (<error_type> 'reassign') or in its own partition (<error_type> 'singleton').
+    """
+    new_partition = copy.deepcopy(true_partition)
+    if debug:
+        print '  before', new_partition
+    nseqs = sum([len(c) for c in true_partition])
+    n_misassigned = int(misassign_fraction * nseqs)
+    for _ in range(n_misassigned):
+        iclust = random.randint(0, len(new_partition) - 1)  # choose a cluster from which to remove a sequence
+        iseq = random.randint(0, len(new_partition[iclust]) - 1)  # and choose the sequence to remove from this cluster
+        uid = new_partition[iclust][iseq]
+        new_partition[iclust].remove(uid)  # remove it
+        if [] in new_partition:
+            new_partition.remove([])
+        if error_type == 'singletons':  # put the sequence in a cluster by itself
+            new_partition.append([uid, ])
+            if debug:
+                print '    %s: %d --> singleton' % (uid, iclust)
+        elif error_type == 'reassign':  # choose a different cluster to add it to
+            inewclust = iclust
+            while inewclust == iclust:
+                inewclust = random.randint(0, len(new_partition) - 1)
+            new_partition[inewclust].append(uid)
+            if debug:
+                print '    %s: %d --> %d' % (uid, iclust, inewclust)
+        else:
+            raise Exception('%s not among %s' % (error_type, 'singletons, reassign'))
+    if debug:
+        print '  after', new_partition
+    return new_partition
 
 # ----------------------------------------------------------------------------------------
 def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t', debug=False):
