@@ -32,9 +32,9 @@ parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
 parser.add_argument('--istartstoplist')  # list of istartstops for comparisons
 parser.add_argument('--plot-mean-of-subsets', action='store_true')
-parser.add_argument('--dont-normalize', action='store_true')
-parser.add_argument('--logaxis', action='store_true')
-parser.add_argument('--zoom', action='store_true')
+# parser.add_argument('--dont-normalize', action='store_true')
+# parser.add_argument('--logaxis', action='store_true')
+# parser.add_argument('--zoom', action='store_true')
 parser.add_argument('--humans', default=None)  #'A')
 parser.add_argument('--no-mixcr', action='store_true')
 parser.add_argument('--no-changeo', action='store_true')

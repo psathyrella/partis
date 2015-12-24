@@ -235,17 +235,20 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         else:
             return None
 
-    if metric == 'logprob':
-        nbins, xmin, xmax = 40, -55, 60
-        xlabel = 'log likelihood ratio'
-    elif metric == 'naive_hfrac':
-        if args.zoom:
-            nbins, xmin, xmax = 30, 0., 0.2
-        else:
-            nbins, xmin, xmax = 70, 0., 0.65
-        xlabel = 'naive hamming fraction'
-    hists = OrderedDict()
-    hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
+    hstyles = ['plain', 'zoom-logy']
+    hists = {hs : OrderedDict() for hs in hstyles}
+    htypes = ['nearest-clones', 'farthest-clones', 'all-clones', 'not']
+    for hs in hstyles:
+        if metric == 'logprob':
+            nbins, xmin, xmax = 40, -55, 70
+        elif metric == 'naive_hfrac':
+            if 'zoom' in hs:
+                nbins, xmin, xmax = 30, 0., 0.2
+            else:
+                nbins, xmin, xmax = 70, 0., 0.65
+        for ht in htypes:
+            hists[hs][ht] = Hist(nbins, xmin, xmax)
+    # hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
     bigvals, smallvals = {}, {}
     for key_a, key_b in combinations:  # <key_[ab]> is colon-separated string (not a list of keys)
         a_ids, b_ids = key_a.split(':'), key_b.split(':')
@@ -269,7 +272,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
             assert False
 
         if utils.from_same_event(reco_info, a_ids + b_ids):
-            hists['all-clones'].fill(mval)
+            for hs in hstyles:
+                hists[hs]['all-clones'].fill(mval)
             for key in (key_a, key_b):
                 if key not in bigvals:
                     bigvals[key] = mval
@@ -280,7 +284,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
                 if mval < smallvals[key]:
                     smallvals[key] = mval
         else:
-            hists['not'].fill(mval)
+            for hs in hstyles:
+                hists[hs]['not'].fill(mval)
 
     if metric == 'logprob':
         bigkey = 'nearest'  # i.e. for logprob ratio, big values mean sequences are nearby
@@ -289,29 +294,40 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         bigkey = 'farthest'
         smallkey = 'nearest'
     for val in bigvals.values():
-        hists[bigkey + '-clones'].fill(val)
+        for hs in hstyles:
+            hists[hs][bigkey + '-clones'].fill(val)
     for val in smallvals.values():
-        hists[smallkey + '-clones'].fill(val)
+        for hs in hstyles:
+            hists[hs][smallkey + '-clones'].fill(val)
 
-    fig, ax = plotting.mpl_init()
     ignore = False
-    if not args.dont_normalize:
-        for k, h in hists.items():
-            h.normalize(include_overflows=not ignore, expect_empty=True)
-            # print '    %20s %f' % (k, h.get_mean(ignore_overflows=ignore))  # NOTE ignoring overflows is kind of silly here!
-    plots = {}
-    plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
-    plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
-    # plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-    # plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
-    if args.logaxis:
-        ax.set_yscale('log')
-    delta = xmax - xmin
-    leg_loc = None
-    if metric == 'naive_hfrac':
-        leg_loc = (0.5, 0.6)
-    plotting.mpl_finish(ax, plotdir, plotname, title=plottitle, xlabel=xlabel, ylabel='frequency' if not args.dont_normalize else 'counts', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
-    plotting.make_html(plotdir)  # this'll overwrite itself a few times
+    print ' ', metric, '----------------'
+    for hs in hstyles:
+        print '   ', hs
+        fig, ax = plotting.mpl_init()
+        if 'un-normed' not in hs:
+            for k, h in hists[hs].items():
+                h.normalize(include_overflows=not ignore, expect_empty=True)
+                # print '    %20s %f' % (k, h.get_mean(ignore_overflows=ignore))  # NOTE ignoring overflows is kind of silly here!
+
+        plots = {}
+        plots['clonal'] = hists[hs]['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
+        plots['not'] = hists[hs]['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
+        # plots['nearest'] = hists[hs]['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+        # plots['farthest'] = hists[hs]['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
+        if 'log' in hs:
+            ax.set_yscale('log')
+        xmin = hists[hs]['not'].xmin
+        xmax = hists[hs]['not'].xmax
+        delta = xmax - xmin
+        leg_loc = None
+        if metric == 'logprob':
+            xlabel = 'log likelihood ratio'
+        elif metric == 'naive_hfrac':
+            leg_loc = (0.5, 0.7)
+            xlabel = 'naive hamming fraction'
+        plotting.mpl_finish(ax, plotdir + '/' + hs, plotname, title=plottitle, xlabel=xlabel, ylabel='counts' if 'un-normed' in hs else 'frequency', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
+        plotting.make_html(plotdir + '/' + hs)  # this'll overwrite itself a few times
 
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname, reco_info, metric):
@@ -348,19 +364,6 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
             #     break
 
     plotdir = baseplotdir + '/distances'
-    if args.dont_normalize:
-        plotdir += '/nope'
-    else:
-        plotdir += '/normalized'
-    if args.logaxis:
-        plotdir += '/log'
-    else:
-        plotdir += '/nope'
-    if args.zoom:
-        plotdir += '/zoom'
-    else:
-        plotdir += '/nope'
-
     plotname = leafmutstr(args, n_leaves, mut_mult)
 
     print 'singletons'
