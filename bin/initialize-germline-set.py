@@ -2,12 +2,13 @@
 import os
 import argparse
 import csv
+import re
 import shutil
 import glob
 import sys
 sys.path.insert(1, './python')
 from Bio import SeqIO
-from subprocess import check_call
+from subprocess import Popen, PIPE
 
 import utils
 
@@ -24,7 +25,21 @@ def clean_dir():
         os.makedirs(args.dirname)
 
 # ----------------------------------------------------------------------------------------
-def align_new_genes(old_aligned_genes, genes_without_alignments, all_new_genes):
+def write_new_alignments(aligned_germlines, all_new_genes):
+    """ write an alignment for each sequence in <all_new_genes>, taking the aligned sequences from <aligned_germlines> """
+    with open(args.dirname + '/' + aligned_fname, 'w') as tmpfile:
+        for gene, seq in aligned_germlines.items():
+            if gene not in all_new_genes:
+                continue
+            tmpfile.write('>%s\n%s\n' % (gene, seq.replace('-', '.').upper()))
+
+# ----------------------------------------------------------------------------------------
+def get_alignments(old_aligned_genes, genes_without_alignments, all_new_genes):
+    if len(genes_without_alignments) == 0:
+        print 'already have alignments for all genes'
+        write_new_alignments(old_aligned_genes, all_new_genes)
+        return
+
     print 'missing alignments for %d genes' % len(genes_without_alignments)
     old_aligned_fname = args.dirname + '/old-aligned.fasta'
     missing_fname = args.dirname + '/missing-alignments.fasta'
@@ -36,17 +51,30 @@ def align_new_genes(old_aligned_genes, genes_without_alignments, all_new_genes):
     with open(missing_fname, 'w') as tmpfile:
         for gene, seq in genes_without_alignments.items():
             tmpfile.write('>%s\n%s\n' % (gene, seq.replace('.', '-')))
-    check_call('ruby bin/makemergetable.rb ' + old_aligned_fname + ' 1>' + msa_table_fname, shell=True)
-    check_call('cat ' + old_aligned_fname + ' ' + missing_fname + ' >' + all_fname, shell=True)
-    check_call('mafft --merge ' + msa_table_fname + ' ' + all_fname + ' >' + args.dirname + '/' + aligned_fname, shell=True)  # options=  # "--localpair --maxiterate 1000"
+
+    def run(cmd):
+        print 'RUN %s' % cmd
+        proc = Popen(cmd, shell=True, stderr=PIPE)
+        out, err = proc.communicate()  # the commands all redirect stdout to a file
+        err = err.replace('\r', '\n')
+        printstrs = []
+        for errstr in err.split('\n'):  # remove the stupid progress bar things
+            matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
+            if len(matches) == 1 and errstr.strip() == matches[0]:
+                continue
+            printstrs.append(errstr)
+        print '        ' + '\n        '.join(printstrs)
+
+    cmd = 'ruby bin/makemergetable.rb ' + old_aligned_fname + ' 1>' + msa_table_fname
+    run(cmd)
+    cmd = 'cat ' + old_aligned_fname + ' ' + missing_fname + ' >' + all_fname
+    run(cmd)
+    cmd = 'mafft --merge ' + msa_table_fname + ' ' + all_fname + ' >' + args.dirname + '/' + aligned_fname  # options=  # "--localpair --maxiterate 1000"
+    run(cmd)
 
     # then rewrite aligned file with only new genes, converting to upper case and dots for gaps
-    all_aligned_germlines = utils.read_germline_seqs(args.dirname, only_region='v', aligned=True)
-    with open(args.dirname + '/' + aligned_fname, 'w') as tmpfile:
-        for gene, seq in all_aligned_germlines['v'].items():
-            if gene not in all_new_genes:
-                continue
-            tmpfile.write('>%s\n%s\n' % (gene, seq.replace('-', '.').upper()))
+    all_aligned_germlines = utils.read_germline_seqs(args.dirname, only_region='v', aligned=True)['v']
+    write_new_alignments(all_aligned_germlines, all_new_genes)
 
     os.remove(old_aligned_fname)
     os.remove(missing_fname)
@@ -116,7 +144,7 @@ def write_cyst_file(known_cyst_positions):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('ighv_fname', help='input germline v set (presumably a new one), in fasta')
-parser.add_argument('--dirname', help='directory name for output (if not specified, we use <infname> with suffix removed)')
+parser.add_argument('--dirname', help='directory name for output (if not specified, we use <infname> with its suffix removed)')
 parser.add_argument('--reference-dir', default='data/imgt', help='directory with reference/old germline sets')
 args = parser.parse_args()
 if args.dirname is None:
@@ -137,12 +165,20 @@ old_aligned_genes = utils.read_germline_seqs(args.reference_dir, only_region='v'
 all_new_genes = utils.read_germline_seqs(args.dirname, only_region='v')  # all genes in ighv_fname, not just the new ones
 genes_without_alignments = {}
 for gene in all_new_genes['v']:
-    if gene not in old_aligned_genes['v']:
+    if gene in old_aligned_genes['v']:
+        old_seq = old_aligned_genes['v'][gene]
+        for gc in utils.gap_chars:
+            old_seq = old_seq.replace(gc, '')
+        if old_seq != all_new_genes['v'][gene]:
+            raise Exception('new gene named %s has a different sequence to the gene of the same name in %s/' % (gene, args.reference_dir))
+    else:
         genes_without_alignments[gene] = all_new_genes['v'][gene]
 
-if len(genes_without_alignments) > 0:
-    align_new_genes(old_aligned_genes['v'], genes_without_alignments, all_new_genes['v'])
+get_alignments(old_aligned_genes['v'], genes_without_alignments, all_new_genes['v'])
+
+print 'cp %s --> %s' % (args.reference_dir, args.dirname)
 for fname in files_to_copy:
+    print '    %s' % fname
     shutil.copyfile(args.reference_dir + '/' + fname, args.dirname + '/' + fname)
 
 known_cyst_positions = utils.read_codon_positions(args.reference_dir + '/cyst-positions.csv')
