@@ -52,6 +52,7 @@ parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help
 parser.add_argument('--workdir', help='Temporary working directory (see also <no-clean>)')
 parser.add_argument('--persistent-cachefname')
 parser.add_argument('--cache-naive-hfracs', action='store_true')
+parser.add_argument('--write-sw-annotations-and-exit', action='store_true')
 
 # run/batch control
 parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
@@ -113,6 +114,12 @@ if os.path.exists(args.workdir):
 if args.plot_performance:
     if args.plotdir is None:
         raise Exception('can\'t plot performance unless --plotdir is specified')
+
+if args.write_sw_annotations_and_exit:
+    if args.action != 'run-viterbi':
+        raise Exception('only makes sense to write smith-waterman annotations if action is \'run-viterbi\'')
+    if args.outfname is None:
+        raise Exception('no <outfname> specified')
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):

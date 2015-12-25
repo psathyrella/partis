@@ -101,8 +101,20 @@ class PartitionDriver(object):
             raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=self.args.parameter_dir, write_parameters=False)
         waterer.run()
-
         self.sw_info = waterer.info
+
+        if self.args.write_sw_annotations_and_exit:
+            annotations = {query : self.sw_info[query] for query in self.sw_info['queries']}
+            for query in annotations:
+                annotations[query]['unique_ids'] = [annotations[query]['unique_id'], ]
+                annotations[query]['seqs'] = [annotations[query]['seq'], ]
+                annotations[query]['naive_seq'] = utils.get_full_naive_seq(self.glfo['seqs'], annotations[query])
+                del annotations[query]['unique_id']
+                del annotations[query]['seq']
+                utils.add_v_alignments(self.glfo, annotations[query])
+            self.write_annotations(annotations)
+            return
+
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
@@ -1208,27 +1220,7 @@ class PartitionDriver(object):
 
         # write output file
         if self.args.outfname is not None:
-            outpath = self.args.outfname
-            if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
-                outpath = os.getcwd() + '/' + outpath
-            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'naive_seq', 'indelfo']
-            outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
-            with open(outpath, 'w') as outfile:
-                writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
-                writer.writeheader()
-                for uids, line in eroded_annotations.items():
-                    outline = {k : line[k] for k in outheader if k != 'indelfo'}
-                    if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
-                        outline['indelfo'] = self.sw_info['indels'][uids]
-                    else:
-                        outline['indelfo'] = {'reversed_seq': '', 'indels': []}
-                    if self.args.presto_output:
-                        if uids in self.sw_info['indels']:
-                            raise Exception('passing indel info to presto requires some more thought')
-                        else:
-                            del outline['indelfo']
-                        outline = utils.convert_to_presto(self.glfo, outline)
-                    writer.writerow(outline)
+            self.write_annotations(eroded_annotations)
 
         if self.args.annotation_clustering is not None:
             if self.args.annotation_clustering != 'vollmers':
@@ -1298,3 +1290,27 @@ class PartitionDriver(object):
         print '  %3d' % (perfplotter.hamming_distance_to_true_naive(true_line, line, line['unique_id']) if perfplotter != None else -1),
         print '   %4d%4d%4d%4d' % tuple([int(line[ero+'_del']) - int(true_line[ero+'_del']) for ero in utils.real_erosions]),
         print '   %4d%4d' % tuple([len(line[bound+'_insertion']) - len(true_line[bound+'_insertion']) for bound in utils.boundaries])
+
+    # ----------------------------------------------------------------------------------------
+    def write_annotations(self, annotations):
+        outpath = self.args.outfname
+        if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
+            outpath = os.getcwd() + '/' + outpath
+        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'naive_seq', 'indelfo']
+        outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
+        with open(outpath, 'w') as outfile:
+            writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
+            writer.writeheader()
+            for uids, line in annotations.items():
+                outline = {k : line[k] for k in outheader if k != 'indelfo'}
+                if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
+                    outline['indelfo'] = self.sw_info['indels'][uids]
+                else:
+                    outline['indelfo'] = {'reversed_seq': '', 'indels': []}
+                if self.args.presto_output:
+                    if uids in self.sw_info['indels']:
+                        raise Exception('passing indel info to presto requires some more thought')
+                    else:
+                        del outline['indelfo']
+                    outline = utils.convert_to_presto(self.glfo, outline)
+                writer.writerow(outline)
