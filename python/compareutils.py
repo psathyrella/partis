@@ -27,6 +27,8 @@ def get_title(args, label, n_leaves, mut_mult):
         title = 'data (%s %s)' % (args.dataset, label)
     else:
         title = '%d leaves, %dx mutation' % (n_leaves, mut_mult)
+        if args.istartstop is not None:
+            title += ', %d seqs' % (args.istartstop[1] - args.istartstop[0])
         if args.indels:
             title += ', indels'
     return title
@@ -240,15 +242,21 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
     htypes = ['nearest-clones', 'farthest-clones', 'all-clones', 'not']
     for hs in hstyles:
         if metric == 'logprob':
-            nbins, xmin, xmax = 40, -55, 70
+            if 'zoom' in hs:
+                nbins, xmin, xmax = 40, 0, 30
+                hxmin, hxmax = xmin, xmax
+            else:
+                nbins, xmin, xmax = 40, -55, 70
+                hxmin, hxmax = 0, 30
         elif metric == 'naive_hfrac':
             if 'zoom' in hs:
                 nbins, xmin, xmax = 30, 0., 0.2
+                hxmin, hxmax = xmin, xmax
             else:
                 nbins, xmin, xmax = 70, 0., 0.65
+                hxmin, hxmax = 0., 0.2
         for ht in htypes:
             hists[hs][ht] = Hist(nbins, xmin, xmax)
-    # hists['nearest-clones'], hists['farthest-clones'], hists['all-clones'], hists['not'] = [Hist(nbins, xmin, xmax) for _ in range(4)]
     bigvals, smallvals = {}, {}
     for key_a, key_b in combinations:  # <key_[ab]> is colon-separated string (not a list of keys)
         a_ids, b_ids = key_a.split(':'), key_b.split(':')
@@ -313,8 +321,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         plots = {}
         plots['clonal'] = hists[hs]['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
         plots['not'] = hists[hs]['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
-        # plots['nearest'] = hists[hs]['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-        # plots['farthest'] = hists[hs]['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
+        plots['nearest'] = hists[hs]['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+        plots['farthest'] = hists[hs]['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
         if 'log' in hs:
             ax.set_yscale('log')
         xmin = hists[hs]['not'].xmin
@@ -324,7 +332,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         if metric == 'logprob':
             xlabel = 'log likelihood ratio'
         elif metric == 'naive_hfrac':
-            leg_loc = (0.5, 0.7)
+            leg_loc = (0.5, 0.6)
             xlabel = 'naive hamming fraction'
         plotting.mpl_finish(ax, plotdir + '/' + hs, plotname, title=plottitle, xlabel=xlabel, ylabel='counts' if 'un-normed' in hs else 'frequency', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
         plotting.make_html(plotdir + '/' + hs)  # this'll overwrite itself a few times
@@ -348,6 +356,7 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
 
             unique_ids = line['unique_ids'].split(':')
 
+            # TODO hmm, do I really want to just skip non-clonal ones?
             if not utils.from_same_event(reco_info, unique_ids):
                 continue
 

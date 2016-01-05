@@ -187,11 +187,16 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes):
 # ----------------------------------------------------------------------------------------
 def from_same_event(reco_info, query_names):
     if len(query_names) > 1:
-        reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
-        for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
-            if reco_id != reco_info[query_names[iq]]['reco_id']:
-                return False
-        return True
+        # reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
+        # for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
+        #     if reco_id != reco_info[query_names[iq]]['reco_id']:
+        #         return False
+        # return True
+
+        # darn it, this isn't any faster
+        reco_ids = [reco_info[query]['reco_id'] for query in query_names]
+        return reco_ids.count(reco_ids[0]) == len(reco_ids)  # they're clonal if every reco id is the same as the first one
+
     else:  # one or zero sequences
         return True
 

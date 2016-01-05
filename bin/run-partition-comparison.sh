@@ -18,15 +18,13 @@
 # ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --humans A --n-subsets 3 --n-leaf-list 10:25 --mutation-multipliers 1 --no-mixcr --no-changeo
 
 leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans A"  # 100:200:500
-# istartstoplist="1350:2350 2350:3850 3850:5850 5850:8850 8850:12850 12850:17850 17850:25350"  # 25350:35350 35350:50350 50350:70350 70350:100350"  # 0:100 100:600 600:1350 
-istartstoplist="25350:35350 35350:50350 50350:70350 70350:100350"
-# istartstoplist="0:100 100:600 600:1350"
+# istartstoplist="0:100 100:600 600:1350 1350:2350 2350:3850 3850:5850 5850:8850 8850:12850 12850:17850 17850:25350 25350:35350 35350:50350"  # 50350:70350 70350:100350"
+istartstoplist="0:100"  #1350:2350"
 istartstopstr=`echo $istartstoplist | sed -e 's/:/,/g' -e 's/ /:/g'`
 for istartstop in $istartstoplist; do  # see code below to generate these
-# for istartstop in 50350:70350 70350:100350; do
-    ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --istartstop $istartstop $leaf_mut_hum --count-distances --overwrite &
-    sleep 60
-    # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop --no-mixcr --no-changeo $leaf_mut_hum  --no-similarity-matrices --count-distances
+    # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --istartstop $istartstop $leaf_mut_hum --count-distances & # --overwrite &
+    # sleep 60
+    python -m cProfile -s tottime -o prof.out ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop --no-mixcr --no-changeo $leaf_mut_hum  --no-similarity-matrices --count-distances &
     # break
 done
 # ./bin/compare-partition-methods.py --actions compare-subsets --istartstoplist $istartstopstr $leaf_mut_hum --no-mixcr --no-changeo

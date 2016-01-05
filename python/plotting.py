@@ -963,6 +963,7 @@ def mpl_init(figsize=None, fontsize=20):
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None):
     legend = ax.legend(loc=leg_loc)
+    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     sns.despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
