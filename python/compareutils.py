@@ -237,31 +237,22 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         else:
             return None
 
-    hstyles = ['plain', 'zoom-logy']
-    hists = {hs : OrderedDict() for hs in hstyles}
+    hstyles = ['plain', 'zoom-logy', 'zoom']
+    if metric == 'logprob':
+        nbins, xmin, xmax = 40, -55, 70
+    elif metric == 'naive_hfrac':
+        nbins, xmin, xmax = 70, 0., 0.65
+    else:
+        assert False
+    hists = OrderedDict()
     htypes = ['nearest-clones', 'farthest-clones', 'all-clones', 'not']
-    for hs in hstyles:
-        if metric == 'logprob':
-            if 'zoom' in hs:
-                nbins, xmin, xmax = 40, 0, 30
-                hxmin, hxmax = xmin, xmax
-            else:
-                nbins, xmin, xmax = 40, -55, 70
-                hxmin, hxmax = 0, 30
-        elif metric == 'naive_hfrac':
-            if 'zoom' in hs:
-                nbins, xmin, xmax = 30, 0., 0.2
-                hxmin, hxmax = xmin, xmax
-            else:
-                nbins, xmin, xmax = 70, 0., 0.65
-                hxmin, hxmax = 0., 0.2
-        for ht in htypes:
-            hists[hs][ht] = Hist(nbins, xmin, xmax)
+    for ht in htypes:
+        hists[ht] = Hist(nbins, xmin, xmax)
     bigvals, smallvals = {}, {}
     for key_a, key_b in combinations:  # <key_[ab]> is colon-separated string (not a list of keys)
         a_ids, b_ids = key_a.split(':'), key_b.split(':')
-        if not utils.from_same_event(reco_info, a_ids) or not utils.from_same_event(reco_info, b_ids):  # skip clusters that were erroneously merged -- i.e., in effect, assume the previous step didn't screw up at all
-            raise Exception('woop')
+        # if not utils.from_same_event(reco_info, a_ids) or not utils.from_same_event(reco_info, b_ids):  # skip clusters that were erroneously merged -- i.e., in effect, assume the previous step didn't screw up at all
+        #     raise Exception('woop')
         jk = get_joint_key(key_a, key_b)
         if jk is None:  # if we don't have the joint logprob cached
             continue
@@ -279,9 +270,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         else:
             assert False
 
-        if utils.from_same_event(reco_info, a_ids + b_ids):
-            for hs in hstyles:
-                hists[hs]['all-clones'].fill(mval)
+        if utils.from_same_event(reco_info, a_ids + b_ids):  # NOTE if a_ids and b_ids are already all from same event, you can optimize this some more
+            hists['all-clones'].fill(mval)
             for key in (key_a, key_b):
                 if key not in bigvals:
                     bigvals[key] = mval
@@ -292,8 +282,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
                 if mval < smallvals[key]:
                     smallvals[key] = mval
         else:
-            for hs in hstyles:
-                hists[hs]['not'].fill(mval)
+            hists['not'].fill(mval)
 
     if metric == 'logprob':
         bigkey = 'nearest'  # i.e. for logprob ratio, big values mean sequences are nearby
@@ -302,39 +291,47 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         bigkey = 'farthest'
         smallkey = 'nearest'
     for val in bigvals.values():
-        for hs in hstyles:
-            hists[hs][bigkey + '-clones'].fill(val)
+        hists[bigkey + '-clones'].fill(val)
     for val in smallvals.values():
-        for hs in hstyles:
-            hists[hs][smallkey + '-clones'].fill(val)
+        hists[smallkey + '-clones'].fill(val)
 
     ignore = False
+    for hist in hists.values():
+        hist.normalize(include_overflows=not ignore, expect_empty=True)
+
     print ' ', metric, '----------------'
     for hs in hstyles:
         print '   ', hs
         fig, ax = plotting.mpl_init()
-        if 'un-normed' not in hs:
-            for k, h in hists[hs].items():
-                h.normalize(include_overflows=not ignore, expect_empty=True)
-                # print '    %20s %f' % (k, h.get_mean(ignore_overflows=ignore))  # NOTE ignoring overflows is kind of silly here!
 
         plots = {}
-        plots['clonal'] = hists[hs]['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
-        plots['not'] = hists[hs]['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
-        plots['nearest'] = hists[hs]['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-        plots['farthest'] = hists[hs]['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
+        plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
+        plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
+        plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+        plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
         if 'log' in hs:
             ax.set_yscale('log')
-        xmin = hists[hs]['not'].xmin
-        xmax = hists[hs]['not'].xmax
+
+        leg_loc = (0.1, 0.6)
+        xmin = hists['not'].xmin
+        xmax = hists['not'].xmax
+        ybounds = None
+        if 'zoom' in hs:
+            if metric == 'logprob':
+                nbins, xmin, xmax = 40, 0, 30
+            elif metric == 'naive_hfrac':
+                nbins, xmin, xmax = 30, 0.02, 0.2
+                ybounds = (0., 0.1)
+            else:
+                assert False
+
         delta = xmax - xmin
-        leg_loc = None
         if metric == 'logprob':
             xlabel = 'log likelihood ratio'
         elif metric == 'naive_hfrac':
             leg_loc = (0.5, 0.6)
             xlabel = 'naive hamming fraction'
-        plotting.mpl_finish(ax, plotdir + '/' + hs, plotname, title=plottitle, xlabel=xlabel, ylabel='counts' if 'un-normed' in hs else 'frequency', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], leg_loc=leg_loc)
+        plotting.mpl_finish(ax, plotdir + '/' + hs, plotname, title=plottitle, xlabel=xlabel, ylabel='counts' if 'un-normed' in hs else 'frequency', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], ybounds=ybounds, leg_loc=leg_loc)
         plotting.make_html(plotdir + '/' + hs)  # this'll overwrite itself a few times
 
 # ----------------------------------------------------------------------------------------
