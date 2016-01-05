@@ -650,13 +650,16 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       // this should really depend on the sample's mutation frequency as well
       // TODO put this into a c.l. arg in partis.py
       bool lratio_too_small(false);
-      if(qmerged.seqs_.size() == 2 && lratio < 20.) {
+      int ccs(qmerged.seqs_.size());  // candidate cluster size
+      if(ccs == 2 && lratio < 18.) {
       	lratio_too_small = true;
-      } else if(qmerged.seqs_.size() == 3 && lratio < 15.) {
+      } else if(ccs == 3 && lratio < 16.) {
       	lratio_too_small = true;
-      } else if(qmerged.seqs_.size() == 4 && lratio < 10.) {
+      } else if(ccs == 4 && lratio < 15.) {
       	lratio_too_small = true;
-      } else if(qmerged.seqs_.size() == 5 && lratio < 5.) {
+      } else if(ccs == 5 && lratio < 14.) {
+      	lratio_too_small = true;
+      } else if(lratio < 13.) {  // just guessing on the 13... but I don't think the best threshold gets anywhere close to zero (like I had it before...)
       	lratio_too_small = true;
       }
       if(lratio_too_small) {
