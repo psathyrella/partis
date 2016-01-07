@@ -371,7 +371,7 @@ class PartitionDriver(object):
         print '      vsearch/swarm time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=False):
+    def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=True):
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
         if debug:
@@ -379,12 +379,12 @@ class PartitionDriver(object):
             print '      %.3f mutation in %s' % (mute_freq, parameter_dir)
         # just use a line based on two points (mute_freq, threshold)
         # TODO these should kinda depend on the candidate cluster size (like the log prob ratio thresholds), but looking at the plots it's not super obviously necessary, so I'm punting for now
-        x1, x2 = 0.11, 0.28
+        x1, x2 = 0.07, 0.26  # TODO add more points (i.e. 1x and 2x -- these are just the 0.5x and 3x). Also add more humans
         if tightness == 'tight':  # this should be close to optimal for straight naive hamming clustering. 
-            # y1, y2 = 0.04, 0.08  # these are pretty much where the nearest-clonal and non-clonal lines cross
-            y1, y2 = 0.03, 0.07  # this will incorrectly merge fewer singletons
+            y1, y2 = 0.04, 0.09  # these are pretty much where the nearest-clonal and non-clonal lines cross
+            # y1, y2 = 0.03, 0.07  # this will incorrectly merge fewer singletons
         elif tightness == 'loose':  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
-            y1, y2 = 0.06, 0.09
+            y1, y2 = 0.06, 0.12
         else:
             assert False
         m = (y2 - y1) / (x2 - x1);
@@ -436,11 +436,11 @@ class PartitionDriver(object):
                 cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
                 if self.args.naive_hamming:
                     thold = self.get_naive_hamming_threshold(parameter_dir, 'tight')
-                    naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios
+                    naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
                     naive_hamming_hi = thold
                 else:
-                    naive_hamming_lo = 0.01
-                    naive_hamming_hi = self.get_naive_hamming_threshold(parameter_dir, 'loose')
+                    naive_hamming_lo = 0.02  # always merge clusters with hfrac less than this (i.e. without checking logprob ratio)
+                    naive_hamming_hi = self.get_naive_hamming_threshold(parameter_dir, 'loose')  # ...and never merge 'em if it's bigger than this
         
                 print '       naive hamming bounds: %.3f %.3f' % (naive_hamming_lo, naive_hamming_hi)
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(naive_hamming_lo)
