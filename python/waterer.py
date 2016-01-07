@@ -492,10 +492,15 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def check_boundaries(self, rpair, qrbounds, glbounds, query_name, query_seq, best, debug=False):
         # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
+        l_reg = rpair['left']
+        r_reg = rpair['right']
+        l_gene = best[l_reg]
+        r_gene = best[r_reg]
+
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrbounds)
 
         if debug:
-            print '  %s %s    overlap %d    available space %d' % (rpair['left'], rpair['right'], overlap, available_space)
+            print '  %s %s    overlap %d    available space %d' % (l_reg, r_reg, overlap, available_space)
 
         status = 'ok'
         if overlap > 0:  # positive overlap means they actually overlap
@@ -505,6 +510,14 @@ class Waterer(object):
 
         if debug:
             print '  overlap status: %s' % status
+
+        if status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
+            assert l_reg == 'd' and r_reg == 'j'
+            print '  %s: synthesizing d match' % query_name
+            leftmost_position = min(qrbounds[l_gene][0], qrbounds[r_gene][0])
+            qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
+            glbounds[l_gene] = (0, 1)
+            status = self.check_boundaries(rpair, qrbounds, glbounds, query_name, query_seq, best, debug)
 
         return status
 
@@ -523,7 +536,8 @@ class Waterer(object):
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrbounds)
 
         if overlap <= 0:  # nothing to do, they're already consistent
-            raise Exception('shouldn\'t get here any more if there\'s no overlap')
+            print 'shouldn\'t get here any more if there\'s no overlap'
+            return
 
         if overlap > available_space:
             raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, query_name))
