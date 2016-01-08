@@ -1497,7 +1497,42 @@ def get_str_from_partition(partition):
     return partition_str
 
 # ----------------------------------------------------------------------------------------
-def correct_cluster_fractions(partition, reco_info, debug=False):
+def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=False):
+    # reco_info = {'a' : {'reco_id' : '1'}, 'b' : {'reco_id' : '0'}, 'c' : {'reco_id' : '1'}, 'd' : {'reco_id' : '2'}}
+    # partition = [['a'], ['b', 'c', 'd']]
+    # true_partition = [['b'], ['a', 'c'], ['d']]
+
+    check_intersection_and_complement(partition, true_partition)
+
+    def get_clonal_fraction(uid, inferred_cluster):
+        """ Return the fraction of seqs in <uid>'s inferred cluster which are really clonal. """
+        n_clonal = 0
+        for tmpid in inferred_cluster:  # NOTE this includes the case where tmpid equal to uid
+            if reco_info[tmpid]['reco_id'] == reco_info[uid]['reco_id']:
+                n_clonal += 1
+        return float(n_clonal) / len(inferred_cluster)
+
+    def get_split_fraction(uid, inferred_cluster, true_cluster):
+        """ Return the fraction of <uid>'s true clonemates which do not appear in <uid>'s inferred cluster. """
+        n_split = 0
+        for tmpid in true_cluster:  # NOTE this includes the case where tmpid equal to uid
+            if tmpid not in inferred_cluster:
+                n_split += 1
+        return float(n_split) / len(true_cluster)
+
+    mean_clonal_fraction, mean_split_fraction = 0., 0.
+    n_uids = 0
+    for true_cluster in true_partition:
+        for uid in true_cluster:
+            inferred_cluster = partition[find_uid_in_partition(uid, partition)]
+            mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
+            mean_split_fraction +=  get_split_fraction(uid, inferred_cluster, true_cluster)
+            n_uids += 1
+
+    return mean_clonal_fraction / n_uids, 1. - mean_split_fraction / n_uids
+
+# ----------------------------------------------------------------------------------------
+def correct_cluster_fractions(partition, true_partition, debug=False):
 
     def find_clusters_with_ids(ids, partition):
         """ find all clusters in <partition> that contain at least one of <ids> """
@@ -1509,23 +1544,22 @@ def correct_cluster_fractions(partition, reco_info, debug=False):
                     break
         return clusters
 
-    uids = []
-    for cluster in partition:
-        uids += cluster
+    check_intersection_and_complement(partition, true_partition)
 
-    true_partition = get_true_partition(reco_info, ids=uids)  # modified without testing
     n_under_merged, n_over_merged = 0, 0
     for trueclust in true_partition:
         if debug:
             print ''
-            print '  ', trueclust
-        infclusters = find_clusters_with_ids(trueclust, partition)  # lsit of inferred clusters that contain any ids from the true cluster
+            print '   true %s' % (len(trueclust) if len(trueclust) > 15 else trueclust)
+        infclusters = find_clusters_with_ids(trueclust, partition)  # list of inferred clusters that contain any ids from the true cluster
+        if debug and len(infclusters) > 1:
+            print '  infclusters %s' % infclusters
         assert len(infclusters) > 0
         under_merged = len(infclusters) > 1  # ids in true cluster are not all in the same inferred cluster
         over_merged = False  # at least one inferred cluster with an id in true cluster also contains an id not in true cluster
         for iclust in infclusters:
             if debug:
-                print '  ', iclust
+                print '   inferred %s' % (len(iclust) if len(iclust) > 15 else iclust)
             for uid in iclust:
                 if uid not in trueclust:
                     over_merged = True
