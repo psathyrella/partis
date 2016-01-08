@@ -23,7 +23,7 @@ metrics = ['adj_mi', 'ccf_under', 'ccf_over']
 
 # ----------------------------------------------------------------------------------------
 def FOOP():
-    _, reco_info = seqfileopener.get_seqfile_info('/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/istartstop-5850-8850/simu-7-leaves-1-mutate.csv', is_data=False)
+    _, reco_info = seqfileopener.get_seqfile_info('/fh/fast/matsen_e/dralph/work/partis-dev/_output.bak/A/istartstop-5850-8850/simu-7-leaves-1-mutate.csv', is_data=False)
     true_partition = utils.get_true_partition(reco_info)
     tholds = [0.005, 0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.07, 0.1, 0.2, 0.3, 0.9]
     # tholds = [0.005, 0.04, 0.9]

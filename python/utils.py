@@ -1504,11 +1504,13 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=
 
     check_intersection_and_complement(partition, true_partition)
 
+    reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
+
     def get_clonal_fraction(uid, inferred_cluster):
         """ Return the fraction of seqs in <uid>'s inferred cluster which are really clonal. """
         n_clonal = 0
         for tmpid in inferred_cluster:  # NOTE this includes the case where tmpid equal to uid
-            if reco_info[tmpid]['reco_id'] == reco_info[uid]['reco_id']:
+            if reco_ids[tmpid] == reco_ids[uid]:
                 n_clonal += 1
         return float(n_clonal) / len(inferred_cluster)
 
@@ -1534,7 +1536,7 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=
 # ----------------------------------------------------------------------------------------
 def correct_cluster_fractions(partition, true_partition, debug=False):
     # return new_ccfs_that_need_better_names(partition, true_partition, debug)  # hey, look, I'm a hack! Seriously, though, the new ccfs above are pretty similar, except they're per-sequence rather than per-cluster, so they don't get all scatterbrained and shit when a sample's only got a few clusters. Also, you still get partial credit for how good your cluster is, it's not just all-or-nothing.
-    raise Exception('deprecated!')
+    # print 'deprecated!'
 
     def find_clusters_with_ids(ids, partition):
         """ find all clusters in <partition> that contain at least one of <ids> """
