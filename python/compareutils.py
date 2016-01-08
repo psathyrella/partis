@@ -151,7 +151,7 @@ def parse_vollmers(args, info, seqfname, outdir, reco_info, true_partition, rebi
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
                 deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metrics=None)
                 utils.check_intersection_and_complement(partition, true_partition)
-                ccfs = utils.correct_cluster_fractions(partition, true_partition)
+                ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
                 metrics = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
 
             deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition, rebin=rebin), metrics)
@@ -225,8 +225,8 @@ def parse_partis(args, action, info, seqfname, outdir, reco_info, true_partition
     info_vname = vname + ' partis'  # arg, shouldn't have done it that way
     metrics = None
     if not args.data:
-        print 'TODO this should already be in the file'
-        ccfs = utils.correct_cluster_fractions(cpath.partitions[cpath.i_best], true_partition)
+        # ccfs = utils.new_ccfs_that_need_better_names(cpath.partitions[cpath.i_best], true_partition, reco_info)
+        ccfs = cpath.ccfs[cpath.i_best]
         metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
     deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
 
@@ -240,7 +240,7 @@ def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, true_p
             info['partitions'][vname] = new_partition
             info['adj_mi'][vname] = utils.adjusted_mutual_information(info['partitions']['true'], new_partition)
             write_float_val(outdir + '/adj_mi/' + vname + '.csv', info['adj_mi'][vname], 'adj_mi')
-            ccfs = utils.correct_cluster_fractions(new_partition, true_partition)
+            ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
             info['ccf_under'][vname] = ccfs[0]
             info['ccf_over'][vname] = ccfs[1]
             write_float_val(outdir + '/ccf_under/' + vname + '.csv', ccfs[0], 'ccf_under')
@@ -796,7 +796,8 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         assert False  # need to work out why changeo is filtering out so many seqs, and decide how to treat them if I can't fix it
 
         write_float_val(imgtdir + '-adj_mi.csv', adj_mi, 'adj_mi')
-        ccfs = utils.correct_cluster_fractions(partition, true_partition)
+        raise Exception('dont do this here, do it somewhere else')
+        ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
         write_float_val(imgtdir + '-ccf_under.csv', ccfs[0], 'ccf_under')
         write_float_val(imgtdir + '-ccf_over.csv', ccfs[1], 'ccf_over')
 

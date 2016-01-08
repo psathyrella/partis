@@ -357,8 +357,9 @@ class PartitionDriver(object):
         adj_mi = None
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
-            adj_mi = utils.adjusted_mutual_information(partition, utils.get_true_partition(self.reco_info))
-            ccfs = utils.correct_cluster_fractions(partition, self.reco_info)
+            true_partition = utils.get_true_partition(self.reco_info)
+            adj_mi = utils.adjusted_mutual_information(partition, true_partition)
+            ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
         cp = ClusterPath()
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
         if self.args.outfname is not None:
