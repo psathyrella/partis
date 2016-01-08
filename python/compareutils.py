@@ -22,11 +22,33 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over']
 
 # ----------------------------------------------------------------------------------------
+def FOOP():
+    _, reco_info = seqfileopener.get_seqfile_info('/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/istartstop-5850-8850/simu-7-leaves-1-mutate.csv', is_data=False)
+    true_partition = utils.get_true_partition(reco_info)
+    tholds = [0.005, 0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.07, 0.1, 0.2, 0.3]
+    for thold in [0.005, 0.025, 0.3]:  #tholds:
+        cpath = ClusterPath()
+        cpath.readfile(str(thold) + '.csv')
+        partition = cpath.partitions[cpath.i_best]
+        # cpath.print_partition(cpath.i_best)
+        print utils.correct_cluster_fractions(partition, true_partition)
+        # print utils.adjusted_mutual_information(true_partition, partition)
+
+    # hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
+
+# ----------------------------------------------------------------------------------------
+def mut_str(mut_mult):
+    if float(mut_mult).is_integer():  # TODO fix this
+        return '%d' % mut_mult
+    else:
+        return '%.1f' % mut_mult
+
+# ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult):
     if args.data:
         title = 'data (%s %s)' % (args.dataset, label)
     else:
-        title = '%d leaves, %dx mutation' % (n_leaves, mut_mult)
+        title = '%d leaves, %sx mutation' % (n_leaves, mut_str(mut_mult))
         if args.istartstop is not None:
             title += ', %d seqs' % (args.istartstop[1] - args.istartstop[0])
         if args.indels:
@@ -40,6 +62,8 @@ def leafmutstr(args, n_leaves, mut_mult):
         return_str += '-indels'
     if args.lonely_leaves:
         return_str += '-lonely-leaves'
+    if args.mimic:
+        return_str += '-mimic'
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -95,7 +119,7 @@ def deal_with_parse_results(info, outdir, vname, partition, hist, metrics=None, 
             write_float_val(outdir + '/' + mname + '/' + vname, val, mname)
 
 # ----------------------------------------------------------------------------------------
-def parse_vollmers(args, info, seqfname, outdir, reco_info, rebin=None):
+def parse_vollmers(args, info, seqfname, outdir, reco_info, true_partition, rebin=None):
     vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
     n_lines = 0
     with open(vollmers_fname) as vfile:
@@ -106,11 +130,10 @@ def parse_vollmers(args, info, seqfname, outdir, reco_info, rebin=None):
             partition = utils.get_partition_from_str(partitionstr)
             metrics = None
             if not args.data:
-                true_partition = utils.get_true_partition(reco_info)
                 truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
                 deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metrics=None)
                 utils.check_intersection_and_complement(partition, true_partition)
-                ccfs = utils.correct_cluster_fractions(partition, reco_info)
+                ccfs = utils.correct_cluster_fractions(partition, true_partition)
                 metrics = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
 
             deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition, rebin=rebin), metrics)
@@ -175,7 +198,7 @@ def parse_mixcr(args, info, seqfname, outdir):
     deal_with_parse_results(info, outdir, 'mixcr', None, mixhist, None)
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(args, action, info, seqfname, outdir, reco_info, rebin=None):
+def parse_partis(args, action, info, seqfname, outdir, reco_info, true_partition, rebin=None):
     cpath = ClusterPath()
     cpath.readfile(seqfname.replace('.csv', '-' + action + '.csv'))
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
@@ -184,12 +207,13 @@ def parse_partis(args, action, info, seqfname, outdir, reco_info, rebin=None):
     info_vname = vname + ' partis'  # arg, shouldn't have done it that way
     metrics = None
     if not args.data:
-        ccfs = utils.correct_cluster_fractions(cpath.partitions[cpath.i_best], reco_info)
+        print 'TODO this should already be in the file'
+        ccfs = utils.correct_cluster_fractions(cpath.partitions[cpath.i_best], true_partition)
         metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
     deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
 
 # ----------------------------------------------------------------------------------------
-def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, rebin=None):
+def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, true_partition, rebin=None):
     print 'TODO this is slow for large samples, don\'t rerun it unless you need to'
     for misfrac in [0.1, 0.9]:
         for mistype in ['singletons', 'reassign']:
@@ -198,7 +222,7 @@ def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, rebin=
             info['partitions'][vname] = new_partition
             info['adj_mi'][vname] = utils.adjusted_mutual_information(info['partitions']['true'], new_partition)
             write_float_val(outdir + '/adj_mi/' + vname + '.csv', info['adj_mi'][vname], 'adj_mi')
-            ccfs = utils.correct_cluster_fractions(new_partition, reco_info)
+            ccfs = utils.correct_cluster_fractions(new_partition, true_partition)
             info['ccf_under'][vname] = ccfs[0]
             info['ccf_over'][vname] = ccfs[1]
             write_float_val(outdir + '/ccf_under/' + vname + '.csv', ccfs[0], 'ccf_under')
@@ -319,11 +343,17 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         if 'zoom' in hs:
             if metric == 'logprob':
                 nbins, xmin, xmax = 40, 0, 30
+                ybounds = (0., 0.1)
             elif metric == 'naive_hfrac':
                 nbins, xmin, xmax = 30, 0.02, 0.2
                 ybounds = (0., 0.1)
             else:
                 assert False
+        else:
+            if metric == 'logprob':
+                pass  #ybounds = (0., 0.)
+            elif metric == 'naive_hfrac':
+                ybounds = (0., 0.8)
 
         delta = xmax - xmin
         if metric == 'logprob':
@@ -337,7 +367,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname, reco_info, metric):
     cachevals = {}
-    singletons, pairs, triplets, quads = [], [], [], []
+    everybody, singletons, pairs, triplets, quads = [], [], [], [], []
     with open(cachefname) as cachefile:
         reader = csv.DictReader(cachefile)
         # iline = 0
@@ -357,6 +387,8 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
             if not utils.from_same_event(reco_info, unique_ids):
                 continue
 
+            everybody.append(line['unique_ids'])
+            
             if len(unique_ids) == 1:
                 singletons.append(line['unique_ids'])
             elif len(unique_ids) == 2:
@@ -372,29 +404,32 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
     plotdir = baseplotdir + '/distances'
     plotname = leafmutstr(args, n_leaves, mut_mult)
 
+    print 'everybody'
+    make_a_distance_plot(args, metric, itertools.combinations(everybody, 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/everybody', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (everybody)')
+
     print 'singletons'
     make_a_distance_plot(args, metric, itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/singletons', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (singletons)')
 
-    print 'one pair one singleton'
-    one_pair_one_singleton = []
-    for ipair in range(len(pairs)):
-        for ising in range(len(singletons)):
-            one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
-    make_a_distance_plot(args, metric, one_pair_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-pair-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (pair + single)')
+    # print 'one pair one singleton'
+    # one_pair_one_singleton = []
+    # for ipair in range(len(pairs)):
+    #     for ising in range(len(singletons)):
+    #         one_pair_one_singleton.append((pairs[ipair], singletons[ising]))
+    # make_a_distance_plot(args, metric, one_pair_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-pair-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (pair + single)')
 
-    print 'one triplet one singleton'
-    one_triplet_one_singleton = []
-    for itriplet in range(len(triplets)):
-        for ising in range(len(singletons)):
-            one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
-    make_a_distance_plot(args, metric, one_triplet_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-triplet-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triple + single)')
+    # print 'one triplet one singleton'
+    # one_triplet_one_singleton = []
+    # for itriplet in range(len(triplets)):
+    #     for ising in range(len(singletons)):
+    #         one_triplet_one_singleton.append((triplets[itriplet], singletons[ising]))
+    # make_a_distance_plot(args, metric, one_triplet_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-triplet-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triple + single)')
 
-    print 'one quad one singleton'
-    one_quad_one_singleton = []
-    for iquad in range(len(quads)):
-        for ising in range(len(singletons)):
-            one_quad_one_singleton.append((quads[iquad], singletons[ising]))
-    make_a_distance_plot(args, metric, one_quad_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (quad + single)')
+    # print 'one quad one singleton'
+    # one_quad_one_singleton = []
+    # for iquad in range(len(quads)):
+    #     for ising in range(len(singletons)):
+    #         one_quad_one_singleton.append((quads[iquad], singletons[ising]))
+    # make_a_distance_plot(args, metric, one_quad_one_singleton, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/one-quad-one-singleton', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (quad + single)')
 
 
 
@@ -462,11 +497,12 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
     # if n_leaves > 10:
     #     rebin = 2
 
+    true_partition = utils.get_true_partition(reco_info)
     # vollmers annotation (and true hists)
-    parse_vollmers(args, this_info, seqfname, csvdir, reco_info, rebin=rebin)
+    parse_vollmers(args, this_info, seqfname, csvdir, reco_info, true_partition, rebin=rebin)
 
     if not args.data:
-        add_synthetic_partition_info(args, this_info, seqfname, csvdir, reco_info, rebin=rebin)
+        add_synthetic_partition_info(args, this_info, seqfname, csvdir, reco_info, true_partition, rebin=rebin)
 
     if not args.no_mixcr:
         parse_mixcr(args, this_info, seqfname, csvdir)
@@ -474,9 +510,9 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
     if not args.no_changeo:
         parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir, rebin=rebin)
 
-    # # partis stuff
-    # for ptype in ['vsearch-', 'naive-hamming-', '']:
-    #     parse_partis(args, ptype + 'partition', this_info, seqfname, csvdir, reco_info, rebin=rebin)
+    # partis stuff
+    for ptype in ['vsearch-', 'naive-hamming-', '']:
+        parse_partis(args, ptype + 'partition', this_info, seqfname, csvdir, reco_info, true_partition, rebin=rebin)
 
     log = 'xy'
     if not args.data and n_leaves <= 10:
@@ -742,7 +778,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         assert False  # need to work out why changeo is filtering out so many seqs, and decide how to treat them if I can't fix it
 
         write_float_val(imgtdir + '-adj_mi.csv', adj_mi, 'adj_mi')
-        ccfs = utils.correct_cluster_fractions(partition, reco_info)
+        ccfs = utils.correct_cluster_fractions(partition, true_partition)
         write_float_val(imgtdir + '-ccf_under.csv', ccfs[0], 'ccf_under')
         write_float_val(imgtdir + '-ccf_over.csv', ccfs[1], 'ccf_over')
 
@@ -968,6 +1004,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
             extras += ['--indel-frequency', 0.5]
         if args.lonely_leaves:
             extras += ['--constant-number-of-leaves', ]
+        if args.mimic:
+            extras += ['--mimic-data-read-length', ]
         n_procs = 10
     elif action == 'cache-simu-parameters':
         if output_exists(args, seqfname.replace('.csv', '')):
@@ -1024,6 +1062,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
         n_procs = 500
     n_proc_str = str(n_procs)
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
+    if action != 'simulate':
+        extras += ['--slurm', ]
     if n_procs > 10:
         n_fewer_procs = max(1, n_fewer_procs)
         n_proc_str += ':' + str(n_fewer_procs)
@@ -1047,5 +1087,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(30)  # 300sec = 5min
-
+    time.sleep(900)  # 300sec = 5min
