@@ -1533,6 +1533,8 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=
 
 # ----------------------------------------------------------------------------------------
 def correct_cluster_fractions(partition, true_partition, debug=False):
+    # return new_ccfs_that_need_better_names(partition, true_partition, debug)  # hey, look, I'm a hack! Seriously, though, the new ccfs above are pretty similar, except they're per-sequence rather than per-cluster, so they don't get all scatterbrained and shit when a sample's only got a few clusters. Also, you still get partial credit for how good your cluster is, it's not just all-or-nothing.
+    raise Exception('deprecated!')
 
     def find_clusters_with_ids(ids, partition):
         """ find all clusters in <partition> that contain at least one of <ids> """
