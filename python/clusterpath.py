@@ -101,7 +101,7 @@ class ClusterPath(object):
             true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])
             self.adj_mis[ip] = utils.adjusted_mutual_information(self.partitions[ip], true_partition)
             assert self.ccfs[ip] == [None, None]
-            self.ccfs[ip] = utils.correct_cluster_fractions(self.partitions[ip], reco_info)
+            self.ccfs[ip] = utils.correct_cluster_fractions(self.partitions[ip], true_partition)
             self.we_have_an_adj_mi = True
 
     # ----------------------------------------------------------------------------------------

@@ -1512,24 +1512,24 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=
                 n_clonal += 1
         return float(n_clonal) / len(inferred_cluster)
 
-    def get_split_fraction(uid, inferred_cluster, true_cluster):
-        """ Return the fraction of <uid>'s true clonemates which do not appear in <uid>'s inferred cluster. """
-        n_split = 0
+    def get_fraction_present(uid, inferred_cluster, true_cluster):
+        """ Return the fraction of <uid>'s true clonemates which appear in <uid>'s inferred cluster. """
+        n_present = 0
         for tmpid in true_cluster:  # NOTE this includes the case where tmpid equal to uid
-            if tmpid not in inferred_cluster:
-                n_split += 1
-        return float(n_split) / len(true_cluster)
+            if tmpid in inferred_cluster:
+                n_present += 1
+        return float(n_present) / len(true_cluster)
 
-    mean_clonal_fraction, mean_split_fraction = 0., 0.
+    mean_clonal_fraction, mean_fraction_present = 0., 0.
     n_uids = 0
     for true_cluster in true_partition:
         for uid in true_cluster:
             inferred_cluster = partition[find_uid_in_partition(uid, partition)]
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
-            mean_split_fraction +=  get_split_fraction(uid, inferred_cluster, true_cluster)
+            mean_fraction_present +=  get_fraction_present(uid, inferred_cluster, true_cluster)
             n_uids += 1
 
-    return mean_clonal_fraction / n_uids, 1. - mean_split_fraction / n_uids
+    return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
 
 # ----------------------------------------------------------------------------------------
 def correct_cluster_fractions(partition, true_partition, debug=False):
