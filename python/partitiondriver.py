@@ -372,6 +372,9 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=True):
+        if self.args.naive_hamming_threshold is not None:
+            return self.args.naive_hamming_threshold
+
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
         if debug:
