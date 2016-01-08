@@ -20,13 +20,14 @@ parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--lonely-leaves', action='store_true')
+parser.add_argument('--mimic', action='store_true')
 parser.add_argument('--extra-label-str')
 parser.add_argument('--bak', action='store_true')
 parser.add_argument('--count-distances', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-to-partition', type=int, default=5000)
-parser.add_argument('--n-data-to-cache', type=int, default=50000)
+parser.add_argument('--n-data-to-cache', type=int, default=100000)
 parser.add_argument('--n-sim-seqs', type=int, default=10000)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
@@ -43,6 +44,7 @@ all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'pa
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
+print 'TODO fix intify/floatify'
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
@@ -68,6 +70,8 @@ if args.istartstop is not None:
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
 
 # ----------------------------------------------------------------------------------------
+# compareutils.FOOP()
+# sys.exit()
 
 # # ----------------------------------------------------------------------------------------
 # from clusterplot import ClusterPlot
