@@ -33,20 +33,33 @@ def is_normed(probs, this_eps=eps):
         return math.fabs(probs - 1.0) < this_eps
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, floatify=False, translation=None):  # make lists from args that are passed as strings of colon-separated values
+def pass_fcn(val):  # dummy function for conversions (see beloww)
+    return val
+
+# ----------------------------------------------------------------------------------------
+def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pairs=False):  # make lists from args that are passed as strings of colon-separated values
     if arg is None:
         return None
+
+    convert_fcn = pass_fcn
+    if intify:
+        convert_fcn = int
+    elif floatify:
+        convert_fcn = float
+
+    arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+    if list_of_pairs:
+        arglist = [pairstr.split(',') for pairstr in arglist]
+        arglist = [[convert_fcn(p) for p in pair] for pair in arglist]
     else:
-        arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
-        if intify:
-            arglist = [int(x) for x in arglist]
-        elif floatify:
-            arglist = [float(x) for x in arglist]
-        if translation is not None:
-            for ia in range(len(arglist)):
-                if arglist[ia] in translation:
-                    arglist[ia] = translation[arglist[ia]]
-        return arglist
+        arglist = [convert_fcn(x) for x in arglist]
+
+    if translation is not None:
+        for ia in range(len(arglist)):
+            if arglist[ia] in translation:
+                arglist[ia] = translation[arglist[ia]]
+
+    return arglist
 
 # # ----------------------------------------------------------------------------------------
 # hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
