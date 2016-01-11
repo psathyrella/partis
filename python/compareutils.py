@@ -52,7 +52,7 @@ def FOOP():
     ax.plot(tholds, nccf_b, label='new ccf b', color='#4e8975', linestyle='--')
     ax.plot(tholds, nccf_product, label='new ccf product', color='#006600')
     plotting.mpl_finish(ax, os.getenv('www') + '/partis/tmp', 'foop', log='x', xticks=tholds, xticklabels=tholds)  #, leg_loc=())
-    # hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
+    # hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
 
 # ----------------------------------------------------------------------------------------
 def mut_str(mut_mult):
@@ -62,11 +62,13 @@ def mut_str(mut_mult):
         return '%.1f' % mut_mult
 
 # ----------------------------------------------------------------------------------------
-def get_title(args, label, n_leaves, mut_mult):
+def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if args.data:
         title = 'data (%s %s)' % (args.dataset, label)
     else:
         title = '%d leaves, %sx mutation' % (n_leaves, mut_str(mut_mult))
+        if hfrac_bounds is not None:
+            title += ', %.2f-%.2f hfrac' % tuple(hfrac_bounds)
         if args.istartstop is not None:
             title += ', %d seqs' % (args.istartstop[1] - args.istartstop[0])
         if args.indels:
@@ -74,8 +76,14 @@ def get_title(args, label, n_leaves, mut_mult):
     return title
 
 # ----------------------------------------------------------------------------------------
-def leafmutstr(args, n_leaves, mut_mult):
+def get_str(a_list):
+    return '-'.join([str(item) for item in a_list])
+
+# ----------------------------------------------------------------------------------------
+def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
     return_str = 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
+    if hfrac_bounds is not None:
+        return_str += '-' + get_str(hfrac_bounds)
     if args.indels:
         return_str += '-indels'
     if args.lonely_leaves:
@@ -91,7 +99,7 @@ def get_outdirname(args, label, no_subset=False):
         if args.subset is not None:
             outdirname += '/subset-' + str(args.subset)
         if args.istartstop is not None:
-            outdirname += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+            outdirname += '/istartstop-' + get_str(args.istartstop)
     return outdirname
 
 # ----------------------------------------------------------------------------------------
@@ -108,7 +116,7 @@ def get_program_workdir(args, program_name, label, n_leaves, mut_mult):
     if args.subset is not None:
         outdir += '/subset-' + str(args.subset)
     if args.istartstop is not None:
-        outdir += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+        outdir += '/istartstop-' + get_str(args.istartstop)
     return outdir
 
 # ----------------------------------------------------------------------------------------
@@ -134,11 +142,16 @@ def deal_with_parse_results(info, outdir, vname, partition, hist, metrics=None, 
     if metrics is not None and vname != 'true':
         for mname, val in metrics.items():
             info[mname][info_vname] = val
-            write_float_val(outdir + '/' + mname + '/' + vname, val, mname)
+            write_float_val(outdir + '/' + mname + '/' + vname + '.csv', val, mname)
 
 # ----------------------------------------------------------------------------------------
-def parse_vollmers(args, info, seqfname, outdir, reco_info, true_partition, rebin=None):
-    vollmers_fname = seqfname.replace('.csv', '-run-viterbi.csv')
+def parse_true(args, info, outdir, true_partition):
+    # well, not really parse per se
+    truehist = plotting.get_cluster_size_hist(true_partition)
+    deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metrics=None)
+
+# ----------------------------------------------------------------------------------------
+def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition):
     n_lines = 0
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
@@ -148,19 +161,18 @@ def parse_vollmers(args, info, seqfname, outdir, reco_info, true_partition, rebi
             partition = utils.get_partition_from_str(partitionstr)
             metrics = None
             if not args.data:
-                truehist = plotting.get_cluster_size_hist(true_partition, rebin=rebin)
-                deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metrics=None)
                 utils.check_intersection_and_complement(partition, true_partition)
                 ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
                 metrics = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
 
-            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition, rebin=rebin), metrics)
+            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition), metrics)
 
     if n_lines < 1:
         raise Exception('zero partition lines read from %s' % vollmers_fname)
 
 # ----------------------------------------------------------------------------------------
-def parse_changeo(args, label, n_leaves, mut_mult, info, simfbase, outdir, rebin=None):
+def parse_changeo(args, label, n_leaves, mut_mult, info, simfbase, outdir):
+    print 'TODO update for all sorts of shit (including hfrac_bounds)'
     raise Exception('rerun all the changeo stuff accounting for missing uids')
     indir = get_changeo_outdir(args, label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
     if args.data:
@@ -195,10 +207,11 @@ def parse_changeo(args, label, n_leaves, mut_mult, info, simfbase, outdir, rebin
         for etype in ['under', 'over']:
             ccf_fname = infname.replace(changeorandomcrapstr, '-ccf_' + etype+ '.csv')
             metrics['ccf_' + etype] = read_float_val(ccf_fname, 'ccf_' + etype)
-    deal_with_parse_results(info, outdir, 'changeo', partition, plotting.get_cluster_size_hist(partition, rebin=rebin), metrics)
+    deal_with_parse_results(info, outdir, 'changeo', partition, plotting.get_cluster_size_hist(partition), metrics)
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, info, seqfname, outdir):
+    print 'TODO update for all sorts of shit (including hfrac_bounds)'
     raise Exception('rerun all the mixcr stuff accounting for missing uids')
     mixfname = seqfname.replace('.csv', '-mixcr.tsv')
     cluster_size_list = []  # put 'em in a list first so we know where to put the hist limits
@@ -216,10 +229,10 @@ def parse_mixcr(args, info, seqfname, outdir):
     deal_with_parse_results(info, outdir, 'mixcr', None, mixhist, None)
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(args, action, info, seqfname, outdir, reco_info, true_partition, rebin=None):
+def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition):
     cpath = ClusterPath()
-    cpath.readfile(seqfname.replace('.csv', '-' + action + '.csv'))
-    hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best], rebin=rebin)
+    cpath.readfile(outfname)
+    hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     vname = action
     info_vname = vname + ' partis'  # arg, shouldn't have done it that way
@@ -231,8 +244,7 @@ def parse_partis(args, action, info, seqfname, outdir, reco_info, true_partition
     deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
 
 # ----------------------------------------------------------------------------------------
-def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, true_partition, rebin=None):
-    print 'TODO this is slow for large samples, don\'t rerun it unless you need to'
+def add_synthetic_partition_info(args, info, outdir, reco_info, true_partition):
     for misfrac in [0.1, 0.9]:
         for mistype in ['singletons', 'reassign']:
             vname = 'misassign-%.2f-%s' % (misfrac, mistype)
@@ -245,7 +257,7 @@ def add_synthetic_partition_info(args, info, seqfname, outdir, reco_info, true_p
             info['ccf_over'][vname] = ccfs[1]
             write_float_val(outdir + '/ccf_under/' + vname + '.csv', ccfs[0], 'ccf_under')
             write_float_val(outdir + '/ccf_over/' + vname + '.csv', ccfs[1], 'ccf_over')
-            hist = plotting.get_cluster_size_hist(new_partition, rebin=rebin)
+            hist = plotting.get_cluster_size_hist(new_partition)
             hist.write(outdir + '/hists/' + vname + '.csv')
             info['hists'][vname] = hist
 
@@ -466,75 +478,77 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
     # make_a_distance_plot(args, metric, two_triplets, reco_info, cachevals, plotdir=plotdir + '/' + metric + '/two-triplets', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (triplet + triplet)')
 
 # ----------------------------------------------------------------------------------------
-def write_all_plot_csvs(args, label):
+def write_all_plot_csvs(args, label, parameterlist, datafname):
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
     info = {k : {} for k in metrics + ['hists', 'partitions']}
-    # hists, adj_mis, ccfs, partitions = {}, {}, {}, {}
-    for n_leaves in args.n_leaf_list:
-        for mut_mult in args.mutation_multipliers:
-            print n_leaves, mut_mult
-            write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info)
+    for params in parameterlist:
+        write_each_plot_csvs(args, baseplotdir, label, params['n_leaves'], params['mut_mult'], info, params['hfrac_bounds'], datafname)
 
     check_call(['./bin/permissify-www', baseplotdir])
 
 # ----------------------------------------------------------------------------------------
-def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, info):
-    for k in info:
-        if n_leaves not in info[k]:
-            info[k][n_leaves] = {}
-        if mut_mult not in info[k][n_leaves]:
-            info[k][n_leaves][mut_mult] = OrderedDict()
-    this_info = {k : info[k][n_leaves][mut_mult] for k in info}
+def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info, hfrac_bounds, datafname):
+    for k in all_info:
+        if n_leaves not in all_info[k]:
+            all_info[k][n_leaves] = {}
+        if mut_mult not in all_info[k][n_leaves]:
+            all_info[k][n_leaves][mut_mult] = OrderedDict()
+        if hfrac_bounds is not None:
+            if get_str(hfrac_bounds) not in all_info[k][n_leaves][mut_mult]:
+                all_info[k][n_leaves][mut_mult][get_str(hfrac_bounds)] = OrderedDict()
+
+    if hfrac_bounds is None:
+        this_info = {k : all_info[k][n_leaves][mut_mult] for k in all_info}
+    else:
+        this_info = {k : all_info[k][n_leaves][mut_mult][get_str(hfrac_bounds)] for k in all_info}
 
     plotdir = baseplotdir + '/subsets'
     if args.subset is not None:
         plotdir += '/subset-' + str(args.subset)
     if args.istartstop is not None:
-        plotdir += '/istartstop-' + '-'.join([str(i) for i in args.istartstop])
+        plotdir += '/istartstop-' + get_str(args.istartstop)
 
+    seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
+    print 'TODO am I using simfbase anywhere?'
     if args.data:
-        seqfname = get_simfname(args, label, n_leaves, mut_mult).replace(leafmutstr(args, n_leaves, mut_mult), 'data')  # hackey hackey hackey
         simfbase = None
-        csvdir = os.path.dirname(seqfname) + '/data'
         plotname = 'data'
-        title = get_title(args, label, n_leaves, mut_mult)
     else:
-        seqfname = get_simfname(args, label, n_leaves, mut_mult)
-        simfbase = leafmutstr(args, n_leaves, mut_mult)
-        csvdir = os.path.dirname(seqfname) + '/' + simfbase
+        simfbase = leafmutstr(args, n_leaves, mut_mult, hfrac_bounds)
         plotname = simfbase
-        title = get_title(args, label, n_leaves, mut_mult)
 
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     if args.count_distances:
         for metric in ['logprob', 'naive_hfrac']:
             make_distance_plots(args, plotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, metric)
+        print '\nTODO why am I returning here?'
         return
 
-    rebin = None
-    # if n_leaves > 10:
-    #     rebin = 2
+    csvdir = seqfname.replace('.csv', '')
+    if hfrac_bounds is not None:
+        csvdir += '-hfrac-bounds-' + get_str(hfrac_bounds)
 
     true_partition = utils.get_true_partition(reco_info)
-    # vollmers annotation (and true hists)
-    parse_vollmers(args, this_info, seqfname, csvdir, reco_info, true_partition, rebin=rebin)
-
     if not args.data:
-        add_synthetic_partition_info(args, this_info, seqfname, csvdir, reco_info, true_partition, rebin=rebin)
+        parse_true(args, this_info, csvdir, true_partition)
+        if args.synthetic_partitions:
+            add_synthetic_partition_info(args, this_info, csvdir, reco_info, true_partition)
 
-    if not args.no_mixcr:
+    if 'run-viterbi' in args.expected_methods:
+        parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
+    if 'changeo' in args.expected_methods:
+        parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir)
+    if 'mixcr' in args.expected_methods:
         parse_mixcr(args, this_info, seqfname, csvdir)
 
-    if not args.no_changeo:
-        parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir, rebin=rebin)
-
     # partis stuff
-    for ptype in ['vsearch-', 'naive-hamming-', '']:
-        parse_partis(args, ptype + 'partition', this_info, seqfname, csvdir, reco_info, true_partition, rebin=rebin)
+    for action in [a for a in args.expected_methods if 'partition' in a]:
+        parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
 
     log = 'xy'
     if not args.data and n_leaves <= 10:
         log = 'x'
+    title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
     if not args.no_similarity_matrices:  # they're kinda slow is all
@@ -574,7 +588,25 @@ def compare_subsets(args, label):
     plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
 
 # ----------------------------------------------------------------------------------------
+def compare_thresholds(args, label):
+    assert False 
+    baseplotdir = os.getenv('www') + '/partis/clustering/' + label
+    info = {k : {} for k in metrics + ['hists', ]}
+    for hfrac_bound in args.hfrac_bound_list:
+        compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info)
+
+    if not args.data and args.plot_mean_of_subsets:
+        for mut_mult in args.mutation_multipliers:
+            for metric in metrics:
+                plotvals = convert_adj_mi_and_co_to_plottable(args, info[metric], mut_mult)
+                plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+
+    check_call(['./bin/permissify-www', baseplotdir])
+    plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
+
+# ----------------------------------------------------------------------------------------
 def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info):
+    raise Exception('updatefor hfrac_bounds')
     for k in info:
         if n_leaves not in info[k]:
             info[k][n_leaves] = {}
@@ -608,7 +640,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
         subdirs = [basedir + '/istartstop-' + str(istartstop[0]) + '-' + str(istartstop[1]) for istartstop in args.istartstoplist]
         nseq_list = [istartstop[1] - istartstop[0] for istartstop in args.istartstoplist]
     else:
-        assert False
+        subdirs = [basedir, ]
 
     per_subset_info = {k : OrderedDict() for k in metrics + ['hists', ]}
     for metric in per_subset_info:
@@ -950,7 +982,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
         if args.istartstop is None:
             seqfname = datafname
         else:
-            subfname = args.fsdir + '/' + label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/data.csv'
+            subfname = args.fsdir + '/' + label + '/istartstop-' + get_str(args.istartstop) + '/data.csv'
             slice_file(args, datafname, subfname)
             seqfname = subfname
     else:
@@ -962,7 +994,8 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
             ntot = int(check_output(['wc', '-l', simfname]).split()[0]) - 1
             subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
             if os.path.exists(subsimfname):
-                print '      subset file exists %s' % subsimfname
+                pass
+                # print '      subset file exists %s' % subsimfname
             else:
                 print '      subsetting %d / %d' % (args.subset, args.n_subsets)
                 if not os.path.exists(os.path.dirname(subsimfname)):
@@ -975,7 +1008,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
             simfname = subsimfname
 
         if args.istartstop is not None:
-            subsimfname = simfname.replace(label + '/', label + '/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
+            subsimfname = simfname.replace(label + '/', label + '/istartstop-' + get_str(args.istartstop) + '/')
             slice_file(args, simfname, subsimfname)
             simfname = subsimfname
 
@@ -984,7 +1017,17 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
     return seqfname
 
 # ----------------------------------------------------------------------------------------
-def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
+def get_outputname(args, label, action, seqfname, hfrac_bounds):
+    if args.data:
+        outputname = get_outdirname(args, label) + '/data-' + action + '.csv'
+    else:
+        outputname = ('-' + action).join(os.path.splitext(seqfname))
+    if hfrac_bounds is not None:
+        outputname = outputname.replace('.csv', '-hfrac-bounds-' + get_str(hfrac_bounds) + '.csv')
+    return outputname
+
+# ----------------------------------------------------------------------------------------
+def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=None):
     cmd = './bin/run-driver.py --label ' + label + ' --action '
     if 'partition' in action:
         cmd += ' partition'
@@ -1000,12 +1043,6 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
             extras += ['--skip-unproductive', ]
     else:
         cmd += ' --simfname ' + seqfname
-
-    def get_outputname():
-        if args.data:
-            return get_outdirname(args, label) + '/data-' + action + '.csv'
-        else:
-            return ('-' + action).join(os.path.splitext(seqfname))
 
     n_procs, n_fewer_procs = 1, 1
     if action == 'cache-data-parameters':
@@ -1032,7 +1069,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
         n_procs = 20
         n_fewer_procs = min(500, args.n_sim_seqs / 2000)
     elif action == 'partition':
-        outfname = get_outputname()
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         if output_exists(args, outfname):
             return
         cmd += ' --outfname ' + outfname
@@ -1042,21 +1079,21 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
         n_procs = max(1, args.n_to_partition / 100)
         n_fewer_procs = min(500, args.n_to_partition / 2000)
     elif action == 'naive-hamming-partition':
-        outfname = get_outputname()
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         if output_exists(args, outfname):
             return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
         n_procs = max(1, args.n_to_partition / 200)
     elif action == 'vsearch-partition':
-        outfname = get_outputname()
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         if output_exists(args, outfname):
             return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
         n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
     elif action == 'run-viterbi':
-        outfname = get_outputname()
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         if output_exists(args, outfname):
             return
         cmd += ' --outfname ' + outfname
@@ -1075,6 +1112,10 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
     else:
         raise Exception('bad action %s' % action)
 
+    if hfrac_bounds is not None:
+        assert args.hfrac_bounds[0] == args.hfrac_bounds[1]  # to be implemented
+        extras += [' --naive-hamming-threshold ', args.hfrac_bounds[0]]
+
     # cmd += ' --plotdir ' + os.getenv('www') + '/partis'
     if n_procs > 500:
         print 'reducing n_procs %d --> %d' % (n_procs, 500)
@@ -1092,18 +1133,19 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs):
     cmd += baseutils.get_extra_str(extras)
     print '   ' + cmd
     # return
-    # check_call(cmd.split())
-    # return
-    if args.data:
-        logbase = args.fsdir + '/' + label + '/_logs/data-' + action
-    else:
-        logbase = args.fsdir + '/' + label + '/_logs/' + leafmutstr(args, n_leaves, mut_mult) + '-' + action
-    if args.subset is not None:
-        logbase = logbase.replace('_logs/', '_logs/subset-' + str(args.subset) + '/')
-    if args.istartstop is not None:
-        logbase = logbase.replace('_logs/', '_logs/istartstop-' + '-'.join([str(i) for i in args.istartstop]) + '/')
+
+    # if args.data:
+    #     logbase = args.fsdir + '/' + label + '/_logs/data-' + action
+    # else:
+    #     logbase = args.fsdir + '/' + label + '/_logs/' + leafmutstr(args, n_leaves, mut_mult) + '-' + action
+    # if args.subset is not None:
+    #     logbase = logbase.replace('_logs/', '_logs/subset-' + str(args.subset) + '/')
+    # if args.istartstop is not None:
+    #     logbase = logbase.replace('_logs/', '_logs/istartstop-' + get_str(args.istartstop) + '/')
+    logbase = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname)
+
     if not os.path.exists(os.path.dirname(logbase)):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(900)  # 300sec = 5min
+    time.sleep(300)  # 300sec = 5min
