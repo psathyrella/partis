@@ -18,6 +18,8 @@ parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adap
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--expected-methods', default='vollmers-0.9:mixcr:changeo:vsearch-partition:naive-hamming-partition:partition')
+parser.add_argument('--synthetic-partitions', action='store_true')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--lonely-leaves', action='store_true')
 parser.add_argument('--mimic', action='store_true')
@@ -25,6 +27,7 @@ parser.add_argument('--extra-label-str')
 parser.add_argument('--bak', action='store_true')
 parser.add_argument('--count-distances', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
+parser.add_argument('--hfrac-bound-list')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-to-partition', type=int, default=5000)
 parser.add_argument('--n-data-to-cache', type=int, default=100000)
@@ -45,17 +48,13 @@ parser.add_argument('--actions', required=True)  #, choices=all_actions)  #defau
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 print 'TODO fix intify/floatify'
-args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, intify=True)
+args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, floatify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
-args.istartstoplist = utils.get_arg_list(args.istartstoplist)
-if args.istartstoplist is not None:
-    for jstartstop in range(len(args.istartstoplist)):
-        istartstopstr = args.istartstoplist[jstartstop]
-        istart, istop = [int(i) for i in istartstopstr.split(',')]
-        args.istartstoplist[jstartstop] = [istart, istop]
-
+args.istartstoplist = utils.get_arg_list(args.istartstoplist, intify=True, list_of_pairs=True)
 args.humans = utils.get_arg_list(args.humans)
+args.hfrac_bound_list = utils.get_arg_list(args.hfrac_bound_list, floatify=True, list_of_pairs=True)
+args.expected_methods = utils.get_arg_list(args.expected_methods)
 
 if 'cache-data-parameters' in args.actions:
     args.data = True
@@ -138,26 +137,29 @@ for datafname in files:
 
     print 'run', human
     n_leaves, mut_mult = None, None  # values if we're runing on data
+    if not args.data:
+        if args.hfrac_bound_list is None:
+            parameterlist = [{'n_leaves' : nl, 'mut_mult' : mm, 'hfrac_bounds' : None} for nl in args.n_leaf_list for mm in args.mutation_multipliers]
+        else:
+            parameterlist = [{'n_leaves' : nl, 'mut_mult' : mm, 'hfrac_bounds' : hbs} for nl in args.n_leaf_list for mm in args.mutation_multipliers for hbs in args.hfrac_bound_list]
+
     for action in args.actions:
-        if action == 'write-plots' or action == 'compare-subsets' or action == 'compare-istarstops':
+        if action == 'write-plots' or action == 'compare-subsets':
             continue
         print ' ', action
         if action == 'cache-data-parameters':
             compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
             continue
-        for n_leaves in args.n_leaf_list:
-            print '    ----> ', n_leaves, ' leaves'
-            for mut_mult in args.mutation_multipliers:
-                print '        ----> mutate', mut_mult
-                compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
-                # sys.exit()
+
+        for params in parameterlist:
+            compareutils.execute(args, action, datafname, label, params['n_leaves'], params['mut_mult'], procs, params['hfrac_bounds'])
 
     if 'write-plots' in args.actions:
-        compareutils.write_all_plot_csvs(args, label)
+        compareutils.write_all_plot_csvs(args, label, parameterlist, datafname)
     if 'compare-subsets' in args.actions:
         compareutils.compare_subsets(args, label)
-
-    # break
+    if 'compare-thresholds' in args.actions:
+        compareutils.compare_thresholds(args, label)
 
 if len(procs) > 0:
     exit_codes = [p.wait() for p in procs]
