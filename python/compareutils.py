@@ -83,7 +83,7 @@ def get_str(a_list):
 def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
     return_str = 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
     if hfrac_bounds is not None:
-        return_str += '-' + get_str(hfrac_bounds)
+        return_str += '-hfrac-bounds-' + get_str(hfrac_bounds)
     if args.indels:
         return_str += '-indels'
     if args.lonely_leaves:
@@ -481,6 +481,7 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
 def write_all_plot_csvs(args, label, parameterlist, datafname):
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
     info = {k : {} for k in metrics + ['hists', 'partitions']}
+    print 'TODO I don\'t think I\'m actually using <info> for anything'
     for params in parameterlist:
         write_each_plot_csvs(args, baseplotdir, label, params['n_leaves'], params['mut_mult'], info, params['hfrac_bounds'], datafname)
 
@@ -509,7 +510,6 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         plotdir += '/istartstop-' + get_str(args.istartstop)
 
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
-    print 'TODO am I using simfbase anywhere?'
     if args.data:
         simfbase = None
         plotname = 'data'
@@ -559,7 +559,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
             plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
-def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
+def rearrange_metrics_vs_n_leaves(args, valdict, mut_mult_to_use):
     plotvals = OrderedDict()
     for n_leaves in args.n_leaf_list:
         for meth, (val, err) in valdict[n_leaves][mut_mult_to_use].items():
@@ -571,6 +571,8 @@ def convert_adj_mi_and_co_to_plottable(args, valdict, mut_mult_to_use):
 # ----------------------------------------------------------------------------------------
 def compare_subsets(args, label):
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
+    if args.hfrac_bound_list is not None and args.istartstop is not None:
+        baseplotdir += '/subsets/istartstop-' + get_str(args.istartstop)
     info = {k : {} for k in metrics + ['hists', ]}
     for n_leaves in args.n_leaf_list:
         print '%d leaves' % n_leaves
@@ -578,120 +580,145 @@ def compare_subsets(args, label):
             print '  %.1f mutation' % mut_mult
             compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info)
 
-    if not args.data and args.plot_mean_of_subsets:
-        for mut_mult in args.mutation_multipliers:
-            for metric in metrics:
-                plotvals = convert_adj_mi_and_co_to_plottable(args, info[metric], mut_mult)
-                plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+    if not args.data:
+        if args.plot_mean_of_subsets:  # plot adj mi and stuff for means over subsets, as a function of n_leaves
+            for mut_mult in args.mutation_multipliers:
+                for metric in metrics:
+                    plotvals = rearrange_metrics_vs_n_leaves(args, info[metric], mut_mult)
+                    plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+            plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
+        elif args.hfrac_bound_list is not None:
+            plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics', n_columns=4)
 
     check_call(['./bin/permissify-www', baseplotdir])
-    plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
 
 # ----------------------------------------------------------------------------------------
-def compare_thresholds(args, label):
-    assert False 
-    baseplotdir = os.getenv('www') + '/partis/clustering/' + label
-    info = {k : {} for k in metrics + ['hists', ]}
-    for hfrac_bound in args.hfrac_bound_list:
-        compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info)
+def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, all_info):
+    """ Where "subsets" means any of a number of different things, or more accurately, this function name means almost nothing. """
 
-    if not args.data and args.plot_mean_of_subsets:
-        for mut_mult in args.mutation_multipliers:
+    per_subset_info = read_histfiles_and_co(args, label, n_leaves, mut_mult)
+    this_info = get_this_info(all_info, n_leaves, mut_mult)
+
+    if args.hfrac_bound_list is not None:  # plot things as a function of hfrac bounds
+        plotdir = baseplotdir + '/plots-vs-thresholds/metrics'
+        plotting.plot_metrics_vs_thresholds([b[0] for b in args.hfrac_bound_list], per_subset_info, plotdir, leafmutstr(args, n_leaves, mut_mult), title=get_title(args, label, n_leaves, mut_mult))
+        # for metric in metrics:
+        #     for method in get_expected_methods_to_plot(args, metric):
+        #         this_info[metric][method] = per_subset_info[metric][method]
+    elif args.plot_mean_of_subsets:  # fill this_info with hists of mean over subsets, and plot them
+        plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir)
+    else:  # if we're not averaging over the subsets for each leafmut (and we're not plotting vs thresholds), then we want to plot adj_mi (and whatnot) as a function of subset (presumably each subset is a different size)
+        if not args.data:
             for metric in metrics:
-                plotvals = convert_adj_mi_and_co_to_plottable(args, info[metric], mut_mult)
-                plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
-
-    check_call(['./bin/permissify-www', baseplotdir])
-    plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
-
-# ----------------------------------------------------------------------------------------
-def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info):
-    raise Exception('updatefor hfrac_bounds')
-    for k in info:
-        if n_leaves not in info[k]:
-            info[k][n_leaves] = {}
-        if mut_mult not in info[k][n_leaves]:
-            info[k][n_leaves][mut_mult] = OrderedDict()
-    this_info = {k : info[k][n_leaves][mut_mult] for k in info}
-
-    def get_histfname(subdir, method):
-        if args.data:
-            return subdir + '/data/hists/' + method + '.csv'
-        else:
-            return subdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '/hists/' + method + '.csv'
-
-    basedir = args.fsdir + '/' + label
-    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
-    for misfrac in [0.1, 0.9]:
-        for mistype in ['singletons', 'reassign']:
-            vname = 'misassign-%.2f-%s' % (misfrac, mistype)
-            expected_methods.append(vname)
-
-    if args.no_mixcr:
-        expected_methods.remove('mixcr')
-    if args.no_changeo:
-        expected_methods.remove('changeo')
-    if not args.data:
-        expected_methods.insert(0, 'true')
-
-    if args.n_subsets is not None:
-        subdirs = [basedir + '/subset-' + str(isub) for isub in range(args.n_subsets)]
-    elif args.istartstoplist is not None:
-        subdirs = [basedir + '/istartstop-' + str(istartstop[0]) + '-' + str(istartstop[1]) for istartstop in args.istartstoplist]
-        nseq_list = [istartstop[1] - istartstop[0] for istartstop in args.istartstoplist]
-    else:
-        subdirs = [basedir, ]
-
-    per_subset_info = {k : OrderedDict() for k in metrics + ['hists', ]}
-    for metric in per_subset_info:
-        if n_leaves == 1 and metric == 'adj_mi':
-            continue
-        for method in expected_methods:
-            if metric != 'hists' and (args.data or method == 'true'):
-                continue
-            if method not in per_subset_info[metric]:
-                per_subset_info[metric][method] = []
-            for subdir in subdirs:
-                if metric == 'hists':
-                    hist = Hist(fname=get_histfname(subdir, method))
-                    per_subset_info[metric][method].append(hist)
-                else:
-                    fname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '/' + metric+ '/' + method + '.csv'
-                    value = read_float_val(fname, metric)
-                    per_subset_info[metric][method].append(value)
-
-    # fill this_info with hists of mean over subsets, and plot them
-    if args.plot_mean_of_subsets:
-        for method in expected_methods:
-            this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
-        cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
-        log = 'xy'
-        if args.data:
-            title = get_title(args, label, n_leaves, mut_mult)
-            plotfname = cluster_size_plotdir + '/data.svg'
-            xmax = 10
-        else:
-            title = get_title(args, label, n_leaves, mut_mult)
-            plotfname = cluster_size_plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
-            xmax = n_leaves*6.01
-            if n_leaves <= 10:
-                log = 'x'
-        plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
-        plotting.make_html(cluster_size_plotdir)
-
-    if not args.data:
-        for metric in metrics:
-            print '   ', metric
-            if not args.plot_mean_of_subsets:  # if we're not averaging over the subsets for each leafmut, then we want to plot adj_mi (and whatnot) as a function of subset (presumably each subset is a different size)
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
                     plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(nseq_list, values)])
                 metric_plotdir = os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics'
                 plotting.plot_adj_mi_and_co(plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
                 plotting.make_html(metric_plotdir)
-            for meth, vals in per_subset_info[metric].items():
+
+# ----------------------------------------------------------------------------------------
+def get_expected_methods_to_plot(args, metric=None):
+    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # NOTE not the same as args.expected_methods
+    expected_methods = ['naive-hamming-partition', ]
+    if args.synthetic_partitions:
+        for misfrac in [0.1, 0.9]:
+            for mistype in ['singletons', 'reassign']:
+                vname = 'misassign-%.2f-%s' % (misfrac, mistype)
+                expected_methods.append(vname)
+    if args.no_mixcr:
+        expected_methods.remove('mixcr')
+    if args.no_changeo:
+        expected_methods.remove('changeo')
+    if not args.data and metric == 'hists':
+        expected_methods.insert(0, 'true')
+
+    return expected_methods
+
+# ----------------------------------------------------------------------------------------
+def read_histfiles_and_co(args, label, n_leaves, mut_mult):
+    """ where "subsets" means any of a number of different things """
+
+    basedir = args.fsdir + '/' + label
+    if args.n_subsets is not None:
+        subdirs = [basedir + '/subset-' + str(isub) for isub in range(args.n_subsets)]
+    elif args.istartstoplist is not None:
+        subdirs = [basedir + '/istartstop-' + str(istartstop[0]) + '-' + str(istartstop[1]) for istartstop in args.istartstoplist]
+        nseq_list = [istartstop[1] - istartstop[0] for istartstop in args.istartstoplist]
+    else:
+        if args.istartstop is not None:
+            basedir += '/istartstop-' + get_str(args.istartstop)
+        subdirs = [basedir, ]
+
+    # ----------------------------------------------------------------------------------------
+    def read_values(subdir, method, per_subset_info, hfrac_bounds=None):
+        if metric == 'hists':
+            if args.data:
+                raise Exception('I think this needs updating for data')
+                # return = subdir + '/data/hists/' + method + '.csv'
+            else:
+                histfname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult, hfrac_bounds) + '/hists/' + method + '.csv'
+            hist = Hist(fname=histfname)
+            per_subset_info[metric][method].append(hist)
+        else:
+            fname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult, hfrac_bounds) + '/' + metric+ '/' + method + '.csv'
+            value = read_float_val(fname, metric)
+            per_subset_info[metric][method].append(value)
+
+    per_subset_info = {k : OrderedDict() for k in metrics + ['hists', ]}
+    for metric in per_subset_info:
+        if n_leaves == 1 and metric == 'adj_mi':
+            continue
+        for method in get_expected_methods_to_plot(args, metric):
+            if metric != 'hists' and (args.data or method == 'true'):
+                continue
+            if method not in per_subset_info[metric]:
+                per_subset_info[metric][method] = []
+
+            if len(subdirs) > 1:
+                for subdir in subdirs:
+                    read_values(subdir, method, per_subset_info)
+            else:
+                for hfrac_bounds in args.hfrac_bound_list:
+                    read_values(subdirs[0], method, per_subset_info, hfrac_bounds)
+
+    return per_subset_info
+
+# ----------------------------------------------------------------------------------------
+def get_this_info(all_info, n_leaves, mut_mult):
+    for k in all_info:
+        if n_leaves not in all_info[k]:
+            all_info[k][n_leaves] = {}
+        if mut_mult not in all_info[k][n_leaves]:
+            all_info[k][n_leaves][mut_mult] = OrderedDict()
+    return {k : all_info[k][n_leaves][mut_mult] for k in all_info}
+
+# ----------------------------------------------------------------------------------------
+def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir):
+    print 'TODO needs testing'
+    for method in get_expected_methods_to_plot(args):
+        this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
+    cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
+    log = 'xy'
+    if args.data:
+        title = get_title(args, label, n_leaves, mut_mult)
+        plotfname = cluster_size_plotdir + '/data.svg'
+        xmax = 10
+    else:
+        title = get_title(args, label, n_leaves, mut_mult)
+        plotfname = cluster_size_plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
+        xmax = n_leaves*6.01
+        if n_leaves <= 10:
+            log = 'x'
+    plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
+    plotting.make_html(cluster_size_plotdir)
+
+    if not args.data:
+        for metric in metrics:
+            print '   ', metric
+            for meth, vals in per_subset_info[metric].items():  # add the mean over subsets to <this_info>
                 mean = numpy.mean(vals)
-                if mean == -1.:
+                if mean == -1.:  # e.g. mixcr
                     continue
                 std = numpy.std(vals)
                 this_info[metric][meth] = (mean, std)
@@ -946,8 +973,8 @@ def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
 # ----------------------------------------------------------------------------------------
 def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
     if os.path.exists(csv_outfname):
-        utils.csv_to_fasta(csv_outfname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
-        print '      slicefile exists %s' % csv_outfname
+        if not os.path.exists(csv_outfname.replace('.csv', '.fa')):
+            utils.csv_to_fasta(csv_outfname)
         return
     print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
     if not os.path.exists(os.path.dirname(csv_outfname)):
@@ -1113,8 +1140,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         raise Exception('bad action %s' % action)
 
     if hfrac_bounds is not None:
-        assert args.hfrac_bounds[0] == args.hfrac_bounds[1]  # to be implemented
-        extras += [' --naive-hamming-threshold ', args.hfrac_bounds[0]]
+        assert hfrac_bounds[0] == hfrac_bounds[1]  # to be implemented
+        extras += [' --naive-hamming-threshold ', hfrac_bounds[0]]
 
     # cmd += ' --plotdir ' + os.getenv('www') + '/partis'
     if n_procs > 500:
@@ -1148,4 +1175,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(300)  # 300sec = 5min
+    time.sleep(60)  # 300sec = 5min

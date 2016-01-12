@@ -158,8 +158,6 @@ for datafname in files:
         compareutils.write_all_plot_csvs(args, label, parameterlist, datafname)
     if 'compare-subsets' in args.actions:
         compareutils.compare_subsets(args, label)
-    if 'compare-thresholds' in args.actions:
-        compareutils.compare_thresholds(args, label)
 
 if len(procs) > 0:
     exit_codes = [p.wait() for p in procs]

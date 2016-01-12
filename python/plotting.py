@@ -853,6 +853,18 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     plt.close()
 
 # ----------------------------------------------------------------------------------------
+def plot_metrics_vs_thresholds(thresholds, info, plotdir, plotfname, title):
+    fig, ax = mpl_init()
+    meth = 'naive-hamming-partition'
+    if 'adj_mi' in info and meth in info['adj_mi']:
+        ax.plot(thresholds, info['adj_mi'][meth], label='adj mi', linewidth=4)
+    ax.plot(thresholds, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    ax.plot(thresholds, info['ccf_over'][meth], label='fraction present', color='#cc0000', linestyle='--', linewidth=4)
+    ccf_products = [info['ccf_under'][meth][iv] * info['ccf_over'][meth][iv] for iv in range(len(thresholds))]
+    ax.plot(thresholds, ccf_products, label='ccf product', color='#006600', linewidth=4)
+    mpl_finish(ax, plotdir, plotfname, log='x', xticks=thresholds, xticklabels=thresholds, xbounds=(thresholds[0], thresholds[1]), leg_loc=(0.1, 0.2), ybounds=(0.3, 1.01), title=title)
+
+# ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
     fig, ax = mpl_init()
     mpl.rcParams.update({
@@ -1050,11 +1062,11 @@ def make_html(plotdir, n_columns=3, extension='svg'):
 
     fnames = sorted(glob.glob(plotdir + '/*.' + extension))
     for ifn in range(len(fnames)):
+        if ifn > 0 and ifn % n_columns == 0:
+            lines += ['</tr>', '<tr>']
         fname = os.path.basename(fnames[ifn])
         line = '<td width="25%"><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>"'
         lines.append(line)
-        if ifn % n_columns == 0:
-            lines += ['</tr>', '<tr>']
 
     lines += ['</tr>',
               '</table>',
