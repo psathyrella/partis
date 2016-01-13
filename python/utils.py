@@ -1955,3 +1955,13 @@ def add_v_alignments(glfo, line, debug=False):
         aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
     line['aligned_v_seqs'] = aligned_v_seqs
+
+# ----------------------------------------------------------------------------------------
+def intexterpolate(x1, y1, x2, y2, x):
+    """ interpolate/extrapolate linearly based on two points in 2-space, returning y-value corresponding to <x> """
+    m = (y2 - y1) / (x2 - x1);
+    b = 0.5 * (y1 + y2 - m*(x1 + x2));
+    # if debug:
+    #     for x in [x1, x2]:
+    #         print '%f x + %f = %f' % (m, b, m*x + b)
+    return m * x + b

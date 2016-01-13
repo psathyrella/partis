@@ -294,6 +294,7 @@ class PartitionDriver(object):
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
         if self.args.naive_vsearch:
+            raise Exception('update for new thresholds')
             bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
@@ -328,6 +329,7 @@ class PartitionDriver(object):
                 seq = self.input_info[key]['seq']  # TODO hm, should this be from sw_info?
                 total += float(len(seq))
             mean_length = total / len(self.input_info)  # TODO hm, should this be from sw_info?
+            raise Exception('update for new thresholds')
             bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             differences = int(round(mean_length * bound))
             print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
@@ -372,34 +374,33 @@ class PartitionDriver(object):
         print '      vsearch/swarm time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_threshold(self, parameter_dir, tightness, debug=True):
-        if self.args.naive_hamming_threshold is not None:
-            return self.args.naive_hamming_threshold
+    def get_naive_hamming_bounds(self, parameter_dir, debug=True):
+        if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
+            print '       naive hamming bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
+            return self.args.naive_hamming_bounds
 
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
         if debug:
             print '  auto hamming bounds:'
             print '      %.3f mutation in %s' % (mute_freq, parameter_dir)
+
         # just use a line based on two points (mute_freq, threshold)
-        # TODO these should kinda depend on the candidate cluster size (like the log prob ratio thresholds), but looking at the plots it's not super obviously necessary, so I'm punting for now
         x1, x2 = 0.07, 0.26  # TODO add more points (i.e. 1x and 2x -- these are just the 0.5x and 3x). Also add more humans
-        if tightness == 'tight':  # this should be close to optimal for straight naive hamming clustering. 
+
+        if self.args.naive_hamming:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
+            raise Exception('update before you run with this')
             y1, y2 = 0.04, 0.09  # these are pretty much where the nearest-clonal and non-clonal lines cross
             # y1, y2 = 0.03, 0.07  # this will incorrectly merge fewer singletons
-        elif tightness == 'loose':  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
-            y1, y2 = 0.06, 0.12
-        else:
-            assert False
-        m = (y2 - y1) / (x2 - x1);
-        b = 0.5 * (y1 + y2 - m*(x1 + x2));
-        # if debug:
-        #     for x in [x1, x2]:
-        #         print '%f x + %f = %f' % (m, b, m*x + b)
-        thold = m * mute_freq + b
-        if debug:
-            print '      threshold: %.3f' % thold
-        return thold
+            lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
+            hi = lo
+        else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
+            lo = 0.015  # always merge clusters with hfrac less than this (i.e. without checking logprob ratio)
+            y1, y2 = 0.07, 0.13
+            hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
+
+        print '       naive hamming bounds: %.3f %.3f' % (lo, hi)
+        return [lo, hi]
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, cache_naive_seqs, n_procs):
@@ -438,17 +439,12 @@ class PartitionDriver(object):
             else:  # actually partitioning
                 cmd_str += ' --partition'
                 cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
-                if self.args.naive_hamming:
-                    thold = self.get_naive_hamming_threshold(parameter_dir, 'tight')
-                    naive_hamming_lo = thold  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
-                    naive_hamming_hi = thold
-                else:
-                    naive_hamming_lo = 0.02  # always merge clusters with hfrac less than this (i.e. without checking logprob ratio)
-                    naive_hamming_hi = self.get_naive_hamming_threshold(parameter_dir, 'loose')  # ...and never merge 'em if it's bigger than this
-        
-                print '       naive hamming bounds: %.3f %.3f' % (naive_hamming_lo, naive_hamming_hi)
-                cmd_str += ' --hamming-fraction-bound-lo ' + str(naive_hamming_lo)
-                cmd_str += ' --hamming-fraction-bound-hi ' + str(naive_hamming_hi)
+
+                hfrac_bounds = self.get_naive_hamming_bounds(parameter_dir)
+                cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])
+                cmd_str += ' --hamming-fraction-bound-hi ' + str(hfrac_bounds[1])
+                cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
+
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
 
