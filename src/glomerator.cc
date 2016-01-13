@@ -104,6 +104,9 @@ void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructo
 void Glomerator::Cluster() {
   if(args_->debug()) cout << "   glomerating" << endl;
 
+  if(args_->logprob_ratio_threshold() == -INFINITY)
+    throw runtime_error("logprob ratio threshold not specified");
+
   assert((int)initial_partitions_.size() == 1);
   ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]), initial_logweights_[0]);
   do {
@@ -651,15 +654,16 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       // TODO put this into a c.l. arg in partis.py
       bool lratio_too_small(false);
       int ccs(qmerged.seqs_.size());  // candidate cluster size
-      if(ccs == 2 && lratio < 18.) {
+      double max_lratio(args_->logprob_ratio_threshold());
+      if(ccs == 2 && lratio < max_lratio) {
       	lratio_too_small = true;
-      } else if(ccs == 3 && lratio < 16.) {
+      } else if(ccs == 3 && lratio < max_lratio - 2.) {  // this subtraction "scheme" is largely heuristic a.t.m.
       	lratio_too_small = true;
-      } else if(ccs == 4 && lratio < 15.) {
+      } else if(ccs == 4 && lratio < max_lratio - 3.) {
       	lratio_too_small = true;
-      } else if(ccs == 5 && lratio < 14.) {
+      } else if(ccs == 5 && lratio < max_lratio - 4.) {
       	lratio_too_small = true;
-      } else if(lratio < 13.) {  // just guessing on the 13... but I don't think the best threshold gets anywhere close to zero (like I had it before...)
+      } else if(lratio < max_lratio - 5.) {  // just guessing on the 13... but I don't think the best threshold gets anywhere close to zero (like I had it before...)
       	lratio_too_small = true;
       }
       if(lratio_too_small) {
