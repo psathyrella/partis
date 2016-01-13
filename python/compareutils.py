@@ -76,8 +76,8 @@ def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     return title
 
 # ----------------------------------------------------------------------------------------
-def get_str(a_list):
-    return '-'.join([str(item) for item in a_list])
+def get_str(a_list, delimiter='-'):
+    return delimiter.join([str(item) for item in a_list])
 
 # ----------------------------------------------------------------------------------------
 def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
@@ -1073,14 +1073,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     n_procs, n_fewer_procs = 1, 1
     if action == 'cache-data-parameters':
-        if output_exists(args, args.fsdir + '/' + label + '/data'):
-            return
+        outfname = args.fsdir + '/' + label + '/data'
         extras += ['--n-max-queries', + args.n_data_to_cache]
         n_procs = max(1, args.n_data_to_cache / 500)
         n_fewer_procs = min(500, args.n_data_to_cache / 2000)
     elif action == 'simulate':
-        if output_exists(args, seqfname):
-            return
+        outfname = seqfname
         extras += ['--n-sim-events', int(float(args.n_sim_seqs) / n_leaves)]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
@@ -1091,38 +1089,41 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--mimic-data-read-length', ]
         n_procs = 10
     elif action == 'cache-simu-parameters':
-        if output_exists(args, seqfname.replace('.csv', '')):
-            return
+        outfname = seqfname.replace('.csv', '')
         n_procs = 20
         n_fewer_procs = min(500, args.n_sim_seqs / 2000)
     elif action == 'partition':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        if output_exists(args, outfname):
-            return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition]
         if args.count_distances:
             extras += ['--cache-naive-hfracs', '--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1,
+
+        if hfrac_bounds is not None:
+            print 'TODO change name from hfrac_bounds'
+            assert hfrac_bounds[0] == hfrac_bounds[1]
+            extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
+
         n_procs = max(1, args.n_to_partition / 100)
         n_fewer_procs = min(500, args.n_to_partition / 2000)
     elif action == 'naive-hamming-partition':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        if output_exists(args, outfname):
-            return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
+
+        if hfrac_bounds is not None:
+            extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
+
         n_procs = max(1, args.n_to_partition / 200)
     elif action == 'vsearch-partition':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        if output_exists(args, outfname):
-            return
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
+        if hfrac_bounds is not None:
+            raise Exception('need to implement')
         n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
     elif action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        if output_exists(args, outfname):
-            return
         cmd += ' --outfname ' + outfname
         extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
         extras += ['--n-max-queries', args.n_to_partition]
@@ -1139,9 +1140,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     else:
         raise Exception('bad action %s' % action)
 
-    if hfrac_bounds is not None:
-        assert hfrac_bounds[0] == hfrac_bounds[1]  # to be implemented
-        extras += [' --naive-hamming-threshold ', hfrac_bounds[0]]
+    if output_exists(args, outfname):
+        return
 
     # cmd += ' --plotdir ' + os.getenv('www') + '/partis'
     if n_procs > 500:
@@ -1161,18 +1161,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     print '   ' + cmd
     # return
 
-    # if args.data:
-    #     logbase = args.fsdir + '/' + label + '/_logs/data-' + action
-    # else:
-    #     logbase = args.fsdir + '/' + label + '/_logs/' + leafmutstr(args, n_leaves, mut_mult) + '-' + action
-    # if args.subset is not None:
-    #     logbase = logbase.replace('_logs/', '_logs/subset-' + str(args.subset) + '/')
-    # if args.istartstop is not None:
-    #     logbase = logbase.replace('_logs/', '_logs/istartstop-' + get_str(args.istartstop) + '/')
-    logbase = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname)
+    logbase = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname).replace('.csv', '')
+    if action not in logbase:
+        logbase += '-' + action
 
     if not os.path.exists(os.path.dirname(logbase)):
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(60)  # 300sec = 5min
+    time.sleep(5)  # 300sec = 5min

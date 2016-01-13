@@ -31,7 +31,8 @@ parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 parser.add_argument('--annotation-clustering-thresholds', default='0.9', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
-parser.add_argument('--naive-hamming-threshold', type=float)
+parser.add_argument('--naive-hamming-bounds')
+parser.add_argument('--logprob-ratio-threshold', type=float, default=18., help='So help us Goddess.')
 parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
@@ -182,6 +183,7 @@ else:
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
     args.match_mismatch = utils.get_arg_list(args.match_mismatch, intify=True)
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
+    args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
     if len(args.n_max_per_region) != 3:
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.match_mismatch) != 2:
