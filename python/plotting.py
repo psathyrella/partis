@@ -853,16 +853,27 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def plot_metrics_vs_thresholds(thresholds, info, plotdir, plotfname, title):
+def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):
     fig, ax = mpl_init()
-    meth = 'naive-hamming-partition'
     if 'adj_mi' in info and meth in info['adj_mi']:
         ax.plot(thresholds, info['adj_mi'][meth], label='adj mi', linewidth=4)
     ax.plot(thresholds, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
     ax.plot(thresholds, info['ccf_over'][meth], label='fraction present', color='#cc0000', linestyle='--', linewidth=4)
     ccf_products = [info['ccf_under'][meth][iv] * info['ccf_over'][meth][iv] for iv in range(len(thresholds))]
-    ax.plot(thresholds, ccf_products, label='ccf product', color='#006600', linewidth=4)
-    mpl_finish(ax, plotdir, plotfname, log='x', xticks=thresholds, xticklabels=thresholds, xbounds=(thresholds[0], thresholds[1]), leg_loc=(0.1, 0.2), ybounds=(0.3, 1.01), title=title)
+    ax.plot(thresholds, ccf_products, label='product of fractions', color='#006600', linewidth=4)
+    log, xlabel = '', ''
+    if meth == 'partition':
+        xlabel = 'log prob ratio'
+        ymin = 0.3  #0.69
+        xticks = [b for b in range(int(thresholds[0]), int(thresholds[-1]), 5)]
+        if int(thresholds[-1]) not in xticks:
+            xticks.append(int(thresholds[-1]))
+    elif meth == 'naive-hamming-partition':
+        xlabel = 'naive hamming fraction'
+        ymin = 0.3
+        xticks = [th for th in thresholds if th < 0.12 and th != 0.025]
+        log = 'x'
+    mpl_finish(ax, plotdir, plotfname, log=log, xticks=xticks, xticklabels=xticks, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
@@ -974,6 +985,7 @@ def mpl_init(figsize=None, fontsize=20):
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None):
+    # xticks[0] = 0.000001
     legend = ax.legend(loc=leg_loc)
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     sns.despine()  #trim=True, bottom=True)
