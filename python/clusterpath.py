@@ -67,6 +67,8 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def readfile(self, fname):
+        if os.stat(fname).st_size == 0:
+            raise Exception('partition file %s has size zero' % fname)
         with opener('r')(fname) as infile:
             reader = csv.DictReader(infile)
             lines = [line for line in reader]
