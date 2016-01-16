@@ -10,9 +10,11 @@ import re
 import math
 import glob
 from collections import OrderedDict
+import itertools
 import csv
 from subprocess import check_output, CalledProcessError
 from sklearn.metrics.cluster import adjusted_mutual_info_score
+import numpy
 import multiprocessing
 import shutil
 import copy
@@ -1544,6 +1546,9 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=
             mean_fraction_present +=  get_fraction_present(uid, inferred_cluster, true_cluster)
             n_uids += 1
 
+    if n_uids > 1e6:
+        raise Exception('you should start worrying about numerical precision if you\'re going to run on this many queries')
+
     return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
 
 # ----------------------------------------------------------------------------------------
@@ -1779,6 +1784,66 @@ def generate_incorrect_partition(true_partition, misassign_fraction, error_type,
     return new_partition
 
 # ----------------------------------------------------------------------------------------
+def generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error, merge_fraction, debug=False):
+    raise Exception('not finished with this')
+    """
+    Generate an incorrect partition from <true_partition>.
+    """
+    new_partition = copy.deepcopy(true_partition)
+    if debug:
+        print '  before', new_partition
+
+    naive_seqs = {}
+    for cluster in true_partition:
+        reco_id = reco_info[cluster[0]]['reco_id']
+        if len(cluster) > 1:  # make sure at least the second sequence has the same reco_id (not that I have any idea how it could avoid it)
+            assert reco_id == reco_info[cluster[1]]['reco_id']
+        naive_seqs[reco_id] = get_full_naive_seq(glfo['seqs'], reco_info[cluster[0]])
+
+    hfracs = {}
+
+    # ----------------------------------------------------------------------------------------
+    def find_min_hfrac(cluster_a, cluster_b):
+        print 'find min distance for %s  %s' % (':'.join(cluster_a), ':'.join(cluster_b))
+        tested_reco_ids = set()  # reco id pairs that we already looked at
+        min_hfrac = None
+        for query_a, query_b in itertools.product(cluster_a, cluster_b):
+            reco_ids = sorted([reco_info[q]['reco_id'] for q in [query_a, query_b]])
+            key = ':'.join(reco_ids)
+            if key in tested_reco_ids:
+                continue
+            if key not in hfracs:
+                hfracs[key] = hamming_fraction(naive_seqs[reco_ids[0]], naive_seqs[reco_ids[1]])
+            if min_hfrac is None or hfracs[key] < min_hfrac:
+                min_hfrac = hfracs[key]
+
+        return min_hfrac
+
+    # ----------------------------------------------------------------------------------------
+    def merge_clusters(iclusts_to_merge):
+        new_partition[iclusts_to_merge[0]] = new_partition[iclusts_to_merge[0]] + new_partition[iclusts_to_merge[1]]
+        new_partition.pop(iclusts_to_merge[1])
+
+    # merge all clusters that have hfracs smaller than <hfrac_error>
+    while True:
+        iclusts_to_merge = None
+        for iclust in range(len(new_partition)):
+            for jclust in (iclust + 1, range(len(new_partition))):
+                min_hfrac = find_min_hfrac(new_partition[iclust], new_partition[jclust])
+                if min_hfrac < hfrac_error:
+                    iclusts_to_merge = (iclust, jclust)
+                    break
+        if iclusts_to_merge is None:
+            break
+        else:
+            merge_clusters(iclusts_to_merge)
+
+    if debug:
+        print '  after', new_partition
+
+    return new_partition
+
+# ----------------------------------------------------------------------------------------
 def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t', debug=False):
     """ rewrite csv files <fnames> to <outdir>, removing lines with uid not in <uids> """
     for fname in fnames:
@@ -1965,3 +2030,95 @@ def intexterpolate(x1, y1, x2, y2, x):
     #     for x in [x1, x2]:
     #         print '%f x + %f = %f' % (m, b, m*x + b)
     return m * x + b
+
+
+# ----------------------------------------------------------------------------------------
+def get_padding_parameters(queries, info, glfo, debug=False):
+    all_v_matches, all_j_matches = set(), set()
+    for query in queries:
+        swfo = info[query]
+        for match in swfo['all'].split(':'):
+            if get_region(match) == 'v':
+                all_v_matches.add(match)
+            elif get_region(match) == 'j':
+                all_j_matches.add(match)
+
+    maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}  #, 'fv_insertion_len' : None, 'jf_insertion_len' : None}
+    for query in queries:
+        fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
+        jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
+
+        for v_match in all_v_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
+            gl_cpos = glfo['cyst-positions'][v_match] + fvstuff
+            if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
+                maxima['gl_cpos'] = gl_cpos
+
+        swfo = info[query]
+        seq = swfo['seq']
+        cpos = swfo['cyst_position']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
+        for j_match in all_j_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
+            # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment
+            gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + jfstuff
+            if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
+                maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
+
+        # if maxima['fv_insertion_len'] is None or len(swfo['fv_insertion']) > maxima['fv_insertion_len']:
+        #     maxima['fv_insertion_len'] = len(swfo['fv_insertion'])
+        # if maxima['jf_insertion_len'] is None or len(swfo['jf_insertion']) > maxima['jf_insertion_len']:
+        #     maxima['jf_insertion_len'] = len(swfo['jf_insertion'])
+
+    if debug:
+        print '    maxima:',
+        for k, v in maxima.items():
+            print '%s %d    ' % (k, v),
+        print ''
+    return maxima
+
+# ----------------------------------------------------------------------------------------
+def pad_seqs_to_same_length(queries, info, glfo, indelfo, debug=False):
+    """
+    Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
+    Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
+    """
+
+    maxima = get_padding_parameters(queries, info, glfo, debug)
+
+    for query in queries:
+        swfo = info[query]
+        if 'padded' in swfo:  # already added padded information (we're probably partitioning, and this is not the first step)
+            return
+        seq = swfo['seq']
+        cpos = swfo['cyst_position']
+        if cpos < 0 or cpos >= len(seq):
+            print 'hm now what do I want to do here?'
+        k_v = swfo['k_v']
+
+        # padleft = maxima['fv_insertion_len'] + maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
+        # padright = maxima['gl_cpos_to_j_end'] + maxima['jf_insertion_len'] - (len(seq) - cpos)
+        padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
+        padright = maxima['gl_cpos_to_j_end'] - (len(seq) - cpos)
+        if padleft < 0 or padright < 0:
+            raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
+
+        swfo['padded'] = {}
+        padfo = swfo['padded']  # shorthand
+        assert len(ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+        padfo['seq'] = padleft * ambiguous_bases[0] + seq + padright * ambiguous_bases[0]
+        if query in indelfo:
+            if debug:
+                print '    also padding reversed sequence'
+            indelfo[query]['reversed_seq'] = padleft * ambiguous_bases[0] + indelfo[query]['reversed_seq'] + padright * ambiguous_bases[0]
+        padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
+        padfo['cyst_position'] = swfo['cyst_position'] + padleft
+        padfo['padleft'] = padleft
+        padfo['padright'] = padright
+        if debug:
+            print '      pad %d %d   %s' % (padleft, padright, query)
+            print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']),
+                                                        k_v['min'], k_v['max'],
+                                                        padfo['k_v']['min'], padfo['k_v']['max'])
+
+    if debug:
+        for query in queries:
+            print '%20s %s' % (query, info[query]['padded']['seq'])
+
