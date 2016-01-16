@@ -868,7 +868,7 @@ def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title
         xticks = [b for b in range(int(thresholds[0]), int(thresholds[-1]), 5)]
         if int(thresholds[-1]) not in xticks:
             xticks.append(int(thresholds[-1]))
-    elif meth == 'naive-hamming-partition':
+    elif meth == 'naive-hamming-partition' or meth == 'vsearch-partition':
         xlabel = 'naive hamming fraction'
         ymin = 0.3
         xticks = [th for th in thresholds if th < 0.12 and th != 0.025]

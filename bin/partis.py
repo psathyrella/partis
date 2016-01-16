@@ -32,7 +32,7 @@ parser.add_argument('--print-partitions', action='store_true', help='Print parti
 # parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 parser.add_argument('--annotation-clustering-thresholds', default='0.9', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
 parser.add_argument('--naive-hamming-bounds')
-parser.add_argument('--logprob-ratio-threshold', type=float, default=18., help='So help us Goddess.')
+parser.add_argument('--logprob-ratio-threshold', type=float, default=18., help='reaches a min value of <this> minus five for large clusters.')
 parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
