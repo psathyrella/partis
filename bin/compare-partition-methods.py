@@ -10,11 +10,11 @@ csv.field_size_limit(sys.maxsize)
 from humans import humans
 import utils
 import compareutils
+import glob
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
-parser.add_argument('--dataset', choices=['stanford', 'adaptive'], default='adaptive')
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
@@ -106,28 +106,17 @@ if args.istartstop is not None:
 #                                  ]),
 #                                  title='%d leaves, %dx mutation, indels' % (10, 1), xmax=10*3.01)
 # sys.exit()
-# ----------------------------------------------------------------------------------------
-
-if args.dataset == 'stanford':
-    datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
-    files = [datadir + '/' + f for f in os.listdir(datadir)]
-elif args.dataset == 'adaptive':
-    # files = []
-    # datadirs = [ '/shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/' + h for h in humans['adaptive'] ]
-    # for datadir in datadirs:
-    #     files += [ datadir + '/' + fname for fname in os.listdir(datadir) if '-M_merged.tsv.bz2' in fname ]  # if you switch to naive (N), be careful 'cause A is split in pieces
-    files = [args.fsdir.replace('_output', 'data') + '/' + args.dataset + '/' + human + '/shuffled.csv' for human in humans[args.dataset]]
 
 # ----------------------------------------------------------------------------------------
 procs = []
-for datafname in files:
-    if args.dataset == 'stanford':
-        human = os.path.basename(datafname).replace('_Lineages.fasta', '')
-    elif args.dataset == 'adaptive':
-        human = re.findall('[ABC]', datafname)[0]
-
-    if args.humans is not None and human not in args.humans:
-        continue
+for human in args.humans:
+    if human in humans['stanford']:
+        datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
+        datafname = glob.glob(datadir + '/*' + human + '*')[0]  # should throw an index error if length is less than one... but still, this is hackey
+    elif human in humans['adaptive']:
+        datafname = args.fsdir.replace('_output', 'data') + '/adaptive/' + human + '/shuffled.csv'
+    else:
+        assert False
 
     label = human
     if args.extra_label_str is not None:
