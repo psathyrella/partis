@@ -597,6 +597,8 @@ def compare_subsets(args, label):
                 plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/logprobs', n_columns=4)
             elif args.expected_methods == ['naive-hamming-partition']:
                 plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/naive-hfracs', n_columns=4)
+            elif args.expected_methods == ['vsearch-partition']:
+                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/vsearch-naive-hfracs', n_columns=4)
             else:
                 assert False
 
@@ -618,8 +620,11 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
             plotdir += '/logprobs'
         elif args.expected_methods == ['naive-hamming-partition']:
             plotdir += '/naive-hfracs'
+        elif args.expected_methods == ['vsearch-partition']:
+            plotdir += '/vsearch-naive-hfracs'
         else:
             assert False
+        print 'TODO add mutation level to plot, not just multiplier'
         plotting.plot_metrics_vs_thresholds(args.expected_methods[0], [b[0] for b in args.hfrac_bound_list], per_subset_info, plotdir, plotfname=leafmutstr(args, n_leaves, mut_mult), title=get_title(args, label, n_leaves, mut_mult))
         # for metric in metrics:
         #     for method in get_expected_methods_to_plot(args, metric):
@@ -1139,9 +1144,14 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
+        # ----------------------------------------------------------------------------------------
+        print 'TODO remove this'
+        extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]
+        # ----------------------------------------------------------------------------------------
         if hfrac_bounds is not None:
-            raise Exception('need to implement')
+            extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
         n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
+        # n_fewer_procs = 5
     elif action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
@@ -1189,4 +1199,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(150)  # 300sec = 5min
+    time.sleep(15)  # 300sec = 5min

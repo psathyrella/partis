@@ -1,16 +1,21 @@
 #!/bin/bash
 
 # ----------------------------------------------------------------------------------------
-humans=A:B  # 021-018:021-019  #:B:C:021-018:021-044"
+# thresholds optimization
+
+humans=A  # 021-018:021-019  #:B:C:021-018:021-044"
 # ./bin/compare-partition-methods.py --actions cache-data-parameters --humans $humans  &
-# leaf_mut_hum="--n-leaf-list 1:3:51 --mutation-multipliers 0.5:1:2:3 --humans A"
-leaf_mut_hum="--n-leaf-list 3:10:51 --mutation-multipliers 0.5:1:2:3 --humans $humans"
+# leaf_mut_hum="--n-leaf-list 3:11:51 --mutation-multipliers 0.5:1:2:3 --humans $humans"  # NOTE I accidentally overwrote the new 10-leaf sample (with an older one), so there's threshold optimization plots for a 10-leaf-1.0-mutate sim file that no longer exists. If you absolutely have to remake the plots, use this 11-leaf sample (note that the 0.5, 2, and 3x 10-leaf samples are still here, and are from threshold optimization)
+# mimic stuff # leaf_mut_hum="--n-leaf-list 3:10 --mutation-multipliers 1 --humans $humans"  # mimic stuff
+leaf_mut_hum="--n-leaf-list 10 --mutation-multipliers 0.5:3 --humans $humans"
 # ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
 # action=naive-hamming-partition
 # tholds="0.015 0.02 0.025 0.03 0.04 0.05 0.07 0.09 0.11 0.14 0.18"
-action=partition
-tholds="0 5 10 12.5 15 16 17.5 19 20 22.5 25 30 35"
+action=vsearch-partition
+tholds="0.015 0.03 0.05 0.07 0.11"
+# action=partition
+# tholds="0 5 10 12.5 15 16 17.5 19 20 22.5 25 30 35"
 for th in $tholds; do
     if [ "$bounds" == "" ]; then
 	bounds="$th,$th"
@@ -18,37 +23,25 @@ for th in $tholds; do
 	bounds="$bounds:$th,$th"
     fi
 done
-# ./bin/compare-partition-methods.py --actions $action $leaf_mut_hum --hfrac-bound-list $bounds --n-to-partition 3000 &  # --istartstop 0:10000 &  #0:1000 1000:8000 &
+./bin/compare-partition-methods.py --actions $action $leaf_mut_hum --hfrac-bound-list $bounds --n-to-partition 3000 &  # --istartstop 0:10000 &  #0:1000 1000:8000 &
 # ./bin/compare-partition-methods.py --actions write-plots $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods $action &  # --istartstop 0:10000  &  #1000:8000 &
 # ./bin/compare-partition-methods.py --actions compare-subsets $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods $action &  # --istartstop 0:10000 &  #1000:8000 &
 
-# ----------------------------------------------------------------------------------------
-# basecmd="./bin/partis.py --action partition --n-max-queries 3000 --naive-hamming --n-procs 15:3 --seqfile /fh/fast/matsen_e/dralph/work/partis-dev/_output/A/istartstop-5850-8850/simu-7-leaves-1-mutate.csv --parameter-dir /fh/fast/matsen_e/dralph/work/partis-dev/_output/A/simu-7-leaves-1-mutate/hmm"
-# for thold in 0.005 0.01 0.02 0.025 0.03 0.04 0.05 0.07 0.1 0.2 0.3 0.9; do
-#     vals=`csv -c adj_mi:ccf_under:ccf_over --cwidth 30 $thold.csv |tail -n1`
-#     printf "%-10s%s\n" $thold "$vals"
-#     # $basecmd --slurm --workdir /fh/fast/matsen_e/dralph/work/partis-dev/_tmp/$RANDOM --outfname $thold.csv --naive-hamming-threshold $thold >_tmp/$thold.out &
-# done
-# exit 0
-
-# quick test command
-# ./bin/compare-partition-methods.py --actions write-plots --subset 0 --n-subsets 10 --no-mixcr --no-changeo --no-similarity-matrices --humans A
-
 # # ----------------------------------------------------------------------------------------
-# leaves=2:100  #:500
 # # leaves=1:2:5:10:25:50:100:200  #:500
+# leaves=100:200
 # leaf_mut_hum="--n-leaf-list $leaves --mutation-multipliers 1:4 --humans A"
-# echo "dont forget data parameters changed"; ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum  #  --n-sim-seqs 100000
-# ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum
-# for isub in 0 1 2; do
-#     # ./bin/compare-partition-methods.py --actions vsearch-partition:naive-hamming-partition:partition --subset $isub --n-subsets 10 $leaf_mut_hum --overwrite &  #run-viterbi:
-#     # ./bin/compare-partition-methods.py --actions run-changeo --subset $isub --n-subsets 10 $leaf_mut_hum
-#     # sleep 60
-#     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --no-mixcr --no-changeo $leaf_mut_hum --no-similarity-matrices &
-#     # break
-# done
-# ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --no-mixcr --no-changeo
-# ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --humans A --n-subsets 3 --n-leaf-list 10:25 --mutation-multipliers 1 --no-mixcr --no-changeo
+# # echo "dont forget you copied these sim files from the old dir";  # ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum  #  --n-sim-seqs 100000
+# ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
+# # for isub in 0 1 2; do
+# #     # ./bin/compare-partition-methods.py --actions vsearch-partition:naive-hamming-partition:partition --subset $isub --n-subsets 10 $leaf_mut_hum --overwrite &  #run-viterbi:
+# #     # ./bin/compare-partition-methods.py --actions run-changeo --subset $isub --n-subsets 10 $leaf_mut_hum
+# #     # sleep 60
+# #     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --no-mixcr --no-changeo $leaf_mut_hum --no-similarity-matrices &
+# #     # break
+# # done
+# # ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --no-mixcr --no-changeo
+# # ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --humans A --n-subsets 3 --n-leaf-list 10:25 --mutation-multipliers 1 --no-mixcr --no-changeo
 
 # # ----------------------------------------------------------------------------------------
 # leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans A"  # 100:200:500
