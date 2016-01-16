@@ -14,6 +14,7 @@ from hist import Hist
 import seqfileopener
 import utils
 import baseutils
+from humans import humans
 # from clusterplot import ClusterPlot
 from clusterpath import ClusterPath
 import plotting
@@ -23,8 +24,11 @@ metrics = ['adj_mi', 'ccf_under', 'ccf_over']
 
 # ----------------------------------------------------------------------------------------
 def FOOP():
-    _, reco_info = seqfileopener.get_seqfile_info('/fh/fast/matsen_e/dralph/work/partis-dev/_output.bak/A/istartstop-5850-8850/simu-7-leaves-1-mutate.csv', is_data=False)
+    glfo = utils.read_germline_set('data/imgt')
+    _, reco_info = seqfileopener.get_seqfile_info('/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/simu-3-leaves-1.0-mutate.csv', is_data=False, n_max_queries=5)
     true_partition = utils.get_true_partition(reco_info)
+    utils.generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error=0.03, merge_fraction=0.1, debug=True)
+    sys.exit()
     tholds = [0.005, 0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.07, 0.1, 0.2, 0.3, 0.9]
     # tholds = [0.005, 0.04, 0.9]
     adj_mis, ccf_unders, ccf_overs, nccf_a, nccf_b = [], [], [], [], []
@@ -64,7 +68,7 @@ def mut_str(mut_mult):
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if args.data:
-        title = 'data (%s %s)' % (args.dataset, label)
+        title = 'data (%s %s)' % ('fixme', label)
     else:
         title = '%d leaves, %sx mutation' % (n_leaves, mut_str(mut_mult))
         if hfrac_bounds is not None:
@@ -574,6 +578,7 @@ def compare_subsets(args, label):
     if args.hfrac_bound_list is not None and args.istartstop is not None:
         baseplotdir += '/subsets/istartstop-' + get_str(args.istartstop)
     info = {k : {} for k in metrics + ['hists', ]}
+    print 'TODO rationalize all these different plotdirs'
     for n_leaves in args.n_leaf_list:
         print '%d leaves' % n_leaves
         for mut_mult in args.mutation_multipliers:
@@ -588,7 +593,12 @@ def compare_subsets(args, label):
                     plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
             plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
         elif args.hfrac_bound_list is not None:
-            plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics', n_columns=4)
+            if args.expected_methods == ['partition']:
+                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/logprobs', n_columns=4)
+            elif args.expected_methods == ['naive-hamming-partition']:
+                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/naive-hfracs', n_columns=4)
+            else:
+                assert False
 
     check_call(['./bin/permissify-www', baseplotdir])
 
@@ -601,7 +611,16 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
 
     if args.hfrac_bound_list is not None:  # plot things as a function of hfrac bounds
         plotdir = baseplotdir + '/plots-vs-thresholds/metrics'
-        plotting.plot_metrics_vs_thresholds([b[0] for b in args.hfrac_bound_list], per_subset_info, plotdir, leafmutstr(args, n_leaves, mut_mult), title=get_title(args, label, n_leaves, mut_mult))
+        if len(args.expected_methods) != 1:
+            print args.expected_methods
+            raise Exception('needs updating if not')
+        if args.expected_methods == ['partition']:
+            plotdir += '/logprobs'
+        elif args.expected_methods == ['naive-hamming-partition']:
+            plotdir += '/naive-hfracs'
+        else:
+            assert False
+        plotting.plot_metrics_vs_thresholds(args.expected_methods[0], [b[0] for b in args.hfrac_bound_list], per_subset_info, plotdir, plotfname=leafmutstr(args, n_leaves, mut_mult), title=get_title(args, label, n_leaves, mut_mult))
         # for metric in metrics:
         #     for method in get_expected_methods_to_plot(args, metric):
         #         this_info[metric][method] = per_subset_info[metric][method]
@@ -619,8 +638,9 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
 
 # ----------------------------------------------------------------------------------------
 def get_expected_methods_to_plot(args, metric=None):
-    expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']  # NOTE not the same as args.expected_methods
-    expected_methods = ['naive-hamming-partition', ]
+    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
+    expected_methods = list(args.expected_methods)
+    print 'TODO make sure expected_methods is ok'
     if args.synthetic_partitions:
         for misfrac in [0.1, 0.9]:
             for mistype in ['singletons', 'reassign']:
@@ -1066,8 +1086,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
     if args.data:
         cmd += ' --datafname ' + seqfname + ' --is-data'
-        if args.dataset == 'adaptive':
-            extras += ['--skip-unproductive', ]
+        # if args.dataset == 'adaptive':
+        extras += ['--skip-unproductive', ]
     else:
         cmd += ' --simfname ' + seqfname
 
@@ -1169,4 +1189,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(5)  # 300sec = 5min
+    time.sleep(150)  # 300sec = 5min

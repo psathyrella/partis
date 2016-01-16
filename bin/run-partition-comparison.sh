@@ -1,14 +1,16 @@
 #!/bin/bash
 
 # ----------------------------------------------------------------------------------------
-# ./bin/compare-partition-methods.py --actions cache-data-parameters &
-# leaf_mut_hum="--n-leaf-list 1:3:51 --mutation-multipliers 0.5:1:2:3 --humans A"  #:B:C:021-018:021-019:021-044"
-# leaf_mut_hum="--n-leaf-list 10 --mutation-multipliers 0.5:1:2:3 --humans A"  #:B:C:021-018:021-019:021-044"
-leaf_mut_hum="--n-leaf-list 3 --mutation-multipliers 0.5:3 --humans A"  #:B:C:021-018:021-019:021-044"
+humans=A:B  # 021-018:021-019  #:B:C:021-018:021-044"
+# ./bin/compare-partition-methods.py --actions cache-data-parameters --humans $humans  &
+# leaf_mut_hum="--n-leaf-list 1:3:51 --mutation-multipliers 0.5:1:2:3 --humans A"
+leaf_mut_hum="--n-leaf-list 3:10:51 --mutation-multipliers 0.5:1:2:3 --humans $humans"
 # ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
-# tholds="0.015 0.02 0.025 0.03 0.04 0.05 0.07 0.09 0.11"
-tholds="10 12 15 17 20"
+# action=naive-hamming-partition
+# tholds="0.015 0.02 0.025 0.03 0.04 0.05 0.07 0.09 0.11 0.14 0.18"
+action=partition
+tholds="0 5 10 12.5 15 16 17.5 19 20 22.5 25 30 35"
 for th in $tholds; do
     if [ "$bounds" == "" ]; then
 	bounds="$th,$th"
@@ -16,9 +18,9 @@ for th in $tholds; do
 	bounds="$bounds:$th,$th"
     fi
 done
-./bin/compare-partition-methods.py --actions partition $leaf_mut_hum --hfrac-bound-list $bounds --n-to-partition 3000 &  # --istartstop 0:10000 &  #0:1000 1000:8000 &
-# ./bin/compare-partition-methods.py --actions write-plots $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods naive-hamming-partition --istartstop 0:10000  &  #1000:8000 &
-# ./bin/compare-partition-methods.py --actions compare-subsets $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods naive-hamming-partition --istartstop 0:10000 &  #1000:8000 &
+# ./bin/compare-partition-methods.py --actions $action $leaf_mut_hum --hfrac-bound-list $bounds --n-to-partition 3000 &  # --istartstop 0:10000 &  #0:1000 1000:8000 &
+# ./bin/compare-partition-methods.py --actions write-plots $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods $action &  # --istartstop 0:10000  &  #1000:8000 &
+# ./bin/compare-partition-methods.py --actions compare-subsets $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods $action &  # --istartstop 0:10000 &  #1000:8000 &
 
 # ----------------------------------------------------------------------------------------
 # basecmd="./bin/partis.py --action partition --n-max-queries 3000 --naive-hamming --n-procs 15:3 --seqfile /fh/fast/matsen_e/dralph/work/partis-dev/_output/A/istartstop-5850-8850/simu-7-leaves-1-mutate.csv --parameter-dir /fh/fast/matsen_e/dralph/work/partis-dev/_output/A/simu-7-leaves-1-mutate/hmm"
