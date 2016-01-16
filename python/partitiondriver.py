@@ -386,17 +386,16 @@ class PartitionDriver(object):
             print '      %.3f mutation in %s' % (mute_freq, parameter_dir)
 
         # just use a line based on two points (mute_freq, threshold)
-        x1, x2 = 0.07, 0.26  # TODO add more points (i.e. 1x and 2x -- these are just the 0.5x and 3x). Also add more humans
+        x1, x2 = 0.05, 0.2  # 0.5x, 3x (for 10 leaves)
 
         if self.args.naive_hamming:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
-            raise Exception('update before you run with this')
-            y1, y2 = 0.04, 0.09  # these are pretty much where the nearest-clonal and non-clonal lines cross
-            # y1, y2 = 0.03, 0.07  # this will incorrectly merge fewer singletons
+            y1, y2 = 0.035, 0.06
             lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
             hi = lo
         else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
-            lo = 0.015  # always merge clusters with hfrac less than this (i.e. without checking logprob ratio)
-            y1, y2 = 0.07, 0.13
+            y1, y2 = 0.015, 0.015  # TODO get better numbers for this
+            lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
+            y1, y2 = 0.08, 0.15
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
 
         print '       naive hamming bounds: %.3f %.3f' % (lo, hi)
