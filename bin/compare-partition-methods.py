@@ -40,14 +40,13 @@ parser.add_argument('--plot-mean-of-subsets', action='store_true')
 # parser.add_argument('--logaxis', action='store_true')
 # parser.add_argument('--zoom', action='store_true')
 parser.add_argument('--humans', default=None)  #'A')
-parser.add_argument('--no-mixcr', action='store_true')
-parser.add_argument('--no-changeo', action='store_true')
 parser.add_argument('--no-similarity-matrices', action='store_true')
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'write-plots', 'compare-subsets']
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'synthetic', 'write-plots', 'compare-subsets']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 print 'TODO fix intify/floatify'
+print 'TODO get it to stop subsetting the files every time through'
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, floatify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
@@ -64,7 +63,6 @@ assert args.subset is None or args.istartstop is None  # dosn't make sense to se
 if args.subset is not None:
     if 'write-plots' not in args.actions:
         assert args.n_subsets == 10  # for all the subset plots, I split into ten subsets, then ended up only using the first thre of 'em, so you have to set n_subsets to 10 if you're running methods, but then to 3 when you're writing plots
-    args.n_to_partition = 1300
 if args.istartstop is not None: 
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
 

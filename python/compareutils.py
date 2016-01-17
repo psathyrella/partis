@@ -59,18 +59,22 @@ def FOOP():
     # hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
 
 # ----------------------------------------------------------------------------------------
-def mut_str(mut_mult):
-    if float(mut_mult).is_integer():  # TODO fix this
-        return '%d' % mut_mult
-    else:
-        return '%.1f' % mut_mult
+def mut_str(args, label, n_leaves, mut_mult):
+    # print leafmutstr(args, n_leaves, mut_mult)
+    # sys.exit()
+    return '%.1fx mutation' % mut_mult
+
+    # if float(mut_mult).is_integer():  # TODO fix this
+    #     return '%dx mutation' % mut_mult
+    # else:
+    #     return '%.1fx mutation' % mut_mult
 
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if args.data:
         title = 'data (%s %s)' % ('fixme', label)
     else:
-        title = '%d leaves, %sx mutation' % (n_leaves, mut_str(mut_mult))
+        title = '%d leaves, %s' % (n_leaves, mut_str(args, label, n_leaves, mut_mult))
         if hfrac_bounds is not None:
             title += ', %.2f-%.2f hfrac' % tuple(hfrac_bounds)
         if args.istartstop is not None:
@@ -248,7 +252,25 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
 
 # ----------------------------------------------------------------------------------------
+def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname):
+    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+    true_partition = utils.get_true_partition(reco_info)
+    for misfrac in [0.1, 0.9]:
+        for mistype in ['singletons', 'reassign']:
+            vname = 'misassign-%.2f-%s' % (misfrac, mistype)
+            outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
+            if output_exists(args, outfname):
+                continue
+            new_partition = utils.generate_incorrect_partition(true_partition, misfrac, mistype)
+            cpath = ClusterPath()
+            adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
+            ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
+            cpath.add_partition(new_partition, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
+            cpath.write(outfname, is_data=False, reco_info=reco_info, true_partition=true_partition)
+
+# ----------------------------------------------------------------------------------------
 def add_synthetic_partition_info(args, info, outdir, reco_info, true_partition):
+    assert False
     for misfrac in [0.1, 0.9]:
         for mistype in ['singletons', 'reassign']:
             vname = 'misassign-%.2f-%s' % (misfrac, mistype)
@@ -484,12 +506,12 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
 # ----------------------------------------------------------------------------------------
 def write_all_plot_csvs(args, label, parameterlist, datafname):
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
-    info = {k : {} for k in metrics + ['hists', 'partitions']}
-    print 'TODO I don\'t think I\'m actually using <info> for anything'
+    info = {k : {} for k in metrics + ['hists', 'partitions']}  # NOTE I think I'm not using <info> for anything. But it shouldn't hurt to keep it around
     for params in parameterlist:
         write_each_plot_csvs(args, baseplotdir, label, params['n_leaves'], params['mut_mult'], info, params['hfrac_bounds'], datafname)
 
     check_call(['./bin/permissify-www', baseplotdir])
+    print 'finished!'
 
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info, hfrac_bounds, datafname):
@@ -535,8 +557,10 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     true_partition = utils.get_true_partition(reco_info)
     if not args.data:
         parse_true(args, this_info, csvdir, true_partition)
-        if args.synthetic_partitions:
-            add_synthetic_partition_info(args, this_info, csvdir, reco_info, true_partition)
+        assert False
+        # parse_synthetic(args, this_info, csvdir, true_partition)
+        # if args.synthetic_partitions:
+        #     add_synthetic_partition_info(args, this_info, csvdir, reco_info, true_partition)
 
     if 'run-viterbi' in args.expected_methods:
         parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
@@ -593,12 +617,15 @@ def compare_subsets(args, label):
                     plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
             plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
         elif args.hfrac_bound_list is not None:
+            if len(args.expected_methods) != 1:
+                print args.expected_methods
+                raise Exception('needs updating if not')
             if args.expected_methods == ['partition']:
                 plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/logprobs', n_columns=4)
             elif args.expected_methods == ['naive-hamming-partition']:
                 plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/naive-hfracs', n_columns=4)
             elif args.expected_methods == ['vsearch-partition']:
-                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/vsearch-naive-hfracs', n_columns=4)
+                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/vsearch-naive-hfracs', n_columns=2)
             else:
                 assert False
 
@@ -651,10 +678,6 @@ def get_expected_methods_to_plot(args, metric=None):
             for mistype in ['singletons', 'reassign']:
                 vname = 'misassign-%.2f-%s' % (misfrac, mistype)
                 expected_methods.append(vname)
-    if args.no_mixcr:
-        expected_methods.remove('mixcr')
-    if args.no_changeo:
-        expected_methods.remove('changeo')
     if not args.data and metric == 'hists':
         expected_methods.insert(0, 'true')
 
@@ -1044,6 +1067,8 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
         if args.subset is not None:
             ntot = int(check_output(['wc', '-l', simfname]).split()[0]) - 1
+            n_per_subset = int(float(ntot) / args.n_subsets)  # NOTE ignores remainders, i.e. last few sequences
+            args.n_to_partition = n_per_subset  # we use this to set the number of procs (and maybe for other things as well)
             subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
             if os.path.exists(subsimfname):
                 pass
@@ -1053,7 +1078,6 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
                 if not os.path.exists(os.path.dirname(subsimfname)):
                     os.makedirs(os.path.dirname(subsimfname))
                 check_call('head -n1 ' + simfname + ' >' + subsimfname, shell=True)
-                n_per_subset = int(float(ntot) / args.n_subsets)  # NOTE ignores remainders, i.e. last few sequences
                 istart = args.subset * n_per_subset + 2  # NOTE sed indexing (one-indexed with inclusive bounds). Also note extra +1 to avoid header
                 istop = istart + n_per_subset - 1
                 check_call('sed -n \'' + str(istart) + ',' + str(istop) + ' p\' ' + simfname + '>>' + subsimfname, shell=True)
@@ -1144,13 +1168,14 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
-        # ----------------------------------------------------------------------------------------
-        print 'TODO remove this'
-        extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]
-        # ----------------------------------------------------------------------------------------
+        # # ----------------------------------------------------------------------------------------
+        # print 'TODO remove this'
+        # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]
+        # # ----------------------------------------------------------------------------------------
         if hfrac_bounds is not None:
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
         n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
+        # n_procs = 10
         # n_fewer_procs = 5
     elif action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
@@ -1166,6 +1191,10 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         return
     elif action == 'run-igscueal':
         run_igscueal(args, label, n_leaves, mut_mult, seqfname)
+        return
+    elif action == 'synthetic':
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
+        generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, outfname)
         return
     else:
         raise Exception('bad action %s' % action)
@@ -1199,4 +1228,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(15)  # 300sec = 5min
+    time.sleep(30)  # 300sec = 5min
