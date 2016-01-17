@@ -253,18 +253,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths):
-        with opener('w')(outfname) as outfile:
-            headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
-            if self.args.smc_particles > 1:
-                headers += ['path_index', 'logweight']
-            if not self.args.is_data:
-                headers += ['n_true_clusters', 'adj_mi', 'ccf_under', 'ccf_over']
-            # headers += 'bad_clusters'  # can also write the clusters that aren't perfect
-            writer = csv.DictWriter(outfile, headers)
-            writer.writeheader()
-            true_partition = None if self.args.is_data else utils.get_true_partition(self.reco_info)
-            for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer, headers, self.reco_info, true_partition, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles)
+        true_partition = None
+        if not self.args.is_data:
+            true_partition = utils.get_true_partition(self.reco_info)
+        for ipath in range(len(paths)):
+            paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+        outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):  # TODO change name of function if you switch to just swarm
