@@ -25,6 +25,16 @@ class ClusterPath(object):
         self.we_have_an_adj_mi = False  # did we read in at least one adj mi value from a file?
 
     # ----------------------------------------------------------------------------------------
+    def get_headers(self, is_data, smc_particles):
+        headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
+        if smc_particles > 1:
+            headers += ['path_index', 'logweight']
+        if not is_data:
+            headers += ['n_true_clusters', 'adj_mi', 'ccf_under', 'ccf_over']
+        # headers += 'bad_clusters'  # can also write the clusters that aren't perfect
+        return headers
+
+    # ----------------------------------------------------------------------------------------
     def update_best_minus_x_partition(self):
         if math.isinf(self.logprobs[self.i_best]):  # if logprob is infinite, set best and best minus x to the latest one
             self.i_best_minus_x = self.i_best
@@ -249,7 +259,22 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, headers, reco_info, true_partition, path_index=None, n_to_write=None, calc_missing_values='none'):
+    def init_outfile(self, outfname, is_data, smc_particles):
+        outfile = open(outfname, 'w')
+        writer = csv.DictWriter(outfile, self.get_headers(is_data, smc_particles))
+        writer.writeheader()
+        return outfile, writer
+
+    # ----------------------------------------------------------------------------------------
+    def write(self, outfname, is_data, smc_particles=1, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none'):
+        """ self-contained writing function """
+        outfile, writer = self.init_outfile(outfname, is_data, smc_particles)
+        self.write_partitions(writer, reco_info, true_partition, is_data, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
+        outfile.close()
+
+    # ----------------------------------------------------------------------------------------
+    def write_partitions(self, writer, reco_info, true_partition, is_data, smc_particles=1, path_index=None, n_to_write=None, calc_missing_values='none'):
+        """ use this if you're writing several paths to the same file"""
 
         # ----------------------------------------------------------------------------------------
         def get_bad_clusters(part):
@@ -279,6 +304,7 @@ class ClusterPath(object):
             self.calculate_missing_values(reco_info)
 
         # ----------------------------------------------------------------------------------------
+        headers = self.get_headers(is_data, smc_particles)
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''
