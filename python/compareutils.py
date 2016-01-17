@@ -252,40 +252,41 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
 
 # ----------------------------------------------------------------------------------------
+def get_synthetic_partition_type(stype):
+    error_type, misfrac, mistype = stype.split('-')
+    misfrac = float(misfrac)
+    return error_type, misfrac, mistype
+
+# ----------------------------------------------------------------------------------------
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname):
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
     true_partition = utils.get_true_partition(reco_info)
-    for misfrac in [0.1, 0.9]:
-        for mistype in ['singletons', 'reassign']:
-            vname = 'misassign-%.2f-%s' % (misfrac, mistype)
-            outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
-            if output_exists(args, outfname):
-                continue
-            new_partition = utils.generate_incorrect_partition(true_partition, misfrac, mistype)
-            cpath = ClusterPath()
-            adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
-            ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
-            cpath.add_partition(new_partition, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
-            cpath.write(outfname, is_data=False, reco_info=reco_info, true_partition=true_partition)
+    for stype in args.synthetic_partitions:
+        error_type, misfrac, mistype = get_synthetic_partition_type(stype)
+        vname = stype
+        outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
+        if output_exists(args, outfname):
+            continue
+        new_partition = utils.generate_incorrect_partition(true_partition, misfrac, mistype)
+        cpath = ClusterPath()
+        adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
+        ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
+        cpath.add_partition(new_partition, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
+        cpath.write(outfname, is_data=False, reco_info=reco_info, true_partition=true_partition)
 
 # ----------------------------------------------------------------------------------------
-def add_synthetic_partition_info(args, info, outdir, reco_info, true_partition):
-    assert False
-    for misfrac in [0.1, 0.9]:
-        for mistype in ['singletons', 'reassign']:
-            vname = 'misassign-%.2f-%s' % (misfrac, mistype)
-            new_partition = utils.generate_incorrect_partition(info['partitions']['true'], misfrac, mistype)
-            info['partitions'][vname] = new_partition
-            info['adj_mi'][vname] = utils.adjusted_mutual_information(info['partitions']['true'], new_partition)
-            write_float_val(outdir + '/adj_mi/' + vname + '.csv', info['adj_mi'][vname], 'adj_mi')
-            ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
-            info['ccf_under'][vname] = ccfs[0]
-            info['ccf_over'][vname] = ccfs[1]
-            write_float_val(outdir + '/ccf_under/' + vname + '.csv', ccfs[0], 'ccf_under')
-            write_float_val(outdir + '/ccf_over/' + vname + '.csv', ccfs[1], 'ccf_over')
-            hist = plotting.get_cluster_size_hist(new_partition)
-            hist.write(outdir + '/hists/' + vname + '.csv')
-            info['hists'][vname] = hist
+def parse_synthetic(args, info, outdir, true_partition, base_outfname):
+    for stype in args.synthetic_partitions:
+        error_type, misfrac, mistype = get_synthetic_partition_type(stype)
+        vname = stype
+        cpath = ClusterPath()
+        outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
+        cpath.readfile(outfname)
+        partition = cpath.partitions[cpath.i_best]
+        hist = plotting.get_cluster_size_hist(partition)
+        ccfs = cpath.ccfs[cpath.i_best]
+        metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
+        deal_with_parse_results(info, outdir, vname, partition, hist, metrics)
 
 # ----------------------------------------------------------------------------------------
 def write_float_val(fname, val, valname):
@@ -557,10 +558,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     true_partition = utils.get_true_partition(reco_info)
     if not args.data:
         parse_true(args, this_info, csvdir, true_partition)
-        assert False
-        # parse_synthetic(args, this_info, csvdir, true_partition)
-        # if args.synthetic_partitions:
-        #     add_synthetic_partition_info(args, this_info, csvdir, reco_info, true_partition)
+        parse_synthetic(args, this_info, csvdir, true_partition, get_outputname(args, label, 'synthetic', seqfname, hfrac_bounds))
 
     if 'run-viterbi' in args.expected_methods:
         parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
@@ -673,11 +671,8 @@ def get_expected_methods_to_plot(args, metric=None):
     # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
     expected_methods = list(args.expected_methods)
     print 'TODO make sure expected_methods is ok'
-    if args.synthetic_partitions:
-        for misfrac in [0.1, 0.9]:
-            for mistype in ['singletons', 'reassign']:
-                vname = 'misassign-%.2f-%s' % (misfrac, mistype)
-                expected_methods.append(vname)
+    if len(args.synthetic_partitions) > 0:
+        expected_methods += list(args.synthetic_partitions)
     if not args.data and metric == 'hists':
         expected_methods.insert(0, 'true')
 
