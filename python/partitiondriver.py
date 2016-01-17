@@ -294,8 +294,11 @@ class PartitionDriver(object):
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
         if self.args.naive_vsearch:
-            raise Exception('update for new thresholds')
-            bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
+            # bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
+            # hfrac_bounds = self.get_naive_hamming_bounds(parameter_dir)
+            # bound = hfrac_bounds[0] / 2.  # lo and hi are the same
+            bound = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+            print '    using hfrac bound for vsearch %.3f' % bound
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = './bin/vsearch-1.1.3-linux-x86_64 --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
@@ -376,7 +379,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir, debug=True):
         if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
-            print '       naive hamming bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
+            print '       overriding auto naive hamming bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
             return self.args.naive_hamming_bounds
 
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
@@ -390,6 +393,10 @@ class PartitionDriver(object):
 
         if self.args.naive_hamming:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
             y1, y2 = 0.035, 0.06
+            lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
+            hi = lo
+        elif self.args.naive_vsearch:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
+            y1, y2 = 0.02, 0.05
             lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
             hi = lo
         else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
@@ -931,7 +938,7 @@ class PartitionDriver(object):
             hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
             if not os.path.exists(hmmfname):
                 # if self.args.debug:
-                #     print '    WARNING %s removed from match list for %s %s (not in %s)' % (utils.color_gene(gene), query_name, '' if second_query_name==None else second_query_name, os.path.dirname(hmmfname))
+                #     print '    WARNING %s removed from match list (not in %s)' % (utils.color_gene(gene), os.path.dirname(hmmfname))
                 skipped_gene_matches.add(gene)
                 genes_to_remove.append(gene)
 
