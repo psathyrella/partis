@@ -35,6 +35,7 @@ parser.add_argument('--naive-hamming-bounds')
 parser.add_argument('--logprob-ratio-threshold', type=float, default=18., help='reaches a min value of <this> minus five for large clusters.')
 parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
+parser.add_argument('--synthetic-distance-based-partition', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
@@ -43,7 +44,9 @@ parser.add_argument('--naivety', default='M', choices=['M', 'N'])
 parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
+
 print 'TODO switch over to make_html function in plotting.py (in the process, hopefully fix ls not finding svg message)'
+
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
 parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')

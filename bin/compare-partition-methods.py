@@ -14,12 +14,13 @@ import glob
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
+parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--expected-methods', default='vollmers-0.9:mixcr:changeo:vsearch-partition:naive-hamming-partition:partition')
-parser.add_argument('--synthetic-partitions', default='misassign-0.10-singletons:misassign-0.10-reassign:misassign-0.90-singletons:misassign-0.90-reassign')
+parser.add_argument('--synthetic-partitions', default='0.10-singletons:0.10-reassign:0.90-singletons:0.90-reassign')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--lonely-leaves', action='store_true')
 parser.add_argument('--mimic', action='store_true')

@@ -60,14 +60,11 @@ def FOOP():
 
 # ----------------------------------------------------------------------------------------
 def mut_str(args, label, n_leaves, mut_mult):
-    # print leafmutstr(args, n_leaves, mut_mult)
-    # sys.exit()
-    return '%.1fx mutation' % mut_mult
-
     # if float(mut_mult).is_integer():  # TODO fix this
-    #     return '%dx mutation' % mut_mult
-    # else:
-    #     return '%.1fx mutation' % mut_mult
+    if mut_mult - int(mut_mult) == 0.:  # TODO fix this
+        return '%dx mutation' % mut_mult
+    else:
+        return '%.1fx mutation' % mut_mult
 
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
@@ -253,21 +250,27 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
 
 # ----------------------------------------------------------------------------------------
 def get_synthetic_partition_type(stype):
-    error_type, misfrac, mistype = stype.split('-')
-    misfrac = float(misfrac)
-    return error_type, misfrac, mistype
+    misfrac, mistype, threshold = None, None, None
+    if 'distance' in stype:
+        mistype, threshold = stype.split('-')
+        threshold = float(threshold)
+    else:
+        misfrac, mistype = stype.split('-')
+        misfrac = float(misfrac)
+    return misfrac, mistype, threshold
 
 # ----------------------------------------------------------------------------------------
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname):
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+    glfo = utils.read_germline_set(args.datadir)
     true_partition = utils.get_true_partition(reco_info)
     for stype in args.synthetic_partitions:
-        error_type, misfrac, mistype = get_synthetic_partition_type(stype)
-        vname = stype
+        misfrac, mistype, threshold = get_synthetic_partition_type(stype)
+        vname = 'misassign-' + stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         if output_exists(args, outfname):
             continue
-        new_partition = utils.generate_incorrect_partition(true_partition, misfrac, mistype)
+        new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction=misfrac, error_type=mistype, threshold=threshold, reco_info=reco_info, glfo=glfo)
         cpath = ClusterPath()
         adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
         ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
@@ -277,8 +280,9 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
 # ----------------------------------------------------------------------------------------
 def parse_synthetic(args, info, outdir, true_partition, base_outfname):
     for stype in args.synthetic_partitions:
-        error_type, misfrac, mistype = get_synthetic_partition_type(stype)
-        vname = stype
+        misfrac, mistype, threshold = get_synthetic_partition_type(stype)
+        assert False  # update for threshold
+        vname = 'misassign-' + stype
         cpath = ClusterPath()
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         cpath.readfile(outfname)
