@@ -118,7 +118,7 @@ class Glomerator(object):
         true_partition = utils.get_true_partition(self.reco_info)
         for cluster in true_partition:
             print '     %d    %s' % (utils.from_same_event(self.reco_info, cluster),
-                                     ':'.join([str(uid) for uid in clusters]))
+                                     ':'.join([str(uid) for uid in cluster]))
 
     # ----------------------------------------------------------------------------------------
     def read_file_info(self, infname, n_paths):
