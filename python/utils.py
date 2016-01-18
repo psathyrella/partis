@@ -662,7 +662,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     line['jf_insertion'] = final_jf_insertion
 
 # ----------------------------------------------------------------------------------------
-def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
+def get_full_naive_seq(germlines, line):
     for erosion in real_erosions + effective_erosions:
         if line[erosion + '_del'] < 0:  # wow, I have no idea why I thought this would happen
             print 'ERROR %s less than zero %d' % (erosion, line[erosion + '_del'])
@@ -671,10 +671,7 @@ def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    # if restrict_to_region == '':
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
-    # else:
-    # return eroded_seqs[restrict_to_region]
 
 # ----------------------------------------------------------------------------------------
 def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysical_erosions=True):
