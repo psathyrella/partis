@@ -36,7 +36,7 @@ parser.add_argument('--logprob-ratio-threshold', type=float, default=18., help='
 parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--synthetic-distance-based-partition', action='store_true')
-parser.add_argument('--no-indels', action='store_true', help='don\'t account for indels (hm, not actually sure if I implemented this, or if I just thought it was a good idea.)')
+parser.add_argument('--no-indels', action='store_true', help='Skip smith-waterman matches that include indels. Note that this just *skips* them, you probably also want to increase the gap-open penalty to prevent vdjalign from finding them in the first place.')
 parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
@@ -110,6 +110,10 @@ if args.slurm and '/tmp' in args.workdir:
 
 if args.smc_particles != 1:
     raise Exception('sequential monte carlo is not supported at this juncture.')
+
+if args.no_indels and args.gap_open_penalty < 1000:
+    print 'forcing gap open to 1000 to prevent indels'
+    args.gap_open_penalty = 1000
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
     args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
