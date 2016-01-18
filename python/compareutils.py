@@ -260,7 +260,7 @@ def get_synthetic_partition_type(stype):
     return misfrac, mistype, threshold
 
 # ----------------------------------------------------------------------------------------
-def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname):
+def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
     glfo = utils.read_germline_set(args.datadir)
     true_partition = utils.get_true_partition(reco_info)
@@ -268,14 +268,18 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = 'misassign-' + stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
+        print 'TODO clean up utils.generate_synthetic_partitions()'
         if output_exists(args, outfname):
             continue
-        new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction=misfrac, error_type=mistype, threshold=threshold, reco_info=reco_info, glfo=glfo)
-        cpath = ClusterPath()
-        adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
-        ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
-        cpath.add_partition(new_partition, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
-        cpath.write(outfname, is_data=False, reco_info=reco_info, true_partition=true_partition)
+        if 'distance' in stype:
+            execute(args, 'synthetic-partition', datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=[threshold, threshold], forced_outfname=outfname)
+        else:
+            new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction=misfrac, error_type=mistype, threshold=threshold, reco_info=reco_info, glfo=glfo)
+            cpath = ClusterPath()
+            adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
+            ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
+            cpath.add_partition(new_partition, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
+            cpath.write(outfname, is_data=False, reco_info=reco_info, true_partition=true_partition)
 
 # ----------------------------------------------------------------------------------------
 def parse_synthetic(args, info, outdir, true_partition, base_outfname):
@@ -1102,7 +1106,7 @@ def get_outputname(args, label, action, seqfname, hfrac_bounds):
     return outputname
 
 # ----------------------------------------------------------------------------------------
-def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=None):
+def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=None, forced_outfname=None):
     cmd = './bin/run-driver.py --label ' + label + ' --action '
     if 'partition' in action:
         cmd += ' partition'
@@ -1163,6 +1167,13 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
 
         n_procs = max(1, args.n_to_partition / 200)
+    elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
+        outfname = forced_outfname  # <outfname> gets used below
+        cmd += ' --outfname ' + forced_outfname
+        extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming', '--synthetic-distance-based-partition']
+        assert hfrac_bounds is not None
+        extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
+        n_procs = max(1, args.n_to_partition / 200)
     elif action == 'vsearch-partition':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
@@ -1193,7 +1204,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         return
     elif action == 'synthetic':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, outfname)
+        generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, outfname, datafname, procs)
         return
     else:
         raise Exception('bad action %s' % action)
@@ -1227,4 +1238,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(30)  # 300sec = 5min
+    time.sleep(60)  # 300sec = 5min
