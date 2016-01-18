@@ -189,7 +189,7 @@ class ClusterPath(object):
             print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_an_adj_mi:
                 print ' %5s' % ('adj mi'),
-                print ' %5s %5s' % ('ccf under', 'over'),
+                print ' %5s %5s' % ('purity', 'completeness'),
             if self.logweights[0] is not None and smc_print:
                 print '  %10s  %7s' % ('pot.parents', 'logweight'),
             print ''
