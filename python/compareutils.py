@@ -1172,7 +1172,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         cmd += ' --outfname ' + forced_outfname
         extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming', '--synthetic-distance-based-partition']
         assert hfrac_bounds is not None
-        extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
+        extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
         n_procs = max(1, args.n_to_partition / 200)
     elif action == 'vsearch-partition':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
