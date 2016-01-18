@@ -612,7 +612,7 @@ class PartitionDriver(object):
             sortedlist = sorted([name1, name2])
             return ':'.join(sortedlist)
 
-        naive_seqs = self.get_naive_seqs(info, namekey, seqkey)
+        naive_seqs = self.get_sw_naive_seqs(info, namekey, seqkey)
         cachefo = self.read_cachefile()
         n_total, n_cached = 0, 0
         for id_a, id_b in itertools.combinations(naive_seqs.keys(), 2):
@@ -631,17 +631,25 @@ class PartitionDriver(object):
         return n_total - n_cached
 
     # ----------------------------------------------------------------------------------------
-    def get_padded_naive_seq(self, qry):
-        assert qry in self.sw_info
-        naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.sw_info[qry])
+    def get_padded_true_naive_seq(self, qry):
+        true_naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.reco_info[qry])
         padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
         padright = self.sw_info[qry]['padded']['padright']
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-        naive_seq = padleft * utils.ambiguous_bases[0] + naive_seq + padright * utils.ambiguous_bases[0]
-        return naive_seq
+        true_naive_seq = padleft * utils.ambiguous_bases[0] + true_naive_seq + padright * utils.ambiguous_bases[0]
+        return true_naive_seq
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_seqs(self, info, namekey, seqkey):
+    def get_padded_sw_naive_seq(self, qry):
+        sw_naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.sw_info[qry])
+        padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
+        padright = self.sw_info[qry]['padded']['padright']
+        assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+        sw_naive_seq = padleft * utils.ambiguous_bases[0] + sw_naive_seq + padright * utils.ambiguous_bases[0]
+        return sw_naive_seq
+
+    # ----------------------------------------------------------------------------------------
+    def get_sw_naive_seqs(self, info, namekey, seqkey):
 
         naive_seqs = {}
         for line in info:
@@ -649,9 +657,9 @@ class PartitionDriver(object):
             seqstr = line['padded'][seqkey] if 'padded' in line else line[seqkey]
             # NOTE cached naive seqs should all be the same length
             if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
-               naive_seqs[query] = self.get_padded_naive_seq(query)
+               naive_seqs[query] = self.get_padded_sw_naive_seq(query)
             elif len(query.split(':')) > 1:
-                naive_seqs[query] = self.get_padded_naive_seq(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
+                naive_seqs[query] = self.get_padded_sw_naive_seq(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
@@ -667,7 +675,7 @@ class PartitionDriver(object):
             return self.bcrham_divvied_queries
 
         print 'no bcrham divvies, divvying with python glomerator'
-        naive_seqs = self.get_naive_seqs(info, namekey, seqkey)
+        naive_seqs = self.get_sw_naive_seqs(info, namekey, seqkey)
 
         clust = Glomerator()
         divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
@@ -1029,7 +1037,7 @@ class PartitionDriver(object):
             for query_name_list in nsets:
                 writer.writerow({
                     'unique_ids' : ':'.join([qn for qn in query_name_list]),
-                    'naive_seq' : self.get_padded_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
+                    'naive_seq' : self.get_padded_true_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
                 })
 
     # ----------------------------------------------------------------------------------------
