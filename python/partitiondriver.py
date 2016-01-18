@@ -442,6 +442,8 @@ class PartitionDriver(object):
                 cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
 
                 hfrac_bounds = self.get_naive_hamming_bounds(parameter_dir)
+                if self.args.naive_hamming:  # shouldn't be able to happen, but...
+                    assert hfrac_bounds[0] == hfrac_bounds[1]
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(hfrac_bounds[1])
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
@@ -629,15 +631,17 @@ class PartitionDriver(object):
         return n_total - n_cached
 
     # ----------------------------------------------------------------------------------------
+    def get_padded_naive_seq(self, qry):
+        assert qry in self.sw_info
+        naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.sw_info[qry])
+        padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
+        padright = self.sw_info[qry]['padded']['padright']
+        assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
+        naive_seq = padleft * utils.ambiguous_bases[0] + naive_seq + padright * utils.ambiguous_bases[0]
+        return naive_seq
+
+    # ----------------------------------------------------------------------------------------
     def get_naive_seqs(self, info, namekey, seqkey):
-        def get_query_from_sw(qry):
-            assert qry in self.sw_info
-            naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.sw_info[qry])
-            padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
-            padright = self.sw_info[qry]['padded']['padright']
-            assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-            naive_seq = padleft * utils.ambiguous_bases[0] + naive_seq + padright * utils.ambiguous_bases[0]
-            return naive_seq
 
         naive_seqs = {}
         for line in info:
@@ -645,9 +649,9 @@ class PartitionDriver(object):
             seqstr = line['padded'][seqkey] if 'padded' in line else line[seqkey]
             # NOTE cached naive seqs should all be the same length
             if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
-               naive_seqs[query] = get_query_from_sw(query)
+               naive_seqs[query] = self.get_padded_naive_seq(query)
             elif len(query.split(':')) > 1:
-                naive_seqs[query] = get_query_from_sw(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
+                naive_seqs[query] = self.get_padded_naive_seq(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
@@ -1009,6 +1013,26 @@ class PartitionDriver(object):
         return combo
 
     # ----------------------------------------------------------------------------------------
+    def write_fake_cache_file(self, nsets):
+        """ Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions. """
+
+        if os.path.exists(self.hmm_cachefname):
+            print '      cache file exists, not writing fake true naive seqs'
+            return
+
+        headers = ['unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'cyst_position', 'errors']  # these have to match whatever bcrham is expecting
+
+        print '      caching fake true naive seqs'
+        with open(self.hmm_cachefname, 'w') as fakecachefile:
+            writer = csv.DictWriter(fakecachefile, headers)
+            writer.writeheader()
+            for query_name_list in nsets:
+                writer.writerow({
+                    'unique_ids' : ':'.join([qn for qn in query_name_list]),
+                    'naive_seq' : self.get_padded_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
+                })
+
+    # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
         csvfile = opener(mode)(fname)
         header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs', 'cyst_positions']  # NOTE logweight is for the whole partition
@@ -1018,6 +1042,9 @@ class PartitionDriver(object):
 
         if not self.args.no_random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
             random.shuffle(nsets)
+
+        if self.args.synthetic_distance_based_partition:
+            self.write_fake_cache_file(nsets)
 
         for query_name_list in nsets:
 
