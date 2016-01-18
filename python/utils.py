@@ -664,7 +664,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):  #, restrict_to_region=''):
     for erosion in real_erosions + effective_erosions:
-        if line[erosion + '_del'] < 0:
+        if line[erosion + '_del'] < 0:  # wow, I have no idea why I thought this would happen
             print 'ERROR %s less than zero %d' % (erosion, line[erosion + '_del'])
         assert line[erosion + '_del'] >= 0
     original_seqs = {}  # original (non-eroded) germline seqs
@@ -1748,12 +1748,20 @@ def remove_missing_uids_from_true_partition(true_partition, partition_with_missi
     return true_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------
-def generate_incorrect_partition(true_partition, misassign_fraction, error_type, debug=False):
+def generate_incorrect_partition(true_partition, misassign_fraction=None, error_type=None, threshold=None, glfo=None, reco_info=None, debug=False):
     """ 
     Generate an incorrect partition from <true_partition>.
     We accomplish this by removing <n_misassigned> seqs at random from their proper cluster, and putting each in either a
     cluster chosen at random from the non-proper clusters (<error_type> 'reassign') or in its own partition (<error_type> 'singleton').
     """
+
+    if misassign_fraction is None:
+        assert misassign_fraction is None
+        assert threshold is not None and glfo is not None
+        generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error=threshold, debug=debug)
+    else:
+        assert threshold is None
+
     new_partition = copy.deepcopy(true_partition)
     if debug:
         print '  before', new_partition
@@ -1784,8 +1792,8 @@ def generate_incorrect_partition(true_partition, misassign_fraction, error_type,
     return new_partition
 
 # ----------------------------------------------------------------------------------------
-def generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error, merge_fraction, debug=False):
-    raise Exception('not finished with this')
+def generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error, debug=False):
+    raise Exception('gave up on this! implemented in partitiondriver instead.')
     """
     Generate an incorrect partition from <true_partition>.
     """
@@ -1793,12 +1801,9 @@ def generate_distance_based_incorrect_partition(glfo, reco_info, true_partition,
     if debug:
         print '  before', new_partition
 
-    naive_seqs = {}
-    for cluster in true_partition:
-        reco_id = reco_info[cluster[0]]['reco_id']
-        if len(cluster) > 1:  # make sure at least the second sequence has the same reco_id (not that I have any idea how it could avoid it)
-            assert reco_id == reco_info[cluster[1]]['reco_id']
-        naive_seqs[reco_id] = get_full_naive_seq(glfo['seqs'], reco_info[cluster[0]])
+    naive_seqs = [get_full_naive_seq(glfo['seqs'], reco_info[cluster[0]]) for cluster in true_partition]
+    print '\n'.join(naive_seqs)
+    sys.exit()
 
     hfracs = {}
 
@@ -2076,6 +2081,7 @@ def get_padding_parameters(queries, info, glfo, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def pad_seqs_to_same_length(queries, info, glfo, indelfo, debug=False):
+    # TODO it makes no sense to move this out of waterer.py, I should put it back
     """
     Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
     Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
