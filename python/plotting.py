@@ -698,7 +698,8 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'mixcr' : 'MiXCR',
            'adj_mi' : 'similarity to true partition',
            'ccf_under' : 'purity',
-           'ccf_over' : 'completeness'
+           'ccf_over' : 'completeness',
+           'ccf_product' : 'purity * completeness'
            }
 
 colors = {'true' : '#006600',

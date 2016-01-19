@@ -44,12 +44,11 @@ leaf_mut_hum="--n-leaf-list $leaves --mutation-multipliers $mm --humans A"
 #     # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --subset $isub --n-subsets 10 $leaf_mut_hum &  #run-viterbi:
 #     # ./bin/compare-partition-methods.py --actions run-changeo --subset $isub --n-subsets 10 $leaf_mut_hum &
 #     # sleep 60
-#     # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods vollmers-0.9:vsearch-partition:naive-hamming-partition:partition $leaf_mut_hum &  # --no-similarity-matrices &
-#     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods changeo $leaf_mut_hum &  # --no-similarity-matrices &
+#     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods vollmers-0.9:changeo:vsearch-partition:naive-hamming-partition:partition:synthetic $leaf_mut_hum &  # --no-similarity-matrices &
+#     # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods synthetic $leaf_mut_hum --no-similarity-matrices &
 #     # break
 # done
 ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --expected-methods vollmers-0.9:changeo:vsearch-partition:naive-hamming-partition:partition
-# ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --humans A --n-subsets 3 --n-leaf-list 10:25 --mutation-multipliers 1 --no-mixcr --no-changeo
 
 # # ----------------------------------------------------------------------------------------
 # leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans A"  # 100:200:500

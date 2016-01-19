@@ -20,7 +20,7 @@ from clusterpath import ClusterPath
 import plotting
 
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
-metrics = ['adj_mi', 'ccf_under', 'ccf_over']
+metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
 
 # ----------------------------------------------------------------------------------------
 def FOOP():
@@ -144,15 +144,15 @@ def get_changeo_outdir(args, label, n_leaves, mut_mult):
     return imgtdir
 
 # ----------------------------------------------------------------------------------------
-def deal_with_parse_results(info, outdir, vname, partition, hist, metrics=None, info_vname=None):
+def deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals=None, info_vname=None):
     if info_vname is None:
         info_vname = vname
     if partition is not None:
         info['partitions'][info_vname] = partition
     info['hists'][info_vname] = hist
     hist.write(outdir + '/hists/' + vname + '.csv')
-    if metrics is not None and vname != 'true':
-        for mname, val in metrics.items():
+    if metric_vals is not None and vname != 'true':
+        for mname, val in metric_vals.items():
             info[mname][info_vname] = val
             write_float_val(outdir + '/' + mname + '/' + vname + '.csv', val, mname)
 
@@ -160,7 +160,7 @@ def deal_with_parse_results(info, outdir, vname, partition, hist, metrics=None, 
 def parse_true(args, info, outdir, true_partition):
     # well, not really parse per se
     truehist = plotting.get_cluster_size_hist(true_partition)
-    deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metrics=None)
+    deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metric_vals=None)
 
 # ----------------------------------------------------------------------------------------
 def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition):
@@ -171,13 +171,13 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
             n_lines += 1
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = utils.get_partition_from_str(partitionstr)
-            metrics = None
+            metric_vals = None
             if not args.data:
                 utils.check_intersection_and_complement(partition, true_partition)
                 ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
-                metrics = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
+                metric_vals = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
 
-            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition), metrics)
+            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition), metric_vals)
 
     if n_lines < 1:
         raise Exception('zero partition lines read from %s' % vollmers_fname)
@@ -188,11 +188,11 @@ def parse_changeo(args, info, outfname, csvdir, reco_info, true_partition):
     cpath.readfile(outfname)
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
-    metrics = None
+    metric_vals = None
     if not args.data:
         ccfs = cpath.ccfs[cpath.i_best]
-        metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
-    deal_with_parse_results(info, csvdir, 'changeo', partition, hist, metrics)
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+    deal_with_parse_results(info, csvdir, 'changeo', partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, info, seqfname, outdir):
@@ -221,21 +221,21 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     partition = cpath.partitions[cpath.i_best]
     vname = action
     info_vname = vname + ' partis'  # arg, shouldn't have done it that way
-    metrics = None
+    metric_vals = None
     if not args.data:
         # ccfs = utils.new_ccfs_that_need_better_names(cpath.partitions[cpath.i_best], true_partition, reco_info)
         ccfs = cpath.ccfs[cpath.i_best]
-        metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
-    deal_with_parse_results(info, outdir, action, partition, hist, metrics, info_vname)
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+    deal_with_parse_results(info, outdir, action, partition, hist, metric_vals, info_vname)
 
 # ----------------------------------------------------------------------------------------
 def get_synthetic_partition_type(stype):
     misfrac, mistype, threshold = None, None, None
     if 'distance' in stype:
-        mistype, threshold = stype.split('-')
+        crap, mistype, threshold = stype.split('-')
         threshold = float(threshold)
     else:
-        misfrac, mistype = stype.split('-')
+        crap, misfrac, mistype = stype.split('-')
         misfrac = float(misfrac)
     return misfrac, mistype, threshold
 
@@ -246,7 +246,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
     true_partition = utils.get_true_partition(reco_info)
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
-        # vname = 'misassign-' + stype
+        vname = stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         print 'TODO clean up utils.generate_synthetic_partitions()'
         if output_exists(args, outfname):
@@ -265,15 +265,15 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
 def parse_synthetic(args, info, outdir, true_partition, base_outfname):
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
-        # vname = 'misassign-' + stype
+        vname = stype
         cpath = ClusterPath()
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         cpath.readfile(outfname)
         partition = cpath.partitions[cpath.i_best]
         hist = plotting.get_cluster_size_hist(partition)
         ccfs = cpath.ccfs[cpath.i_best]
-        metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
-        deal_with_parse_results(info, outdir, vname, partition, hist, metrics)
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+        deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
 def write_float_val(fname, val, valname):
@@ -729,7 +729,6 @@ def get_this_info(all_info, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir):
-    print 'TODO needs testing'
     for method in get_expected_methods_to_plot(args, metric='hists'):
         this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
     cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
