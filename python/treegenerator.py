@@ -174,7 +174,16 @@ class TreeGenerator(object):
                     if self.args.constant_number_of_leaves:
                         n_leaves = self.args.n_leaves
                     else:
-                        n_leaves = numpy.random.geometric(1./self.args.n_leaves)
+                        if self.args.n_leaf_distribution == 'geometric':
+                            n_leaves = numpy.random.geometric(1./self.args.n_leaves)
+                        elif self.args.n_leaf_distribution == 'box':
+                            width = self.args.n_leaves / 5.  # whatever
+                            lo, hi = int(self.args.n_leaves - width), int(self.args.n_leaves + width)
+                            if hi - lo <= 0:
+                                raise Exception('n leaves %d and width %f round to bad box bounds [%f, %f]' % (self.args.n_leaves, width, lo, hi))
+                            n_leaves = random.randint(lo, hi)  # NOTE interval is inclusive!
+                        else:
+                            raise Exception('n leaf distribution %s not among allowed choices' % self.args.n_leaf_distribution)
                         # n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
                         # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
                     age = self.choose_mean_branch_length()

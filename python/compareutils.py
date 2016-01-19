@@ -95,6 +95,8 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
         return_str += '-lonely-leaves'
     if args.mimic:
         return_str += '-mimic'
+    if args.box:
+        return_str += '-box'
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -1139,6 +1141,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--constant-number-of-leaves', ]
         if args.mimic:
             extras += ['--mimic-data-read-length', ]
+        if args.box:
+            extras += ['--n-leaf-distribution', 'box']
         n_procs = 10
     elif action == 'cache-simu-parameters':
         outfname = seqfname.replace('.csv', '')
