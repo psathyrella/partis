@@ -20,7 +20,7 @@ parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--data', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--expected-methods', default='vollmers-0.9:mixcr:changeo:vsearch-partition:naive-hamming-partition:partition')
-parser.add_argument('--synthetic-partitions', default='distance-0.01:distance-0.08:0.10-reassign:0.90-singletons')
+parser.add_argument('--synthetic-partitions', default='distance-0.08:0.10-reassign:0.90-singletons')
 parser.add_argument('--indels', action='store_true')
 parser.add_argument('--lonely-leaves', action='store_true')
 parser.add_argument('--mimic', action='store_true')
@@ -57,6 +57,8 @@ args.humans = utils.get_arg_list(args.humans)
 args.hfrac_bound_list = utils.get_arg_list(args.hfrac_bound_list, floatify=True, list_of_pairs=True)
 args.expected_methods = utils.get_arg_list(args.expected_methods)
 args.synthetic_partitions = utils.get_arg_list(args.synthetic_partitions)
+for isp in range(len(args.synthetic_partitions)):  # I really shouldn't have set it up this way
+    args.synthetic_partitions[isp] = 'misassign-' + args.synthetic_partitions[isp]
 
 if 'cache-data-parameters' in args.actions:
     args.data = True
