@@ -1710,8 +1710,12 @@ def adjusted_mutual_information(partition_a, partition_b):
     return adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
-def add_missing_uids_as_singletons_to_inferred_partition(true_partition, partition_with_missing_uids, debug=True):
+def add_missing_uids_as_singletons_to_inferred_partition(partition_with_missing_uids, true_partition=None, all_ids=None, debug=True):
     """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <true_partition>) """
+
+    if true_partition is None:  # it's less confusing than the alternatives, I swear
+        true_partition = [[uid, ] for uid in all_ids]
+
     partition_with_uids_added = copy.deepcopy(partition_with_missing_uids)
     missing_ids = []
     for cluster in true_partition:
@@ -1906,6 +1910,9 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='se
     if outfname is None:
         assert '.csv' in infname
         outfname = infname.replace('.csv', '.fa')
+    if os.path.exists(outfname):
+        print '  csv --> fasta: overwriting %s' % outfname
+
     if '.csv' in infname:
         delimiter = ','
     elif '.tsv' in infname:

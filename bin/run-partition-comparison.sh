@@ -1,7 +1,11 @@
 #!/bin/bash
-
-./bin/compare-partition-methods.py --actions simulate --n-leaf-list 30 --mutation-multipliers 1 --box --humans A &
-
+# leaf_mut_hum="--n-leaf-list 30 --mutation-multipliers 1 --humans A"
+# ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum --box &
+# ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum --box &
+# ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition $leaf_mut_hum --box --n-to-partition 3000 &
+echo "run the mimic and box samples"
+echo "remake synthetic distance-based partition with 0.03"
+echo "also remake other synthetic partitions *without* replacement"
 # ----------------------------------------------------------------------------------------
 # thresholds optimization
 
@@ -29,22 +33,23 @@
 # # ./bin/compare-partition-methods.py --actions write-plots $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods $action &  # --istartstop 0:10000  &  #1000:8000 &
 # ./bin/compare-partition-methods.py --actions compare-subsets $leaf_mut_hum --hfrac-bound-list $bounds --expected-methods $action &  # --istartstop 0:10000 &  #1000:8000 &
 
-# # ----------------------------------------------------------------------------------------
-# leaves=1:2:5:10:25:50:100:200  #:500
-# # leaves=2  #1
-# leaf_mut_hum="--n-leaf-list $leaves --mutation-multipliers 1:4 --humans A"
-# # echo "dont forget you copied these sim files from the old dir";  # ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum  #  --n-sim-seqs 100000
-# # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
+# ----------------------------------------------------------------------------------------
+leaves=1:2:5:10:25:50:100:200  #:500
+# leaves=200  #1
+mm=1:4
+leaf_mut_hum="--n-leaf-list $leaves --mutation-multipliers $mm --humans A"
+# echo "dont forget you copied these sim files from the old dir";  # ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum  #  --n-sim-seqs 100000
+# ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
 # for isub in 0 1 2; do
 #     # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --subset $isub --n-subsets 10 $leaf_mut_hum &  #run-viterbi:
-#     # ./bin/compare-partition-methods.py --actions synthetic --subset $isub --n-subsets 10 $leaf_mut_hum &
+#     # ./bin/compare-partition-methods.py --actions run-changeo --subset $isub --n-subsets 10 $leaf_mut_hum &
 #     # sleep 60
-#     # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods vsearch-partition:naive-hamming-partition:partition $leaf_mut_hum &  # --no-similarity-matrices &
-#     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods partition $leaf_mut_hum &  # --no-similarity-matrices &
+#     # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods vollmers-0.9:vsearch-partition:naive-hamming-partition:partition $leaf_mut_hum &  # --no-similarity-matrices &
+#     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods changeo $leaf_mut_hum &  # --no-similarity-matrices &
 #     # break
 # done
-# # ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --expected-methods partition
-# # ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --humans A --n-subsets 3 --n-leaf-list 10:25 --mutation-multipliers 1 --no-mixcr --no-changeo
+./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --expected-methods vollmers-0.9:changeo:vsearch-partition:naive-hamming-partition:partition
+# ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --humans A --n-subsets 3 --n-leaf-list 10:25 --mutation-multipliers 1 --no-mixcr --no-changeo
 
 # # ----------------------------------------------------------------------------------------
 # leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans A"  # 100:200:500

@@ -132,10 +132,15 @@ def get_changeo_outdir(args, label, n_leaves, mut_mult):
         changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo.bak/' + label
     else:
         changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo/' + label
+
     if args.data:
         imgtdir = changeo_fsdir + '/data'
     else:
         imgtdir = changeo_fsdir + '/' + leafmutstr(args, n_leaves, mut_mult).replace('-', '_')
+
+    imgtdir = imgtdir.replace('1.0_mutate', '1_mutate')  # like your mom, backwards compatibility is a bitch
+    imgtdir = imgtdir.replace('4.0_mutate', '4_mutate')
+
     return imgtdir
 
 # ----------------------------------------------------------------------------------------
@@ -178,43 +183,16 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
         raise Exception('zero partition lines read from %s' % vollmers_fname)
 
 # ----------------------------------------------------------------------------------------
-def parse_changeo(args, label, n_leaves, mut_mult, info, simfbase, outdir):
-    print 'TODO update for all sorts of shit (including hfrac_bounds)'
-    raise Exception('rerun all the changeo stuff accounting for missing uids')
-    indir = get_changeo_outdir(args, label, n_leaves, mut_mult)  #fsdir.replace('/partis-dev/_output', '/changeo')
-    if args.data:
-        fbase = 'data'
-    else:
-        fbase = simfbase.replace('-', '_')
-    if args.bak:
-        infname = indir + '/' + fbase + changeorandomcrapstr
-    else:
-        # infname = indir + '/' + fbase + '/' + changeorandomcrapstr
-        infname = indir + '/' + changeorandomcrapstr
-    if args.subset is not None:
-        infname = infname.replace(changeorandomcrapstr, 'subset-' + str(args.subset) + changeorandomcrapstr)
-    if args.istartstop is not None:
-        infname = infname.replace(changeorandomcrapstr, 'istartstop_' + '_'.join([str(i) for i in args.istartstop]) + changeorandomcrapstr)
-
-    id_clusters = {}  # map from cluster id to list of seq ids
-    with open(infname) as chfile:
-        reader = csv.DictReader(chfile, delimiter='\t')
-        for line in reader:
-            clid = line['CLONE']
-            uid = line['SEQUENCE_ID']
-            if clid not in id_clusters:
-                id_clusters[clid] = []
-            id_clusters[clid].append(uid)
-
-    partition = [ids for ids in id_clusters.values()]
+def parse_changeo(args, info, outfname, csvdir, reco_info, true_partition):
+    cpath = ClusterPath()
+    cpath.readfile(outfname)
+    hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
+    partition = cpath.partitions[cpath.i_best]
     metrics = None
     if not args.data:
-        adj_mi_fname = infname.replace(changeorandomcrapstr, '-adj_mi.csv')
-        metrics = {'adj_mi' : read_float_val(adj_mi_fname, 'adj_mi')}
-        for etype in ['under', 'over']:
-            ccf_fname = infname.replace(changeorandomcrapstr, '-ccf_' + etype+ '.csv')
-            metrics['ccf_' + etype] = read_float_val(ccf_fname, 'ccf_' + etype)
-    deal_with_parse_results(info, outdir, 'changeo', partition, plotting.get_cluster_size_hist(partition), metrics)
+        ccfs = cpath.ccfs[cpath.i_best]
+        metrics = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1]}
+    deal_with_parse_results(info, csvdir, 'changeo', partition, hist, metrics)
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, info, seqfname, outdir):
@@ -567,7 +545,8 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     true_partition = utils.get_true_partition(reco_info)
     if not args.data:
         parse_true(args, this_info, csvdir, true_partition)
-        parse_synthetic(args, this_info, csvdir, true_partition, get_outputname(args, label, 'synthetic', seqfname, hfrac_bounds))
+        if 'synthetic' in args.expected_methods:
+            parse_synthetic(args, this_info, csvdir, true_partition, get_outputname(args, label, 'synthetic', seqfname, hfrac_bounds))
 
     for meth in args.expected_methods:
         if 'vollmers' in meth and meth != 'vollmers-0.9':
@@ -576,7 +555,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     if 'vollmers-0.9' in args.expected_methods:
         parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
     if 'changeo' in args.expected_methods:
-        parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir)
+        parse_changeo(args, this_info, get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
     if 'mixcr' in args.expected_methods:
         parse_mixcr(args, this_info, seqfname, csvdir)
 
@@ -584,9 +563,9 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     for action in [a for a in args.expected_methods if 'partition' in a]:
         parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
 
-    log = 'xy'
-    if not args.data and n_leaves <= 10:
-        log = 'x'
+    log = 'x'
+    # if not args.data and n_leaves <= 10:
+    #     log = 'x'
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
@@ -754,7 +733,7 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
     for method in get_expected_methods_to_plot(args, metric='hists'):
         this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
     cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
-    log = 'xy'
+    log = 'x'
     if args.data:
         title = get_title(args, label, n_leaves, mut_mult)
         plotfname = cluster_size_plotdir + '/data.svg'
@@ -763,8 +742,8 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
         title = get_title(args, label, n_leaves, mut_mult)
         plotfname = cluster_size_plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
         xmax = n_leaves*6.01
-        if n_leaves <= 10:
-            log = 'x'
+        # if n_leaves <= 10:
+        #     log = 'x'
     plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
     plotting.make_html(cluster_size_plotdir)
 
@@ -832,6 +811,8 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         else:
             print '   hmm... imgtdir not there... maybe we only have the subsets'
 
+    input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
+
     if args.subset is not None:
         subset_dir = imgtdir + '/subset-' + str(args.subset)
         if not os.path.exists(subset_dir):
@@ -839,8 +820,8 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
             tsvfnames = glob.glob(imgtdir + '/*.txt')
             check_call(['cp', '-v', imgtdir + '/11_Parameters.txt', subset_dir + '/'])
             tsvfnames.remove(imgtdir + '/11_Parameters.txt')
-            tsvfnames.remove(imgtdir + '/README.txt')
-            input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+            if imgtdir + '/README.txt' in tsvfnames:
+                tsvfnames.remove(imgtdir + '/README.txt')
             subset_ids = input_info.keys()
             utils.subset_files(subset_ids, tsvfnames, subset_dir)
         imgtdir = subset_dir
@@ -853,8 +834,8 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
             tsvfnames = glob.glob(imgtdir + '/*.txt')
             check_call(['cp', '-v', imgtdir + '/11_Parameters.txt', subset_dir + '/'])
             tsvfnames.remove(imgtdir + '/11_Parameters.txt')
-            tsvfnames.remove(imgtdir + '/README.txt')
-            input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
+            if imgtdir + '/README.txt' in tsvfnames:
+                tsvfnames.remove(imgtdir + '/README.txt')
             subset_ids = input_info.keys()
             utils.subset_files(subset_ids, tsvfnames, subset_dir)
         imgtdir = subset_dir
@@ -863,12 +844,13 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         print 'RUN %s' % cmdstr
         check_call(cmdstr.split(), env=os.environ)
 
-    resultfname = imgtdir + changeorandomcrapstr
-    if output_exists(args, resultfname):
+    outfname = get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds=None)
+    if output_exists(args, outfname):
         return
 
     fastafname = os.path.splitext(seqfname)[0] + '.fasta'
-    utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
+    if not os.path.exists(fastafname):
+        utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
     bindir = '/home/dralph/work/changeo/changeo/bin'
     os.environ['PYTHONPATH'] = bindir.replace('/bin', '')
     start = time.time()
@@ -887,9 +869,8 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     print '        changeo time: %.3f' % (time.time()-start)
 
     # read changeo's output and toss it into a csv
-    input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
     id_clusters = {}  # map from cluster id to list of seq ids
-    with open(resultfname) as chfile:
+    with open(imgtdir + changeorandomcrapstr) as chfile:
         reader = csv.DictReader(chfile, delimiter='\t')
         for line in reader:
             clid = line['CLONE']
@@ -899,21 +880,20 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
             id_clusters[clid].append(uid)
 
     partition = [ids for ids in id_clusters.values()]
-    # these_hists['changeo'] = plotting.get_cluster_size_hist(partition)
+    partition_with_uids_added = utils.add_missing_uids_as_singletons_to_inferred_partition(partition, all_ids=input_info.keys())
+
+    adj_mi, ccfs = None, [None, None]
     if not args.data:
         true_partition = utils.get_true_partition(reco_info)
-        subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
-        print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
+        # subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
+        # print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
 
-        partition_with_uids_added = utils.add_missing_uids_as_singletons_to_inferred_partition(utils.get_true_partition(reco_info), partition)
-        print 'added to inferred: %.3f' % utils.adjusted_mutual_information(true_partition, partition_with_uids_added)
-        assert False  # need to work out why changeo is filtering out so many seqs, and decide how to treat them if I can't fix it
+        adj_mi = utils.adjusted_mutual_information(true_partition, partition_with_uids_added)
+        ccfs = utils.new_ccfs_that_need_better_names(partition_with_uids_added, true_partition, reco_info)
 
-        write_float_val(imgtdir + '-adj_mi.csv', adj_mi, 'adj_mi')
-        raise Exception('dont do this here, do it somewhere else')
-        ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
-        write_float_val(imgtdir + '-ccf_under.csv', ccfs[0], 'ccf_under')
-        write_float_val(imgtdir + '-ccf_over.csv', ccfs[1], 'ccf_over')
+    cpath = ClusterPath()
+    cpath.add_partition(partition_with_uids_added, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
+    cpath.write(outfname, is_data=args.data, reco_info=reco_info, true_partition=true_partition)
 
 # ----------------------------------------------------------------------------------------
 def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
