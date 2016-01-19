@@ -686,7 +686,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'naive-hamming-partition' : 'point partis',
            'vsearch-partition partis' : 'vsearch partis',
            'vsearch-partition' : 'vsearch partis',
-           'changeo' : 'Change-O',
+           'changeo' : 'IMGT + Change-O',
            # '0.1-true-singletons' : '10% random singletons',
            # '0.1-true-reassign' : '10% random reassign',
            'misassign-0.10-singletons' : '10% assigned\n  to singleton',
@@ -697,8 +697,8 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'misassign-distance-0.08' : 'ham frac 0.08',
            'mixcr' : 'MiXCR',
            'adj_mi' : 'similarity to true partition',
-           'ccf_under' : 'fraction not under-merged',
-           'ccf_over' : 'fraction not over-merged'
+           'ccf_under' : 'purity',
+           'ccf_over' : 'completeness'
            }
 
 colors = {'true' : '#006600',
@@ -714,8 +714,8 @@ colors = {'true' : '#006600',
           'mixcr' : '#7b68ee',
           'misassign-0.10-singletons' : '#4e8975',
           'misassign-0.10-reassign' : '#4e8975',
-          'misassign-0.90-singletons' : '#1e90ff',
-          'misassign-0.90-reassign' : '#1e90ff',
+          'misassign-0.90-singletons' : '#800080',
+          'misassign-0.90-reassign' : '#800080',
           'misassign-distance-0.01' : '#800080',
           'misassign-distance-0.08' : '#800080'
 }
@@ -732,7 +732,7 @@ linewidths = {'true' : 15,
               'misassign-0.90-singletons' : 4,
               'misassign-0.10-reassign' : 2,
               'misassign-0.90-reassign' : 2,
-              'misassign-distance-0.08' : 8
+              'misassign-distance-0.08' : 4
 }
 
 # linewidths['v-true'] = 10
@@ -799,6 +799,12 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
             alpha = 0.7
         elif 'vollmers' in name:
             alpha = 0.8
+
+        if 'misassign' in name:
+            alpha = 0.7
+
+        if 'singletons' in name:
+            linestyle = 'dashed'
 
         # if 'v-' in name:
         #     linestyle = '-'
