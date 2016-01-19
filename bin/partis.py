@@ -74,7 +74,8 @@ parser.add_argument('--n-best-events', default=None, help='Number of best events
 parser.add_argument('--n-sim-events', type=int, default=1, help='Number of rearrangement events to simulate')
 parser.add_argument('--n-trees', type=int, default=500, help='Number of trees to generate')
 parser.add_argument('--n-leaves', type=int, default=5, help='Number of leaves per tree (used as the mean when drawing from a distribution)')
-parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a hacktified exponential with mean <n_leaves>)')
+parser.add_argument('--constant-number-of-leaves', action='store_true', help='Give all trees the same number of leaves (default is to choose each tree\'s number of leaves from a geometric with mean <n_leaves>)')
+parser.add_argument('--n-leaf-distribution', default='geometric', choices=['geometric', 'box'], help='distribution from which to draw the number of leaves for each tree')
 parser.add_argument('--indel-frequency', default=0., type=float, help='fraction of simulated sequences with indels')
 # disabled for now, but if you want multiple indels per sequence you can use this (you'd also need to uncomment a line in recombinator):
 # parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')

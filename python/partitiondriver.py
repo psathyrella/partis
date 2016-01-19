@@ -794,7 +794,7 @@ class PartitionDriver(object):
         try:
             check_call(cmd, shell=True)
         except CalledProcessError:
-            print 'nothing to merge into %s' % outfname
+            print '    nothing to merge into %s' % outfname
             # raise Exception('only read headers from %s', ' '.join([fn for fn in infnames if fn != outfname]))
 
         if dereplicate:
