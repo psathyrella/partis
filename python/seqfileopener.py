@@ -1,6 +1,6 @@
 import bz2
 import gzip
-import os.path
+import os
 import sys
 import csv
 from collections import OrderedDict
@@ -14,24 +14,31 @@ from opener import opener
 def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None):
     """ return list of sequence info from files of several types """
 
-    if '.csv' in fname:
+    suffix = os.path.splitext(fname)[1]
+    if suffix == '.csv':
         delimiter = ','
         name_column = 'unique_id'
         seq_column = 'seq'
         seqfile = opener('r')(fname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
-    elif '.tsv' in fname:
+    elif suffix == '.tsv':
         delimiter = '\t'
         name_column = 'name'
         seq_column = 'nucleotide'
         seqfile = opener('r')(fname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
-    elif '.fasta' in fname or '.fa' in fname or '.fastq' in fname or '.fq' in fname:
+    else:
+        if suffix == '.fasta' or suffix == '.fa':
+            ftype = 'fasta'
+        elif suffix == '.fastq' or suffix == '.fq':
+             ftype = 'fastq'
+        else:
+            raise Exception('couldn\'t handle file extension for %s' % fname)
         name_column = 'unique_id'
         seq_column = 'seq'
         reader = []
         n_fasta_queries = 0
-        ftype = 'fasta' if ('.fasta' in fname or '.fa' in fname) else 'fastq'
+        print 'TODO account for <queries> and <reco_ids> here'
         for seq_record in SeqIO.parse(fname, ftype):
             reader.append({})
             reader[-1][name_column] = seq_record.name
@@ -39,8 +46,6 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             n_fasta_queries += 1
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
                 break
-    else:
-        raise Exception('unrecognized file format %s' % fname)
 
     input_info = OrderedDict()
     reco_info = None
