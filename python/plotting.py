@@ -693,6 +693,8 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'misassign-0.90-singletons' : '90% assigned\n  to singleton',
            'misassign-0.10-reassign' : '10% reassigned',
            'misassign-0.90-reassign' : '90% reassigned',
+           'misassign-distance-0.01' : 'ham frac 0.01',
+           'misassign-distance-0.08' : 'ham frac 0.08',
            'mixcr' : 'MiXCR',
            'adj_mi' : 'similarity to true partition',
            'ccf_under' : 'fraction not under-merged',
@@ -713,7 +715,9 @@ colors = {'true' : '#006600',
           'misassign-0.10-singletons' : '#4e8975',
           'misassign-0.10-reassign' : '#4e8975',
           'misassign-0.90-singletons' : '#1e90ff',
-          'misassign-0.90-reassign' : '#1e90ff'
+          'misassign-0.90-reassign' : '#1e90ff',
+          'misassign-distance-0.01' : '#800080',
+          'misassign-distance-0.08' : '#800080'
 }
 
 linewidths = {'true' : 15,
@@ -727,7 +731,8 @@ linewidths = {'true' : 15,
               'misassign-0.10-singletons' : 4,
               'misassign-0.90-singletons' : 4,
               'misassign-0.10-reassign' : 2,
-              'misassign-0.90-reassign' : 2
+              'misassign-0.90-reassign' : 2,
+              'misassign-distance-0.08' : 8
 }
 
 # linewidths['v-true'] = 10
@@ -822,11 +827,11 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     legend = ax.legend()
     sns.despine()  #trim=True, bottom=True)
 
-    xmax = tmpmax
+    # xmax = tmpmax
     if xmax is None:
         xmax = plt.gca().get_xlim()[1]
     else:
-        ax.set_xlim(0.75, xmax)
+        ax.set_xlim(0.9, xmax)
 
     # if 'stanford' in title:
     #     ymin = 5e-4

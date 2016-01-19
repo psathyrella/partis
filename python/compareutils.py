@@ -268,7 +268,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
     true_partition = utils.get_true_partition(reco_info)
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
-        vname = 'misassign-' + stype
+        # vname = 'misassign-' + stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         print 'TODO clean up utils.generate_synthetic_partitions()'
         if output_exists(args, outfname):
@@ -287,8 +287,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
 def parse_synthetic(args, info, outdir, true_partition, base_outfname):
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
-        assert False  # update for threshold
-        vname = 'misassign-' + stype
+        # vname = 'misassign-' + stype
         cpath = ClusterPath()
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         cpath.readfile(outfname)
@@ -570,7 +569,11 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         parse_true(args, this_info, csvdir, true_partition)
         parse_synthetic(args, this_info, csvdir, true_partition, get_outputname(args, label, 'synthetic', seqfname, hfrac_bounds))
 
-    if 'run-viterbi' in args.expected_methods:
+    for meth in args.expected_methods:
+        if 'vollmers' in meth and meth != 'vollmers-0.9':
+            raise Exception('need to update a few things to change the threshold')
+
+    if 'vollmers-0.9' in args.expected_methods:
         parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
     if 'changeo' in args.expected_methods:
         parse_changeo(args, label, n_leaves, mut_mult, this_info, simfbase, csvdir)
@@ -623,7 +626,7 @@ def compare_subsets(args, label):
                 for metric in metrics:
                     plotvals = rearrange_metrics_vs_n_leaves(args, info[metric], mut_mult)
                     plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
-            plotting.make_html(baseplotdir + '/means-over-subsets/metrics')
+            plotting.make_html(baseplotdir + '/means-over-subsets/metrics')  #, n_columns=2)
         elif args.hfrac_bound_list is not None:
             if len(args.expected_methods) != 1:
                 print args.expected_methods
@@ -680,7 +683,6 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
 def get_expected_methods_to_plot(args, metric=None):
     # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
     expected_methods = list(args.expected_methods)
-    print 'TODO make sure expected_methods is ok'
     if len(args.synthetic_partitions) > 0:
         expected_methods += list(args.synthetic_partitions)
     if not args.data and metric == 'hists':
@@ -749,7 +751,7 @@ def get_this_info(all_info, n_leaves, mut_mult):
 # ----------------------------------------------------------------------------------------
 def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir):
     print 'TODO needs testing'
-    for method in get_expected_methods_to_plot(args):
+    for method in get_expected_methods_to_plot(args, metric='hists'):
         this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
     cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
     log = 'xy'
@@ -768,14 +770,14 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
 
     if not args.data:
         for metric in metrics:
-            print '   ', metric
+            # print '   ', metric
             for meth, vals in per_subset_info[metric].items():  # add the mean over subsets to <this_info>
                 mean = numpy.mean(vals)
                 if mean == -1.:  # e.g. mixcr
                     continue
                 std = numpy.std(vals)
                 this_info[metric][meth] = (mean, std)
-                print '        %30s %.3f +/- %.3f' % (meth, mean, std)
+                # print '        %30s %.3f +/- %.3f' % (meth, mean, std)
 
 # ----------------------------------------------------------------------------------------
 def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
