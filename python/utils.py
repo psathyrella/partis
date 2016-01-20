@@ -1749,19 +1749,12 @@ def remove_missing_uids_from_true_partition(true_partition, partition_with_missi
     return true_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------
-def generate_incorrect_partition(true_partition, misassign_fraction=None, error_type=None, threshold=None, glfo=None, reco_info=None, debug=False):
+def generate_incorrect_partition(true_partition, misassign_fraction=None, error_type=None, debug=False):
     """ 
     Generate an incorrect partition from <true_partition>.
     We accomplish this by removing <n_misassigned> seqs at random from their proper cluster, and putting each in either a
     cluster chosen at random from the non-proper clusters (<error_type> 'reassign') or in its own partition (<error_type> 'singleton').
     """
-
-    if misassign_fraction is None:
-        assert misassign_fraction is None
-        assert threshold is not None and glfo is not None
-        generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error=threshold, debug=debug)
-    else:
-        assert threshold is None
 
     new_partition = copy.deepcopy(true_partition)
     if debug:
@@ -1790,63 +1783,6 @@ def generate_incorrect_partition(true_partition, misassign_fraction=None, error_
             raise Exception('%s not among %s' % (error_type, 'singletons, reassign'))
     if debug:
         print '  after', new_partition
-    return new_partition
-
-# ----------------------------------------------------------------------------------------
-def generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error, debug=False):
-    raise Exception('gave up on this! implemented in partitiondriver instead.')
-    """
-    Generate an incorrect partition from <true_partition>.
-    """
-    new_partition = copy.deepcopy(true_partition)
-    if debug:
-        print '  before', new_partition
-
-    naive_seqs = [get_full_naive_seq(glfo['seqs'], reco_info[cluster[0]]) for cluster in true_partition]
-    print '\n'.join(naive_seqs)
-    sys.exit()
-
-    hfracs = {}
-
-    # ----------------------------------------------------------------------------------------
-    def find_min_hfrac(cluster_a, cluster_b):
-        print 'find min distance for %s  %s' % (':'.join(cluster_a), ':'.join(cluster_b))
-        tested_reco_ids = set()  # reco id pairs that we already looked at
-        min_hfrac = None
-        for query_a, query_b in itertools.product(cluster_a, cluster_b):
-            reco_ids = sorted([reco_info[q]['reco_id'] for q in [query_a, query_b]])
-            key = ':'.join(reco_ids)
-            if key in tested_reco_ids:
-                continue
-            if key not in hfracs:
-                hfracs[key] = hamming_fraction(naive_seqs[reco_ids[0]], naive_seqs[reco_ids[1]])
-            if min_hfrac is None or hfracs[key] < min_hfrac:
-                min_hfrac = hfracs[key]
-
-        return min_hfrac
-
-    # ----------------------------------------------------------------------------------------
-    def merge_clusters(iclusts_to_merge):
-        new_partition[iclusts_to_merge[0]] = new_partition[iclusts_to_merge[0]] + new_partition[iclusts_to_merge[1]]
-        new_partition.pop(iclusts_to_merge[1])
-
-    # merge all clusters that have hfracs smaller than <hfrac_error>
-    while True:
-        iclusts_to_merge = None
-        for iclust in range(len(new_partition)):
-            for jclust in (iclust + 1, range(len(new_partition))):
-                min_hfrac = find_min_hfrac(new_partition[iclust], new_partition[jclust])
-                if min_hfrac < hfrac_error:
-                    iclusts_to_merge = (iclust, jclust)
-                    break
-        if iclusts_to_merge is None:
-            break
-        else:
-            merge_clusters(iclusts_to_merge)
-
-    if debug:
-        print '  after', new_partition
-
     return new_partition
 
 # ----------------------------------------------------------------------------------------
