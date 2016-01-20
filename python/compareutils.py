@@ -144,16 +144,14 @@ def get_changeo_outdir(args, label, n_leaves, mut_mult):
     return imgtdir
 
 # ----------------------------------------------------------------------------------------
-def deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals=None, info_vname=None):
-    if info_vname is None:
-        info_vname = vname
+def deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals=None):
     if partition is not None:
-        info['partitions'][info_vname] = partition
-    info['hists'][info_vname] = hist
+        info['partitions'][vname] = partition
+    info['hists'][vname] = hist
     hist.write(outdir + '/hists/' + vname + '.csv')
     if metric_vals is not None and vname != 'true':
         for mname, val in metric_vals.items():
-            info[mname][info_vname] = val
+            info[mname][vname] = val
             write_float_val(outdir + '/' + mname + '/' + vname + '.csv', val, mname)
 
 # ----------------------------------------------------------------------------------------
@@ -173,9 +171,16 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
             partition = utils.get_partition_from_str(partitionstr)
             metric_vals = None
             if not args.data:
-                utils.check_intersection_and_complement(partition, true_partition)
-                ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
-                metric_vals = {'adj_mi' : float(line['adj_mi']), 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+                utils.check_intersection_and_complement(partition, true_partition)  # good to check at least once... although since we check in partitiondriver, this is really just making sure that write_each_plot_csvs() got the right reco_info
+                metric_vals = {'adj_mi' : float(line['adj_mi'])}
+                if 'ccf_under' in line:  # backward compatibility (didn't used to write it to the file, darn it)
+                    metric_vals['ccf_under'] = float(line['ccf_under'])
+                    metric_vals['ccf_over'] = float(line['ccf_over'])
+                else:
+                    ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
+                    metric_vals['ccf_under'] = ccfs[0]
+                    metric_vals['ccf_over'] = ccfs[1]
+                metric_vals['ccf_product'] = metric_vals['ccf_under'] * metric_vals['ccf_over']
 
             deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition), metric_vals)
 
@@ -183,7 +188,7 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
         raise Exception('zero partition lines read from %s' % vollmers_fname)
 
 # ----------------------------------------------------------------------------------------
-def parse_changeo(args, info, outfname, csvdir, reco_info, true_partition):
+def parse_changeo(args, info, outfname, csvdir):
     cpath = ClusterPath()
     cpath.readfile(outfname)
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
@@ -214,19 +219,17 @@ def parse_mixcr(args, info, seqfname, outdir):
     deal_with_parse_results(info, outdir, 'mixcr', None, mixhist, None)
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition):
+def parse_partis(args, action, info, outfname, outdir):
     cpath = ClusterPath()
     cpath.readfile(outfname)
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     vname = action
-    info_vname = vname + ' partis'  # arg, shouldn't have done it that way
     metric_vals = None
     if not args.data:
-        # ccfs = utils.new_ccfs_that_need_better_names(cpath.partitions[cpath.i_best], true_partition, reco_info)
         ccfs = cpath.ccfs[cpath.i_best]
         metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
-    deal_with_parse_results(info, outdir, action, partition, hist, metric_vals, info_vname)
+    deal_with_parse_results(info, outdir, action, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
 def get_synthetic_partition_type(stype):
@@ -531,7 +534,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         simfbase = leafmutstr(args, n_leaves, mut_mult, hfrac_bounds)
         plotname = simfbase
 
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
+    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data, n_max_queries=args.n_to_partition)
     if args.count_distances:
         for metric in ['logprob', 'naive_hfrac']:
             make_distance_plots(args, plotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, metric)
@@ -555,15 +558,17 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     if 'vollmers-0.9' in args.expected_methods:
         parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
     if 'changeo' in args.expected_methods:
-        parse_changeo(args, this_info, get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
+        parse_changeo(args, this_info, get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds), csvdir)
     if 'mixcr' in args.expected_methods:
         parse_mixcr(args, this_info, seqfname, csvdir)
 
     # partis stuff
     for action in [a for a in args.expected_methods if 'partition' in a]:
-        parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
+        parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir)
 
     log = 'x'
+    # if args.box:
+    #     log = ''
     # if not args.data and n_leaves <= 10:
     #     log = 'x'
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
@@ -662,7 +667,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
 def get_expected_methods_to_plot(args, metric=None):
     # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
     expected_methods = list(args.expected_methods)
-    if len(args.synthetic_partitions) > 0:
+    if 'synthetic' in args.expected_methods and len(args.synthetic_partitions) > 0:
         expected_methods += list(args.synthetic_partitions)
     if not args.data and metric == 'hists':
         expected_methods.insert(0, 'true')
@@ -757,22 +762,22 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
                 this_info[metric][meth] = (mean, std)
                 # print '        %30s %.3f +/- %.3f' % (meth, mean, std)
 
-# ----------------------------------------------------------------------------------------
-def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
-    input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
-    n_reps = 1
-    uid_list = input_info.keys()
-    new_partitions = {}
-    for nseqs in nseq_list:
-        for irep in range(n_reps):  # repeat <nreps> times
-            istart = irep * nseqs
-            istop = istart + nseqs
-            uids = uid_list[istart : istop]
-            true_partition = utils.get_true_partition(reco_info, ids=uids)
-            new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type=error_type)
-            # new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type='singletons')
-            new_partitions[nseqs] = new_partition
-    return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
+# # ----------------------------------------------------------------------------------------
+# def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
+#     input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+#     n_reps = 1
+#     uid_list = input_info.keys()
+#     new_partitions = {}
+#     for nseqs in nseq_list:
+#         for irep in range(n_reps):  # repeat <nreps> times
+#             istart = irep * nseqs
+#             istop = istart + nseqs
+#             uids = uid_list[istart : istop]
+#             true_partition = utils.get_true_partition(reco_info, ids=uids)
+#             new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type=error_type)
+#             # new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type='singletons')
+#             new_partitions[nseqs] = new_partition
+#     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 
 # ----------------------------------------------------------------------------------------
 def output_exists(args, outfname):
@@ -1223,4 +1228,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(60)  # 300sec = 5min
+    # time.sleep(60)  # 300sec = 5min
