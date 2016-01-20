@@ -703,16 +703,13 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            }
 
 colors = {'true' : '#006600',
-          'partition partis' : '#cc0000',
-          'vsearch-partition partis' : '#cc0000',
-          'naive-hamming-partition partis' : '#cc0000',
-          'partition' : '#cc0000',
-          'vsearch-partition' : '#cc0000',
-          'naive-hamming-partition' : '#cc0000',
+          'partition' : '#cc0000',  # 8c001a',
+          'vsearch-partition' : '#990012',  #c04000',
+          'naive-hamming-partition' : '#990012',
           'vollmers-0.5' : '#3333ff',
-          'vollmers-0.9' : 'grey',
-          'changeo' :  '#3399ff',
-          'mixcr' : '#7b68ee',
+          'vollmers-0.9' : '#3399ff',
+          'changeo' :  '#2b65ec',
+          'mixcr' : '#2b65ec',
           'misassign-0.10-singletons' : '#4e8975',
           'misassign-0.10-reassign' : '#4e8975',
           'misassign-0.90-singletons' : '#800080',
@@ -722,11 +719,11 @@ colors = {'true' : '#006600',
 }
 
 linewidths = {'true' : 15,
-              'partis' : 2,
-              # 'vsearch-partition' : 6,
-              'partition' : 2,
+              'vsearch-partition' : 3,
+              'naive-hamming-partition' : 3,
+              'partition' : 6,
               'vollmers-0.5' : 4,
-              'vollmers-0.9' : 8,
+              'vollmers-0.9' : 6,
               'changeo' : 3,
               'mixcr' : 6,
               'misassign-0.10-singletons' : 4,
@@ -734,6 +731,16 @@ linewidths = {'true' : 15,
               'misassign-0.10-reassign' : 2,
               'misassign-0.90-reassign' : 2,
               'misassign-distance-0.08' : 4
+}
+
+linestyles = {'naive-hamming-partition' : 'dashed',
+              'vsearch-partition' : 'dotted',
+              'changeo' : 'dashed',
+              'mixcr' : 'dotted'
+}
+
+alphas = {'true' : 0.6,
+          'vollmers-0.9' : 0.6
 }
 
 # linewidths['v-true'] = 10
@@ -789,30 +796,9 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         if 'vollmers' in name:
             if '0.7' in name or '0.8' in name or '0.95' in name or '0.5' in name:
                 continue
-        linestyle = 'solid'  #'-'
-        alpha = 1.
-        if 'vsearch' in name:
-            linestyle = 'dashdot'  #'-.'
-        elif 'naive-hamming-partition' in name:
-            linestyle = 'dashed'  #'--'
-        elif 'true' in name:
-            linestyle = 'dashed'  #'--'
-            alpha = 0.7
-        elif 'vollmers' in name:
-            alpha = 0.8
-
-        if 'misassign' in name:
-            alpha = 0.7
 
         if 'singletons' in name:
             linestyle = 'dashed'
-
-        # if 'v-' in name:
-        #     linestyle = '-'
-        #     # alpha = 1
-        # elif 'cdr3-' in name:
-        #     linestyle = '--'
-        #     # alpha = 0.5
 
         # other (old) possibility:
         # ax.bar and ax.scatter also suck
@@ -821,7 +807,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
 
         # was using this:
         hist.normalize()
-        plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyles.get(name, 'solid'), alpha=alphas.get(name, 1.))
 
         # # or maybe try a hist?
         # if n_queries is None:
@@ -855,7 +841,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         ax.set_yscale('log')
         if n_queries is not None:
             plt.ylim(1./n_queries, 1)
-    potential_xticks = [1, 2, 3, 9, 30, 100, 250, 500, 750, 1200]
+    potential_xticks = [1, 2, 3, 9, 30, 100, 250, 500, 1200]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
     plotdir = os.path.dirname(outfname)
