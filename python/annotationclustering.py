@@ -2,7 +2,6 @@ import sys
 import csv
 import math
 from subprocess import check_call
-from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 import utils
 import plotting
@@ -99,18 +98,8 @@ def vollmers(info, threshold, reco_info=None, debug=False):
         add_cluster(last_cluster_id)
         last_cluster_id += 1
 
-    adj_mi = -1
-    if reco_info is not None:
-        true_cluster_list, inferred_cluster_list = [], []
-        for clid, uids in id_clusters.items():
-            for uid in uids:
-                true_cluster_list.append(reco_info[uid]['reco_id'])
-                inferred_cluster_list.append(clid)
-        adj_mi = adjusted_mutual_info_score(true_cluster_list, inferred_cluster_list)
-        print '       threshold  %.2f:   %d clusters (%d true)   adj_mi: %.3f' % (threshold, len(set(inferred_cluster_list)), len(set(true_cluster_list)), adj_mi)
-
     partition = [uids for uids in id_clusters.values()]  # convert to list of lists (no clid info)
-    return adj_mi, partition
+    return partition
 
 # ----------------------------------------------------------------------------------------
 def bashford_rogers(info, reco_info=None, debug=False):
