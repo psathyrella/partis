@@ -240,7 +240,9 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_partition(self, partition):
         found_ids = set([uid for cluster in partition for uid in cluster])
+        print '    checking partition with %d ids' % len(found_ids)
         missing_ids = set()
+        print '      looking for %d ids from input info' % len(self.input_info)
         for uid in self.input_info:  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
             if uid not in found_ids:
                 missing_ids.add(uid)
@@ -1267,7 +1269,7 @@ class PartitionDriver(object):
                 outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
                 headers = ['n_clusters', 'threshold', 'partition']
                 if not self.args.is_data:
-                    headers += ['adj_mi', ]
+                    headers += ['adj_mi', 'ccf_under', 'ccf_over']
                 writer = csv.DictWriter(outfile, headers)
                 writer.writeheader()
 
@@ -1280,13 +1282,17 @@ class PartitionDriver(object):
 
             # perform annotation clustering for each threshold and write to file
             for thresh in self.args.annotation_clustering_thresholds:
-                adj_mi, partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
-                self.check_partition(partition)
+                partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
                 n_clusters = len(partition)
                 if self.args.outfname is not None:
                     row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
                     if not self.args.is_data:
+                        true_partition = utils.get_true_partition(self.reco_info)
+                        adj_mi = utils.adjusted_mutual_information(partition, true_partition)
+                        ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
                         row['adj_mi'] = adj_mi
+                        row['ccf_under'] = ccfs[0]
+                        row['ccf_over'] = ccfs[1]
                     writer.writerow(row)
 
             if self.args.outfname is not None:
