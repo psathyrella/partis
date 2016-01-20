@@ -251,13 +251,12 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
-        print 'TODO clean up utils.generate_synthetic_partitions()'
         if output_exists(args, outfname):
             continue
         if 'distance' in stype:
             execute(args, 'synthetic-partition', datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=[threshold, threshold], forced_outfname=outfname)
         else:
-            new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction=misfrac, error_type=mistype, threshold=threshold, reco_info=reco_info, glfo=glfo)
+            new_partition = utils.generate_incorrect_partition(true_partition, misfrac, mistype)
             cpath = ClusterPath()
             adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
             ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info)
@@ -665,7 +664,6 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
 
 # ----------------------------------------------------------------------------------------
 def get_expected_methods_to_plot(args, metric=None):
-    # expected_methods = ['vollmers-0.9', 'mixcr', 'changeo', 'vsearch-partition', 'naive-hamming-partition', 'partition']
     expected_methods = list(args.expected_methods)
     if 'synthetic' in args.expected_methods and len(args.synthetic_partitions) > 0:
         expected_methods += list(args.synthetic_partitions)
@@ -1228,4 +1226,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(60)  # 300sec = 5min
+    time.sleep(30)  # 300sec = 5min

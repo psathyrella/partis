@@ -9,8 +9,6 @@
 # # ./bin/compare-partition-methods.py --actions write-plots --expected-methods vollmers-0.9 $leaf_mut_hum --box --n-to-partition 3000 &
 # exit 0
 echo "run the mimic samples"
-echo "remake synthetic distance-based partition with 0.03"
-echo "also remake other synthetic partitions *without* replacement"
 # ----------------------------------------------------------------------------------------
 # thresholds optimization
 
@@ -40,20 +38,20 @@ echo "also remake other synthetic partitions *without* replacement"
 
 # ----------------------------------------------------------------------------------------
 # leaves=1:2:5:10:25:50:100:200  #:500
-leaves=200  #1
-mm=1:4
+leaves=10  #1
+mm=1 #:4
 leaf_mut_hum="--n-leaf-list $leaves --mutation-multipliers $mm --humans A"
 # echo "dont forget you copied these sim files from the old dir";  # ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum  #  --n-sim-seqs 100000
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
-# for isub in 0 1 2; do
-#     # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --subset $isub --n-subsets 10 $leaf_mut_hum &  #run-viterbi:
-#     # ./bin/compare-partition-methods.py --actions run-changeo --subset $isub --n-subsets 10 $leaf_mut_hum &
-#     # sleep 60
-#     ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods vollmers-0.9:changeo:partition:naive-hamming-partition:vsearch-partition:synthetic $leaf_mut_hum &  # --no-similarity-matrices &
-#     # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods synthetic $leaf_mut_hum --no-similarity-matrices &
-#     break
-# done
-./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --expected-methods vollmers-0.9:changeo:partition:naive-hamming-partition:vsearch-partition
+for isub in 0 1 2; do
+    # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --subset $isub --n-subsets 10 $leaf_mut_hum &  #run-viterbi:
+    ./bin/compare-partition-methods.py --actions run-mixcr --subset $isub --n-subsets 10 $leaf_mut_hum &  # --overwrite &
+    # sleep 60
+    # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods vollmers-0.9:changeo:partition:naive-hamming-partition:vsearch-partition:synthetic $leaf_mut_hum &  # --no-similarity-matrices &
+    # ./bin/compare-partition-methods.py --actions write-plots --subset $isub --n-subsets 10 --expected-methods synthetic $leaf_mut_hum --no-similarity-matrices
+    break
+done
+# ./bin/compare-partition-methods.py --actions compare-subsets --plot-mean-of-subsets --n-subsets 3 $leaf_mut_hum --expected-methods vollmers-0.9:changeo:partition:naive-hamming-partition:vsearch-partition
 
 # # ----------------------------------------------------------------------------------------
 # leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans A"  # 100:200:500
