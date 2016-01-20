@@ -123,6 +123,11 @@ presto_headers = {
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
+# test partition
+# reco_info = {'a' : {'reco_id' : '1'}, 'b' : {'reco_id' : '0'}, 'c' : {'reco_id' : '1'}, 'd' : {'reco_id' : '2'}}
+# partition = [['a'], ['b', 'c', 'd']]
+# true_partition = [['b'], ['a', 'c'], ['d']]
+
 # ----------------------------------------------------------------------------------------
 def convert_to_presto(glfo, line):
     """ convert <line> to presto csv format """
@@ -1510,10 +1515,6 @@ def get_str_from_partition(partition):
 
 # ----------------------------------------------------------------------------------------
 def new_ccfs_that_need_better_names(partition, true_partition, reco_info, debug=False):
-    # reco_info = {'a' : {'reco_id' : '1'}, 'b' : {'reco_id' : '0'}, 'c' : {'reco_id' : '1'}, 'd' : {'reco_id' : '2'}}
-    # partition = [['a'], ['b', 'c', 'd']]
-    # true_partition = [['b'], ['a', 'c'], ['d']]
-
     check_intersection_and_complement(partition, true_partition)
 
     reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
@@ -1749,22 +1750,27 @@ def remove_missing_uids_from_true_partition(true_partition, partition_with_missi
     return true_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------
-def generate_incorrect_partition(true_partition, misassign_fraction=None, error_type=None, debug=False):
+def generate_incorrect_partition(true_partition, misassign_fraction, error_type, debug=False):
     """ 
     Generate an incorrect partition from <true_partition>.
     We accomplish this by removing <n_misassigned> seqs at random from their proper cluster, and putting each in either a
     cluster chosen at random from the non-proper clusters (<error_type> 'reassign') or in its own partition (<error_type> 'singleton').
     """
+    # true_partition = [['b'], ['a', 'c', 'e', 'f'], ['d', 'g'], ['h', 'j']]
+    # debug = True
 
     new_partition = copy.deepcopy(true_partition)
-    if debug:
-        print '  before', new_partition
     nseqs = sum([len(c) for c in true_partition])
     n_misassigned = int(misassign_fraction * nseqs)
+    if debug:
+        print '  misassigning %d / %d seqs (should be clsoe to %.3f)' % (n_misassigned, nseqs, misassign_fraction)
+        print '  before', new_partition
+
+    uids = [uid for cluster in true_partition for uid in cluster]
     for _ in range(n_misassigned):
-        iclust = random.randint(0, len(new_partition) - 1)  # choose a cluster from which to remove a sequence
-        iseq = random.randint(0, len(new_partition[iclust]) - 1)  # and choose the sequence to remove from this cluster
-        uid = new_partition[iclust][iseq]
+        uid = uids[random.randint(0, len(uids) - 1)]  # choose a uid to misassign (note that randint() is inclusive)
+        uids.remove(uid)
+        iclust = find_uid_in_partition(uid, new_partition)
         new_partition[iclust].remove(uid)  # remove it
         if [] in new_partition:
             new_partition.remove([])
@@ -1774,7 +1780,7 @@ def generate_incorrect_partition(true_partition, misassign_fraction=None, error_
                 print '    %s: %d --> singleton' % (uid, iclust)
         elif error_type == 'reassign':  # choose a different cluster to add it to
             inewclust = iclust
-            while inewclust == iclust:
+            while inewclust == iclust:  # hm, this won't work if there's only one cluster in the partition. Oh, well, that probably won't happen
                 inewclust = random.randint(0, len(new_partition) - 1)
             new_partition[inewclust].append(uid)
             if debug:
