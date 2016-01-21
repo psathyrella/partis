@@ -201,8 +201,7 @@ def parse_changeo(args, info, outfname, csvdir):
 
 # ----------------------------------------------------------------------------------------
 def parse_mixcr(args, info, seqfname, outdir):
-    print 'TODO update for all sorts of shit (including hfrac_bounds)'
-    raise Exception('rerun all the mixcr stuff accounting for missing uids')
+    # NOTE since mixcr doesn't report seq ids, not only can't we calculate adj mi and whatnot, but we have no idea how many failed sequences there are
     mixfname = seqfname.replace('.csv', '-mixcr.tsv')
     cluster_size_list = []  # put 'em in a list first so we know where to put the hist limits
     max_cluster_size = 1
@@ -665,8 +664,9 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
 # ----------------------------------------------------------------------------------------
 def get_expected_methods_to_plot(args, metric=None):
     expected_methods = list(args.expected_methods)
-    if 'synthetic' in args.expected_methods and len(args.synthetic_partitions) > 0:
-        expected_methods += list(args.synthetic_partitions)
+    # if 'synthetic' in args.expected_methods and len(args.synthetic_partitions) > 0:
+    # if len(args.synthetic_partitions) > 0:
+    #     expected_methods += list(args.synthetic_partitions)
     if not args.data and metric == 'hists':
         expected_methods.insert(0, 'true')
 
@@ -707,7 +707,7 @@ def read_histfiles_and_co(args, label, n_leaves, mut_mult):
         if n_leaves == 1 and metric == 'adj_mi':
             continue
         for method in get_expected_methods_to_plot(args, metric):
-            if metric != 'hists' and (args.data or method == 'true'):
+            if metric != 'hists' and (args.data or method == 'true' or method == 'mixcr'):
                 continue
             if method not in per_subset_info[metric]:
                 per_subset_info[metric][method] = []
@@ -928,7 +928,6 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
     run(cmd)
     print '        mixcr time: %.3f' % (time.time()-start)
     check_call(['cp', '-v', infname.replace('.fasta', '.txt'), outfname])
-
 
 # ----------------------------------------------------------------------------------------
 def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
