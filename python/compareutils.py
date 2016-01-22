@@ -1108,12 +1108,13 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     else:
         cmd += ' --simfname ' + seqfname
 
-    n_procs, n_fewer_procs = 1, 1
+    n_procs = 1
+    n_total_seqs = 1
     if action == 'cache-data-parameters':
         outfname = args.fsdir + '/' + label + '/data'
         extras += ['--n-max-queries', + args.n_data_to_cache]
         n_procs = max(1, args.n_data_to_cache / 500)
-        n_fewer_procs = min(500, args.n_data_to_cache / 2000)
+        n_total_seqs = args.n_data_to_cache
     elif action == 'simulate':
         outfname = seqfname
         extras += ['--n-sim-events', int(float(args.n_sim_seqs) / n_leaves)]
@@ -1130,56 +1131,40 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     elif action == 'cache-simu-parameters':
         outfname = seqfname.replace('.csv', '')
         n_procs = 20
-        n_fewer_procs = min(500, args.n_sim_seqs / 2000)
-    elif action == 'partition':
+        n_total_seqs = args.n_sim_seqs
+    elif 'partition' in action or action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition]
-        if args.count_distances:
-            extras += ['--cache-naive-hfracs', '--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1,
-
-        if hfrac_bounds is not None:
-            print 'TODO change name from hfrac_bounds'
-            assert hfrac_bounds[0] == hfrac_bounds[1]
-            extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-
-        n_procs = max(1, args.n_to_partition / 100)
-        n_fewer_procs = min(500, args.n_to_partition / 2000)
-    elif action == 'naive-hamming-partition':
-        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming']
-
-        if hfrac_bounds is not None:
-            extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-
-        n_procs = max(1, args.n_to_partition / 200)
-    elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
-        outfname = forced_outfname  # <outfname> gets used below
-        cmd += ' --outfname ' + forced_outfname
-        extras += ['--n-max-queries', args.n_to_partition, '--naive-hamming', '--synthetic-distance-based-partition']
-        assert hfrac_bounds is not None
-        extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
-        n_procs = max(1, args.n_to_partition / 200)
-    elif action == 'vsearch-partition':
-        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition, '--naive-vsearch']
-        # # ----------------------------------------------------------------------------------------
-        # print 'TODO remove this'
-        # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]
-        # # ----------------------------------------------------------------------------------------
-        if hfrac_bounds is not None:
-            extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-        n_procs = max(1, args.n_to_partition / 100)  # only used for ighutil step
-        # n_procs = 10
-        # n_fewer_procs = 5
-    elif action == 'run-viterbi':
-        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
-        cmd += ' --outfname ' + outfname
-        extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
-        extras += ['--n-max-queries', args.n_to_partition]
-        n_procs = max(1, args.n_to_partition / 50)
+        n_total_seqs = args.n_to_partition
+        if action == 'partition':
+            if args.count_distances:
+                extras += ['--cache-naive-hfracs', '--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1,
+            if hfrac_bounds is not None:
+                assert hfrac_bounds[0] == hfrac_bounds[1]
+                extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
+            n_procs = max(1, args.n_to_partition / 100)
+        elif action == 'naive-hamming-partition':
+            extras += ['--naive-hamming']
+            if hfrac_bounds is not None:
+                extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
+            n_procs = max(1, args.n_to_partition / 200)
+        elif action == 'vsearch-partition':
+            extras += ['--naive-vsearch']
+            # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
+            if hfrac_bounds is not None:
+                extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
+            # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
+            n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
+        elif action == 'run-viterbi':
+            extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
+            n_procs = max(1, args.n_to_partition / 200)
+        elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
+            cmd = cmd.replace(outfname, forced_outfname)
+            outfname = forced_outfname  # <outfname> gets used below
+            extras += ['--naive-hamming', '--synthetic-distance-based-partition']
+            extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
+            n_procs = max(1, args.n_to_partition / 200)
     elif action == 'run-changeo':
         run_changeo(args, label, n_leaves, mut_mult, seqfname)
         return
@@ -1199,17 +1184,14 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if output_exists(args, outfname):
         return
 
-    # cmd += ' --plotdir ' + os.getenv('www') + '/partis'
-    if n_procs > 500:
-        print 'reducing n_procs %d --> %d' % (n_procs, 500)
-        n_procs = 500
-    n_proc_str = str(n_procs)
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
     if action != 'simulate':
         extras += ['--slurm', ]
-    if n_procs > 10:
-        n_fewer_procs = max(1, n_fewer_procs)
-        n_proc_str += ':' + str(n_fewer_procs)
+
+    n_procs = min(500, n_procs)  # can't get more than a few hundred slots at once, anyway
+    n_proc_str = str(n_procs)
+    n_fewer_procs = max(1, min(500, n_total_seqs / 2000))
+    n_proc_str += ':' + str(n_fewer_procs)
 
     extras += ['--n-procs', n_proc_str]
 

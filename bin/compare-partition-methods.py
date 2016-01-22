@@ -61,6 +61,7 @@ for isp in range(len(args.synthetic_partitions)):  # I really shouldn't have set
 if 'cache-data-parameters' in args.actions:
     args.data = True
 
+print 'TODO change name from hfrac_bounds'
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
 if args.subset is not None:
