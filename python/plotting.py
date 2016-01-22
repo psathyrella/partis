@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -1010,8 +1011,17 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
         yticklabels = [a_cluster_lengths[it] for it in range(0, len(a_cluster_lengths), modulo)]
     plt.xticks(ticks, xticklabels)
     plt.yticks(ticks, yticklabels)
-    plt.xlabel(legends.get(meth2, meth2) + ' cluster size')  # I don't know why it's reversed, it just is
-    plt.ylabel(legends.get(meth1, meth1) + ' cluster size')
+
+    mpl.rcParams['text.usetex'] = True
+    mpl.rcParams['text.latex.unicode'] = True
+
+    def boldify(textstr):
+        textstr = textstr.replace('%', '\%')
+        textstr = textstr.replace('\n', '')
+        return r'\textbf{' + textstr + '}'
+
+    plt.xlabel(boldify(legends.get(meth2, meth2)) + ' cluster size')  # I don't know why it's reversed, it just is
+    plt.ylabel(boldify(legends.get(meth1, meth1)) + ' cluster size')
     ax.set_xlim(0, n_biggest_clusters)
     ax.set_ylim(0, n_biggest_clusters)
 

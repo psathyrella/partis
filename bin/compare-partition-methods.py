@@ -47,8 +47,6 @@ all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'pa
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
-print 'TODO fix intify/floatify'
-print 'TODO get it to stop subsetting the files every time through'
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, floatify=True)
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)

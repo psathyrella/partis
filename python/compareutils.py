@@ -1225,4 +1225,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(30)  # 300sec = 5min
+    time.sleep(300)  # 300sec = 5min
