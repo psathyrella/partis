@@ -58,11 +58,11 @@ leaf_mut_hum="--n-leaf-list 7 --mutation-multipliers 1 --humans 021-018"
 # ./bin/compare-partition-methods.py --actions simulate --n-sim-seqs 500000 $leaf_mut_hum &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
 # istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000"
-istartstoplist="141000:191000 9500:13500 18500:26000 26000:36000 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500"
+istartstoplist="26000:36000 36000:51000 51000:71000"  # 71000:101000 101000:141000"
 istartstopstr=`echo $istartstoplist | sed -e 's/:/,/g' -e 's/ /:/g'`
 for istartstop in $istartstoplist; do  # see code below to generate these
-    ./bin/compare-partition-methods.py --actions naive-hamming-partition:partition --istartstop $istartstop $leaf_mut_hum &  # run-viterbi: --count-distances
-    # ./bin/compare-partition-methods.py --actions partition --istartstop $istartstop $leaf_mut_hum &  # run-viterbi: --count-distances
+    # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition --istartstop $istartstop $leaf_mut_hum &  # run-viterbi: --count-distances
+    ./bin/compare-partition-methods.py --actions vsearch-partition --istartstop $istartstop $leaf_mut_hum &  # run-viterbi: --count-distances
     # sleep 60
     # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop --no-mixcr --no-changeo $leaf_mut_hum --no-similarity-matrices --count-distances &
     # break
