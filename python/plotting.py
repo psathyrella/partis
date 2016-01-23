@@ -836,7 +836,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         ax.set_yscale('log')
         if n_queries is not None:
             plt.ylim(1./n_queries, 1)
-    potential_xticks = [1, 2, 3, 9, 30, 100, 200, 500, 1200]
+    potential_xticks = [1, 2, 3, 9, 30, 75, 200, 500]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
     plotdir = os.path.dirname(outfname)

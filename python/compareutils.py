@@ -78,6 +78,10 @@ def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
             title += ', %d seqs' % (args.istartstop[1] - args.istartstop[0])
         if args.indels:
             title += ', indels'
+        if args.mimic:
+            title += ', mimic'
+        if args.box:
+            title += ', box'
     return title
 
 # ----------------------------------------------------------------------------------------
@@ -306,7 +310,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         else:
             return None
 
-    hstyles = ['plain', 'zoom-logy', 'zoom']
+    hstyles = ['plain']  #, 'zoom']  # 'zoom-logy', 
     if metric == 'logprob':
         nbins, xmin, xmax = 40, -55, 70
     elif metric == 'naive_hfrac':
@@ -376,8 +380,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         plots = {}
         plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
         plots['not'] = hists['not'].mpl_plot(ax, ignore_overflows=ignore, label='non-clonal', linewidth=3, color='#2e8b57')  #linewidth=7, alpha=0.5)
-        plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
-        plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
+        # plots['nearest'] = hists['nearest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='nearest clones', linewidth=3)
+        # plots['farthest'] = hists['farthest-clones'].mpl_plot(ax, ignore_overflows=ignore, label='farthest clones', linewidth=3, linestyle='--')
         if 'log' in hs:
             ax.set_yscale('log')
 
@@ -412,10 +416,14 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname, reco_info, metric):
     cachevals = {}
-    everybody, singletons, pairs, triplets, quads = [], [], [], [], []
+    ctypes = ['everybody']  #, 'singletons', 'pairs', 'triplets', 'quads']
+    # nlines = int(check_output(['wc', '-l', cachefname]).split()[0])
+    combins = {ct : [] for ct in ctypes}
+    print '    reading cache file'
+    print '      limiting to 100000 lines'
     with open(cachefname) as cachefile:
         reader = csv.DictReader(cachefile)
-        # iline = 0
+        iline = 0
         for line in reader:
             if metric == 'logprob':
                 if line[metric] == '':
@@ -432,28 +440,30 @@ def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname
             if not utils.from_same_event(reco_info, unique_ids):
                 continue
 
-            everybody.append(line['unique_ids'])
+            if 'everybody' in ctypes:
+                combins['everybody'].append(line['unique_ids'])
             
-            if len(unique_ids) == 1:
-                singletons.append(line['unique_ids'])
-            elif len(unique_ids) == 2:
-                pairs.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
-            elif len(unique_ids) == 3:
-                triplets.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
-            elif len(unique_ids) == 4:
-                quads.append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
-            # iline += 1
-            # if iline > 10:
-            #     break
+            if 'singletons' in ctypes and len(unique_ids) == 1:
+                combins['singletons'].append(line['unique_ids'])
+            elif 'pairs' in ctypes and  len(unique_ids) == 2:
+                combins['pairs'].append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+            elif 'triplets' in ctypes and  len(unique_ids) == 3:
+                combins['triplets'].append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+            elif 'quads' in ctypes and  len(unique_ids) == 4:
+                combins['quads'].append(line['unique_ids'])  # use the string so it's obvious which order to use when looking in the cache
+            iline += 1
+            if iline > 100000:
+                break
 
     plotdir = baseplotdir + '/distances'
     plotname = leafmutstr(args, n_leaves, mut_mult)
 
-    print 'everybody'
-    make_a_distance_plot(args, metric, itertools.combinations(everybody, 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/everybody', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (everybody)')
+    if 'everybody' in ctypes:
+        print 'everybody'
+        make_a_distance_plot(args, metric, itertools.combinations(combins['everybody'], 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/everybody', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (everybody)')
 
-    print 'singletons'
-    make_a_distance_plot(args, metric, itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/singletons', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (singletons)')
+    # print 'singletons'
+    # make_a_distance_plot(args, metric, itertools.combinations(singletons, 2), reco_info, cachevals, plotdir=plotdir + '/' + metric + '/singletons', plotname=plotname, plottitle=get_title(args, label, n_leaves, mut_mult) + ' (singletons)')
 
     # print 'one pair one singleton'
     # one_pair_one_singleton = []
@@ -623,6 +633,11 @@ def compare_subsets(args, label):
                 assert False
 
     check_call(['./bin/permissify-www', baseplotdir])
+    print 'finished!'
+
+# ----------------------------------------------------------------------------------------
+def get_nseq_list(args):
+    return [istartstop[1] - istartstop[0] for istartstop in args.istartstoplist]
 
 # ----------------------------------------------------------------------------------------
 def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, all_info):
@@ -656,7 +671,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
             for metric in metrics:
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
-                    plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(nseq_list, values)])
+                    plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(get_nseq_list(args), values)])
                 metric_plotdir = os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics'
                 plotting.plot_adj_mi_and_co(plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
                 plotting.make_html(metric_plotdir)
@@ -681,7 +696,6 @@ def read_histfiles_and_co(args, label, n_leaves, mut_mult):
         subdirs = [basedir + '/subset-' + str(isub) for isub in range(args.n_subsets)]
     elif args.istartstoplist is not None:
         subdirs = [basedir + '/istartstop-' + str(istartstop[0]) + '-' + str(istartstop[1]) for istartstop in args.istartstoplist]
-        nseq_list = [istartstop[1] - istartstop[0] for istartstop in args.istartstoplist]
     else:
         if args.istartstop is not None:
             basedir += '/istartstop-' + get_str(args.istartstop)
@@ -926,7 +940,13 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
     run(cmd)
     cmd = binary + ' exportClones ' + infname.replace('.fasta', '.clns') + ' ' + infname.replace('.fasta', '.txt')
     run(cmd)
-    print '        mixcr time: %.3f' % (time.time()-start)
+
+    elapsed_time = time.time()-start
+    print '        mixcr time: %.3f' % elapsed_time
+    logfname = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname).replace('.tsv', '.out')
+    with open(logfname, 'w') as logfile:
+        logfile.write('        mixcr time: %.3f\n' % elapsed_time)
+
     check_call(['cp', '-v', infname.replace('.fasta', '.txt'), outfname])
 
 # ----------------------------------------------------------------------------------------
@@ -1207,4 +1227,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(300)  # 300sec = 5min
+    time.sleep(900)  # 300sec = 5min

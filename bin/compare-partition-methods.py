@@ -70,6 +70,9 @@ if args.subset is not None:
 if args.istartstop is not None: 
     args.n_to_partition = args.istartstop[1] - args.istartstop[0]
 
+if args.bak:
+    args.fsdir = args.fsdir.replace('_output', '_output.bak')
+
 # ----------------------------------------------------------------------------------------
 # compareutils.FOOP()
 # sys.exit()
@@ -112,6 +115,7 @@ if args.istartstop is not None:
 # ----------------------------------------------------------------------------------------
 procs = []
 for human in args.humans:
+
     if human in humans['stanford']:
         datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
         datafname = glob.glob(datadir + '/*' + human + '*')[0]  # should throw an index error if length is less than one... but still, this is hackey
@@ -123,8 +127,6 @@ for human in args.humans:
     label = human
     if args.extra_label_str is not None:
         label += '-' + args.extra_label_str
-    if args.bak:
-        label += '.bak'
 
     print 'run', human
     n_leaves, mut_mult = None, None  # values if we're runing on data
