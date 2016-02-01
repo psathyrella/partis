@@ -78,8 +78,7 @@ class Tester(object):
         self.compare_performance()
         self.compare_production_results()
         for input_stype in self.stypes:
-            if 'partition-' + input_stype + '-simu' in self.tests:
-                self.compare_partition_cachefiles(input_stype=input_stype)
+            self.compare_partition_cachefiles(input_stype=input_stype)
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -282,6 +281,10 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
+        ptest = 'partition-' + input_stype + '-simu'
+        if args.quick and ptest not in self.quick_tests:
+            return
+
         print '%s partition cache file' % input_stype
 
         def readcache(fname):
