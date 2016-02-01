@@ -67,9 +67,18 @@ def mut_str(args, label, n_leaves, mut_mult):
         return '%.1fx mutation' % mut_mult
 
 # ----------------------------------------------------------------------------------------
+def get_dataset(human):
+    if human in humans['adaptive']:
+        return 'Adaptive'
+    elif human in humans['stanford']:
+        return 'Vollmers'
+    else:
+        return 'no data set'
+
+# ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if args.data:
-        title = 'data (%s %s)' % ('fixme', label)
+        title = 'data (%s %s)' % (get_dataset(label), label)
     else:
         title = '%d leaves, %s' % (n_leaves, mut_str(args, label, n_leaves, mut_mult))
         if hfrac_bounds is not None:
@@ -553,8 +562,9 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     if hfrac_bounds is not None:
         csvdir += '-hfrac-bounds-' + get_str(hfrac_bounds)
 
-    true_partition = utils.get_true_partition(reco_info)
+    true_partition = None
     if not args.data:
+        true_partition = utils.get_true_partition(reco_info)
         parse_true(args, this_info, csvdir, true_partition)
         if 'synthetic' in args.expected_methods:
             parse_synthetic(args, this_info, csvdir, true_partition, get_outputname(args, label, 'synthetic', seqfname, hfrac_bounds))
@@ -575,10 +585,8 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir)
 
     log = 'x'
-    # if args.box:
-    #     log = ''
-    # if not args.data and n_leaves <= 10:
-    #     log = 'x'
+    if args.data:
+        log += 'y'
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
@@ -709,11 +717,15 @@ def read_histfiles_and_co(args, label, n_leaves, mut_mult):
                 # return = subdir + '/data/hists/' + method + '.csv'
             else:
                 histfname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult, hfrac_bounds) + '/hists/' + method + '.csv'
-            hist = Hist(fname=histfname)
+            hist = None
+            if os.path.exists(histfname):
+                hist = Hist(fname=histfname)
             per_subset_info[metric][method].append(hist)
         else:
             fname = subdir + '/' + leafmutstr(args, n_leaves, mut_mult, hfrac_bounds) + '/' + metric+ '/' + method + '.csv'
-            value = read_float_val(fname, metric)
+            value = None
+            if os.path.exists(fname):
+                value = read_float_val(fname, metric)
             per_subset_info[metric][method].append(value)
 
     per_subset_info = {k : OrderedDict() for k in metrics + ['hists', ]}
@@ -1062,6 +1074,7 @@ def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
 def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
     if args.data:
+        assert args.subset is None  # I think it's not implemented
         if args.istartstop is None:
             seqfname = datafname
         else:
@@ -1171,13 +1184,14 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             n_procs = max(1, args.n_to_partition / 200)
         elif action == 'vsearch-partition':
             extras += ['--naive-vsearch']
-            # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
+            extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             if hfrac_bounds is not None:
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
             n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
         elif action == 'run-viterbi':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
+            extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             n_procs = max(1, args.n_to_partition / 200)
         elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
             cmd = cmd.replace(outfname, forced_outfname)
@@ -1208,6 +1222,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if action != 'simulate':
         extras += ['--slurm', ]
 
+    print 'TODO put in something to reduce the number of procs for large samples'
     n_procs = min(500, n_procs)  # can't get more than a few hundred slots at once, anyway
     n_proc_str = str(n_procs)
     n_fewer_procs = max(1, min(500, n_total_seqs / 2000))
@@ -1227,4 +1242,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(900)  # 300sec = 5min
+    time.sleep(300)  # 300sec = 5min

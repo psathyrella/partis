@@ -130,6 +130,7 @@ for human in args.humans:
 
     print 'run', human
     n_leaves, mut_mult = None, None  # values if we're runing on data
+    parameterlist = [{'n_leaves' : None, 'mut_mult' : None, 'hfrac_bounds' : None}]
     if not args.data:
         if args.hfrac_bound_list is None:
             parameterlist = [{'n_leaves' : nl, 'mut_mult' : mm, 'hfrac_bounds' : None} for nl in args.n_leaf_list for mm in args.mutation_multipliers]
