@@ -168,6 +168,9 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def read_annotation_performance(self, version_stype, input_stype, debug=False):
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
+        ptest = 'annotate-' + input_stype + '-simu'
+        if args.quick and ptest not in self.quick_tests:
+            return
         if debug:
             print '  version %s input %s annotation' % (version_stype, input_stype)
 
@@ -208,6 +211,9 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
+        ptest = 'partition-' + input_stype + '-simu'
+        if args.quick and ptest not in self.quick_tests:
+            return
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
             print '    adj mi   ccf under/over        test                    description'
@@ -231,7 +237,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_performance(self):
-        # NOTE does *not* regenerate the reference performance file based on the reference outputs
+        # NOTE does *not* regenerate the reference performance file based on the reference outputs  UPDATE hm, wait, do I still use the performance files?
         print 'comparing to reference performance'
 
         refkeys = set(self.perf_info['ref'].keys())
@@ -258,6 +264,8 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self):
+        if args.quick:
+            return
         print 'diffing production results'
         for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu']:
             cmd = '  diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
