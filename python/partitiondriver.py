@@ -170,10 +170,15 @@ class PartitionDriver(object):
 
         # cache hmm naive seqs for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            n_precache_procs = int(math.ceil(float(len(self.sw_info['queries'])) / 100))
-            if n_precache_procs > self.args.n_max_procs:
-                print '  naive precache procs too large %d, reducing to args.n_max_procs %d' % (n_precache_procs, self.args.n_max_procs)
-                n_precache_procs = self.args.n_max_procs
+            n_seqs = len(self.sw_info['queries'])
+            seqs_per_proc = 100
+            if n_seqs > 3000:
+                seqs_per_proc *= 2
+            if n_seqs > 10000:
+                seqs_per_proc *= 2
+            n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
+            n_precache_procs = min(n_precache_procs, self.args.n_max_procs)
+            print '    precache procs', n_precache_procs
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=n_precache_procs, cache_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
@@ -451,6 +456,8 @@ class PartitionDriver(object):
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(hfrac_bounds[1])
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
+                if self.args.seed_unique_id is not None:
+                    cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]

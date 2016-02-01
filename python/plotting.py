@@ -787,7 +787,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     # dark red '#A52A2A',
     plots = {}
     scplots = {}
-    tmpmax, n_queries = None, None
+    # tmpmax, n_queries = None, None
     for name, hist in hists.items():
         if 'misassign' in name:
             continue
@@ -821,11 +821,11 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     else:
         ax.set_xlim(0.9, xmax)
 
-    # if 'stanford' in title:
-    #     ymin = 5e-4
-    # else:
-    #     ymin = 5e-5
-    # plt.ylim(ymin, 1)
+    if 'stanford' in title:
+        ymin = 5e-4
+    else:
+        ymin = 5e-5
+    plt.ylim(ymin, 1)
     plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters')
@@ -834,8 +834,8 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         ax.set_xscale('log')
     if 'y' in log:
         ax.set_yscale('log')
-        if n_queries is not None:
-            plt.ylim(1./n_queries, 1)
+        # if n_queries is not None:
+        #     plt.ylim(1./n_queries, 1)
     potential_xticks = [1, 2, 3, 9, 30, 75, 200, 500]
     xticks = [xt for xt in potential_xticks if xt < xmax]
     plt.xticks(xticks, [str(xt) for xt in xticks])
@@ -878,7 +878,17 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
         xvals = xyvals.keys()
         yvals = [ve[0] for ve in xyvals.values()]
         yerrs = [ve[1] for ve in xyvals.values()]
-        plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyles.get(meth, 'solid'), alpha=alphas.get(meth, 1.), fmt='-o')
+        kwargs = {'linewidth' : linewidths.get(meth, 4),
+                  'label' : legends.get(meth, meth),
+                  'color' : colors.get(meth, 'grey'),
+                  'linestyle' : linestyles.get(meth, 'solid'),
+                  'alpha' : alphas.get(meth, 1.)
+                  }
+        if True:  #None in yvals:  # darn it, the order in the legend gets messed up if I do some as .plot and some as .errorbar
+            plots[meth] = ax.plot(xvals, yvals, **kwargs)
+        # else:
+        #     kwargs['fmt'] = '-o'
+        #     plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, **kwargs)
     
     lx, ly = 1.6, 0.7
     legend = ax.legend(bbox_to_anchor=(lx, ly))
@@ -916,11 +926,11 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
         #     xticks.remove(750)
         # xticks += xvals[-1:]
         # xticks = [100, 5000, 10000, 15000]
-        xticks = [1000, 3000, 10000, 30000]
+        xticks = [100, 1000, 10000, 200000]
         ax.set_xscale('log')
         ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
 
-    xticklabels = [str(xt) for xt in xticks]
+    xticklabels = xticks if xvar == 'n_leaves' else ['%.0e' % xt for xt in xticks]
     plt.xticks(xticks, xticklabels)
 
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]

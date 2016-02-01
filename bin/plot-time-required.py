@@ -19,7 +19,7 @@ args.actions = utils.get_arg_list(args.actions)
 
 fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
 human = '021-018'
-istartstopstr_list = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000'.split(' ')
+istartstopstr_list = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000'.split(' ')
 istartstoplist = []
 for istartstopstr in istartstopstr_list:
     istartstoplist.append([int(iss) for iss in istartstopstr.split(':')])
@@ -39,7 +39,7 @@ def make_plot():
     mpl.use('Agg')
     import matplotlib.pyplot as plt
     import seaborn as sns
-    from plotting import legends, colors, linewidths, interpolate_values
+    from plotting import legends, colors, linewidths, linestyles, alphas, interpolate_values
     fsize = 20
     mpl.rcParams.update({
         # 'font.size': fsize,
@@ -58,19 +58,7 @@ def make_plot():
     plots = {}
     for meth, vals in timeinfo.items():
         interpolate_values(n_query_list, vals)
-
-        linestyle = '-'
-        alpha = 1.
-        if 'vollmers' in meth:
-            alpha = 0.5
-        if 'vsearch' in meth:
-            linestyle = '-.'
-        elif 'naive-hamming-partition' in meth:
-            linestyle = '--'
-        elif 'true' in meth:
-            linestyle = '--'
-            alpha = 0.5
-        plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyle, alpha=alpha)  #, markersize=1000)
+        plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyles.get(meth, 'solid'), alpha=alphas.get(meth, 1.))  #, markersize=1000)
     
     legend = ax.legend(loc='upper left')
     sns.despine()  #trim=True, bottom=True)
