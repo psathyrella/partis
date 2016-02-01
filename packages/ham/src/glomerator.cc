@@ -613,6 +613,11 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
+      if(args_->seed_unique_id() != "") {
+	if(key_a.find(args_->seed_unique_id()) == string::npos && key_b.find(args_->seed_unique_id()) == string::npos)  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids) TODO it might be more efficient to split by colons before looking for the id
+	  continue;
+      }
+
       ++n_total_pairs;
 
       if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair
@@ -650,8 +655,6 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       }
 
       // ----------------------------------------------------------------------------------------
-      // this should really depend on the sample's mutation frequency as well
-      // TODO put this into a c.l. arg in partis.py
       bool lratio_too_small(false);
       int ccs(qmerged.seqs_.size());  // candidate cluster size
       double max_lratio(args_->logprob_ratio_threshold());

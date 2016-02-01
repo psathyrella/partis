@@ -30,6 +30,7 @@ public:
   float max_logprob_drop() { return max_logprob_drop_arg_.getValue(); }
   string algorithm() { return algorithm_arg_.getValue(); }
   string ambig_base() { return ambig_base_arg_.getValue(); }
+  string seed_unique_id() { return seed_unique_id_arg_.getValue(); }
   int debug() { return debug_arg_.getValue(); }
   int n_best_events() { return n_best_events_arg_.getValue(); }
   int smc_particles() { return smc_particles_arg_.getValue(); }
@@ -49,7 +50,7 @@ public:
   vector<int> debug_ints_;
   ValuesConstraint<string> algo_vals_;
   ValuesConstraint<int> debug_vals_;
-  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, annotationfile_arg_, cachefile_arg_, algorithm_arg_, ambig_base_arg_;
+  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, annotationfile_arg_, cachefile_arg_, algorithm_arg_, ambig_base_arg_, seed_unique_id_arg_;
   ValueArg<float> hamming_fraction_bound_lo_arg_, hamming_fraction_bound_hi_arg_, logprob_ratio_threshold_arg_, max_logprob_drop_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_, smc_particles_arg_, naive_hamming_cluster_arg_;
   SwitchArg no_chunk_cache_arg_, partition_arg_, truncate_seqs_arg_, rescale_emissions_arg_, unphysical_insertions_arg_, cache_naive_seqs_arg_, no_fwd_arg_, cache_naive_hfracs_arg_, only_cache_new_vals_arg_;

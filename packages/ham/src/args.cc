@@ -16,6 +16,7 @@ Args::Args(int argc, const char * argv[]):
   cachefile_arg_("", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
+  seed_unique_id_arg_("", "seed-unique-id", "seed unique id", false, "", "string"),
   hamming_fraction_bound_lo_arg_("", "hamming-fraction-bound-lo", "if hamming fraction for a pair is smaller than this, merge them without running hmm", false, 0.0, "float"),
   hamming_fraction_bound_hi_arg_("", "hamming-fraction-bound-hi", "if hamming fraction for a pair is larger than this, skip without running hmm", false, 1.0, "float"),
   logprob_ratio_threshold_arg_("", "logprob-ratio-threshold", "", false, -INFINITY, "float"),
@@ -54,6 +55,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(max_logprob_drop_arg_);
     cmd.add(algorithm_arg_);
     cmd.add(ambig_base_arg_);
+    cmd.add(seed_unique_id_arg_);
     cmd.add(debug_arg_);
     cmd.add(n_best_events_arg_);
     cmd.add(smc_particles_arg_);
