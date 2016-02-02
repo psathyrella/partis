@@ -486,10 +486,15 @@ vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
   set<string> all_names;
   for(size_t is=0; is<merged_seqs.size(); ++is) {
     string name(merged_seqs[is].name());
-    if(all_names.count(name))
-      throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()");
-    else
+    if(all_names.count(name)) {
+      if(args_->seed_unique_id() != "" && args_->seed_unique_id() == name) {
+	// cout << "    found seed uid twice" << endl;
+      } else {
+	throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()");
+      }
+    } else {
       all_names.insert(name);
+    }
   }
 
   return merged_seqs;
