@@ -38,8 +38,14 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         seq_column = 'seq'
         reader = []
         n_fasta_queries = 0
-        print 'TODO account for <queries> and <reco_ids> here'
         for seq_record in SeqIO.parse(fname, ftype):
+
+            # if command line specified query or reco ids, skip other ones
+            if queries is not None and seq_record.name not in queries:
+                continue
+            # if reco_ids is not None and line['reco_id'] not in reco_ids:  # probably no reco ids in a fasta file
+            #     continue
+
             reader.append({})
             reader[-1][name_column] = seq_record.name
             reader[-1][seq_column] = str(seq_record.seq).upper()
@@ -58,6 +64,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             seq_column = 'nucleotide'
         utils.process_input_line(line, int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'), literal_columns=('indels'))
         unique_id = line[name_column]
+
         # if command line specified query or reco ids, skip other ones
         if queries is not None and unique_id not in queries:
             continue

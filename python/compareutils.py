@@ -8,6 +8,7 @@ import time
 import csv
 from subprocess import check_call, Popen, check_output, PIPE
 import itertools
+import scipy.stats
 sys.path.insert(1, './python')
 csv.field_size_limit(sys.maxsize)
 from hist import Hist
@@ -46,6 +47,7 @@ def FOOP():
         ccf_overs.append(ccf[1])
         nccf_a.append(nccf[1])
         nccf_b.append(nccf[0])
+        raise Exception('update product')
         nccf_product.append(nccf[0] * nccf[1])
 
     fig, ax = plotting.mpl_init()
@@ -193,7 +195,7 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
                     ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
                     metric_vals['ccf_under'] = ccfs[0]
                     metric_vals['ccf_over'] = ccfs[1]
-                metric_vals['ccf_product'] = metric_vals['ccf_under'] * metric_vals['ccf_over']
+                metric_vals['ccf_product'] = scipy.stats.hmean([metric_vals['ccf_under'], metric_vals['ccf_over']])
 
             deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition), metric_vals)
 
@@ -209,7 +211,7 @@ def parse_changeo(args, info, outfname, csvdir):
     metric_vals = None
     if not args.data:
         ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
     deal_with_parse_results(info, csvdir, 'changeo', partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -240,7 +242,7 @@ def parse_partis(args, action, info, outfname, outdir):
     metric_vals = None
     if not args.data:
         ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
     deal_with_parse_results(info, outdir, action, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -286,7 +288,7 @@ def parse_synthetic(args, info, outdir, true_partition, base_outfname):
         partition = cpath.partitions[cpath.i_best]
         hist = plotting.get_cluster_size_hist(partition)
         ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : ccfs[0]*ccfs[1]}
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
         deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -572,6 +574,9 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     for meth in args.expected_methods:
         if 'vollmers' in meth and meth != 'vollmers-0.9':
             raise Exception('need to update a few things to change the threshold')
+
+    if 'run-viterbi' in args.expected_methods or 'run-mixcr' in args.expected_methods or 'run-changeo' in args.expected_methods:
+        raise Exception('no, it\'s the *other* name')
 
     if 'vollmers-0.9' in args.expected_methods:
         parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)

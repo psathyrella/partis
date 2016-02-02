@@ -694,10 +694,10 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'misassign-0.10-reassign' : 'synth. 10%\nreassign',
            'misassign-distance-0.03' : 'synth.\nneighbor 0.03',
            'mixcr' : 'MiXCR',
-           'adj_mi' : 'similarity to true partition',
-           'ccf_under' : 'purity',
-           'ccf_over' : 'completeness',
-           'ccf_product' : 'purity * completeness'
+           'adj_mi' : 'adj MI',
+           'ccf_under' : 'precision',
+           'ccf_over' : 'sensitivity',
+           'ccf_product' : 'F1 score'
            }
 
 colors = {'true' : '#006600',
@@ -884,11 +884,11 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
                   'linestyle' : linestyles.get(meth, 'solid'),
                   'alpha' : alphas.get(meth, 1.)
                   }
-        if True:  #None in yvals:  # darn it, the order in the legend gets messed up if I do some as .plot and some as .errorbar
+        if xvar == 'n_leaves':
+            kwargs['fmt'] = '-o'
+            plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, **kwargs)
+        else:  # darn it, the order in the legend gets messed up if I do some as .plot and some as .errorbar
             plots[meth] = ax.plot(xvals, yvals, **kwargs)
-        # else:
-        #     kwargs['fmt'] = '-o'
-        #     plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, **kwargs)
     
     lx, ly = 1.6, 0.7
     legend = ax.legend(bbox_to_anchor=(lx, ly))
