@@ -49,7 +49,7 @@ class ClusterPath(object):
     # ----------------------------------------------------------------------------------------
     def add_partition(self, partition, logprob, n_procs, logweight=None, adj_mi=None, ccfs=[None, None]):
         # NOTE you typically want to allow duplicate (in terms of log prob) partitions, since they can have different n procs
-        self.partitions.append(partition)
+        self.partitions.append(partition)  # NOTE not deep copied
         self.logprobs.append(logprob)
         self.n_procs.append(n_procs)
         self.logweights.append(logweight)
@@ -143,6 +143,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False):
+        abbreviate=False
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:
@@ -168,7 +169,8 @@ class ClusterPath(object):
             if abbreviate:
                 cluster_str = ':'.join(['o' for uid in cluster])
             else:
-                cluster_str = ':'.join(sorted([str(uid) for uid in cluster]))
+                # cluster_str = ':'.join(sorted([str(uid) for uid in cluster]))
+                cluster_str = ':'.join([str(uid) for uid in cluster])
 
             if reco_info is not None and not utils.from_same_event(reco_info, cluster):
                 cluster_str = utils.color('red', cluster_str)

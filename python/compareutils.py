@@ -105,7 +105,7 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
     if hfrac_bounds is not None:
         return_str += '-hfrac-bounds-' + get_str(hfrac_bounds)
     if args.indels:
-        return_str += ('%s-indels' % args.indel_location)
+        return_str += ('-%s-indels' % args.indel_location)
     if args.lonely_leaves:
         return_str += '-lonely-leaves'
     if args.mimic:
@@ -181,6 +181,8 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
         for line in vreader:
+            if float(line['threshold']) == 0.5:
+                continue
             n_lines += 1
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = utils.get_partition_from_str(partitionstr)
@@ -595,6 +597,12 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
+
+    for metric in metrics:
+        print metric
+        for method in this_info[metric]:
+            print '    %40s   %.2f ' % (method, this_info[metric][method])
+
     if not args.no_similarity_matrices:  # they're kinda slow is all
         for meth1, meth2 in itertools.combinations(this_info['partitions'].keys(), 2):
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
@@ -1119,6 +1127,17 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
     return seqfname
 
 # ----------------------------------------------------------------------------------------
+def get_seed_unique_id(seqfname, n_leaves):
+    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+    true_partition = utils.get_true_partition(reco_info)
+    for cluster in true_partition:
+        if len(cluster) < n_leaves:  # don't want the little tiddlers
+            continue
+        return cluster[0]  # just use the first one
+
+    assert False  # shouldn't get here
+
+# ----------------------------------------------------------------------------------------
 def get_outputname(args, label, action, seqfname, hfrac_bounds):
     if args.data:
         outputname = get_outdirname(args, label) + '/data-' + action + '.csv'
@@ -1196,6 +1215,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
             n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
+        elif action == 'seed-partition':
+            extras += ['--seed-unique-id', get_seed_unique_id(seqfname, n_leaves)]
+            if hfrac_bounds is not None:
+                assert hfrac_bounds[0] == hfrac_bounds[1]
+                extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
+            n_procs = max(1, args.n_to_partition / 300)
         elif action == 'run-viterbi':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
@@ -1249,4 +1274,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    time.sleep(300)  # 300sec = 5min
+    # time.sleep(300)  # 300sec = 5min

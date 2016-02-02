@@ -225,7 +225,7 @@ class PartitionDriver(object):
                     uids = ':'.join(cluster)
                     utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
             if self.args.outfname is not None:
-                self.write_clusterpaths(self.args.outfname, [path, ])  # [last agglomeration step]
+                self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
@@ -243,7 +243,7 @@ class PartitionDriver(object):
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
-    def check_partition(self, partition):
+    def check_partition(self, partition, deduplicate_uid=None):
         found_ids = set([uid for cluster in partition for uid in cluster])
         print '    checking partition with %d ids' % len(found_ids)
         missing_ids = set()
@@ -258,14 +258,50 @@ class PartitionDriver(object):
             else:
                 raise Exception(warnstr)
 
+        for fid in found_ids:
+            found = False
+            for cluster in partition:
+                if fid in cluster:
+                    if found or cluster.count(fid) > 1:  # if we already found it in another cluster, or if it's in this cluster more than once
+                        if self.args.seed_unique_id is not None and fid == self.args.seed_unique_id:
+                            pass
+                        else:
+                            raise Exception('duplicate sequence %s in partition' % fid)
+                        if deduplicate_uid:
+                            n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
+                            if found:
+                                n_remaining = 0  # if we already found it in another cluster, remove *all* of 'em
+                            while cluster.count(fid) > n_remaining:
+                                cluster.remove(self.args.seed_unique_id)
+
+                    found = True
+
     # ----------------------------------------------------------------------------------------
-    def write_clusterpaths(self, outfname, paths):
+    def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
         outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
-        for ipath in range(len(paths)):
-            paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+
+        if deduplicate_uid is not None:
+            assert len(paths) == 1
+            ipath = 0
+            path = self.paths[ipath]
+            newcp = ClusterPath()
+            # assert path.adj_mis[path.i_best] is None
+            # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
+            partition = copy.deepcopy(path.partitions[path.i_best])
+            tmpcp = ClusterPath()
+            tmpcp.add_partition(partition, 0., 1.)
+            tmpcp.print_partitions(extrastr='before')
+            self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
+            newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
+            newcp.print_partitions(extrastr='after')
+            newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+        else:
+            for ipath in range(len(paths)):
+                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+
         outfile.close()
 
     # ----------------------------------------------------------------------------------------
@@ -708,10 +744,27 @@ class PartitionDriver(object):
 
         # read single input file
         info = []
+        seed_info = {}
+        print '   seed clusters'
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
+                if self.args.seed_unique_id in line['names']:
+                    if len(seed_info) > 0 and len(line['names'].split(':')) == 1:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
+                        continue
+                    seed_info[line['names']] = line
+                    print '      ', line['names']
+                    continue  # don't want to add it now (see below)
                 info.append(line)
+
+        if self.args.seed_unique_id is not None:
+            if len(seed_info) == 0:
+                raise Exception('couldn\'t find info for query %s in %s' % (self.args.seed_unique_id, infname))
+            smallest_seed_cluster_str = None
+            for unique_id_str in seed_info:
+                if smallest_seed_cluster_str is None or len(unique_id_str.split(':')) < len(smallest_seed_cluster_str.split(':')):
+                    smallest_seed_cluster_str = unique_id_str
+            print '    smallest one %s' % smallest_seed_cluster_str
 
         # ----------------------------------------------------------------------------------------
         def get_sub_outfile(siproc, mode):
@@ -742,9 +795,22 @@ class PartitionDriver(object):
             divvied_queries = self.divvy_up_queries(n_procs, info, 'names', 'seqs')
         # else:
         #     print 'modulo divvy'
+
+        seed_clusters_to_write = seed_info.keys()  # the keys in <seed_info> that we still need to write
         for iproc in range(n_procs):
             sub_outfile = get_sub_outfile(iproc, 'a')
             writer = get_writer(sub_outfile)
+
+            if self.args.seed_unique_id is not None:  # write the seed info line to each file
+                if len(seed_clusters_to_write) == 0:  # if we don't have any more that we *need* to write (i.e. that have other seqs in them), just write the singleton one (well, the shortest, which will probably be a singleton)
+                    writer.writerow(seed_info[smallest_seed_cluster_str])
+                else:  # otherwise, write one (or more) of the ones that we still need to write
+                    if iproc < n_procs - 1:  # if we're not on the last proc
+                        writer.writerow(seed_info[seed_clusters_to_write.pop(0)])
+                    else:
+                        while len(seed_clusters_to_write) > 0:  # keep adding 'em until we run out
+                            writer.writerow(seed_info[seed_clusters_to_write.pop(0)])
+
             for iquery in range(len(info)):
                 if cluster_divvy:
                     if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
@@ -1067,6 +1133,8 @@ class PartitionDriver(object):
 
         for query_name_list in nsets:
 
+            # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get remove 'cause in bcrham everything's store as hash maps, so any duplicates just overwites the original upon reading its input
+
             combined_query = self.combine_queries(query_name_list, parameter_dir, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
@@ -1113,7 +1181,7 @@ class PartitionDriver(object):
                                                     skipped_gene_matches, path_index=iptl, logweight=path.logweights[path.i_best_minus_x])
         else:
             if self.args.action == 'partition':
-                nsets = list(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])  #  list() is important since we modify <nsets>
+                nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.sw_info['queries']]
