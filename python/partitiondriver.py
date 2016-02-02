@@ -268,11 +268,12 @@ class PartitionDriver(object):
                         else:
                             raise Exception('duplicate sequence %s in partition' % fid)
                         if deduplicate_uid:
+                            assert deduplicate_uid == self.args.seed_unique_id  # er, could stand to clean this up a bit
                             n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
                             if found:
                                 n_remaining = 0  # if we already found it in another cluster, remove *all* of 'em
                             while cluster.count(fid) > n_remaining:
-                                cluster.remove(self.args.seed_unique_id)
+                                cluster.remove(deduplicate_uid)
 
                     found = True
 
@@ -745,15 +746,15 @@ class PartitionDriver(object):
         # read single input file
         info = []
         seed_info = {}
-        print '   seed clusters'
+        # print '   seed clusters'
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
-                if self.args.seed_unique_id in line['names']:
+                if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['names']:
                     if len(seed_info) > 0 and len(line['names'].split(':')) == 1:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
                         continue
                     seed_info[line['names']] = line
-                    print '      ', line['names']
+                    # print '      ', line['names']
                     continue  # don't want to add it now (see below)
                 info.append(line)
 
@@ -764,7 +765,7 @@ class PartitionDriver(object):
             for unique_id_str in seed_info:
                 if smallest_seed_cluster_str is None or len(unique_id_str.split(':')) < len(smallest_seed_cluster_str.split(':')):
                     smallest_seed_cluster_str = unique_id_str
-            print '    smallest one %s' % smallest_seed_cluster_str
+            # print '    smallest one %s' % smallest_seed_cluster_str
 
         # ----------------------------------------------------------------------------------------
         def get_sub_outfile(siproc, mode):
