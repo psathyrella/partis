@@ -81,6 +81,7 @@ parser.add_argument('--indel-frequency', default=0., type=float, help='fraction 
 # disabled for now, but if you want multiple indels per sequence you can use this (you'd also need to uncomment a line in recombinator):
 # parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
 parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution)')
+parser.add_argument('--indel-location', choices=[None, 'v', 'cdr3'], help='where to put the indels')
 
 # numerical inputs
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
