@@ -638,7 +638,10 @@ def compare_subsets(args, label):
             for mut_mult in args.mutation_multipliers:
                 for metric in metrics:
                     plotvals = rearrange_metrics_vs_n_leaves(args, info[metric], mut_mult)
-                    plotting.plot_adj_mi_and_co(plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+                    plotname = metric + '-%d-mutation.svg' % mut_mult
+                    if args.indels:
+                        plotname = plotname.replace('.svg', '-%s-indels.svg' % args.indel_location)
+                    plotting.plot_adj_mi_and_co(plotname, plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
             plotting.make_html(baseplotdir + '/means-over-subsets/metrics')  #, n_columns=2)
         elif args.hfrac_bound_list is not None:
             if len(args.expected_methods) != 1:
@@ -694,7 +697,10 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
                 for method, values in per_subset_info[metric].items():
                     plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(get_nseq_list(args), values)])
                 metric_plotdir = os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics'
-                plotting.plot_adj_mi_and_co(plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
+                plotname = metric + '-%d-mutation.svg' % mut_mult
+                if args.indels:
+                    plotname = plotname.replace('.svg', '-%s-indels.svg' % args.indel_location)
+                plotting.plot_adj_mi_and_co(plotname, plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
                 plotting.make_html(metric_plotdir)
 
 # ----------------------------------------------------------------------------------------
@@ -1220,7 +1226,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-            n_procs = max(1, args.n_to_partition / 300)
+            n_procs = max(1, args.n_to_partition / 100)
         elif action == 'run-viterbi':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times

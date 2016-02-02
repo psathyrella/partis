@@ -869,7 +869,7 @@ def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title
     mpl_finish(ax, plotdir, plotfname, log=log, xticks=xticks, xticklabels=xticks, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
 
 # ----------------------------------------------------------------------------------------
-def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
+def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, title=''):
     fig, ax = mpl_init()
     mpl.rcParams.update({
         'legend.fontsize': 15,})
@@ -938,7 +938,6 @@ def plot_adj_mi_and_co(plotvals, mut_mult, plotdir, valname, xvar, title=''):
     plt.yticks(yticks, yticklabels)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
-    plotname =  valname + '-%d-mutation.svg' % mut_mult
     plt.savefig(plotdir + '/' + plotname)
     plt.close()
 
