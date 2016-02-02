@@ -88,7 +88,7 @@ def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
         if args.istartstop is not None:
             title += ', %d seqs' % (args.istartstop[1] - args.istartstop[0])
         if args.indels:
-            title += ', indels'
+            title += ', %s indels' % args.indel_location.upper()
         if args.mimic:
             title += ', mimic'
         if args.box:
@@ -105,7 +105,7 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
     if hfrac_bounds is not None:
         return_str += '-hfrac-bounds-' + get_str(hfrac_bounds)
     if args.indels:
-        return_str += '-indels'
+        return_str += ('%s-indels' % args.indel_location)
     if args.lonely_leaves:
         return_str += '-lonely-leaves'
     if args.mimic:
@@ -1159,6 +1159,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
             extras += ['--indel-frequency', 0.5]
+            if args.indel_location is not None:
+                extras += ['--indel-location', args.indel_location]
         if args.lonely_leaves:
             extras += ['--constant-number-of-leaves', ]
         if args.mimic:

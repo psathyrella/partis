@@ -22,6 +22,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--expected-methods', default='vollmers-0.9:mixcr:changeo:vsearch-partition:naive-hamming-partition:partition')
 parser.add_argument('--synthetic-partitions', default='distance-0.03:0.10-reassign:0.60-singletons') # 0.75-singletons
 parser.add_argument('--indels', action='store_true')
+parser.add_argument('--indel-location')
 parser.add_argument('--lonely-leaves', action='store_true')
 parser.add_argument('--mimic', action='store_true')
 parser.add_argument('--box', action='store_true')
@@ -75,41 +76,6 @@ if args.bak:
 
 # ----------------------------------------------------------------------------------------
 # compareutils.FOOP()
-# sys.exit()
-
-# # ----------------------------------------------------------------------------------------
-# from clusterplot import ClusterPlot
-# import plotting
-# legends = {}
-# legends['v-true'] = 'true (V indels)'
-# legends['cdr3-true'] = 'true (CDR3 indels)'
-# legends['v-indels'] = 'full partis (V indels)'
-# legends['cdr3-indels'] = 'full partis (CDR3 indels)'
-# args.is_data = False
-# args.debug = False
-# args.use_all_steps = False
-# args.normalize_axes = []
-# args.xbounds, args.adjmi_bounds, args.logprob_bounds = None, None, None
-
-# input_info, reco_info = seqfileopener.get_seqfile_info('v-indels.csv', is_data=False)
-# v_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info))
-# v_cpath = ClusterPath()
-# v_cpath.readfile('v-indels-partitions-new.csv')
-
-# input_info, reco_info = seqfileopener.get_seqfile_info('cdr3-indels.csv', is_data=False)
-# cdr3_truehist = plotting.get_cluster_size_hist(utils.get_true_partition(reco_info))
-# cdr3_cpath = ClusterPath()
-# cdr3_cpath.readfile('cdr3-indels-partitions-new.csv')
-# # print 'v-indels: %f' % v_cpath.adj_mi_at_max_logprob
-# # print 'cdr3-indels: %f' % cdr3_cplot.adj_mi_at_max_logprob
-# plotting.plot_cluster_size_hists(os.getenv('www') + '/partis/clustering/indel-performance.svg',
-#                                  OrderedDict([
-#                                      ['v-true', v_truehist],
-#                                      ['v-indels', plotting.get_cluster_size_hist(v_cpath.partitions[v_cpath.i_best])],
-#                                      ['cdr3-true', cdr3_truehist],
-#                                      ['cdr3-indels', plotting.get_cluster_size_hist(cdr3_cpath.partitions[cdr3_cpath.i_best])]
-#                                  ]),
-#                                  title='%d leaves, %dx mutation, indels' % (10, 1), xmax=10*3.01)
 # sys.exit()
 
 # ----------------------------------------------------------------------------------------

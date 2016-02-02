@@ -412,12 +412,15 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_single_indel(self, seq, reco_event):
-        # uniform over entire sequence:
-        pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
-        # within the meat of the v:
-        # pos = random.randint(10, reco_event.final_cyst_position)
-        # inside cdr3:
-        # pos = random.randint(reco_event.final_cyst_position, reco_event.final_tryp_position)
+        if self.args.indel_location == None:  # uniform over entire sequence
+            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
+        elif self.args.indel_location == 'v':  # within the meat of the v
+            pos = random.randint(10, reco_event.final_cyst_position)
+        elif self.args.indel_location == 'cdr3':  # inside cdr3
+            pos = random.randint(reco_event.final_cyst_position, reco_event.final_tryp_position)
+        else:
+            assert False
+
         length = numpy.random.geometric(1. / self.args.mean_indel_length)
 
         if numpy.random.uniform(0, 1) < 0.5:  # fifty-fifty chance of insertion and deletion

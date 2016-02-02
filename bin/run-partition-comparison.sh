@@ -4,12 +4,12 @@
 # weird
 lf=10 #:3  #30:150
 leaf_mut_hum="--n-leaf-list $lf --mutation-multipliers 1 --humans A"
-xtra=""  # "--mimic"  # --box
-# ./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum $xtra &
+xtra="--indels --indel-location v"  # "--mimic"  # --box
+./bin/compare-partition-methods.py --actions simulate $leaf_mut_hum $xtra &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum $xtra &
 # ./bin/compare-partition-methods.py --actions run-viterbi:vsearch-partition:naive-hamming-partition:partition $leaf_mut_hum $xtra --n-to-partition 3000 &
 # ./bin/compare-partition-methods.py --actions run-mixcr $leaf_mut_hum $xtra --n-to-partition 3000 &
-./bin/compare-partition-methods.py --actions write-plots --expected-methods vollmers-0.9:mixcr:partition:naive-hamming-partition:vsearch-partition $leaf_mut_hum $xtra --n-to-partition 3000 --no-similarity-matrices &
+# ./bin/compare-partition-methods.py --actions write-plots --expected-methods vollmers-0.9:mixcr:partition:naive-hamming-partition:vsearch-partition $leaf_mut_hum $xtra --n-to-partition 3000 --no-similarity-matrices &
 exit 0
 
 # # ----------------------------------------------------------------------------------------
