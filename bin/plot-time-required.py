@@ -13,13 +13,13 @@ import utils
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', required=True)
 parser.add_argument('--timegrep', action='store_true')
-parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 
 fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
 human = '021-018'
-istartstopstr_list = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000'.split(' ')
+istartstopstr_list_str = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000'
+istartstopstr_list = istartstopstr_list_str.split(' ')
 istartstoplist = []
 for istartstopstr in istartstopstr_list:
     istartstoplist.append([int(iss) for iss in istartstopstr.split(':')])

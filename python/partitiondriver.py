@@ -171,7 +171,7 @@ class PartitionDriver(object):
         # cache hmm naive seqs for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
             n_seqs = len(self.sw_info['queries'])
-            seqs_per_proc = 100
+            seqs_per_proc = 500
             if n_seqs > 3000:
                 seqs_per_proc *= 2
             if n_seqs > 10000:
@@ -187,14 +187,15 @@ class PartitionDriver(object):
 
         # ----------------------------------------------------------------------------------------
         # run that shiznit
+        start = time.time()
         while n_procs > 0:
-            start = time.time()
+            step_start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
             n_proc_list.append(n_procs)
 
-            print '      partition step time: %.3f' % (time.time()-start)
+            print '      partition step time: %.3f' % (time.time()-step_start)
             if n_procs == 1 or len(n_proc_list) >= self.args.n_partition_steps:
                 break
 
@@ -211,21 +212,29 @@ class PartitionDriver(object):
             else:
                 n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
+        print '      loop time: %.3f' % (time.time()-start)
+        start = time.time()
+
         # deal with final partition
         if self.args.smc_particles == 1:
             assert len(self.paths) == 1
             ipath = 0
             path = self.paths[ipath]
             self.check_partition(path.partitions[path.i_best])
-            print 'final'
-            path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+            if len(self.input_info) < 100:
+                print 'final'
+                start = time.time()
+                path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+                print '      print time: %.3f' % (time.time()-start)
             if self.args.print_cluster_annotations:
                 annotations = self.read_annotation_output(self.annotation_fname)
                 for cluster in path.partitions[path.i_best]:
                     uids = ':'.join(cluster)
                     utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
             if self.args.outfname is not None:
+                start = time.time()
                 self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
+                print '      write time: %.3f' % (time.time()-start)
         else:
             # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
@@ -244,6 +253,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_partition(self, partition, deduplicate_uid=None):
+        start = time.time()
         found_ids = set([uid for cluster in partition for uid in cluster])
         print '    checking partition with %d ids' % len(found_ids)
         missing_ids = set()
@@ -277,6 +287,8 @@ class PartitionDriver(object):
 
                     found = True
 
+        print '      check time: %.3f' % (time.time()-start)
+
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
         outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles)
@@ -292,12 +304,8 @@ class PartitionDriver(object):
             # assert path.adj_mis[path.i_best] is None
             # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
             partition = copy.deepcopy(path.partitions[path.i_best])
-            tmpcp = ClusterPath()
-            tmpcp.add_partition(partition, 0., 1.)
-            tmpcp.print_partitions(extrastr='before')
             self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
             newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
-            newcp.print_partitions(extrastr='after')
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
         else:
             for ipath in range(len(paths)):
@@ -341,7 +349,7 @@ class PartitionDriver(object):
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = './bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-            if self.args.slurm or utils.auto_slurm(n_procs):
+            if self.args.slurm or utils.auto_slurm(self.args.n_procs):
                 cmd = 'srun --cpus-per-task ' + str(self.args.n_procs) + ' ' + cmd
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
@@ -851,11 +859,13 @@ class PartitionDriver(object):
 
         header = ''
         outfile = None
+        one_real_file = False
         if outfname not in infnames or not os.path.exists(outfname):  # if it *is* in <infnames> we assume we can just tack the other infnames onto the end of it and use <outfname>'s header
             outfile = open(outfname, 'w')
         for fname in infnames:
             if not os.path.exists(fname) or os.stat(fname).st_size == 0:
                 continue
+            one_real_file = True
             with open(fname) as headfile:
                 reader = csv.DictReader(headfile)
                 header = ','.join(reader.fieldnames)
@@ -865,6 +875,10 @@ class PartitionDriver(object):
             break  # kinda weird to do it this way, but we just need one of the infiles to get the header info (and some may be zero length)
         if outfile is not None:
             outfile.close()
+        if not one_real_file:
+            print '    nothign to merge into %s' % outfname
+            return
+
         assert header != ''
 
         cmd = 'cat ' + ' '.join([fn for fn in infnames if fn != outfname]) + ' | grep -v \'' + header + '\''

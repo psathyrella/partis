@@ -46,17 +46,6 @@ parser.add_argument('--presto-output', action='store_true', help='write output f
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
 print 'TODO switch over to make_html function in plotting.py (in the process, hopefully fix ls not finding svg message)'
-print 'TODO fix lock file thing... is it broken?'
-print """ TODO fix this
-Traceback (most recent call last):
-  File "./bin/partis.py", line 216, in <module>
-    parter.clean()
-  File "./python/partitiondriver.py", line 73, in clean
-    self.merge_files(infnames=[self.args.persistent_cachefname, self.hmm_cachefname], outfname=self.args.persistent_cachefname, dereplicate=True)
-  File "./python/partitiondriver.py", line 810, in merge_files
-    assert header != ''
-AssertionError
-"""
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
