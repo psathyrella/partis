@@ -70,6 +70,7 @@ void print_forward_scores(double numerator, vector<double> single_scores, double
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
+  clock_t run_start(clock());
   Args args(argc, argv);
 
   // init some infrastructure
@@ -82,14 +83,18 @@ int main(int argc, const char * argv[]) {
   // hmms.CacheAll();
 
   if(args.cache_naive_seqs()) {
+    clock_t run_start(clock());
     Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
     glom.CacheNaiveSeqs();
+    cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
     return 0;
   }
 
   if(args.naive_hamming_cluster() > 0) {
+    clock_t run_start(clock());
     Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
     glom.NaiveSeqGlomerate(args.naive_hamming_cluster());
+    cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
     return 0;
   }
 
@@ -159,7 +164,6 @@ int main(int argc, const char * argv[]) {
     string errors;
     do {
       errors = "";
-      // clock_t run_start(clock());
       if(args.debug()) cout << "       ----" << endl;
       result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
       numerator = result.total_score();
@@ -181,7 +185,6 @@ int main(int argc, const char * argv[]) {
         stop &= !res.boundary_error() || res.could_not_expand();
       if(args.debug() && !stop)
         cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-      // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
       if(result.boundary_error())
         errors = "boundary";
       for(auto & res : denom_results) // NOTE <errors> will still just have one "boundary" in it even if multiple results had boundary errors
@@ -202,6 +205,7 @@ int main(int argc, const char * argv[]) {
   }
 
   ofs.close();
+  cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
   return 0;
 }
 
