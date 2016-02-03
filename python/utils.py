@@ -13,7 +13,8 @@ from collections import OrderedDict
 import itertools
 import csv
 from subprocess import check_output, CalledProcessError
-from sklearn.metrics.cluster import adjusted_mutual_info_score
+# from sklearn.metrics.cluster import adjusted_mutual_info_score
+import sklearn.metrics.cluster
 import numpy
 import multiprocessing
 import shutil
@@ -1707,8 +1708,9 @@ def get_cluster_list_for_sklearn(part_a, part_b):
 
 # ----------------------------------------------------------------------------------------
 def adjusted_mutual_information(partition_a, partition_b):
-    clusts_a, clusts_b = get_cluster_list_for_sklearn(partition_a, partition_b)
-    return adjusted_mutual_info_score(clusts_a, clusts_b)
+    return -1.  # not using it any more, and it's really slow
+    # clusts_a, clusts_b = get_cluster_list_for_sklearn(partition_a, partition_b)
+    # return sklearn.metrics.cluster.adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
 def add_missing_uids_as_singletons_to_inferred_partition(partition_with_missing_uids, true_partition=None, all_ids=None, debug=True):

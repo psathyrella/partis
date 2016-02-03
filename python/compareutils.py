@@ -608,6 +608,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
                 continue
             n_biggest_clusters = 40  # if args.data else 30)
+            print 'x' + plotname + 'x'
             plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
@@ -639,9 +640,11 @@ def compare_subsets(args, label):
                 for metric in metrics:
                     plotvals = rearrange_metrics_vs_n_leaves(args, info[metric], mut_mult)
                     plotname = metric + '-%d-mutation.svg' % mut_mult
+                    title = '%dx mutation' % mut_mult
                     if args.indels:
                         plotname = plotname.replace('.svg', '-%s-indels.svg' % args.indel_location)
-                    plotting.plot_adj_mi_and_co(plotname, plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title='%dx mutation' % mut_mult)
+                        title += ', %s indels' % args.indel_location.upper()
+                    plotting.plot_adj_mi_and_co(plotname, plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title=title)
             plotting.make_html(baseplotdir + '/means-over-subsets/metrics')  #, n_columns=2)
         elif args.hfrac_bound_list is not None:
             if len(args.expected_methods) != 1:
@@ -889,7 +892,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
     def run(cmdstr):
         print 'RUN %s' % cmdstr
-        check_call(cmdstr.split(), env=os.environ)
+        # check_call(cmdstr.split(), env=os.environ)
 
     outfname = get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds=None)
     if output_exists(args, outfname):
@@ -930,6 +933,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     partition_with_uids_added = utils.add_missing_uids_as_singletons_to_inferred_partition(partition, all_ids=input_info.keys())
 
     adj_mi, ccfs = None, [None, None]
+    true_partition = None
     if not args.data:
         true_partition = utils.get_true_partition(reco_info)
         # subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
@@ -1216,7 +1220,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             n_procs = max(1, args.n_to_partition / 200)
         elif action == 'vsearch-partition':
             extras += ['--naive-vsearch']
-            extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
+            # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             if hfrac_bounds is not None:
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
@@ -1226,10 +1230,13 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-            n_procs = max(1, args.n_to_partition / 100)
+            seqs_per_proc = 3000
+            if args.n_to_partition > 30000:
+                seqs_per_proc *= 3
+            n_procs = max(1, args.n_to_partition / seqs_per_proc)
         elif action == 'run-viterbi':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
-            extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
+            # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             n_procs = max(1, args.n_to_partition / 200)
         elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
             cmd = cmd.replace(outfname, forced_outfname)
@@ -1280,4 +1287,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(300)  # 300sec = 5min
+    # time.sleep(10)  # 300sec = 5min

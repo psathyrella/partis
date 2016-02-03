@@ -681,12 +681,13 @@ def interpolate_values(xvals, yvals):
 
 # ----------------------------------------------------------------------------------------
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
-           'partition partis' : 'full partis',
+           # 'partition partis' : 'full partis',
            'partition' : 'full partis',
-           'naive-hamming-partition partis' : 'point partis',
+           # 'naive-hamming-partition partis' : 'point partis',
            'naive-hamming-partition' : 'point partis',
-           'vsearch-partition partis' : 'vsearch partis',
+           # 'vsearch-partition partis' : 'vsearch partis',
            'vsearch-partition' : 'vsearch partis',
+           'seed-partition' : 'full partis (seed)',
            'changeo' : 'IMGT + Change-O',
            # '0.1-true-singletons' : '10% random singletons',
            # '0.1-true-reassign' : '10% random reassign',
@@ -919,7 +920,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
         ax.set_xscale('log')
         if 100 in xticks and 200 in xticks:
             xticks.remove(100)
-        ax.set_xlim(xvals[0], xvals[-1])
+        ax.set_xlim(0.95 * xvals[0], 1.05 * xvals[-1])
     elif xvar == 'nseqs':
         # xticks = [xticks[i] for i in range(0, len(xticks), 2)]
         # if 750 in xticks:
