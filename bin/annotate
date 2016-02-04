@@ -14,7 +14,7 @@ if args.outfname is None:
 
 def run(cmd):
     print 'RUN %s' % cmd
-    check_call(cmd.split())
+    check_call(cmd.split())  # if this is failing, consider adding --skip-unproductive to the partis.py calls below
 
 # use the basename, without suffix, of <args.infname> as a label for the analysis
 label = os.path.basename(args.infname[ : args.infname.rfind('.')])
