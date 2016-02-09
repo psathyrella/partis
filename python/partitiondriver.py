@@ -876,7 +876,7 @@ class PartitionDriver(object):
         if outfile is not None:
             outfile.close()
         if not one_real_file:
-            print '    nothign to merge into %s' % outfname
+            print '    nothing to merge into %s' % outfname
             return
 
         assert header != ''
@@ -1030,7 +1030,7 @@ class PartitionDriver(object):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> """
         # first get the list of genes for which we don't have hmm files
         if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
-            raise Exception('no yamels in %s' % parameter_dir)
+            raise Exception('no yamels in %s' % parameter_dir + '/hmms')
 
         genes_to_remove = []
         for gene in gene_list:
