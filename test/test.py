@@ -40,7 +40,6 @@ class Tester(object):
         self.eps_vals['d_gene_correct'] = 0.02
         self.eps_vals['j_gene_correct'] = 0.02
         self.eps_vals['mean_hamming']   = 0.1
-        self.eps_vals['adj_mi']         = 0.2  # the three partitioning ones are roughly two sigma
         self.eps_vals['ccf_under']      = 0.08
         self.eps_vals['ccf_over']       = 0.08
 
@@ -215,7 +214,7 @@ class Tester(object):
             return
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
-            print '    adj mi   ccf under/over        test                    description'
+            print '    ccf under/over        test                    description'
         for ptest in [k for k in self.tests.keys() if 'partition' in k and input_stype in k]:
             if args.quick and ptest not in self.quick_tests:
                 continue
@@ -223,16 +222,15 @@ class Tester(object):
             cp.readfile(self.dirs[version_stype] + '/' + ptest + '.csv')
             if 'data' in ptest:
                 raise Exception('needs fixing')
-                ref_cp = ClusterPath(-1)
-                ref_cp.readfile(self.dirs['xxxref'] + '/' + ptest + '.csv')
-                self.perf_info['xxx'][ptest] = utils.adjusted_mutual_information(cp.partitions[cp.i_best], ref_cp.partitions[ref_cp.i_best])  # adj mi between the reference and the new data partitions
-                if debug:
-                    print '    %5.2f   %-28s   to reference partition' % (self.perf_info['xxx'][ptest], ptest)
+                # ref_cp = ClusterPath(-1)
+                # ref_cp.readfile(self.dirs['xxxref'] + '/' + ptest + '.csv')
+                # self.perf_info['xxx'][ptest] = utils.adjusted_mutual_information(cp.partitions[cp.i_best], ref_cp.partitions[ref_cp.i_best])  # adj mi between the reference and the new data partitions
+                # if debug:
+                #     print '    %5.2f   %-28s   to reference partition' % (self.perf_info['xxx'][ptest], ptest)
             else:
-                self.perf_info[version_stype][ptest + '-adj_mi'] = cp.adj_mis[cp.i_best]  # adj mi to true partition
                 self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'] = cp.ccfs[cp.i_best]
                 if debug:
-                    print '    %5.2f    %5.2f %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-adj_mi'], self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'], ptest)
+                    print '    %5.2f %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'], ptest)
 
     # ----------------------------------------------------------------------------------------
     def compare_performance(self):
