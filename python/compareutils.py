@@ -24,43 +24,6 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
 
 # ----------------------------------------------------------------------------------------
-def FOOP():
-    glfo = utils.read_germline_set('data/imgt')
-    _, reco_info = seqfileopener.get_seqfile_info('/fh/fast/matsen_e/dralph/work/partis-dev/_output/A/simu-3-leaves-1.0-mutate.csv', is_data=False, n_max_queries=5)
-    true_partition = utils.get_true_partition(reco_info)
-    utils.generate_distance_based_incorrect_partition(glfo, reco_info, true_partition, hfrac_error=0.03, merge_fraction=0.1, debug=True)
-    sys.exit()
-    tholds = [0.005, 0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.07, 0.1, 0.2, 0.3, 0.9]
-    # tholds = [0.005, 0.04, 0.9]
-    adj_mis, ccf_unders, ccf_overs, nccf_a, nccf_b = [], [], [], [], []
-    nccf_product = []
-    for thold in tholds:
-        cpath = ClusterPath()
-        cpath.readfile(str(thold) + '.csv')
-        partition = cpath.partitions[cpath.i_best]
-        # cpath.print_partition(cpath.i_best)
-        ccf = utils.correct_cluster_fractions(partition, true_partition)
-        nccf = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
-        print '%5.3f   %5.4f    %5.4f  %5.4f    %5.4f  %5.4f' % (thold, cpath.adj_mis[cpath.i_best], ccf[0], ccf[1], nccf[1], nccf[0])
-        adj_mis.append(cpath.adj_mis[cpath.i_best])
-        ccf_unders.append(ccf[0])
-        ccf_overs.append(ccf[1])
-        nccf_a.append(nccf[1])
-        nccf_b.append(nccf[0])
-        raise Exception('update product')
-        nccf_product.append(nccf[0] * nccf[1])
-
-    fig, ax = plotting.mpl_init()
-    ax.plot(tholds, adj_mis, label='adj mi')
-    ax.plot(tholds, ccf_unders, label='ccf under', color='#cc0000')
-    ax.plot(tholds, ccf_overs, label='ccf over', color='#cc0000', linestyle='--')
-    ax.plot(tholds, nccf_a, label='new ccf a', color='#4e8975')
-    ax.plot(tholds, nccf_b, label='new ccf b', color='#4e8975', linestyle='--')
-    ax.plot(tholds, nccf_product, label='new ccf product', color='#006600')
-    plotting.mpl_finish(ax, os.getenv('www') + '/partis/tmp', 'foop', log='x', xticks=tholds, xticklabels=tholds)  #, leg_loc=())
-    # hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
-
-# ----------------------------------------------------------------------------------------
 def mut_str(args, label, n_leaves, mut_mult):
     # if float(mut_mult).is_integer():  # TODO fix this
     if mut_mult - int(mut_mult) == 0.:  # TODO fix this

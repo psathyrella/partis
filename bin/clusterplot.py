@@ -17,6 +17,10 @@ sys.path.insert(1, './python')
 from utils import get_arg_list, get_partition_from_str, correct_cluster_fractions
 import plotting
 
+"""
+NOTE this is for plotting when you have multiple paths, i.e. when smc_particles > 1
+"""
+
 class ClusterPlot(object):
     def __init__(self, args, rebin=None, reco_info=None):
         self.args = args

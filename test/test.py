@@ -40,8 +40,8 @@ class Tester(object):
         self.eps_vals['d_gene_correct'] = 0.02
         self.eps_vals['j_gene_correct'] = 0.02
         self.eps_vals['mean_hamming']   = 0.1
-        self.eps_vals['ccf_under']      = 0.08
-        self.eps_vals['ccf_over']       = 0.08
+        self.eps_vals['precision']      = 0.08
+        self.eps_vals['sensitivity']    = 0.08
 
         n_partition_queries = '250'
         self.logfname = self.dirs['new'] + '/test.log'
@@ -207,14 +207,14 @@ class Tester(object):
             self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
 
     # ----------------------------------------------------------------------------------------
-    def read_partition_performance(self, version_stype, input_stype, debug=False):
+    def read_partition_performance(self, version_stype, input_stype, debug=True):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
         ptest = 'partition-' + input_stype + '-simu'
         if args.quick and ptest not in self.quick_tests:
             return
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
-            print '    ccf under/over        test                    description'
+            print '  precision      sensitivity        test                    description'
         for ptest in [k for k in self.tests.keys() if 'partition' in k and input_stype in k]:
             if args.quick and ptest not in self.quick_tests:
                 continue
@@ -228,9 +228,9 @@ class Tester(object):
                 # if debug:
                 #     print '    %5.2f   %-28s   to reference partition' % (self.perf_info['xxx'][ptest], ptest)
             else:
-                self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'] = cp.ccfs[cp.i_best]
+                self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'] = cp.ccfs[cp.i_best]
                 if debug:
-                    print '    %5.2f %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-ccf_under'], self.perf_info[version_stype][ptest + '-ccf_over'], ptest)
+                    print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
 
     # ----------------------------------------------------------------------------------------
     def compare_performance(self):
