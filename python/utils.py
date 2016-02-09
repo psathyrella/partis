@@ -1442,6 +1442,7 @@ def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
 
     for line in out.split('\n'):
         if info is not None and 'calculated' in line:  # keep track of how many vtb and fwd calculations the process made
+            info['vtb'], info['fwd'] = 0, 0
             words = line.split()
             if words[1] == 'vtb' and words[3] == 'fwd':
                 info['vtb'] = int(words[2])
@@ -1940,7 +1941,8 @@ def add_v_alignments(glfo, line, debug=False):
         v_qr_seq = hmminfo['v_qr_seq']
         v_gl_seq = hmminfo['v_gl_seq']
         aligned_v_gl_seq = glfo['aligned-v-genes']['v'][hmminfo['v_gene']]
-        assert len(v_qr_seq) == len(v_gl_seq)
+        if len(v_qr_seq) != len(v_gl_seq):
+            raise Exception('v bits not same length for %s\n%s' % (line['unique_ids'], line))
 
         if debug:
             print 'before alignment'

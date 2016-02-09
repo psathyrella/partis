@@ -513,7 +513,8 @@ class Waterer(object):
 
         if status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
-            print '  %s: synthesizing d match' % query_name
+            if debug:
+                print '  %s: synthesizing d match' % query_name
             leftmost_position = min(qrbounds[l_gene][0], qrbounds[r_gene][0])
             qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
             glbounds[l_gene] = (0, 1)
