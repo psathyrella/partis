@@ -18,7 +18,7 @@ args.actions = utils.get_arg_list(args.actions)
 
 fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
 human = '021-018'
-istartstopstr_list_str = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000'
+istartstopstr_list_str = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 350000:500000 366000:516000'
 istartstopstr_list = istartstopstr_list_str.split(' ')
 istartstoplist = []
 for istartstopstr in istartstopstr_list:
@@ -57,10 +57,14 @@ def make_plot():
     
     plots = {}
     for meth, vals in timeinfo.items():
+        if vals.count(None) >= len(vals) - 1:
+            print '  not enough vals for %s' % meth
+            continue
+        print meth, vals
         interpolate_values(n_query_list, vals)
         plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyles.get(meth, 'solid'), alpha=alphas.get(meth, 1.))  #, markersize=1000)
     
-    legend = ax.legend(loc='upper left')
+    legend = ax.legend(loc=(.04, .64)) # 'upper left')
     sns.despine()  #trim=True, bottom=True)
     plt.xlabel('sample size')
     plt.ylabel('time required')

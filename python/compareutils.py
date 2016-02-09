@@ -598,10 +598,11 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
 
-    for metric in metrics:
-        print metric
-        for method in this_info[metric]:
-            print '    %40s   %.2f ' % (method, this_info[metric][method])
+    if args.print_metrics:
+        for metric in metrics:
+            print metric
+            for method in this_info[metric]:
+                print '    %40s   %.2f ' % (method, this_info[metric][method])
 
     if not args.no_similarity_matrices:  # they're kinda slow is all
         for meth1, meth2 in itertools.combinations(this_info['partitions'].keys(), 2):
@@ -1212,12 +1213,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-            n_procs = max(1, args.n_to_partition / 100)
+            n_procs = max(1, args.n_to_partition / 300)
         elif action == 'naive-hamming-partition':
             extras += ['--naive-hamming']
             if hfrac_bounds is not None:
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-            n_procs = max(1, args.n_to_partition / 200)
+            n_procs = max(1, args.n_to_partition / 600)
         elif action == 'vsearch-partition':
             extras += ['--naive-vsearch']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
@@ -1230,20 +1231,20 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-            seqs_per_proc = 3000
+            seqs_per_proc = 3000 #300
             if args.n_to_partition > 30000:
                 seqs_per_proc *= 3
             n_procs = max(1, args.n_to_partition / seqs_per_proc)
         elif action == 'run-viterbi':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
-            n_procs = max(1, args.n_to_partition / 200)
+            n_procs = max(1, args.n_to_partition / 500)
         elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
             cmd = cmd.replace(outfname, forced_outfname)
             outfname = forced_outfname  # <outfname> gets used below
             extras += ['--naive-hamming', '--synthetic-distance-based-partition']
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
-            n_procs = max(1, args.n_to_partition / 200)
+            n_procs = max(1, args.n_to_partition / 500)
     elif action == 'run-changeo':
         run_changeo(args, label, n_leaves, mut_mult, seqfname)
         return
@@ -1287,4 +1288,4 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         os.makedirs(os.path.dirname(logbase))
     proc = Popen(cmd.split(), stdout=open(logbase + '.out', 'w'), stderr=open(logbase + '.err', 'w'))
     procs.append(proc)
-    # time.sleep(10)  # 300sec = 5min
+    # time.sleep(1800)  # 300sec = 5min
