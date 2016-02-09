@@ -97,15 +97,17 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
   double best_score(-INFINITY);
   KSet best_kset(0, 0);
   double *total_score = &result.total_score_;  // total score for all ksets
-  int n_too_long(0);
+  int n_too_long(0), n_run(0), n_total(0);
   for(size_t k_v = kbounds.vmax - 1; k_v >= kbounds.vmin; --k_v) {  // loop in reverse order to facilitate chunk caching: in principle we calculate V once the first time through, and after that can just copy over pieces of the first dp table (roughly the same for D and J)
     for(size_t k_d = kbounds.dmax - 1; k_d >= kbounds.dmin; --k_d) {
+      ++n_total;
       if(k_v + k_d >= seqs.GetSequenceLength()) {
         ++n_too_long;
         continue;
       }
       KSet kset(k_v, k_d);
       RunKSet(seqs, kset, only_genes, &best_scores, &total_scores, &best_genes);
+      ++n_run;
       *total_score = AddInLogSpace(total_scores[kset], *total_score);  // sum up the probabilities for each kset, log P_tot = log \sum_i P_k_i
       if(args_->debug() == 2 && algorithm_ == "forward") printf("            %9.2f (%.1e)  tot: %7.2f\n", total_scores[kset], exp(total_scores[kset]), *total_score);
       if(best_scores[kset] > best_score) {
@@ -116,7 +118,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
         PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
     }
   }
-  if(args_->debug() && n_too_long > 0) cout << "      skipped " << n_too_long << " k sets 'cause they were longer than the sequence" << endl;
+  if(args_->debug() && n_too_long > 0) cout << "      skipped " << n_too_long << " (of " << n_total << ") k sets 'cause they were longer than the sequence (ran " << n_run << ")" << endl;
 
   // return if no valid path
   if(best_kset.v == 0) {
