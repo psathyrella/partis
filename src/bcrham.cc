@@ -70,7 +70,7 @@ void print_forward_scores(double numerator, vector<double> single_scores, double
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
   srand(time(NULL));
-  clock_t run_start(clock());
+  // clock_t run_start(clock());
   Args args(argc, argv);
 
   // init some infrastructure
@@ -205,7 +205,7 @@ int main(int argc, const char * argv[]) {
   }
 
   ofs.close();
-  cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+  // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
   return 0;
 }
 
