@@ -275,7 +275,7 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-', markersize=None, errors=True):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
-            print '   integral is zero in hist::mpl_plot'
+            # print '   integral is zero in hist::mpl_plot'
             return None
         if ignore_overflows:
             xvals = self.get_bin_centers()[1:-1]

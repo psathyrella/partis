@@ -305,7 +305,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                    xbounds=[xmin, xmax],
                    ybounds=[-0.03*ymax, 1.15*ymax],
                    leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
-                   log=log, xticks=xticks, xticklabels=xticklabels)
+                   log=log, xticks=xticks, xticklabels=xticklabels,
+                   no_legend=(len(hists) <= 1))
 
     if write_csv:
         assert more_hists is None
@@ -963,9 +964,10 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False):
     # xticks[0] = 0.000001
-    legend = ax.legend(loc=leg_loc)
+    if not no_legend:
+        legend = ax.legend(loc=leg_loc)
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     sns.despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
@@ -974,9 +976,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         ax.set_xscale('log')
     if 'y' in log:
         ax.set_yscale('log')
-    if xbounds is not None:
+    if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
-    if ybounds is not None:
+    if ybounds is not None and ybounds[0] != ybounds[1]:
         plt.ylim(ybounds[0], ybounds[1])
     if xticks is not None:
         plt.xticks(xticks)
