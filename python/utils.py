@@ -487,27 +487,6 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
         eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
 
 # ----------------------------------------------------------------------------------------
-def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, glbounds, qrbounds, assert_on_fail=True):
-    """
-    Find location of the conserved cysteine/tryptophan in a query sequence given a germline match which is specified by
-    its germline bounds <glbounds> and its bounds in the query sequence <qrbounds>
-    """
-    # NOTE see add_cdr3_info -- they do similar things, but start from different information
-    if region == 'v':
-        gl_pos = cyst_positions[gene]  # germline cysteine position
-    elif region == 'j':
-        gl_pos = tryp_positions[gene]
-    else:  # return -1 for d
-        return -1
-
-    if assert_on_fail:
-        assert glbounds[0] <= gl_pos  # make sure we didn't erode off the conserved codon
-    query_pos = gl_pos - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
-    # if region == 'v':
-    #     print '%s  %d = %d - %d + %d' % (color_gene(gene), query_pos, gl_pos, glbounds[0], qrbounds[0])
-    return query_pos
-
-# ----------------------------------------------------------------------------------------
 def add_cdr3_info(glfo, line, debug=False):
     """
     Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.

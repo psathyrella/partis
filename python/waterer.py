@@ -259,9 +259,8 @@ class Waterer(object):
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds']:
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon']:
             queries_to_rerun[reason] = set()
-
 
         self.new_indels = 0
         n_processed = 0
@@ -389,7 +388,6 @@ class Waterer(object):
         for region in utils.regions:
             all_match_names[region] = []
         all_query_bounds, all_germline_bounds = {}, {}
-        # n_skipped_invalid_cpos = 0
         for read in reads:  # loop over the matches found for each query sequence
             # set this match's values
             read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
@@ -405,12 +403,10 @@ class Waterer(object):
                 first_match_query_bounds = qrbounds
 
             # perform a few checks and see if we want to skip this match
+            # TODO I wish this wasn't here and I suspect I don't really need it (any more)
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
-                cpos = utils.get_conserved_codon_position(self.glfo['cyst-positions'], self.glfo['tryp-positions'], 'v', gene, glbounds, qrbounds, assert_on_fail=False)
-                if not utils.check_conserved_cysteine(self.glfo['seqs']['v'][gene], self.glfo['cyst-positions'][gene], assert_on_fail=False):  # some of the damn cysteine positions in the json file were wrong, so now we check
-                    raise Exception('bad cysteine in %s: %d %s' % (gene, self.glfo['cyst-positions'][gene], self.glfo['seqs']['v'][gene]))
+                cpos = self.glfo['cyst-positions'][gene] - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
                 if cpos < 0 or cpos >= len(query_seq):
-                    # n_skipped_invalid_cpos += 1
                     continue
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.args.gap_open_penalty>)
@@ -449,8 +445,6 @@ class Waterer(object):
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
 
-        # if n_skipped_invalid_cpos > 0:
-        #     print '      skipped %d invalid cpos values for %s' % (n_skipped_invalid_cpos, query_name)
         self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
@@ -594,19 +588,9 @@ class Waterer(object):
         self.info[query_name]['k_d'] = kvals['d']
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
-        # assert codon_positions['v'] != -1
-        # assert codon_positions['j'] != -1
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         self.info[query_name]['cyst_position'] = codon_positions['v']
         self.info[query_name]['tryp_position'] = codon_positions['j']
-        if self.info[query_name]['cyst_position'] < 0 or self.info[query_name]['cyst_position'] >= len(query_seq):
-            # raise Exception('cpos %d invalid for %s (%s)' % (self.info[query_name]['cyst_position'], query_name, query_seq))
-            print 'cpos %d invalid for %s (%s) -- set to -1' % (self.info[query_name]['cyst_position'], query_name, query_seq)
-            self.info[query_name]['cyst_position'] = -1
-        if self.info[query_name]['tryp_position'] < 0 or self.info[query_name]['tryp_position'] >= len(query_seq):
-            # raise Exception('tpos %d invalid for %s (%s)' % (self.info[query_name]['tryp_position'], query_name, query_seq))
-            print 'tpos %d invalid for %s (%s) -- set to -1' % (self.info[query_name]['tryp_position'], query_name, query_seq)
-            self.info[query_name]['tryp_position'] = -1
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
@@ -658,7 +642,6 @@ class Waterer(object):
         for region in utils.regions:
             all_match_names[region] = sorted(all_match_names[region], reverse=True)
             match_names[region] = []
-        codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         for region in utils.regions:
             for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
@@ -732,9 +715,19 @@ class Waterer(object):
                 queries_to_rerun['weird-annot.'].add(query_name)
                 return
 
+        # set and check conserved codon positions
+        tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
+        codon_positions = {}
+        for region in ['v', 'j']:
+            pos = tmp_gl_positions[region][best[region]] - all_germline_bounds[best[region]][0] + all_query_bounds[best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+            if pos < 0 or pos >= len(query_seq):
+                if self.debug:
+                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, )
+                queries_to_rerun['invalid-codon'].add(query_name)
+                return
+            codon_positions[region] = pos
+
         # check for unproductive rearrangements
-        for region in utils.regions:
-            codon_positions[region] = utils.get_conserved_codon_position(self.glfo['cyst-positions'], self.glfo['tryp-positions'], region, best[region], all_germline_bounds[best[region]], all_query_bounds[best[region]], assert_on_fail=False)  # position in the query sequence, that is
         codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         in_frame_cdr3 = (cdr3_length % 3 == 0)
