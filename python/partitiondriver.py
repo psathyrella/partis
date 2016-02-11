@@ -83,12 +83,23 @@ class PartitionDriver(object):
                 raise Exception('workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
     # ----------------------------------------------------------------------------------------
+    def run_waterer(self, parameter_dir, write_parameters=False):
+        if write_parameters:  # if we're writing parameters, then we don't have any hmm dir to look in
+            genes_to_use = self.args.only_genes  # if None, we use all of 'em
+        else:  # ...but if we're not writing parameters, then we want to look in the existing parameter dir to see for which genes we have hmms, and then tell sw to only use those
+            genes_to_use = utils.find_genes_that_have_hmms(parameter_dir)
+            if self.args.only_genes is not None:
+                genes_to_use = list(set(genes_to_use) & set(self.args.only_genes))  # we have to have an hmm for it, and it has to be among the genes that were specified on the command line
+
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, write_parameters, genes_to_use)
+        waterer.run()
+        self.sw_info = waterer.info
+
+    # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         sw_parameter_dir = self.args.parameter_dir + '/sw'
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=sw_parameter_dir, write_parameters=True)
-        waterer.run()
-        self.sw_info = waterer.info
+        self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
@@ -97,44 +108,12 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
-        if not os.path.exists(self.args.parameter_dir):
-            raise Exception('parameter dir (' + self.args.parameter_dir + ') d.n.e')
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=self.args.parameter_dir, write_parameters=False)
-        waterer.run()
-        self.sw_info = waterer.info
-
-        if self.args.write_sw_annotations_and_exit:
-            annotations = {query : self.sw_info[query] for query in self.sw_info['queries']}
-            for query in annotations:
-                annotations[query]['unique_ids'] = [annotations[query]['unique_id'], ]
-                annotations[query]['seqs'] = [annotations[query]['seq'], ]
-                annotations[query]['naive_seq'] = utils.get_full_naive_seq(self.glfo['seqs'], annotations[query])
-                del annotations[query]['unique_id']
-                del annotations[query]['seq']
-                utils.add_v_alignments(self.glfo, annotations[query])
-            self.write_annotations(annotations)
-            return
-
+        self.run_waterer(self.args.parameter_dir)
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
-
-    # ----------------------------------------------------------------------------------------
-    # get number of clusters based on sum of last paths in <self.smc_info>
-    def get_n_clusters(self):
-        if self.args.smc_particles == 1:
-            return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-
-        nclusters = 0
-        for iproc in range(len(self.smc_info[-1])):  # number of processes
-            path = self.smc_info[-1][iproc][0]  # uses the first smc particle, but the others will be similar
-            nclusters += len(path.partitions[path.i_best_minus_x])
-        return nclusters
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
-        if not os.path.exists(self.args.parameter_dir):
-            raise Exception('parameter dir %s d.n.e.' % self.args.parameter_dir)
-
         if self.args.print_partitions:
             cp = ClusterPath()
             cp.readfile(self.args.outfname)
@@ -143,10 +122,8 @@ class PartitionDriver(object):
 
         # run smith-waterman
         start = time.time()
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir=self.args.parameter_dir, write_parameters=False)
-        waterer.run()
+        self.run_waterer(self.args.parameter_dir)
         print '        water time: %.3f' % (time.time()-start)
-        self.sw_info = waterer.info
 
         n_procs = self.args.n_procs
         n_proc_list = []  # list of the number of procs we used for each run
@@ -252,6 +229,18 @@ class PartitionDriver(object):
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
+    # get number of clusters based on sum of last paths in <self.smc_info>
+    def get_n_clusters(self):
+        if self.args.smc_particles == 1:
+            return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+
+        nclusters = 0
+        for iproc in range(len(self.smc_info[-1])):  # number of processes
+            path = self.smc_info[-1][iproc][0]  # uses the first smc particle, but the others will be similar
+            nclusters += len(path.partitions[path.i_best_minus_x])
+        return nclusters
+
+    # ----------------------------------------------------------------------------------------
     def check_partition(self, partition, deduplicate_uid=None):
         start = time.time()
         found_ids = set([uid for cluster in partition for uid in cluster])
@@ -314,7 +303,7 @@ class PartitionDriver(object):
         outfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):  # TODO change name of function if you switch to just swarm
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
         start = time.time()
         # read cached naive seqs
         naive_seqs = {}
@@ -992,21 +981,6 @@ class PartitionDriver(object):
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
 
-        # gene_list = self.args.only_genes
-        # if gene_list is None and self.sw_info is not None:  # if specific genes weren't specified, do the ones for which we have sw matches
-        #     print 'only-gene s argument not specified, writing hmms using sw matches'
-        #     gene_list = []
-        #     for region in utils.regions:
-        #         for gene in self.glfo['seqs'][region]:
-        #             if gene in self.sw_info['all_best_matches']:
-        #                 gene_list.append(gene)
-
-        # if gene_list is None:  # ack, just do 'em all
-        #     print 'just do them all'
-        #     gene_list = []
-        #     for region in utils.regions:
-        #         gene_list += list(self.glfo['seqs'][region].keys())
-
         if self.args.only_genes is None:  # make a list of all the genes for which we have counts in <parameter_dir> (a.tm., this is all the genes that appeared as a best match at least once)
             gene_list = []
             for region in utils.regions:
@@ -1026,20 +1000,24 @@ class PartitionDriver(object):
         # print '    time to write hmms: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def check_hmm_existence(self, gene_list, skipped_gene_matches, parameter_dir):
+    def remove_genes_with_no_hmm(self, gene_list, skipped_gene_matches, parameter_dir):
         """ Check if hmm model file exists, and if not remove gene from <gene_list> """
-        # first get the list of genes for which we don't have hmm files
         if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
             raise Exception('no yamels in %s' % parameter_dir + '/hmms')
 
-        genes_to_remove = []
+        # first get the list of genes for which we don't have hmm files
+        genes_to_remove = []  # NOTE there should *only* be genes to remove if we're caching parameters, i.e. if we just ran sw for the first time, so we couldn't tell sw ahead of time which genes to use because we didn't know yet
         for gene in gene_list:
             hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
             if not os.path.exists(hmmfname):
-                # if self.args.debug:
-                #     print '    WARNING %s removed from match list (not in %s)' % (utils.color_gene(gene), os.path.dirname(hmmfname))
                 skipped_gene_matches.add(gene)
                 genes_to_remove.append(gene)
+
+        # NOTE that we should be removing genes *only* if we're caching parameters, i.e. if we just ran sw on a data set for the first time.
+        # The issue is that when we first run sw on a data set, it uses all the genes in self.args.datadir.
+        # We then write HMMs for only the genes which were, at least once, a *best* match.
+        # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
+        # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
 
         # then remove 'em from <gene_list>
         for gene in genes_to_remove:
@@ -1096,7 +1074,7 @@ class PartitionDriver(object):
 
             # work out which genes to tell the hmm to use
             only_genes = swfo['all'].split(':')  # start with all the sw matches for this query
-            self.check_hmm_existence(only_genes, skipped_gene_matches, parameter_dir)  # remove the ones for which we don't have hmm files (we only write hmms for genes that appeared as the best sw match for at least one query, but swfo['all'] in general includes genes that were never the *best* match for any one query)
+            self.remove_genes_with_no_hmm(only_genes, skipped_gene_matches, parameter_dir)  # remove the ones for which we don't have hmm files (we only write hmms for genes that appeared as the best sw match for at least one query, but swfo['all'] in general includes genes that were never the *best* match for any one query)
             genes_to_use = []
             for region in utils.regions:  # take the best <self.args.n_max_per_region> from each region
                 reg_genes = [g for g in only_genes if utils.get_region(g) == region]

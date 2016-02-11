@@ -4,6 +4,7 @@ import time
 import random
 import sys
 from multiprocessing import Process, active_children
+from subprocess import check_output
 import os
 sys.path.insert(1, './python')
 
@@ -15,7 +16,7 @@ parser.add_argument('--sw-debug', type=int, default=0, choices=[0, 1, 2], help='
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions
-parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', 'simulate', 'build-hmms', 'generate-trees'), help='What do you want to do?')
+parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', 'simulate', 'generate-trees'), help='What do you want to do?')
 
 # finer action control
 parser.add_argument('--n-sets', type=int, default=1, help='Run on sets of sequences of size <n> (i.e. \"k-hmm\")')
@@ -24,7 +25,7 @@ parser.add_argument('--is-data', action='store_true', help='True if not simulati
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
-parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want ten percent in your simulation, set this to 2')
+parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2')
 parser.add_argument('--mimic-data-read-length', action='store_true', help='trim V 5\' and D 3\' to mimic read lengths seen in data')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--rescale-emissions', action='store_true', default=True)
@@ -46,6 +47,7 @@ parser.add_argument('--presto-output', action='store_true', help='write output f
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
 print 'TODO switch over to make_html function in plotting.py (in the process, hopefully fix ls not finding svg message)'
+print 'TODO make sure all mpl figures are getting closed'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -57,7 +59,6 @@ parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help
 parser.add_argument('--workdir', help='Temporary working directory (see also <no-clean>)')
 parser.add_argument('--persistent-cachefname')
 parser.add_argument('--cache-naive-hfracs', action='store_true')
-parser.add_argument('--write-sw-annotations-and-exit', action='store_true')
 
 # run/batch control
 parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
@@ -94,6 +95,8 @@ parser.add_argument('--match-mismatch', default='5:1', help='match:mismatch scor
 parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parser.add_argument('--n-partitions-to-write', type=int, default=100, help='')
 
+parser.add_argument('--version', action='version', help='print version and exit', version='partis %s' % check_output(['git', 'tag']))
+
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt
@@ -126,12 +129,6 @@ if os.path.exists(args.workdir):
 if args.plot_performance:
     if args.plotdir is None:
         raise Exception('can\'t plot performance unless --plotdir is specified')
-
-if args.write_sw_annotations_and_exit:
-    if args.action != 'run-viterbi':
-        raise Exception('only makes sense to write smith-waterman annotations if action is \'run-viterbi\'')
-    if args.outfname is None:
-        raise Exception('no <outfname> specified')
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -201,9 +198,7 @@ else:
 
     parter = PartitionDriver(args)
 
-    if args.action == 'build-hmms':  # just build hmms without doing anything else -- you wouldn't normally do this
-        parter.write_hmms(args.parameter_dir)
-    elif args.action == 'cache-parameters':
+    if args.action == 'cache-parameters':
         parter.cache_parameters()
     elif 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))

@@ -171,7 +171,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
 # ----------------------------------------------------------------------------------------
 def rewrite_germline_fasta(input_dir, output_dir, only_genes):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    print 'rewriting germlines from %s to %s' % (input_dir, output_dir)
+    print 'rewriting germlines from %s to %s (using %d genes)' % (input_dir, output_dir, len(only_genes))
     glfo = read_germline_set(input_dir)
     input_germlines = glfo['seqs']
     input_aligned_v_genes = glfo['aligned-v-genes']
@@ -2078,3 +2078,15 @@ def pad_seqs_to_same_length(queries, info, glfo, indelfo, debug=False):
         for query in queries:
             print '%20s %s' % (query, info[query]['padded']['seq'])
 
+# ----------------------------------------------------------------------------------------
+def find_genes_that_have_hmms(parameter_dir):
+    yamels = glob.glob(parameter_dir + '/hmms/*.yaml')
+    if len(yamels) == 0:
+        raise Exception('no yamels in %s' % parameter_dir + '/hmms')
+
+    genes = []
+    for yamel in yamels:
+        gene = unsanitize_name(os.path.basename(yamel).replace('.yaml', ''))
+        genes.append(gene)
+
+    return genes
