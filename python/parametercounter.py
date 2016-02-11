@@ -150,8 +150,7 @@ class ParameterCounter(object):
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
                     plotting.draw_no_root(hist, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True, only_csv=only_csv)
                 if not only_csv:
-                    check_call(['./bin/makeHtml', thisplotdir, '3', 'null', 'svg'])
-                    check_call(['./bin/permissify-www', thisplotdir])  # NOTE this should really permissify starting a few directories higher up
+                    plotting.make_html(thisplotdir)
 
             plotname = column
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
@@ -160,8 +159,7 @@ class ParameterCounter(object):
         self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 
         if not only_csv:
-            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-            check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+            plotting.make_html(plotdir)
 
         # print '    parameter plot time: %.3f' % (time.time()-start)
 

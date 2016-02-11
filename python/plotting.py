@@ -565,8 +565,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 })
 
     if not args.only_csv_plots:
-        check_call(['./bin/permissify-www', args.outdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['./bin/makeHtml', args.outdir, '3', 'null', 'svg'])
+        make_html(args.outdir)
 
 # ----------------------------------------------------------------------------------------
 def make_mean_plots(plotdir, subdirs, outdir):

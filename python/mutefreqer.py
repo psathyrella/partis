@@ -192,11 +192,9 @@ class MuteFreqer(object):
             plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
 
         if not only_csv:  # write html file and fix permissiions
-            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+            plotting.make_html(plotdir)
             for region in utils.regions:
-                check_call(['./bin/makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
-                # check_call(['./bin/makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
-            check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+                plotting.make_html(plotdir + '/' + region, n_columns=1)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):

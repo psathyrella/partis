@@ -500,9 +500,6 @@ def get_conserved_codon_position(cyst_positions, tryp_positions, region, gene, g
     else:  # return -1 for d
         return -1
 
-    if gl_pos == None:
-        raise Exception('none type gl_pos for %s ' % gene)
-
     if assert_on_fail:
         assert glbounds[0] <= gl_pos  # make sure we didn't erode off the conserved codon
     query_pos = gl_pos - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
