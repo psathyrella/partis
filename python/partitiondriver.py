@@ -59,6 +59,9 @@ class PartitionDriver(object):
             else:  # otherwise create it with just headers
                 pass  # hm, maybe do it in ham
 
+        if len(self.input_info) > 1000 and self.args.n_procs == 1:
+            print '\nhey there! I see you\'ve got %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to increase --n-procs (see the manual for suggestions on how many for annotation and partitioning).\n' % (len(self.input_info), self.args.n_procs)
+
     # ----------------------------------------------------------------------------------------
     def clean(self):
         # merge persistent and current cache files into the persistent cache file

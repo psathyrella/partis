@@ -46,7 +46,8 @@ parser.add_argument('--print-cluster-annotations', action='store_true', help='pr
 parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
-print 'TODO make sure all mpl figures are getting closed'
+if 'ralph' in os.getenv('USER'):
+    print 'TODO make sure all mpl figures are getting closed'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
