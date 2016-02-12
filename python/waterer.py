@@ -127,6 +127,7 @@ class Waterer(object):
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
 
         utils.pad_seqs_to_same_length(self.info['queries'], self.info, self.glfo, self.info['indels'])  # adds padded info to self.info (returns if stuff has already been padded)
+        self.info['remaining_queries'] = self.remaining_queries
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
@@ -722,7 +723,7 @@ class Waterer(object):
             pos = tmp_gl_positions[region][best[region]] - all_germline_bounds[best[region]][0] + all_query_bounds[best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
             if pos < 0 or pos >= len(query_seq):
                 if self.debug:
-                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, )
+                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, pos, len(query_seq))
                 queries_to_rerun['invalid-codon'].add(query_name)
                 return
             codon_positions[region] = pos

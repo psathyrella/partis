@@ -62,7 +62,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         if '.csv' in fname and name_column not in line:  # hackey hackey hackey
             name_column = 'name'
             seq_column = 'nucleotide'
-        utils.process_input_line(line, int_columns=('v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'), literal_columns=('indels'))
+        utils.process_input_line(line)
         unique_id = line[name_column]
 
         # if command line specified query or reco ids, skip other ones

@@ -1256,10 +1256,7 @@ class PartitionDriver(object):
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
-                utils.process_input_line(padded_line,
-                                         splitargs=('unique_ids', 'seqs'),
-                                         int_columns=('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
-                                         float_columns=('logprob'))
+                utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
 
                 # check for errors
@@ -1413,16 +1410,25 @@ class PartitionDriver(object):
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
             writer.writeheader()
+            input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for uids, line in annotations.items():
                 outline = {k : line[k] for k in outheader if k != 'indelfo'}
                 if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
                     outline['indelfo'] = self.sw_info['indels'][uids]
                 else:
                     outline['indelfo'] = {'reversed_seq': '', 'indels': []}
+
+                for uid in outline['unique_ids']:
+                    input_keys.remove(uid)
+
                 if self.args.presto_output:
-                    if uids in self.sw_info['indels']:
-                        raise Exception('passing indel info to presto requires some more thought')
-                    else:
-                        del outline['indelfo']
                     outline = utils.convert_to_presto(self.glfo, outline)
+                else:
+                    outline = utils.get_line_for_output(outline)  # may be kind of silly to replace it, but I don't want to change the original line too much
+
                 writer.writerow(outline)
+
+            # and write empty lines for seqs that failed either in sw or the hmm
+            print 'missing %d input keys' % len(input_keys)
+            for uid in input_keys:
+                writer.writerow({'unique_ids' : uid})

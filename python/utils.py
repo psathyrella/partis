@@ -130,13 +130,27 @@ presto_headers = {
 # true_partition = [['b'], ['a', 'c'], ['d']]
 
 # ----------------------------------------------------------------------------------------
+column_configs = {
+    'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
+    'floats' : ('logprob'),
+    'literals' : ('indels'),
+    'lists' : ('unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs')
+}
+
+# ----------------------------------------------------------------------------------------
 def convert_to_presto(glfo, line):
     """ convert <line> to presto csv format """
     if len(line['unique_ids']) > 1:
         print line['unique_ids']
         raise Exception('multiple seqs not handled in convert_to_presto')
 
+    if len(line['indelfo']['indels']) > 0:
+        raise Exception('passing indel info to presto requires some more thought')
+    else:
+        del line['indelfo']
+
     single_info = synthesize_single_seq_line(glfo, line, iseq=0)
+
     presto_line = {}
     for head, phead in presto_headers.items():
         presto_line[phead] = single_info[head]
@@ -1304,31 +1318,41 @@ def prep_dir(dirname, wildling=None, multilings=None):
             assert False
 
 # ----------------------------------------------------------------------------------------
-def process_input_line(info, splitargs=(), int_columns=(), float_columns=(), literal_columns=()):
+def process_input_line(info):
     """ 
     Attempt to convert all the keys and values in <info> from str to int.
-    The keys listed in <splitargs> will be split as colon-separated lists before intification.
+    The keys listed in <list_columns> will be split as colon-separated lists before intification.
     """
-    if len(splitargs) == 0 and len(int_columns) == 0 and len(float_columns) == 0:  # nothing to do
-        return
+
+    ccfg = column_configs  # shorten the name a bit
 
     for key, val in info.items():
         if key is None:
             continue
-        if key in splitargs:
-            info[key] = info[key].split(':')
-            for i in range(len(info[key])):
-                if key in int_columns:
-                    info[key][i] = int(info[key][i])
-                elif key in float_columns:
-                    info[key][i] = float(info[key][i])
+
+        convert_fcn = pass_fcn  # dummy fcn, just returns the argument
+        if key in ccfg['ints']:
+            convert_fcn = int
+        elif key in ccfg['floats']:
+            convert_fcn = float
+        elif key in ccfg['literals']:
+            convert_fcn = ast.literal_eval
+
+        if key in ccfg['lists']:
+            info[key] = [convert_fcn(val) for val in info[key].split(':')]
         else:
-            if key in int_columns:
-                info[key] = int(info[key])
-            elif key in float_columns:
-                info[key] = float(info[key])
-            elif key in literal_columns:
-                info[key] = ast.literal_eval(info[key])
+            info[key] = convert_fcn(info[key])
+
+# ----------------------------------------------------------------------------------------
+def get_line_for_output(info):
+    """ Reverse the action of process_input_line() """ 
+    outfo = {}
+    for key, val in info.items():
+        if key in column_configs['lists']:
+            outfo[key] = ':'.join([str(v) for v in info[key]])
+        else:
+            outfo[key] = str(info[key])
+    return outfo
 
 # ----------------------------------------------------------------------------------------
 def merge_csvs(outfname, csv_list, cleanup=True):
