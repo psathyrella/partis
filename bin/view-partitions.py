@@ -2,6 +2,7 @@
 import sys
 sys.path.insert(1, './python')
 import csv
+csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import argparse
 
 from clusterpath import ClusterPath
@@ -17,7 +18,7 @@ parser.add_argument('--simfname')
 parser.add_argument('--is-data', action='store_true')
 args = parser.parse_args()
 
-glfo = utils.read_germline_set(arsg.datadir)
+glfo = utils.read_germline_set(args.datadir)
 
 reco_info = None
 if args.simfname is not None:
