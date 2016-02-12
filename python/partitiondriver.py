@@ -1250,7 +1250,7 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter(self.glfo['seqs'], 'hmm') if self.args.plot_performance else None
 
-        n_seqs_processed, n_events_processed = 0, 0
+        n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0
         padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()
         boundary_error_queries = []
         with opener('r')(annotation_fname) as hmm_csv_outfile:
@@ -1286,12 +1286,19 @@ class PartitionDriver(object):
                         print ''
                     self.print_hmm_output(eroded_line, print_true=(eroded_line['nth_best']==0))
                     # self.print_hmm_output(padded_line, print_true=(padded_line['nth_best']==0))
-                if padded_line['nth_best'] == 0 and (padded_line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+
+                if padded_line['nth_best'] == 0:  # if it's the best match  #  NOTE kinda nervous about removing this: and (padded_line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+                    if not utils.is_this_a_validate_event(self.glfo['seqs'], eroded_line):
+                        n_invalid_events += 1
+                        continue
+
+                    n_events_processed += 1
+
                     if pcounter is not None:
                         pcounter.increment_per_family_params(eroded_line)
                     if true_pcounter is not None:
                         true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
-                    n_events_processed += 1
+
                     for iseq in range(len(uids)):
                         singlefo = utils.synthesize_single_seq_line(self.glfo, eroded_line, iseq)
                         if pcounter is not None:
@@ -1317,7 +1324,7 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '    processed %d sequences (%d events)' % (n_seqs_processed, n_events_processed)
+        print '    processed %d sequences in %d events (%d invalid events)' % (n_seqs_processed, n_events_processed, n_invalid_events)
         if len(boundary_error_queries) > 0:
             print '      %d boundary errors' % len(boundary_error_queries)
             if self.args.debug:

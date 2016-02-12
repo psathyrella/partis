@@ -628,7 +628,7 @@ class Waterer(object):
             if query_name in self.info['indels']:
                 print '    skipping performance evaluation of %s because of indels' % query_name  # I just have no idea how to handle naive hamming fraction when there's indels
             else:
-                self.perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
+                self.perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])
 
         self.remaining_queries.remove(query_name)
 

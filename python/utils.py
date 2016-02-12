@@ -670,9 +670,43 @@ def get_full_naive_seq(germlines, line):
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
 
 # ----------------------------------------------------------------------------------------
-def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysical_erosions=True):
+def is_this_a_validate_event(germlines, line):
+    # this is just a copy of stuff in get_regional_naive_seq_bounds, but so we can run this first and see if it fails and then skip the event
+
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+
+    start, end = {}, {}
+    start['v'] = int(line['v_5p_del'])
+    end['v'] = start['v'] + len(line['fv_insertion'] + eroded_seqs['v'])  # base just after the end of v
+    start['d'] = end['v'] + len(line['vd_insertion'])
+    end['d'] = start['d'] + len(eroded_seqs['d'])
+    start['j'] = end['d'] + len(line['dj_insertion'])
+    end['j'] = start['j'] + len(eroded_seqs['j'] + line['jf_insertion'])
+
+    for tmpreg in regions:  # subtract_unphysical_erosions
+        start[tmpreg] -= int(line['v_5p_del'])
+        end[tmpreg] -= int(line['v_5p_del'])
+
+    try:
+        for chkreg in regions:
+            assert start[chkreg] >= 0
+            assert end[chkreg] >= 0
+            assert end[chkreg] >= start[chkreg]
+            assert end[chkreg] <= len(line['seq'])
+        assert end['j'] == len(line['seq'])
+        return False
+    except:
+        return True
+
+# ----------------------------------------------------------------------------------------
+def get_regional_naive_seq_bounds(return_reg, germlines, line):
     # NOTE it's kind of a matter of taste whether unphysical deletions (v left and j right) should be included in the 'naive sequence'.
     # Unless <subtract_unphysical_erosions>, here we assume the naive sequence has *no* unphysical deletions
+
+    subtract_unphysical_erosions = True
 
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
@@ -696,7 +730,7 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
     def elegantishfail():
         for k, v in line.items():
             print '%30s %s' % (k, v)
-        raise Exception('end of j %d not equal to sequence length %d in %s' % (end['j'], len(line['seq']), line['unique_id']))
+        raise Exception('end of j %d not equal to sequence length %d in %s (or maybe something else is wrong...)' % (end['j'], len(line['seq']), line['unique_id']))
 
     try:
         for chkreg in regions:
@@ -706,9 +740,6 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line, subtract_unphysic
             assert end[chkreg] <= len(line['seq'])
         assert end['j'] == len(line['seq'])
     except:
-        elegantishfail()
-
-    if end['j'] != len(line['seq']):
         elegantishfail()
 
     return (start[return_reg], end[return_reg])
@@ -1389,11 +1420,11 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
         mashed_naive_seq = ''
         mashed_muted_seq = ''
         for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
-            bounds = get_regional_naive_seq_bounds(region, germlines, line, subtract_unphysical_erosions=True)
+            bounds = get_regional_naive_seq_bounds(region, germlines, line)
             mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
             mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
-        bounds = get_regional_naive_seq_bounds(restrict_to_region, germlines, line, subtract_unphysical_erosions=True)
+        bounds = get_regional_naive_seq_bounds(restrict_to_region, germlines, line)
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
 
