@@ -487,66 +487,6 @@ def get_v_5p_del(original_seqs, line):
     return original_length - total_deletion_length + total_insertion_length - len(line['seq'])
 
 # ----------------------------------------------------------------------------------------
-def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
-    assert False
-    """
-    get original and eroded germline seqs
-    NOTE does not modify line
-    """
-    for region in regions:
-        del_5p = int(line[region + '_5p_del'])
-        del_3p = int(line[region + '_3p_del'])
-        original_seqs[region] = germlines[region][line[region + '_gene']]
-        lengths[region] = len(original_seqs[region]) - del_5p - del_3p
-        # assert del_5p + lengths[region] != 0
-        eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
-
-# ----------------------------------------------------------------------------------------
-def add_cdr3_info(glfo, line, debug=False):
-    assert False
-    """
-    Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.
-    If info is already there, make sure it's the same as what we calculate here
-    """
-
-    original_seqs = {}  # original (non-eroded) germline seqs
-    lengths = {}  # length of each match (including erosion)
-    eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(glfo['seqs'], line, original_seqs, lengths, eroded_seqs)
-
-    # if len(line['fv_insertion']) > 0:
-    #     print line
-    # if len(line['jf_insertion']) > 0:
-    #     print line
-
-    # NOTE see get_conserved_codon_position -- they do similar things, but start from different information
-    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']]  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
-    # if debug:
-    #     print '  cysteine: cpos - v_5p_del + fv_insertion = %d - %d + %d = %d' % (glfo['cyst-positions'][line['v_gene']], int(line['v_5p_del']), len(line['fv_insertion']), eroded_gl_cpos)
-    eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - int(line['j_5p_del'])
-    values = {}
-    values['cyst_position'] = eroded_gl_cpos
-    tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
-    values['tryp_position'] = tpos_in_joined_seq
-    values['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
-
-    for key, val in values.items():
-        if key in line:  # if <key> was previously added to <line> make sure we got the same value this time
-            if int(line[key]) != int(val):
-                # raise Exception('previously calculated value of ' + key + ' (' + str(line[key]) + ') not equal to new value (' + str(val) + ') for ' + str(line['unique_id']))
-                print 'ERROR previously calculated value of ' + key + ' (' + str(line[key]) + ') not equal to new value (' + str(val) + ') for ' + str(line['unique_id'])
-        else:
-            line[key] = val
-
-    cyst_ok = check_conserved_cysteine(line['fv_insertion'] + eroded_seqs['v'], eroded_gl_cpos, debug=debug, extra_str='      ', assert_on_fail=False)
-    tryp_ok = check_conserved_tryptophan(eroded_seqs['j'], eroded_gl_tpos, debug=debug, extra_str='      ', assert_on_fail=False)
-    if not cyst_ok or not tryp_ok:
-        if debug:
-            print '    bad codon[s] (%s %s) in %s' % ('cyst' if not cyst_ok else '', 'tryp' if not tryp_ok else '', ':'.join(line['unique_ids']) if 'unique_ids' in line else line)
-
-    line['naive_seq'] = get_full_naive_seq(glfo['seqs'], line)
-
-# ----------------------------------------------------------------------------------------
 def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
@@ -673,6 +613,7 @@ def set_event_validity(germlines, line):
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
     eroded_seqs = {}  # eroded germline seqs
+    assert False
     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
 
     start, end = {}, {}
@@ -759,7 +700,6 @@ def add_qr_seqs(line):
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
-    # should replace add_match_info(), add_cdr3_info(), and get_reco_event_seqs(), the idea being call add_implicit_info() *once*, then you don't need to call the others all over the stupid place
 
     line['lengths'] = {}  # length of each match (including erosion)
     for region in regions:
@@ -768,13 +708,8 @@ def add_implicit_info(glfo, line, debug=False):
         del_3p = line[region + '_3p_del']
         length = len(uneroded_gl_seq) - del_5p - del_3p  # eroded length
         line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]  # NOTE these _gl_seqs replace the old eroded_seqs
-
-# ----------------------------------------------------------------------------------------
-        assert length == len(line[region + '_gl_seq'])
-# ----------------------------------------------------------------------------------------
-
         line['lengths'][region] = length
-# ----------------------------------------------------------------------------------------
+
     # NOTE see get_conserved_codon_position() -- they do similar things, but start from different information
     eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']] - line['v_5p_del'] + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - line['j_5p_del']
@@ -783,44 +718,8 @@ def add_implicit_info(glfo, line, debug=False):
     line['tryp_position'] = tpos_in_joined_seq
     line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
-# ----------------------------------------------------------------------------------------
-
-    # and the stuff from add_match_info:
-
-    # # add the <eroded_seqs> to <line> so we can find them later
-    # for region in regions:
-    #     line[region + '_gl_seq'] = eroded_seqs[region]
 
     add_qr_seqs(line)
-
-# ----------------------------------------------------------------------------------------
-def add_match_info(glfo, line, debug=False):
-    assert False
-    """
-    add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
-
-    """
-
-    original_seqs = {}  # original (non-eroded) germline seqs
-    lengths = {}  # length of each match (including erosion)
-    eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(glfo['seqs'], line, original_seqs, lengths, eroded_seqs)
-    add_cdr3_info(glfo, line, debug=debug)  # add cyst and tryp positions, and cdr3 length
-
-    # add the <eroded_seqs> to <line> so we can find them later
-    for region in regions:
-        line[region + '_gl_seq'] = eroded_seqs[region]
-
-    # the sections of the query sequence which are assigned to each region
-    v_start = len(line['fv_insertion'])
-    d_start = v_start + len(eroded_seqs['v']) + len(line['vd_insertion'])
-    j_start = d_start + len(eroded_seqs['d']) + len(line['dj_insertion'])
-    line['v_qr_seq'] = line['seq'][v_start : v_start + len(eroded_seqs['v'])]
-    line['d_qr_seq'] = line['seq'][d_start : d_start + len(eroded_seqs['d'])]
-    line['j_qr_seq'] = line['seq'][j_start : j_start + len(eroded_seqs['j'])]
-
-    # if line['cdr3_length'] == -1:
-    #     print '      ERROR %s failed to add match info' % ' '.join([str(i) for i in ids])
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
