@@ -488,6 +488,7 @@ def get_v_5p_del(original_seqs, line):
 
 # ----------------------------------------------------------------------------------------
 def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
+    assert False
     """
     get original and eroded germline seqs
     NOTE does not modify line
@@ -502,6 +503,7 @@ def get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs):
 
 # ----------------------------------------------------------------------------------------
 def add_cdr3_info(glfo, line, debug=False):
+    assert False
     """
     Add the cyst_position, tryp_position, and cdr3_length to <line> based on the information already in <line>.
     If info is already there, make sure it's the same as what we calculate here
@@ -692,29 +694,24 @@ def set_event_validity(germlines, line):
         line['invalid'] == True
 
 # ----------------------------------------------------------------------------------------
-def get_regional_naive_seq_bounds(return_reg, germlines, line):
+def get_regional_naive_seq_bounds(return_reg, line):
     # NOTE it's kind of a matter of taste whether unphysical deletions (v left and j right) should be included in the 'naive sequence'.
     # Unless <subtract_unphysical_erosions>, here we assume the naive sequence has *no* unphysical deletions
 
     subtract_unphysical_erosions = True
 
-    original_seqs = {}  # original (non-eroded) germline seqs
-    lengths = {}  # length of each match (including erosion)
-    eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-
     start, end = {}, {}
     start['v'] = int(line['v_5p_del'])
-    end['v'] = start['v'] + len(line['fv_insertion'] + eroded_seqs['v'])  # base just after the end of v
+    end['v'] = start['v'] + len(line['fv_insertion'] + line['v_gl_seq'])  # base just after the end of v
     start['d'] = end['v'] + len(line['vd_insertion'])
-    end['d'] = start['d'] + len(eroded_seqs['d'])
+    end['d'] = start['d'] + len(line['d_gl_seq'])
     start['j'] = end['d'] + len(line['dj_insertion'])
-    end['j'] = start['j'] + len(eroded_seqs['j'] + line['jf_insertion'])
+    end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
 
     if subtract_unphysical_erosions:
         for tmpreg in regions:
-            start[tmpreg] -= int(line['v_5p_del'])
-            end[tmpreg] -= int(line['v_5p_del'])
+            start[tmpreg] -= line['v_5p_del']
+            end[tmpreg] -= line['v_5p_del']
         # end['j'] -= line['j_3p_del']  # ARG.ARG.ARG
 
     def elegantishfail():
@@ -764,36 +761,41 @@ def add_implicit_info(glfo, line, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
     # should replace add_match_info(), add_cdr3_info(), and get_reco_event_seqs(), the idea being call add_implicit_info() *once*, then you don't need to call the others all over the stupid place
 
-    original_seqs = {}  # original (non-eroded) germline seqs
-    lengths = {}  # length of each match (including erosion)
-    eroded_seqs = {}  # eroded germline seqs
+    line['lengths'] = {}  # length of each match (including erosion)
     for region in regions:
-        del_5p = int(line[region + '_5p_del'])
-        del_3p = int(line[region + '_3p_del'])
-        original_seqs[region] = glfo['seqs'][region][line[region + '_gene']]
-        lengths[region] = len(original_seqs[region]) - del_5p - del_3p
-        eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
+        uneroded_gl_seq = glfo['seqs'][region][line[region + '_gene']]
+        del_5p = line[region + '_5p_del']
+        del_3p = line[region + '_3p_del']
+        length = len(uneroded_gl_seq) - del_5p - del_3p  # eroded length
+        line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]  # NOTE these _gl_seqs replace the old eroded_seqs
+
+# ----------------------------------------------------------------------------------------
+        assert length == len(line[region + '_gl_seq'])
+# ----------------------------------------------------------------------------------------
+
+        line['lengths'][region] = length
 # ----------------------------------------------------------------------------------------
     # NOTE see get_conserved_codon_position() -- they do similar things, but start from different information
-    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']]  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
-    eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - int(line['j_5p_del'])
+    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']] - line['v_5p_del'] + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
+    eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - line['j_5p_del']
     line['cyst_position'] = eroded_gl_cpos
-    tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
+    tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) + line['lengths']['d'] + len(line['dj_insertion'])
     line['tryp_position'] = tpos_in_joined_seq
     line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
-    line['naive_seq'] = line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
+    line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
 # ----------------------------------------------------------------------------------------
 
     # and the stuff from add_match_info:
 
-    # add the <eroded_seqs> to <line> so we can find them later
-    for region in regions:
-        line[region + '_gl_seq'] = eroded_seqs[region]
+    # # add the <eroded_seqs> to <line> so we can find them later
+    # for region in regions:
+    #     line[region + '_gl_seq'] = eroded_seqs[region]
 
     add_qr_seqs(line)
 
 # ----------------------------------------------------------------------------------------
 def add_match_info(glfo, line, debug=False):
+    assert False
     """
     add to <line> the query match seqs (sections of the query sequence that are matched to germline) and their corresponding germline matches.
 
@@ -896,16 +898,19 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
     j_5p_del = int(line['j_5p_del'])
     j_3p_del = int(line['j_3p_del'])
 
-    original_seqs = {}  # original (non-eroded) germline seqs
-    lengths = {}  # length of each match (including erosion)
-    eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+# # ----------------------------------------------------------------------------------------
+#     original_seqs = {}  # original (non-eroded) germline seqs
+#     lengths = {}  # length of each match (including erosion)
+#     eroded_seqs = {}  # eroded germline seqs
+#     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
+# # ----------------------------------------------------------------------------------------
 
     if indelfo is not None:
         if len(indelfo['indels']) == 0:  # TODO make this less hackey
             indelfo = None
         else:
-            add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded_seqs, reverse_indels)
+            assert False
+            # add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, XXX gl_seqs XXXX eroded_seqs, reverse_indels)
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
@@ -946,24 +951,24 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
             new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
         else:
             ilocal -= len(line['fv_insertion'])
-            if ilocal < lengths['v']:
-                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['v'][ilocal], line['seq'][inuke], n_muted, n_total)
+            if ilocal < line['lengths']['v']:
+                new_nuke, n_muted, n_total = is_mutated(line['v_gl_seq'][ilocal], line['seq'][inuke], n_muted, n_total)
             else:
-                ilocal -= lengths['v']
+                ilocal -= line['lengths']['v']
                 if ilocal < len(line['vd_insertion']):
                     new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                 else:
                     ilocal -= len(line['vd_insertion'])
-                    if ilocal < lengths['d']:
-                        new_nuke, n_muted, n_total = is_mutated(eroded_seqs['d'][ilocal], line['seq'][inuke], n_muted, n_total)
+                    if ilocal < line['lengths']['d']:
+                        new_nuke, n_muted, n_total = is_mutated(line['d_gl_seq'][ilocal], line['seq'][inuke], n_muted, n_total)
                     else:
-                        ilocal -= lengths['d']
+                        ilocal -= line['lengths']['d']
                         if ilocal < len(line['dj_insertion']):
                             new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
                         else:
                             ilocal -= len(line['dj_insertion'])
-                            if ilocal < lengths['j']:
-                                new_nuke, n_muted, n_total = is_mutated(eroded_seqs['j'][ilocal], line['seq'][inuke], n_muted, n_total)
+                            if ilocal < line['lengths']['j']:
+                                new_nuke, n_muted, n_total = is_mutated(line['j_gl_seq'][ilocal], line['seq'][inuke], n_muted, n_total)
                             else:
                                 new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
                                 j_right_extra += ' '
@@ -979,7 +984,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
 
     # check if there isn't enough space for dots in the vj line
     no_space = False
-    interior_length = len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    interior_length = len(line['vd_insertion']) + len(line['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if v_3p_del + j_5p_del > interior_length:
         no_space = True
 
@@ -995,30 +1000,30 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = eroded_seqs['v'] + v_3p_del_str
-    eroded_seqs_dots['d'] = '.'*d_5p_del + eroded_seqs['d'] + '.'*d_3p_del
-    eroded_seqs_dots['j'] = j_5p_del_str + eroded_seqs['j'] + '.'*j_3p_del
+    eroded_seqs_dots['v'] = line['v_gl_seq'] + v_3p_del_str
+    eroded_seqs_dots['d'] = '.'*d_5p_del + line['d_gl_seq'] + '.'*d_3p_del
+    eroded_seqs_dots['j'] = j_5p_del_str + line['j_gl_seq'] + '.'*j_3p_del
 
     v_5p_del_str = '.'*v_5p_del
     if v_5p_del > 50:
         v_5p_del_str = '...' + str(v_5p_del) + '...'
 
-    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v']
+    insert_line = ' '*len(line['fv_insertion']) + ' '*line['lengths']['v']
     insert_line += ' '*len(v_5p_del_str)
     insert_line += line['vd_insertion']
-    insert_line += ' ' * lengths['d']
+    insert_line += ' ' * line['lengths']['d']
     insert_line += line['dj_insertion']
-    insert_line += ' ' * lengths['j']
+    insert_line += ' ' * line['lengths']['j']
     insert_line += j_right_extra
     insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
 
-    germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - d_5p_del
-    germline_d_end = germline_d_start + len(original_seqs['d'])
+    germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - d_5p_del
+    germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
-    d_line += ' ' * (len(eroded_seqs['j']) + len(line['dj_insertion']) - d_3p_del)
+    d_line += ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - d_3p_del)
     d_line += j_right_extra
     d_line += ' ' * j_3p_del
     # d_line += ' '*len(line['jf_insertion'])
@@ -1026,7 +1031,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
-    germline_v_end = len(line['fv_insertion']) + len(eroded_seqs['v']) + v_3p_del - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+    germline_v_end = len(line['fv_insertion']) + len(line['v_gl_seq']) + v_3p_del - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
@@ -1468,11 +1473,11 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
         mashed_naive_seq = ''
         mashed_muted_seq = ''
         for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
-            bounds = get_regional_naive_seq_bounds(region, germlines, line)
+            bounds = get_regional_naive_seq_bounds(region, line)
             mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
             mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
-        bounds = get_regional_naive_seq_bounds(restrict_to_region, germlines, line)
+        bounds = get_regional_naive_seq_bounds(restrict_to_region, line)
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
 

@@ -48,6 +48,9 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 
 if 'ralph' in os.getenv('USER'):
     print 'TODO make sure all mpl figures are getting closed'
+    print 'TODO remove assertions from get_regional_naive_seq_bounds'
+    print 'clean up print_reco_event, and get it working with indels'
+    print 'clean up implicit info filling and validity checking in read_annotation_output'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

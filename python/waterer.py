@@ -613,12 +613,13 @@ class Waterer(object):
             self.info['all_best_matches'].add(best[region])
 
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
+
+        utils.add_implicit_info(self.glfo, self.info[query_name])
+
         if self.debug:
             if not self.args.is_data:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
             utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
-
-        utils.add_implicit_info(self.glfo, self.info[query_name])
 
         if self.pcounter is not None:
             self.pcounter.increment_per_family_params(self.info[query_name])
