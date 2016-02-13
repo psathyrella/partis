@@ -547,7 +547,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
     the hmm yaml files.
     """
-
+    # TODO have this change the aligned seqs as well
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
 
@@ -699,7 +699,7 @@ def add_qr_seqs(line):
                 line[region + '_qr_seqs'].append(qr_seq)
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, debug=False):
+def add_implicit_info(glfo, line, add_alignments=False, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
 
     line['lengths'] = {}  # length of each match (including erosion)
@@ -731,6 +731,23 @@ def add_implicit_info(glfo, line, debug=False):
     start['j'] = end['d'] + len(line['dj_insertion'])
     end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
+
+    # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
+    line['invalid'] = False
+    if 'seq' in line:
+        seq_length = len(line['seq'])
+    else:
+        seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
+    for chkreg in regions:
+        if start[chkreg] < 0 or end[chkreg] < 0 or end[chkreg] < start[chkreg] or end[chkreg] > seq_length:
+            line['invalid'] = True
+    if end['j'] != seq_length:
+        line['invalid'] = True
+    if line['invalid']:
+        print '%s invalid' % line['unique_ids'] if 'unique_ids' in line else line['unique_id']
+
+    if add_alignments:
+        add_v_alignments(glfo, line, debug)
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
