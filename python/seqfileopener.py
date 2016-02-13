@@ -81,7 +81,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             if 'indels' not in line:  # TODO unhackify this
                 reco_info[unique_id]['indels'] = None
             if glfo is not None:
-                utils.add_match_info(glfo, reco_info[unique_id])
+                utils.add_implicit_info(glfo, reco_info[unique_id])
         n_queries += 1
         if n_max_queries > 0 and n_queries >= n_max_queries:
             break

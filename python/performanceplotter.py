@@ -49,8 +49,8 @@ class PerformancePlotter(object):
         if <normalize> divide by sequence length
         """
 
-        true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
-        inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
+        true_naive_seq = true_line['naive_seq']
+        inferred_naive_seq = line['naive_seq']
         if len(true_naive_seq) != len(inferred_naive_seq):
             print '%20s    true      inf' % ''
             for k in true_line:

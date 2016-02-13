@@ -659,15 +659,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_full_naive_seq(germlines, line):
-    for erosion in real_erosions + effective_erosions:
-        if line[erosion + '_del'] < 0:  # wow, I have no idea why I thought this would happen
-            print 'ERROR %s less than zero %d' % (erosion, line[erosion + '_del'])
-        assert line[erosion + '_del'] >= 0
-    original_seqs = {}  # original (non-eroded) germline seqs
-    lengths = {}  # length of each match (including erosion)
-    eroded_seqs = {}  # eroded germline seqs
-    get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-    return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
+    raise Exception('replaced by add_implicit_info()')
 
 # ----------------------------------------------------------------------------------------
 def set_event_validity(germlines, line):
@@ -756,12 +748,16 @@ def add_qr_seqs(line):
 
     for region in regions:
         if 'seq' in line:  # only one sequence
-            line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
+            qr_seq = get_single_qr_seq(region, line['seq'])
+            if region + '_qr_seq' in line and qr_seq != line[region + '_qr_seq']:  # sw already has it, and we want to make sure it's the same
+                print 'WARNING qr seqs not equal for %s\n%s' % (line['unique_id'], line)
+            line[region + '_qr_seq'] = qr_seq
         else:
             assert 'seqs' in line
             line[region + '_qr_seqs'] = []
             for iseq in range(len(line['seqs'])):
-                line[region + '_qr_seqs'].append(get_single_qr_seq(region, line['seqs'][iseq]))
+                qr_seq = get_single_qr_seq(region, line['seqs'][iseq])
+                line[region + '_qr_seqs'].append(qr_seq)
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, debug=False):
@@ -785,7 +781,7 @@ def add_implicit_info(glfo, line, debug=False):
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
     line['tryp_position'] = tpos_in_joined_seq
     line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
-    line['naive_seq'] = get_full_naive_seq(glfo['seqs'], line)
+    line['naive_seq'] = line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
 # ----------------------------------------------------------------------------------------
 
     # and the stuff from add_match_info:
@@ -1466,7 +1462,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
 
 # ----------------------------------------------------------------------------------------
 def get_mutation_rate(germlines, line, restrict_to_region=''):
-    naive_seq = get_full_naive_seq(germlines, line)  # NOTE this includes the fv and jf insertions
+    naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
     if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
         mashed_naive_seq = ''
@@ -2000,7 +1996,7 @@ def synthesize_single_seq_line(glfo, line, iseq):
     if 'aligned_v_seqs' in hmminfo:
         hmminfo['aligned_v_seq'] = line['aligned_v_seqs'][iseq]
         del hmminfo['aligned_v_seqs']
-    add_match_info(glfo, hmminfo)
+    add_implicit_info(glfo, hmminfo)
     return hmminfo
 
 # ----------------------------------------------------------------------------------------                    

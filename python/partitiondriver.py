@@ -682,7 +682,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
-        true_naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.reco_info[qry])
+        true_naive_seq = self.reco_info[qry]['naive_seq']
         padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
         padright = self.sw_info[qry]['padded']['padright']
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
@@ -691,7 +691,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padded_sw_naive_seq(self, qry):
-        sw_naive_seq = utils.get_full_naive_seq(self.glfo['seqs'], self.sw_info[qry])
+        sw_naive_seq = self.sw_info[qry]['naive_seq']
         padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
         padright = self.sw_info[qry]['padded']['padright']
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.

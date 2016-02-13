@@ -618,6 +618,8 @@ class Waterer(object):
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
             utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
 
+        utils.add_implicit_info(self.glfo, self.info[query_name])
+
         if self.pcounter is not None:
             self.pcounter.increment_per_family_params(self.info[query_name])
             self.pcounter.increment_per_sequence_params(self.info[query_name])
