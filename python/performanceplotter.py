@@ -100,7 +100,7 @@ class PerformancePlotter(object):
 
         bounds = None
         if restrict_to_region != '':
-            bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, true_line)  # get the bounds of this *true* region
+            bounds = true_line['regional_bounds'][restrict_to_region]
             if debug:
                 print 'restrict to %s' % restrict_to_region
                 utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True, extra_str='      ')

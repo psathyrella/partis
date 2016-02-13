@@ -636,6 +636,7 @@ def set_event_validity(germlines, line):
 
 # ----------------------------------------------------------------------------------------
 def get_regional_naive_seq_bounds(return_reg, line):
+    assert False
     # NOTE it's kind of a matter of taste whether unphysical deletions (v left and j right) should be included in the 'naive sequence'.
     # Unless <subtract_unphysical_erosions>, here we assume the naive sequence has *no* unphysical deletions
 
@@ -720,6 +721,16 @@ def add_implicit_info(glfo, line, debug=False):
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
 
     add_qr_seqs(line)
+
+    # add naive seq bounds for each region (could stand to make this more concise)
+    start, end = {}, {}
+    start['v'] = 0
+    end['v'] = start['v'] + len(line['fv_insertion'] + line['v_gl_seq'])  # base just after the end of v
+    start['d'] = end['v'] + len(line['vd_insertion'])
+    end['d'] = start['d'] + len(line['d_gl_seq'])
+    start['j'] = end['d'] + len(line['dj_insertion'])
+    end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
+    line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
@@ -1372,11 +1383,11 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
         mashed_naive_seq = ''
         mashed_muted_seq = ''
         for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
-            bounds = get_regional_naive_seq_bounds(region, line)
+            bounds = line['regional_bounds'][region]
             mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
             mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
-        bounds = get_regional_naive_seq_bounds(restrict_to_region, line)
+        bounds = line['regional_bounds'][restrict_to_region]
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
 
