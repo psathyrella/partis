@@ -12,6 +12,7 @@ import random
 from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE, check_output, CalledProcessError
 import copy
+import multiprocessing
 
 import utils
 from opener import opener
@@ -158,6 +159,7 @@ class PartitionDriver(object):
                 seqs_per_proc *= 2
             n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
             n_precache_procs = min(n_precache_procs, self.args.n_max_procs)
+            n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())  # make sure it's less than the number of cpus
             print '    precache procs', n_precache_procs
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=n_precache_procs, cache_naive_seqs=True)
 
@@ -1245,6 +1247,17 @@ class PartitionDriver(object):
         print '      ', ' '.join([str(len(cl)) for cl in self.bcrham_divvied_queries])
 
     # ----------------------------------------------------------------------------------------
+    def error_checks(self, line, boundary_error_queries):
+        if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
+            if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
+                boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
+            else:  # we don't expect anything except boundary errors a.t.m.
+                assert len(line['errors']) == 0
+
+        line['invalid'] = False
+        # utils.set_event_validity(self.glfo['seqs'], line)
+
+    # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
@@ -1262,21 +1275,28 @@ class PartitionDriver(object):
                 utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
 
-                # check for errors
-                if padded_line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
-                    if padded_line['errors'] is not None and 'boundary' in padded_line['errors'].split(':'):
-                        boundary_error_queries.append(':'.join([uid for uid in uids]))
-                    else:
-                        assert len(padded_line['errors']) == 0
-
                 # fill in some implicit information
-                utils.add_cdr3_info(self.glfo, padded_line)
-                utils.add_v_alignments(self.glfo, padded_line)
+                # utils.add_cdr3_info(self.glfo, padded_line)
+                utils.add_implicit_info(self.glfo, padded_line)
+                self.error_checks(padded_line, boundary_error_queries)
+                utils.add_v_alignments(self.glfo, padded_line)  # NOTE this can set invalid as well
+                if padded_line['invalid']:
+                    n_invalid_events += 1
+                    if self.args.debug:
+                        print '      %s padded line invalid' % padded_line['unique_ids']
+                    continue
 
                 # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                 eroded_line = copy.deepcopy(padded_line)
-                utils.reset_effective_erosions_and_effective_insertions(eroded_line)
-                utils.add_v_alignments(self.glfo, eroded_line)
+                eroded_line['invalid'] = False  # arg, this should go somewhere else
+                utils.reset_effective_erosions_and_effective_insertions(eroded_line)  # NOTE I think this doesn't reset *everything* you might want it to -- e.g. the [vdj]_qr_seqs
+                self.error_checks(eroded_line, boundary_error_queries)
+                utils.add_v_alignments(self.glfo, eroded_line)  # NOTE this can set invalid as well
+                if eroded_line['invalid']:
+                    n_invalid_events += 1
+                    if self.args.debug:
+                        print '      %s eroded line invalid' % eroded_line['unique_ids']
+                    continue
 
                 padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
                 eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
@@ -1291,9 +1311,6 @@ class PartitionDriver(object):
                     # self.print_hmm_output(padded_line, print_true=(padded_line['nth_best']==0))
 
                 if padded_line['nth_best'] == 0:  # if it's the best match  #  NOTE kinda nervous about removing this: and (padded_line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
-                    if not utils.is_this_a_validate_event(self.glfo['seqs'], eroded_line):
-                        n_invalid_events += 1
-                        continue
 
                     n_events_processed += 1
 

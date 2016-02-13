@@ -670,8 +670,11 @@ def get_full_naive_seq(germlines, line):
     return line['fv_insertion'] + eroded_seqs['v'] + line['vd_insertion'] + eroded_seqs['d'] + line['dj_insertion'] + eroded_seqs['j'] + line['jf_insertion']
 
 # ----------------------------------------------------------------------------------------
-def is_this_a_validate_event(germlines, line):
+def set_event_validity(germlines, line):
     # this is just a copy of stuff in get_regional_naive_seq_bounds, but so we can run this first and see if it fails and then skip the event
+
+    if 'invalid' not in line:  # it might already be in there, since we could've alrady run add_v_alignments() (admittedly, it would make more sense to put it all in one place. But that approach has it's problems as well, so for now we do it like this)
+        line['invalid'] == False
 
     original_seqs = {}  # original (non-eroded) germline seqs
     lengths = {}  # length of each match (including erosion)
@@ -690,16 +693,11 @@ def is_this_a_validate_event(germlines, line):
         start[tmpreg] -= int(line['v_5p_del'])
         end[tmpreg] -= int(line['v_5p_del'])
 
-    try:
-        for chkreg in regions:
-            assert start[chkreg] >= 0
-            assert end[chkreg] >= 0
-            assert end[chkreg] >= start[chkreg]
-            assert end[chkreg] <= len(line['seq'])
-        assert end['j'] == len(line['seq'])
-        return False
-    except:
-        return True
+    for chkreg in regions:
+        if start[chkreg] < 0 or end[chkreg] < 0 or end[chkreg] < start[chkreg] or end[chkreg] > len(line['seq']):
+            line['invalid'] == True
+    if end['j'] != len(line['seq']):
+        line['invalid'] == True
 
 # ----------------------------------------------------------------------------------------
 def get_regional_naive_seq_bounds(return_reg, germlines, line):
@@ -743,6 +741,60 @@ def get_regional_naive_seq_bounds(return_reg, germlines, line):
         elegantishfail()
 
     return (start[return_reg], end[return_reg])
+
+# ----------------------------------------------------------------------------------------
+def add_qr_seqs(line):
+    """ Add [vdj]_qr_seq, i.e. the sections of the query sequence which are assigned to each region. """
+
+    starts = {}
+    starts['v'] = len(line['fv_insertion'])
+    starts['d'] = starts['v'] + len(line['v_gl_seq']) + len(line['vd_insertion'])
+    starts['j'] = starts['d'] + len(line['d_gl_seq']) + len(line['dj_insertion'])
+
+    def get_single_qr_seq(region, seq):
+        return seq[starts[region] : starts[region] + len(line[region + '_gl_seq'])]
+
+    for region in regions:
+        if 'seq' in line:  # only one sequence
+            line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
+        else:
+            assert 'seqs' in line
+            line[region + '_qr_seqs'] = []
+            for iseq in range(len(line['seqs'])):
+                line[region + '_qr_seqs'].append(get_single_qr_seq(region, line['seqs'][iseq]))
+
+# ----------------------------------------------------------------------------------------
+def add_implicit_info(glfo, line, debug=False):
+    """ Add to <line> a bunch of things that are initially only implicit. """
+    # should replace add_match_info(), add_cdr3_info(), and get_reco_event_seqs(), the idea being call add_implicit_info() *once*, then you don't need to call the others all over the stupid place
+
+    original_seqs = {}  # original (non-eroded) germline seqs
+    lengths = {}  # length of each match (including erosion)
+    eroded_seqs = {}  # eroded germline seqs
+    for region in regions:
+        del_5p = int(line[region + '_5p_del'])
+        del_3p = int(line[region + '_3p_del'])
+        original_seqs[region] = glfo['seqs'][region][line[region + '_gene']]
+        lengths[region] = len(original_seqs[region]) - del_5p - del_3p
+        eroded_seqs[region] = original_seqs[region][del_5p : del_5p + lengths[region]]
+# ----------------------------------------------------------------------------------------
+    # NOTE see get_conserved_codon_position() -- they do similar things, but start from different information
+    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']]  - int(line['v_5p_del']) + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
+    eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - int(line['j_5p_del'])
+    line['cyst_position'] = eroded_gl_cpos
+    tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + len(eroded_seqs['v']) + len(line['vd_insertion']) + len(eroded_seqs['d']) + len(line['dj_insertion'])
+    line['tryp_position'] = tpos_in_joined_seq
+    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
+    line['naive_seq'] = get_full_naive_seq(glfo['seqs'], line)
+# ----------------------------------------------------------------------------------------
+
+    # and the stuff from add_match_info:
+
+    # add the <eroded_seqs> to <line> so we can find them later
+    for region in regions:
+        line[region + '_gl_seq'] = eroded_seqs[region]
+
+    add_qr_seqs(line)
 
 # ----------------------------------------------------------------------------------------
 def add_match_info(glfo, line, debug=False):
@@ -1973,7 +2025,9 @@ def add_v_alignments(glfo, line, debug=False):
         v_gl_seq = hmminfo['v_gl_seq']
         aligned_v_gl_seq = glfo['aligned-v-genes']['v'][hmminfo['v_gene']]
         if len(v_qr_seq) != len(v_gl_seq):
-            raise Exception('v bits not same length for %s\n%s' % (line['unique_ids'], line))
+            # raise Exception('v bits not same length for %s\n%s' % (line['unique_ids'], line))
+            line['invalid'] == True
+            return
 
         if debug:
             print 'before alignment'
@@ -1982,7 +2036,9 @@ def add_v_alignments(glfo, line, debug=False):
             print '   al gl', aligned_v_gl_seq
 
         if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + hmminfo['v_3p_del'] + n_gaps(aligned_v_gl_seq):
-            raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + gap_chars[0] * n_gaps(aligned_v_gl_seq), hmminfo['v_3p_del']))
+            # raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + gap_chars[0] * n_gaps(aligned_v_gl_seq), hmminfo['v_3p_del']))
+            line['invalid'] == True
+            return
 
         v_qr_seq = 'N' * line['v_5p_del'] + v_qr_seq + 'N' * line['v_3p_del']
         v_gl_seq = 'N' * line['v_5p_del'] + v_gl_seq + 'N' * line['v_3p_del']
@@ -1993,7 +2049,9 @@ def add_v_alignments(glfo, line, debug=False):
                 v_gl_seq = v_gl_seq[ : ibase] + gap_chars[0] + v_gl_seq[ibase : ]
             else:
                 if v_gl_seq[ibase] != 'N' and v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
-                    raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
+                    # raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
+                    line['invalid'] == True
+                    return
 
         if debug:
             print 'after alignment'
@@ -2002,7 +2060,9 @@ def add_v_alignments(glfo, line, debug=False):
             print '   al gl', aligned_v_gl_seq
 
         if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq):
-            raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
+            # raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
+            line['invalid'] == True
+            return
         aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
     line['aligned_v_seqs'] = aligned_v_seqs
