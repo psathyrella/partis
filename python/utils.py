@@ -672,12 +672,10 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
     if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap
         line['invalid'] = True
     if line['invalid']:
-        print '%s invalid' % line['unique_ids'] if 'unique_ids' in line else line['unique_id']
+        print '%s invalid' % (line['unique_ids'] if 'unique_ids' in line else line['unique_id'])
 
-    print '0---'
     if add_alignments:
         add_v_alignments(glfo, line, debug)
-    print '1---'
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
