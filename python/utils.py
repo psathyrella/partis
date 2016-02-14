@@ -669,7 +669,7 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
             line['invalid'] = True
     if end['j'] != seq_length:
         line['invalid'] = True
-    if line['cdr3_length'] < 7:  # i.e. if cyst and tryp overlap
+    if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap
         line['invalid'] = True
     if line['invalid']:
         print '%s invalid' % line['unique_ids'] if 'unique_ids' in line else line['unique_id']
