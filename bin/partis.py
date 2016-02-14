@@ -53,6 +53,9 @@ if 'ralph' in os.getenv('USER'):
     print 'TODO maybe have waterer skip if cdr3 length less than seven? Or maybe not -- we don\'t really believe waterer\'s annotations too much'
     print 'TODO refactor add_implicit_info so it isn\'t re-adding everything when you synthesize a single-seq line x'
     print 'TODO holy crap stop recursively calling add_implicit_info and its ilk from itselvothers'
+    print 'TODO make sure all the line[] instances have the same keys (or at least that differences are controlled and make sense)'
+    print 'TODO remove all the columns and all_columns checks (and seq/seqs assertions in add_qr_seqs)'
+    print 'TODO stop rewriting germlines at every sw step'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

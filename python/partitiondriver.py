@@ -1273,7 +1273,7 @@ class PartitionDriver(object):
                 self.check_bcrham_errors(padded_line, boundary_error_queries)
                 uids = padded_line['unique_ids']
 
-                utils.add_implicit_info(self.glfo, padded_line, add_alignments=True)
+                utils.add_implicit_info(self.glfo, padded_line, multi_seq=True, add_alignments=True)
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:

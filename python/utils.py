@@ -137,6 +137,17 @@ column_configs = {
     'lists' : ('unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs')
 }
 
+# NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
+# keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
+xcolumns = {}
+xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions if r == 'v'])  # NOTE 'v' hack for aligned seqs
+xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
+xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
+xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
+xcolumns['extra'] = tuple(['invalid', ])
+xall_columns = set([k for cols in xcolumns.values() for k in cols])
+
 # ----------------------------------------------------------------------------------------
 def convert_to_presto(glfo, line):
     """ convert <line> to presto csv format """
@@ -600,7 +611,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     line['jf_insertion'] = final_jf_insertion
 
 # ----------------------------------------------------------------------------------------
-def add_qr_seqs(line):
+def add_qr_seqs(line, multi_seq):
     """ Add [vdj]_qr_seq, i.e. the sections of the query sequence which are assigned to each region. """
 
     starts = {}
@@ -612,21 +623,27 @@ def add_qr_seqs(line):
         return seq[starts[region] : starts[region] + len(line[region + '_gl_seq'])]
 
     for region in regions:
-        if 'seq' in line:  # only one sequence
-            qr_seq = get_single_qr_seq(region, line['seq'])
-            if region + '_qr_seq' in line and qr_seq != line[region + '_qr_seq']:  # sw already has it, and we want to make sure it's the same
-                print 'WARNING qr seqs not equal for %s\n%s' % (line['unique_id'], line)
-            line[region + '_qr_seq'] = qr_seq
-        else:
+        if multi_seq:
             assert 'seqs' in line
-            line[region + '_qr_seqs'] = []
-            for iseq in range(len(line['seqs'])):
-                qr_seq = get_single_qr_seq(region, line['seqs'][iseq])
-                line[region + '_qr_seqs'].append(qr_seq)
+            line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
+        else:
+            assert 'seq' in line
+            # qr_seq = get_single_qr_seq(region, line['seq'])
+            # if region + '_qr_seq' in line and qr_seq != line[region + '_qr_seq']:  # sw already has it, and we want to make sure it's the same
+            #     print 'WARNING qr seqs not equal for %s\n%s' % (line['unique_id'], line)
+            line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, add_alignments=False, debug=False):
+def add_implicit_info(glfo, line, multi_seq, add_alignments=False, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
+
+    for k in line.keys():
+        if multi_seq:
+            if k in xcolumns['single_per_seq']:
+                raise Exception('%s in multi seq line' % k)
+        else:
+            if k in xcolumns['multi_per_seq']:
+                raise Exception('%s in single seq line' % k)
 
     line['lengths'] = {}  # length of each match (including erosion)
     for region in regions:
@@ -634,7 +651,7 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
         del_5p = line[region + '_5p_del']
         del_3p = line[region + '_3p_del']
         length = len(uneroded_gl_seq) - del_5p - del_3p  # eroded length
-        line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]  # NOTE these _gl_seqs replace the old eroded_seqs
+        line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]
         line['lengths'][region] = length
 
     # NOTE see get_conserved_codon_position() -- they do similar things, but start from different information
@@ -646,11 +663,9 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
     line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
 
-    add_qr_seqs(line)
-
     # add naive seq bounds for each region (could stand to make this more concise)
     start, end = {}, {}
-    start['v'] = 0
+    start['v'] = 0  # holy fuck, look at that, I start at zero here, but at the end of the fv insertion in add_qr_seqs(). Scary!
     end['v'] = start['v'] + len(line['fv_insertion'] + line['v_gl_seq'])  # base just after the end of v
     start['d'] = end['v'] + len(line['vd_insertion'])
     end['d'] = start['d'] + len(line['d_gl_seq'])
@@ -658,12 +673,14 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
     end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
+    add_qr_seqs(line, multi_seq)
+
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
-    if 'seq' in line:
-        seq_length = len(line['seq'])
-    else:
+    if multi_seq:
         seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
+    else:
+        seq_length = len(line['seq'])
     for chkreg in regions:
         if start[chkreg] < 0 or end[chkreg] < 0 or end[chkreg] < start[chkreg] or end[chkreg] > seq_length:
             line['invalid'] = True
@@ -675,7 +692,13 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
         print '%s invalid' % (line['unique_ids'] if 'unique_ids' in line else line['unique_id'])
 
     if add_alignments:
+        if not multi_seq:
+            raise Exception('not yet handled!')
         add_v_alignments(glfo, line, debug)
+
+    for k in line.keys():
+        if k not in xall_columns:
+            print '  %s not in anything' % k
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
@@ -1849,14 +1872,11 @@ def auto_slurm(n_procs):
 def synthesize_single_seq_line(glfo, line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    hmminfo['seq'] = line['seqs'][iseq]
-    hmminfo['unique_id'] = line['unique_ids'][iseq]
-    del hmminfo['unique_ids']
-    del hmminfo['seqs']
-    if 'aligned_v_seqs' in hmminfo:
-        hmminfo['aligned_v_seq'] = line['aligned_v_seqs'][iseq]
-        del hmminfo['aligned_v_seqs']
-    add_implicit_info(glfo, hmminfo)
+    for col in xcolumns['single_per_seq']:
+        if col == 'aligned_v_seqs' and col not in hmminfo:  # TODO clean this up
+            continue
+        hmminfo[col] = hmminfo[col + 's'][iseq]
+        del hmminfo[col + 's']
     return hmminfo
 
 # ----------------------------------------------------------------------------------------                    
@@ -1875,11 +1895,9 @@ def add_v_alignments(glfo, line, debug=False):
 
     aligned_v_seqs = []
     for iseq in range(len(line['seqs'])):
-        hmminfo = synthesize_single_seq_line(glfo, line, iseq)
-
-        v_qr_seq = hmminfo['v_qr_seq']
-        v_gl_seq = hmminfo['v_gl_seq']
-        aligned_v_gl_seq = glfo['aligned-v-genes']['v'][hmminfo['v_gene']]
+        v_qr_seq = line['v_qr_seqs'][iseq]
+        v_gl_seq = line['v_gl_seq']
+        aligned_v_gl_seq = glfo['aligned-v-genes']['v'][line['v_gene']]
         if len(v_qr_seq) != len(v_gl_seq):
             # raise Exception('v bits not same length for %s\n%s' % (line['unique_ids'], line))
             line['invalid'] == True
@@ -1891,8 +1909,8 @@ def add_v_alignments(glfo, line, debug=False):
             print '   gl   ', v_gl_seq
             print '   al gl', aligned_v_gl_seq
 
-        if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + hmminfo['v_3p_del'] + n_gaps(aligned_v_gl_seq):
-            # raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + gap_chars[0] * n_gaps(aligned_v_gl_seq), hmminfo['v_3p_del']))
+        if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + line['v_3p_del'] + n_gaps(aligned_v_gl_seq):
+            # raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + gap_chars[0] * n_gaps(aligned_v_gl_seq), line['v_3p_del']))
             line['invalid'] == True
             return
 

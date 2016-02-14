@@ -64,6 +64,8 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             seq_column = 'nucleotide'
         utils.process_input_line(line)
         unique_id = line[name_column]
+        if ':' in unique_id:
+            raise Exception('found a \':\' in sequence id \'%s\' -- you\'ll have to replace it with something else, as we use \':\'s internally to concatenate sequence ids' % unique_id)
 
         # if command line specified query or reco ids, skip other ones
         if queries is not None and unique_id not in queries:
@@ -81,7 +83,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             if 'indels' not in line:  # TODO unhackify this
                 reco_info[unique_id]['indels'] = None
             if glfo is not None:
-                utils.add_implicit_info(glfo, reco_info[unique_id])
+                utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False)  # each seq is on its own line in the file
         n_queries += 1
         if n_max_queries > 0 and n_queries >= n_max_queries:
             break
