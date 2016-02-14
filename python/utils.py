@@ -600,10 +600,6 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     line['jf_insertion'] = final_jf_insertion
 
 # ----------------------------------------------------------------------------------------
-def get_full_naive_seq(germlines, line):
-    raise Exception('replaced by add_implicit_info()')
-
-# ----------------------------------------------------------------------------------------
 def add_qr_seqs(line):
     """ Add [vdj]_qr_seq, i.e. the sections of the query sequence which are assigned to each region. """
 
@@ -647,7 +643,7 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
     line['cyst_position'] = eroded_gl_cpos
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) + line['lengths']['d'] + len(line['dj_insertion'])
     line['tryp_position'] = tpos_in_joined_seq
-    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3
+    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
 
     add_qr_seqs(line)
@@ -673,11 +669,15 @@ def add_implicit_info(glfo, line, add_alignments=False, debug=False):
             line['invalid'] = True
     if end['j'] != seq_length:
         line['invalid'] = True
+    if line['cdr3_length'] < 7:  # i.e. if cyst and tryp overlap
+        line['invalid'] = True
     if line['invalid']:
         print '%s invalid' % line['unique_ids'] if 'unique_ids' in line else line['unique_id']
 
+    print '0---'
     if add_alignments:
         add_v_alignments(glfo, line, debug)
+    print '1---'
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
