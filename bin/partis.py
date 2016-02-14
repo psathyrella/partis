@@ -51,7 +51,7 @@ if 'ralph' in os.getenv('USER'):
     print 'clean up print_reco_event, and get it working with indels'
     print 'clean up implicit info filling and validity checking in read_annotation_output'
     print 'TODO maybe have waterer skip if cdr3 length less than seven? Or maybe not -- we don\'t really believe waterer\'s annotations too much'
-    print 'TODO refactor add_implicit_info so it isn\'t re-adding everything when you synthesize a single-seq line'
+    print 'TODO refactor add_implicit_info so it isn\'t re-adding everything when you synthesize a single-seq line x'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
