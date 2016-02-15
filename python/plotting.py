@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import seaborn as sns
+import seaborn as sns  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
 sns.set_style('ticks')
 
 import math
@@ -180,7 +180,7 @@ def add_bin_labels_not_in_all_hists(hists):
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
-                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False):
+                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
     assert os.path.exists(plotdir)
 
     fig, ax = mpl_init(figsize=figsize)
@@ -277,7 +277,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             htmp.bin_labels = ['' for _ in htmp.bin_labels]
         if rebin is not None:
             htmp.rebin(rebin)
-        htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors)
+        alpha = 1.
+        if alphas is not None:
+            alpha = alphas[ih]
+        htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
 
     if xline is not None:
         ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
@@ -293,9 +296,6 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if hist.bin_labels.count('') != len(hist.bin_labels):
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
-
-    if not os.path.exists(plotdir + '/plots'):
-        raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')
 
     if not only_csv:
         mpl_finish(ax, plotdir, plotname,
@@ -426,7 +426,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
     """
-    utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+    # print 'TODO move csvs to a subdir not named "plots"'
+    # utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+
+    utils.prep_dir(args.outdir, multilings=['*.png', '*.svg', '*.csv'])
     if args.leaves_per_tree is not None:
         assert len(args.leaves_per_tree) == len(args.plotdirs)
 
@@ -550,7 +553,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         draw_no_root(all_hists[0], plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
                      shift_overflows=False, errors=errors, scale_errors=args.scale_errors, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
                      xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                     linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
+                     linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend, alphas=args.alphas)
 
     if args.calculate_mean_info:
         # write mean info

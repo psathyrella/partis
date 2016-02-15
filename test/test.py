@@ -69,6 +69,9 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
+        if args.make_plots:
+            self.make_comparison_plots()
+            sys.exit()
         if not args.dont_run:
             self.run(args)
         print 'reading performance info'
@@ -78,6 +81,8 @@ class Tester(object):
         self.compare_production_results()
         for input_stype in self.stypes:
             self.compare_partition_cachefiles(input_stype=input_stype)
+        if args.make_plots:
+            self.make_comparison_plots()
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -207,7 +212,7 @@ class Tester(object):
             self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
 
     # ----------------------------------------------------------------------------------------
-    def read_partition_performance(self, version_stype, input_stype, debug=True):
+    def read_partition_performance(self, version_stype, input_stype, debug=False):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
         ptest = 'partition-' + input_stype + '-simu'
         if args.quick and ptest not in self.quick_tests:
@@ -277,6 +282,41 @@ class Tester(object):
                     print err
 
     # ----------------------------------------------------------------------------------------
+    def make_comparison_plots(self):
+        plotdirs = [
+            # self.perfdirs['ref'] + '/sw',  # ref sw performance
+            # self.perfdirs['ref'] + '/hmm', # ref hmm performance
+            # 'test/plots/data/sw',          # sw data parameters
+            # 'test/plots/data/hmm',         # hmm data parameters
+            'test/plots/data/sw/mute-freqs',
+            'test/plots/data/hmm/mute-freqs'
+            # 'test/plots/simu/hmm-true',    # true simulation parameters
+            # 'test/plots/simu/hmm-true/mute-freqs'
+        ]
+        base_check_cmd = './bin/compare.py --linewidths 7:2 --alphas 0.55:1 --str-colors #006600:#990012 --markersizes 3:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414 "
+        if os.getenv('www') is None:
+            www_dir = '_test-plots'
+        else:
+            www_dir = os.getenv('www') + '/partis/test'
+
+        # # if you want to do *all* the subdirs use this:
+        # recursive_subdirs = []
+        # for plotdir in plotdirs:
+        #     find_plotdirs_cmd = 'find ' + self.dirs['ref'] + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
+        #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
+
+        for plotdir in plotdirs:
+            print plotdir
+            check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs['ref'] + '/' + plotdir + ':' + self.dirs['new'] + '/' + plotdir
+            check_cmd += ' --outdir ' + www_dir + '/' + plotdir
+            check_call(check_cmd.split())
+        # check_call(['chmod', '664', htmlfname])
+        check_call(['./bin/permissify-www', www_dir])
+        
+#            # env.Command('test/_results/%s.passed' % name, out,
+#            #             './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
+        
+            # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
         ptest = 'partition-' + input_stype + '-simu'
@@ -355,6 +395,7 @@ parser.add_argument('--dont-run', action='store_true', help='don\'t actually run
 parser.add_argument('--dont-plot', action='store_true', help='don\'t make all the comparison plots')
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
+parser.add_argument('--make-plots', action='store_true')
 args = parser.parse_args()
 
 tester = Tester()
@@ -362,34 +403,6 @@ if args.bust_cache:
     tester.bust_cache()
 else:
     tester.test(args)
-
-# ----------------------------------------------------------------------------------------
-# make a bunch of comparison plots
-print 'skipping plots for the moment'
-sys.exit()
-plotdirs = ['test/plots/data/sw', 'test/plots/data/hmm', 'test/plots/simu/hmm-true', self.perfdirs['ref'] + '/sw', self.perfdirs['ref'] + '/hmm']
-base_check_cmd = './bin/compare.py --dont-calculate-mean-info --graphify --linewidth 1 --markersizes 2:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414
-if os.getenv('www') is None:
-    www_dir = '_test-plots'
-else:
-    www_dir = os.getenv('www') + '/partis/test'
-# # if you want to do *all* the subdirs use this:
-# recursive_subdirs = []
-# for plotdir in plotdirs:
-#     find_plotdirs_cmd = 'find ' + self.dirs['ref'] + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
-#     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
-for plotdir in plotdirs:
-    if args.dont_plot:
-        continue
-    plotdirstr = plotdir.replace(self.dirs['ref'] + '/', '')
-    check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs['ref'] + '/' + plotdirstr + ':' + self.dirs['new'] + '/' + plotdirstr
-    check_cmd += ' --outdir ' + www_dir + '/' + plotdirstr
-    check_call(check_cmd.split())
-check_call(['./bin/permissify-www', www_dir])
-
-#     env.Command('test/_results/%s.passed' % name, out,
-#                 './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
-
 
 def get_typical_variances():
     raise Exception('needs updating to work as a function')
