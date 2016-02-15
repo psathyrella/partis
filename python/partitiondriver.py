@@ -1288,6 +1288,9 @@ class PartitionDriver(object):
                 #     if self.args.debug:
                 #         print '      %s eroded line invalid' % eroded_line['unique_ids']
                 #     continue
+                # self.print_hmm_output(padded_line)
+                # self.print_hmm_output(eroded_line)
+                # sys.exit()
 
                 padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
                 eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
@@ -1391,7 +1394,7 @@ class PartitionDriver(object):
     def print_hmm_output(self, line, print_true=False):
         out_str_list = []
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):
+            for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
                 synthetic_true_line = copy.deepcopy(self.reco_info[uids[0]])
                 synthetic_true_line['unique_ids'] = uids
                 synthetic_true_line['seqs'] = [self.reco_info[iid]['seq'] for iid in uids]

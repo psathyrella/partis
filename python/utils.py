@@ -146,6 +146,7 @@ xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
 xcolumns['extra'] = tuple(['invalid', ])
+xcolumns['simu'] = tuple(['reco_id', 'indels'])
 xall_columns = set([k for cols in xcolumns.values() for k in cols])
 
 # ----------------------------------------------------------------------------------------
@@ -597,12 +598,11 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
-    if 'naive_seq' in line:
-        line['naive_seq'] = line['naive_seq'][len(fv_insertion_to_remove) : len(line['naive_seq']) - len(jf_insertion_to_remove)]
-        line['naive_seq'] = line['naive_seq'][line['v_5p_del'] : len(line['naive_seq']) - line['j_3p_del']]
-        if len(line['naive_seq']) != len(line['seqs'][0]):
-            raise Exception('didn\'t trim naive seq to proper length:\n  %s\n  %s' % (line['naive_seq'], line['seqs'][0]))
-        # color_mutants(line['naive_seq'], line['seqs'][0], print_result=True)
+    line['naive_seq'] = line['naive_seq'][len(fv_insertion_to_remove) : len(line['naive_seq']) - len(jf_insertion_to_remove)]
+    line['naive_seq'] = line['naive_seq'][line['v_5p_del'] : len(line['naive_seq']) - line['j_3p_del']]
+    if len(line['naive_seq']) != len(line['seqs'][0]):
+        raise Exception('didn\'t trim naive seq to proper length:\n  %s\n  %s' % (line['naive_seq'], line['seqs'][0]))
+    # color_mutants(line['naive_seq'], line['seqs'][0], print_result=True)
 
     if debug:
         print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
@@ -624,13 +624,8 @@ def add_qr_seqs(line, multi_seq):
 
     for region in regions:
         if multi_seq:
-            assert 'seqs' in line
             line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
-        else:
-            assert 'seq' in line
-            # qr_seq = get_single_qr_seq(region, line['seq'])
-            # if region + '_qr_seq' in line and qr_seq != line[region + '_qr_seq']:  # sw already has it, and we want to make sure it's the same
-            #     print 'WARNING qr seqs not equal for %s\n%s' % (line['unique_id'], line)
+        else:  # NOTE sw has already added the qr seq, so we could go back to checking that it's the same (but if it's ever different, it'll probably be some ridiculous pathological non-bcr sequence, so fuck 'em)
             line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
 
 # ----------------------------------------------------------------------------------------
@@ -688,8 +683,8 @@ def add_implicit_info(glfo, line, multi_seq, add_alignments=False, debug=False):
         line['invalid'] = True
     if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap
         line['invalid'] = True
-    if line['invalid']:
-        print '%s invalid' % (line['unique_ids'] if 'unique_ids' in line else line['unique_id'])
+    # if line['invalid']:
+    #     print '%s invalid' % (line['unique_ids'] if 'unique_ids' in line else line['unique_id'])
 
     if add_alignments:
         if not multi_seq:
