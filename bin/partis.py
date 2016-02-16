@@ -54,6 +54,7 @@ if 'ralph' in os.getenv('USER'):
     print 'TODO stop rewriting germlines at every sw step'
     print 'TODO make sure reset_effective_erosions_and_effective_insertions is actually modifying everything it should be'
     print 'TODO remove hist under/overflow warnings when simulating'
+    print 'TODO make csvs go in different dir thant plots/'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

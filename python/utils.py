@@ -141,13 +141,25 @@ column_configs = {
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
 xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions if r == 'v'])  # NOTE 'v' hack for aligned seqs
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
 xcolumns['extra'] = tuple(['invalid', ])
 xcolumns['simu'] = tuple(['reco_id', 'indels'])
 xall_columns = set([k for cols in xcolumns.values() for k in cols])
+
+common_implicit_columns = ['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions]
+single_per_seq_implicit_columns = set([r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+multi_per_seq_implicit_columns = set(common_implicit_columns + [k + 's' for k in single_per_seq_implicit_columns])
+single_per_seq_implicit_columns |= set(common_implicit_columns)  # NOTE careful! kind of a weird initialization sequence here
+
+# ----------------------------------------------------------------------------------------
+def get_implicit_keys(multi_seq):
+    if multi_seq:
+        return multi_per_seq_implicit_columns
+    else:
+        return single_per_seq_implicit_columns
 
 # ----------------------------------------------------------------------------------------
 def convert_to_presto(glfo, line):
@@ -559,6 +571,7 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
     the hmm yaml files.
     """
+
     # TODO have this change the aligned seqs as well
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
@@ -629,9 +642,17 @@ def add_qr_seqs(line, multi_seq):
             line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, multi_seq, add_alignments=False, debug=False):
-    """ Add to <line> a bunch of things that are initially only implicit. """
+def remove_implicit_info(line, multi_seq):
+    """ Delete everything that add_implicit_info() added. """
+    # TODO I should really move move this inside of add_implicit_info() somehow, so I can make sure if I remove and add a column it's the same as before
+    for col in get_implicit_keys(multi_seq):
+        if col in line:
+            del line[col]
 
+# ----------------------------------------------------------------------------------------
+def add_implicit_info(glfo, line, multi_seq, debug=False):
+    """ Add to <line> a bunch of things that are initially only implicit. """
+    initial_keys = set(line.keys())
     for k in line.keys():
         if multi_seq:
             if k in xcolumns['single_per_seq']:
@@ -686,14 +707,27 @@ def add_implicit_info(glfo, line, multi_seq, add_alignments=False, debug=False):
     # if line['invalid']:
     #     print '%s invalid' % (line['unique_ids'] if 'unique_ids' in line else line['unique_id'])
 
-    if add_alignments:
-        if not multi_seq:
-            raise Exception('not yet handled!')
-        add_v_alignments(glfo, line, debug)
+    if multi_seq:
+        add_alignments(glfo, line, debug)
+    else:
+        for region in regions:  # TODO implement for single seq lines
+            line['aligned_' + region + '_seq'] = 'ack!'
 
     for k in line.keys():
         if k not in xall_columns:
             print '  %s not in anything' % k
+
+    # make sure we added exactly what we expected to
+    new_keys = set(line.keys()) - initial_keys
+    these_implicit = get_implicit_keys(multi_seq)
+    if len(new_keys - these_implicit) > 0 or len(these_implicit - new_keys) > 0:  # TODO maybe remove this (for performance reasons)
+        print ''
+        print '           new   %s' % ' '.join(sorted(new_keys))
+        print '      implicit   %s' % ' '.join(sorted(these_implicit))
+        print 'new - implicit:  %s' % (' '.join(sorted(new_keys - these_implicit)))
+        print 'implicit - new:  %s' % (' '.join(sorted(these_implicit - new_keys)))
+        print ''
+        raise Exception('column/key problems')
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
@@ -1339,7 +1373,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def get_mutation_rate(germlines, line, restrict_to_region=''):
+def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
     if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
@@ -1347,6 +1381,8 @@ def get_mutation_rate(germlines, line, restrict_to_region=''):
         mashed_muted_seq = ''
         for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
             bounds = line['regional_bounds'][region]
+            if bounds[0] < 0 or bounds[1] > len(naive_seq) or bounds[0] > bounds[1]:  # this was happening because I set the bounds for the padded sequences, but then didn't reset them in reset_effective_erosions_and_effective_insertions(). For the time being, the check remains
+                raise Exception('ack! %s %s %s' % (line['unique_id'], bounds, naive_seq))
             mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
             mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
@@ -1882,7 +1918,7 @@ def count_gaps(seq, istop=None):
     return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
-def add_v_alignments(glfo, line, debug=False):
+def add_alignments(glfo, line, debug=False):
     """ add dots according to the imgt gapping scheme """
 
     def n_gaps(seq):
@@ -1935,6 +1971,8 @@ def add_v_alignments(glfo, line, debug=False):
         aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
     line['aligned_v_seqs'] = aligned_v_seqs
+    line['aligned_d_seqs'] = ['ack!' for _ in aligned_v_seqs]
+    line['aligned_j_seqs'] = ['ack!' for _ in aligned_v_seqs]
 
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):
