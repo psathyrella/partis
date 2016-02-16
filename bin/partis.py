@@ -47,14 +47,16 @@ parser.add_argument('--presto-output', action='store_true', help='write output f
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
 if 'ralph' in os.getenv('USER'):
-    print 'TODO make sure all mpl figures are getting closed'
-    print 'clean up print_reco_event, and get it working with indels'
-    print 'TODO holy crap stop recursively calling add_implicit_info and its ilk from itselvothers'
-    print 'TODO remove all the columns and all_columns checks (and seq/seqs assertions in add_qr_seqs)'
-    print 'TODO stop rewriting germlines at every sw step'
-    print 'TODO make sure reset_effective_erosions_and_effective_insertions is actually modifying everything it should be'
-    print 'TODO remove hist under/overflow warnings when simulating'
-    print 'TODO make csvs go in different dir thant plots/'
+    print '    TODO make sure all mpl figures are getting closed'
+    print '    TODO clean up print_reco_event, and get it working with indels'
+    print '    TODO holy crap stop recursively calling add_implicit_info and its ilk from itselvothers'
+    print '    TODO remove all the columns and all_columns checks (and seq/seqs assertions in add_qr_seqs)'
+    print '    TODO stop rewriting germlines at every sw step'
+    print '    TODO make sure reset_effective_erosions_and_effective_insertions is actually modifying everything it should be'
+    print '    TODO remove hist under/overflow warnings when simulating'
+    print '    TODO make csvs go in different dir thant plots/'
+    print '    TODO figure out what that damn hump\'s from in the mutation freqs'
+    print '    TODO move compare.py calls into import statements so you\'re not importing shit so many times'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')

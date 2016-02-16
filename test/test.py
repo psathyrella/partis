@@ -288,8 +288,8 @@ class Tester(object):
             # self.perfdirs['ref'] + '/hmm', # ref hmm performance
             # 'test/plots/data/sw',          # sw data parameters
             # 'test/plots/data/hmm',         # hmm data parameters
-            'test/plots/data/sw/mute-freqs',
-            'test/plots/data/hmm/mute-freqs'
+            # 'test/plots/data/sw/mute-freqs',
+            # 'test/plots/data/hmm/mute-freqs'
             # 'test/plots/simu/hmm-true',    # true simulation parameters
             # 'test/plots/simu/hmm-true/mute-freqs'
         ]

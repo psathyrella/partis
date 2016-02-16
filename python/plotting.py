@@ -182,7 +182,6 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
     assert os.path.exists(plotdir)
-
     fig, ax = mpl_init(figsize=figsize)
     mpl.rcParams.update({'legend.fontsize' : 15})
 
@@ -517,10 +516,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             if '_gene' in varname and '_vs_' not in varname:
                 no_labels = True
                 if 'j_' not in varname:
-                    figsize = (3, 1.5)  #1000, 500
+                    figsize = (10, 5)
                 line_width_override = 1
             elif 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
-                figsize = (3, 1.5)  #1000, 500
+                figsize = (10, 5)
                 bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
 
         if 'IGH' in varname:
