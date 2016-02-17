@@ -55,6 +55,13 @@ class TreeGenerator(object):
                 print ' with random number of leaves with parameter %d' % self.args.n_leaves
 
     #----------------------------------------------------------------------------------------
+    def convert_observed_changes_to_branch_length(self, mute_freq):
+        # for consistency with the rest of the code base, we call it <mute_freq> instead of "fraction of observed changes"
+        # JC69 formula, from wikipedia
+        # NOTE this helps, but is not sufficient, because the mutation rate is super dominated by a relative few very highly mutated positions
+        return -(3./4) * math.log(1. - (4./3)* mute_freq)
+
+    #----------------------------------------------------------------------------------------
     def read_mute_freqs(self, mute_freq_dir):
         # NOTE these are mute freqs, not branch lengths, but it's ok for now
         for mtype in ['all',] + utils.regions:
@@ -70,7 +77,7 @@ class TreeGenerator(object):
             check_sum = 0.0
             for ibin in range(1, mutehist.n_bins + 1):  # ignore under/overflow bins
                 freq = mutehist.get_bin_centers()[ibin]
-                branch_length = float(freq)
+                branch_length = self.convert_observed_changes_to_branch_length(float(freq))
                 prob = mutehist.bin_contents[ibin]
                 self.branch_lengths[mtype]['lengths'].append(branch_length)
                 self.branch_lengths[mtype]['probs'].append(prob)
@@ -131,9 +138,9 @@ class TreeGenerator(object):
                 print '    asked for', ages[itree],
             for name, depth in get_leaf_node_depths(treestrs[itree]).items():
                 if self.args.debug > 1:
-                    print '%s:%f' % (name, depth),
-                if not utils.is_normed(depth / ages[itree], this_eps=1e-6):
-                    raise Exception('asked for branch length %f but got %f\n   %s' % (ages[itree], depth, treestrs[itree]))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
+                    print '%s:%.8f' % (name, depth),
+                if not utils.is_normed(depth / ages[itree], this_eps=1e-4):
+                    raise Exception('asked for branch length %.8f but got %.8f\n   %s' % (ages[itree], depth, treestrs[itree]))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
             total_length += ages[itree]
             total_leaves += len(re.findall('t', treestrs[itree]))
             if self.args.debug > 1:
