@@ -161,9 +161,10 @@ class MuteFreqer(object):
             self.finalize()
 
         plotdir = base_plotdir + '/mute-freqs'
-        utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
+        overall_plotdir = plotdir + '/overall'
+        utils.prep_dir(overall_plotdir, multilings=('*.csv', '*.svg'))
         for region in utils.regions:
-            utils.prep_dir(plotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
+            utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
         for gene in self.counts:
@@ -187,12 +188,12 @@ class MuteFreqer(object):
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
         # make mean mute freq hists
-        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
         for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
 
         if not only_csv:  # write html file and fix permissiions
-            plotting.make_html(plotdir)
+            plotting.make_html(overall_plotdir)
             for region in utils.regions:
                 plotting.make_html(plotdir + '/' + region, n_columns=1)
 

@@ -195,7 +195,7 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
-        utils.prep_dir(plotdir + '/plots', wildling=None, multilings=['*.csv', '*.svg', '*.root'])
+        utils.prep_dir(plotdir, wildling=None, multilings=['*.csv', '*.svg', '*.root'])
         for column in self.values:
             if self.only_correct_gene_fractions and column not in bool_columns:
                 continue

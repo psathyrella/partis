@@ -310,7 +310,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if write_csv:
         assert more_hists is None
         if csv_fname is None:
-            hist.write(plotdir + '/plots/' + plotname + '.csv')
+            hist.write(plotdir + '/' + plotname + '.csv')
         else:
             hist.write(csv_fname)
 

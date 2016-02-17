@@ -106,7 +106,8 @@ class ParameterCounter(object):
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None, only_csv=False):
         print '  plotting parameters'
         # start = time.time()
-        utils.prep_dir(plotdir + '/plots')  #, multilings=('*.csv', '*.svg'))
+        overall_plotdir = plotdir + '/overall'
+        utils.prep_dir(overall_plotdir)  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
             if column == 'all':
                 continue
@@ -144,7 +145,7 @@ class ParameterCounter(object):
 
             if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
                 thisplotdir = plotdir + '/' + column
-                utils.prep_dir(thisplotdir + '/plots', multilings=['*.csv', '*.svg'])
+                utils.prep_dir(thisplotdir, multilings=['*.csv', '*.svg'])
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
@@ -154,7 +155,7 @@ class ParameterCounter(object):
 
             plotname = column
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
-            plotting.draw_no_root(hist, plotname=plotname, plotdir=plotdir, errors=True, write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(hist, plotname=plotname, plotdir=overall_plotdir, errors=True, write_csv=True, only_csv=only_csv)
 
         self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 

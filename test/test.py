@@ -200,13 +200,13 @@ class Tester(object):
 
             # fraction of genes correct
             for region in utils.regions:
-                fraction_correct = read_performance_file(perfdir + '/' + method + '/plots/' + region + '_gene.csv', 'contents', only_ibin=1)
+                fraction_correct = read_performance_file(perfdir + '/' + method + '/' + region + '_gene.csv', 'contents', only_ibin=1)
                 if debug:
                     print '      %s %.3f' % (region, fraction_correct)
                 self.perf_info[version_stype][input_stype + '-' + method + '-' + region + '_gene_correct'] = fraction_correct
 
             # hamming fraction
-            hamming_hist = Hist(fname=perfdir + '/' + method + '/plots/hamming_to_true_naive.csv')
+            hamming_hist = Hist(fname=perfdir + '/' + method + '/hamming_to_true_naive.csv')
             if debug:
                 print '      mean hamming %.2f' % hamming_hist.get_mean()
             self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
@@ -284,10 +284,11 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def make_comparison_plots(self):
         plotdirs = [
-            # self.perfdirs['ref'] + '/sw',  # ref sw performance
-            # self.perfdirs['ref'] + '/hmm', # ref hmm performance
+            self.perfdirs['ref'] + '/sw',  # ref sw performance
+            self.perfdirs['ref'] + '/hmm', # ref hmm performance
             # 'test/plots/data/sw',          # sw data parameters
             # 'test/plots/data/hmm',         # hmm data parameters
+            # 'test/plots/data/hmm/mute-freqs/v',
             # 'test/plots/data/sw/mute-freqs',
             # 'test/plots/data/hmm/mute-freqs'
             # 'test/plots/simu/hmm-true',    # true simulation parameters
