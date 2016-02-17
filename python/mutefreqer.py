@@ -18,7 +18,7 @@ class MuteFreqer(object):
     def __init__(self, germline_seqs):  #, base_outdir='', base_plotdir='', write_parameters=True, plot_parameters=True):
         self.germline_seqs = germline_seqs
         self.counts, self.freqs, self.plotting_info = {}, {}, {}
-        n_bins, xmin, xmax = 100, 0.0, 0.5
+        n_bins, xmin, xmax = 200, 0., 1.
         self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
         for region in utils.regions:
             self.mean_rates[region] = Hist(n_bins, xmin, xmax)

@@ -59,7 +59,8 @@ class TreeGenerator(object):
         # for consistency with the rest of the code base, we call it <mute_freq> instead of "fraction of observed changes"
         # JC69 formula, from wikipedia
         # NOTE this helps, but is not sufficient, because the mutation rate is super dominated by a relative few very highly mutated positions
-        return -(3./4) * math.log(1. - (4./3)* mute_freq)
+        argument = max(1e-2, 1. - (4./3)* mute_freq)  # HACK arbitrarily cut it off at 0.01 (only affects the the very small fraction with mute_freq higher than about 0.75)
+        return -(3./4) * math.log(argument)
 
     #----------------------------------------------------------------------------------------
     def read_mute_freqs(self, mute_freq_dir):
@@ -73,7 +74,7 @@ class TreeGenerator(object):
 
             # if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
             #     print 'WARNING nonzero under/overflow bins read from %s' % infname
-            mutehist.normalize(include_overflows=False)  # if it was written with overflows included, it'll need to be renormalized
+            mutehist.normalize(include_overflows=False, overflow_eps_to_ignore=1e-2)  # if it was written with overflows included, it'll need to be renormalized
             check_sum = 0.0
             for ibin in range(1, mutehist.n_bins + 1):  # ignore under/overflow bins
                 freq = mutehist.get_bin_centers()[ibin]
