@@ -20,7 +20,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = './bin/partis.py'
-        self.datafname = 'test/mishmash.csv'  # some data from adaptive, chaim, and vollmers
+        self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         self.label = 'test'
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
@@ -60,7 +60,7 @@ class Tester(object):
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
 
         add_inference_tests('ref')
-        self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
+        self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : []}  # ['--skip-unproductive']}
         self.tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
         self.tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
         add_inference_tests('new')
