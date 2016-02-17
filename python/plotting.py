@@ -436,7 +436,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     hists = []
     for idir in range(len(args.plotdirs)):
         string_to_ignore = None if args.strings_to_ignore is None else args.strings_to_ignore[idir]
-        hist_list = get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], string_to_ignore=string_to_ignore)
+        hist_list = get_hists_from_dir(args.plotdirs[idir], args.names[idir], string_to_ignore=string_to_ignore)
         hists.append(hist_list)
 
     # then loop over all the <varname>s we found
@@ -462,6 +462,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             all_hists = add_bin_labels_not_in_all_hists(all_hists)
 
         if args.calculate_mean_info:
+            raise Exception('needs updating (at least to remove plots/ )')
             meaninfo = get_mean_info(all_hists)
             all_names.append(varname)
             all_means.append(meaninfo['means'])
@@ -555,6 +556,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                      linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend, alphas=args.alphas)
 
     if args.calculate_mean_info:
+        assert False
         # write mean info
         with opener('w')(args.outdir + '/plots/means.csv') as meanfile:
             writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
