@@ -4,7 +4,7 @@ FROM matsengrp/cpp
 RUN sed 's/main$/main universe/' -i /etc/apt/sources.list
 RUN apt-get update && apt-get install -y software-properties-common python-software-properties
 RUN add-apt-repository ppa:webupd8team/java -y
-RUN apt-get update
+RUN sudo apt-get update 2>&1 | tee /tmp/apt.err && ! grep -q '^[WE]' /tmp/apt.err  # shenanigans to induce failure since apt-get update is unduly tolerant of failures
 RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 RUN apt-get install -y \
     astyle \
