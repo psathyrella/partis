@@ -173,7 +173,7 @@ def convert_to_presto(glfo, line):
     else:
         del line['indelfo']
 
-    single_info = synthesize_single_seq_line(glfo, line, iseq=0)
+    single_info = synthesize_single_seq_line(line, iseq=0)
 
     presto_line = {}
     for head, phead in presto_headers.items():
@@ -748,14 +748,9 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', label='', indelfo=None, indelfos=None):
-    """ if <line> describes a whole event, with multiple sequences, it'll have <unique_ids> and <seqs> fields; otherwise it'll have <unique_id> and <seq> """
-    event_str_list = []
-    if 'unique_ids' in line:
+    if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
-            tmpline = copy.deepcopy(line)
-            del tmpline['unique_ids']  # not that they'd cause any harm, but may as well be tidy
-            del tmpline['seqs']
-            tmpline['seq'] = line['seqs'][iseq]
+            tmpline = synthesize_single_seq_line(line, iseq)
             this_extra_str = ''
             if indelfos[iseq] is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
                 # if indelfos[iseq]['indels'] is not None:
@@ -784,7 +779,6 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label='', in
                                                       label=(label if iseq==0 else ''),
                                                       one_line=(iseq>0),
                                                       indelfo=None)
-            event_str_list.append(event_str)
     else:
         tmpline = dict(line)
         if indelfo is not None and indelfo['reversed_seq'] != '':  # and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
@@ -793,7 +787,6 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label='', in
             if 'indels' not in extra_str:
                 extra_str += color('yellow', 'indels')
         event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line, indelfo=indelfo)
-        event_str_list.append(event_str)
 
 # ----------------------------------------------------------------------------------------
 def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=None, one_line=False):
@@ -811,13 +804,6 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
         #     assert indelfo is None  # don't want indel info from two places
         #     indelfo = line['indels']  #{'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
         #     reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
-
-    v_5p_del = int(line['v_5p_del'])
-    v_3p_del = int(line['v_3p_del'])
-    d_5p_del = int(line['d_5p_del'])
-    d_3p_del = int(line['d_3p_del'])
-    j_5p_del = int(line['j_5p_del'])
-    j_3p_del = int(line['j_3p_del'])
 
     if indelfo is not None:
         if len(indelfo['indels']) == 0:  # TODO make this less hackey
@@ -899,28 +885,28 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
     # check if there isn't enough space for dots in the vj line
     no_space = False
     interior_length = len(line['vd_insertion']) + len(line['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
-    if v_3p_del + j_5p_del > interior_length:
+    if line['v_3p_del'] + line['j_5p_del'] > interior_length:
         no_space = True
 
     if no_space:
-        v_3p_del_str = '.' + str(v_3p_del) + '.'
-        j_5p_del_str = '.' + str(j_5p_del) + '.'
+        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
+        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
         if len(v_3p_del_str + j_5p_del_str) <= interior_length:  # ok, we've got space now
             no_space = False
     else:
-        v_3p_del_str = '.'*v_3p_del
-        j_5p_del_str = '.'*j_5p_del
+        v_3p_del_str = '.'*line['v_3p_del']
+        j_5p_del_str = '.'*line['j_5p_del']
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {}
     eroded_seqs_dots['v'] = line['v_gl_seq'] + v_3p_del_str
-    eroded_seqs_dots['d'] = '.'*d_5p_del + line['d_gl_seq'] + '.'*d_3p_del
-    eroded_seqs_dots['j'] = j_5p_del_str + line['j_gl_seq'] + '.'*j_3p_del
+    eroded_seqs_dots['d'] = '.'*line['d_5p_del'] + line['d_gl_seq'] + '.'*line['d_3p_del']
+    eroded_seqs_dots['j'] = j_5p_del_str + line['j_gl_seq'] + '.'*line['j_3p_del']
 
-    v_5p_del_str = '.'*v_5p_del
-    if v_5p_del > 50:
-        v_5p_del_str = '...' + str(v_5p_del) + '...'
+    v_5p_del_str = '.'*line['v_5p_del']
+    if line['v_5p_del'] > 50:
+        v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
     insert_line = ' '*len(line['fv_insertion']) + ' '*line['lengths']['v']
     insert_line += ' '*len(v_5p_del_str)
@@ -929,24 +915,24 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
     insert_line += line['dj_insertion']
     insert_line += ' ' * line['lengths']['j']
     insert_line += j_right_extra
-    insert_line += ' ' * j_3p_del  # no damn idea why these need to be commented out for some cases in the igblast parser...
+    insert_line += ' ' * line['j_3p_del']  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
 
-    germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - d_5p_del
+    germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
     d_line = ' ' * germline_d_start
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
-    d_line += ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - d_3p_del)
+    d_line += ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'])
     d_line += j_right_extra
-    d_line += ' ' * j_3p_del
+    d_line += ' ' * line['j_3p_del']
     # d_line += ' '*len(line['jf_insertion'])
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
-    germline_v_end = len(line['fv_insertion']) + len(line['v_gl_seq']) + v_3p_del - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
-    germline_j_start = germline_d_end + 1 - d_3p_del + len(line['dj_insertion']) - j_5p_del
+    germline_v_end = len(line['fv_insertion']) + len(line['v_gl_seq']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+    germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
@@ -974,7 +960,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
 
     # then query sequence
     v_5p_del_space_str = ' '*len(v_5p_del_str)
-    j_3p_del_space_str = ' ' * j_3p_del
+    j_3p_del_space_str = ' ' * line['j_3p_del']
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
     out_str_list.append('%s    %s' % (extra_str, final_seq))
@@ -1877,14 +1863,26 @@ def auto_slurm(n_procs):
     return False
 
 # ----------------------------------------------------------------------------------------
-def synthesize_single_seq_line(glfo, line, iseq):
+def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
     for col in xcolumns['single_per_seq']:
-        if col == 'aligned_v_seqs' and col not in hmminfo:  # TODO clean this up
-            continue
         hmminfo[col] = hmminfo[col + 's'][iseq]
         del hmminfo[col + 's']
+    return hmminfo
+
+# ----------------------------------------------------------------------------------------
+def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
+    """ without modifying <line>, make a multi_seq line from the single seq <line> """
+    hmminfo = copy.deepcopy(single_seq_line)
+    remove_all_implicit_info(hmminfo, multi_seq=False)
+    non_implicit_columns = set(xcolumns['multi_per_seq']) - multi_per_seq_implicit_columns  # a.t.m. it's just 'seq' and 'unique_id'
+    if set(per_seq_info.keys()) != non_implicit_columns:
+        raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_columns)))
+    for col in non_implicit_columns:
+        hmminfo[col] = copy.deepcopy(per_seq_info[col])
+        del hmminfo[col[:-1]]  # remove the 's' at the end to get the single seq key
+    add_implicit_info(glfo, hmminfo, multi_seq=True)
     return hmminfo
 
 # ----------------------------------------------------------------------------------------                    

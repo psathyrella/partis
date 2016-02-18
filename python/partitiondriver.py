@@ -1314,7 +1314,7 @@ class PartitionDriver(object):
                         true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
 
                     for iseq in range(len(uids)):
-                        singlefo = utils.synthesize_single_seq_line(self.glfo, eroded_line, iseq)
+                        singlefo = utils.synthesize_single_seq_line(eroded_line, iseq)
                         if pcounter is not None:
                             pcounter.increment_per_sequence_params(singlefo)
                         if true_pcounter is not None:
@@ -1366,7 +1366,7 @@ class PartitionDriver(object):
             for uids, line in eroded_annotations.items():
                 if len(line['seqs']) > 1:
                     raise Exception('can\'t handle multiple seqs')
-                annotations_for_vollmers[uids] = utils.synthesize_single_seq_line(self.glfo, line, iseq)
+                annotations_for_vollmers[uids] = utils.synthesize_single_seq_line(line, iseq)
 
             # perform annotation clustering for each threshold and write to file
             for thresh in self.args.annotation_clustering_thresholds:
@@ -1395,12 +1395,9 @@ class PartitionDriver(object):
     def print_hmm_output(self, line, print_true=False):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
-                synthetic_true_line = copy.deepcopy(self.reco_info[uids[0]])
-                synthetic_true_line['unique_ids'] = uids
-                synthetic_true_line['seqs'] = [self.reco_info[iid]['seq'] for iid in uids]
-                del synthetic_true_line['unique_id']
-                del synthetic_true_line['seq']
-                # del synthetic_true_line['indels']
+                seqs = [self.reco_info[iid]['seq'] for iid in uids]
+                per_seq_info = {'unique_ids' : uids, 'seqs' : seqs}
+                synthetic_true_line = utils.synthesize_multi_seq_line(self.glfo, self.reco_info[uids[0]], per_seq_info)
                 indelfos = [self.reco_info[iid]['indels'] for iid in uids]
                 utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', indelfos=indelfos)
 

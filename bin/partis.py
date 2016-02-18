@@ -49,7 +49,7 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO clean up print_reco_event, and get it working with indels'
-    print '    TODO reinstate data partition test'
+    print '    TODO reinstate data partition test, and add some garbage-ey seqs to mishmash.fa'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
