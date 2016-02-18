@@ -1280,11 +1280,8 @@ class PartitionDriver(object):
                         print '      %s padded line invalid' % padded_line['unique_ids']
                     continue
 
-                # make a new dict, in which we will edit the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                eroded_line = copy.deepcopy(padded_line)
-                utils.reset_effective_erosions_and_effective_insertions(eroded_line)  # this doesn't reset everything we might want it to...
-                utils.remove_implicit_info(eroded_line, multi_seq=True)  # ...but it's easier to just remove all the implicit info and then reset it
-                utils.add_implicit_info(self.glfo, eroded_line, multi_seq=True)  # TODO this method is kind of hackey, though, I should really just not add any implicit info in reset_effective_erosions_and_effective_insertions() the first place
+                # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
+                eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line)
                 if eroded_line['invalid']:
                     n_invalid_events += 1
                     print '      %s eroded line invalid (but padded line not!)' % eroded_line['unique_ids']

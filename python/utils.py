@@ -149,10 +149,10 @@ xcolumns['extra'] = tuple(['invalid', ])
 xcolumns['simu'] = tuple(['reco_id', 'indels'])
 xall_columns = set([k for cols in xcolumns.values() for k in cols])
 
-common_implicit_columns = ['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions]
+common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
 single_per_seq_implicit_columns = set([r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
-multi_per_seq_implicit_columns = set(common_implicit_columns + [k + 's' for k in single_per_seq_implicit_columns])
-single_per_seq_implicit_columns |= set(common_implicit_columns)  # NOTE careful! kind of a weird initialization sequence here
+multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
+single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
 
 # ----------------------------------------------------------------------------------------
 def get_implicit_keys(multi_seq):
@@ -563,7 +563,7 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     return trimmed_seq, final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
-def reset_effective_erosions_and_effective_insertions(line, debug=False):
+def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=False):
     """ 
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -571,8 +571,12 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
     the hmm yaml files.
     """
+    if 'seqs' not in padded_line:
+        raise Exception('this function should only be called for multi_seq lines')
 
-    # TODO have this change the aligned seqs as well
+    line = copy.deepcopy(padded_line)
+    remove_all_implicit_info(line, multi_seq=True)
+
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
 
@@ -603,25 +607,21 @@ def reset_effective_erosions_and_effective_insertions(line, debug=False):
     jf_insertion_to_remove = insertions_to_remove[0]['jf']
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
-    line['cyst_position'] -= line['v_5p_del'] + len(fv_insertion_to_remove)
-    line['tryp_position'] -= line['v_5p_del'] + len(fv_insertion_to_remove)
 
     for iseq in range(len(line['seqs'])): # TODO note, though, that this trims *all* the seqs according to the read truncation from the zeroth sequence
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
-    line['naive_seq'] = line['naive_seq'][len(fv_insertion_to_remove) : len(line['naive_seq']) - len(jf_insertion_to_remove)]
-    line['naive_seq'] = line['naive_seq'][line['v_5p_del'] : len(line['naive_seq']) - line['j_3p_del']]
-    if len(line['naive_seq']) != len(line['seqs'][0]):
-        raise Exception('didn\'t trim naive seq to proper length:\n  %s\n  %s' % (line['naive_seq'], line['seqs'][0]))
-    # color_mutants(line['naive_seq'], line['seqs'][0], print_result=True)
-
     if debug:
         print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
 
     line['fv_insertion'] = final_fv_insertion
     line['jf_insertion'] = final_jf_insertion
+
+    add_implicit_info(glfo, line, multi_seq=True)
+
+    return line
 
 # ----------------------------------------------------------------------------------------
 def add_qr_seqs(line, multi_seq):
@@ -642,25 +642,35 @@ def add_qr_seqs(line, multi_seq):
             line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
 
 # ----------------------------------------------------------------------------------------
-def remove_implicit_info(line, multi_seq):
-    """ Delete everything that add_implicit_info() added. """
-    # TODO I should really move move this inside of add_implicit_info() somehow, so I can make sure if I remove and add a column it's the same as before
+def remove_all_implicit_info(line, multi_seq):
     for col in get_implicit_keys(multi_seq):
         if col in line:
             del line[col]
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, multi_seq, debug=False):
-    """ Add to <line> a bunch of things that are initially only implicit. """
-    initial_keys = set(line.keys())
+def check_for_forbidden_keys(line, multi_seq):
+    if multi_seq:
+        forbidden_keys = xcolumns['single_per_seq']
+    else:
+        forbidden_keys = xcolumns['multi_per_seq']
     for k in line.keys():
-        if multi_seq:
-            if k in xcolumns['single_per_seq']:
-                raise Exception('%s in multi seq line' % k)
-        else:
-            if k in xcolumns['multi_per_seq']:
-                raise Exception('%s in single seq line' % k)
+        if k in forbidden_keys:
+            raise Exception('forbidden key %s in line' % k)
 
+# ----------------------------------------------------------------------------------------
+def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=False):
+    """ Add to <line> a bunch of things that are initially only implicit. """
+
+    # check for existing and unexpected keys
+    if existing_implicit_keys is not None:  # remove any existing implicit keys, keeping track of their values to make sure they're the same afterwards
+        pre_existing_info = {}
+        for ekey in existing_implicit_keys:
+            pre_existing_info[ekey] = copy.deepcopy(line[ekey])
+            del line[ekey]
+    initial_keys = set(line.keys())  # keep track of the keys that are in <line> to start with (so we know which ones we added)
+    check_for_forbidden_keys(line, multi_seq)
+
+    # add the regional germline seqs and their lengths
     line['lengths'] = {}  # length of each match (including erosion)
     for region in regions:
         uneroded_gl_seq = glfo['seqs'][region][line[region + '_gene']]
@@ -670,17 +680,17 @@ def add_implicit_info(glfo, line, multi_seq, debug=False):
         line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]
         line['lengths'][region] = length
 
-    # NOTE see get_conserved_codon_position() -- they do similar things, but start from different information
+    # add codon-related stuff
     eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']] - line['v_5p_del'] + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
     eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - line['j_5p_del']
     line['cyst_position'] = eroded_gl_cpos
     tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) + line['lengths']['d'] + len(line['dj_insertion'])
     line['tryp_position'] = tpos_in_joined_seq
     line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
-    line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
 
-    # add naive seq bounds for each region (could stand to make this more concise)
-    start, end = {}, {}
+    # add naive seq stuff
+    line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
+    start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = 0  # holy fuck, look at that, I start at zero here, but at the end of the fv insertion in add_qr_seqs(). Scary!
     end['v'] = start['v'] + len(line['fv_insertion'] + line['v_gl_seq'])  # base just after the end of v
     start['d'] = end['v'] + len(line['vd_insertion'])
@@ -689,6 +699,7 @@ def add_implicit_info(glfo, line, multi_seq, debug=False):
     end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
+    # add regional query seqs
     add_qr_seqs(line, multi_seq)
 
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
@@ -704,18 +715,18 @@ def add_implicit_info(glfo, line, multi_seq, debug=False):
         line['invalid'] = True
     if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap
         line['invalid'] = True
-    # if line['invalid']:
-    #     print '%s invalid' % (line['unique_ids'] if 'unique_ids' in line else line['unique_id'])
 
+    # add alignment info
     if multi_seq:
         add_alignments(glfo, line, debug)
     else:
         for region in regions:  # TODO implement for single seq lines
             line['aligned_' + region + '_seq'] = 'ack!'
 
+    # make sure we didn't add any unexpected columns (this may duplicate the newer check below)
     for k in line.keys():
         if k not in xall_columns:
-            print '  %s not in anything' % k
+            raise Exception('unexpected key %s' % k)
 
     # make sure we added exactly what we expected to
     new_keys = set(line.keys()) - initial_keys
@@ -728,6 +739,12 @@ def add_implicit_info(glfo, line, multi_seq, debug=False):
         print 'implicit - new:  %s' % (' '.join(sorted(these_implicit - new_keys)))
         print ''
         raise Exception('column/key problems')
+
+    # make sure that any pre-existing implicit info matches what we just added
+    if existing_implicit_keys is not None:
+        for ekey in existing_implicit_keys:
+            if pre_existing_info[ekey] != line[ekey]:
+                raise Exception('pre-existing info %s doesn\'t match new info %s for %s' % (pre_existing_info[ekey], line[ekey], line['unique_ids'] if multi_seq else line['unique_id']))
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):

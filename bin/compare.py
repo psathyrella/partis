@@ -31,6 +31,8 @@ parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--strings-to-ignore')  # remove this string from the plot names in each dir (e.g. '-mean-bins') NOTE replaces '_' with '-'
 
+print 'TODO this should really be an importable module, not its own script'
+
 args = parser.parse_args()
 if args.strings_to_ignore is not None:
     args.strings_to_ignore = args.strings_to_ignore.replace('_', '-')

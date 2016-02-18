@@ -140,7 +140,6 @@ class RecombinationEvent(object):
     # ----------------------------------------------------------------------------------------
     def print_event(self):
         line = {}  # collect some information into a form that print_reco_event understands
-        # line['cdr3_length'] = self.cdr3_length
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
         for boundary in utils.boundaries:
@@ -149,15 +148,16 @@ class RecombinationEvent(object):
             line[erosion + '_del'] = self.erosions[erosion]
         for erosion in utils.effective_erosions:
             line[erosion + '_del'] = self.effective_erosions[erosion]
-        # line['cyst_position'] = self.final_cyst_position
-        # line['tryp_position'] = self.final_tryp_position
         assert 'fv_insertion' not in line  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
         assert 'jf_insertion' not in line
         line['fv_insertion'] = ''
         line['jf_insertion'] = ''
         line['seqs'] = self.final_seqs
         line['unique_ids'] = [i for i in range(len(self.final_seqs))]
-        utils.add_implicit_info(self.glfo, line, multi_seq=True)
+        line['cdr3_length'] = self.cdr3_length
+        line['cyst_position'] = self.final_cyst_position
+        line['tryp_position'] = self.final_tryp_position
+        utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('cdr3_length', 'cyst_position', 'tryp_position'))
         utils.print_reco_event(self.glfo['seqs'], line, indelfos=self.indelfo)
         # for imute in range(len(self.final_seqs)):
         #     line['seq'] = self.final_seqs[imute]
