@@ -46,7 +46,7 @@ parser.add_argument('--print-cluster-annotations', action='store_true', help='pr
 parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
-if 'ralph' in os.getenv('USER'):
+if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO clean up print_reco_event, and get it working with indels'
     print '    TODO holy crap stop recursively calling add_implicit_info and its ilk from itselvothers'
