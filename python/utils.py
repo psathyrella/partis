@@ -819,13 +819,6 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
     j_5p_del = int(line['j_5p_del'])
     j_3p_del = int(line['j_3p_del'])
 
-# # ----------------------------------------------------------------------------------------
-#     original_seqs = {}  # original (non-eroded) germline seqs
-#     lengths = {}  # length of each match (including erosion)
-#     eroded_seqs = {}  # eroded germline seqs
-#     get_reco_event_seqs(germlines, line, original_seqs, lengths, eroded_seqs)
-# # ----------------------------------------------------------------------------------------
-
     if indelfo is not None:
         if len(indelfo['indels']) == 0:  # TODO make this less hackey
             indelfo = None
@@ -982,40 +975,13 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
     # then query sequence
     v_5p_del_space_str = ' '*len(v_5p_del_str)
     j_3p_del_space_str = ' ' * j_3p_del
-    if 'chops' in line:
-        assert False  # deprecated
-        if line['chops']['left'] > 0:
-            v_5p_del_space_str = v_5p_del_space_str[ : -line['chops']['left']]
-            final_seq = color('green', '.'*line['chops']['left']) + final_seq
-        if line['chops']['right'] > 0:
-            j_3p_del_space_str = j_3p_del_space_str[line['chops']['right'] : ]
-            final_seq = final_seq + color('green', '.'*line['chops']['right'])
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
-
     out_str_list.append('%s    %s' % (extra_str, final_seq))
-    # and finally some extra info
     out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
-    # out_str_list.append(' %4.0f%%' % (100 * float(n_muted) / n_total))
-    # if 'logprob' in line:
-    #     out_str_list.append('  score: %s' % line['logprob'])
-    # if 'cdr3_length' in line:
-    #     out_str_list.append('   cdr3: %d' % int(line['cdr3_length']))
     out_str_list.append('\n')
 
-    # if print_width is not None:
-    #     a_str_list, b_str_list = [], []
-    #     for line in out_str_list:
-    #         a_str_list.append(line[ : print_width] + '\n')
-    #         b_str_list.append(line[print_width : ])
-    #     out_str_list = a_str_list + b_str_list
-
     print ''.join(out_str_list),
-
-    assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
-    assert ' ' not in line['seq']
-    assert '[' not in line['seq']
-    assert ']' not in line['seq']
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
