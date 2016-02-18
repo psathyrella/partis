@@ -71,18 +71,16 @@ class Tester(object):
     def test(self, args):
         if args.make_plots:
             self.make_comparison_plots()
-            sys.exit()
+            sys.exit(0)
         if not args.dont_run:
             self.run(args)
-        print 'reading performance info'
         for version_stype in self.stypes:
             self.read_performance_info(version_stype)
-        self.compare_performance()
+        self.compare_performance(input_stype='ref')
+        self.compare_partition_cachefiles(input_stype='ref')
         self.compare_production_results()
-        for input_stype in self.stypes:
-            self.compare_partition_cachefiles(input_stype=input_stype)
-        if args.make_plots:
-            self.make_comparison_plots()
+        self.compare_performance(input_stype='new')
+        self.compare_partition_cachefiles(input_stype='new')
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -238,10 +236,10 @@ class Tester(object):
                     print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
 
     # ----------------------------------------------------------------------------------------
-    def compare_performance(self):
-        # NOTE does *not* regenerate the reference performance file based on the reference outputs  UPDATE hm, wait, do I still use the performance files?
-        print 'comparing to reference performance'
+    def compare_performance(self, input_stype):
+        print 'performance with %s simulation and parameters' % input_stype
 
+        # make sure there's a new performance value for each reference one, and vice versa
         refkeys = set(self.perf_info['ref'].keys())
         newkeys = set(self.perf_info['new'].keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
@@ -251,6 +249,8 @@ class Tester(object):
             raise Exception('')
 
         for name in self.perf_info['ref']:  # don't use the sets above so we get the nice ordering
+            if input_stype not in name:
+                continue
             ref_val = self.perf_info['ref'][name]
             new_val = self.perf_info['new'][name]
             val_type = name.split('-')[-1]
@@ -269,15 +269,16 @@ class Tester(object):
         if args.quick:
             return
         print 'diffing production results'
-        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu']:
-            cmd = '  diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
-            print cmd
+        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu/hmm-true', 'test/parameters/simu/sw', 'test/parameters/simu/hmm']:
+            print '    %s' % fname
+            cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             if proc.returncode != 0:
                 outlines = [ l for l in out.split('\n') if 'differ' in l ]
                 n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
-                print utils.color('red', '    %d / %d files differ' % (len(outlines), n_total_files))
+                print utils.color('red', '      %d / %d files differ' % (len(outlines), n_total_files)),
+                print '  (%s)' % cmd
                 if err != '':
                     print err
 
@@ -324,7 +325,7 @@ class Tester(object):
         if args.quick and ptest not in self.quick_tests:
             return
 
-        print '%s partition cache file' % input_stype
+        print '%s input partition cache file' % input_stype
 
         def readcache(fname):
             cache = {}
@@ -342,9 +343,9 @@ class Tester(object):
         newkeys = set(newcache.keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
             if len(refkeys - newkeys) > 0:
-                print utils.color('red', '  %d only in ref' % len(refkeys - newkeys))
+                print utils.color('red', '  %d only in ref version' % len(refkeys - newkeys))
             if len(newkeys - refkeys) > 0:
-                print utils.color('red', '  %d only in new' % len(newkeys - refkeys))
+                print utils.color('red', '  %d only in new version' % len(newkeys - refkeys))
             print '  %d in common' % len(refkeys & newkeys)
         else:
             print '    %d identical keys in new and ref cache' % len(refkeys)
