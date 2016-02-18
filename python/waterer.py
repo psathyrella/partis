@@ -31,8 +31,6 @@ class Waterer(object):
             self.remaining_queries.add(query)
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
-        self.genes_to_use = genes_to_use  # if None, we use all of 'em. NOTE do *not* use self.args.only_genes in this file (see partitiondriver)
-
         self.reco_info = reco_info
         self.glfo = glfo
         self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
@@ -58,6 +56,13 @@ class Waterer(object):
         self.nth_try = 1
         self.unproductive_queries = set()
 
+        # rewrite input germline sets (if needed)
+        self.genes_to_use = genes_to_use  # if None, we use all of 'em. NOTE do *not* use self.args.only_genes in this file (see partitiondriver)
+        self.my_datadir = self.args.datadir  # make sure to use *only* use <self.my_datadir> elsewhere
+        if self.genes_to_use is not None:
+            self.my_datadir = self.args.workdir + '/germline-sets'
+            self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
+
         print 'smith-waterman'
 
     # ----------------------------------------------------------------------------------------
@@ -65,8 +70,13 @@ class Waterer(object):
         if self.args.outfname is not None:
             self.outfile.close()
 
+        if self.genes_to_use is not None:
+            for fname in self.rewritten_files:
+                os.remove(fname)
+            os.rmdir(self.my_datadir)
+
     # ----------------------------------------------------------------------------------------
-    def clean(self):
+    def clean(self):  # NOTE I don't think I'm using this any more (or any of the other clean() fcns?)
         if self.pcounter is not None:
             self.pcounter.clean()
         if self.true_pcounter is not None:
@@ -131,14 +141,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
-        # rewrite input germline sets
-        datadir = self.args.datadir
-        if self.genes_to_use is not None:
-            datadir = self.args.workdir + '/germline-sets'
-            rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, datadir, self.genes_to_use)
 
         if n_procs == 1:
-            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname, datadir)
+            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname, self.my_datadir)
             proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             utils.process_out_err(out, err)
@@ -150,7 +155,7 @@ class Waterer(object):
             cmd_strs, workdirs = [], []
             for iproc in range(n_procs):
                 workdirs.append(self.args.workdir + '/sw-' + str(iproc))
-                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, datadir, n_procs, shell))
+                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, self.my_datadir, n_procs, shell))
 
             # start all procs for the first time
             procs, n_tries = [], []
@@ -194,11 +199,6 @@ class Waterer(object):
             if not self.args.no_clean:
                 for iproc in range(n_procs):
                     os.remove(workdirs[iproc] + '/' + base_infname)
-
-        if self.genes_to_use is not None:  # this'll rewrite them for each time through, which is ok and probably preferable
-            for fname in rewritten_files:
-                os.remove(fname)
-            os.rmdir(datadir)
 
         sys.stdout.flush()
 
