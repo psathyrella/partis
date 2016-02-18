@@ -151,15 +151,18 @@ class PartitionDriver(object):
 
         # cache hmm naive seqs for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            n_seqs = len(self.sw_info['queries'])
-            seqs_per_proc = 500
-            if n_seqs > 3000:
-                seqs_per_proc *= 2
-            if n_seqs > 10000:
-                seqs_per_proc *= 2
-            n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
-            n_precache_procs = min(n_precache_procs, self.args.n_max_procs)
-            n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())  # make sure it's less than the number of cpus
+            if self.args.n_precache_procs is None:
+                n_seqs = len(self.sw_info['queries'])
+                seqs_per_proc = 500
+                if n_seqs > 3000:
+                    seqs_per_proc *= 2
+                if n_seqs > 10000:
+                    seqs_per_proc *= 2
+                n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
+                n_precache_procs = min(n_precache_procs, self.args.n_max_procs)
+                n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())  # make sure it's less than the number of cpus
+            else:  # allow to override from command line (really just to make testing a bit faster)
+                n_precache_procs = self.args.n_precache_procs
             print '    precache procs', n_precache_procs
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=n_precache_procs, cache_naive_seqs=True)
 

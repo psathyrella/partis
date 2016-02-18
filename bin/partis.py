@@ -49,6 +49,7 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO clean up print_reco_event, and get it working with indels'
+    print '    TODO reinstate data partition test'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -64,6 +65,7 @@ parser.add_argument('--cache-naive-hfracs', action='store_true')
 # run/batch control
 parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
 parser.add_argument('--n-max-procs', default=500, help='never allow more processes than this')
+parser.add_argument('--n-precache-procs', type=int, help='Number of processes to use when precaching naive sequences. Only really useful for testing.')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
