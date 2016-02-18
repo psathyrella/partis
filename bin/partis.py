@@ -12,7 +12,7 @@ import utils
 # merged data: /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_merged.tsv.bz2
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
-parser.add_argument('--sw-debug', type=int, default=0, choices=[0, 1, 2], help='debug level for smith-waterman')
+parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='debug level for smith-waterman')
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions
@@ -111,6 +111,9 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+
+if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
+    args.sw_debug = args.debug
 
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')

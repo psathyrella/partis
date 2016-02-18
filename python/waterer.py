@@ -19,6 +19,7 @@ from performanceplotter import PerformancePlotter
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, parameter_dir, write_parameters, genes_to_use):
+        print 'smith-waterman'
         self.parameter_dir = parameter_dir
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
@@ -62,8 +63,6 @@ class Waterer(object):
         if self.genes_to_use is not None:
             self.my_datadir = self.args.workdir + '/germline-sets'
             self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
-
-        print 'smith-waterman'
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):

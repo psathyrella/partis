@@ -209,7 +209,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
 # ----------------------------------------------------------------------------------------
 def rewrite_germline_fasta(input_dir, output_dir, only_genes):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    print 'rewriting germlines from %s to %s (using %d genes)' % (input_dir, output_dir, len(only_genes))
+    print '    rewriting germlines from %s to %s (using %d genes)' % (input_dir, output_dir, len(only_genes))
     glfo = read_germline_set(input_dir)
     input_germlines = glfo['seqs']
     input_aligned_genes = glfo['aligned-genes']
@@ -747,7 +747,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
                 raise Exception('pre-existing info %s doesn\'t match new info %s for %s' % (pre_existing_info[ekey], line[ekey], line['unique_ids'] if multi_seq else line['unique_id']))
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', return_string=False, label='', indelfo=None, indelfos=None):
+def print_reco_event(germlines, line, one_line=False, extra_str='', label='', indelfo=None, indelfos=None):
     """ if <line> describes a whole event, with multiple sequences, it'll have <unique_ids> and <seqs> fields; otherwise it'll have <unique_id> and <seq> """
     event_str_list = []
     if 'unique_ids' in line:
@@ -780,7 +780,7 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             else:
                 pass
                 # this_extra_str = ' %10s  %2s          %3s'  % ('', '', '')
-            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str + this_extra_str, return_string=return_string,
+            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str + this_extra_str,
                                                       label=(label if iseq==0 else ''),
                                                       one_line=(iseq>0),
                                                       indelfo=None)
@@ -792,17 +792,14 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', return_strin
             indelfo = None
             if 'indels' not in extra_str:
                 extra_str += color('yellow', 'indels')
-        event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, return_string=return_string, label=label, one_line=one_line, indelfo=indelfo)
+        event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line, indelfo=indelfo)
         event_str_list.append(event_str)
 
-    if return_string:
-        return ''.join(event_str_list)
-
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, label='', indelfo=None, one_line=False):
-    """ Print ascii summary of recombination event and mutation.
-
-    If <one_line>, then only print out the final_seq line.
+def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=None, one_line=False):
+    """ 
+    Print ascii summary of recombination event and mutation.
+    If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
     reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if 'indels' in line:
@@ -1013,10 +1010,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', return_string=False, 
     #         b_str_list.append(line[print_width : ])
     #     out_str_list = a_str_list + b_str_list
 
-    if return_string:
-        return ''.join(out_str_list)
-    else:
-        print ''.join(out_str_list),
+    print ''.join(out_str_list),
 
     assert '.' not in line['seq']  # make sure I'm no longer altering line['seq']
     assert ' ' not in line['seq']

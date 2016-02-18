@@ -1390,7 +1390,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
-        out_str_list = []
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
                 synthetic_true_line = copy.deepcopy(self.reco_info[uids[0]])
@@ -1400,13 +1399,9 @@ class PartitionDriver(object):
                 del synthetic_true_line['seq']
                 # del synthetic_true_line['indels']
                 indelfos = [self.reco_info[iid]['indels'] for iid in uids]
-                event_str = utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', return_string=True, label='true:', indelfos=indelfos)
-                out_str_list.append(event_str)
+                utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', indelfos=indelfos)
 
-        event_str = utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', return_string=True, label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
-        out_str_list.append(event_str)
-
-        print ''.join(out_str_list),
+        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
 
     # ----------------------------------------------------------------------------------------
     def print_performance_info(self, line, perfplotter=None):
@@ -1428,7 +1423,7 @@ class PartitionDriver(object):
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
             writer.writeheader()
-            input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
+            missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for uids, line in annotations.items():
                 outline = {k : line[k] for k in outheader if k != 'indelfo'}
                 if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
@@ -1437,7 +1432,7 @@ class PartitionDriver(object):
                     outline['indelfo'] = {'reversed_seq': '', 'indels': []}
 
                 for uid in outline['unique_ids']:
-                    input_keys.remove(uid)
+                    missing_input_keys.remove(uid)
 
                 if self.args.presto_output:
                     outline = utils.convert_to_presto(self.glfo, outline)
@@ -1447,6 +1442,7 @@ class PartitionDriver(object):
                 writer.writerow(outline)
 
             # and write empty lines for seqs that failed either in sw or the hmm
-            print 'missing %d input keys' % len(input_keys)
-            for uid in input_keys:
-                writer.writerow({'unique_ids' : uid})
+            if len(missing_input_keys) > 0:
+                print 'missing %d input keys' % len(missing_input_keys)
+                for uid in missing_input_keys:
+                    writer.writerow({'unique_ids' : uid})
