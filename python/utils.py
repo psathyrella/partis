@@ -212,7 +212,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes):
     print 'rewriting germlines from %s to %s (using %d genes)' % (input_dir, output_dir, len(only_genes))
     glfo = read_germline_set(input_dir)
     input_germlines = glfo['seqs']
-    input_aligned_v_genes = glfo['aligned-v-genes']
+    input_aligned_genes = glfo['aligned-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
 
     if not os.path.exists(output_dir):
@@ -229,7 +229,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes):
 
     for region in regions:
         write_gl_file(output_dir + '/igh' + region + '.fasta', region, input_germlines)
-    write_gl_file(output_dir + '/ighv-aligned.fasta', 'v', input_aligned_v_genes)
+        write_gl_file(output_dir + '/igh' + region + '-aligned.fasta', region, input_aligned_genes)
 
     for fname in ['cyst-positions.csv', 'tryp-positions.csv']:
         expected_files.append(output_dir + '/' + fname)
@@ -1024,7 +1024,7 @@ def unsanitize_name(name):
 def read_germline_set(datadir):
     glfo = {}
     glfo['seqs'] = read_germline_seqs(datadir)
-    glfo['aligned-v-genes'] = read_germline_seqs(datadir, only_region='v', aligned=True)
+    glfo['aligned-genes'] = read_germline_seqs(datadir, aligned=True)
     for codon in ['cyst', 'tryp']:
         glfo[codon + '-positions'] = read_codon_positions(datadir + '/' + codon + '-positions.csv')
     return glfo
@@ -1918,61 +1918,61 @@ def count_gaps(seq, istop=None):
     return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
-def add_alignments(glfo, line, debug=False):
-    """ add dots according to the imgt gapping scheme """
+def add_regional_alignments(glfo, line, region, debug=False):
 
     def n_gaps(seq):
         return sum([seq.count(gc) for gc in gap_chars])
 
-    aligned_v_seqs = []
+    aligned_seqs = []
     for iseq in range(len(line['seqs'])):
-        v_qr_seq = line['v_qr_seqs'][iseq]
-        v_gl_seq = line['v_gl_seq']
-        aligned_v_gl_seq = glfo['aligned-v-genes']['v'][line['v_gene']]
-        if len(v_qr_seq) != len(v_gl_seq):
-            # raise Exception('v bits not same length for %s\n%s' % (line['unique_ids'], line))
+        qr_seq = line[region + '_qr_seqs'][iseq]
+        gl_seq = line[region + '_gl_seq']
+        aligned_gl_seq = glfo['aligned-genes'][region][line[region + '_gene']]
+        if len(qr_seq) != len(gl_seq):
             line['invalid'] == True
             return
 
         if debug:
             print 'before alignment'
-            print '   qr   ', v_qr_seq
-            print '   gl   ', v_gl_seq
-            print '   al gl', aligned_v_gl_seq
+            print '   qr   ', qr_seq
+            print '   gl   ', gl_seq
+            print '   al gl', aligned_gl_seq
 
-        if len(aligned_v_gl_seq) != line['v_5p_del'] + len(v_gl_seq) + line['v_3p_del'] + n_gaps(aligned_v_gl_seq):
-            # raise Exception('lengths don\'t match up\n%s\n%s + %d' % (aligned_v_gl_seq, v_gl_seq + gap_chars[0] * n_gaps(aligned_v_gl_seq), line['v_3p_del']))
+        if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps(aligned_gl_seq):
             line['invalid'] == True
             return
 
-        v_qr_seq = 'N' * line['v_5p_del'] + v_qr_seq + 'N' * line['v_3p_del']
-        v_gl_seq = 'N' * line['v_5p_del'] + v_gl_seq + 'N' * line['v_3p_del']
+        qr_seq = 'N' * line[region + '_5p_del'] + qr_seq + 'N' * line[region + '_3p_del']
+        gl_seq = 'N' * line[region + '_5p_del'] + gl_seq + 'N' * line[region + '_3p_del']
 
-        for ibase in range(len(aligned_v_gl_seq)):
-            if aligned_v_gl_seq[ibase] in gap_chars:
-                v_qr_seq = v_qr_seq[ : ibase] + gap_chars[0] + v_qr_seq[ibase : ]
-                v_gl_seq = v_gl_seq[ : ibase] + gap_chars[0] + v_gl_seq[ibase : ]
+        for ibase in range(len(aligned_gl_seq)):
+            if aligned_gl_seq[ibase] in gap_chars:
+                qr_seq = qr_seq[ : ibase] + gap_chars[0] + qr_seq[ibase : ]
+                gl_seq = gl_seq[ : ibase] + gap_chars[0] + gl_seq[ibase : ]
             else:
-                if v_gl_seq[ibase] != 'N' and v_gl_seq[ibase] != aligned_v_gl_seq[ibase]:
-                    # raise Exception('bases don\'t match at position %d in\n%s\n%s' % (ibase, v_gl_seq, aligned_v_gl_seq))
+                if gl_seq[ibase] != 'N' and gl_seq[ibase] != aligned_gl_seq[ibase]:
                     line['invalid'] == True
                     return
 
         if debug:
             print 'after alignment'
-            print '   qr   ', v_qr_seq
-            print '   gl   ', v_gl_seq
-            print '   al gl', aligned_v_gl_seq
+            print '   qr   ', qr_seq
+            print '   gl   ', gl_seq
+            print '   al gl', aligned_gl_seq
 
-        if len(v_qr_seq) != len(v_gl_seq) or len(v_qr_seq) != len(aligned_v_gl_seq):
-            # raise Exception('lengths don\'t match up:\n%s\n%s\n%s' % (v_qr_seq, v_gl_seq, aligned_v_gl_seq))
+        if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):
             line['invalid'] == True
             return
-        aligned_v_seqs.append(v_qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
+        aligned_seqs.append(qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
-    line['aligned_v_seqs'] = aligned_v_seqs
-    line['aligned_d_seqs'] = ['ack!' for _ in aligned_v_seqs]
-    line['aligned_j_seqs'] = ['ack!' for _ in aligned_v_seqs]
+    line['aligned_' + region + '_seqs'] = aligned_seqs
+
+# ----------------------------------------------------------------------------------------
+def add_alignments(glfo, line, debug=False):
+    """ add dots according to the imgt gapping scheme """
+
+    for region in regions:
+        add_regional_alignments(glfo, line, region, debug)
 
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):

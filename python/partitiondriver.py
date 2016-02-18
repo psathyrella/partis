@@ -1426,7 +1426,7 @@ class PartitionDriver(object):
         outpath = self.args.outfname
         if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
-        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'naive_seq', 'indelfo']
+        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfo']
         outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
