@@ -148,7 +148,7 @@ class Hist(object):
         return sum_value
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=True, expect_empty=False):
+    def normalize(self, include_overflows=True, expect_empty=False, overflow_eps_to_ignore=1e-15):
         sum_value = self.integral(include_overflows)
         imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
@@ -157,7 +157,7 @@ class Hist(object):
             if not expect_empty:
                 print 'WARNING sum zero in Hist::normalize()'
             return
-        if not include_overflows and (self.bin_contents[0]/sum_value > 1e-10 or self.bin_contents[self.n_bins+1]/sum_value > 1e-10):
+        if not include_overflows and (self.bin_contents[0]/sum_value > overflow_eps_to_ignore or self.bin_contents[self.n_bins+1]/sum_value > overflow_eps_to_ignore):
             print 'WARNING under/overflows in Hist::normalize()'
         for ib in range(imin, imax):
             self.bin_contents[ib] /= sum_value
@@ -275,7 +275,7 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-', markersize=None, errors=True):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
-            print '   integral is zero in hist::mpl_plot'
+            # print '   integral is zero in hist::mpl_plot'
             return None
         if ignore_overflows:
             xvals = self.get_bin_centers()[1:-1]

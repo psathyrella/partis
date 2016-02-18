@@ -112,7 +112,7 @@ class Recombinator(object):
         numpy.random.seed(irandom)
         random.seed(irandom)
 
-        reco_event = RecombinationEvent(self.glfo['seqs'])
+        reco_event = RecombinationEvent(self.glfo)
         self.choose_vdj_combo(reco_event)
         self.erode_and_insert(reco_event)
         if self.args.debug:
@@ -377,17 +377,21 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def get_rescaled_trees(self, treestr, branch_length_ratios):
+    def get_rescaled_trees(self, treestr, branch_length_ratios, debug=False):
         """
         Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
         the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for
         v, d, and j
         """
         rescaled_trees = {}
+        if debug:
+            print '      rescaling tree:'
         for region in utils.regions:
             # rescale the tree
             rescaled_trees[region] = treegenerator.rescale_tree(treestr, branch_length_ratios[region])
-            # print 'rescaled %s by %f: %s -> %s' % (region, branch_length_ratios[region], treestr, rescaled_trees[region])
+            if debug:
+                print '         %s by %f (new depth %f): %s -> %s' % (region, branch_length_ratios[region], treegenerator.get_leaf_node_depths(rescaled_trees[region])['t1'], treestr, rescaled_trees[region])
+
             # and then check it NOTE can remove this eventually
             initial_depths = {}
             for node, depth in treegenerator.get_leaf_node_depths(treestr).items():

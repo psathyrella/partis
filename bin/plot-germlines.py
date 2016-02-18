@@ -22,7 +22,7 @@ xtitles = {
     'subs' : 'substitution fraction'
 }
 glfo = utils.read_germline_set(datadir)
-vgenes = glfo['aligned-v-genes']['v'].keys()
+vgenes = glfo['aligned-genes']['v'].keys()
 pversions = OrderedDict()
 for vg in vgenes:
     pv = utils.primary_version(vg)
@@ -84,7 +84,7 @@ def get_gene_pair_matrix(genelist, difftype):
             if jv < iv + 1:
                 smatrix[iv].append(0.)
                 continue
-            s1, s2 = [glfo['aligned-v-genes']['v'][genelist[index]] for index in [iv, jv]]
+            s1, s2 = [glfo['aligned-genes']['v'][genelist[index]] for index in [iv, jv]]
             # utils.color_mutants(s1, s2, print_result=True)
             if difftype == 'hamming':
                 fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
@@ -112,8 +112,8 @@ def get_gene_set_mean_matrix(genesets, difftype):
                 smatrix[iv].append(0.)
                 continue
             # print '  %s %s' % (setnames[iv], setnames[jv])
-            seqs1 = [glfo['aligned-v-genes']['v'][g] for g in genenames[iv]]
-            seqs2 = [glfo['aligned-v-genes']['v'][g] for g in genenames[jv]]
+            seqs1 = [glfo['aligned-genes']['v'][g] for g in genenames[iv]]
+            seqs2 = [glfo['aligned-genes']['v'][g] for g in genenames[jv]]
 
             total, nfractions = 0., 0
             for is1 in range(len(seqs1)):

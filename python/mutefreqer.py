@@ -18,7 +18,7 @@ class MuteFreqer(object):
     def __init__(self, germline_seqs):  #, base_outdir='', base_plotdir='', write_parameters=True, plot_parameters=True):
         self.germline_seqs = germline_seqs
         self.counts, self.freqs, self.plotting_info = {}, {}, {}
-        n_bins, xmin, xmax = 100, 0.0, 0.5
+        n_bins, xmin, xmax = 200, 0., 1.
         self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
         for region in utils.regions:
             self.mean_rates[region] = Hist(n_bins, xmin, xmax)
@@ -161,9 +161,10 @@ class MuteFreqer(object):
             self.finalize()
 
         plotdir = base_plotdir + '/mute-freqs'
-        utils.prep_dir(plotdir + '/plots', multilings=('*.csv', '*.svg'))
+        overall_plotdir = plotdir + '/overall'
+        utils.prep_dir(overall_plotdir, multilings=('*.csv', '*.svg'))
         for region in utils.regions:
-            utils.prep_dir(plotdir + '/' + region + '/plots', multilings=('*.csv', '*.svg'))
+            utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
         for gene in self.counts:
@@ -187,16 +188,14 @@ class MuteFreqer(object):
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
         # make mean mute freq hists
-        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
         for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
 
         if not only_csv:  # write html file and fix permissiions
-            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
+            plotting.make_html(overall_plotdir)
             for region in utils.regions:
-                check_call(['./bin/makeHtml', plotdir + '/' + region, '1', 'null', 'svg'])
-                # check_call(['./bin/makeHtml', plotdir + '/' + region + '-per-base', '1', 'null', 'png'])
-            check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+                plotting.make_html(plotdir + '/' + region, n_columns=1)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):

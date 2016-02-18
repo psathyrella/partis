@@ -10,8 +10,8 @@ import utils
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
     """ Container to hold the information for a single recombination event. """
-    def __init__(self, germlines):
-        self.germlines = germlines
+    def __init__(self, glfo):
+        self.glfo = glfo
         self.vdj_combo_label = ()  # A tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
                                    # NOTE I leave the lengths in here as strings
         self.genes = {}
@@ -140,7 +140,7 @@ class RecombinationEvent(object):
     # ----------------------------------------------------------------------------------------
     def print_event(self):
         line = {}  # collect some information into a form that print_reco_event understands
-        line['cdr3_length'] = self.cdr3_length
+        # line['cdr3_length'] = self.cdr3_length
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
         for boundary in utils.boundaries:
@@ -149,15 +149,16 @@ class RecombinationEvent(object):
             line[erosion + '_del'] = self.erosions[erosion]
         for erosion in utils.effective_erosions:
             line[erosion + '_del'] = self.effective_erosions[erosion]
-        line['cyst_position'] = self.final_cyst_position
-        line['tryp_position'] = self.final_tryp_position
+        # line['cyst_position'] = self.final_cyst_position
+        # line['tryp_position'] = self.final_tryp_position
         assert 'fv_insertion' not in line  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
         assert 'jf_insertion' not in line
         line['fv_insertion'] = ''
         line['jf_insertion'] = ''
         line['seqs'] = self.final_seqs
         line['unique_ids'] = [i for i in range(len(self.final_seqs))]
-        utils.print_reco_event(self.germlines, line, indelfos=self.indelfo)
+        utils.add_implicit_info(self.glfo, line, multi_seq=True)
+        utils.print_reco_event(self.glfo['seqs'], line, indelfos=self.indelfo)
         # for imute in range(len(self.final_seqs)):
         #     line['seq'] = self.final_seqs[imute]
         #     line['indels'] = self.indelfo[imute]

@@ -49,8 +49,8 @@ class PerformancePlotter(object):
         if <normalize> divide by sequence length
         """
 
-        true_naive_seq = utils.get_full_naive_seq(self.germlines, true_line)
-        inferred_naive_seq = utils.get_full_naive_seq(self.germlines, line)
+        true_naive_seq = true_line['naive_seq']
+        inferred_naive_seq = line['naive_seq']
         if len(true_naive_seq) != len(inferred_naive_seq):
             print '%20s    true      inf' % ''
             for k in true_line:
@@ -100,7 +100,7 @@ class PerformancePlotter(object):
 
         bounds = None
         if restrict_to_region != '':
-            bounds = utils.get_regional_naive_seq_bounds(restrict_to_region, self.germlines, true_line)  # get the bounds of this *true* region
+            bounds = true_line['regional_bounds'][restrict_to_region]
             if debug:
                 print 'restrict to %s' % restrict_to_region
                 utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True, extra_str='      ')
@@ -195,7 +195,7 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
-        utils.prep_dir(plotdir + '/plots', wildling=None, multilings=['*.csv', '*.svg', '*.root'])
+        utils.prep_dir(plotdir, wildling=None, multilings=['*.csv', '*.svg', '*.root'])
         for column in self.values:
             if self.only_correct_gene_fractions and column not in bool_columns:
                 continue
@@ -219,5 +219,4 @@ class PerformancePlotter(object):
             plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
 
         if not only_csv:
-            check_call(['./bin/makeHtml', plotdir, '3', 'null', 'svg'])
-            check_call(['./bin/permissify-www', plotdir])  # NOTE this should really permissify starting a few directories higher up
+            plotting.make_html(plotdir)

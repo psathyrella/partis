@@ -96,10 +96,10 @@ default_hard_bounds = {
     'jf_insertion' : (-1, 13),
     'fv_insertion' : (-1, 13),
     'j_5p_del' : (-1, 15),
-    'all-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
-    'v-mean-freq' : (0.0, 0.25),  # NOTE make sure you know where the decimal place is here!
-    'd-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
-    'j-mean-freq' : (0.0, 0.3),  # NOTE make sure you know where the decimal place is here!
+    'all-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
+    'v-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
+    'd-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
+    'j-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-1, 6),
     'vd_insertion' : (-1, 15),
     'all_insertions' : (-0.5, 20),

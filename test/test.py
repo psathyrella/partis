@@ -20,7 +20,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = './bin/partis.py'
-        self.datafname = 'test/mishmash.csv'  # some data from adaptive, chaim, and vollmers
+        self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         self.label = 'test'
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
@@ -60,7 +60,7 @@ class Tester(object):
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries]}
 
         add_inference_tests('ref')
-        self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : ['--skip-unproductive']}
+        self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : []}  # ['--skip-unproductive']}
         self.tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
         self.tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
         add_inference_tests('new')
@@ -69,15 +69,18 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
+        if args.make_plots:
+            self.make_comparison_plots()
+            sys.exit(0)
         if not args.dont_run:
             self.run(args)
-        print 'reading performance info'
         for version_stype in self.stypes:
             self.read_performance_info(version_stype)
-        self.compare_performance()
+        self.compare_performance(input_stype='ref')
+        self.compare_partition_cachefiles(input_stype='ref')
         self.compare_production_results()
-        for input_stype in self.stypes:
-            self.compare_partition_cachefiles(input_stype=input_stype)
+        self.compare_performance(input_stype='new')
+        self.compare_partition_cachefiles(input_stype='new')
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -195,19 +198,19 @@ class Tester(object):
 
             # fraction of genes correct
             for region in utils.regions:
-                fraction_correct = read_performance_file(perfdir + '/' + method + '/plots/' + region + '_gene.csv', 'contents', only_ibin=1)
+                fraction_correct = read_performance_file(perfdir + '/' + method + '/' + region + '_gene.csv', 'contents', only_ibin=1)
                 if debug:
                     print '      %s %.3f' % (region, fraction_correct)
                 self.perf_info[version_stype][input_stype + '-' + method + '-' + region + '_gene_correct'] = fraction_correct
 
             # hamming fraction
-            hamming_hist = Hist(fname=perfdir + '/' + method + '/plots/hamming_to_true_naive.csv')
+            hamming_hist = Hist(fname=perfdir + '/' + method + '/hamming_to_true_naive.csv')
             if debug:
                 print '      mean hamming %.2f' % hamming_hist.get_mean()
             self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
 
     # ----------------------------------------------------------------------------------------
-    def read_partition_performance(self, version_stype, input_stype, debug=True):
+    def read_partition_performance(self, version_stype, input_stype, debug=False):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
         ptest = 'partition-' + input_stype + '-simu'
         if args.quick and ptest not in self.quick_tests:
@@ -233,10 +236,10 @@ class Tester(object):
                     print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
 
     # ----------------------------------------------------------------------------------------
-    def compare_performance(self):
-        # NOTE does *not* regenerate the reference performance file based on the reference outputs  UPDATE hm, wait, do I still use the performance files?
-        print 'comparing to reference performance'
+    def compare_performance(self, input_stype):
+        print 'performance with %s simulation and parameters' % input_stype
 
+        # make sure there's a new performance value for each reference one, and vice versa
         refkeys = set(self.perf_info['ref'].keys())
         newkeys = set(self.perf_info['new'].keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
@@ -246,6 +249,8 @@ class Tester(object):
             raise Exception('')
 
         for name in self.perf_info['ref']:  # don't use the sets above so we get the nice ordering
+            if input_stype not in name:
+                continue
             ref_val = self.perf_info['ref'][name]
             new_val = self.perf_info['new'][name]
             val_type = name.split('-')[-1]
@@ -264,26 +269,63 @@ class Tester(object):
         if args.quick:
             return
         print 'diffing production results'
-        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu']:
-            cmd = '  diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
-            print cmd
+        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu/hmm-true', 'test/parameters/simu/sw', 'test/parameters/simu/hmm']:
+            print '    %s' % fname
+            cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             if proc.returncode != 0:
                 outlines = [ l for l in out.split('\n') if 'differ' in l ]
                 n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
-                print utils.color('red', '    %d / %d files differ' % (len(outlines), n_total_files))
+                print utils.color('red', '      %d / %d files differ' % (len(outlines), n_total_files)),
+                print '  (%s)' % cmd
                 if err != '':
                     print err
 
     # ----------------------------------------------------------------------------------------
+    def make_comparison_plots(self):
+        plotdirs = [
+            self.perfdirs['ref'] + '/sw',  # ref sw performance
+            self.perfdirs['ref'] + '/hmm', # ref hmm performance
+            # 'test/plots/data/sw',          # sw data parameters
+            # 'test/plots/data/hmm',         # hmm data parameters
+            # 'test/plots/data/hmm/mute-freqs/v',
+            # 'test/plots/data/sw/mute-freqs',
+            # 'test/plots/data/hmm/mute-freqs'
+            # 'test/plots/simu/hmm-true',    # true simulation parameters
+            # 'test/plots/simu/hmm-true/mute-freqs'
+        ]
+        base_check_cmd = './bin/compare.py --linewidths 7:2 --alphas 0.55:1 --str-colors #006600:#990012 --markersizes 3:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414 "
+        if os.getenv('www') is None:
+            www_dir = '_test-plots'
+        else:
+            www_dir = os.getenv('www') + '/partis/test'
+
+        # # if you want to do *all* the subdirs use this:
+        # recursive_subdirs = []
+        # for plotdir in plotdirs:
+        #     find_plotdirs_cmd = 'find ' + self.dirs['ref'] + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
+        #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
+
+        for plotdir in plotdirs:
+            print plotdir
+            check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs['ref'] + '/' + plotdir + ':' + self.dirs['new'] + '/' + plotdir
+            check_cmd += ' --outdir ' + www_dir + '/' + plotdir
+            check_call(check_cmd.split())
+        # check_call(['chmod', '664', htmlfname])
+        check_call(['./bin/permissify-www', www_dir])
+        
+#            # env.Command('test/_results/%s.passed' % name, out,
+#            #             './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
+        
+            # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
         ptest = 'partition-' + input_stype + '-simu'
         if args.quick and ptest not in self.quick_tests:
             return
 
-        print '%s partition cache file' % input_stype
+        print '%s input partition cache file' % input_stype
 
         def readcache(fname):
             cache = {}
@@ -301,9 +343,9 @@ class Tester(object):
         newkeys = set(newcache.keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
             if len(refkeys - newkeys) > 0:
-                print utils.color('red', '  %d only in ref' % len(refkeys - newkeys))
+                print utils.color('red', '  %d only in ref version' % len(refkeys - newkeys))
             if len(newkeys - refkeys) > 0:
-                print utils.color('red', '  %d only in new' % len(newkeys - refkeys))
+                print utils.color('red', '  %d only in new version' % len(newkeys - refkeys))
             print '  %d in common' % len(refkeys & newkeys)
         else:
             print '    %d identical keys in new and ref cache' % len(refkeys)
@@ -355,6 +397,7 @@ parser.add_argument('--dont-run', action='store_true', help='don\'t actually run
 parser.add_argument('--dont-plot', action='store_true', help='don\'t make all the comparison plots')
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
+parser.add_argument('--make-plots', action='store_true')
 args = parser.parse_args()
 
 tester = Tester()
@@ -362,34 +405,6 @@ if args.bust_cache:
     tester.bust_cache()
 else:
     tester.test(args)
-
-# ----------------------------------------------------------------------------------------
-# make a bunch of comparison plots
-print 'skipping plots for the moment'
-sys.exit()
-plotdirs = ['test/plots/data/sw', 'test/plots/data/hmm', 'test/plots/simu/hmm-true', self.perfdirs['ref'] + '/sw', self.perfdirs['ref'] + '/hmm']
-base_check_cmd = './bin/compare.py --dont-calculate-mean-info --graphify --linewidth 1 --markersizes 2:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414
-if os.getenv('www') is None:
-    www_dir = '_test-plots'
-else:
-    www_dir = os.getenv('www') + '/partis/test'
-# # if you want to do *all* the subdirs use this:
-# recursive_subdirs = []
-# for plotdir in plotdirs:
-#     find_plotdirs_cmd = 'find ' + self.dirs['ref'] + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
-#     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
-for plotdir in plotdirs:
-    if args.dont_plot:
-        continue
-    plotdirstr = plotdir.replace(self.dirs['ref'] + '/', '')
-    check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs['ref'] + '/' + plotdirstr + ':' + self.dirs['new'] + '/' + plotdirstr
-    check_cmd += ' --outdir ' + www_dir + '/' + plotdirstr
-    check_call(check_cmd.split())
-check_call(['./bin/permissify-www', www_dir])
-
-#     env.Command('test/_results/%s.passed' % name, out,
-#                 './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
-
 
 def get_typical_variances():
     raise Exception('needs updating to work as a function')

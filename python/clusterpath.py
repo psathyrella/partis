@@ -143,7 +143,6 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False):
-        abbreviate=False
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:

@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import seaborn as sns
+import seaborn as sns  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
 sns.set_style('ticks')
 
 import math
@@ -180,9 +180,8 @@ def add_bin_labels_not_in_all_hists(hists):
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
-                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False):
+                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
     assert os.path.exists(plotdir)
-
     fig, ax = mpl_init(figsize=figsize)
     mpl.rcParams.update({'legend.fontsize' : 15})
 
@@ -277,7 +276,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             htmp.bin_labels = ['' for _ in htmp.bin_labels]
         if rebin is not None:
             htmp.rebin(rebin)
-        htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors)
+        alpha = 1.
+        if alphas is not None:
+            alpha = alphas[ih]
+        htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
 
     if xline is not None:
         ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
@@ -294,9 +296,6 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
 
-    if not os.path.exists(plotdir + '/plots'):
-        raise Exception('ERROR dir \'' + plotdir + '/plots\' d.n.e.')
-
     if not only_csv:
         mpl_finish(ax, plotdir, plotname,
                    title=plotname if plottitle is None else plottitle,
@@ -305,12 +304,13 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                    xbounds=[xmin, xmax],
                    ybounds=[-0.03*ymax, 1.15*ymax],
                    leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
-                   log=log, xticks=xticks, xticklabels=xticklabels)
+                   log=log, xticks=xticks, xticklabels=xticklabels,
+                   no_legend=(len(hists) <= 1))
 
     if write_csv:
         assert more_hists is None
         if csv_fname is None:
-            hist.write(plotdir + '/plots/' + plotname + '.csv')
+            hist.write(plotdir + '/' + plotname + '.csv')
         else:
             hist.write(csv_fname)
 
@@ -425,7 +425,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
     """
-    utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+    # print 'TODO move csvs to a subdir not named "plots"'
+    # utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+
+    utils.prep_dir(args.outdir, multilings=['*.png', '*.svg', '*.csv'])
     if args.leaves_per_tree is not None:
         assert len(args.leaves_per_tree) == len(args.plotdirs)
 
@@ -433,7 +436,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     hists = []
     for idir in range(len(args.plotdirs)):
         string_to_ignore = None if args.strings_to_ignore is None else args.strings_to_ignore[idir]
-        hist_list = get_hists_from_dir(args.plotdirs[idir] + '/plots', args.names[idir], string_to_ignore=string_to_ignore)
+        hist_list = get_hists_from_dir(args.plotdirs[idir], args.names[idir], string_to_ignore=string_to_ignore)
         hists.append(hist_list)
 
     # then loop over all the <varname>s we found
@@ -459,6 +462,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             all_hists = add_bin_labels_not_in_all_hists(all_hists)
 
         if args.calculate_mean_info:
+            raise Exception('needs updating (at least to remove plots/ )')
             meaninfo = get_mean_info(all_hists)
             all_names.append(varname)
             all_means.append(meaninfo['means'])
@@ -513,10 +517,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             if '_gene' in varname and '_vs_' not in varname:
                 no_labels = True
                 if 'j_' not in varname:
-                    figsize = (3, 1.5)  #1000, 500
+                    figsize = (10, 5)
                 line_width_override = 1
             elif 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
-                figsize = (3, 1.5)  #1000, 500
+                figsize = (10, 5)
                 bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
 
         if 'IGH' in varname:
@@ -549,9 +553,10 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         draw_no_root(all_hists[0], plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
                      shift_overflows=False, errors=errors, scale_errors=args.scale_errors, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
                      xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                     linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
+                     linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend, alphas=args.alphas)
 
     if args.calculate_mean_info:
+        assert False
         # write mean info
         with opener('w')(args.outdir + '/plots/means.csv') as meanfile:
             writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
@@ -565,8 +570,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 })
 
     if not args.only_csv_plots:
-        check_call(['./bin/permissify-www', args.outdir])  # NOTE this should really permissify starting a few directories higher up
-        check_call(['./bin/makeHtml', args.outdir, '3', 'null', 'svg'])
+        make_html(args.outdir)
 
 # ----------------------------------------------------------------------------------------
 def make_mean_plots(plotdir, subdirs, outdir):
@@ -964,9 +968,10 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False):
     # xticks[0] = 0.000001
-    legend = ax.legend(loc=leg_loc)
+    if not no_legend:
+        legend = ax.legend(loc=leg_loc)
     plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     sns.despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
@@ -975,9 +980,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         ax.set_xscale('log')
     if 'y' in log:
         ax.set_yscale('log')
-    if xbounds is not None:
+    if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
-    if ybounds is not None:
+    if ybounds is not None and ybounds[0] != ybounds[1]:
         plt.ylim(ybounds[0], ybounds[1])
     if xticks is not None:
         plt.xticks(xticks)

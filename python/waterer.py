@@ -1,15 +1,13 @@
 import time
 import sys
-import json
 import math
 import re
-import csv
 import os
 import itertools
 import operator
 import pysam
 import contextlib
-from subprocess import check_call, check_output, Popen, PIPE
+from subprocess import check_output, Popen, PIPE
 from collections import OrderedDict
 
 import utils
@@ -20,7 +18,7 @@ from performanceplotter import PerformancePlotter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_dir, write_parameters=False):
+    def __init__(self, args, input_info, reco_info, glfo, parameter_dir, write_parameters, genes_to_use):
         self.parameter_dir = parameter_dir
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
@@ -32,6 +30,8 @@ class Waterer(object):
         for query in self.input_info.keys():
             self.remaining_queries.add(query)
         self.new_indels = 0  # number of new indels that were kicked up this time through
+
+        self.genes_to_use = genes_to_use  # if None, we use all of 'em. NOTE do *not* use self.args.only_genes in this file (see partitiondriver)
 
         self.reco_info = reco_info
         self.glfo = glfo
@@ -127,14 +127,15 @@ class Waterer(object):
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
 
         utils.pad_seqs_to_same_length(self.info['queries'], self.info, self.glfo, self.info['indels'])  # adds padded info to self.info (returns if stuff has already been padded)
+        self.info['remaining_queries'] = self.remaining_queries
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
-        # rewrite input germline sets if only_genes was specified
+        # rewrite input germline sets
         datadir = self.args.datadir
-        if self.args.only_genes is not None:
+        if self.genes_to_use is not None:
             datadir = self.args.workdir + '/germline-sets'
-            rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, datadir, self.args.only_genes)
+            rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, datadir, self.genes_to_use)
 
         if n_procs == 1:
             cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname, datadir)
@@ -144,12 +145,12 @@ class Waterer(object):
             if not self.args.no_clean:
                 os.remove(self.args.workdir + '/' + base_infname)
         else:
-            shell=True
+            shell = True
 
             cmd_strs, workdirs = [], []
             for iproc in range(n_procs):
                 workdirs.append(self.args.workdir + '/sw-' + str(iproc))
-                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, datadir, iproc, n_procs, shell))
+                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, datadir, n_procs, shell))
 
             # start all procs for the first time
             procs, n_tries = [], []
@@ -194,7 +195,7 @@ class Waterer(object):
                 for iproc in range(n_procs):
                     os.remove(workdirs[iproc] + '/' + base_infname)
 
-        if self.args.only_genes is not None:  # this'll rewrite them for each time through, which is ok and probably preferable
+        if self.genes_to_use is not None:  # this'll rewrite them for each time through, which is ok and probably preferable
             for fname in rewritten_files:
                 os.remove(fname)
             os.rmdir(datadir)
@@ -230,7 +231,7 @@ class Waterer(object):
                     iquery += 1
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, iproc=None, n_procs=None, shell=False):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None, shell=False):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
@@ -259,9 +260,8 @@ class Waterer(object):
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds']:
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon']:
             queries_to_rerun[reason] = set()
-            
 
         self.new_indels = 0
         n_processed = 0
@@ -389,7 +389,6 @@ class Waterer(object):
         for region in utils.regions:
             all_match_names[region] = []
         all_query_bounds, all_germline_bounds = {}, {}
-        n_skipped_invalid_cpos = 0
         for read in reads:  # loop over the matches found for each query sequence
             # set this match's values
             read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
@@ -405,12 +404,10 @@ class Waterer(object):
                 first_match_query_bounds = qrbounds
 
             # perform a few checks and see if we want to skip this match
+            # TODO I wish this wasn't here and I suspect I don't really need it (any more)
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
-                cpos = utils.get_conserved_codon_position(self.glfo['cyst-positions'], self.glfo['tryp-positions'], 'v', gene, glbounds, qrbounds, assert_on_fail=False)
-                if not utils.check_conserved_cysteine(self.glfo['seqs']['v'][gene], self.glfo['cyst-positions'][gene], assert_on_fail=False):  # some of the damn cysteine positions in the json file were wrong, so now we check
-                    raise Exception('bad cysteine in %s: %d %s' % (gene, self.glfo['cyst-positions'][gene], self.glfo['seqs']['v'][gene]))
+                cpos = self.glfo['cyst-positions'][gene] - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
                 if cpos < 0 or cpos >= len(query_seq):
-                    n_skipped_invalid_cpos += 1
                     continue
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.args.gap_open_penalty>)
@@ -449,8 +446,6 @@ class Waterer(object):
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
 
-        # if n_skipped_invalid_cpos > 0:
-        #     print '      skipped %d invalid cpos values for %s' % (n_skipped_invalid_cpos, query_name)
         self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
@@ -525,7 +520,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def shift_overlapping_boundaries(self, rpair, qrbounds, glbounds, query_name, query_seq, best, debug=False):
         # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
-        """ 
+        """
         s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions.
         Note that this still works if, say, v is the entire sequence, i.e. one match is entirely subsumed by another.
         """
@@ -594,19 +589,9 @@ class Waterer(object):
         self.info[query_name]['k_d'] = kvals['d']
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
 
-        # assert codon_positions['v'] != -1
-        # assert codon_positions['j'] != -1
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         self.info[query_name]['cyst_position'] = codon_positions['v']
         self.info[query_name]['tryp_position'] = codon_positions['j']
-        if self.info[query_name]['cyst_position'] < 0 or self.info[query_name]['cyst_position'] >= len(query_seq):
-            # raise Exception('cpos %d invalid for %s (%s)' % (self.info[query_name]['cyst_position'], query_name, query_seq))
-            print 'cpos %d invalid for %s (%s) -- set to -1' % (self.info[query_name]['cyst_position'], query_name, query_seq)
-            self.info[query_name]['cyst_position'] = -1
-        if self.info[query_name]['tryp_position'] < 0 or self.info[query_name]['tryp_position'] >= len(query_seq):
-            # raise Exception('tpos %d invalid for %s (%s)' % (self.info[query_name]['tryp_position'], query_name, query_seq))
-            print 'tpos %d invalid for %s (%s) -- set to -1' % (self.info[query_name]['tryp_position'], query_name, query_seq)
-            self.info[query_name]['tryp_position'] = -1
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
@@ -628,6 +613,10 @@ class Waterer(object):
             self.info['all_best_matches'].add(best[region])
 
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
+
+        utils.remove_implicit_info(self.info[query_name], multi_seq=False)
+        utils.add_implicit_info(self.glfo, self.info[query_name], multi_seq=False)
+
         if self.debug:
             if not self.args.is_data:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
@@ -643,7 +632,7 @@ class Waterer(object):
             if query_name in self.info['indels']:
                 print '    skipping performance evaluation of %s because of indels' % query_name  # I just have no idea how to handle naive hamming fraction when there's indels
             else:
-                self.perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])  #, subtract_unphysical_erosions=True)
+                self.perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])
 
         self.remaining_queries.remove(query_name)
 
@@ -652,37 +641,26 @@ class Waterer(object):
         if self.debug:
             print query_name
 
-        best, match_names, n_matches = {}, {}, {}
-        n_used = {'v':0, 'd':0, 'j':0}
+        best, match_names = {}, {}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
         for region in utils.regions:
             all_match_names[region] = sorted(all_match_names[region], reverse=True)
             match_names[region] = []
-        codon_positions = {'v':-1, 'd':-1, 'j':-1}  # conserved codon positions (v:cysteine, d:dummy, j:tryptophan)
         for region in utils.regions:
-            n_matches[region] = len(all_match_names[region])
-            n_genes_skipped = 0
-            skipped_genes = []
             for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
-                assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up avove as well (in process_query), so in time I should remove them from here
+                assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up above as well (in process_query), so in time I should remove them from here
                 assert glbounds[1] <= len(self.glfo['seqs'][region][gene])
                 assert qrbounds[0] >= 0
                 assert glbounds[0] >= 0
                 glmatchseq = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
 
-                # TODO since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative
+                # TODO remove this
+                if self.genes_to_use is not None and gene not in self.genes_to_use:
+                    raise Exception('wtf %s not in %s' % (gene, self.genes_to_use))
 
-                # only use a specified set of genes
-                if self.args.only_genes is not None and gene not in self.args.only_genes:
-                    n_genes_skipped += 1
-                    skipped_genes.append(gene)
-                    continue
-
-                # add match to the list
-                n_used[region] += 1
                 match_names[region].append(gene)
 
                 if self.debug >= 2:
@@ -695,6 +673,7 @@ class Waterer(object):
                     print query_seq[qrbounds[0]:qrbounds[1]]
                     assert False
 
+                # NOTE since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative. UPDATE not sure if this is still relevant, but I'll move it down here in case I feel like thinking about it later
                 if region == 'v':
                     this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there.
                                                           # In other words, sw doesn't tell the hmm about it
@@ -711,10 +690,6 @@ class Waterer(object):
                     best[region + '_gl_seq'] = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
                     best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
                     best[region + '_score'] = score
-
-            if self.debug and n_genes_skipped > 0:
-                print '%8s skipped %d %s genes' % ('', n_genes_skipped, region)
-                print ''.join([utils.color_gene(g) for g in skipped_genes])
 
         for region in utils.regions:
             if region not in best:
@@ -745,14 +720,24 @@ class Waterer(object):
                 queries_to_rerun['weird-annot.'].add(query_name)
                 return
 
+        # set and check conserved codon positions
+        tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
+        codon_positions = {}
+        for region in ['v', 'j']:
+            pos = tmp_gl_positions[region][best[region]] - all_germline_bounds[best[region]][0] + all_query_bounds[best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+            if pos < 0 or pos >= len(query_seq):
+                if self.debug:
+                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, pos, len(query_seq))
+                queries_to_rerun['invalid-codon'].add(query_name)
+                return
+            codon_positions[region] = pos
+
         # check for unproductive rearrangements
-        for region in utils.regions:
-            codon_positions[region] = utils.get_conserved_codon_position(self.glfo['cyst-positions'], self.glfo['tryp-positions'], region, best[region], all_germline_bounds[best[region]], all_query_bounds[best[region]], assert_on_fail=False)  # position in the query sequence, that is
         codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         if self.debug and not in_frame_cdr3:
-                print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
+            print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
         no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.debug)
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.debug:
@@ -804,10 +789,6 @@ class Waterer(object):
         if self.debug:
             print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
             print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
-            print '         used',
-            for region in utils.regions:
-                print ' %s: %d/%d' % (region, n_used[region], n_matches[region]),
-            print ''
 
 
         kvals = {}
