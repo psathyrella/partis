@@ -269,12 +269,14 @@ class Tester(object):
         if args.quick:
             return
         print 'diffing production results'
-        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu/hmm-true', 'test/parameters/simu/sw', 'test/parameters/simu/hmm']:
+        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu/sw-true', 'test/parameters/simu/hmm-true', 'test/parameters/simu/sw', 'test/parameters/simu/hmm']:
             print '    %s' % fname
             cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
-            if proc.returncode != 0:
+            if proc.returncode == 0:
+                print '       ok'
+            else:
                 outlines = [ l for l in out.split('\n') if 'differ' in l ]
                 n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
                 print utils.color('red', '      %d / %d files differ' % (len(outlines), n_total_files)),

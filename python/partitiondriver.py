@@ -215,7 +215,13 @@ class PartitionDriver(object):
                 annotations = self.read_annotation_output(self.annotation_fname)
                 for cluster in path.partitions[path.i_best]:
                     uids = ':'.join(cluster)
-                    utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']])
+
+                    indelfos = [self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']]
+                    assert False  # needs updating
+                    if indelfos.count(None) != len(indelfos):
+                        raise Exceptions('needs updating')
+
+                    utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:')
             if self.args.outfname is not None:
                 start = time.time()
                 self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
@@ -1273,6 +1279,7 @@ class PartitionDriver(object):
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
                 utils.process_input_line(padded_line)
+                padded_line['indelfos'] = [{'reversed_seq': '', 'indels': []} for _ in range(len(padded_line['seqs']))]
                 self.check_bcrham_errors(padded_line, boundary_error_queries)
                 uids = padded_line['unique_ids']
 
@@ -1363,10 +1370,10 @@ class PartitionDriver(object):
 
             # have to copy info to new dict to get d_qr_seq and whatnot
             annotations_for_vollmers = OrderedDict()
-            for uids, line in eroded_annotations.items():
+            for uidstr, line in eroded_annotations.items():
                 if len(line['seqs']) > 1:
                     raise Exception('can\'t handle multiple seqs')
-                annotations_for_vollmers[uids] = utils.synthesize_single_seq_line(line, iseq)
+                annotations_for_vollmers[uidstr] = utils.synthesize_single_seq_line(line, iseq)
 
             # perform annotation clustering for each threshold and write to file
             for thresh in self.args.annotation_clustering_thresholds:
@@ -1398,10 +1405,15 @@ class PartitionDriver(object):
                 seqs = [self.reco_info[iid]['seq'] for iid in uids]
                 per_seq_info = {'unique_ids' : uids, 'seqs' : seqs}
                 synthetic_true_line = utils.synthesize_multi_seq_line(self.glfo, self.reco_info[uids[0]], per_seq_info)
-                indelfos = [self.reco_info[iid]['indels'] for iid in uids]
-                utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', indelfos=indelfos)
+                indelfos = [self.reco_info[iid]['indelfo'] for iid in uids]
+                if indelfos.count(None) != len(indelfos):
+                    raise Exceptions('needs updating')
+                utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:')
 
-        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:', indelfos=[self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']])
+        indelfos = [self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']]
+        if indelfos.count(None) != len(indelfos):
+            raise Exceptions('needs updating')
+        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
 
     # ----------------------------------------------------------------------------------------
     def print_performance_info(self, line, perfplotter=None):
@@ -1418,21 +1430,22 @@ class PartitionDriver(object):
         outpath = self.args.outfname
         if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
-        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfo']
+        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfos']
         outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
-            for uids, line in annotations.items():
-                outline = {k : line[k] for k in outheader if k != 'indelfo'}
-                if uids in self.sw_info['indels']:  # TODO this needs to actually handle multiple unique ids, not just hope there aren't any
-                    outline['indelfo'] = self.sw_info['indels'][uids]
-                else:
-                    outline['indelfo'] = {'reversed_seq': '', 'indels': []}
-
-                for uid in outline['unique_ids']:
+            for line in annotations.values():
+                outline = {k : copy.deepcopy(line[k]) for k in outheader}
+                for iseq in range(len(outline['seqs'])):
+                    uid = outline['unique_ids'][iseq]
+                    print '  ', uid
                     missing_input_keys.remove(uid)
+                    if uid in self.sw_info['indels']:  # overwrite the blank indel info that we add when we read hmm output
+                        outline['indelfos'][iseq] = self.sw_info['indels'][uid]
+                    # else:
+                    #     indelfos.append({'reversed_seq': '', 'indels': []})
 
                 if self.args.presto_output:
                     outline = utils.convert_to_presto(self.glfo, outline)

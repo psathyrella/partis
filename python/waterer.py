@@ -124,7 +124,7 @@ class Waterer(object):
         if self.debug and n_remaining > 0:
             print 'true annotations for remaining events:'
             for qry in self.remaining_queries:
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')  #, indelfo=self.reco_info[query_name]['indels'])
+                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
             if self.true_pcounter is not None:
@@ -618,8 +618,11 @@ class Waterer(object):
 
         if self.debug:
             if not self.args.is_data:
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:', indelfo=self.reco_info[query_name]['indels'])
-            utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:', indelfo=self.info['indels'].get(query_name, None))
+                utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:')
+            indelfo = self.info['indels'].get(query_name, None)
+            if indelfo is not None:
+                raise Exceptions('needs updating')
+            utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:')
 
         if self.pcounter is not None:
             self.pcounter.increment_per_family_params(self.info[query_name])

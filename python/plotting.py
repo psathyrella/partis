@@ -411,10 +411,7 @@ def get_hists_from_dir(dirname, histname, string_to_ignore=None):
         varname = os.path.basename(fname).replace('.csv', '')
         if string_to_ignore is not None:
             varname = varname.replace(string_to_ignore, '')
-        try:
-            hists[varname] = Hist(fname=fname, title=histname)
-        except KeyError:  # probably not a histogram csv
-            pass
+        hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
         raise Exception('ERROR no csvs in %s' % dirname)
     return hists

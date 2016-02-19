@@ -133,7 +133,7 @@ presto_headers = {
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
     'floats' : ('logprob'),
-    'literals' : ('indels'),
+    'literals' : ('indelfos'),
     'lists' : ('unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs')
 }
 
@@ -141,12 +141,12 @@ column_configs = {
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
 xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
 xcolumns['extra'] = tuple(['invalid', ])
-xcolumns['simu'] = tuple(['reco_id', 'indels'])
+xcolumns['simu'] = tuple(['reco_id', ])
 xall_columns = set([k for cols in xcolumns.values() for k in cols])
 
 common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
@@ -717,11 +717,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
         line['invalid'] = True
 
     # add alignment info
-    if multi_seq:
-        add_alignments(glfo, line, debug)
-    else:
-        for region in regions:  # TODO implement for single seq lines
-            line['aligned_' + region + '_seq'] = 'ack!'
+    add_alignments(glfo, line, multi_seq, debug)
 
     # make sure we didn't add any unexpected columns (this may duplicate the newer check below)
     for k in line.keys():
@@ -747,55 +743,54 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
                 raise Exception('pre-existing info %s doesn\'t match new info %s for %s' % (pre_existing_info[ekey], line[ekey], line['unique_ids'] if multi_seq else line['unique_id']))
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', label='', indelfo=None, indelfos=None):
+def deal_with_indels(tmpline):
+    # if indelfos[iseq]['indels'] is not None:
+    #     for ii in range(len(indelfos[iseq]['indels'])):
+    #         idl = indelfos[iseq]['indels'][ii]
+    #         if ii > 0:
+    #             this_extra_str += '\nxxx'
+    #         this_extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
+    # # if 'indels' not in extra_str:
+    # #     extra_str += color('yellow', 'indels')
+    if tmpline['indelfo']['reversed_seq'] != '':  # for now, just print the reversed seq, i.e. the seq with the indels undone
+        tmpline['seq'] = tmpline['indelfo']['reversed_seq']
+        if find_first_non_ambiguous_base(tmpline['seq']) > 0:
+            tmpline['seq'] = tmpline['seq'][find_first_non_ambiguous_base(tmpline['seq']) : ]
+        if find_last_non_ambiguous_base_plus_one(tmpline['seq']) < len(tmpline['seq']):
+            tmpline['seq'] = tmpline['seq'][ : find_last_non_ambiguous_base_plus_one(tmpline['seq'])]
+        # if len(tmpline['fv_insertion']) + tmpline['v_5p_del'] == find_first_non_ambiguous_base(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
+        #     tmpline['seq'] = tmpline['seq'][len(tmpline['fv_insertion']) + tmpline['v_5p_del'] : ]
+        # if len(tmpline['jf_insertion']) + tmpline['j_3p_del'] == len(tmpline['seq']) - find_last_non_ambiguous_base_plus_one(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
+        #     if tmpline['j_3p_del'] > 0:
+        #         tmpline['seq'] = tmpline['seq'][ : -tmpline['j_3p_del']]
+
+# ----------------------------------------------------------------------------------------
+def print_reco_event(germlines, line, one_line=False, extra_str='', label=''):
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
             this_extra_str = ''
-            if indelfos[iseq] is not None:  # for now, just print the reversed seq, i.e. the seq with the indels undone
-                # if indelfos[iseq]['indels'] is not None:
-                #     for ii in range(len(indelfos[iseq]['indels'])):
-                #         idl = indelfos[iseq]['indels'][ii]
-                #         if ii > 0:
-                #             this_extra_str += '\nxxx'
-                #         this_extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
-                # # if 'indels' not in extra_str:
-                # #     extra_str += color('yellow', 'indels')
-                if indelfos[iseq] is not None and len(indelfos[iseq]['indels']) > 0:
-                    tmpline['seq'] = indelfos[iseq]['reversed_seq']
-                    if find_first_non_ambiguous_base(tmpline['seq']) > 0:
-                        tmpline['seq'] = tmpline['seq'][find_first_non_ambiguous_base(tmpline['seq']) : ]
-                    if find_last_non_ambiguous_base_plus_one(tmpline['seq']) < len(tmpline['seq']):
-                        tmpline['seq'] = tmpline['seq'][ : find_last_non_ambiguous_base_plus_one(tmpline['seq'])]
-                    # if len(tmpline['fv_insertion']) + tmpline['v_5p_del'] == find_first_non_ambiguous_base(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
-                    #     tmpline['seq'] = tmpline['seq'][len(tmpline['fv_insertion']) + tmpline['v_5p_del'] : ]
-                    # if len(tmpline['jf_insertion']) + tmpline['j_3p_del'] == len(tmpline['seq']) - find_last_non_ambiguous_base_plus_one(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
-                    #     if tmpline['j_3p_del'] > 0:
-                    #         tmpline['seq'] = tmpline['seq'][ : -tmpline['j_3p_del']]
-            else:
-                pass
-                # this_extra_str = ' %10s  %2s          %3s'  % ('', '', '')
+            if tmpline['indelfo']['reversed_seq'] != '':
+                deal_with_indels(tmpline)
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str + this_extra_str,
                                                       label=(label if iseq==0 else ''),
-                                                      one_line=(iseq>0),
-                                                      indelfo=None)
+                                                      one_line=(iseq>0))
     else:
-        tmpline = dict(line)
-        if indelfo is not None and indelfo['reversed_seq'] != '':  # and len(indelfo['indels']) > 1:  # TODO allow printing with more than one indel
-            tmpline['seq'] = indelfo['reversed_seq']
-            indelfo = None
+        tmpline = copy.deepcopy(line)
+        if tmpline['indelfo']['reversed_seq'] != '':
+            tmpline['seq'] = tmpline['indelfo']['reversed_seq']
             if 'indels' not in extra_str:
                 extra_str += color('yellow', 'indels')
-        event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line, indelfo=indelfo)
+        event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=None, one_line=False):
+def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False):
     """ 
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
     reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
-    if 'indels' in line:
+    if 'indelfo' in line:
         # raise Exception('')
         pass  # need to implement printing for multiple indels and multiple sequences
         # if len(line['indels']) == 0:
@@ -805,6 +800,13 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', indelfo=Non
         #     indelfo = line['indels']  #{'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
         #     reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
 
+    indelfo = None
+    if line['indelfo']['reversed_seq'] != '':
+        indelfo = line['indelfo']
+
+# ----------------------------------------------------------------------------------------
+    indelfo = None
+# ----------------------------------------------------------------------------------------
     if indelfo is not None:
         if len(indelfo['indels']) == 0:  # TODO make this less hackey
             indelfo = None
@@ -1893,10 +1895,14 @@ def count_gaps(seq, istop=None):
     return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
-def add_regional_alignments(glfo, line, region, debug=False):
-
-    def n_gaps(seq):
-        return sum([seq.count(gc) for gc in gap_chars])
+def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
+    if not multi_seq:  # TODO implement this
+        line['aligned_' + region + '_seq'] = 'ack!'
+        return
+    for indelfo in line['indelfos']:
+        if indelfo['reversed_seq'] != '':
+            line['aligned_' + region + '_seqs'] = ['ack!' for _ in range(len(line['seqs']))]
+            return
 
     aligned_seqs = []
     for iseq in range(len(line['seqs'])):
@@ -1904,8 +1910,8 @@ def add_regional_alignments(glfo, line, region, debug=False):
         gl_seq = line[region + '_gl_seq']
         aligned_gl_seq = glfo['aligned-genes'][region][line[region + '_gene']]
         if len(qr_seq) != len(gl_seq):
-            line['invalid'] == True
-            return
+            line['invalid'] = True
+            continue
 
         if debug:
             print 'before alignment'
@@ -1913,9 +1919,10 @@ def add_regional_alignments(glfo, line, region, debug=False):
             print '   gl   ', gl_seq
             print '   al gl', aligned_gl_seq
 
-        if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps(aligned_gl_seq):
-            line['invalid'] == True
-            return
+        n_gaps = sum([aligned_gl_seq.count(gc) for gc in gap_chars])
+        if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps:
+            line['invalid'] = True
+            continue
 
         qr_seq = 'N' * line[region + '_5p_del'] + qr_seq + 'N' * line[region + '_3p_del']
         gl_seq = 'N' * line[region + '_5p_del'] + gl_seq + 'N' * line[region + '_3p_del']
@@ -1926,8 +1933,10 @@ def add_regional_alignments(glfo, line, region, debug=False):
                 gl_seq = gl_seq[ : ibase] + gap_chars[0] + gl_seq[ibase : ]
             else:
                 if gl_seq[ibase] != 'N' and gl_seq[ibase] != aligned_gl_seq[ibase]:
-                    line['invalid'] == True
-                    return
+                    line['invalid'] = True
+                    break
+        if line['invalid']:
+            continue
 
         if debug:
             print 'after alignment'
@@ -1936,18 +1945,19 @@ def add_regional_alignments(glfo, line, region, debug=False):
             print '   al gl', aligned_gl_seq
 
         if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):
-            line['invalid'] == True
-            return
+            line['invalid'] = True
+            continue
         aligned_seqs.append(qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
+    if line['invalid']:
+        aligned_seqs = None
     line['aligned_' + region + '_seqs'] = aligned_seqs
 
 # ----------------------------------------------------------------------------------------
-def add_alignments(glfo, line, debug=False):
+def add_alignments(glfo, line, multi_seq, debug=False):
     """ add dots according to the imgt gapping scheme """
-
     for region in regions:
-        add_regional_alignments(glfo, line, region, debug)
+        add_regional_alignments(glfo, line, multi_seq, region, debug)
 
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):
@@ -2003,7 +2013,7 @@ def get_padding_parameters(queries, info, glfo, debug=False):
     return maxima
 
 # ----------------------------------------------------------------------------------------
-def pad_seqs_to_same_length(queries, info, glfo, indelfo, debug=False):
+def pad_seqs_to_same_length(queries, info, glfo, sw_indelfo, debug=False):
     # TODO it makes no sense to move this out of waterer.py, I should put it back
     """
     Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
@@ -2033,10 +2043,10 @@ def pad_seqs_to_same_length(queries, info, glfo, indelfo, debug=False):
         padfo = swfo['padded']  # shorthand
         assert len(ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         padfo['seq'] = padleft * ambiguous_bases[0] + seq + padright * ambiguous_bases[0]
-        if query in indelfo:
+        if query in sw_indelfo:
             if debug:
                 print '    also padding reversed sequence'
-            indelfo[query]['reversed_seq'] = padleft * ambiguous_bases[0] + indelfo[query]['reversed_seq'] + padright * ambiguous_bases[0]
+            sw_indelfo[query]['reversed_seq'] = padleft * ambiguous_bases[0] + sw_indelfo[query]['reversed_seq'] + padright * ambiguous_bases[0]
         padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
         padfo['cyst_position'] = swfo['cyst_position'] + padleft
         padfo['padleft'] = padleft

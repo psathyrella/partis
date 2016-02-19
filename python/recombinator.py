@@ -409,7 +409,7 @@ class Recombinator(object):
             inuke = random.randint(0, len(utils.nukes) - 1)  # inclusive
             inserted_sequence += utils.nukes[inuke]
         return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
-        reco_event.indelfo[-1]['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
+        reco_event.indelfos[-1]['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
         if self.args.debug:
             print '          inserting %s at %d' % (inserted_sequence, pos)
         return return_seq
@@ -431,7 +431,7 @@ class Recombinator(object):
             new_seq = self.add_shm_insertion(reco_event, seq, pos, length)
         else:
             deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
-            reco_event.indelfo[-1]['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
+            reco_event.indelfos[-1]['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
             if self.args.debug:
                 print '          deleting %d bases at %d' % (length, pos)
             new_seq = deleted_seq
@@ -443,7 +443,7 @@ class Recombinator(object):
         if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
         for iseq in range(len(reco_event.final_seqs)):
-            reco_event.indelfo.append({'reversed_seq' : '', 'indels' : []})
+            reco_event.indelfos.append({'reversed_seq' : '', 'indels' : []})
             if self.args.indel_frequency == 0.:  # no indels at all
                 continue
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:  # no indels for this sequence
@@ -451,7 +451,7 @@ class Recombinator(object):
                     print '        0'
                 continue
             seq = reco_event.final_seqs[iseq]
-            reco_event.indelfo[-1]['reversed_seq'] = seq  # set the original sequence (i.e. with all the indels reversed)
+            reco_event.indelfos[-1]['reversed_seq'] = seq  # set the original sequence (i.e. with all the indels reversed)
             n_indels = 1  #numpy.random.geometric(1. / self.args.mean_n_indels)
             if self.args.debug:
                 print '        %d' % n_indels

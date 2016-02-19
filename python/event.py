@@ -1,5 +1,6 @@
 """ Container to hold the information for a single recombination event. """
 import csv
+import sys
 import random
 import numpy
 import os
@@ -25,7 +26,7 @@ class RecombinationEvent(object):
         self.insertion_lengths = {}
         self.insertions = {}
         self.recombined_seq = ''  # combined sequence *before* mutations
-        self.final_seqs, self.indelfo = [], []
+        self.final_seqs, self.indelfos = [], []
         self.original_cyst_word = ''
         self.original_tryp_word = ''
 
@@ -90,7 +91,7 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
-        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indels')
+        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indelfo')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'
@@ -134,12 +135,12 @@ class RecombinationEvent(object):
                 else:
                     unique_id += str(irandom)
                 row['unique_id'] = hash(unique_id)
-                row['indels'] = self.indelfo[imute]
+                row['indelfo'] = self.indelfos[imute]
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
     def print_event(self):
-        line = {}  # collect some information into a form that print_reco_event understands
+        line = {}  # collect some information into a form that the print fcn understands
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
         for boundary in utils.boundaries:
@@ -157,12 +158,9 @@ class RecombinationEvent(object):
         line['cdr3_length'] = self.cdr3_length
         line['cyst_position'] = self.final_cyst_position
         line['tryp_position'] = self.final_tryp_position
+        line['indelfos'] = self.indelfos
         utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('cdr3_length', 'cyst_position', 'tryp_position'))
-        utils.print_reco_event(self.glfo['seqs'], line, indelfos=self.indelfo)
-        # for imute in range(len(self.final_seqs)):
-        #     line['seq'] = self.final_seqs[imute]
-        #     line['indels'] = self.indelfo[imute]
-        #     utils.print_reco_event(self.germlines, line, one_line=(imute!=0 and len(self.indelfo[imute]['indels']) == 0))
+        utils.print_reco_event(self.glfo['seqs'], line)
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):
