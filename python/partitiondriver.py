@@ -214,14 +214,7 @@ class PartitionDriver(object):
             if self.args.print_cluster_annotations:
                 annotations = self.read_annotation_output(self.annotation_fname)
                 for cluster in path.partitions[path.i_best]:
-                    uids = ':'.join(cluster)
-
-                    indelfos = [self.sw_info['indels'].get(uid, None) for uid in annotations[uids]['unique_ids']]
-                    assert False  # needs updating
-                    if indelfos.count(None) != len(indelfos):
-                        raise Exceptions('needs updating')
-
-                    utils.print_reco_event(self.glfo['seqs'], annotations[uids], extra_str='    ', label='inferred:')
+                    utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
             if self.args.outfname is not None:
                 start = time.time()
                 self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
@@ -1279,9 +1272,9 @@ class PartitionDriver(object):
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
                 utils.process_input_line(padded_line)
-                padded_line['indelfos'] = [{'reversed_seq': '', 'indels': []} for _ in range(len(padded_line['seqs']))]
-                self.check_bcrham_errors(padded_line, boundary_error_queries)
                 uids = padded_line['unique_ids']
+                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
+                self.check_bcrham_errors(padded_line, boundary_error_queries)
 
                 utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
                 if padded_line['invalid']:
@@ -1296,9 +1289,6 @@ class PartitionDriver(object):
                     n_invalid_events += 1
                     print '      %s eroded line invalid (but padded line not!)' % eroded_line['unique_ids']
                     continue
-                # self.print_hmm_output(padded_line)
-                # self.print_hmm_output(eroded_line)
-                # sys.exit()
 
                 padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
                 eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
@@ -1403,16 +1393,11 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
                 seqs = [self.reco_info[iid]['seq'] for iid in uids]
-                per_seq_info = {'unique_ids' : uids, 'seqs' : seqs}
-                synthetic_true_line = utils.synthesize_multi_seq_line(self.glfo, self.reco_info[uids[0]], per_seq_info)
                 indelfos = [self.reco_info[iid]['indelfo'] for iid in uids]
-                if indelfos.count(None) != len(indelfos):
-                    raise Exceptions('needs updating')
+                per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
+                synthetic_true_line = utils.synthesize_multi_seq_line(self.glfo, self.reco_info[uids[0]], per_seq_info)
                 utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:')
 
-        indelfos = [self.sw_info['indels'].get(uid, None) for uid in line['unique_ids']]
-        if indelfos.count(None) != len(indelfos):
-            raise Exceptions('needs updating')
         utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
 
     # ----------------------------------------------------------------------------------------
@@ -1438,14 +1423,8 @@ class PartitionDriver(object):
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for line in annotations.values():
                 outline = {k : copy.deepcopy(line[k]) for k in outheader}
-                for iseq in range(len(outline['seqs'])):
-                    uid = outline['unique_ids'][iseq]
-                    print '  ', uid
+                for uid in outline['unique_ids']:
                     missing_input_keys.remove(uid)
-                    if uid in self.sw_info['indels']:  # overwrite the blank indel info that we add when we read hmm output
-                        outline['indelfos'][iseq] = self.sw_info['indels'][uid]
-                    # else:
-                    #     indelfos.append({'reversed_seq': '', 'indels': []})
 
                 if self.args.presto_output:
                     outline = utils.convert_to_presto(self.glfo, outline)

@@ -443,7 +443,7 @@ class Recombinator(object):
         if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
         for iseq in range(len(reco_event.final_seqs)):
-            reco_event.indelfos.append({'reversed_seq' : '', 'indels' : []})
+            reco_event.indelfos.append(utils.get_empty_indel())
             if self.args.indel_frequency == 0.:  # no indels at all
                 continue
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:  # no indels for this sequence

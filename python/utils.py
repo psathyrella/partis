@@ -769,18 +769,13 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label=''):
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
-            this_extra_str = ''
             if tmpline['indelfo']['reversed_seq'] != '':
                 deal_with_indels(tmpline)
-            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str + this_extra_str,
-                                                      label=(label if iseq==0 else ''),
-                                                      one_line=(iseq>0))
+            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0))
     else:
         tmpline = copy.deepcopy(line)
         if tmpline['indelfo']['reversed_seq'] != '':
             tmpline['seq'] = tmpline['indelfo']['reversed_seq']
-            if 'indels' not in extra_str:
-                extra_str += color('yellow', 'indels')
         event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
 
 # ----------------------------------------------------------------------------------------
@@ -803,6 +798,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     indelfo = None
     if line['indelfo']['reversed_seq'] != '':
         indelfo = line['indelfo']
+        extra_str += color('yellow', 'indels ')
 
 # ----------------------------------------------------------------------------------------
     indelfo = None
@@ -2073,3 +2069,7 @@ def find_genes_that_have_hmms(parameter_dir):
         genes.append(gene)
 
     return genes
+
+# ----------------------------------------------------------------------------------------
+def get_empty_indel():
+    return {'reversed_seq' : '', 'indels' : []}

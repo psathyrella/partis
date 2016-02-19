@@ -121,7 +121,7 @@ class Waterer(object):
         if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
         assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
-        if self.debug and n_remaining > 0:
+        if self.debug and not self.args.is_data and n_remaining > 0:
             print 'true annotations for remaining events:'
             for qry in self.remaining_queries:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
@@ -322,7 +322,7 @@ class Waterer(object):
 
         codestr = ''
         qpos = 0  # position within query sequence
-        indelfo = {'reversed_seq' : '', 'indels' : []}  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+        indelfo = utils.get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
         tmp_indices = []
         for code, length in cigars:
             codestr += length * code
@@ -605,6 +605,8 @@ class Waterer(object):
         self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
         self.info[query_name]['jf_insertion'] = query_seq[all_query_bounds[best['j']][1] : ]
 
+        self.info[query_name]['indelfo'] = self.info['indels'].get(query_name, utils.get_empty_indel())
+
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
             self.info[query_name][region + '_gl_seq'] = best[region + '_gl_seq']
@@ -619,9 +621,6 @@ class Waterer(object):
         if self.debug:
             if not self.args.is_data:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:')
-            indelfo = self.info['indels'].get(query_name, None)
-            if indelfo is not None:
-                raise Exceptions('needs updating')
             utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:')
 
         if self.pcounter is not None:
