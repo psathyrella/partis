@@ -743,39 +743,13 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
                 raise Exception('pre-existing info %s doesn\'t match new info %s for %s' % (pre_existing_info[ekey], line[ekey], line['unique_ids'] if multi_seq else line['unique_id']))
 
 # ----------------------------------------------------------------------------------------
-def deal_with_indels(tmpline):
-    # if indelfos[iseq]['indels'] is not None:
-    #     for ii in range(len(indelfos[iseq]['indels'])):
-    #         idl = indelfos[iseq]['indels'][ii]
-    #         if ii > 0:
-    #             this_extra_str += '\nxxx'
-    #         this_extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
-    # # if 'indels' not in extra_str:
-    # #     extra_str += color('yellow', 'indels')
-    if tmpline['indelfo']['reversed_seq'] != '':  # for now, just print the reversed seq, i.e. the seq with the indels undone
-        tmpline['seq'] = tmpline['indelfo']['reversed_seq']
-        if find_first_non_ambiguous_base(tmpline['seq']) > 0:
-            tmpline['seq'] = tmpline['seq'][find_first_non_ambiguous_base(tmpline['seq']) : ]
-        if find_last_non_ambiguous_base_plus_one(tmpline['seq']) < len(tmpline['seq']):
-            tmpline['seq'] = tmpline['seq'][ : find_last_non_ambiguous_base_plus_one(tmpline['seq'])]
-        # if len(tmpline['fv_insertion']) + tmpline['v_5p_del'] == find_first_non_ambiguous_base(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
-        #     tmpline['seq'] = tmpline['seq'][len(tmpline['fv_insertion']) + tmpline['v_5p_del'] : ]
-        # if len(tmpline['jf_insertion']) + tmpline['j_3p_del'] == len(tmpline['seq']) - find_last_non_ambiguous_base_plus_one(tmpline['seq']):  # if we hack in effective erosions (for the hmm) based on Ns at either end, we have to hack that info into the indel info as well and it doesn't happen until here
-        #     if tmpline['j_3p_del'] > 0:
-        #         tmpline['seq'] = tmpline['seq'][ : -tmpline['j_3p_del']]
-
-# ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', label=''):
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
-            if tmpline['indelfo']['reversed_seq'] != '':
-                deal_with_indels(tmpline)
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0))
     else:
         tmpline = copy.deepcopy(line)
-        if tmpline['indelfo']['reversed_seq'] != '':
-            tmpline['seq'] = tmpline['indelfo']['reversed_seq']
         event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
 
 # ----------------------------------------------------------------------------------------
@@ -784,31 +758,15 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
-    reverse_indels = True  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
-    if 'indelfo' in line:
-        # raise Exception('')
-        pass  # need to implement printing for multiple indels and multiple sequences
-        # if len(line['indels']) == 0:
-        #     indelfo = None
-        # else:
-        #     assert indelfo is None  # don't want indel info from two places
-        #     indelfo = line['indels']  #{'reversed_seq' : None, 'indels' : ast.literal_eval(line['indels'])}
-        #     reverse_indels = False  # ...whereas for simulation, we indels were not reverse, so we just want to color insertions
 
-    indelfo = None
-    if line['indelfo']['reversed_seq'] != '':
-        indelfo = line['indelfo']
-        extra_str += color('yellow', 'indels ')
-
-# ----------------------------------------------------------------------------------------
-    indelfo = None
-# ----------------------------------------------------------------------------------------
+    indelfo = None if line['indelfo']['reversed_seq'] == '' else line['indelfo']
+    reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if indelfo is not None:
-        if len(indelfo['indels']) == 0:  # TODO make this less hackey
-            indelfo = None
-        else:
-            assert False
-            # add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, XXX gl_seqs XXXX eroded_seqs, reverse_indels)
+        if indelfo['reversed_seq'] == line['seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
+            reverse_indels = True
+        if len(indelfo['indels']) > 1:
+            print 'WARNING multiple indels not really handled'
+        add_indels_to_germline_strings(germlines, line, indelfo)
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
@@ -955,6 +913,13 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
             out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
         out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
+
+    # if indelfo is not None:
+    #     for ii in range(len(indelfo['indels'])):
+    #         idl = indelfo['indels'][ii]
+    #         if ii > 0:
+    #             extra_str += '\nxxx'
+    #     extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
 
     # then query sequence
     v_5p_del_space_str = ' '*len(v_5p_del_str)
@@ -1762,10 +1727,10 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                         writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded_seqs, reverse_indels):
+def add_indels_to_germline_strings(germlines, line, indelfo):
     lastfo = indelfo['indels'][-1]
     if lastfo['type'] == 'insertion':
-        chunks = [line['fv_insertion'], eroded_seqs['v'], line['vd_insertion'], eroded_seqs['d'], line['dj_insertion'], eroded_seqs['j'], line['jf_insertion']]
+        chunks = [line['fv_insertion'], line['v_gl_seq'], line['vd_insertion'], line['d_gl_seq'], line['dj_insertion'], line['j_gl_seq'], line['jf_insertion']]
         chunknames =  ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
         weirdolist = []
         for ichunk in range(len(chunks)):
@@ -1775,10 +1740,10 @@ def add_indels_to_germline_strings(line, indelfo, original_seqs, lengths, eroded
         # offset = 0
         # if reverse_indels:
         offset = weirdolist.index(thischunk)  # index of first occurence
-        if thischunk in eroded_seqs:
+        if thischunk in regions:  # eroded_seqs
             # original_seqs[thischunk] = original_seqs[thischunk][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + eroded_seqs[thischunk][lastfo['pos'] - offset : ]
-            lengths[thischunk] += lastfo['len']
-            eroded_seqs[thischunk] = eroded_seqs[thischunk][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + eroded_seqs[thischunk][lastfo['pos'] - offset : ]
+            line['lengths'][thischunk] += lastfo['len']
+            line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
         else:
             print '     unhandled indel in NTIs'
             pass

@@ -1422,7 +1422,7 @@ class PartitionDriver(object):
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for line in annotations.values():
-                outline = {k : copy.deepcopy(line[k]) for k in outheader}
+                outline = {k : copy.deepcopy(line[k]) for k in outheader}  # in case we modify it
                 for uid in outline['unique_ids']:
                     missing_input_keys.remove(uid)
 
