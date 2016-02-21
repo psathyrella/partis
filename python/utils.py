@@ -130,6 +130,8 @@ presto_headers = {
 # true_partition = [['b'], ['a', 'c'], ['d']]
 
 # ----------------------------------------------------------------------------------------
+forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
+
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
     'floats' : ('logprob'),

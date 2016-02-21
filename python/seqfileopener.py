@@ -65,8 +65,8 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             seq_column = 'nucleotide'
         utils.process_input_line(line)
         unique_id = line[name_column]
-        if ':' in unique_id:
-            raise Exception('found a \':\' in sequence id \'%s\' -- you\'ll have to replace it with something else, as we use \':\'s internally to concatenate sequence ids' % unique_id)
+        if any(fc in unique_id for fc in utils.forbidden_characters):
+            raise Exception('found a forbidden character (one of %s) in sequence id \'%s\' -- sorry, you\'ll have to replace it with something else' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id))
 
         # if command line specified query or reco ids, skip other ones
         if queries is not None and unique_id not in queries:
