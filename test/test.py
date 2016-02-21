@@ -44,6 +44,7 @@ class Tester(object):
         self.eps_vals['sensitivity']    = 0.08
 
         n_partition_queries = '250'
+        n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
@@ -54,6 +55,7 @@ class Tester(object):
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
+            self.tests['annotate-' + input_stype + '-data']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--is-data', '--n-max-queries', n_data_inference_queries]}
             self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
             # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
             self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
@@ -76,9 +78,12 @@ class Tester(object):
             self.run(args)
         for version_stype in self.stypes:
             self.read_performance_info(version_stype)
+        print 'reference input'
         self.compare_performance(input_stype='ref')
         self.compare_partition_cachefiles(input_stype='ref')
+        self.compare_data_annotation(input_stype='ref')
         self.compare_production_results()
+        print 'new input'
         self.compare_performance(input_stype='new')
         self.compare_partition_cachefiles(input_stype='new')
 
@@ -108,6 +113,7 @@ class Tester(object):
                     cmd_str += ' --datafname ' + self.datafname
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
+            continue
             logfile = open(self.logfname, 'a')
             logfile.write(logstr + '\n')
             logfile.close()
@@ -212,15 +218,22 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
-        ptest = 'partition-' + input_stype + '-simu'
-        if args.quick and ptest not in self.quick_tests:
+        def do_this_test(pt):
+            if 'partition' not in pt:
+                return False
+            if input_stype not in pt:
+                return False
+            if args.quick and pt not in self.quick_tests:
+                return False
+            return True
+
+        ptest_list = [k for k in self.tests.keys() if do_this_test(k)]
+        if len(ptest_list) == 0:
             return
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
             print '  precision      sensitivity        test                    description'
-        for ptest in [k for k in self.tests.keys() if 'partition' in k and input_stype in k]:
-            if args.quick and ptest not in self.quick_tests:
-                continue
+        for ptest in ptest_list:
             cp = ClusterPath(-1)
             cp.readfile(self.dirs[version_stype] + '/' + ptest + '.csv')
             if 'data' in ptest:
@@ -236,8 +249,27 @@ class Tester(object):
                     print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
 
     # ----------------------------------------------------------------------------------------
+    def compare_data_annotation(self, input_stype):
+        ptest = 'annotate-' + input_stype + '-data'
+        if args.quick and ptest not in self.quick_tests:
+            return
+        print '  %s data annotation' % input_stype
+        infnames = [self.dirs[version_stype] + '/' + ptest + '.csv' for version_stype in self.stypes]
+        cmd = 'diff -u ' + ' '.join(infnames) + ' | grep "^+[^+]" | wc -l'
+        n_diff_lines = int(check_output(cmd, shell=True))
+        if n_diff_lines == 0:
+            print '      ok'
+        else:
+            print utils.color('red', '      %d lines differ' % n_diff_lines),
+            print '   (%s)' % cmd
+
+    # ----------------------------------------------------------------------------------------
     def compare_performance(self, input_stype):
-        print 'performance with %s simulation and parameters' % input_stype
+        performance_metric_list = [n for n in self.perf_info['ref'] if input_stype in n]
+        if len(performance_metric_list) == 0:
+            return
+
+        print '  performance with %s simulation and parameters' % input_stype
 
         # make sure there's a new performance value for each reference one, and vice versa
         refkeys = set(self.perf_info['ref'].keys())
@@ -248,13 +280,11 @@ class Tester(object):
             print '  %d in common' % len(refkeys & newkeys)
             raise Exception('')
 
-        for name in self.perf_info['ref']:  # don't use the sets above so we get the nice ordering
-            if input_stype not in name:
-                continue
+        for name in performance_metric_list:  # don't use the sets above so we get the nice ordering
             ref_val = self.perf_info['ref'][name]
             new_val = self.perf_info['new'][name]
             val_type = name.split('-')[-1]
-            print '  %-28s %-15s       %-5.3f' % (name.replace('-' + val_type, ''), val_type, ref_val),
+            print '    %-28s %-15s       %-5.3f' % (name.replace('-' + val_type, ''), val_type, ref_val),
             fractional_change = (new_val - ref_val) / ref_val  # NOTE not the abs value yet
             if abs(fractional_change) > self.eps_vals[val_type]:
                 print '--> %-5.3f %s' % (new_val, utils.color('red', '(%+.3f)' % fractional_change)),
@@ -270,7 +300,7 @@ class Tester(object):
             return
         print 'diffing production results'
         for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu/sw-true', 'test/parameters/simu/hmm-true', 'test/parameters/simu/sw', 'test/parameters/simu/hmm']:
-            print '    %s' % fname
+            print '    %-30s' % fname,
             cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
@@ -279,6 +309,7 @@ class Tester(object):
             else:
                 outlines = [ l for l in out.split('\n') if 'differ' in l ]
                 n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
+                print ''
                 print utils.color('red', '      %d / %d files differ' % (len(outlines), n_total_files)),
                 print '  (%s)' % cmd
                 if err != '':
@@ -327,7 +358,7 @@ class Tester(object):
         if args.quick and ptest not in self.quick_tests:
             return
 
-        print '%s input partition cache file' % input_stype
+        print '  %s input partition cache file' % input_stype
 
         def readcache(fname):
             cache = {}
@@ -345,12 +376,12 @@ class Tester(object):
         newkeys = set(newcache.keys())
         if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
             if len(refkeys - newkeys) > 0:
-                print utils.color('red', '  %d only in ref version' % len(refkeys - newkeys))
+                print utils.color('red', '    %d only in ref version' % len(refkeys - newkeys))
             if len(newkeys - refkeys) > 0:
-                print utils.color('red', '  %d only in new version' % len(newkeys - refkeys))
-            print '  %d in common' % len(refkeys & newkeys)
+                print utils.color('red', '    %d only in new version' % len(newkeys - refkeys))
+            print '    %d in common' % len(refkeys & newkeys)
         else:
-            print '    %d identical keys in new and ref cache' % len(refkeys)
+            print '      %d identical keys in new and ref cache' % len(refkeys)
 
         hammings, delta_logprobs = [], []
         n_hammings, n_delta_logprobs = 0, 0
@@ -387,11 +418,11 @@ class Tester(object):
         if n_big_delta_logprobs > 0:
             diff_logprob_str = utils.color('red', diff_logprob_str)
             mean_logprob_str = utils.color('red', mean_logprob_str)
-        print '                fraction different     mean difference among differents'
-        print '    naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
-        print '    log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
+        print '                  fraction different     mean difference among differents'
+        print '      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
+        print '      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
         if n_different_length > 0:
-            print utils.color('red', '      %d different length' % n_different_length)
+            print utils.color('red', '        %d different length' % n_different_length)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
