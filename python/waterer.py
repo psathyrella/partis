@@ -639,9 +639,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
-        if self.debug:
-            print query_name
-
         best, match_names = {}, {}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
@@ -665,6 +662,7 @@ class Waterer(object):
                 match_names[region].append(gene)
 
                 if self.debug >= 2:
+                    print query_name
                     self.print_match(region, gene, query_seq, score, glbounds, qrbounds, -1, warnings, skipping=False)
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
@@ -717,9 +715,12 @@ class Waterer(object):
         if self.nth_try < 2:
             if len(vd_insertion) > self.max_insertion_length or len(dj_insertion) > self.max_insertion_length:
                 if self.debug:
-                    print '      suspiciously long insertion, rerunning'
+                    print '      suspiciously long insertion in %s, rerunning' % query_name
                 queries_to_rerun['weird-annot.'].add(query_name)
                 return
+
+        if self.debug:
+            print query_name
 
         # set and check conserved codon positions
         tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
